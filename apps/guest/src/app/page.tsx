@@ -22,7 +22,7 @@ const guestCards = [
   {
     title: "Access-code entry",
     badge: "Gated",
-    description: "Guests cannot open the event workspace until they provide the PMCM-issued event code.",
+    description: "Guests cannot open the event dashboard until they provide the PMCM-issued event code.",
     icon: <TicketCheck className="size-5" />,
   },
   {
@@ -56,9 +56,9 @@ function GuestPreview() {
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-(--prism-amber)">Ready at registration</p>
           <div className="mt-5 grid gap-2">
             {[
-              ["Consent", "Required"],
+              ["Access", "Code required"],
               ["Check-in", "Name or walk-in"],
-              ["Feedback", "Moderated"],
+              ["Feedback", "PMCM moderated"],
             ].map(([label, value]) => (
               <div key={label} className="flex items-center justify-between rounded-md bg-white/8 px-3 py-2 text-sm">
                 <span>{label}</span>
@@ -87,7 +87,7 @@ export default function GuestHome() {
       badgeText="Event-code access"
       productDetail="Guest Portal"
       title="Guest actions stay fast, consented, and role safe."
-      description="P.R.I.S.M guest pages support event-code entry, check-in, walk-in verification, consent, and moderated feedback without creating public dashboard access."
+      description="P.R.I.S.M guest pages support event-code entry, check-in, walk-in verification, consent, and moderated feedback without exposing a public dashboard shortcut."
       aside={<GuestPreview />}
     >
       <div className="flex flex-col gap-6">
@@ -113,9 +113,9 @@ export default function GuestHome() {
           <div className="flex items-start gap-3">
             <ClipboardCheck className="mt-0.5 size-5 text-primary" />
             <div>
-              <p className="font-black text-foreground">Event-day flow stays browser based.</p>
+              <p className="font-black text-foreground">Event-day flow stays code gated.</p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                QR scanning and media uploads remain deferred; this local pass keeps guest access simple and defensible.
+                Guest access stays simple, browser based, and moderated through the PMCM-issued event code.
               </p>
             </div>
           </div>

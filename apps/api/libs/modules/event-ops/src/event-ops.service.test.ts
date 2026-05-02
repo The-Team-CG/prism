@@ -1207,6 +1207,25 @@ describe('EventOpsService', () => {
       reviewedBy: 'Ms. Mys',
       createdAt: new Date('2026-05-01T00:00:00.000Z'),
     });
+    fake.state.supplierQuotes.push({
+      id: 'quote_private_range',
+      eventId: 'evt_demo',
+      requestId: 'qr_private_range',
+      supplierId: 'sup_sonicline',
+      categoryId: 'supcat_technicals',
+      supplierName: 'SonicLine Technicals',
+      category: 'Technicals',
+      amount: 250000,
+      inclusions: ['Audio', 'LED wall'],
+      paymentTerms: '50/50',
+      notes: 'Supplier-visible notes only.',
+      acceptableMin: 120000,
+      acceptableMax: 180000,
+      outsideAcceptableRange: true,
+      status: 'received',
+      selectedAt: null,
+      createdAt: new Date('2026-05-01T00:00:00.000Z'),
+    });
     const service = new EventOpsService(fake.prisma as any);
 
     const workspace = await (service as any).listSupplierWorkspace({
@@ -1218,6 +1237,9 @@ describe('EventOpsService', () => {
     expect(workspace.supplier.id).toBe('sup_sonicline');
     expect(workspace.supplier.reviews).toBeUndefined();
     expect(JSON.stringify(workspace)).not.toContain('Private PMCM note about late setup.');
+    expect(JSON.stringify(workspace)).not.toContain('acceptableMin');
+    expect(JSON.stringify(workspace)).not.toContain('acceptableMax');
+    expect(JSON.stringify(workspace)).not.toContain('outsideAcceptableRange');
   });
 
   it('stores submitted supplier quotes and flags prices outside the category acceptable range', async () => {
@@ -1257,8 +1279,9 @@ describe('EventOpsService', () => {
       notes: 'Extended LED wall package',
     });
 
-    expect(quote.outsideAcceptableRange).toBe(true);
+    expect(quote.outsideAcceptableRange).toBeUndefined();
     expect(quote.inclusions).toEqual(['Audio system', 'LED wall']);
+    expect(fake.state.supplierQuotes[0].outsideAcceptableRange).toBe(true);
     expect(fake.state.quoteRequests[0].status).toBe('submitted');
   });
 

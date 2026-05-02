@@ -44,7 +44,6 @@ import {
   PrismWorkflowTabs,
   RolePageHeader,
 } from "@prism/ui";
-import { ClientDefenseWorkspace } from "@prism/ui/client-blocks";
 import { PRESETS, type Preset } from "../editor/presets";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
 import {
@@ -52,6 +51,7 @@ import {
   ClientBillingTab,
   ClientBriefingTab,
   ClientDocumentsTab,
+  ClientOverviewTab,
   DashboardSkeleton,
 } from "./dashboard-tabs";
 
@@ -61,7 +61,7 @@ const EditorShell = dynamic(
     ssr: false,
     loading: () => (
       <div className="grid size-full place-items-center bg-background text-sm text-muted-foreground">
-        Loading floorplan editor…
+        Loading layout view…
       </div>
     ),
   },
@@ -92,12 +92,6 @@ const initialPreference: PreferenceForm = {
   constraints: "Keep emergency exits visible\nLeave sponsor booth space near ingress",
   notes: "Client prefers a clean technology summit layout with clear photo wall access.",
 };
-
-const money = new Intl.NumberFormat("en-PH", {
-  style: "currency",
-  currency: "PHP",
-  maximumFractionDigits: 0,
-});
 
 const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: LucideIcon }> = [
   { id: "overview", label: "Overview", icon: Home },
@@ -133,7 +127,7 @@ function LayoutPreview({ project }: { project: Project | null }) {
   if (!project) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card px-8 py-10 text-center text-sm text-muted-foreground">
-        Official layout preview will appear here after PMCM submits.
+        Official layout preview will appear here after your event team publishes it.
       </div>
     );
   }
@@ -142,7 +136,7 @@ function LayoutPreview({ project }: { project: Project | null }) {
       <div className="relative aspect-16/10 min-h-60 bg-[linear-gradient(#EAD5CE_1px,transparent_1px),linear-gradient(90deg,#EAD5CE_1px,transparent_1px)] bg-size-[28px_28px]">
         {project.objects.length === 0 ? (
           <div className="absolute inset-0 grid place-items-center px-8 text-center text-sm text-muted-foreground">
-            PMCM has submitted this layout record; objects will appear after the next save.
+            This official layout record is published; room details will appear after the next update.
           </div>
         ) : (
           project.objects.map((object) => (
@@ -162,6 +156,18 @@ function LayoutPreview({ project }: { project: Project | null }) {
       </div>
     </div>
   );
+}
+
+function formatStatusLabel(status?: string) {
+  return status ? status.replaceAll("_", " ") : "Pending";
+}
+
+function portalBadgeStatus(status?: MvpEvent["clientPortalStatus"]) {
+  return status === "unlocked" ? "approved" : "locked";
+}
+
+function portalBadgeLabel(status?: MvpEvent["clientPortalStatus"]) {
+  return status === "unlocked" ? "Conforme signed" : "Portal locked";
 }
 
 function readSession(): ClientSession | null {
@@ -262,53 +268,6 @@ export function Dashboard() {
   const documents = state?.documents.filter((d) => d.eventId === selectedEvent?.id) ?? [];
   const audit = state?.auditLogs.filter((a) => a.eventId === selectedEvent?.id).slice(0, 10) ?? [];
   const firstName = session?.name.split(" ")[0] || "there";
-  const clientConforme =
-    selectedEvent?.clientPortalStatus === "unlocked"
-      ? {
-          status: "signed" as const,
-          title: "Signed conforme is on file",
-          description:
-            "Your client portal is unlocked. PMCM can now coordinate briefing, billing, supplier work, and official floorplan review from this confirmed event record.",
-          primaryAction: (
-            <Button type="button" variant="outline" size="sm" className="rounded-lg font-bold" onClick={() => setTab("documents")}>
-              View documents
-            </Button>
-          ),
-        }
-      : {
-          status: "locked" as const,
-          title: "Portal unlock is still pending",
-          description:
-            "PMCM reviews the inquiry first, then opens the client portal after the conforme is signed and accepted.",
-        };
-  const officialFloorplanStatus = !officialDraft
-    ? "not-started"
-    : officialDraft.status === "approved"
-      ? "approved"
-      : officialDraft.status === "in_review"
-        ? "submitted"
-        : "draft";
-  const billingMilestones = payments.map((payment) => ({
-    id: payment.id,
-    label: payment.label,
-    amount: money.format(payment.amount),
-    due: payment.dueDate,
-    status: payment.status,
-  }));
-  const clientDocuments = documents.map((document) => ({
-    id: document.id,
-    title: document.fileName,
-    description: document.type.replaceAll("_", " "),
-    status: document.status,
-    meta: `Uploaded ${document.uploadedAt}`,
-  }));
-  const clientActivityItems = audit.map((item) => ({
-    id: item.id,
-    title: item.action,
-    description: item.actor,
-    status: "completed",
-    meta: item.createdAt,
-  }));
 
   useEffect(() => {
     if (!officialDraft || !selectedEvent) {
@@ -367,7 +326,7 @@ export function Dashboard() {
       const draft = await mvpApi.createFloorPlanPreference(
         selectedEvent.id,
         {
-          name: `${preset.name} client draft`,
+          name: `${preset.name} preference draft`,
           seatingStyle: form.seatingStyle,
           stagePreference: form.stagePreference,
           flowNotes: form.flowNotes,
@@ -380,7 +339,7 @@ export function Dashboard() {
       await refresh();
       await openFloorplanEditor(draft, false, preset);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to open floorplan editor");
+      setError(err instanceof Error ? err.message : "Unable to open layout view");
     } finally {
       setBusy(null);
     }
@@ -407,7 +366,7 @@ export function Dashboard() {
         session ?? undefined,
       );
       await refresh();
-      setNotice("Layout preference submitted to PMCM for official editing.");
+      setNotice("Layout preference sent. Your event team will prepare the official floorplan for review.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit layout preference");
     } finally {
@@ -435,7 +394,7 @@ export function Dashboard() {
           <h1 className="mt-5 text-xl font-black text-foreground">Wrong portal for this account.</h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {session.role === "pmcm-admin" || session.role === "coordinator"
-              ? "PMCM and coordinator accounts belong in the event command portal."
+              ? "Event team and coordinator accounts belong in the event operations portal."
               : "Supplier accounts belong in the supplier portal."}
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
@@ -505,7 +464,7 @@ export function Dashboard() {
           onSubmit={async (project) => {
             await mvpApi.savePlan(project, session ?? undefined);
             await refresh();
-            setNotice("Floorplan draft saved for PMCM review inside this event.");
+            setNotice("Preference draft saved. Your event team can use it when preparing the official layout.");
             setScreen({ name: "dashboard" });
             setTab("floorplan");
           }}
@@ -526,17 +485,17 @@ export function Dashboard() {
         {
           id: "briefing",
           label: "Review briefing",
-          description: briefing ? "Venue, scope, guest count, and PMCM notes are ready." : "Briefing will appear after PMCM publishes it.",
+          description: briefing ? "Venue, scope, guest count, and service notes are ready." : "Briefing appears after your event team publishes it.",
           icon: FileCheck2,
           status: briefing ? "ready" : "pending",
           onSelect: () => setTab("briefing"),
         },
         {
           id: "floorplan",
-          label: officialDraft ? "Open official floorplan" : "Submit layout preference",
+          label: officialDraft ? "View official layout" : "Send layout preference",
           description: officialDraft
-            ? "Read-only PMCM official copy is available."
-            : "Send preferred layout notes for PMCM editing.",
+            ? "Read-only official copy is available."
+            : "Share seating, stage, and flow notes.",
           icon: MapPinned,
           status: officialDraft?.status ?? "pending",
           onSelect: () => setTab("floorplan"),
@@ -544,7 +503,7 @@ export function Dashboard() {
         {
           id: "billing",
           label: "Check billing",
-          description: billing ? "Statement and milestones are visible." : "Milestones will appear after PMCM posts billing.",
+          description: billing ? "Statement and milestones are visible." : "Milestones appear after billing is posted.",
           icon: ReceiptText,
           status: billing?.status ?? "pending",
           onSelect: () => setTab("billing"),
@@ -552,7 +511,7 @@ export function Dashboard() {
         {
           id: "documents",
           label: "Open documents",
-          description: `${documents.length} document${documents.length === 1 ? "" : "s"} in this event workspace.`,
+          description: `${documents.length} document${documents.length === 1 ? "" : "s"} in this event.`,
           icon: FileText,
           status: documents.length ? "ready" : "pending",
           onSelect: () => setTab("documents"),
@@ -563,7 +522,7 @@ export function Dashboard() {
   const shellMobileActions = [
     { id: "overview", label: "Overview", icon: Home, active: tab === "overview", onSelect: () => setTab("overview") },
     { id: "floorplan", label: "Plan", icon: MapPinned, active: tab === "floorplan", disabled: !selectedEvent, onSelect: () => setTab("floorplan") },
-    { id: "billing", label: "Billing", icon: WalletCards, active: tab === "billing", disabled: !selectedEvent, onSelect: () => setTab("billing") },
+    { id: "billing", label: "Pay", icon: WalletCards, active: tab === "billing", disabled: !selectedEvent, onSelect: () => setTab("billing") },
   ];
 
   const shellRightRail = (
@@ -571,14 +530,17 @@ export function Dashboard() {
       <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Event spaces</p>
-            <p className="mt-1 text-xs text-muted-foreground">{events.length} conforme-approved workspace(s)</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Switch event</p>
+            <p className="mt-1 text-xs text-muted-foreground">{events.length} confirmed event{events.length === 1 ? "" : "s"}</p>
           </div>
-          <StatusBadge status={selectedEvent?.clientPortalStatus ?? "locked"} />
+          <StatusBadge
+            status={portalBadgeStatus(selectedEvent?.clientPortalStatus)}
+            label={portalBadgeLabel(selectedEvent?.clientPortalStatus)}
+          />
         </div>
         <PrismCompactRecordList
           className="mt-3"
-          emptyText="No conforme-approved events are open yet."
+          emptyText="No signed-conforme events are open yet."
           items={events.map((ev) => {
             const draftsForEvent = state.floorPlanDrafts.filter((draft) => draft.eventId === ev.id);
             const activeForEvent = draftsForEvent.find((draft) => draft.isActive) ?? draftsForEvent[0];
@@ -600,9 +562,9 @@ export function Dashboard() {
       </section>
 
       <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Client boundary</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Layout boundary</p>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Official floorplans stay read-only here. PMCM owns editing, submission, and approval from the event command app.
+          Official floorplans are view-only in this portal. Use preference drafts to share layout ideas before the official version is published for review.
         </p>
       </section>
     </div>
@@ -612,12 +574,12 @@ export function Dashboard() {
     <PrismAppShell
       productLabel="P.R.I.S.M"
       roleLabel="Client Portal"
-      eyebrow="Confirmed client workspace"
+      eyebrow="Confirmed client event"
       title={selectedEvent?.eventName ?? "Client portal"}
       description={
         selectedEvent
-          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Briefing, billing, documents, and official layout review stay in this signed-in space.`
-          : "The portal opens after PMCM accepts an inquiry and records the signed conforme."
+          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Briefing, billing, documents, and official layout review stay in this signed-in portal.`
+          : "The portal opens after your inquiry is accepted and the signed conforme is recorded."
       }
       activeItemId={tab}
       navItems={shellNavItems}
@@ -656,31 +618,34 @@ export function Dashboard() {
                         Hello, {firstName}.
                       </h2>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        Quick access to your event workspace — briefing, billing, documents, and layout review.
+                        Quick access to briefing, billing, documents, preference drafts, and official layout review.
                       </p>
                     </div>
-                    <StatusBadge status={selectedEvent.clientPortalStatus} />
+                    <StatusBadge
+                      status={portalBadgeStatus(selectedEvent.clientPortalStatus)}
+                      label={portalBadgeLabel(selectedEvent.clientPortalStatus)}
+                    />
                   </div>
 
                   {/* Quick action cards */}
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
                     {[
                       { label: "Briefing", detail: "Review venue and service notes", icon: FileCheck2, nextTab: "briefing" as DetailTab, color: "bg-secondary text-foreground" },
-                      { label: "Floorplan", detail: "Submit preferences and review layout", icon: MapPinned, nextTab: "floorplan" as DetailTab, color: "bg-(--prism-amber-soft) text-(--prism-amber)" },
+                      { label: "Layout", detail: "Preferences and official review", icon: MapPinned, nextTab: "floorplan" as DetailTab, color: "bg-(--prism-amber-soft) text-(--prism-amber)" },
                       { label: "Documents", detail: "Conforme files and approvals", icon: FileText, nextTab: "documents" as DetailTab, color: "bg-secondary text-primary" },
                       { label: "Billing", detail: "Milestones and statement status", icon: ReceiptText, nextTab: "billing" as DetailTab, color: "bg-(--prism-signal-soft) text-(--prism-danger)" },
-                      { label: "Activity", detail: "Event changes and PMCM actions", icon: Activity, nextTab: "activity" as DetailTab, color: "bg-muted text-muted-foreground" },
+                      { label: "Activity", detail: "Client-visible event updates", icon: Activity, nextTab: "activity" as DetailTab, color: "bg-muted text-muted-foreground" },
                     ].map((action) => (
                       <button
                         key={action.label}
                         onClick={() => setTab(action.nextTab)}
-                        className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+                        className="group min-h-[7.5rem] rounded-lg border border-border bg-card p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
                       >
-                        <span className={`grid size-9 place-items-center rounded-lg ${action.color}`}>
+                        <span className={`grid size-8 place-items-center rounded-md ${action.color}`}>
                           <action.icon className="size-4" />
                         </span>
-                        <p className="mt-3.5 text-sm font-black text-foreground">{action.label}</p>
-                        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{action.detail}</p>
+                        <p className="mt-3 text-sm font-black text-foreground">{action.label}</p>
+                        <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{action.detail}</p>
                       </button>
                     ))}
                   </div>
@@ -689,43 +654,53 @@ export function Dashboard() {
                 <RolePageHeader
                   eyebrow="Confirmed client portal"
                   title="Your event is open because the signed conforme is on file."
-                  description="Use this space for briefing details, document submissions, billing visibility, and read-only review of PMCM's official floorplan. Layout edits stay with PMCM after review starts."
-                  meta={[<StatusBadge key="portal-status" status={selectedEvent.clientPortalStatus} />]}
+                  description="Use this portal for briefing details, document submissions, billing milestones, preference drafts, and read-only review of the official floorplan."
+                  meta={[
+                    <StatusBadge
+                      key="portal-status"
+                      status={portalBadgeStatus(selectedEvent.clientPortalStatus)}
+                      label={portalBadgeLabel(selectedEvent.clientPortalStatus)}
+                    />,
+                  ]}
                 />
 
                 {/* Event cards */}
                 <section>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-black text-foreground">Your events</h3>
+                  <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-black text-foreground">Switch event</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Only accepted inquiries with signed conformes appear here.
+                      </p>
+                    </div>
                     <Badge variant="outline" className="rounded-full border-(--prism-amber)/35 bg-accent text-(--prism-amber) text-xs">
                       {events.length} active
                     </Badge>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                     {events.slice(0, 4).map((ev) => {
                       const draftsForEvent = state.floorPlanDrafts.filter((d) => d.eventId === ev.id);
                       const activeForEvent = draftsForEvent.find((d) => d.isActive) ?? draftsForEvent[0];
+                      const isActive = ev.id === selectedEvent.id;
                       return (
                         <button
                           key={ev.id}
                           onClick={() => { setSelectedEventId(ev.id); setTab("overview"); }}
-                          className={`overflow-hidden rounded-xl border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                            ev.id === selectedEvent.id ? "border-primary/40" : "border-border hover:border-primary/25"
+                          aria-pressed={isActive}
+                          className={`flex min-h-24 items-start gap-3 rounded-lg border bg-card p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                            isActive ? "border-primary/40 ring-2 ring-primary/10" : "border-border hover:border-primary/25"
                           }`}
                         >
-                          <div className="relative aspect-16/7 bg-muted">
-                            <div className="absolute inset-0 bg-[linear-gradient(#EAD5CE_1px,transparent_1px),linear-gradient(90deg,#EAD5CE_1px,transparent_1px)] bg-size-[22px_22px]" />
-                            <div className="absolute left-[12%] top-[20%] h-[46%] w-[30%] rounded-sm border border-primary/20 bg-white/70" />
-                            <div className="absolute left-[52%] top-[18%] h-[20%] w-[34%] rounded-sm border border-primary/20 bg-white/80" />
-                          </div>
-                          <div className="p-3.5">
-                            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--prism-amber)">{ev.clientName}</p>
-                            <p className="mt-1 truncate text-sm font-black text-foreground">{ev.eventName}</p>
-                            <div className="mt-3 flex items-center justify-between gap-2">
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <CalendarDays className="size-3" />
-                                {ev.eventDate}
-                              </span>
+                          <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-md bg-secondary text-primary">
+                            <CalendarDays className="size-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--prism-amber)">
+                              {isActive ? "Selected event" : "Confirmed event"}
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-sm font-black text-foreground">{ev.eventName}</p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{ev.eventDate}</span>
                               <StatusBadge status={activeForEvent?.status ?? ev.status} />
                             </div>
                           </div>
@@ -740,31 +715,31 @@ export function Dashboard() {
                   items={[
                     {
                       id: "portal",
-                      label: "Portal status",
-                      value: selectedEvent.clientPortalStatus.replace("_", " "),
+                      label: "Conforme gate",
+                      value: portalBadgeLabel(selectedEvent.clientPortalStatus),
                       icon: BadgeCheck,
-                      status: selectedEvent.clientPortalStatus,
+                      status: portalBadgeStatus(selectedEvent.clientPortalStatus),
                     },
                     {
                       id: "floorplan",
-                      label: "Floorplan",
-                      value: officialDraft ? officialDraft.status.replace("_", " ") : preferenceDrafts.length ? "Preference sent" : "Pending",
+                      label: "Official layout",
+                      value: officialDraft ? formatStatusLabel(officialDraft.status) : preferenceDrafts.length ? "Preference sent" : "Pending",
                       icon: MapPinned,
                       status: officialDraft?.status ?? (preferenceDrafts.length ? "submitted" : "pending"),
                     },
                     {
                       id: "billing",
-                      label: "Billing",
-                      value: billing ? billing.status.replace("_", " ") : "Pending",
+                      label: "Payment milestones",
+                      value: billing ? formatStatusLabel(billing.status) : "Pending",
                       icon: ReceiptText,
                       status: billing?.status ?? "pending",
                     },
                     {
                       id: "activity",
-                      label: "Activity items",
+                      label: "Event updates",
                       value: audit.length,
                       icon: Activity,
-                      detail: "Client-visible PMCM actions for this event.",
+                      detail: "Client-visible updates for this event.",
                     },
                   ]}
                 />
@@ -773,27 +748,19 @@ export function Dashboard() {
 
                 {/* Tab content */}
                 {tab === "overview" && (
-                  <ClientDefenseWorkspace
-                    conforme={clientConforme}
-                    briefing={{
-                      eventName: selectedEvent.eventName,
-                      eventDate: selectedEvent.eventDate,
-                      venue: briefing?.venue ?? "Venue to be confirmed",
-                      guestCount: briefing?.guestCount ? `${briefing.guestCount} guests` : "Guest count pending",
-                      packageLabel: briefing?.budgetRange ?? "PMCM planning package",
-                      notes: briefing?.notes ?? "PMCM will keep this workspace updated as planning decisions are approved.",
-                    }}
-                    floorplan={{
-                      status: officialFloorplanStatus,
-                      updatedAt: officialDraft?.updatedAt,
-                      summary: officialDraft
-                        ? `${officialDraft.name} is available as the PMCM official client copy. Client access is read-only.`
-                        : "No official client-view floorplan has been published yet.",
-                      onOpen: officialDraft ? () => openFloorplanEditor(officialDraft, true) : undefined,
-                    }}
-                    billing={billingMilestones}
-                    documents={clientDocuments}
-                    activity={clientActivityItems}
+                  <ClientOverviewTab
+                    selectedEvent={selectedEvent}
+                    briefing={briefing}
+                    payments={payments}
+                    billing={billing}
+                    documents={documents}
+                    audit={audit}
+                    officialDraft={officialDraft}
+                    preferenceDraftCount={preferenceDrafts.length}
+                    onOpenOfficialFloorplan={
+                      officialDraft ? () => openFloorplanEditor(officialDraft, true) : undefined
+                    }
+                    setTab={setTab}
                   />
                 )}
 
@@ -805,16 +772,16 @@ export function Dashboard() {
                         <span className="grid size-7 place-items-center rounded-md bg-secondary text-(--prism-amber)">
                           <MapPinned className="size-3.5" />
                         </span>
-                        <h3 className="text-sm font-bold text-foreground">Draft event floorplan</h3>
+                        <h3 className="text-sm font-bold text-foreground">Layout preference draft</h3>
                       </header>
                       <div className="p-5 space-y-5">
                         {/* Canvas presets */}
                         <div className="rounded-xl border border-border bg-secondary/50 p-4">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-bold text-foreground">Canvas editor</p>
+                              <p className="text-sm font-bold text-foreground">Preference canvas</p>
                               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                                Pick a preset to open the canvas, arrange the room, then submit for PMCM to use.
+                                Sketch seating, stage, and guest-flow ideas here. The official floorplan remains a separate read-only review.
                               </p>
                             </div>
                             {preferenceDrafts[0] && (
@@ -823,7 +790,7 @@ export function Dashboard() {
                                 onClick={() => openFloorplanEditor(preferenceDrafts[0])}
                                 className="rounded-lg font-bold"
                               >
-                                Open latest draft
+                                Open latest preference
                               </Button>
                             )}
                           </div>
@@ -844,7 +811,7 @@ export function Dashboard() {
 
                         {/* Preference form */}
                         <form onSubmit={submitPreference} className="space-y-4">
-                          <FieldGroup label="Draft title">
+                          <FieldGroup label="Preference title">
                             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                           </FieldGroup>
                           <div className="grid gap-4 sm:grid-cols-2">
@@ -889,23 +856,23 @@ export function Dashboard() {
                               className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                             />
                           </FieldGroup>
-                          <Button disabled={busy === "layout-preference"} className="gap-2 rounded-lg font-bold" type="submit">
-                            <Send className="size-4" /> Submit floorplan draft
+                          <Button disabled={busy === "layout-preference"} className="min-h-11 gap-2 rounded-lg font-bold" type="submit">
+                            <Send className="size-4" /> Submit preference draft
                           </Button>
                         </form>
 
                         {/* Existing drafts */}
                         {preferenceDrafts.length > 0 && (
                           <div className="space-y-2 border-t border-border pt-4">
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Your drafts</p>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Your preference drafts</p>
                             {preferenceDrafts.slice(0, 4).map((draft) => (
                               <div key={draft.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background p-3 text-sm">
                                 <div className="min-w-0">
                                   <p className="truncate font-semibold text-foreground">{draft.name}</p>
                                   <StatusBadge status={draft.status} className="mt-1.5" />
                                 </div>
-                                <Button variant="outline" size="sm" className="shrink-0 rounded-lg" onClick={() => openFloorplanEditor(draft)}>
-                                  Open editor
+                                <Button variant="outline" size="sm" className="min-h-10 shrink-0 rounded-lg" onClick={() => openFloorplanEditor(draft)}>
+                                  Edit preference
                                 </Button>
                               </div>
                             ))}
@@ -928,7 +895,7 @@ export function Dashboard() {
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="font-bold text-foreground">{officialDraft.name}</p>
-                                <p className="mt-0.5 text-xs text-muted-foreground">Read-only PMCM version for approval or revision comments.</p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">Read-only official version for approval or revision comments.</p>
                               </div>
                               <StatusBadge status={officialDraft.status} />
                             </div>
@@ -937,7 +904,7 @@ export function Dashboard() {
                               className="w-full rounded-lg font-bold"
                               onClick={() => openFloorplanEditor(officialDraft, true)}
                             >
-                              Open read-only editor
+                              View read-only plan
                             </Button>
                             <LayoutPreview project={officialProject} />
                           </div>
@@ -945,7 +912,7 @@ export function Dashboard() {
                           <EmptyState
                             icon={LockKeyhole}
                             title="No official layout yet"
-                            description="PMCM will submit an official layout here after reviewing your preference."
+                            description="Your event team will publish the official layout here after reviewing your preference."
                           />
                         )}
                       </div>
@@ -962,7 +929,7 @@ export function Dashboard() {
               <EmptyState
                 icon={LockKeyhole}
                 title="No active event portal"
-                description="The client portal opens after PMCM accepts the inquiry and the signed conforme is uploaded."
+                description="The client portal opens after your inquiry is accepted and the signed conforme is uploaded."
                 className="mt-8"
               />
             )}

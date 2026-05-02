@@ -53,9 +53,9 @@ const clientDemoUsers: MvpUser[] = [
 
 function portalMessage(role: string) {
   if (role === "pmcm-admin" || role === "coordinator") {
-    return "PMCM and coordinator accounts sign in through prism-event at http://localhost:3004.";
+    return "Event team and coordinator accounts sign in through the event operations portal at http://localhost:3004.";
   }
-  if (role === "supplier") return "Supplier accounts sign in through prism-supplier at http://localhost:3002.";
+  if (role === "supplier") return "Supplier accounts sign in through the supplier portal at http://localhost:3002.";
   return "This portal only accepts approved client accounts.";
 }
 
@@ -104,7 +104,7 @@ export function SignInPage() {
         setPendingUser(user);
         setError("This client account is waiting for approval.");
       } else {
-        setError(message.includes("Invalid") ? "Use one of the mock credentials listed on this page." : message);
+        setError(message.includes("Invalid") ? "Use the approved client account issued by PMCM for this portal." : message);
       }
     } finally {
       setBusy(false);
@@ -139,7 +139,7 @@ export function SignInPage() {
       badgeIcon={ShieldCheck}
       badgeText="Accepted inquiry and signed conforme required"
       title="Sign in to your confirmed event workspace."
-      description="Client access opens only after PMCM accepts the public inquiry and records the signed conforme. The portal shows briefing, documents, billing, activity, and official read-only floorplans."
+      description="Client access opens only after your inquiry is accepted and the signed conforme is recorded. The portal shows briefing, documents, billing, activity, and official read-only floorplans."
       aside={
         <Card className="rounded-lg border-[#171216]/12 bg-card shadow-[0_28px_90px_rgba(23,18,22,0.18)]">
           <CardHeader className="gap-2">
@@ -147,7 +147,7 @@ export function SignInPage() {
               <LockKeyhole size={20} />
             </div>
             <CardTitle className="text-2xl font-black text-foreground">Sign in</CardTitle>
-            <CardDescription>Approved client accounts can continue. Pending accounts must request PMCM approval.</CardDescription>
+            <CardDescription>Approved client accounts can continue. Pending accounts must request event team approval.</CardDescription>
           </CardHeader>
           <CardContent>
             {signedInUser ? (
@@ -204,7 +204,7 @@ export function SignInPage() {
                       className="h-11 rounded-md border-border bg-card"
                     />
                     <FieldDescription className="text-xs leading-5">
-                      Credentials and approval status are checked against local mock data only.
+                      Credentials and approval status are checked against the PMCM portal access list.
                     </FieldDescription>
                   </Field>
 
@@ -220,7 +220,7 @@ export function SignInPage() {
                       <ShieldCheck className="text-(--prism-amber)" />
                       <AlertTitle>Approval required</AlertTitle>
                       <AlertDescription>
-                        {pendingUser.name} exists, but PMCM must approve access in prism-event before sign-in.
+                        {pendingUser.name} exists, but your event team must approve access before sign-in.
                       </AlertDescription>
                       <label className="col-start-2 mt-3 flex items-start gap-2 text-sm leading-5 text-muted-foreground">
                         <input
@@ -229,7 +229,7 @@ export function SignInPage() {
                           onChange={(event) => setApprovalConsentAccepted(event.target.checked)}
                           className="mt-1 size-4 accent-primary"
                         />
-                        <span>I consent to PMCM processing this account request for portal access review.</span>
+                        <span>I consent to this account request being processed for portal access review.</span>
                       </label>
                       <Button
                         type="button"

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Archive, BadgeCheck, Lightbulb, Plus, ReceiptText, ShieldCheck, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, Plus, ReceiptText, ShieldCheck, XCircle } from "lucide-react";
 
 import {
   type MvpBillingSource,
@@ -101,6 +101,35 @@ export function Phase4Workspace({
   const approvedSource = billingSources.find((source) => source.status === "approved");
   const latestInsight = localInsights[0];
   const openChecks = checks.filter((check) => check.status === "open");
+  const generatedStatements = billingStatements;
+  const passedGateCount = closeGates?.gates.filter((gate) => gate.passed).length ?? 0;
+  const totalGateCount = closeGates?.gates.length ?? 0;
+  const closureCards = [
+    {
+      label: "Close gates",
+      value: closeGates ? `${passedGateCount}/${totalGateCount}` : "Loading",
+      detail: closeGates?.ready ? "Ready to archive" : "Needs PMCM review",
+      tone: closeGates?.ready ? "text-emerald-700" : "text-amber-800",
+    },
+    {
+      label: "Compliance",
+      value: openChecks.length,
+      detail: `${checks.length} generated check(s)`,
+      tone: openChecks.length > 0 ? "text-rose-700" : "text-emerald-700",
+    },
+    {
+      label: "Billing source",
+      value: approvedSource ? "Approved" : billingSources.length,
+      detail: approvedSource ? money.format(approvedSource.totalAmount) : "Approve before statement",
+      tone: approvedSource ? "text-emerald-700" : "text-amber-800",
+    },
+    {
+      label: "Statements",
+      value: generatedStatements.length,
+      detail: latestInsight ? "Insight ready" : "Insight pending",
+      tone: generatedStatements.length > 0 ? "text-emerald-700" : "text-amber-800",
+    },
+  ];
 
   async function createRule() {
     await onCreateRule({
@@ -143,6 +172,30 @@ export function Phase4Workspace({
 
   return (
     <div className="space-y-5">
+      <section className="rounded-lg border border-primary/15 bg-card p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">Closure board</p>
+            <h3 className="mt-1 text-xl font-black text-foreground">{event.eventName}</h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              Archive readiness is local to PMCM: compliance checks, approved billing source, generated statements, and post-event insights stay visible before close.
+            </p>
+          </div>
+          <span className={cx("rounded-full px-3 py-1 text-xs font-black capitalize ring-1", statusTone(event.archived ? "approved" : closeGates?.ready ? "approved" : "open"))}>
+            {event.archived ? "Archived" : closeGates?.ready ? "Ready for archive" : "Archive gated"}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {closureCards.map((card) => (
+            <div key={card.label} className="rounded-lg border border-border bg-secondary/35 px-4 py-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{card.label}</p>
+              <p className={cx("mt-1 text-lg font-black", card.tone)}>{card.value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{card.detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="rounded-lg border border-border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
@@ -183,7 +236,11 @@ export function Phase4Workspace({
           </div>
 
           <div className="grid gap-3">
-            {checks.length === 0 && <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">No compliance checks generated yet.</div>}
+            {checks.length === 0 && (
+              <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
+                No compliance checks generated yet. Pick the phase and run checks for the defense record.
+              </div>
+            )}
             {checks.map((check) => (
               <div key={check.id} className="rounded-md border border-border bg-background p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -225,6 +282,11 @@ export function Phase4Workspace({
             <button disabled={busy || !billingLabel || Number(lineAmount) <= 0} onClick={createBillingSource} className="h-10 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">Create billing source</button>
           </div>
           <div className="mt-4 space-y-3">
+            {billingSources.length === 0 && (
+              <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
+                No billing source yet. Add the approved CE/proposal amount before generating a billing statement.
+              </div>
+            )}
             {billingSources.map((source) => (
               <div key={source.id} className="rounded-md border border-border bg-background p-4 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -240,7 +302,19 @@ export function Phase4Workspace({
                 </div>
               </div>
             ))}
-            {billingStatements.length > 0 && <p className="text-xs text-muted-foreground">{billingStatements.length} billing statement(s) generated from approved source data.</p>}
+            {billingStatements.length > 0 && (
+              <div className="rounded-md border border-border bg-background p-3">
+                <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Generated statements</p>
+                <div className="mt-2 grid gap-2">
+                  {billingStatements.map((statement) => (
+                    <div key={statement.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span className="font-black text-foreground">{statement.number}</span>
+                      <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", statusTone(statement.status))}>{label(statement.status)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {!approvedSource && billingSources.length > 0 && <p className="text-xs text-amber-800">Approve a source before generating a billing statement.</p>}
           </div>
         </div>
@@ -266,10 +340,29 @@ export function Phase4Workspace({
                 </div>
               </div>
             ))}
-            {!closeGates && <p className="text-sm text-muted-foreground">Close-gate status has not loaded yet.</p>}
+            {!closeGates && (
+              <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
+                Loading close-gate status for this selected event.
+              </div>
+            )}
+            {closeGates?.ready && (
+              <div className="flex items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                <CheckCircle2 className="mt-0.5 size-4" />
+                <div>
+                  <p className="font-black">All close gates passed</p>
+                  <p className="mt-1">Archive can proceed without an override reason.</p>
+                </div>
+              </div>
+            )}
           </div>
           {!closeGates?.ready && (
-            <textarea value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} placeholder="Required PMCM override reason if gates are not complete" className="mt-4 min-h-20 w-full rounded-md border border-border bg-white p-3 text-sm" />
+            <div className="mt-4">
+              <div className="mb-2 flex items-start gap-2 text-xs leading-5 text-amber-800">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                <span>Override is only for local defense rehearsal or PMCM-approved operational risk.</span>
+              </div>
+              <textarea value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} placeholder="Required PMCM override reason if gates are not complete" className="min-h-20 w-full rounded-md border border-border bg-white p-3 text-sm" />
+            </div>
           )}
           <button disabled={busy || (!closeGates?.ready && !overrideReason)} onClick={archiveEvent} className="mt-4 h-10 w-full rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
             Archive event

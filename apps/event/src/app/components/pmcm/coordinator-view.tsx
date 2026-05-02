@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import {
+  AlertTriangle,
   BadgeCheck,
+  BellRing,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
   LayoutGrid,
+  LockKeyhole,
   Radio,
   ShieldCheck,
   Truck,
   UserCheck,
+  UsersRound,
 } from "lucide-react";
 
-import { mvpApi, type MvpCoordinatorRoleView, type MvpDemoState } from "@/lib/mvp-api";
+import { mvpApi, type MvpCoordinatorRoleView, type MvpCoordinatorWorkspace } from "@/lib/mvp-api";
 import {
   PrismCompactRecordList,
   PrismEventDayActionGroup,
@@ -26,29 +30,57 @@ import { label } from "./helpers";
 import { Panel } from "./primitives";
 import type { PmcmEventSession } from "./types";
 
+function sameText(left?: string | null, right?: string | null) {
+  return (left ?? "").trim().toLowerCase() === (right ?? "").trim().toLowerCase();
+}
+
+function isRegistrationRole(role?: string | null) {
+  return Boolean(role && role.toLowerCase().includes("registration"));
+}
+
 export function CoordinatorView({
   session,
   state,
   onRefresh,
 }: {
   session: PmcmEventSession;
-  state: MvpDemoState;
+  state: MvpCoordinatorWorkspace;
   onRefresh: () => Promise<void>;
 }) {
-  const assignments = state.coordinatorAssignments.filter((item) => item.coordinatorName === session.name);
-  const assignment = assignments[0] ?? state.coordinatorAssignments[0];
-  const event = state.events.find((item) => item.id === assignment?.eventId) ?? state.events[0];
-  const quotes = state.supplierQuotes.filter((item) => item.eventId === event?.id);
-  const activeDraft = state.floorPlanDrafts.find((draft) => draft.eventId === event?.id && draft.isActive);
+  const assignments = state.assignments.filter((item) => sameText(item.coordinatorName, session.name));
+  const assignment = assignments.find((item) => item.attendanceStatus !== "replaced" && item.status !== "replaced") ?? assignments[0];
+  const event = assignment ? state.events.find((item) => item.id === assignment.eventId) : undefined;
+  const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event?.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<MvpCoordinatorRoleView | null>(null);
+  const [roleViewLoading, setRoleViewLoading] = useState(false);
+  const [roleViewError, setRoleViewError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!event?.id) {
       setRoleView(null);
+      setRoleViewLoading(false);
+      setRoleViewError(null);
       return;
     }
-    mvpApi.coordinatorRoleView(session, event.id).then(setRoleView).catch(() => setRoleView(null));
+    let alive = true;
+    setRoleViewLoading(true);
+    setRoleViewError(null);
+    mvpApi.coordinatorRoleView(session, event.id)
+      .then((next) => {
+        if (alive) setRoleView(next);
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setRoleView(null);
+        setRoleViewError(err instanceof Error ? err.message : "Unable to load role-safe event data.");
+      })
+      .finally(() => {
+        if (alive) setRoleViewLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
   }, [event?.id, session.email, session.name]);
 
   async function ack() {
@@ -56,12 +88,38 @@ export function CoordinatorView({
     setBusy(true);
     try {
       await mvpApi.acknowledgeCoordinator(event.id, assignment.id);
-      setRoleView(await mvpApi.coordinatorRoleView(session, event.id).catch(() => null));
+      setRoleViewLoading(true);
+      setRoleViewError(null);
+      try {
+        setRoleView(await mvpApi.coordinatorRoleView(session, event.id));
+      } catch (err) {
+        setRoleView(null);
+        setRoleViewError(err instanceof Error ? err.message : "Unable to refresh role-safe event data.");
+      } finally {
+        setRoleViewLoading(false);
+      }
       await onRefresh();
     } finally {
       setBusy(false);
     }
   }
+
+  const roleName = assignment?.role ?? label(session.role);
+  const attendanceStatus = assignment?.attendanceStatus ?? assignment?.status ?? "pending";
+  const registrationRole = isRegistrationRole(assignment?.role);
+  const scrollToRoleQueue = () => document.getElementById("coordinator-role-queue")?.scrollIntoView({ behavior: "smooth" });
+  const scrollToLiveData = () => document.getElementById("coordinator-live-data")?.scrollIntoView({ behavior: "smooth" });
+  const taskActionDescription = roleViewLoading
+    ? "Loading assigned role tasks."
+    : roleViewError
+      ? "Role task data is unavailable."
+      : `${roleView?.tasks.length ?? 0} assigned task(s) for this role.`;
+  const issueActionDescription = roleViewLoading
+    ? "Loading visible urgent issues."
+    : roleViewError
+      ? "Urgent issue data is unavailable."
+      : `${roleView?.urgentIssues.length ?? 0} visible issue(s). Escalations route to PMCM/operator context only.`;
+  const roleDataStatus = roleViewLoading ? "loading" : roleViewError ? "unavailable" : roleView ? "ready" : "pending";
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -77,7 +135,7 @@ export function CoordinatorView({
         </div>
         <Separator className="my-5 bg-white/10" />
         <div className="flex flex-col gap-2 text-sm font-bold">
-          {["Live command", "Timeline", "Suppliers", "Acknowledgment"].map((item) => (
+          {["Role badge visible", "Live queue only", "No finance or audit", "No private reviews"].map((item) => (
             <div key={item} className="rounded-md bg-white/7 px-3 py-2 text-sidebar-foreground/75">{item}</div>
           ))}
         </div>
@@ -86,24 +144,38 @@ export function CoordinatorView({
         <RolePageHeader
           eyebrow="Live operations"
           title={event?.eventName ?? "No assigned event"}
-          description={`${event?.clientName ?? "PMCM"} - ${event?.eventDate ?? "TBD"}. This coordinator view only exposes role-safe tasks, supplier readiness, attendance counts, and urgent issues.`}
+          description={
+            event
+              ? `${event.clientName} - ${event.eventDate}. This coordinator view only exposes role-safe tasks, supplier readiness, attendance counts, and urgent issues.`
+              : "No assignment is matched to this coordinator account, so event-day data is withheld."
+          }
           meta={[
             <Badge key="scope" variant="outline" className="rounded-full border-(--prism-success)/25 bg-(--prism-success)/8 px-3 py-1.5 text-(--prism-success)">
-              Scoped
+              Role-safe
             </Badge>,
             assignment ? <Badge key="role" variant="outline" className="rounded-full px-3 py-1.5">{assignment.role}</Badge> : "No assignment",
-            assignment ? label(assignment.status) : "Unassigned",
+            assignment ? `Attendance ${label(attendanceStatus)}` : "Unassigned",
           ]}
           action={
             assignment ? (
               <div className="rounded-lg border border-border bg-secondary px-4 py-3 text-right">
                 <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Role badge</p>
-                <p className="mt-1 text-lg font-black text-foreground">{assignment.role}</p>
-                <p className="text-xs capitalize text-muted-foreground">{label(assignment.attendanceStatus ?? assignment.status)}</p>
+                <p className="mt-1 text-lg font-black text-foreground">{roleName}</p>
+                <p className="text-xs capitalize text-muted-foreground">Attendance: {label(attendanceStatus)}</p>
               </div>
             ) : null
           }
         />
+
+        <section className="flex items-start gap-3 rounded-lg border border-(--prism-amber)/20 bg-(--prism-amber)/8 p-4 text-sm leading-6 text-(--prism-amber)">
+          <LockKeyhole className="mt-0.5 size-5 shrink-0" />
+          <div>
+            <p className="font-black text-foreground">Coordinator information boundary</p>
+            <p className="mt-0.5">
+              This role view excludes billing, audit trail rows, internal cost data, and private supplier review notes. Registration details are limited to the assigned registration role.
+            </p>
+          </div>
+        </section>
 
         <section className="rounded-lg border border-primary/12 bg-card p-4">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -130,16 +202,25 @@ export function CoordinatorView({
               {
                 id: "queue",
                 label: "Run role queue",
-                description: `${roleView?.tasks.length ?? 0} assigned task(s) for this role.`,
+                description: taskActionDescription,
                 icon: ClipboardList,
-                status: (roleView?.tasks.length ?? 0) > 0 ? "open" : "clear",
+                status: roleViewLoading ? "loading" : roleViewError ? "unavailable" : (roleView?.tasks.length ?? 0) > 0 ? "open" : "clear",
+                onSelect: scrollToRoleQueue,
               },
               {
                 id: "issues",
-                label: "Escalate urgent issue",
-                description: `${roleView?.urgentIssues.length ?? 0} urgent issue(s) visible to this role.`,
-                icon: Radio,
-                status: (roleView?.urgentIssues.length ?? 0) > 0 ? "open" : "clear",
+                label: "Review urgent issues",
+                description: issueActionDescription,
+                icon: BellRing,
+                status: roleViewLoading ? "loading" : roleViewError ? "unavailable" : (roleView?.urgentIssues.length ?? 0) > 0 ? "open" : "clear",
+                onSelect: scrollToLiveData,
+              },
+              {
+                id: "attendance",
+                label: "Attendance state",
+                description: assignment ? `Current coordinator attendance is ${label(attendanceStatus)}.` : "No assignment state available.",
+                icon: UserCheck,
+                status: attendanceStatus,
               },
             ]}
           />
@@ -149,9 +230,16 @@ export function CoordinatorView({
           columns="four"
           items={[
             { id: "floorplan", label: "Official floorplan", value: activeDraft ? "Ready" : "Pending", icon: LayoutGrid, status: activeDraft?.status ?? "pending" },
-            { id: "suppliers", label: "Supplier signals", value: roleView?.supplierStatuses.length ?? quotes.length, icon: Truck, detail: "Only event-day readiness signals are shown." },
-            { id: "attendance", label: "Guest attendance", value: roleView?.guestAttendanceCount ?? 0, icon: ShieldCheck, detail: "Includes walk-ins flagged for PMCM review." },
-            { id: "assignment", label: "Assignment", value: assignment ? label(assignment.status) : "None", icon: UserCheck, status: assignment?.status ?? "pending" },
+            { id: "suppliers", label: "Supplier setup", value: roleViewLoading ? "Loading" : roleView?.supplierStatuses.length ?? 0, icon: Truck, status: roleDataStatus, detail: "Readiness signals only. Quote amounts and private reviews stay hidden." },
+            {
+              id: "attendance",
+              label: "Guest attendance",
+              value: roleViewLoading ? "Loading" : roleView?.guestAttendanceCount ?? 0,
+              icon: UsersRound,
+              status: roleDataStatus,
+              detail: registrationRole ? "Registration role can review check-in context." : "Aggregate count only; guest names stay hidden.",
+            },
+            { id: "assignment", label: "Coordinator attendance", value: label(attendanceStatus), icon: ShieldCheck, status: attendanceStatus, detail: assignment ? label(assignment.status) : "No active assignment." },
           ]}
         />
 
@@ -190,9 +278,26 @@ export function CoordinatorView({
           </Panel>
         </div>
 
-        {roleView && (
+        {roleViewLoading && (
+          <Panel title="Loading role-safe data" icon={ShieldCheck}>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Assignment-safe tasks, supplier readiness signals, attendance counts, and urgent issues are loading for this coordinator role.
+            </p>
+          </Panel>
+        )}
+
+        {roleViewError && (
+          <Panel title="Role-safe data unavailable" icon={AlertTriangle}>
+            <p className="text-sm leading-6 text-muted-foreground">
+              {roleViewError}. Refresh the coordinator command or ask PMCM to confirm this assignment.
+            </p>
+          </Panel>
+        )}
+
+        {roleView && !roleViewLoading && !roleViewError && (
           <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
             <Panel title="Role queue" icon={ClipboardList}>
+              <div id="coordinator-role-queue" className="scroll-mt-24" />
               <PrismCompactRecordList
                 emptyText="No event-day tasks assigned to this role yet."
                 items={roleView.tasks.map((task) => ({
@@ -206,13 +311,16 @@ export function CoordinatorView({
               />
             </Panel>
             <Panel title="Role-safe live data" icon={ShieldCheck}>
+              <div id="coordinator-live-data" className="scroll-mt-24" />
               <div className="space-y-3">
-                {roleView.guestCheckIns.length > 0 && (
-                  <div className="rounded-md border border-border bg-background p-3 text-sm">
-                    <p className="font-black">Registration check-ins</p>
-                    <p className="mt-1 text-muted-foreground">{roleView.guestAttendanceCount} checked in, including walk-ins flagged for PMCM review.</p>
-                  </div>
-                )}
+                <div className="rounded-md border border-border bg-background p-3 text-sm">
+                  <p className="font-black">Registration check-ins</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {registrationRole
+                      ? `${roleView.guestAttendanceCount} checked in, including walk-ins flagged for PMCM review.`
+                      : `${roleView.guestAttendanceCount} checked in. Guest-level check-in records are hidden for this role.`}
+                  </p>
+                </div>
                 <PrismCompactRecordList
                   emptyText="No urgent issue assigned to this role."
                   items={roleView.urgentIssues.map((issue) => ({

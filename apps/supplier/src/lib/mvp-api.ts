@@ -72,9 +72,6 @@ export type MvpSupplierQuote = {
   inclusions: string[];
   paymentTerms: string;
   notes: string;
-  acceptableMin?: number | null;
-  acceptableMax?: number | null;
-  outsideAcceptableRange: boolean;
   status: string;
   revisionNumber?: number;
   revisedAt?: string | null;

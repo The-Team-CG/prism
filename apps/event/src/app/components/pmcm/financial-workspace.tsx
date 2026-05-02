@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Download, ReceiptText, Send, WalletCards, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
-import { apiUrl, type MvpBillingStatement, type MvpEvent, type MvpInquiry, type MvpPaymentMilestone } from "@/lib/mvp-api";
+import { apiUrl, type MvpBillingStatement, type MvpEvent, type MvpInquiry, type MvpNotificationLog, type MvpPaymentMilestone } from "@/lib/mvp-api";
 import { PrismBillingMilestoneList, PrismSectionPanel } from "@prism/ui";
 import { cx, label, money } from "./helpers";
 
@@ -20,11 +20,18 @@ function paymentTone(status: string, dueDate: string) {
   return "bg-muted text-muted-foreground ring-border";
 }
 
+function notificationTone(status: string) {
+  if (["sent", "delivered"].includes(status)) return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+  if (["failed", "blocked"].includes(status)) return "bg-rose-50 text-rose-700 ring-rose-100";
+  return "bg-amber-50 text-amber-800 ring-amber-100";
+}
+
 export function FinancialWorkspace({
   event,
   inquiry,
   billingStatements,
   payments,
+  notificationLogs = [],
   busy,
   onRecordPayment,
   onSendBilling,
@@ -33,6 +40,7 @@ export function FinancialWorkspace({
   inquiry?: MvpInquiry;
   billingStatements: MvpBillingStatement[];
   payments: MvpPaymentMilestone[];
+  notificationLogs?: MvpNotificationLog[];
   busy: boolean;
   onRecordPayment: (milestoneId: string, input: RecordPaymentInput) => Promise<void>;
   onSendBilling: (billingId: string) => Promise<void>;
@@ -45,6 +53,10 @@ export function FinancialWorkspace({
   const [referenceNumber, setReferenceNumber] = useState("");
   const balance = payments.find((payment) => payment.label.toLowerCase().includes("balance"));
   const paymentAtRisk = Boolean(balance && balance.status !== "paid" && balance.status === "at_risk");
+  const totalDue = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const totalPaid = payments.reduce((sum, payment) => sum + payment.amountPaid, 0);
+  const totalRemaining = payments.reduce((sum, payment) => sum + payment.remainingBalance, 0);
+  const openMilestones = payments.filter((payment) => payment.status !== "paid").length;
   const billingMilestonesForUi = payments.map((payment) => ({
     id: payment.id,
     label: `${payment.label} (${payment.percentage}%)`,
@@ -74,12 +86,53 @@ export function FinancialWorkspace({
 
   return (
     <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "Statement", value: statement?.number ?? "Not generated", detail: statement ? label(statement.status) : "Create from approved billing source" },
+          { label: "Total due", value: money.format(totalDue || statement?.totalAmount || 0), detail: `${payments.length} milestone(s)` },
+          { label: "Received", value: money.format(totalPaid), detail: `${openMilestones} open milestone(s)` },
+          { label: "Remaining", value: money.format(totalRemaining), detail: paymentAtRisk ? "Payment at risk" : "Manual tracker" },
+        ].map((item) => (
+          <div key={item.label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>
+            <p className="mt-1 truncate text-base font-black text-foreground">{item.value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+          </div>
+        ))}
+      </div>
+
       {paymentAtRisk && (
         <div className="flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           <AlertTriangle className="mt-0.5 size-4" />
           <div>
             <p className="font-black">Payment At Risk</p>
-            <p className="mt-1">The balance is still unpaid inside the 48-hour event threshold.</p>
+            <p className="mt-1">The balance is still unpaid inside the 48-hour event threshold. This is manual PMCM tracking, not a payment-processor integration.</p>
+          </div>
+        </div>
+      )}
+
+      {notificationLogs.length > 0 && (
+        <div className="rounded-lg border border-(--prism-amber)/25 bg-(--prism-amber)/8 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <MailCheck className="mt-0.5 size-4 text-(--prism-amber)" />
+              <div>
+                <p className="text-sm font-black text-foreground">Queued notification evidence</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Local in-app queue only; SendGrid/Viber delivery remains deferred for defense.</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-card px-3 py-1 text-xs font-black text-foreground">{notificationLogs.length} queued</span>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {notificationLogs.slice(0, 4).map((notification) => (
+              <div key={notification.id} className="rounded-md border border-border bg-card p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-black text-foreground">{label(notification.channel)} to {notification.recipient}</p>
+                  <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", notificationTone(notification.status))}>{label(notification.status)}</span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{notification.message}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -166,7 +219,17 @@ export function FinancialWorkspace({
               </div>
             </div>
           ) : (
-            <p className="mt-5 text-sm text-muted-foreground">A billing statement is generated automatically after signed conforme upload.</p>
+            <div className="mt-5 rounded-lg border border-dashed border-border bg-secondary/40 p-5 text-sm">
+              <div className="flex items-start gap-3">
+                <ReceiptText className="mt-0.5 size-4 text-primary" />
+                <div>
+                  <p className="font-black text-foreground">No billing statement yet</p>
+                  <p className="mt-1 leading-6 text-muted-foreground">
+                    Approve a billing source in Closure, then generate the statement for this selected event. The send action appears here after generation.
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
         </section>
 
@@ -211,7 +274,9 @@ export function FinancialWorkspace({
                     {payment.history.map((record) => (
                       <div key={record.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                         <span className="font-black">{money.format(record.amountReceived)}</span>
-                        <span className="text-muted-foreground">{record.paymentDate} - {record.paymentMethod} - {record.referenceNumber || "No reference"}</span>
+                        <span className="inline-flex items-center gap-1 text-muted-foreground">
+                          <Clock3 className="size-3" /> {record.paymentDate} - {record.paymentMethod} - {record.referenceNumber || "No reference"}
+                        </span>
                       </div>
                     ))}
                   </div>

@@ -33,6 +33,7 @@ import {
   type MvpCoordinator,
   type MvpCoordinatorAssignment,
   type MvpCoordinatorRoleRequirement,
+  type MvpCoordinatorWorkspace,
   type MvpDemoState,
   type MvpDefenseReadiness,
   type MvpEvent,
@@ -358,6 +359,9 @@ function PmcmPortal({
   const billingSources = (state.billingSources ?? []).filter((item) => item.eventId === selectedEvent?.id);
   const billingStatements = (state.billingStatements ?? []).filter((item) => item.eventId === selectedEvent?.id);
   const eventInsights = (state.eventInsights ?? []).filter((item) => item.eventId === selectedEvent?.id);
+  const notificationLogs = (state.notificationLogs ?? [])
+    .filter((item) => !item.eventId || item.eventId === selectedEvent?.id)
+    .slice(0, 8);
   const briefing = state.briefings.find((item) => item.eventId === selectedEvent?.id);
   const selectedInquiry = state.inquiries.find((item) => item.id === selectedEvent?.inquiryId);
   const audit = state.auditLogs.filter((item) => item.eventId === selectedEvent?.id || !item.eventId).slice(0, 14);
@@ -1036,6 +1040,7 @@ function PmcmPortal({
                 inquiry={selectedInquiry}
                 billingStatements={billingStatements}
                 payments={payments}
+                notificationLogs={notificationLogs}
                 busy={Boolean(busy)}
                 onRecordPayment={recordPayment}
                 onSendBilling={sendBillingStatement}
@@ -1068,6 +1073,28 @@ function PmcmPortal({
             {tab === "activity" && (
               <Panel title="Activity and notifications" icon={MessageSquareText}>
                 <div className="space-y-3">
+                  {notificationLogs.length > 0 && (
+                    <div className="rounded-lg border border-border bg-secondary/35 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-black text-foreground">Queued client notifications</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Local defense queue only; production delivery adapters stay deferred.</p>
+                        </div>
+                        <StatusBadge status="pending" label={`${notificationLogs.length} queued`} />
+                      </div>
+                      <div className="mt-3 grid gap-2">
+                        {notificationLogs.map((notification) => (
+                          <div key={notification.id} className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border bg-card p-3 text-sm">
+                            <div className="min-w-0">
+                              <p className="font-black text-foreground">{label(notification.channel)} to {notification.recipient}</p>
+                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{notification.message}</p>
+                            </div>
+                            <StatusBadge status={notification.status} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {assignments.map((assignment: MvpCoordinatorAssignment) => (
                     <div key={assignment.id} className="rounded-md border border-border bg-muted p-3 text-sm">
                       <p className="font-black">{assignment.coordinatorName}</p>
@@ -1080,6 +1107,9 @@ function PmcmPortal({
                       <div><p className="font-black">{item.action}</p><p className="text-muted-foreground">{item.actor}</p></div>
                     </div>
                   ))}
+                  {notificationLogs.length === 0 && assignments.length === 0 && audit.length === 0 && (
+                    <EmptyState icon={MessageSquareText} title="No selected-event activity yet" description="Coordinator acknowledgments, queued notifications, and audit entries will appear here after actions run." />
+                  )}
                 </div>
               </Panel>
             )}
@@ -1099,25 +1129,34 @@ function PmcmPortal({
 export default function EventCommandHome() {
   const [session, setSession] = useState<EventSession | null>(null);
   const [state, setState] = useState<MvpDemoState | null>(null);
+  const [coordinatorState, setCoordinatorState] = useState<MvpCoordinatorWorkspace | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
   const [error, setError] = useState<string | null>(null);
 
-  async function refresh() {
+  async function refresh(current = session) {
+    if (!current) return;
+    if (current.role === "coordinator") {
+      const next = await mvpApi.coordinatorWorkspace(current);
+      setCoordinatorState(next);
+      setState(null);
+      return;
+    }
     const next = await mvpApi.pmcmState();
     setState(next);
+    setCoordinatorState(null);
   }
 
   useEffect(() => {
     const current = readSession();
     if (!current) return;
     setSession(current);
-    refresh().catch((err) => setError(err instanceof Error ? err.message : "Unable to load event portal"));
+    refresh(current).catch((err) => setError(err instanceof Error ? err.message : "Unable to load event portal"));
   }, []);
 
   useEffect(() => {
     if (!session || screen.name !== "portal") return;
     const intervalId = window.setInterval(() => {
-      refresh().catch((err) => setError(err instanceof Error ? err.message : "Unable to refresh event portal"));
+      refresh(session).catch((err) => setError(err instanceof Error ? err.message : "Unable to refresh event portal"));
     }, 30_000);
 
     return () => window.clearInterval(intervalId);
@@ -1130,7 +1169,7 @@ export default function EventCommandHome() {
     setScreen({ name: "editor", event, draft, project });
   }
 
-  if (!session) return <SignIn onSignedIn={(next) => { setSession(next); refresh().catch((err) => setError(err instanceof Error ? err.message : "Unable to load event portal")); }} />;
+  if (!session) return <SignIn onSignedIn={(next) => { setSession(next); refresh(next).catch((err) => setError(err instanceof Error ? err.message : "Unable to load event portal")); }} />;
 
   if (screen.name === "editor") {
     return (
@@ -1144,7 +1183,7 @@ export default function EventCommandHome() {
           onSubmit={async (project) => {
             await mvpApi.savePlan(project);
             await mvpApi.submitFloorPlanDraft(screen.event.id, screen.draft.id);
-            await refresh();
+            await refresh(session);
             setScreen({ name: "portal" });
           }}
           onBack={() => setScreen({ name: "portal" })}
@@ -1161,6 +1200,7 @@ export default function EventCommandHome() {
           window.localStorage.removeItem(EVENT_SESSION_KEY);
           setSession(null);
           setState(null);
+          setCoordinatorState(null);
         }}
       />
       <section className="mx-auto max-w-[1480px] px-5 py-6 sm:px-8">
@@ -1203,14 +1243,35 @@ export default function EventCommandHome() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        {!state ? (
-          <Card className="grid min-h-[420px] place-items-center rounded-lg border-primary/12 bg-card text-sm text-muted-foreground">
-            Loading event command data...
+        {(session.role === "coordinator" ? !coordinatorState : !state) ? (
+          <Card className="min-h-[420px] rounded-lg border-primary/12 bg-card p-6" aria-live="polite">
+            <div className="mx-auto grid max-w-2xl gap-4 py-10 text-center">
+              <span className="mx-auto grid size-11 place-items-center rounded-lg bg-secondary text-primary">
+                <Radio className="size-5" />
+              </span>
+              <div>
+                <p className="text-sm font-black text-foreground">
+                  Loading {session.role === "coordinator" ? "coordinator" : "PMCM"} command data
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {session.role === "coordinator"
+                    ? "Role-safe assignments, attendance state, and event-day queues are being prepared."
+                    : "Events, finance, close gates, and local notification queue are being prepared."}
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {(session.role === "coordinator" ? ["Assignment", "Role queue", "Issues"] : ["Events", "Finance", "Closure"]).map((item) => (
+                  <span key={item} className="h-10 rounded-md border border-border bg-secondary/45" />
+                ))}
+              </div>
+            </div>
           </Card>
-        ) : session.role === "coordinator" ? (
-          <CoordinatorView session={session} state={state} onRefresh={refresh} />
+        ) : session.role === "coordinator" && coordinatorState ? (
+          <CoordinatorView session={session} state={coordinatorState} onRefresh={() => refresh(session)} />
+        ) : state ? (
+          <PmcmPortal session={session} state={state} onRefresh={() => refresh(session)} onOpenEditor={openEditor} />
         ) : (
-          <PmcmPortal session={session} state={state} onRefresh={refresh} onOpenEditor={openEditor} />
+          null
         )}
       </section>
     </main>

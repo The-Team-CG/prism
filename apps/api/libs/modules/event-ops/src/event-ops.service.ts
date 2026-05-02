@@ -3014,7 +3014,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return {
       supplier: this.sanitizeSupplierForSupplier(supplier),
       quoteRequests: requests.map((request) => this.mapSupplierQuoteRequest(this.withExpiredQuoteRequestStatus(request))),
-      supplierQuotes: quotes.map((quote) => this.mapSupplierQuote(quote)),
+      supplierQuotes: quotes.map((quote) => this.mapSupplierQuoteForSupplier(quote)),
     };
   }
 
@@ -3297,7 +3297,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
     return {
       request: this.mapSupplierQuoteRequest(requestWithStatus),
-      quote: quote ? this.mapSupplierQuote(quote) : null,
+      quote: quote ? this.mapSupplierQuoteForSupplier(quote) : null,
       eventId: event.id,
       eventName: request.confidentialBid ? 'Confidential event' : event.eventName,
       clientName: request.confidentialBid ? null : event.clientName,
@@ -3383,7 +3383,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       return saved;
     });
 
-    return this.mapSupplierQuote(quote);
+    return this.mapSupplierQuoteForSupplier(quote);
   }
 
   async reviseSupplierQuoteByToken(token: string, input: Partial<SubmitSupplierQuoteInput>) {
@@ -3462,7 +3462,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       return saved;
     });
 
-    return this.mapSupplierQuote(revised);
+    return this.mapSupplierQuoteForSupplier(revised);
   }
 
   async selectSupplierQuote(eventId: string, quoteId: string) {
@@ -4626,7 +4626,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
             password: AuthSecurityService.hashPassword('prism-client'),
             role: 'client',
             organization: 'Ayala Corp',
-            approvalStatus: 'pending',
+            approvalStatus: 'approved',
             createdAt,
           },
           {
@@ -4738,7 +4738,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
           email: 'ana@ayala.test',
           role: 'client',
           organization: 'Ayala Corp',
-          status: 'pending',
+          status: 'approved',
           requestedAt: createdAt,
         },
       });
@@ -5575,6 +5575,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       createdAt: timestamp(quote.createdAt),
       updatedAt: expanded.updatedAt ? timestamp(expanded.updatedAt) : timestamp(quote.createdAt),
     };
+  }
+
+  private mapSupplierQuoteForSupplier(quote: OpsSupplierQuote) {
+    const { acceptableMin, acceptableMax, outsideAcceptableRange, ...safeQuote } = this.mapSupplierQuote(quote);
+    return safeQuote;
   }
 
   private mapComplianceRule(rule: OpsComplianceRule) {

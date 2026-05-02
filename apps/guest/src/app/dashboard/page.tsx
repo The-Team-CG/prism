@@ -9,6 +9,7 @@ import {
   MessageCircleHeart,
   QrCode,
   ScanLine,
+  ShieldCheck,
   TicketCheck,
   Users,
 } from "lucide-react";
@@ -91,6 +92,7 @@ export default function GuestDashboard() {
   const [feedbackRating, setFeedbackRating] = useState("5");
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackConsentAccepted, setFeedbackConsentAccepted] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -158,6 +160,7 @@ export default function GuestDashboard() {
           marketingConsentAccepted: false,
         }),
       });
+      setFeedbackSubmitted(true);
       setNotice("Feedback submitted for moderation.");
       setFeedbackComment("");
     } catch (err) {
@@ -182,6 +185,9 @@ export default function GuestDashboard() {
 
   const scrollToCheckIn = () => document.getElementById("guest-check-in")?.scrollIntoView({ behavior: "smooth" });
   const scrollToFeedback = () => document.getElementById("guest-feedback")?.scrollIntoView({ behavior: "smooth" });
+  const attendanceState = checkedIn ? (walkIn ? "Flagged walk-in" : "Recorded") : "Pending";
+  const checkInButtonLabel = checkedIn ? "Attendance recorded" : walkIn ? "Submit walk-in for verification" : "Record name check-in";
+  const feedbackState = feedbackSubmitted ? "Pending review" : feedbackConsentAccepted ? "Consent ready" : "Consent needed";
 
   return (
     <PrismAppShell
@@ -212,10 +218,10 @@ export default function GuestDashboard() {
         },
         {
           id: "feedback",
-          label: "Submit moderated feedback",
+          label: feedbackSubmitted ? "Feedback pending PMCM review" : "Submit moderated feedback",
           description: "Feedback is stored for PMCM review and is not published automatically.",
           icon: MessageCircleHeart,
-          status: feedbackComment ? "in_review" : "pending",
+          status: feedbackSubmitted ? "pending_review" : feedbackComment ? "in_review" : "pending",
           onSelect: scrollToFeedback,
         },
       ]}
@@ -226,7 +232,7 @@ export default function GuestDashboard() {
             {session.guestAccessCode}
           </Badge>
           <Button asChild variant="outline" size="sm" className="rounded-md font-bold">
-            <a href="/open">Open with code</a>
+            <a href="/open">Switch code</a>
           </Button>
         </>
       }
@@ -249,6 +255,9 @@ export default function GuestDashboard() {
                 Show at registration desk
               </p>
               <p className="mt-1 text-center text-xs font-black text-(--prism-amber)">{session.guestAccessCode}</p>
+              <p className="mt-2 text-center text-xs leading-5 text-muted-foreground">
+                Code verified on this browser. Dashboard access clears when you leave the event.
+              </p>
             </div>
           </div>
           <PrismMetricTile label="Attendance count" value={session.attendanceCount} icon={Users} />
@@ -264,15 +273,15 @@ export default function GuestDashboard() {
 
         <RolePageHeader
           eyebrow="Guest access"
-          title="Fast event-day actions without an account"
-          description="Guests use the PMCM event code to open a pass, record check-in consent, flag walk-ins for review, and submit moderated feedback."
-          meta={[session.clientName, session.guestAccessCode, checkedIn ? "Checked in" : "Check-in pending"]}
+          title="Event-day actions stay code gated"
+          description="Guests use the PMCM event code to open this pass, record consent-backed check-in, flag walk-ins for PMCM verification, and submit moderated feedback."
+          meta={[session.clientName, `Code ${session.guestAccessCode}`, attendanceState]}
         />
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <PrismMetricTile label="Check-in mode" value={walkIn ? "Walk-in" : "Name"} icon={ScanLine} />
-          <PrismMetricTile label="Floorplan" value={session.floorPlanStatus.replaceAll("_", " ")} icon={TicketCheck} />
-          <PrismMetricTile label="Feedback" value={feedbackConsentAccepted ? "Ready" : "Consent needed"} icon={MessageCircleHeart} />
+          <PrismMetricTile label="Attendance state" value={attendanceState} icon={Users} detail={walkIn ? "Needs PMCM verification." : "Name-search check-in."} />
+          <PrismMetricTile label="Access mode" value={walkIn ? "Walk-in" : "Listed guest"} icon={ScanLine} detail="No public dashboard shortcut." />
+          <PrismMetricTile label="Feedback queue" value={feedbackState} icon={MessageCircleHeart} detail="Stored for moderation only." />
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -286,7 +295,9 @@ export default function GuestDashboard() {
               <div className="flex flex-col gap-3">
                 <div className="rounded-lg bg-secondary/60 p-4 text-sm">
                   <p className="font-bold text-foreground">Name-based check-in</p>
-                  <p className="mt-0.5 text-muted-foreground">QR scanning remains deferred. This local defense flow records attendance and consent through the API.</p>
+                  <p className="mt-0.5 leading-6 text-muted-foreground">
+                    This browser-based check-in records guest name, check-in mode, consent version, and attendance time for PMCM registration review.
+                  </p>
                 </div>
                 <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card p-3 text-sm font-semibold">
                   <input
@@ -295,7 +306,12 @@ export default function GuestDashboard() {
                     onChange={(ev) => setWalkIn(ev.target.checked)}
                     className="size-4 accent-(--prism-amber)"
                   />
-                  Flag as walk-in for PMCM review
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-foreground">Flag as walk-in for PMCM verification</span>
+                    <span className="text-xs font-medium leading-5 text-muted-foreground">
+                      Use this only when the guest is not on the registration list or needs operator approval.
+                    </span>
+                  </span>
                 </label>
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm leading-5 text-muted-foreground">
                   <input
@@ -304,15 +320,23 @@ export default function GuestDashboard() {
                     onChange={(ev) => setCheckInConsentAccepted(ev.target.checked)}
                     className="mt-0.5 size-4 accent-(--prism-amber)"
                   />
-                  <span>I consent to PMCM recording this check-in against the event attendance record for registration and walk-in review.</span>
+                  <span>
+                    I consent to PMCM recording my name, check-in mode, attendance time, and this privacy notice version for registration and walk-in review.
+                  </span>
                 </label>
+                {walkIn ? (
+                  <div className="flex items-start gap-2 rounded-lg border border-(--prism-amber)/25 bg-(--prism-amber)/8 p-3 text-sm leading-6 text-(--prism-amber)">
+                    <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+                    <span>Walk-ins are recorded as flagged first. PMCM or the event-day operator verifies authorization before treating the entry as cleared.</span>
+                  </div>
+                ) : null}
                 <Button
                   disabled={busy === "check-in" || checkedIn || !checkInConsentAccepted}
                   onClick={checkIn}
-                  className="h-12 rounded-md font-bold sm:w-fit"
+                  className="h-14 rounded-md px-5 font-bold sm:w-fit"
                 >
                   <TicketCheck className="size-4" />
-                  {checkedIn ? "Checked in" : "Check in"}
+                  {checkInButtonLabel}
                 </Button>
               </div>
             </PrismSectionPanel>
@@ -324,18 +348,33 @@ export default function GuestDashboard() {
             >
               <div id="guest-feedback" className="scroll-mt-24" />
               <form onSubmit={submitFeedback} className="flex flex-col gap-3">
-                <Input
-                  value={feedbackRating}
-                  onChange={(ev) => setFeedbackRating(ev.target.value)}
-                  type="number"
-                  min="1"
-                  max="5"
-                  className="h-10 rounded-md"
-                  placeholder="Rating 1-5"
-                />
+                <div className="rounded-lg bg-secondary/60 p-4 text-sm">
+                  <p className="font-bold text-foreground">Moderation state</p>
+                  <p className="mt-0.5 leading-6 text-muted-foreground">
+                    Submissions enter PMCM review. Nothing becomes public, client-facing, or testimonial content automatically.
+                  </p>
+                </div>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Rating</span>
+                  <Input
+                    value={feedbackRating}
+                    onChange={(ev) => {
+                      setFeedbackRating(ev.target.value);
+                      setFeedbackSubmitted(false);
+                    }}
+                    type="number"
+                    min="1"
+                    max="5"
+                    className="h-11 rounded-md"
+                    placeholder="Rating 1-5"
+                  />
+                </label>
                 <PrismTextarea
                   value={feedbackComment}
-                  onChange={(ev) => setFeedbackComment(ev.target.value)}
+                  onChange={(ev) => {
+                    setFeedbackComment(ev.target.value);
+                    setFeedbackSubmitted(false);
+                  }}
                   placeholder="Share feedback for PMCM moderation"
                 />
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm leading-5 text-muted-foreground">
@@ -345,10 +384,12 @@ export default function GuestDashboard() {
                     onChange={(ev) => setFeedbackConsentAccepted(ev.target.checked)}
                     className="mt-0.5 size-4 accent-(--prism-amber)"
                   />
-                  <span>I consent to PMCM saving this feedback for moderation and post-event review. It will not be published automatically.</span>
+                  <span>
+                    I consent to PMCM saving my name, rating, comment, consent version, and moderation status for post-event review. It will not be published automatically.
+                  </span>
                 </label>
-                <Button disabled={busy === "feedback" || !feedbackConsentAccepted} className="h-11 rounded-md font-bold sm:w-fit" type="submit">
-                  <MessageCircleHeart className="size-4" /> Submit feedback
+                <Button disabled={busy === "feedback" || !feedbackConsentAccepted} className="h-12 rounded-md px-5 font-bold sm:w-fit" type="submit">
+                  <MessageCircleHeart className="size-4" /> Send to PMCM moderation
                 </Button>
               </form>
             </PrismSectionPanel>
@@ -359,7 +400,8 @@ export default function GuestDashboard() {
               items={[
                 { id: "opened", title: "Invitation opened", status: "completed", description: "Guest code accepted for this event." },
                 { id: "check-in", title: "Registration check-in", status: checkedIn ? "completed" : "pending", description: "Consent-backed event-day attendance record." },
-                { id: "floorplan", title: "Official floorplan", status: session.floorPlanStatus, description: "Read-only event readiness signal." },
+                { id: "walk-in", title: "Walk-in verification", status: walkIn ? (checkedIn ? "flagged" : "pending") : "not_required", description: "Only applies when the guest is not on the list." },
+                { id: "feedback", title: "Feedback moderation", status: feedbackSubmitted ? "pending_review" : "pending", description: "PMCM reviews feedback before any reuse." },
               ]}
             />
             <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm">

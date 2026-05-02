@@ -31,6 +31,7 @@ The complete catalog is the scope source of truth. It is not a claim that every 
 | Chapter 3 cross-reference | ./06-chapter-3-cross-reference.md | Feature references mapped to manuscript functional requirement groups. |
 | Implemented feature revisions | ./07-implemented-feature-revisions.md | Current implemented/partial features, revision gaps, and how to revise them safely. |
 | Revision phase plan | ./08-revision-phase-plan.md | Durable phase roadmap for revision-first implementation and docs cleanup. |
+| Defense demo runbook | ./09-defense-demo-runbook.md | Local startup, accounts, demo order, verification, and defense boundaries. |
 | PMCM Admin features | ./features/admin.md | Admin-owned operating system functions. |
 | Client features | ./features/client.md | Client portal functions. |
 | Supplier features | ./features/supplier.md | Supplier portal functions. |
@@ -46,4 +47,5 @@ The complete catalog is the scope source of truth. It is not a claim that every 
 3. Use `04-implementation-plan.md` when the panel asks how a feature is built.
 4. Use `07-implemented-feature-revisions.md` when deciding what to fix before adding more features.
 5. Use `08-revision-phase-plan.md` to choose the next revision phase.
-6. Use `03-ai-features-and-security.md` when the panel asks about AI, privacy, or human approval.
+6. Use `09-defense-demo-runbook.md` for the exact local rehearsal order.
+7. Use `03-ai-features-and-security.md` when the panel asks about AI, privacy, or human approval.

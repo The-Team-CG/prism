@@ -81,7 +81,7 @@ export default function SupplierSignIn() {
         body: JSON.stringify({ email, password }),
       });
       if (user.role !== "supplier") {
-        setError(user.role === "client" ? "Client accounts belong in prism-client." : "PMCM accounts belong in prism-event.");
+        setError(user.role === "client" ? "Client accounts belong in the client portal." : "PMCM accounts belong in the event command portal.");
         return;
       }
       const session = { ...user, signedInAt: new Date().toISOString() };
@@ -109,7 +109,7 @@ export default function SupplierSignIn() {
           marketingConsentAccepted: false,
         }),
       });
-      setNotice("Approval request sent. PMCM can approve it in prism-event.");
+      setNotice("Approval request saved for PMCM review in the event command portal.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to request approval");
     } finally {

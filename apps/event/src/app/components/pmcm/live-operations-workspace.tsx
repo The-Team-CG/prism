@@ -128,7 +128,7 @@ export function LiveOperationsWorkspace({
               <p className="mt-1 text-sm text-muted-foreground">{event.clientName} - {event.eventDate}</p>
             </div>
           </div>
-          <button disabled={busy} onClick={onReload} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm font-black text-foreground disabled:opacity-60">
+          <button disabled={busy} onClick={onReload} className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-white px-4 text-sm font-black text-foreground disabled:opacity-60">
             <RefreshCw className="size-4" /> Refresh
           </button>
         </div>
@@ -138,6 +138,12 @@ export function LiveOperationsWorkspace({
           <MetricTile label="Open issues" value={metrics.openIssues} icon={AlertTriangle} />
           <MetricTile label="Suppliers verified" value={metrics.verifiedSuppliers} icon={Truck} />
           <MetricTile label="Coord. present" value={metrics.presentCoordinators} icon={UserCheck} />
+        </div>
+        <div className="mt-4 flex items-start gap-3 rounded-md border border-(--prism-amber)/20 bg-(--prism-amber)/8 p-3 text-sm leading-6 text-(--prism-amber)">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+          <span>
+            Live operations shows event-day readiness, attendance, tasks, issues, and setup verification only. Finance, audit trail exports, and private supplier reviews stay in their PMCM-only workspaces.
+          </span>
         </div>
         {statusFeed && (
           <div className="mt-4 rounded-md border border-border bg-background p-3">
@@ -150,9 +156,12 @@ export function LiveOperationsWorkspace({
                 {statusFeed.items.length} live signals
               </span>
             </div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Feed cards are role-safe operational signals for event day, not billing or audit records.
+            </p>
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {statusFeed.items.slice(0, 8).map((item) => (
-                <div key={`${item.type}-${item.id}`} className="min-w-[210px] rounded-md border border-border bg-white p-3 text-sm">
+                <div key={`${item.type}-${item.id}`} className="min-w-[240px] rounded-md border border-border bg-white p-3 text-sm">
                   <div className="flex items-start justify-between gap-2">
                     <p className="line-clamp-2 font-black">{item.title}</p>
                     <Pill value={item.slaStatus ?? item.verificationStatus ?? item.status} />
@@ -214,31 +223,46 @@ export function LiveOperationsWorkspace({
             <div className="rounded-lg border border-border bg-card p-5">
               <Header icon={AlertTriangle} eyebrow="Urgent issues" title="Open, assign, and resolve blockers" />
               <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
-                <input value={issueTitle} onChange={(event) => setIssueTitle(event.target.value)} placeholder="Issue title" className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Issue title</span>
+                  <input value={issueTitle} onChange={(event) => setIssueTitle(event.target.value)} placeholder="Supplier late, walk-in queue, program blocker" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
+                </label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <select value={issueSeverity} onChange={(event) => setIssueSeverity(event.target.value as typeof issueSeverity)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                  <select value={issueOwnerRole} onChange={(event) => setIssueOwnerRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-                    <option>Event Day System Operator</option>
-                    <option>Registration Staff</option>
-                    <option>Floor Director</option>
-                    <option>Stage Director</option>
-                    <option>Ingress and Egress Assistant</option>
-                    <option>Usher</option>
-                  </select>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Severity</span>
+                    <select value={issueSeverity} onChange={(event) => setIssueSeverity(event.target.value as typeof issueSeverity)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Owner role</span>
+                    <select value={issueOwnerRole} onChange={(event) => setIssueOwnerRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
+                      <option>Event Day System Operator</option>
+                      <option>Registration Staff</option>
+                      <option>Floor Director</option>
+                      <option>Stage Director</option>
+                      <option>Ingress and Egress Assistant</option>
+                      <option>Usher</option>
+                    </select>
+                  </label>
                 </div>
-                <input
-                  type="datetime-local"
-                  value={issueSlaDueAt}
-                  onChange={(event) => setIssueSlaDueAt(event.target.value)}
-                  className="h-10 rounded-md border border-border bg-white px-3 text-sm"
-                />
-                <button disabled={busy || !issueTitle.trim()} onClick={createIssue} className="h-10 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
-                  Open issue
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">SLA due time</span>
+                  <input
+                    type="datetime-local"
+                    value={issueSlaDueAt}
+                    onChange={(event) => setIssueSlaDueAt(event.target.value)}
+                    className="h-11 rounded-md border border-border bg-white px-3 text-sm"
+                  />
+                </label>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Urgent issues are operational blockers. Escalation notifies PMCM/operator context; it does not expose finance, audit, or private supplier review data.
+                </p>
+                <button disabled={busy || !issueTitle.trim()} onClick={createIssue} className="h-12 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+                  Open urgent issue
                 </button>
               </div>
               <div className="mt-4 space-y-3">
@@ -264,30 +288,42 @@ export function LiveOperationsWorkspace({
             <div className="rounded-lg border border-border bg-card p-5">
               <Header icon={ClipboardList} eyebrow="Event-day tasks" title="Role-owned live checklist" />
               <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
-                <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="Task title" className="h-10 rounded-md border border-border bg-white px-3 text-sm" />
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Task title</span>
+                  <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="Registration dry run, stage cue check, ingress sweep" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
+                </label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <select value={taskRole} onChange={(event) => setTaskRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-                    <option>General Coordinator</option>
-                    <option>Event Day System Operator</option>
-                    <option>Registration Staff</option>
-                    <option>Floor Director</option>
-                    <option>Stage Director</option>
-                    <option>Ingress and Egress Assistant</option>
-                    <option>Usher</option>
-                  </select>
-                  <select value={taskPriority} onChange={(event) => setTaskPriority(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Role</span>
+                    <select value={taskRole} onChange={(event) => setTaskRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
+                      <option>General Coordinator</option>
+                      <option>Event Day System Operator</option>
+                      <option>Registration Staff</option>
+                      <option>Floor Director</option>
+                      <option>Stage Director</option>
+                      <option>Ingress and Egress Assistant</option>
+                      <option>Usher</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Priority</span>
+                    <select value={taskPriority} onChange={(event) => setTaskPriority(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </label>
                 </div>
-                <input
-                  type="datetime-local"
-                  value={taskSlaDueAt}
-                  onChange={(event) => setTaskSlaDueAt(event.target.value)}
-                  className="h-10 rounded-md border border-border bg-white px-3 text-sm"
-                />
-                <button disabled={busy || !taskTitle.trim()} onClick={createTask} className="h-10 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">SLA due time</span>
+                  <input
+                    type="datetime-local"
+                    value={taskSlaDueAt}
+                    onChange={(event) => setTaskSlaDueAt(event.target.value)}
+                    className="h-11 rounded-md border border-border bg-white px-3 text-sm"
+                  />
+                </label>
+                <button disabled={busy || !taskTitle.trim()} onClick={createTask} className="h-12 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
                   Add task
                 </button>
               </div>
@@ -375,11 +411,11 @@ function SupplierRow({ request, busy, onVerify, onDispute }: { request: MvpSuppl
         <Pill value={verification} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || verification === "verified"} onClick={onVerify} className="h-8 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
-          Verify setup
+        <button disabled={busy || verification === "verified"} onClick={onVerify} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
+          Verify on site
         </button>
-        <button disabled={busy || verification === "disputed"} onClick={onDispute} className="h-8 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
-          Dispute
+        <button disabled={busy || verification === "disputed"} onClick={onDispute} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
+          Dispute setup
         </button>
       </div>
     </div>
@@ -423,9 +459,9 @@ function CoordinatorRow({
         <Pill value={status} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || status === "present"} onClick={() => onStatus("present")} className="h-8 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
-        <button disabled={busy || status === "late"} onClick={() => onStatus("late")} className="h-8 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
-        <button disabled={busy || status === "absent"} onClick={() => onStatus("absent")} className="h-8 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
+        <button disabled={busy || status === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
+        <button disabled={busy || status === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
+        <button disabled={busy || status === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
       </div>
       {status !== "replaced" && (
         <div className="mt-3 grid gap-2 rounded-md border border-dashed border-border bg-white p-3">
@@ -433,6 +469,9 @@ function CoordinatorRow({
             <UserPlus className="size-4 text-(--prism-amber)" />
             Replacement
           </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            Replacement marks this assignment as replaced, creates a pending assignment for the selected coordinator, and keeps the reason in the live log context.
+          </p>
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
             <select
               value={replacementCoordinatorId}
@@ -444,24 +483,29 @@ function CoordinatorRow({
                   setReplacementRole(nextCoordinator.roleTags[0]);
                 }
               }}
-              className="h-9 rounded-md border border-border bg-white px-2 text-xs"
+              className="h-10 rounded-md border border-border bg-white px-2 text-xs"
             >
               <option value="">Select coordinator</option>
               {eligibleCoordinators.map((coordinator) => (
                 <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>
               ))}
             </select>
-            <input value={replacementRole} onChange={(event) => setReplacementRole(event.target.value)} className="h-9 rounded-md border border-border bg-white px-2 text-xs" />
+            <input value={replacementRole} onChange={(event) => setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs" />
           </div>
           <input
             value={replacementReason}
             onChange={(event) => setReplacementReason(event.target.value)}
-            placeholder="Replacement reason"
-            className="h-9 rounded-md border border-border bg-white px-2 text-xs"
+            placeholder="Replacement reason required for live log"
+            className="h-10 rounded-md border border-border bg-white px-2 text-xs"
           />
-          <button disabled={busy || !replacementCoordinatorId || !replacementReason.trim()} onClick={replace} className="h-8 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+          <button disabled={busy || !replacementCoordinatorId || !replacementReason.trim()} onClick={replace} className="h-10 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
             Replace coordinator
           </button>
+        </div>
+      )}
+      {status === "replaced" && (
+        <div className="mt-3 rounded-md border border-border bg-white p-3 text-xs leading-5 text-muted-foreground">
+          Replacement recorded. This row is retained as operational context; the replacement coordinator receives a pending assignment.
         </div>
       )}
     </div>
@@ -494,11 +538,11 @@ function IssueRow({
       </div>
       {issue.status !== "resolved" && (
         <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy} onClick={onResolve} className="h-8 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
-          Mark resolved
-        </button>
-          <button disabled={busy} onClick={onEscalate} className="inline-flex h-8 items-center gap-1 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
-            <BellRing className="size-3.5" /> Escalate
+          <button disabled={busy} onClick={onResolve} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
+            Mark resolved
+          </button>
+          <button disabled={busy} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
+            <BellRing className="size-3.5" /> Escalate to PMCM
           </button>
         </div>
       )}
@@ -530,14 +574,14 @@ function TaskRow({
         <Pill value={task.status} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || task.status === "in_progress" || task.status === "done"} onClick={onProgress} className="h-8 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">
+        <button disabled={busy || task.status === "in_progress" || task.status === "done"} onClick={onProgress} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">
           In progress
         </button>
-        <button disabled={busy || task.status === "done"} onClick={onDone} className="h-8 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
+        <button disabled={busy || task.status === "done"} onClick={onDone} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">
           Done
         </button>
-        <button disabled={busy || task.status === "done"} onClick={onEscalate} className="inline-flex h-8 items-center gap-1 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
-          <BellRing className="size-3.5" /> Escalate
+        <button disabled={busy || task.status === "done"} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">
+          <BellRing className="size-3.5" /> Escalate task
         </button>
       </div>
     </div>

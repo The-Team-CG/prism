@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, KeyRound, QrCode, Sparkles, TicketCheck } from "lucide-react";
+import { ArrowRight, KeyRound, QrCode, ShieldCheck, Sparkles, TicketCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
@@ -108,26 +108,58 @@ export default function GuestOpenWithCode() {
               <div className="grid size-11 place-items-center rounded-md bg-secondary text-primary">
                 <KeyRound className="size-5" />
               </div>
-              <CardTitle className="mt-2 text-2xl font-black">Open event</CardTitle>
-              <p className="text-sm text-muted-foreground">Use the code generated from the PMCM event record.</p>
+              <CardTitle className="mt-2 text-2xl font-black">Open guest pass</CardTitle>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Use the PMCM event code from the invitation or registration desk. This is the only path into the guest dashboard.
+              </p>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <Input value={guestName} onChange={(event) => setGuestName(event.target.value)} className="h-11 bg-white" />
-              <Input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} className="h-11 bg-white font-black uppercase tracking-wide" />
+            <CardContent className="flex flex-col gap-4">
+              <label className="grid gap-1.5">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Guest name</span>
+                <Input
+                  value={guestName}
+                  onChange={(event) => setGuestName(event.target.value)}
+                  autoComplete="name"
+                  className="h-12 bg-white"
+                  placeholder="Name at registration"
+                />
+              </label>
+              <label className="grid gap-1.5">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Event code</span>
+                <Input
+                  value={accessCode}
+                  onChange={(event) => setAccessCode(event.target.value)}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  className="h-12 bg-white font-black uppercase tracking-wide"
+                  placeholder="PMCM event code"
+                />
+              </label>
               {error && (
                 <Alert variant="destructive" className="rounded-md">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              <Button disabled={busy} className="h-11 w-full rounded-md font-black">
+              <Button disabled={busy || !guestName.trim() || !accessCode.trim()} className="h-12 w-full rounded-md font-black">
                 {busy ? "Opening" : "Open with code"} <ArrowRight className="size-4" />
               </Button>
+              <div className="flex items-start gap-2 rounded-md border border-border bg-secondary/50 p-3 text-xs leading-5 text-muted-foreground">
+                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>
+                  Code access opens only this guest event. Check-in and feedback still require separate consent before the API writes anything.
+                </span>
+              </div>
             </CardContent>
           </form>
           {existing && (
-            <a href="/dashboard" className="mx-5 mb-4 inline-flex h-10 w-[calc(100%-2.5rem)] items-center justify-center gap-2 rounded-md bg-secondary text-sm font-black text-foreground">
+            <a href="/dashboard" className="mx-5 mb-2 inline-flex h-11 w-[calc(100%-2.5rem)] items-center justify-center gap-2 rounded-md bg-secondary text-sm font-black text-foreground">
               <TicketCheck className="size-4" /> Continue to {existing.eventName}
             </a>
+          )}
+          {existing && (
+            <p className="px-5 pb-3 text-xs leading-5 text-muted-foreground">
+              This shortcut appears only after a valid event code has been opened on this browser.
+            </p>
           )}
           <p className="flex items-center gap-2 px-5 pb-5 text-xs leading-5 text-muted-foreground">
             <QrCode className="size-4" /> Demo event code: AYALA-TECH-YALA

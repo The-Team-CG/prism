@@ -90,7 +90,7 @@ export default function SupplierHome() {
       badgeText="Assigned suppliers only"
       productDetail="Supplier Portal"
       title="Supplier work stays scoped, clear, and deadline driven."
-      description="P.R.I.S.M gives suppliers a focused local portal for quote requests, revisions, assignment confirmation, readiness, contract metadata, and simple event-day status updates."
+      description="P.R.I.S.M gives suppliers a focused portal for quote requests, revisions, assignment confirmation, readiness, contract metadata, and simple event-day status updates."
       aside={<SupplierPreview />}
     >
       <div className="flex flex-col gap-6">
