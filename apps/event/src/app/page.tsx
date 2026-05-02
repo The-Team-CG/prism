@@ -5,9 +5,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
-  BadgeCheck,
-  CalendarClock,
-  ClipboardList,
   Clock3,
   Filter,
   FileCheck2,
@@ -18,8 +15,6 @@ import {
   MapPinned,
   MessageSquareText,
   Radio,
-  ReceiptText,
-  RotateCcw,
   Search,
   ShieldCheck,
   Star,
@@ -52,12 +47,8 @@ import {
   type MvpUser,
 } from "@/lib/mvp-api";
 import {
-  PrismCompactRecordList,
   PrismDashboardShell,
   PrismSectionPanel,
-  PrismStatusSummary,
-  PrismWorkflowTabs,
-  RolePageHeader,
 } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
@@ -88,6 +79,16 @@ import {
   SupplierDirectory,
   SupplierQuotePlanner,
 } from "./components/pmcm";
+import {
+  DefenseControlPanel,
+  EventOverviewPanels,
+  EventQueuePanel,
+  EventWorkflowTabs,
+  SelectedEventCockpit,
+  SelectedEventStatusSummary,
+  buildEventWorkflowTabs,
+  type PmcmDetailTab,
+} from "./components/pmcm/event-command-cockpit";
 import { PRESETS, type Preset } from "./components/editor/presets";
 import type { Project } from "./components/editor/types";
 
@@ -107,7 +108,7 @@ type EventSession = MvpUser & { signedInAt: string };
 type Screen =
   | { name: "portal" }
   | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project };
-type DetailTab = "overview" | "floorplans" | "briefing" | "suppliers" | "coordinators" | "live-ops" | "billing" | "closure" | "activity";
+type DetailTab = PmcmDetailTab;
 
 const EVENT_SESSION_KEY = "prism:event-command-session";
 
@@ -760,55 +761,26 @@ function PmcmPortal({
     </div>
   ) : null;
 
-  const eventTabItems = [
-    { id: "overview", label: "Overview", icon: ClipboardList },
-    { id: "floorplans", label: "Floorplans", icon: MapPinned, badge: drafts.length || undefined },
-    { id: "briefing", label: "Briefing", icon: FileCheck2 },
-    { id: "suppliers", label: "Suppliers", icon: Truck, badge: quotes.length || undefined },
-    { id: "coordinators", label: "Coordinators", icon: UserCheck, badge: assignments.length || undefined },
-    { id: "live-ops", label: "Live ops", icon: Radio },
-    { id: "billing", label: "Billing", icon: ReceiptText, badge: payments.length || undefined },
-    { id: "closure", label: "Closure", icon: ShieldCheck, badge: checks.filter((item) => item.status === "open").length || undefined },
-    { id: "activity", label: "Activity", icon: MessageSquareText },
-  ];
+  const openCheckCount = checks.filter((item) => item.status === "open").length;
+  const eventTabItems = buildEventWorkflowTabs({
+    draftsCount: drafts.length,
+    quotesCount: quotes.length,
+    assignmentsCount: assignments.length,
+    paymentsCount: payments.length,
+    openChecksCount: openCheckCount,
+  });
 
   const eventRail = (
-    <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
-      <div className="flex items-center justify-between gap-3 px-2 pb-2">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Event queue</p>
-          <p className="mt-1 text-xs text-muted-foreground">{events.length} confirmed workspace(s)</p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => run("reset", mvpApi.reset)}
-          title="Reset demo data"
-          className="size-8 rounded-md"
-        >
-          <RotateCcw aria-hidden="true" />
-          <span className="sr-only">Reset demo data</span>
-        </Button>
-      </div>
-      <PrismCompactRecordList
-        className="mt-2"
-        items={events.map((ev) => ({
-          id: ev.id,
-          title: ev.eventName,
-          description: ev.clientName,
-          meta: ev.eventDate,
-          status: ev.clientPortalStatus,
-          icon: CalendarClock,
-          active: ev.id === selectedEvent?.id,
-          onSelect: () => {
-            setSection("events");
-            setSelectedEventId(ev.id);
-            setTab("overview");
-          },
-        }))}
-      />
-    </section>
+    <EventQueuePanel
+      events={events}
+      selectedEventId={selectedEvent?.id}
+      onReset={() => run("reset", mvpApi.reset)}
+      onSelectEvent={(eventId) => {
+        setSection("events");
+        setSelectedEventId(eventId);
+        setTab("overview");
+      }}
+    />
   );
 
   return (
@@ -908,127 +880,34 @@ function PmcmPortal({
 
         {selectedEvent ? (
           <>
-            {/* Event header */}
-            <section className="hidden">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">Confirmed event</p>
-                  <h2 className="mt-1.5 text-2xl font-black text-foreground">{selectedEvent.eventName}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{selectedEvent.clientName} · {selectedEvent.eventDate}</p>
-                </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <StatusBadge status={selectedEvent.floorPlanStatus} />
-                  {defenseReadiness && <StatusBadge status={defenseReadiness.overallStatus} label={`Defense ${label(defenseReadiness.overallStatus)}`} />}
-                </div>
-              </div>
-            </section>
-
-            <RolePageHeader
-              eyebrow="PMCM command workspace"
-              title={selectedEvent.eventName}
-              description={`Review client state, supplier readiness, billing, floorplan, and live operations from one cockpit for ${selectedEvent.clientName} on ${selectedEvent.eventDate}.`}
-              meta={[
-                <StatusBadge key="event-status" status={selectedEvent.status} />,
-                <StatusBadge key="floorplan-status" status={selectedEvent.floorPlanStatus} />,
-                defenseReadiness ? (
-                  <StatusBadge key="defense-status" status={defenseReadiness.overallStatus} label={`Defense ${label(defenseReadiness.overallStatus)}`} />
-                ) : (
-                  `${openActionCount} open actions`
-                ),
-              ]}
+            <SelectedEventCockpit
+              event={selectedEvent}
+              defenseReadiness={defenseReadiness}
+              openActionCount={openActionCount}
               action={selectedEventActions}
             />
 
-            {defenseReadiness && (
-              <section className="rounded-xl border border-primary/15 bg-card px-5 py-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="max-w-2xl">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">Defense Control</p>
-                    <h3 className="mt-1 text-lg font-black text-foreground">{defenseReadiness.score}% lifecycle ready</h3>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Current stage: {label(defenseReadiness.lifecycleStage)}. Live AI, QR scanning, production notifications, and external integrations stay deferred for this defense pass.
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/60 px-4 py-3 text-right">
-                    <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Guest count</p>
-                    <p className="mt-1 text-2xl font-black text-foreground">{defenseReadiness.summary.guestAttendanceCount}</p>
-                    <p className="text-xs text-muted-foreground">{defenseReadiness.summary.pendingFeedbackModeration} feedback item(s) pending</p>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                  {defenseReadiness.nextActions.map((action) => (
-                    <button
-                      key={action.key}
-                      type="button"
-                      onClick={() => setTab(action.targetTab as DetailTab)}
-                      className="rounded-lg border border-border bg-secondary/45 p-3 text-left transition hover:border-primary/30 hover:bg-secondary"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-black text-foreground">{action.label}</p>
-                        <StatusBadge status={action.status} />
-                      </div>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.detail}</p>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
+            {defenseReadiness && <DefenseControlPanel defenseReadiness={defenseReadiness} onSelectTab={setTab} />}
 
-            <PrismStatusSummary
-              columns="four"
-              items={[
-                { id: "drafts", label: "Drafts", value: drafts.length, icon: LayoutGrid, detail: "PMCM and client preference layouts." },
-                { id: "active-layout", label: "Active layout", value: activeDraft ? "Ready" : "Pending", icon: BadgeCheck, status: activeDraft?.status ?? "pending" },
-                { id: "supplier-quotes", label: "Supplier quotes", value: quotes.length, icon: Truck, detail: `${quoteRequests.length} request batch(es).` },
-                {
-                  id: "open-checks",
-                  label: "Open checks",
-                  value: checks.filter((item) => item.status === "open").length,
-                  icon: ShieldCheck,
-                  status: checks.some((item) => item.status === "open") ? "open" : "completed",
-                },
-              ]}
+            <SelectedEventStatusSummary
+              drafts={drafts}
+              activeDraft={activeDraft}
+              quoteRequestCount={quoteRequests.length}
+              quoteCount={quotes.length}
+              openCheckCount={openCheckCount}
             />
 
-            <PrismWorkflowTabs items={eventTabItems} activeId={tab} onSelect={(item) => setTab(item as DetailTab)} />
+            <EventWorkflowTabs items={eventTabItems} activeTab={tab} onSelectTab={setTab} />
 
             {tab === "overview" && (
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <Panel title="Event record" icon={ClipboardList}>
-                  <div className="divide-y divide-border text-sm">
-                    {[
-                      { label: "Readiness", value: selectedEvent.readiness ?? "—" },
-                      { label: "Client portal", value: <StatusBadge status={selectedEvent.clientPortalStatus} /> },
-                      { label: "Floor plan", value: <StatusBadge status={selectedEvent.floorPlanStatus} /> },
-                      { label: "Guest code", value: selectedEvent.guestAccessCode ?? "Generated after event" },
-                    ].map(({ label: lbl, value }) => (
-                      <div key={lbl} className="flex items-center justify-between gap-4 py-2.5 not-last:border-b not-last:border-border">
-                        <span className="font-semibold text-muted-foreground">{lbl}</span>
-                        <span className="text-right font-semibold text-foreground">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Panel>
-                <Panel title="Next operator actions" icon={Radio}>
-                  <div className="flex flex-col gap-2">
-                    <Button size="sm" className="w-full justify-start rounded-lg font-bold" onClick={() => run("briefing", () => mvpApi.submitBriefing(selectedEvent.id))}>
-                      Submit client briefing
-                    </Button>
-                    <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={() => setTab("suppliers")}>
-                      Open quote request builder
-                    </Button>
-                    <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={() => run("compliance", () => mvpApi.runCompliance(selectedEvent.id, "planning"))}>
-                      Run compliance
-                    </Button>
-                    <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={() => setTab("coordinators")}>
-                      Open coordinator desk
-                    </Button>
-                    <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={() => setTab("live-ops")}>
-                      Open live ops
-                    </Button>
-                  </div>
-                </Panel>
-              </div>
+              <EventOverviewPanels
+                event={selectedEvent}
+                onSubmitBriefing={() => run("briefing", () => mvpApi.submitBriefing(selectedEvent.id))}
+                onOpenSupplierDesk={() => setTab("suppliers")}
+                onRunCompliance={() => run("compliance", () => mvpApi.runCompliance(selectedEvent.id, "planning"))}
+                onOpenCoordinatorDesk={() => setTab("coordinators")}
+                onOpenLiveOps={() => setTab("live-ops")}
+              />
             )}
 
             {tab === "floorplans" && (

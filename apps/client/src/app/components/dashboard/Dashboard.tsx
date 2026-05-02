@@ -9,48 +9,32 @@ import {
   BadgeCheck,
   CalendarDays,
   CheckCircle2,
-  ClipboardList,
   FileCheck2,
   FileText,
-  Heart,
   Home,
-  LayoutTemplate,
   LockKeyhole,
   MapPinned,
   ReceiptText,
   Send,
   ShieldCheck,
-  Trash2,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
 import {
   mvpApi,
-  type MvpAuditLog,
   type MvpDemoState,
   type MvpEvent,
   type MvpFloorPlanDraft,
   type MvpUser,
 } from "@/lib/mvp-api";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "../ui/breadcrumb";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Separator } from "../ui/separator";
 import { Skeleton } from "../ui/skeleton";
-import { StatusBadge, statusClass } from "../ui/status-badge";
+import { StatusBadge } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
 import {
   PrismAppShell,
@@ -657,177 +641,8 @@ export function Dashboard() {
         router.replace("/sign-in");
       }}
     >
-      <div className="contents">
+      <div className="space-y-5">
 
-        {/* Sidebar */}
-        <aside className="hidden">
-          <a href="/" className="flex items-center gap-3">
-            <span className="flex h-11 w-32 items-center justify-center rounded-lg border border-white/10 bg-white px-2.5 shadow-sm">
-              <img src="/pmcm-logo.png" alt="PMCM logo" className="h-8 w-full object-contain" />
-            </span>
-            <span>
-              <span className="block text-xs font-black uppercase tracking-[0.22em] text-(--prism-amber)">P.R.I.S.M</span>
-              <span className="block text-sm text-sidebar-foreground/70">Client portal</span>
-            </span>
-          </a>
-
-          {/* User card */}
-          <div className="mt-6 flex items-center gap-3 rounded-xl border border-white/10 bg-white/7 p-3">
-            <Avatar className="size-10 border border-(--prism-amber)/30">
-              <AvatarFallback className="bg-card text-xs font-black text-foreground">
-                {session.name.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-black">{session.name}</p>
-              <p className="truncate text-xs text-sidebar-foreground/60">{session.organization}</p>
-            </div>
-          </div>
-
-          {/* Primary nav */}
-          <nav className="mt-7 flex flex-col gap-1">
-            <p className="px-3 pb-2 text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">
-              Navigation
-            </p>
-            <SidebarNavButton
-              icon={Home}
-              label="Dashboard"
-              active={tab === "overview" && !selectedEvent}
-              onClick={() => setTab("overview")}
-            />
-            <SidebarNavButton
-              icon={ClipboardList}
-              label="My events"
-              badge={events.length}
-              active={!!selectedEvent}
-              onClick={() => setTab("overview")}
-            />
-          </nav>
-
-          {/* Event workspace sub-nav — only shown when an event is selected */}
-          {selectedEvent && (
-            <nav className="mt-5 flex flex-col gap-1 border-l border-white/10 pl-3 ml-3">
-              <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.16em] text-sidebar-foreground/50">
-                {selectedEvent.eventName}
-              </p>
-              {DETAIL_TABS.map(({ id, label, icon }) => (
-                <SidebarNavButton
-                  key={id}
-                  icon={icon}
-                  label={label}
-                  active={tab === id}
-                  onClick={() => setTab(id)}
-                  small
-                />
-              ))}
-            </nav>
-          )}
-
-          {/* Resources */}
-          <nav className="mt-6 flex flex-col gap-1">
-            <p className="px-3 pb-2 text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">
-              Resources
-            </p>
-            {[
-              { label: "Templates", Icon: LayoutTemplate },
-              { label: "Favorites", Icon: Heart },
-              { label: "Archive", Icon: Trash2 },
-            ].map(({ label, Icon }) => (
-              <button
-                key={label}
-                className="flex h-9 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-sidebar-foreground/60 transition hover:bg-white/8 hover:text-white"
-              >
-                <Icon className="size-4" />
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          <Separator className="my-5 bg-white/10" />
-
-          {/* Event switcher */}
-          <div className="min-h-0 flex-1">
-            <p className="px-1 pb-2 text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">
-              Event spaces
-            </p>
-            {events.length === 0 ? (
-              <p className="rounded-xl bg-white/8 p-3 text-sm leading-6 text-sidebar-foreground/60">
-                No conforme-approved events are open yet.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2 pr-1">
-                {events.map((ev) => (
-                  <button
-                    key={ev.id}
-                    onClick={() => { setSelectedEventId(ev.id); setTab("overview"); }}
-                    className={`w-full rounded-xl border p-3 text-left transition ${
-                      ev.id === selectedEvent?.id
-                        ? "border-(--prism-amber)/40 bg-card text-foreground"
-                        : "border-white/10 bg-white/5 text-sidebar-foreground/70 hover:border-(--prism-amber)/25 hover:bg-white/8"
-                    }`}
-                  >
-                    <p className="truncate text-sm font-black">{ev.eventName}</p>
-                    <p className="mt-0.5 text-xs">{ev.eventDate}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Button
-            variant="outline"
-            className="mt-5 h-10 border-white/15 bg-transparent text-sidebar-foreground hover:bg-white/10"
-            onClick={() => {
-              window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
-              router.replace("/sign-in");
-            }}
-          >
-            Sign out
-          </Button>
-        </aside>
-
-        {/* Main content */}
-        <section className="min-w-0">
-
-          {/* Topbar */}
-          <header className="hidden">
-            <div className="flex items-center gap-3">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink href="/">Client</BreadcrumbLink>
-                  </BreadcrumbItem>
-                  {selectedEvent && (
-                    <>
-                      <BreadcrumbSeparator />
-                      <BreadcrumbItem>
-                        <BreadcrumbPage>{selectedEvent.eventName}</BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </>
-                  )}
-                </BreadcrumbList>
-              </Breadcrumb>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                className="h-9 w-52 rounded-lg border-border text-sm"
-                placeholder="Search events…"
-              />
-              <Badge
-                variant="outline"
-                className="hidden h-9 rounded-lg border-(--prism-amber)/35 bg-accent px-3 text-(--prism-amber) sm:inline-flex"
-              >
-                Client session
-              </Badge>
-              <Avatar className="size-9 rounded-lg">
-                <AvatarFallback className="rounded-lg bg-(--prism-ink) text-xs font-black text-sidebar-foreground">
-                  {session.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </div>
-          </header>
-
-          <div className="space-y-5">
             {error && <PrismNoticeBanner tone="danger">{error}</PrismNoticeBanner>}
             {notice && <PrismNoticeBanner tone="success">{notice}</PrismNoticeBanner>}
 
@@ -1151,48 +966,7 @@ export function Dashboard() {
                 className="mt-8"
               />
             )}
-          </div>
-        </section>
       </div>
     </PrismAppShell>
-  );
-}
-
-function SidebarNavButton({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-  badge,
-  small,
-}: {
-  icon: LucideIcon;
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-  badge?: number;
-  small?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center justify-between rounded-lg px-3 text-left transition ${
-        small ? "h-8 text-sm" : "h-10 text-sm font-semibold"
-      } ${
-        active
-          ? "bg-white/12 text-white"
-          : "text-sidebar-foreground/70 hover:bg-white/8 hover:text-white"
-      }`}
-    >
-      <span className="flex items-center gap-3">
-        <Icon className="size-4 shrink-0" />
-        {label}
-      </span>
-      {badge !== undefined && badge > 0 && (
-        <span className="grid min-w-5 place-items-center rounded-full bg-white/12 px-1.5 text-[11px] text-sidebar-foreground">
-          {badge}
-        </span>
-      )}
-    </button>
   );
 }

@@ -44,6 +44,7 @@ export interface PrismAppShellProps {
   eyebrow: string;
   title: string;
   description?: string;
+  activeItemLabel?: string;
   activeItemId: string;
   navItems: PrismNavItem[];
   onNavSelect?: (id: string) => void;
@@ -56,6 +57,8 @@ export interface PrismAppShellProps {
   onSignOut?: () => void;
   children: React.ReactNode;
   className?: string;
+  contentClassName?: string;
+  homeHref?: string;
 }
 
 function initialsFor(name?: string) {
@@ -77,13 +80,14 @@ export function PrismSidebar({
   user,
   commandActions = [],
   onSignOut,
+  homeHref = "/",
 }: Pick<
   PrismAppShellProps,
-  "productLabel" | "roleLabel" | "activeItemId" | "navItems" | "onNavSelect" | "user" | "commandActions" | "onSignOut"
+  "productLabel" | "roleLabel" | "activeItemId" | "navItems" | "onNavSelect" | "user" | "commandActions" | "onSignOut" | "homeHref"
 >) {
   return (
     <div className="flex h-full flex-col gap-5 bg-sidebar p-4 text-sidebar-foreground">
-      <a href="/" className="flex items-center gap-3 rounded-md px-1 py-1 text-sidebar-foreground no-underline">
+      <a href={homeHref} className="flex items-center gap-3 rounded-md px-1 py-1 text-sidebar-foreground no-underline">
         <span className="grid size-10 place-items-center rounded-md border border-white/10 bg-white text-sm font-black text-foreground shadow-sm">
           P
         </span>
@@ -166,10 +170,11 @@ export function PrismTopBar({
   eyebrow,
   title,
   description,
+  activeItemLabel,
   searchPlaceholder,
   headerActions,
   onOpenNav,
-}: Pick<PrismAppShellProps, "eyebrow" | "title" | "description" | "searchPlaceholder" | "headerActions"> & {
+}: Pick<PrismAppShellProps, "eyebrow" | "title" | "description" | "activeItemLabel" | "searchPlaceholder" | "headerActions"> & {
   onOpenNav?: () => void;
 }) {
   return (
@@ -182,7 +187,10 @@ export function PrismTopBar({
         ) : null}
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-          <h1 className="truncate text-xl font-black text-foreground sm:text-2xl">{title}</h1>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h1 className="truncate text-xl font-black text-foreground sm:text-2xl">{title}</h1>
+            {activeItemLabel ? <PrismBadge variant="secondary">{activeItemLabel}</PrismBadge> : null}
+          </div>
           {description ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{description}</p> : null}
         </div>
         {searchPlaceholder ? (
@@ -270,6 +278,7 @@ export function PrismAppShell({
   eyebrow,
   title,
   description,
+  activeItemLabel,
   activeItemId,
   navItems,
   onNavSelect,
@@ -282,6 +291,8 @@ export function PrismAppShell({
   onSignOut,
   children,
   className,
+  contentClassName,
+  homeHref,
 }: PrismAppShellProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
@@ -298,6 +309,7 @@ export function PrismAppShell({
       user={user}
       commandActions={commandActions}
       onSignOut={onSignOut}
+      homeHref={homeHref}
     />
   );
 
@@ -322,11 +334,12 @@ export function PrismAppShell({
           eyebrow={eyebrow}
           title={title}
           description={description}
+          activeItemLabel={activeItemLabel}
           searchPlaceholder={searchPlaceholder}
           headerActions={headerActions}
           onOpenNav={() => setMobileOpen(true)}
         />
-        <div className={cn("grid gap-5 p-4 pb-24 sm:p-5 lg:pb-5", rightRail ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : "")}>
+        <div className={cn("grid gap-5 p-4 pb-24 sm:p-5 lg:pb-5", rightRail ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : "", contentClassName)}>
           <section className="min-w-0">{children}</section>
           {rightRail ? <aside className="min-w-0">{rightRail}</aside> : null}
         </div>
