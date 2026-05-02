@@ -1,0 +1,14 @@
+:root {
+  --prism-page: #fff8f2;
+  --prism-surface: #ffffff;
+  --prism-surface-raised: #fff4ec;
+  --prism-ink: #171216;
+  --prism-muted: #62535c;
+  --prism-line: #ead5ce;
+  --prism-sage: #e9f7fb;
+  --prism-amber: #f06030;
+  --prism-amber-soft: #fff0e6;
+  --prism-signal: #c01867;
+  --prism-success: #1f7a4b;
+  --prism-danger: #b4233a;
+}

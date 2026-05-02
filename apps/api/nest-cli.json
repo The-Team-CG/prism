@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/api/src",
+  "compilerOptions": {
+    "deleteOutDir": true
+  },
+  "projects": {
+    "api": {
+      "type": "application",
+      "root": "apps/api",
+      "entryFile": "main",
+      "sourceRoot": "apps/api/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/api/tsconfig.app.json"
+      }
+    },
+    "shared": {
+      "type": "library",
+      "root": "libs/shared",
+      "entryFile": "index",
+      "sourceRoot": "libs/shared/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/shared/tsconfig.lib.json"
+      }
+    },
+    "database": {
+      "type": "library",
+      "root": "libs/database",
+      "entryFile": "index",
+      "sourceRoot": "libs/database/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/database/tsconfig.lib.json"
+      }
+    },
+    "plans": {
+      "type": "library",
+      "root": "libs/modules/plans",
+      "entryFile": "index",
+      "sourceRoot": "libs/modules/plans/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/modules/plans/tsconfig.lib.json"
+      }
+    },
+    "templates": {
+      "type": "library",
+      "root": "libs/modules/templates",
+      "entryFile": "index",
+      "sourceRoot": "libs/modules/templates/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/modules/templates/tsconfig.lib.json"
+      }
+    },
+    "events": {
+      "type": "library",
+      "root": "libs/modules/events",
+      "entryFile": "index",
+      "sourceRoot": "libs/modules/events/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/modules/events/tsconfig.lib.json"
+      }
+    },
+    "event-ops": {
+      "type": "library",
+      "root": "libs/modules/event-ops",
+      "entryFile": "index",
+      "sourceRoot": "libs/modules/event-ops/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/modules/event-ops/tsconfig.lib.json"
+      }
+    },
+    "publishing": {
+      "type": "library",
+      "root": "libs/modules/publishing",
+      "entryFile": "index",
+      "sourceRoot": "libs/modules/publishing/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/modules/publishing/tsconfig.lib.json"
+      }
+    },
+    "health": {
+      "type": "library",
+      "root": "libs/modules/health",
+      "entryFile": "index",
+      "sourceRoot": "libs/modules/health/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/modules/health/tsconfig.lib.json"
+      }
+    }
+  }
+}

@@ -1,0 +1,917 @@
+import { createInitialMvpDemoState } from "@/mock/mvp-demo-state";
+import type { Project } from "@/app/components/editor/types";
+
+export type DemoRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
+
+export interface MvpUser {
+  id: string;
+  name: string;
+  role: DemoRole;
+  email: string;
+  organization: string;
+  approvalStatus: "approved" | "pending" | string;
+}
+
+export interface MvpInquiry {
+  id: string;
+  clientName: string;
+  companyName?: string;
+  email: string;
+  eventName: string;
+  eventType?: string;
+  eventDate: string;
+  clientType: string;
+  source?: string;
+  referralDetails?: string;
+  message: string;
+  status: string;
+  declineReason?: string | null;
+  acceptedAt?: string | null;
+  conformeSentAt?: string | null;
+  conformeSignedAt?: string | null;
+  portalActivatedAt?: string | null;
+  portalInvitationStatus?: string;
+  privacyConsentAccepted?: boolean;
+  privacyNoticeVersion?: string;
+  marketingConsentAccepted?: boolean;
+  createdAt: string;
+}
+
+export interface MvpEvent {
+  id: string;
+  inquiryId: string;
+  clientName: string;
+  eventName: string;
+  eventDate: string;
+  status: string;
+  clientPortalStatus: "locked" | "unlocked";
+  readiness: string;
+  archived: boolean;
+  floorPlanStatus: string;
+  floorPlanId?: string | null;
+  guestAccessCode?: string;
+  activeFloorPlanDraftId?: string;
+  floorPlanDrafts?: MvpFloorPlanDraft[];
+}
+
+export interface MvpFloorPlanDraft {
+  id: string;
+  eventId: string;
+  floorPlanId: string;
+  name: string;
+  status: "client_submitted" | "pmcm_draft" | "in_review" | "approved" | string;
+  isActive: boolean;
+  sourceType: "client_preference" | "blank" | "preset" | "template" | string;
+  createdByRole?: DemoRole | string;
+  clientPreference?: MvpFloorPlanPreference;
+  submittedSnapshot?: MvpFloorPlanSnapshot;
+  approvedSnapshot?: MvpFloorPlanSnapshot;
+  submittedAt?: string;
+  reviewedAt?: string;
+  approvedAt?: string;
+  submittedSnapshotAt?: string;
+  approvedSnapshotAt?: string;
+  revisionComment?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MvpDocument {
+  id: string;
+  eventId: string;
+  type: string;
+  fileName: string;
+  status: string;
+  uploadedAt: string;
+}
+
+export interface MvpBriefing {
+  eventId: string;
+  venue: string;
+  guestCount: number;
+  budgetRange: string;
+  serviceRequirements: string[];
+  notes: string;
+  submittedAt: string;
+}
+
+export interface MvpSupplierQuote {
+  id: string;
+  eventId: string;
+  supplierName: string;
+  category: string;
+  amount: number;
+  status: string;
+}
+
+export interface MvpCoordinatorAssignment {
+  id: string;
+  eventId: string;
+  coordinatorName: string;
+  role: string;
+  status: string;
+  doubleBookingWarning: boolean;
+}
+
+export interface MvpComplianceCheck {
+  id: string;
+  eventId: string;
+  layer: "Must-Fix" | "Should-Fix" | "Advisory";
+  title: string;
+  status: "open" | "resolved";
+  note: string;
+}
+
+export interface MvpBillingStatement {
+  id: string;
+  eventId: string;
+  number: string;
+  totalAmount: number;
+  status: string;
+  generatedAt: string;
+}
+
+export interface MvpPaymentMilestone {
+  id: string;
+  eventId: string;
+  label: string;
+  amount: number;
+  dueDate: string;
+  status: string;
+}
+
+export interface MvpPostEventDocument {
+  id: string;
+  eventId: string;
+  title: string;
+  status: string;
+}
+
+export interface MvpAuditLog {
+  id: string;
+  eventId?: string;
+  actor: string;
+  action: string;
+  createdAt: string;
+}
+
+export interface MvpNotificationLog {
+  id: string;
+  eventId?: string;
+  channel: "email" | "viber";
+  recipient: string;
+  message: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface MvpDemoState {
+  users: MvpUser[];
+  inquiries: MvpInquiry[];
+  events: MvpEvent[];
+  documents: MvpDocument[];
+  briefings: MvpBriefing[];
+  supplierQuotes: MvpSupplierQuote[];
+  coordinatorAssignments: MvpCoordinatorAssignment[];
+  complianceChecks: MvpComplianceCheck[];
+  billingStatements: MvpBillingStatement[];
+  paymentMilestones: MvpPaymentMilestone[];
+  postEventDocuments: MvpPostEventDocument[];
+  floorPlanDrafts: MvpFloorPlanDraft[];
+  auditLogs: MvpAuditLog[];
+  notificationLogs: MvpNotificationLog[];
+}
+
+export interface MvpApprovalRequest {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  organization: string;
+  status: string;
+  privacyConsentAccepted?: boolean;
+  privacyNoticeVersion?: string;
+  marketingConsentAccepted?: boolean;
+  requestedAt: string;
+}
+
+export type PrivacyConsentInput = {
+  privacyConsentAccepted: boolean;
+  privacyNoticeVersion?: string;
+  marketingConsentAccepted?: boolean;
+};
+
+export type CreateMvpInquiryInput = Pick<MvpInquiry, "clientName" | "email" | "eventName" | "eventDate" | "clientType" | "message"> & {
+  companyName?: string;
+  eventType?: string;
+  source?: string;
+  referralDetails?: string;
+} & PrivacyConsentInput;
+
+export interface MvpFloorPlanPreference {
+  seatingStyle: string;
+  stagePreference: string;
+  flowNotes: string;
+  guestCount: number;
+  constraints: string[];
+  notes?: string;
+}
+
+export interface MvpFloorPlanSnapshot {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  gridSize: number;
+  objects?: Project["objects"];
+  seats?: unknown[];
+  seatCategories?: unknown[];
+  updatedAt?: string;
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const USE_REMOTE_API = process.env.NEXT_PUBLIC_MVP_API_MODE !== "local";
+const STORAGE_KEY = "prism:mvp-demo-state";
+const defaultInquiryInput: CreateMvpInquiryInput = {
+  clientName: "Maria Santos",
+  companyName: "SampleCorp",
+  email: "maria@samplecorp.test",
+  eventName: "SampleCorp Leadership Forum",
+  eventType: "Leadership Forum",
+  eventDate: "2026-06-18",
+  clientType: "Corporate",
+  source: "Website",
+  message: "Need end-to-end planning, registration, staging, and post-event documentation.",
+  privacyConsentAccepted: true,
+  privacyNoticeVersion: "2026-05-01",
+  marketingConsentAccepted: false,
+};
+
+function now() {
+  return new Date().toISOString();
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function readMockState() {
+  if (typeof window === "undefined") return createInitialMvpDemoState();
+
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  if (!stored) {
+    const initial = createInitialMvpDemoState();
+    writeMockState(initial);
+    return initial;
+  }
+
+  const parsed = JSON.parse(stored) as MvpDemoState;
+  parsed.floorPlanDrafts ??= [];
+  parsed.events = parsed.events.map((event) => ({
+    ...event,
+    floorPlanStatus: event.floorPlanStatus ?? "not_started",
+    floorPlanId: event.floorPlanId ?? null,
+  }));
+  return parsed;
+}
+
+function writeMockState(state: MvpDemoState) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  return clone(state);
+}
+
+function addAudit(state: MvpDemoState, eventId: string | undefined, actor: string, action: string) {
+  state.auditLogs.unshift({
+    id: `aud_${crypto.randomUUID()}`,
+    eventId,
+    actor,
+    action,
+    createdAt: now(),
+  });
+}
+
+function addNotification(state: MvpDemoState, eventId: string | undefined, recipient: string, message: string, channel: "email" | "viber" = "email") {
+  state.notificationLogs.unshift({
+    id: `not_${crypto.randomUUID()}`,
+    eventId,
+    channel,
+    recipient,
+    message,
+    status: "sent",
+    createdAt: now(),
+  });
+}
+
+function updateMockState<T>(mutate: (state: MvpDemoState) => T): T {
+  const state = readMockState();
+  const result = mutate(state);
+  writeMockState(state);
+  return clone(result);
+}
+
+function firstEvent(state: MvpDemoState) {
+  const event = state.events[0];
+  if (!event) throw new Error("No demo event found");
+  return event;
+}
+
+function firstInquiry(state: MvpDemoState) {
+  const inquiry = state.inquiries[0];
+  if (!inquiry) throw new Error("No demo inquiry found");
+  return inquiry;
+}
+
+interface ApiFloorPlan {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  gridSize: number;
+  objects?: Project["objects"];
+  updatedAt?: string;
+}
+
+type CreateFloorPlanDraftInput = {
+  name: string;
+  sourceType: "blank" | "preset" | "template" | "client_preference";
+  width?: number;
+  height?: number;
+  gridSize?: number;
+};
+
+function floorPlanStorageKey(planId: string) {
+  return `prism:floor-plan:${planId}`;
+}
+
+function defaultProjectFromDraft(draft: MvpFloorPlanDraft, event?: MvpEvent): Project {
+  const nowTs = Date.now();
+  return {
+    id: draft.floorPlanId,
+    name: draft.name,
+    venue: event?.eventName ?? "Event venue",
+    widthM: 30,
+    heightM: 20,
+    pax: 120,
+    objects: [],
+    guests: [],
+    suppliers: [],
+    createdAt: nowTs,
+    updatedAt: nowTs,
+  };
+}
+
+function apiPlanToProject(plan: ApiFloorPlan, fallback?: Partial<Project>): Project {
+  const nowTs = Date.now();
+  return {
+    id: plan.id,
+    name: plan.name || fallback?.name || "Untitled floorplan",
+    venue: fallback?.venue ?? "Event venue",
+    widthM: plan.width && plan.width <= 200 ? plan.width : fallback?.widthM ?? 30,
+    heightM: plan.height && plan.height <= 200 ? plan.height : fallback?.heightM ?? 20,
+    pax: fallback?.pax ?? 120,
+    objects: Array.isArray(plan.objects) ? plan.objects : fallback?.objects ?? [],
+    guests: fallback?.guests ?? [],
+    suppliers: fallback?.suppliers ?? [],
+    createdAt: fallback?.createdAt ?? nowTs,
+    updatedAt: plan.updatedAt ? new Date(plan.updatedAt).getTime() : fallback?.updatedAt ?? nowTs,
+  };
+}
+
+function ensureLocalEventForConforme(state: MvpDemoState, inquiryId: string) {
+  const existing = state.events.find((item) => item.inquiryId === inquiryId);
+  if (existing) return existing;
+
+  const inquiry = state.inquiries.find((item) => item.id === inquiryId) ?? firstInquiry(state);
+  const event: MvpEvent = {
+    id: `evt_${crypto.randomUUID()}`,
+    inquiryId: inquiry.id,
+    clientName: inquiry.clientName,
+    eventName: inquiry.eventName,
+    eventDate: inquiry.eventDate,
+    status: "briefing",
+    clientPortalStatus: "unlocked",
+    readiness: "Client briefing open",
+    archived: false,
+    floorPlanStatus: "not_started",
+    floorPlanId: null,
+  };
+  state.events.unshift(event);
+  state.postEventDocuments.push(
+    { id: `ped_${crypto.randomUUID()}`, eventId: event.id, title: "Completion report", status: "pending" },
+    { id: `ped_${crypto.randomUUID()}`, eventId: event.id, title: "Photo and video turnover", status: "pending" },
+  );
+  return event;
+}
+
+const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
+  } catch (err) {
+    if (err instanceof TypeError) throw new Error(API_OFFLINE_MESSAGE);
+    throw err;
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text;
+    try {
+      const body = JSON.parse(text) as { message?: string | string[] };
+      message = Array.isArray(body.message) ? body.message.join("; ") : body.message || text;
+    } catch {
+      message = text;
+    }
+    throw new Error(message || `Request failed: ${response.status}`);
+  }
+
+  const body = (await response.json()) as { data?: T };
+  return body.data as T;
+}
+
+function clientActorQuery(session: Pick<MvpUser, "name" | "email">) {
+  return new URLSearchParams({
+    actorRole: "client",
+    actorName: session.name,
+    actorEmail: session.email,
+    clientName: session.name,
+  }).toString();
+}
+
+function withClientActor(path: string, session?: Pick<MvpUser, "name" | "email">) {
+  const actor = clientActorQuery(session ?? { name: "Ana Reyes", email: "ana@ayala.test" });
+  return `${path}${path.includes("?") ? "&" : "?"}${actor}`;
+}
+
+export const mvpApi = {
+  state: () => (USE_REMOTE_API ? request<MvpDemoState>("/api/demo/state") : Promise.resolve(readMockState())),
+  clientState: async (session: Pick<MvpUser, "name" | "email">) => {
+    if (!USE_REMOTE_API) return readMockState();
+
+    const actor = clientActorQuery(session);
+    return request<MvpDemoState>(`/api/client/workspace?${actor}`);
+  },
+  reset: () => {
+    if (USE_REMOTE_API) return request<MvpDemoState>("/api/demo/reset", { method: "POST" });
+
+    const state = createInitialMvpDemoState();
+    writeMockState(state);
+    return Promise.resolve(state);
+  },
+  login: (input: { email: string; password: string }) =>
+    USE_REMOTE_API
+      ? request<MvpUser & { signedInAt: string }>("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify(input),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const user = state.users.find(
+          (candidate) => {
+            const candidateWithPassword = candidate as MvpUser & { password?: string };
+            return (
+              candidate.email.toLowerCase() === input.email.trim().toLowerCase() &&
+              (candidateWithPassword.password
+                ? candidateWithPassword.password === input.password
+                : input.password.length > 0)
+            );
+          },
+        );
+        if (!user) throw new Error("Invalid mock credentials");
+        if (user.approvalStatus !== "approved") throw new Error("This account is waiting for admin approval");
+        return { ...user, signedInAt: now() };
+      })),
+  requestApproval: (email: string, consent: PrivacyConsentInput = { privacyConsentAccepted: true, privacyNoticeVersion: "2026-05-01" }) =>
+    USE_REMOTE_API
+      ? request<MvpApprovalRequest>("/api/auth/approval-requests", {
+          method: "POST",
+          body: JSON.stringify({ email, ...consent }),
+        })
+      : Promise.resolve(updateMockState((state) => {
+          if (!consent.privacyConsentAccepted) throw new Error("Privacy consent is required before requesting approval");
+          const user = state.users.find((candidate) => candidate.email.toLowerCase() === email.trim().toLowerCase());
+          if (!user) throw new Error("User not found");
+          return {
+            id: `approval_${user.id}`,
+            userId: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            organization: user.organization,
+            status: "pending",
+            privacyConsentAccepted: consent.privacyConsentAccepted,
+            privacyNoticeVersion: consent.privacyNoticeVersion ?? "2026-05-01",
+            marketingConsentAccepted: consent.marketingConsentAccepted ?? false,
+            requestedAt: now(),
+          };
+        })),
+  createInquiry: (input: CreateMvpInquiryInput = defaultInquiryInput) =>
+    USE_REMOTE_API
+      ? request<MvpInquiry>("/api/inquiries", {
+          method: "POST",
+          body: JSON.stringify(input),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        if (!input.privacyConsentAccepted) throw new Error("Privacy consent is required before submitting an inquiry");
+        const inquiry: MvpInquiry = {
+          id: `inq_${crypto.randomUUID()}`,
+          ...input,
+          companyName: input.companyName ?? "",
+          eventType: input.eventType ?? input.clientType,
+          source: input.source ?? "Website",
+          status: "new",
+          createdAt: now(),
+        };
+        state.inquiries.unshift(inquiry);
+        addAudit(state, undefined, "PMCM Admin", "Created new inquiry");
+        addNotification(state, undefined, inquiry.email, "Inquiry received");
+        return inquiry;
+      })),
+  acceptInquiry: (inquiryId: string) =>
+    USE_REMOTE_API
+      ? request<MvpInquiry>(`/api/inquiries/${inquiryId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "accepted" }),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const inquiry = state.inquiries.find((item) => item.id === inquiryId) ?? firstInquiry(state);
+        inquiry.status = "accepted";
+        inquiry.acceptedAt = now();
+        inquiry.conformeSentAt = inquiry.acceptedAt;
+        addAudit(state, undefined, "PMCM Admin", "Accepted inquiry; awaiting signed conforme");
+        addNotification(state, undefined, inquiry.email, "Inquiry accepted; signed conforme required");
+        return inquiry;
+      })),
+  uploadConforme: (inquiryId: string) =>
+    USE_REMOTE_API
+      ? request<MvpDocument>(`/api/inquiries/${inquiryId}/conforme`, {
+          method: "POST",
+          body: JSON.stringify({ type: "signed_conforme", fileName: "signed-conforme.pdf" }),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const event = ensureLocalEventForConforme(state, inquiryId);
+        event.clientPortalStatus = "unlocked";
+        event.readiness = "Client briefing open";
+        event.status = "briefing";
+        const inquiry = state.inquiries.find((item) => item.id === inquiryId);
+        if (inquiry) {
+          inquiry.conformeSignedAt = now();
+          inquiry.portalActivatedAt = inquiry.conformeSignedAt;
+          inquiry.portalInvitationStatus = "sent";
+        }
+        const document: MvpDocument = {
+          id: `doc_${crypto.randomUUID()}`,
+          eventId: event.id,
+          type: "signed_conforme",
+          fileName: "signed-conforme.pdf",
+          status: "approved",
+          uploadedAt: now(),
+        };
+        state.documents.unshift(document);
+        state.billingStatements.unshift({
+          id: `bill_${crypto.randomUUID()}`,
+          eventId: event.id,
+          number: `BS-${String(state.billingStatements.length + 1).padStart(4, "0")}`,
+          totalAmount: 520000,
+          status: "issued",
+          generatedAt: now(),
+        });
+        state.paymentMilestones.push(
+          { id: `pay_${crypto.randomUUID()}`, eventId: event.id, label: "Reservation fee", amount: 156000, dueDate: "2026-05-01", status: "pending" },
+          { id: `pay_${crypto.randomUUID()}`, eventId: event.id, label: "Final payment", amount: 364000, dueDate: "2026-06-10", status: "pending" },
+        );
+        addAudit(state, event.id, "Client", "Uploaded signed conforme");
+        addNotification(state, event.id, event.clientName, "Client portal unlocked");
+        return document;
+      })),
+  events: () =>
+    USE_REMOTE_API
+      ? request<MvpEvent[]>("/api/events")
+      : Promise.resolve(updateMockState((state) =>
+        state.events.map((event) => ({
+          ...event,
+          floorPlanDrafts: state.floorPlanDrafts.filter((draft) => draft.eventId === event.id),
+          activeFloorPlanDraftId: state.floorPlanDrafts.find((draft) => draft.eventId === event.id && draft.isActive)?.id,
+        })),
+      )),
+  eventDetail: (eventId: string) =>
+    USE_REMOTE_API
+      ? request<MvpEvent>(`/api/events/${eventId}`)
+      : Promise.resolve(updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        const drafts = state.floorPlanDrafts.filter((draft) => draft.eventId === event.id);
+        return {
+          ...event,
+          floorPlanDrafts: drafts,
+          activeFloorPlanDraftId: drafts.find((draft) => draft.isActive)?.id,
+        };
+      })),
+  createFloorPlanPreference: (eventId: string, input: { name: string } & MvpFloorPlanPreference, session?: Pick<MvpUser, "name" | "email">) =>
+    USE_REMOTE_API
+      ? request<MvpFloorPlanDraft>(withClientActor(`/api/events/${eventId}/floorplan-preferences`, session), {
+          method: "POST",
+          body: JSON.stringify(input),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        const draft: MvpFloorPlanDraft = {
+          id: `fpd_${crypto.randomUUID()}`,
+          eventId,
+          floorPlanId: `plan_${crypto.randomUUID()}`,
+          name: input.name,
+          status: "client_submitted",
+          isActive: false,
+          sourceType: "client_preference",
+          createdByRole: "client",
+          clientPreference: {
+            seatingStyle: input.seatingStyle,
+            stagePreference: input.stagePreference,
+            flowNotes: input.flowNotes,
+            guestCount: input.guestCount,
+            constraints: input.constraints,
+            notes: input.notes ?? "",
+          },
+          submittedAt: now(),
+          createdAt: now(),
+          updatedAt: now(),
+        };
+        state.floorPlanDrafts.unshift(draft);
+        event.floorPlanStatus = "client_submitted";
+        event.readiness = "Client layout preference received";
+        addAudit(state, eventId, "Client", `Submitted layout preference: ${input.name}`);
+        addNotification(state, eventId, "PMCM Admin", `Client submitted a layout preference: ${input.name}`);
+        return draft;
+      })),
+  createFloorPlanDraft: (eventId: string, input: CreateFloorPlanDraftInput) =>
+    USE_REMOTE_API
+      ? request<MvpFloorPlanDraft>(`/api/events/${eventId}/floorplans`, {
+          method: "POST",
+          body: JSON.stringify(input),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        const draft: MvpFloorPlanDraft = {
+          id: `fpd_${crypto.randomUUID()}`,
+          eventId,
+          floorPlanId: `plan_${crypto.randomUUID()}`,
+          name: input.name,
+          status: "pmcm_draft",
+          isActive: false,
+          sourceType: input.sourceType,
+          createdByRole: "pmcm-admin",
+          createdAt: now(),
+          updatedAt: now(),
+        };
+        state.floorPlanDrafts.unshift(draft);
+        event.floorPlanStatus = event.floorPlanStatus === "approved" ? "approved" : "pmcm_draft";
+        event.readiness = event.floorPlanStatus === "approved" ? event.readiness : "Floorplan draft in progress";
+        addAudit(state, eventId, "PMCM Admin", `Created floorplan draft: ${input.name}`);
+        return draft;
+      })),
+  submitFloorPlanDraft: (eventId: string, draftId: string) =>
+    USE_REMOTE_API
+      ? request<MvpFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/submit`, { method: "POST" })
+      : Promise.resolve(updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        const draft = state.floorPlanDrafts.find((item) => item.id === draftId && item.eventId === eventId);
+        if (!draft) throw new Error("Floorplan draft not found");
+        draft.status = "in_review";
+        draft.submittedAt = draft.submittedAt ?? now();
+        draft.updatedAt = now();
+        event.floorPlanStatus = "in_review";
+        event.floorPlanId = draft.floorPlanId;
+        event.readiness = "Floorplan awaiting review";
+        addAudit(state, eventId, "PMCM Admin", `Submitted floorplan draft for review: ${draft.name}`);
+        return draft;
+      })),
+  approveFloorPlanDraft: (eventId: string, draftId: string) =>
+    USE_REMOTE_API
+      ? request<MvpFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/approve`, { method: "POST" })
+      : Promise.resolve(updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        const draft = state.floorPlanDrafts.find((item) => item.id === draftId && item.eventId === eventId);
+        if (!draft) throw new Error("Floorplan draft not found");
+        state.floorPlanDrafts.forEach((item) => {
+          if (item.eventId === eventId) item.isActive = false;
+        });
+        draft.status = "approved";
+        draft.isActive = true;
+        draft.submittedAt = draft.submittedAt ?? now();
+        draft.reviewedAt = now();
+        draft.approvedAt = now();
+        draft.updatedAt = now();
+        event.floorPlanStatus = "approved";
+        event.floorPlanId = draft.floorPlanId;
+        event.activeFloorPlanDraftId = draft.id;
+        event.readiness = "Floorplan approved";
+        addAudit(state, eventId, "PMCM Admin", `Approved floorplan draft: ${draft.name}`);
+        return draft;
+      })),
+  loadFloorPlanSnapshot: (eventId: string, draftId: string, type: "submitted" | "approved" = "approved", fallback?: Partial<Project>, session?: Pick<MvpUser, "name" | "email">) =>
+    USE_REMOTE_API
+      ? request<ApiFloorPlan>(withClientActor(`/api/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`, session)).then((plan) => apiPlanToProject(plan, fallback))
+      : Promise.resolve(apiPlanToProject({ id: fallback?.id ?? draftId, name: fallback?.name ?? "Official floorplan", width: 30, height: 20, gridSize: 1, objects: fallback?.objects ?? [] }, fallback)),
+  loadPlan: (planId: string, fallback?: Partial<Project>, session?: Pick<MvpUser, "name" | "email">) =>
+    USE_REMOTE_API
+      ? request<ApiFloorPlan>(withClientActor(`/api/plans/${planId}`, session)).then((plan) => apiPlanToProject(plan, fallback))
+      : Promise.resolve((() => {
+          if (typeof window === "undefined") return apiPlanToProject({ id: planId, name: fallback?.name ?? "Floorplan", width: 30, height: 20, gridSize: 1 }, fallback);
+          const stored = window.localStorage.getItem(floorPlanStorageKey(planId));
+          if (stored) return JSON.parse(stored) as Project;
+          return apiPlanToProject({ id: planId, name: fallback?.name ?? "Floorplan", width: 30, height: 20, gridSize: 1 }, fallback);
+        })()),
+  savePlan: (project: Project, session?: Pick<MvpUser, "name" | "email">) =>
+    USE_REMOTE_API
+      ? request<ApiFloorPlan>(withClientActor(`/api/plans/${project.id}`, session), {
+          method: "PUT",
+          body: JSON.stringify({
+            width: Math.max(1, Math.round(project.widthM)),
+            height: Math.max(1, Math.round(project.heightM)),
+            gridSize: 1,
+            objects: project.objects,
+            seats: [],
+            seatCategories: [],
+          }),
+        }).then((plan) => apiPlanToProject(plan, project))
+      : Promise.resolve((() => {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(floorPlanStorageKey(project.id), JSON.stringify(project));
+          }
+          return project;
+        })()),
+  submitBriefing: (eventId: string) =>
+    USE_REMOTE_API
+      ? request<MvpBriefing>(`/api/events/${eventId}/briefing`, {
+          method: "POST",
+          body: JSON.stringify({
+            venue: "Shangri-La Grand Ballroom",
+            guestCount: 240,
+            budgetRange: "PHP 450,000 - 520,000",
+            serviceRequirements: ["Digital Registration", "Stage and Technicals", "Documentation"],
+            notes: "Client prefers a polished technology summit setup with clear ingress flow.",
+          }),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        event.readiness = "Supplier quotes pending";
+        const briefing: MvpBriefing = {
+          eventId,
+          venue: "Shangri-La Grand Ballroom",
+          guestCount: 240,
+          budgetRange: "PHP 450,000 - 520,000",
+          serviceRequirements: ["Digital Registration", "Stage and Technicals", "Documentation"],
+          notes: "Client prefers a polished technology summit setup with clear ingress flow.",
+          submittedAt: now(),
+        };
+        state.briefings = state.briefings.filter((item) => item.eventId !== eventId);
+        state.briefings.unshift(briefing);
+        addAudit(state, event.id, "Client", "Submitted client briefing");
+        addNotification(state, event.id, "PMCM Admin", "Client briefing submitted");
+        return briefing;
+      })),
+  addSupplierQuote: (eventId: string) =>
+    USE_REMOTE_API
+      ? request<MvpSupplierQuote>(`/api/events/${eventId}/supplier-quotes`, {
+          method: "POST",
+          body: JSON.stringify({
+            supplierName: "BrightStage Technicals",
+            category: "Technicals",
+            amount: 165000,
+            status: "received",
+          }),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const quote: MvpSupplierQuote = {
+          id: `quote_${crypto.randomUUID()}`,
+          eventId,
+          supplierName: "BrightStage Technicals",
+          category: "Technicals",
+          amount: 165000,
+          status: "received",
+        };
+        state.supplierQuotes.unshift(quote);
+        addAudit(state, eventId, "Supplier", "Submitted supplier quote");
+        addNotification(state, eventId, "PMCM Admin", "Supplier quote received");
+        return quote;
+      })),
+  runCompliance: (eventId: string) =>
+    USE_REMOTE_API
+      ? request<MvpComplianceCheck[]>(`/api/events/${eventId}/compliance`, { method: "POST" })
+      : Promise.resolve(updateMockState((state) => {
+        const existing = state.complianceChecks.filter((item) => item.eventId !== eventId);
+        const checks: MvpComplianceCheck[] = [
+          {
+            id: `chk_${crypto.randomUUID()}`,
+            eventId,
+            layer: "Must-Fix",
+            title: "Supplier contract confirmation",
+            status: "open",
+            note: "Attach final signed supplier quotation before event lock.",
+          },
+          {
+            id: `chk_${crypto.randomUUID()}`,
+            eventId,
+            layer: "Should-Fix",
+            title: "Ingress timing alignment",
+            status: "open",
+            note: "Confirm guest arrival window with registration vendor.",
+          },
+        ];
+        state.complianceChecks = [...checks, ...existing];
+        addAudit(state, eventId, "PMCM Admin", "Ran compliance checks");
+        return checks;
+      })),
+  resolveCompliance: (eventId: string, checkId: string) =>
+    USE_REMOTE_API
+      ? request<MvpComplianceCheck>(`/api/events/${eventId}/compliance/${checkId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ resolved: true, note: "Supplier contract confirmation attached." }),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const check = state.complianceChecks.find((item) => item.id === checkId);
+        if (!check) throw new Error("Compliance check not found");
+        check.status = "resolved";
+        check.note = "Supplier contract confirmation attached.";
+        addAudit(state, eventId, "PMCM Admin", "Resolved compliance item");
+        return check;
+      })),
+  assignCoordinator: (eventId: string) =>
+    USE_REMOTE_API
+      ? request<MvpCoordinatorAssignment>(`/api/events/${eventId}/coordinators`, {
+          method: "POST",
+          body: JSON.stringify({ coordinatorName: "Marco Santos", role: "Floor Director" }),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const assignment: MvpCoordinatorAssignment = {
+          id: `coord_${crypto.randomUUID()}`,
+          eventId,
+          coordinatorName: "Marco Santos",
+          role: "Floor Director",
+          status: "pending_acknowledgement",
+          doubleBookingWarning: state.coordinatorAssignments.some((item) => item.coordinatorName === "Marco Santos" && item.status !== "acknowledged"),
+        };
+        state.coordinatorAssignments.unshift(assignment);
+        addAudit(state, eventId, "PMCM Admin", "Assigned coordinator");
+        addNotification(state, eventId, assignment.coordinatorName, "Coordinator assignment issued", "viber");
+        return assignment;
+      })),
+  acknowledgeCoordinator: (eventId: string, assignmentId: string) =>
+    USE_REMOTE_API
+      ? request<MvpCoordinatorAssignment>(`/api/events/${eventId}/coordinators/${assignmentId}/acknowledge`, {
+          method: "PATCH",
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const assignment = state.coordinatorAssignments.find((item) => item.id === assignmentId);
+        if (!assignment) throw new Error("Coordinator assignment not found");
+        assignment.status = "acknowledged";
+        addAudit(state, eventId, assignment.coordinatorName, "Acknowledged coordinator assignment");
+        return assignment;
+      })),
+  markPaymentReceived: (eventId: string, milestoneId: string) =>
+    USE_REMOTE_API
+      ? request<MvpPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "paid" }),
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const payment = state.paymentMilestones.find((item) => item.id === milestoneId);
+        if (!payment) throw new Error("Payment milestone not found");
+        payment.status = "paid";
+        addAudit(state, eventId, "PMCM Admin", `Marked ${payment.label} as paid`);
+        addNotification(state, eventId, "Finance", `${payment.label} received`);
+        return payment;
+      })),
+  completePostEventDocument: (eventId: string, documentId: string) =>
+    USE_REMOTE_API
+      ? request<MvpPostEventDocument>(`/api/events/${eventId}/post-event-documents/${documentId}/complete`, {
+          method: "PATCH",
+        })
+      : Promise.resolve(updateMockState((state) => {
+        const document = state.postEventDocuments.find((item) => item.id === documentId);
+        if (!document) throw new Error("Post-event document not found");
+        document.status = "submitted";
+        addAudit(state, eventId, "PMCM Admin", `Completed ${document.title}`);
+        return document;
+      })),
+  archiveEvent: (eventId: string) =>
+    USE_REMOTE_API
+      ? request<MvpEvent>(`/api/events/${eventId}/archive`, { method: "POST" })
+      : Promise.resolve(updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        event.archived = true;
+        event.status = "archived";
+        event.readiness = "Closed";
+        addAudit(state, eventId, "PMCM Admin", "Archived event");
+        addNotification(state, eventId, event.clientName, "Event workspace archived");
+        return event;
+      })),
+};

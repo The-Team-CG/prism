@@ -1,0 +1,63 @@
+﻿# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+.nuxt/
+out/
+coverage/
+tmp/
+temp/
+.cache/
+.vite/
+.turbo/
+
+# TypeScript build info
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.local-dev/
+
+# Legacy child repos kept as local backups after the Turborepo migration
+prism-api/
+prism-client/
+prism-event/
+prism-supplier/
+prism-guest/
+.legacy-git/*
+!.legacy-git/README.md
+
+# Local agent/plugin caches and generated companion assets
+.agents/
+.augment/
+.claude/
+.codex/
+.github/skills/
+.tmp-pmcm-standalone-assets/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Misc generated files
+*.swp
+*.swo
+*.swo?
+*.rej
+.DS_Store
+Thumbs.db
+
+.next

@@ -1,0 +1,31 @@
+{
+  "name": "prism",
+  "version": "0.1.0",
+  "private": true,
+  "description": "P.R.I.S.M local-only event operations monorepo.",
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "dev:api": "npm --workspace prism-api run dev",
+    "dev:client": "npm --workspace @prism/client run dev",
+    "dev:event": "npm --workspace @prism/event run dev",
+    "dev:supplier": "npm --workspace @prism/supplier run dev",
+    "dev:guest": "npm --workspace @prism/guest run dev",
+    "start:api": "npm --workspace prism-api run start",
+    "start:client": "npm --workspace @prism/client run start",
+    "start:event": "npm --workspace @prism/event run start",
+    "start:supplier": "npm --workspace @prism/supplier run start",
+    "start:guest": "npm --workspace @prism/guest run start",
+    "test:api": "npm --workspace prism-api run test",
+    "db:generate": "npm --workspace prism-api run db:generate"
+  },
+  "devDependencies": {
+    "turbo": "^2.6.1",
+    "typescript": "^6.0.3"
+  }
+}

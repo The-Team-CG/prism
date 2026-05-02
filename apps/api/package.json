@@ -1,0 +1,52 @@
+{
+    "name": "prism-api",
+    "version": "1.0.0",
+    "description": "p.r.i.s.m backend — NestJS monorepo",
+    "private": true,
+    "scripts": {
+        "dev": "node scripts/kill-prism-api-port.cjs && nest start api --watch",
+        "build": "nest build api",
+        "start": "node scripts/kill-prism-api-port.cjs && node dist/apps/api/apps/api/src/main.js",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "test": "vitest run",
+        "test:event-ops": "vitest run libs/modules/event-ops/src",
+        "prisma:validate": "prisma validate",
+        "validate": "npm run prisma:validate && npm run typecheck && npm run build",
+        "smoke": "node scripts/smoke-api.mjs",
+        "db:doctor": "node --env-file=.env scripts/db-doctor.mjs",
+        "db:doctor:runtime": "node --env-file=.env scripts/db-doctor.mjs --mode=runtime",
+        "db:status": "npm run db:doctor && prisma migrate status",
+        "db:setup": "npm run db:doctor && prisma migrate deploy",
+        "db:migrate": "npm run db:doctor && prisma migrate dev",
+        "db:generate": "prisma generate",
+        "db:verify:offline": "npm run prisma:validate && prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script",
+        "db:verify": "npm run db:doctor && npm run prisma:validate && prisma migrate status && npm run db:verify:offline",
+        "db:reset": "node scripts/require-ack.mjs db:reset PRISM_API_DB_RESET_I_UNDERSTAND && npm run db:doctor && prisma migrate reset --force --skip-generate",
+        "postinstall": "prisma generate"
+    },
+    "dependencies": {
+        "@nestjs/common": "^11.1.19",
+        "@nestjs/config": "^4.0.4",
+        "@nestjs/core": "^11.1.19",
+        "@nestjs/platform-express": "^11.1.19",
+        "@prisma/adapter-pg": "^7.8.0",
+        "@prisma/client": "^7.8.0",
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.15.1",
+        "pg": "^8.16.0",
+        "prisma": "^7.8.0",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "^7.8.1"
+    },
+    "devDependencies": {
+        "@nestjs/cli": "^11.0.21",
+        "@nestjs/schematics": "^11.1.0",
+        "@types/express": "^5.0.6",
+        "@types/node": "^25.6.0",
+        "@types/pg": "^8.15.1",
+        "source-map-support": "^0.5.21",
+        "ts-loader": "^9.5.2",
+        "typescript": "^6.0.3",
+        "vitest": "^4.1.5"
+    }
+}
