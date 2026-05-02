@@ -18,6 +18,7 @@ import {
   MapPinned,
   MessageSquareText,
   Radio,
+  ReceiptText,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -50,7 +51,14 @@ import {
   type MvpSupplierCategory,
   type MvpUser,
 } from "@/lib/mvp-api";
-import { PrismDashboardShell, PrismMetricTile, PrismSectionPanel, RolePageHeader } from "@prism/ui";
+import {
+  PrismCompactRecordList,
+  PrismDashboardShell,
+  PrismSectionPanel,
+  PrismStatusSummary,
+  PrismWorkflowTabs,
+  RolePageHeader,
+} from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
@@ -218,10 +226,6 @@ function Panel({ title, icon: Icon, children, aside }: { title: string; icon: Lu
       {children}
     </PrismSectionPanel>
   );
-}
-
-function Metric({ label, value, icon: Icon }: { label: string; value: string | number; icon: LucideIcon }) {
-  return <PrismMetricTile label={label} value={value} icon={Icon} />;
 }
 
 function buildProject(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {
@@ -756,6 +760,18 @@ function PmcmPortal({
     </div>
   ) : null;
 
+  const eventTabItems = [
+    { id: "overview", label: "Overview", icon: ClipboardList },
+    { id: "floorplans", label: "Floorplans", icon: MapPinned, badge: drafts.length || undefined },
+    { id: "briefing", label: "Briefing", icon: FileCheck2 },
+    { id: "suppliers", label: "Suppliers", icon: Truck, badge: quotes.length || undefined },
+    { id: "coordinators", label: "Coordinators", icon: UserCheck, badge: assignments.length || undefined },
+    { id: "live-ops", label: "Live ops", icon: Radio },
+    { id: "billing", label: "Billing", icon: ReceiptText, badge: payments.length || undefined },
+    { id: "closure", label: "Closure", icon: ShieldCheck, badge: checks.filter((item) => item.status === "open").length || undefined },
+    { id: "activity", label: "Activity", icon: MessageSquareText },
+  ];
+
   const eventRail = (
     <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
       <div className="flex items-center justify-between gap-3 px-2 pb-2">
@@ -775,28 +791,23 @@ function PmcmPortal({
           <span className="sr-only">Reset demo data</span>
         </Button>
       </div>
-      <div className="flex flex-col gap-1.5">
-        {events.map((ev) => (
-          <button
-            key={ev.id}
-            type="button"
-            onClick={() => { setSection("events"); setSelectedEventId(ev.id); setTab("overview"); }}
-            className={cx(
-              "w-full rounded-md border p-3 text-left transition",
-              ev.id === selectedEvent?.id
-                ? "border-primary/40 bg-secondary"
-                : "border-border bg-background hover:border-primary/25",
-            )}
-          >
-            <p className="truncate text-sm font-bold text-foreground">{ev.eventName}</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{ev.clientName}</p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <StatusBadge status={ev.clientPortalStatus} />
-              <StatusBadge status={ev.floorPlanStatus} />
-            </div>
-          </button>
-        ))}
-      </div>
+      <PrismCompactRecordList
+        className="mt-2"
+        items={events.map((ev) => ({
+          id: ev.id,
+          title: ev.eventName,
+          description: ev.clientName,
+          meta: ev.eventDate,
+          status: ev.clientPortalStatus,
+          icon: CalendarClock,
+          active: ev.id === selectedEvent?.id,
+          onSelect: () => {
+            setSection("events");
+            setSelectedEventId(ev.id);
+            setTab("overview");
+          },
+        }))}
+      />
     </section>
   );
 
@@ -963,31 +974,23 @@ function PmcmPortal({
               </section>
             )}
 
-            {/* Metrics */}
-            <div className="grid gap-3 md:grid-cols-4">
-              <Metric label="Drafts" value={drafts.length} icon={LayoutGrid} />
-              <Metric label="Active layout" value={activeDraft ? "1" : "0"} icon={BadgeCheck} />
-              <Metric label="Supplier quotes" value={quotes.length} icon={Truck} />
-              <Metric label="Open checks" value={checks.filter((item) => item.status === "open").length} icon={ShieldCheck} />
-            </div>
+            <PrismStatusSummary
+              columns="four"
+              items={[
+                { id: "drafts", label: "Drafts", value: drafts.length, icon: LayoutGrid, detail: "PMCM and client preference layouts." },
+                { id: "active-layout", label: "Active layout", value: activeDraft ? "Ready" : "Pending", icon: BadgeCheck, status: activeDraft?.status ?? "pending" },
+                { id: "supplier-quotes", label: "Supplier quotes", value: quotes.length, icon: Truck, detail: `${quoteRequests.length} request batch(es).` },
+                {
+                  id: "open-checks",
+                  label: "Open checks",
+                  value: checks.filter((item) => item.status === "open").length,
+                  icon: ShieldCheck,
+                  status: checks.some((item) => item.status === "open") ? "open" : "completed",
+                },
+              ]}
+            />
 
-            {/* Tab strip */}
-            <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1.5 shadow-sm">
-              {(["overview", "floorplans", "briefing", "suppliers", "coordinators", "live-ops", "billing", "closure", "activity"] as DetailTab[]).map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setTab(item)}
-                  className={cx(
-                    "flex h-9 shrink-0 items-center rounded-lg px-3.5 text-sm font-semibold capitalize transition",
-                    tab === item
-                      ? "bg-(--prism-ink) text-white shadow-sm"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-                  )}
-                >
-                  {item.replace("-", " ")}
-                </button>
-              ))}
-            </div>
+            <PrismWorkflowTabs items={eventTabItems} activeId={tab} onSelect={(item) => setTab(item as DetailTab)} />
 
             {tab === "overview" && (
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">

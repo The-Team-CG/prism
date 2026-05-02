@@ -1,18 +1,18 @@
 import { readFileSync } from "node:fs";
 
 const routes = [
-  "http://localhost:4000/health",
-  "http://localhost:3001/",
-  "http://localhost:3001/sign-in",
-  "http://localhost:3001/inquiry",
-  "http://localhost:3001/dashboard",
-  "http://localhost:3002/",
-  "http://localhost:3002/sign-in",
-  "http://localhost:3002/dashboard",
-  "http://localhost:3003/",
-  "http://localhost:3003/open",
-  "http://localhost:3003/dashboard",
-  "http://localhost:3004/",
+  { url: "http://localhost:4000/health", markers: ["ok"] },
+  { url: "http://localhost:3001/", markers: ["P.R.I.S.M"] },
+  { url: "http://localhost:3001/sign-in", markers: ["Client"] },
+  { url: "http://localhost:3001/inquiry", markers: ["inquiry"] },
+  { url: "http://localhost:3001/dashboard", markers: ["Client"] },
+  { url: "http://localhost:3002/", markers: ["Supplier"] },
+  { url: "http://localhost:3002/sign-in", markers: ["Supplier"] },
+  { url: "http://localhost:3002/dashboard", markers: ["Supplier"] },
+  { url: "http://localhost:3003/", markers: ["Guest"] },
+  { url: "http://localhost:3003/open", markers: ["Guest"] },
+  { url: "http://localhost:3003/dashboard", markers: ["Guest"] },
+  { url: "http://localhost:3004/", markers: ["Event"] },
 ];
 
 const publicFiles = [
@@ -38,9 +38,15 @@ for (const file of publicFiles) {
 }
 
 for (const route of routes) {
-  const response = await fetch(route);
+  const response = await fetch(route.url);
   if (!response.ok) {
-    throw new Error(`${route} returned ${response.status}`);
+    throw new Error(`${route.url} returned ${response.status}`);
   }
-  console.log(`OK ${response.status} ${route}`);
+  const body = await response.text();
+  for (const marker of route.markers) {
+    if (!body.toLowerCase().includes(marker.toLowerCase())) {
+      throw new Error(`${route.url} did not include marker "${marker}"`);
+    }
+  }
+  console.log(`OK ${response.status} ${route.url}`);
 }

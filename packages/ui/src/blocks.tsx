@@ -97,6 +97,240 @@ export function PrismNoticeBanner({ tone = "info", title, children, className }:
   );
 }
 
+export interface PrismStatusSummaryItem {
+  id: string;
+  label: string;
+  value: React.ReactNode;
+  icon?: LucideIcon;
+  status?: string;
+  detail?: string;
+}
+
+export function PrismStatusSummary({
+  items,
+  columns = "auto",
+  className,
+}: {
+  items: PrismStatusSummaryItem[];
+  columns?: "auto" | "two" | "four";
+  className?: string;
+}) {
+  const columnClass =
+    columns === "two"
+      ? "sm:grid-cols-2"
+      : columns === "four"
+        ? "sm:grid-cols-2 xl:grid-cols-4"
+        : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+
+  return (
+    <div className={cn("grid gap-3", columnClass, className)}>
+      {items.map((item) => (
+        <div key={item.id} className="rounded-lg border border-border bg-card p-3.5 shadow-sm">
+          <div className="flex items-start gap-3">
+            {item.icon ? (
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-secondary text-primary">
+                <item.icon aria-hidden="true" />
+              </span>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-black uppercase tracking-wide text-muted-foreground">{item.label}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
+                <span className="min-w-0 truncate">{item.value}</span>
+                {item.status ? <PrismStatusBadge status={item.status} /> : null}
+              </div>
+              {item.detail ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.detail}</p> : null}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export interface PrismWorkflowTabItem {
+  id: string;
+  label: string;
+  icon?: LucideIcon;
+  badge?: string | number;
+  disabled?: boolean;
+}
+
+export function PrismWorkflowTabs({
+  items,
+  activeId,
+  onSelect,
+  className,
+}: {
+  items: PrismWorkflowTabItem[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("overflow-x-auto rounded-lg border border-border bg-card p-1.5 shadow-sm", className)}>
+      <div className="flex min-w-max gap-1">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            disabled={item.disabled}
+            data-active={item.id === activeId}
+            onClick={() => onSelect(item.id)}
+            className="flex h-9 shrink-0 items-center gap-2 rounded-md px-3.5 text-sm font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+          >
+            {item.icon ? <item.icon aria-hidden="true" /> : null}
+            <span>{item.label}</span>
+            {item.badge ? (
+              <span className="rounded-full bg-background/70 px-1.5 text-[11px] font-black text-current">
+                {item.badge}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export interface PrismFieldActionPanelProps {
+  title: string;
+  description?: string;
+  icon?: LucideIcon;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function PrismFieldActionPanel({
+  title,
+  description,
+  icon,
+  action,
+  children,
+  className,
+}: PrismFieldActionPanelProps) {
+  return (
+    <PrismSectionPanel title={title} description={description} icon={icon} action={action} className={className}>
+      <div className="space-y-4">{children}</div>
+    </PrismSectionPanel>
+  );
+}
+
+export interface PrismCompactRecordItem {
+  id: string;
+  title: string;
+  description?: string;
+  meta?: string;
+  status?: string;
+  icon?: LucideIcon;
+  active?: boolean;
+  action?: React.ReactNode;
+  onSelect?: () => void;
+}
+
+export function PrismCompactRecordList({
+  items,
+  emptyText = "No records available.",
+  className,
+}: {
+  items: PrismCompactRecordItem[];
+  emptyText?: string;
+  className?: string;
+}) {
+  if (!items.length) {
+    return <p className="rounded-md border border-dashed border-border bg-secondary/40 px-4 py-5 text-center text-sm text-muted-foreground">{emptyText}</p>;
+  }
+
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      {items.map((item) => {
+        const content = (
+          <span className="flex w-full items-start gap-3 text-left">
+            {item.icon ? (
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-secondary text-primary">
+                <item.icon aria-hidden="true" />
+              </span>
+            ) : null}
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="truncate text-sm font-black text-foreground">{item.title}</span>
+                {item.status ? <PrismStatusBadge status={item.status} /> : null}
+              </span>
+              {item.description ? <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
+              {item.meta ? <span className="mt-1 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{item.meta}</span> : null}
+            </span>
+            {item.action ? <span className="shrink-0">{item.action}</span> : null}
+          </span>
+        );
+
+        const baseClass = cn(
+          "rounded-lg border p-3 transition",
+          item.active ? "border-primary/40 bg-secondary" : "border-border bg-card hover:border-primary/25 hover:bg-secondary/35",
+        );
+
+        return item.onSelect ? (
+          <button key={item.id} type="button" onClick={item.onSelect} className={baseClass}>
+            {content}
+          </button>
+        ) : (
+          <div key={item.id} className={baseClass}>
+            {content}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export interface PrismEventDayAction {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  description?: string;
+  status?: string;
+  active?: boolean;
+  disabled?: boolean;
+  onSelect?: () => void;
+}
+
+export function PrismEventDayActionGroup({
+  actions,
+  className,
+}: {
+  actions: PrismEventDayAction[];
+  className?: string;
+}) {
+  if (!actions.length) return null;
+
+  return (
+    <div className={cn("grid gap-2 sm:grid-cols-2 xl:grid-cols-3", className)}>
+      {actions.map((action) => (
+        <button
+          key={action.id}
+          type="button"
+          disabled={action.disabled}
+          data-active={action.active}
+          onClick={action.onSelect}
+          className="min-h-24 rounded-lg border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/30 hover:bg-secondary/35 disabled:cursor-not-allowed disabled:opacity-55 data-[active=true]:border-primary/45 data-[active=true]:bg-secondary"
+        >
+          <span className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-secondary text-primary">
+              <action.icon aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-black text-foreground">{action.label}</span>
+                {action.status ? <PrismStatusBadge status={action.status} /> : null}
+              </span>
+              {action.description ? <span className="mt-1 block text-xs leading-5 text-muted-foreground">{action.description}</span> : null}
+            </span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export interface PrismActionQueueItem {
   id: string;
   title: string;

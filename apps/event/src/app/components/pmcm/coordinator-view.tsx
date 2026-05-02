@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ClipboardList,
   LayoutGrid,
-  MapPinned,
   Radio,
   ShieldCheck,
   Truck,
@@ -13,12 +12,18 @@ import {
 } from "lucide-react";
 
 import { mvpApi, type MvpCoordinatorRoleView, type MvpDemoState } from "@/lib/mvp-api";
+import {
+  PrismCompactRecordList,
+  PrismEventDayActionGroup,
+  PrismStatusSummary,
+  RolePageHeader,
+} from "@prism/ui";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Separator } from "@/app/components/ui/separator";
 import { label } from "./helpers";
-import { Metric, Panel } from "./primitives";
+import { Panel } from "./primitives";
 import type { PmcmEventSession } from "./types";
 
 export function CoordinatorView({
@@ -78,61 +83,77 @@ export function CoordinatorView({
         </div>
       </aside>
       <div className="space-y-6">
-        <section className="rounded-lg border border-primary/12 bg-card p-5">
-          <Badge variant="outline" className="rounded-full border-(--prism-amber)/35 bg-accent px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">
-            <Radio className="size-4" /> Live operations
-          </Badge>
-          <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-black leading-none">{event?.eventName ?? "No assigned event"}</h1>
-              <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPinned className="size-4" /> {event?.clientName ?? "PMCM"} - {event?.eventDate ?? "TBD"}
-              </p>
-            </div>
-            {assignment && (
-              <div className="rounded-lg border border-primary/12 bg-secondary p-4">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Role badge</p>
-                <p className="mt-1 text-xl font-black text-foreground">{assignment.role}</p>
-                <p className="mt-1 text-sm capitalize text-muted-foreground">{label(assignment.status)}</p>
+        <RolePageHeader
+          eyebrow="Live operations"
+          title={event?.eventName ?? "No assigned event"}
+          description={`${event?.clientName ?? "PMCM"} - ${event?.eventDate ?? "TBD"}. This coordinator view only exposes role-safe tasks, supplier readiness, attendance counts, and urgent issues.`}
+          meta={[
+            <Badge key="scope" variant="outline" className="rounded-full border-(--prism-success)/25 bg-(--prism-success)/8 px-3 py-1.5 text-(--prism-success)">
+              Scoped
+            </Badge>,
+            assignment ? <Badge key="role" variant="outline" className="rounded-full px-3 py-1.5">{assignment.role}</Badge> : "No assignment",
+            assignment ? label(assignment.status) : "Unassigned",
+          ]}
+          action={
+            assignment ? (
+              <div className="rounded-lg border border-border bg-secondary px-4 py-3 text-right">
+                <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Role badge</p>
+                <p className="mt-1 text-lg font-black text-foreground">{assignment.role}</p>
+                <p className="text-xs capitalize text-muted-foreground">{label(assignment.attendanceStatus ?? assignment.status)}</p>
               </div>
-            )}
-          </div>
-        </section>
+            ) : null
+          }
+        />
 
         <section className="rounded-lg border border-primary/12 bg-card p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-(--prism-amber)">Role-safe workspace</p>
-              <h2 className="mt-1 text-lg font-black text-foreground">{assignment?.role ?? "Coordinator"} event-day actions</h2>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-(--prism-amber)">Event-day actions</p>
+              <h2 className="mt-1 text-lg font-black text-foreground">{assignment?.role ?? "Coordinator"} run controls</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                This view keeps the coordinator focused on assigned tasks, supplier signals, attendance counts, and urgent issues. Finance, private supplier reviews, and audit logs stay PMCM-only.
+                Large actions stay readable on phones during ingress, supplier calls, and issue escalation.
               </p>
             </div>
-            <Badge variant="outline" className="rounded-full border-(--prism-success)/25 bg-(--prism-success)/8 px-3 py-1.5 text-(--prism-success)">
-              Scoped
-            </Badge>
           </div>
-          <div className="mt-4 grid gap-2 md:grid-cols-3">
-            {[
-              { label: "Acknowledge", detail: assignment?.status === "acknowledged" ? "Role confirmed" : "Confirm definite yes", icon: BadgeCheck },
-              { label: "Run queue", detail: `${roleView?.tasks.length ?? 0} role task(s)`, icon: ClipboardList },
-              { label: "Escalate", detail: `${roleView?.urgentIssues.length ?? 0} urgent issue(s)`, icon: Radio },
-            ].map(({ label: itemLabel, detail, icon: Icon }) => (
-              <div key={itemLabel} className="rounded-md border border-border bg-secondary/45 p-3">
-                <Icon className="size-4 text-(--prism-amber)" />
-                <p className="mt-2 text-sm font-black text-foreground">{itemLabel}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p>
-              </div>
-            ))}
-          </div>
+          <PrismEventDayActionGroup
+            actions={[
+              {
+                id: "acknowledge",
+                label: assignment?.status === "acknowledged" ? "Role acknowledged" : "Acknowledge role",
+                description: assignment?.status === "acknowledged" ? "PMCM has your definite yes." : "Confirm this assignment before event day.",
+                icon: BadgeCheck,
+                status: assignment?.status ?? "pending",
+                active: assignment?.status === "acknowledged",
+                disabled: busy || !assignment || assignment.status === "acknowledged",
+                onSelect: ack,
+              },
+              {
+                id: "queue",
+                label: "Run role queue",
+                description: `${roleView?.tasks.length ?? 0} assigned task(s) for this role.`,
+                icon: ClipboardList,
+                status: (roleView?.tasks.length ?? 0) > 0 ? "open" : "clear",
+              },
+              {
+                id: "issues",
+                label: "Escalate urgent issue",
+                description: `${roleView?.urgentIssues.length ?? 0} urgent issue(s) visible to this role.`,
+                icon: Radio,
+                status: (roleView?.urgentIssues.length ?? 0) > 0 ? "open" : "clear",
+              },
+            ]}
+          />
         </section>
 
-        <div className="grid gap-3 md:grid-cols-4">
-          <Metric label="Official floorplan" value={activeDraft ? "Ready" : "Pending"} icon={LayoutGrid} />
-          <Metric label="Supplier signals" value={roleView?.supplierStatuses.length ?? quotes.length} icon={Truck} />
-          <Metric label="Guest attendance" value={roleView?.guestAttendanceCount ?? 0} icon={ShieldCheck} />
-          <Metric label="Assignment" value={assignment ? label(assignment.status) : "None"} icon={UserCheck} />
-        </div>
+        <PrismStatusSummary
+          columns="four"
+          items={[
+            { id: "floorplan", label: "Official floorplan", value: activeDraft ? "Ready" : "Pending", icon: LayoutGrid, status: activeDraft?.status ?? "pending" },
+            { id: "suppliers", label: "Supplier signals", value: roleView?.supplierStatuses.length ?? quotes.length, icon: Truck, detail: "Only event-day readiness signals are shown." },
+            { id: "attendance", label: "Guest attendance", value: roleView?.guestAttendanceCount ?? 0, icon: ShieldCheck, detail: "Includes walk-ins flagged for PMCM review." },
+            { id: "assignment", label: "Assignment", value: assignment ? label(assignment.status) : "None", icon: UserCheck, status: assignment?.status ?? "pending" },
+          ]}
+        />
 
         <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <Panel title="Critical timeline" icon={CalendarClock}>
@@ -172,19 +193,17 @@ export function CoordinatorView({
         {roleView && (
           <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
             <Panel title="Role queue" icon={ClipboardList}>
-              <div className="space-y-3">
-                {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No event-day tasks assigned to this role yet.</p>}
-                {roleView.tasks.map((task) => (
-                  <div key={task.id} className="rounded-md border border-border bg-background p-3 text-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <p className="font-black">{task.title}</p>
-                      <span className="rounded-full bg-muted px-2 py-1 text-xs font-black capitalize text-muted-foreground">{label(task.status)}</span>
-                    </div>
-                    <p className="mt-1 text-muted-foreground">{task.assignedRole}</p>
-                    <LiveOpsBadges slaStatus={task.slaStatus} escalationLevel={task.escalationLevel} slaDueAt={task.slaDueAt} />
-                  </div>
-                ))}
-              </div>
+              <PrismCompactRecordList
+                emptyText="No event-day tasks assigned to this role yet."
+                items={roleView.tasks.map((task) => ({
+                  id: task.id,
+                  title: task.title,
+                  description: `${task.assignedRole} - ${task.notes}`,
+                  meta: task.slaDueAt ? `Due ${new Date(task.slaDueAt).toLocaleString("en-PH")}` : undefined,
+                  status: task.status,
+                  icon: ClipboardList,
+                }))}
+              />
             </Panel>
             <Panel title="Role-safe live data" icon={ShieldCheck}>
               <div className="space-y-3">
@@ -194,42 +213,22 @@ export function CoordinatorView({
                     <p className="mt-1 text-muted-foreground">{roleView.guestAttendanceCount} checked in, including walk-ins flagged for PMCM review.</p>
                   </div>
                 )}
-                {roleView.urgentIssues.length === 0 && <p className="text-sm text-muted-foreground">No urgent issue assigned to this role.</p>}
-                {roleView.urgentIssues.map((issue) => (
-                  <div key={issue.id} className="rounded-md border border-border bg-background p-3 text-sm">
-                    <p className="font-black">{issue.title}</p>
-                    <p className="mt-1 text-muted-foreground">{label(issue.status)} - {issue.ownerRole || "Unassigned"}</p>
-                    <LiveOpsBadges slaStatus={issue.slaStatus} escalationLevel={issue.escalationLevel} slaDueAt={issue.slaDueAt} />
-                  </div>
-                ))}
+                <PrismCompactRecordList
+                  emptyText="No urgent issue assigned to this role."
+                  items={roleView.urgentIssues.map((issue) => ({
+                    id: issue.id,
+                    title: issue.title,
+                    description: `${label(issue.status)} - ${issue.ownerRole || "Unassigned"}`,
+                    meta: issue.slaDueAt ? `Due ${new Date(issue.slaDueAt).toLocaleString("en-PH")}` : undefined,
+                    status: issue.slaStatus ?? issue.status,
+                    icon: Radio,
+                  }))}
+                />
               </div>
             </Panel>
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function LiveOpsBadges({
-  slaStatus,
-  escalationLevel,
-  slaDueAt,
-}: {
-  slaStatus?: string | null;
-  escalationLevel?: string | null;
-  slaDueAt?: string | null;
-}) {
-  const urgent = slaStatus === "overdue" || escalationLevel === "critical" || escalationLevel === "pmcm";
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-      <span className={`rounded-full px-2 py-1 font-black capitalize ${urgent ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>
-        {label(slaStatus ?? "on_track")}
-      </span>
-      {escalationLevel && escalationLevel !== "none" && (
-        <span className="rounded-full bg-amber-50 px-2 py-1 font-black capitalize text-amber-800">{label(escalationLevel)}</span>
-      )}
-      {slaDueAt && <span>Due {new Date(slaDueAt).toLocaleString("en-PH")}</span>}
     </div>
   );
 }

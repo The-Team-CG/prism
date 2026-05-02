@@ -52,7 +52,14 @@ import { Separator } from "../ui/separator";
 import { Skeleton } from "../ui/skeleton";
 import { StatusBadge, statusClass } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
-import { PrismMetricTile, PrismNoticeBanner, RolePageHeader } from "@prism/ui";
+import {
+  PrismAppShell,
+  PrismCompactRecordList,
+  PrismNoticeBanner,
+  PrismStatusSummary,
+  PrismWorkflowTabs,
+  RolePageHeader,
+} from "@prism/ui";
 import { ClientDefenseWorkspace } from "@prism/ui/client-blocks";
 import { PRESETS, type Preset } from "../editor/presets";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
@@ -525,12 +532,135 @@ export function Dashboard() {
 
   /* ── Main dashboard ───────────────────────────────────────── */
 
+  const shellNavItems = DETAIL_TABS.map((item) => ({
+    ...item,
+    disabled: !selectedEvent && item.id !== "overview",
+  }));
+
+  const shellCommandActions = selectedEvent
+    ? [
+        {
+          id: "briefing",
+          label: "Review briefing",
+          description: briefing ? "Venue, scope, guest count, and PMCM notes are ready." : "Briefing will appear after PMCM publishes it.",
+          icon: FileCheck2,
+          status: briefing ? "ready" : "pending",
+          onSelect: () => setTab("briefing"),
+        },
+        {
+          id: "floorplan",
+          label: officialDraft ? "Open official floorplan" : "Submit layout preference",
+          description: officialDraft
+            ? "Read-only PMCM official copy is available."
+            : "Send preferred layout notes for PMCM editing.",
+          icon: MapPinned,
+          status: officialDraft?.status ?? "pending",
+          onSelect: () => setTab("floorplan"),
+        },
+        {
+          id: "billing",
+          label: "Check billing",
+          description: billing ? "Statement and milestones are visible." : "Milestones will appear after PMCM posts billing.",
+          icon: ReceiptText,
+          status: billing?.status ?? "pending",
+          onSelect: () => setTab("billing"),
+        },
+        {
+          id: "documents",
+          label: "Open documents",
+          description: `${documents.length} document${documents.length === 1 ? "" : "s"} in this event workspace.`,
+          icon: FileText,
+          status: documents.length ? "ready" : "pending",
+          onSelect: () => setTab("documents"),
+        },
+      ]
+    : [];
+
+  const shellMobileActions = [
+    { id: "overview", label: "Overview", icon: Home, active: tab === "overview", onSelect: () => setTab("overview") },
+    { id: "floorplan", label: "Plan", icon: MapPinned, active: tab === "floorplan", disabled: !selectedEvent, onSelect: () => setTab("floorplan") },
+    { id: "billing", label: "Billing", icon: WalletCards, active: tab === "billing", disabled: !selectedEvent, onSelect: () => setTab("billing") },
+  ];
+
+  const shellRightRail = (
+    <div className="space-y-4">
+      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Event spaces</p>
+            <p className="mt-1 text-xs text-muted-foreground">{events.length} conforme-approved workspace(s)</p>
+          </div>
+          <StatusBadge status={selectedEvent?.clientPortalStatus ?? "locked"} />
+        </div>
+        <PrismCompactRecordList
+          className="mt-3"
+          emptyText="No conforme-approved events are open yet."
+          items={events.map((ev) => {
+            const draftsForEvent = state.floorPlanDrafts.filter((draft) => draft.eventId === ev.id);
+            const activeForEvent = draftsForEvent.find((draft) => draft.isActive) ?? draftsForEvent[0];
+            return {
+              id: ev.id,
+              title: ev.eventName,
+              description: ev.clientName,
+              meta: ev.eventDate,
+              status: activeForEvent?.status ?? ev.status,
+              icon: CalendarDays,
+              active: ev.id === selectedEvent?.id,
+              onSelect: () => {
+                setSelectedEventId(ev.id);
+                setTab("overview");
+              },
+            };
+          })}
+        />
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Client boundary</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Official floorplans stay read-only here. PMCM owns editing, submission, and approval from the event command app.
+        </p>
+      </section>
+    </div>
+  );
+
   return (
-    <main className="min-h-screen bg-background text-foreground lg:h-screen lg:overflow-hidden">
-      <div className="grid min-h-screen lg:h-screen lg:grid-cols-[280px_minmax(0,1fr)]">
+    <PrismAppShell
+      productLabel="P.R.I.S.M"
+      roleLabel="Client Portal"
+      eyebrow="Confirmed client workspace"
+      title={selectedEvent?.eventName ?? "Client portal"}
+      description={
+        selectedEvent
+          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Briefing, billing, documents, and official layout review stay in this signed-in space.`
+          : "The portal opens after PMCM accepts an inquiry and records the signed conforme."
+      }
+      activeItemId={tab}
+      navItems={shellNavItems}
+      onNavSelect={(id) => setTab(id as DetailTab)}
+      user={{
+        name: session.name,
+        detail: session.organization,
+        initials: session.name.slice(0, 2).toUpperCase(),
+      }}
+      searchPlaceholder="Search briefing, billing, documents..."
+      commandActions={shellCommandActions}
+      headerActions={
+        <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => void refresh()}>
+          Refresh
+        </Button>
+      }
+      rightRail={shellRightRail}
+      mobileActions={shellMobileActions}
+      onSignOut={() => {
+        window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
+        router.replace("/sign-in");
+      }}
+    >
+      <div className="contents">
 
         {/* Sidebar */}
-        <aside className="flex flex-col border-r border-primary/20 bg-sidebar p-5 text-sidebar-foreground lg:h-screen lg:overflow-y-auto">
+        <aside className="hidden">
           <a href="/" className="flex items-center gap-3">
             <span className="flex h-11 w-32 items-center justify-center rounded-lg border border-white/10 bg-white px-2.5 shadow-sm">
               <img src="/pmcm-logo.png" alt="PMCM logo" className="h-8 w-full object-contain" />
@@ -657,10 +787,10 @@ export function Dashboard() {
         </aside>
 
         {/* Main content */}
-        <section className="min-w-0 px-4 py-5 sm:px-6 lg:h-screen lg:overflow-y-auto lg:px-8">
+        <section className="min-w-0">
 
           {/* Topbar */}
-          <header className="sticky top-0 z-30 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/92 px-4 py-3 shadow-sm backdrop-blur">
+          <header className="hidden">
             <div className="flex items-center gap-3">
               <Breadcrumb>
                 <BreadcrumbList>
@@ -790,35 +920,41 @@ export function Dashboard() {
                   </div>
                 </section>
 
-                {/* Metric tiles */}
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <PrismMetricTile label="Portal status" value={selectedEvent.clientPortalStatus.replace("_", " ")} icon={BadgeCheck} />
-                  <PrismMetricTile
-                    label="Floorplan"
-                    value={officialDraft ? officialDraft.status.replace("_", " ") : preferenceDrafts.length ? "Preference sent" : "Pending"}
-                    icon={MapPinned}
-                  />
-                  <PrismMetricTile label="Billing" value={billing ? billing.status.replace("_", " ") : "Pending"} icon={ReceiptText} />
-                  <PrismMetricTile label="Activity items" value={audit.length} icon={Activity} />
-                </div>
+                <PrismStatusSummary
+                  columns="four"
+                  items={[
+                    {
+                      id: "portal",
+                      label: "Portal status",
+                      value: selectedEvent.clientPortalStatus.replace("_", " "),
+                      icon: BadgeCheck,
+                      status: selectedEvent.clientPortalStatus,
+                    },
+                    {
+                      id: "floorplan",
+                      label: "Floorplan",
+                      value: officialDraft ? officialDraft.status.replace("_", " ") : preferenceDrafts.length ? "Preference sent" : "Pending",
+                      icon: MapPinned,
+                      status: officialDraft?.status ?? (preferenceDrafts.length ? "submitted" : "pending"),
+                    },
+                    {
+                      id: "billing",
+                      label: "Billing",
+                      value: billing ? billing.status.replace("_", " ") : "Pending",
+                      icon: ReceiptText,
+                      status: billing?.status ?? "pending",
+                    },
+                    {
+                      id: "activity",
+                      label: "Activity items",
+                      value: audit.length,
+                      icon: Activity,
+                      detail: "Client-visible PMCM actions for this event.",
+                    },
+                  ]}
+                />
 
-                {/* Tab strip */}
-                <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1.5 shadow-sm">
-                  {DETAIL_TABS.map(({ id, label, icon: Icon }) => (
-                    <button
-                      key={id}
-                      onClick={() => setTab(id)}
-                      className={`flex h-9 shrink-0 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition ${
-                        tab === id
-                          ? "bg-(--prism-ink) text-white shadow-sm"
-                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                      }`}
-                    >
-                      <Icon className="size-3.5" />
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <PrismWorkflowTabs items={DETAIL_TABS} activeId={tab} onSelect={(id) => setTab(id as DetailTab)} />
 
                 {/* Tab content */}
                 {tab === "overview" && (
@@ -1018,7 +1154,7 @@ export function Dashboard() {
           </div>
         </section>
       </div>
-    </main>
+    </PrismAppShell>
   );
 }
 
