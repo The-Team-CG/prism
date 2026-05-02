@@ -52,6 +52,7 @@ import { Separator } from "../ui/separator";
 import { Skeleton } from "../ui/skeleton";
 import { StatusBadge, statusClass } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
+import { PrismMetricTile, PrismNoticeBanner, RolePageHeader } from "@prism/ui";
 import { PRESETS, type Preset } from "../editor/presets";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
 import {
@@ -216,17 +217,7 @@ function FieldGroup({ label: labelText, children }: { label: string; children: R
 }
 
 function MetricTile({ label, value, icon: Icon }: { label: string; value: string | number; icon: LucideIcon }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
-      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-primary">
-        <Icon size={16} />
-      </span>
-      <div className="min-w-0">
-        <p className="text-xl font-black leading-none text-foreground">{value}</p>
-        <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground truncate">{label}</p>
-      </div>
-    </div>
-  );
+  return <PrismMetricTile label={label} value={value} icon={Icon} />;
 }
 
 export function Dashboard() {
@@ -664,17 +655,8 @@ export function Dashboard() {
           </header>
 
           <div className="space-y-5">
-            {error && (
-              <Alert variant="destructive" className="rounded-xl">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {notice && (
-              <Alert className="rounded-xl border-(--prism-success)/20 bg-(--prism-success)/8 text-(--prism-success)">
-                <CheckCircle2 className="size-4" />
-                <AlertDescription>{notice}</AlertDescription>
-              </Alert>
-            )}
+            {error && <PrismNoticeBanner tone="danger">{error}</PrismNoticeBanner>}
+            {notice && <PrismNoticeBanner tone="success">{notice}</PrismNoticeBanner>}
 
             {selectedEvent ? (
               <>
@@ -716,18 +698,12 @@ export function Dashboard() {
                   </div>
                 </section>
 
-                <section className="rounded-xl border border-primary/15 bg-card px-5 py-4 shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="max-w-3xl">
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">Confirmed client portal</p>
-                      <h3 className="mt-1 text-lg font-black text-foreground">Your event is open because the signed conforme is on file.</h3>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        Use this space for briefing details, document submissions, billing visibility, and read-only review of PMCM's official floorplan. Layout edits stay with PMCM after review starts.
-                      </p>
-                    </div>
-                    <StatusBadge status={selectedEvent.clientPortalStatus} />
-                  </div>
-                </section>
+                <RolePageHeader
+                  eyebrow="Confirmed client portal"
+                  title="Your event is open because the signed conforme is on file."
+                  description="Use this space for briefing details, document submissions, billing visibility, and read-only review of PMCM's official floorplan. Layout edits stay with PMCM after review starts."
+                  meta={[<StatusBadge key="portal-status" status={selectedEvent.clientPortalStatus} />]}
+                />
 
                 {/* Event cards */}
                 <section>

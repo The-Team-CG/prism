@@ -50,7 +50,7 @@ import {
   type MvpSupplierCategory,
   type MvpUser,
 } from "@/lib/mvp-api";
-import { PrismDashboardShell } from "@prism/ui";
+import { PrismDashboardShell, PrismMetricTile, PrismSectionPanel } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
@@ -214,33 +214,14 @@ function Brand({ session, onSignOut }: { session?: EventSession | null; onSignOu
 
 function Panel({ title, icon: Icon, children, aside }: { title: string; icon: LucideIcon; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-border bg-card shadow-sm">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-        <div className="flex items-center gap-2.5">
-          <span className="grid size-7 place-items-center rounded-md bg-secondary text-(--prism-amber)">
-            <Icon className="size-3.5" />
-          </span>
-          <h3 className="text-sm font-bold text-foreground">{title}</h3>
-        </div>
-        {aside}
-      </header>
-      <div className="p-5">{children}</div>
-    </section>
+    <PrismSectionPanel title={title} icon={Icon} action={aside}>
+      {children}
+    </PrismSectionPanel>
   );
 }
 
 function Metric({ label, value, icon: Icon }: { label: string; value: string | number; icon: LucideIcon }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
-      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-primary">
-        <Icon className="size-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-xl font-black leading-none text-foreground">{value}</p>
-        <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
+  return <PrismMetricTile label={label} value={value} icon={Icon} />;
 }
 
 function buildProject(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {

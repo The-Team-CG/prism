@@ -4,10 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, KeyRound, QrCode, Sparkles, TicketCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
+import { PrismPublicShell } from "@prism/ui";
 
 type GuestEvent = {
   id: string;
@@ -94,29 +94,14 @@ export default function GuestOpenWithCode() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-5 py-6 text-foreground sm:px-8">
-      <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-[1180px] items-center gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <section>
-          <a href="/" className="inline-flex items-center gap-3">
-            <span className="flex h-12 w-36 items-center justify-center rounded-md border border-primary/12 bg-white px-3 shadow-sm">
-              <img src="/pmcm-logo.png" alt="PMCM logo" className="h-9 w-full object-contain" />
-            </span>
-            <span>
-              <span className="block text-xs font-black uppercase tracking-[0.24em] text-foreground">P.R.I.S.M</span>
-              <span className="block text-sm text-muted-foreground">Guest Experience</span>
-            </span>
-          </a>
-          <Badge variant="outline" className="mt-10 rounded-full border-(--prism-amber)/40 bg-accent px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">
-            <Sparkles className="size-4" /> Open with event code
-          </Badge>
-          <h1 className="mt-6 max-w-3xl text-5xl font-black leading-none sm:text-6xl">
-            Guests do not need accounts.
-          </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
-            PMCM generates a guest access code from each confirmed event. Guests enter that code to open the event pass, check-in status, prompts, and moderated feedback flow.
-          </p>
-        </section>
-
+    <PrismPublicShell
+      productDetail="Guest experience"
+      eyebrow="Guest access"
+      badgeIcon={Sparkles}
+      badgeText="Open with event code"
+      title="Guests do not need accounts."
+      description="PMCM generates a guest access code from each confirmed event. Guests enter that code to open the event pass, check-in status, consent prompts, and moderated feedback flow."
+      aside={
         <Card className="rounded-lg border-primary/12 bg-card shadow-[0_24px_80px_rgba(23,18,22,0.12)]">
           <form onSubmit={submit}>
             <CardHeader>
@@ -148,7 +133,7 @@ export default function GuestOpenWithCode() {
             <QrCode className="size-4" /> Demo event code: AYALA-TECH-YALA
           </p>
         </Card>
-      </div>
-    </main>
+      }
+    />
   );
 }

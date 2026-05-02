@@ -4,10 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, LockKeyhole, ShieldCheck, Truck } from "lucide-react";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
+import { PrismPublicShell } from "@prism/ui";
 
 type SupplierSession = {
   id: string;
@@ -118,29 +118,14 @@ export default function SupplierSignIn() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-5 py-6 text-foreground sm:px-8">
-      <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-[1180px] items-center gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <section>
-          <a href="/" className="inline-flex items-center gap-3">
-            <span className="flex h-12 w-36 items-center justify-center rounded-md border border-primary/12 bg-white px-3 shadow-sm">
-              <img src="/pmcm-logo.png" alt="PMCM logo" className="h-9 w-full object-contain" />
-            </span>
-            <span>
-              <span className="block text-xs font-black uppercase tracking-[0.24em] text-foreground">P.R.I.S.M</span>
-              <span className="block text-sm text-muted-foreground">Supplier Portal</span>
-            </span>
-          </a>
-          <Badge variant="outline" className="mt-10 rounded-full border-(--prism-amber)/40 bg-accent px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">
-            <Truck className="size-4" /> Supplier sign in
-          </Badge>
-          <h1 className="mt-6 max-w-3xl text-5xl font-black leading-none sm:text-6xl">
-            Quote requests, readiness, and event-day handoffs in one supplier dashboard.
-          </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
-            Supplier accounts require PMCM approval before portal access. The supplier dashboard keeps quote status and operational expectations separate from public pages.
-          </p>
-        </section>
-
+    <PrismPublicShell
+      productDetail="Supplier portal"
+      eyebrow="Supplier access"
+      badgeIcon={Truck}
+      badgeText="Supplier sign in"
+      title="Quote requests, readiness, and event-day handoffs."
+      description="Supplier accounts require PMCM approval before portal access. The dashboard keeps quote status and operational expectations separate from public pages."
+      aside={
         <Card className="rounded-lg border-primary/12 bg-card shadow-[0_24px_80px_rgba(23,18,22,0.12)]">
           <form onSubmit={submit}>
             <CardHeader>
@@ -159,7 +144,7 @@ export default function SupplierSignIn() {
                 </Alert>
               )}
               {notice && (
-                <Alert className="rounded-md border-emerald-200 bg-emerald-50 text-emerald-800">
+                <Alert className="rounded-md border-(--prism-success)/20 bg-(--prism-success)/8 text-(--prism-success)">
                   <AlertDescription>{notice}</AlertDescription>
                 </Alert>
               )}
@@ -189,7 +174,7 @@ export default function SupplierSignIn() {
             Demo supplier: ops@xperto.test / prism-supplier
           </p>
         </Card>
-      </div>
-    </main>
+      }
+    />
   );
 }
