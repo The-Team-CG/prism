@@ -44,25 +44,32 @@ export function PrismButton({
   );
 }
 
+export type PrismBadgeTone = "default" | "secondary" | "outline" | "success" | "warning" | "danger" | "info" | "neutral";
+
 export interface PrismBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: "default" | "secondary" | "outline" | "success" | "warning" | "danger";
+  variant?: PrismBadgeTone;
+  tone?: PrismBadgeTone;
 }
 
-const badgeVariants: Record<NonNullable<PrismBadgeProps["variant"]>, string> = {
+const badgeVariants: Record<PrismBadgeTone, string> = {
   default: "bg-primary/10 text-primary ring-primary/15",
   secondary: "bg-secondary text-secondary-foreground ring-border",
   outline: "bg-card text-foreground ring-border",
   success: "bg-(--prism-success)/10 text-(--prism-success) ring-(--prism-success)/20",
   warning: "bg-(--prism-amber)/10 text-(--prism-amber) ring-(--prism-amber)/20",
   danger: "bg-(--prism-danger)/10 text-(--prism-danger) ring-(--prism-danger)/20",
+  info: "bg-primary/10 text-primary ring-primary/20",
+  neutral: "bg-muted text-muted-foreground ring-border",
 };
 
-export function PrismBadge({ className, variant = "default", ...props }: PrismBadgeProps) {
+export function PrismBadge({ className, variant = "default", tone, ...props }: PrismBadgeProps) {
+  const resolvedVariant = tone ?? variant;
+
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1",
-        badgeVariants[variant],
+        badgeVariants[resolvedVariant],
         className,
       )}
       {...props}
@@ -72,6 +79,22 @@ export function PrismBadge({ className, variant = "default", ...props }: PrismBa
 
 export function PrismCard({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
   return <section className={cn("rounded-lg border border-border bg-card shadow-sm", className)} {...props} />;
+}
+
+export function PrismCardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("p-4 pb-3 sm:p-5 sm:pb-3.5", className)} {...props} />;
+}
+
+export function PrismCardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("p-4 pt-0 sm:p-5 sm:pt-0", className)} {...props} />;
+}
+
+export function PrismCardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h3 className={cn("text-sm font-black text-foreground", className)} {...props} />;
+}
+
+export function PrismCardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn("text-sm leading-6 text-muted-foreground", className)} {...props} />;
 }
 
 export function PrismInput({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {

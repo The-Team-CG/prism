@@ -50,7 +50,7 @@ import {
   type MvpSupplierCategory,
   type MvpUser,
 } from "@/lib/mvp-api";
-import { PrismDashboardShell, PrismMetricTile, PrismSectionPanel } from "@prism/ui";
+import { PrismDashboardShell, PrismMetricTile, PrismSectionPanel, RolePageHeader } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
@@ -741,6 +741,20 @@ function PmcmPortal({
       onSelect: () => setSection("suppliers"),
     },
   ];
+  const openActionCount = defenseReadiness?.nextActions.length ?? pendingApprovals.length + unreviewedInquiries;
+  const selectedEventActions = selectedEvent ? (
+    <div className="flex flex-wrap gap-2">
+      <Button size="sm" className="rounded-lg font-bold" onClick={() => run("briefing", () => mvpApi.submitBriefing(selectedEvent.id))}>
+        Submit briefing
+      </Button>
+      <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => setTab("suppliers")}>
+        Supplier desk
+      </Button>
+      <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => setTab("live-ops")}>
+        Live ops
+      </Button>
+    </div>
+  ) : null;
 
   const eventRail = (
     <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
@@ -884,7 +898,7 @@ function PmcmPortal({
         {selectedEvent ? (
           <>
             {/* Event header */}
-            <section className="rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
+            <section className="hidden">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">Confirmed event</p>
@@ -897,6 +911,22 @@ function PmcmPortal({
                 </div>
               </div>
             </section>
+
+            <RolePageHeader
+              eyebrow="PMCM command workspace"
+              title={selectedEvent.eventName}
+              description={`Review client state, supplier readiness, billing, floorplan, and live operations from one cockpit for ${selectedEvent.clientName} on ${selectedEvent.eventDate}.`}
+              meta={[
+                <StatusBadge key="event-status" status={selectedEvent.status} />,
+                <StatusBadge key="floorplan-status" status={selectedEvent.floorPlanStatus} />,
+                defenseReadiness ? (
+                  <StatusBadge key="defense-status" status={defenseReadiness.overallStatus} label={`Defense ${label(defenseReadiness.overallStatus)}`} />
+                ) : (
+                  `${openActionCount} open actions`
+                ),
+              ]}
+              action={selectedEventActions}
+            />
 
             {defenseReadiness && (
               <section className="rounded-xl border border-primary/15 bg-card px-5 py-4 shadow-sm">

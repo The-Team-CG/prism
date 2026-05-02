@@ -41,7 +41,7 @@ import {
 } from "../ui/navigation-menu";
 import { Progress } from "../ui/progress";
 import { Separator } from "../ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { PrismLifecycleStrip, PrismPublicRoleGrid } from "@prism/ui/public-blocks";
 
 const lifecycle = [
   "Inquiry",
@@ -52,41 +52,38 @@ const lifecycle = [
   "Closure",
 ];
 
-const roleTabs = [
+const lifecycleSteps = [
+  { label: "Inquiry", description: "Submit event basics through the public form.", state: "current" as const },
+  { label: "PMCM review", description: "Ms. Mys and the PMCM team screen scope and fit.", state: "pending" as const },
+  { label: "Conforme", description: "Client portal opens only after acceptance and signed conforme.", state: "pending" as const },
+  { label: "Planning", description: "Briefing, billing, documents, suppliers, and official floorplan align.", state: "pending" as const },
+  { label: "Event day", description: "PMCM runs live operations, issue escalation, and closure.", state: "pending" as const },
+];
+
+const roleCards = [
   {
-    value: "event",
-    label: "Event ops",
-    title: "One command surface for PMCM planning work.",
-    text: "Track every event from public inquiry to post-event archive with gates, readiness checks, billing status, and operational accountability visible in one place.",
-    stats: ["6 phases", "Live readiness", "Audit trail"],
+    title: "Clients",
+    badge: "Inquiry first",
+    description: "Start with an inquiry or sign in after PMCM has accepted the event and issued portal access.",
+    href: "/inquiry",
+    actionLabel: "Start inquiry",
+    icon: <FileCheck2 className="size-5" />,
   },
   {
-    value: "client",
-    label: "Client",
-    title: "A gated client portal after conforme approval.",
-    text: "Clients submit briefing details, provide layout preferences, review official PMCM layouts, approve proposals, upload documents, and see progress without exposing internal cost or supplier data.",
-    stats: ["Approval gate", "Briefing", "Files"],
+    title: "Suppliers",
+    badge: "Assigned only",
+    description: "Suppliers use the separate portal for quotes, readiness, contract metadata, and event-day status.",
+    href: "http://localhost:3002/sign-in",
+    actionLabel: "Supplier sign-in",
+    icon: <Warehouse className="size-5" />,
   },
   {
-    value: "supplier",
-    label: "Supplier",
-    title: "Quote and readiness workflows without Viber drift.",
-    text: "Suppliers receive scoped quote requests, confirm assignments, acknowledge readiness, and update arrival or setup status from a focused portal.",
-    stats: ["Quotes", "Ingress", "Status"],
-  },
-  {
-    value: "coordinator",
-    label: "Coordinator",
-    title: "Role-specific event-day views for the team.",
-    text: "Coordinators see their assigned event, call time, role instructions, task list, communication thread, and urgent issue action without digging through group chats.",
-    stats: ["Roles", "Tasks", "Urgent issue"],
-  },
-  {
-    value: "guest",
-    label: "Guest",
-    title: "Lightweight guest experiences that do not need an app.",
-    text: "Guests can check in, join event engagement moments, and submit post-event feedback through simple web pages that feed moderated PMCM queues.",
-    stats: ["Check-in", "Engage", "Feedback"],
+    title: "Guests",
+    badge: "Event code",
+    description: "Guests enter through an event code before check-in, consent, or feedback becomes available.",
+    href: "http://localhost:3003/open",
+    actionLabel: "Open guest access",
+    icon: <PartyPopper className="size-5" />,
   },
 ];
 
@@ -373,6 +370,9 @@ export function MainLandingPage() {
               <FeatureCard key={feature.title} {...feature} />
             ))}
           </div>
+          <div className="mt-10">
+            <PrismLifecycleStrip steps={lifecycleSteps} />
+          </div>
         </div>
       </section>
 
@@ -386,32 +386,7 @@ export function MainLandingPage() {
             <p className="mt-5 text-lg leading-8 text-sidebar-foreground/75">The main platform, supplier portal, guest portal, and event command surface should feel connected while staying precise for each audience.</p>
           </div>
 
-          <Tabs defaultValue="event" className="w-full">
-            <TabsList className="grid h-auto grid-cols-2 gap-2 rounded-lg bg-card/10 p-2 md:grid-cols-5">
-              {roleTabs.map((role) => (
-                <TabsTrigger key={role.value} value={role.value} className="rounded-lg text-sidebar-foreground/75 data-[state=active]:bg-card data-[state=active]:text-foreground">
-                  {role.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {roleTabs.map((role) => (
-              <TabsContent key={role.value} value={role.value} className="mt-5">
-                <Card className="gap-0 rounded-lg border-white/15 bg-card text-foreground">
-                  <CardHeader>
-                    <CardTitle className="text-3xl font-black">{role.title}</CardTitle>
-                    <CardDescription className="max-w-2xl text-base leading-7 text-muted-foreground">{role.text}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-3 sm:grid-cols-3">
-                    {role.stats.map((stat) => (
-                      <div key={stat} className="rounded-lg border border-primary/12 bg-background p-4 text-sm font-black uppercase tracking-[0.14em] text-primary">
-                        {stat}
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            ))}
-          </Tabs>
+          <PrismPublicRoleGrid roles={roleCards} />
         </div>
       </DarkBand>
 

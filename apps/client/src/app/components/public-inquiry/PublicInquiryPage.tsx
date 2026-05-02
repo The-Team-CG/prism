@@ -90,6 +90,10 @@ const assuranceItems = [
   { icon: CheckCircle2, label: "Track" },
 ];
 
+const inquirySuccessTitle = "Inquiry received by PMCM";
+const inquirySuccessDescription =
+  "The dashboard is still locked. PMCM reviews the inquiry first, then sends conforme and portal access only after acceptance.";
+
 export function PublicInquiryPage() {
   const [form, setForm] = useState<InquiryForm>(initialForm);
   const [submitted, setSubmitted] = useState(false);
@@ -205,9 +209,9 @@ export function PublicInquiryPage() {
               {submitted ? (
                 <Alert className="rounded-sm border-[#9060A0]/18 bg-secondary">
                   <CheckCircle2 className="text-primary" size={28} />
-                  <AlertTitle className="text-xl font-black text-foreground">Inquiry received</AlertTitle>
+                  <AlertTitle className="text-xl font-black text-foreground">{inquirySuccessTitle}</AlertTitle>
                   <AlertDescription className="text-muted-foreground">
-                    Your inquiry has been added to the local P.R.I.S.M demo intake queue. The planning team can now review and accept it.
+                    {inquirySuccessDescription}
                   </AlertDescription>
                   <Button
                     type="button"

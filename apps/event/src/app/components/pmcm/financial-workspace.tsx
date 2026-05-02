@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Download, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
 import { apiUrl, type MvpBillingStatement, type MvpEvent, type MvpInquiry, type MvpPaymentMilestone } from "@/lib/mvp-api";
+import { PrismBillingMilestoneList, PrismSectionPanel } from "@prism/ui";
 import { cx, label, money } from "./helpers";
 
 type RecordPaymentInput = {
@@ -44,6 +45,13 @@ export function FinancialWorkspace({
   const [referenceNumber, setReferenceNumber] = useState("");
   const balance = payments.find((payment) => payment.label.toLowerCase().includes("balance"));
   const paymentAtRisk = Boolean(balance && balance.status !== "paid" && balance.status === "at_risk");
+  const billingMilestonesForUi = payments.map((payment) => ({
+    id: payment.id,
+    label: `${payment.label} (${payment.percentage}%)`,
+    amount: money.format(payment.amount),
+    due: payment.dueDate,
+    status: payment.status,
+  }));
 
   function openRecordModal(payment: MvpPaymentMilestone) {
     setActivePayment(payment);
@@ -162,14 +170,12 @@ export function FinancialWorkspace({
           )}
         </section>
 
-        <section className="rounded-lg border border-border bg-card p-5">
-          <div className="flex items-center gap-2">
-            <ReceiptText className="size-5 text-(--prism-amber)" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Payment Tracker</p>
-              <h3 className="mt-1 text-xl font-black">Milestones</h3>
-            </div>
-          </div>
+        <PrismSectionPanel
+          title="Payment tracker"
+          description="Milestone status, received amounts, remaining balance, and manual payment recording"
+          icon={ReceiptText}
+        >
+          <PrismBillingMilestoneList milestones={billingMilestonesForUi} />
           <div className="mt-5 space-y-3">
             {payments.length === 0 && <p className="text-sm text-muted-foreground">No payment milestones yet.</p>}
             {payments.map((payment) => (
@@ -213,7 +219,7 @@ export function FinancialWorkspace({
               </div>
             ))}
           </div>
-        </section>
+        </PrismSectionPanel>
       </div>
 
       {activePayment && (

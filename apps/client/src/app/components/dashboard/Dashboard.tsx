@@ -53,6 +53,7 @@ import { Skeleton } from "../ui/skeleton";
 import { StatusBadge, statusClass } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
 import { PrismMetricTile, PrismNoticeBanner, RolePageHeader } from "@prism/ui";
+import { ClientDefenseWorkspace } from "@prism/ui/client-blocks";
 import { PRESETS, type Preset } from "../editor/presets";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
 import {
@@ -60,7 +61,6 @@ import {
   ClientBillingTab,
   ClientBriefingTab,
   ClientDocumentsTab,
-  ClientOverviewTab,
   DashboardSkeleton,
 } from "./dashboard-tabs";
 
@@ -216,10 +216,6 @@ function FieldGroup({ label: labelText, children }: { label: string; children: R
   );
 }
 
-function MetricTile({ label, value, icon: Icon }: { label: string; value: string | number; icon: LucideIcon }) {
-  return <PrismMetricTile label={label} value={value} icon={Icon} />;
-}
-
 export function Dashboard() {
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
@@ -275,6 +271,53 @@ export function Dashboard() {
   const documents = state?.documents.filter((d) => d.eventId === selectedEvent?.id) ?? [];
   const audit = state?.auditLogs.filter((a) => a.eventId === selectedEvent?.id).slice(0, 10) ?? [];
   const firstName = session?.name.split(" ")[0] || "there";
+  const clientConforme =
+    selectedEvent?.clientPortalStatus === "unlocked"
+      ? {
+          status: "signed" as const,
+          title: "Signed conforme is on file",
+          description:
+            "Your client portal is unlocked. PMCM can now coordinate briefing, billing, supplier work, and official floorplan review from this confirmed event record.",
+          primaryAction: (
+            <Button type="button" variant="outline" size="sm" className="rounded-lg font-bold" onClick={() => setTab("documents")}>
+              View documents
+            </Button>
+          ),
+        }
+      : {
+          status: "locked" as const,
+          title: "Portal unlock is still pending",
+          description:
+            "PMCM reviews the inquiry first, then opens the client portal after the conforme is signed and accepted.",
+        };
+  const officialFloorplanStatus = !officialDraft
+    ? "not-started"
+    : officialDraft.status === "approved"
+      ? "approved"
+      : officialDraft.status === "in_review"
+        ? "submitted"
+        : "draft";
+  const billingMilestones = payments.map((payment) => ({
+    id: payment.id,
+    label: payment.label,
+    amount: money.format(payment.amount),
+    due: payment.dueDate,
+    status: payment.status,
+  }));
+  const clientDocuments = documents.map((document) => ({
+    id: document.id,
+    title: document.fileName,
+    description: document.type.replaceAll("_", " "),
+    status: document.status,
+    meta: `Uploaded ${document.uploadedAt}`,
+  }));
+  const clientActivityItems = audit.map((item) => ({
+    id: item.id,
+    title: item.action,
+    description: item.actor,
+    status: "completed",
+    meta: item.createdAt,
+  }));
 
   useEffect(() => {
     if (!officialDraft || !selectedEvent) {
@@ -749,14 +792,14 @@ export function Dashboard() {
 
                 {/* Metric tiles */}
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <MetricTile label="Portal status" value={selectedEvent.clientPortalStatus.replace("_", " ")} icon={BadgeCheck} />
-                  <MetricTile
+                  <PrismMetricTile label="Portal status" value={selectedEvent.clientPortalStatus.replace("_", " ")} icon={BadgeCheck} />
+                  <PrismMetricTile
                     label="Floorplan"
                     value={officialDraft ? officialDraft.status.replace("_", " ") : preferenceDrafts.length ? "Preference sent" : "Pending"}
                     icon={MapPinned}
                   />
-                  <MetricTile label="Billing" value={billing ? billing.status.replace("_", " ") : "Pending"} icon={ReceiptText} />
-                  <MetricTile label="Activity items" value={audit.length} icon={Activity} />
+                  <PrismMetricTile label="Billing" value={billing ? billing.status.replace("_", " ") : "Pending"} icon={ReceiptText} />
+                  <PrismMetricTile label="Activity items" value={audit.length} icon={Activity} />
                 </div>
 
                 {/* Tab strip */}
@@ -779,7 +822,28 @@ export function Dashboard() {
 
                 {/* Tab content */}
                 {tab === "overview" && (
-                  <ClientOverviewTab selectedEvent={selectedEvent} setTab={setTab} />
+                  <ClientDefenseWorkspace
+                    conforme={clientConforme}
+                    briefing={{
+                      eventName: selectedEvent.eventName,
+                      eventDate: selectedEvent.eventDate,
+                      venue: briefing?.venue ?? "Venue to be confirmed",
+                      guestCount: briefing?.guestCount ? `${briefing.guestCount} guests` : "Guest count pending",
+                      packageLabel: briefing?.budgetRange ?? "PMCM planning package",
+                      notes: briefing?.notes ?? "PMCM will keep this workspace updated as planning decisions are approved.",
+                    }}
+                    floorplan={{
+                      status: officialFloorplanStatus,
+                      updatedAt: officialDraft?.updatedAt,
+                      summary: officialDraft
+                        ? `${officialDraft.name} is available as the PMCM official client copy. Client access is read-only.`
+                        : "No official client-view floorplan has been published yet.",
+                      onOpen: officialDraft ? () => openFloorplanEditor(officialDraft, true) : undefined,
+                    }}
+                    billing={billingMilestones}
+                    documents={clientDocuments}
+                    activity={clientActivityItems}
+                  />
                 )}
 
                 {tab === "floorplan" && (

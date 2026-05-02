@@ -7,9 +7,11 @@
     ".": "./src/index.ts",
     "./app-shell": "./src/app-shell.tsx",
     "./blocks": "./src/blocks.tsx",
+    "./client-blocks": "./src/client-blocks.tsx",
     "./dashboard-shell": "./src/dashboard-shell.tsx",
     "./empty-state": "./src/empty-state.tsx",
     "./primitives": "./src/primitives.tsx",
+    "./public-blocks": "./src/public-blocks.tsx",
     "./public-shell": "./src/public-shell.tsx",
     "./status-badge": "./src/status-badge.tsx"
   },
