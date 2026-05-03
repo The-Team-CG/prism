@@ -10,6 +10,8 @@ import {
   FileText,
   LockKeyhole,
   MapPinned,
+  MessageSquareText,
+  Presentation,
   ReceiptText,
   WalletCards,
   type LucideIcon,
@@ -29,7 +31,7 @@ import { Skeleton } from "../ui/skeleton";
 import { StatusBadge } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
 
-type DetailTab = "overview" | "floorplan" | "briefing" | "billing" | "documents" | "activity";
+type DetailTab = "overview" | "briefing" | "proposal" | "floorplan" | "billing" | "documents" | "activity";
 
 const money = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -78,7 +80,7 @@ function SectionPanel({
   aside?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card shadow-sm">
+    <section className="rounded-lg border border-border bg-card shadow-sm">
       <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
         <div className="flex items-center gap-2.5">
           <span className="grid size-7 place-items-center rounded-md bg-secondary text-(--prism-amber)">
@@ -316,6 +318,99 @@ export function ClientBriefingTab({ briefing }: { briefing?: MvpBriefing }) {
         />
       )}
     </SectionPanel>
+  );
+}
+
+export function ClientProposalTab({
+  selectedEvent,
+  briefing,
+  billing,
+  payments,
+  officialDraft,
+  setTab,
+}: {
+  selectedEvent: MvpEvent;
+  briefing?: MvpBriefing;
+  billing?: MvpBillingStatement;
+  payments: MvpPaymentMilestone[];
+  officialDraft?: MvpFloorPlanDraft;
+  setTab: (tab: DetailTab) => void;
+}) {
+  const nextPayment = payments.find((payment) => payment.status !== "paid");
+  const proposalReady = Boolean(briefing && billing);
+  const layoutReady = Boolean(officialDraft);
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <SectionPanel
+        icon={Presentation}
+        title="Proposal package"
+        aside={<StatusBadge status={proposalReady ? "ready" : "pending"} label={proposalReady ? "Ready for review" : "In preparation"} />}
+      >
+        <div className="rounded-lg border border-primary/12 bg-secondary/60 px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Client-safe package</p>
+          <h3 className="mt-2 text-xl font-black leading-tight text-foreground">
+            {proposalReady ? "Planning proposal is ready to review." : "PMCM is preparing the proposal package."}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            This view summarizes the briefing, planning package, payment schedule, and official layout status. Internal cost estimation and supplier comparison details stay with PMCM.
+          </p>
+        </div>
+
+        <div className="mt-4 divide-y divide-border">
+          <DataRow label="Event" value={selectedEvent.eventName} />
+          <DataRow label="Proposal stage" value={proposalReady ? "Client review" : "PMCM preparation"} />
+          <DataRow label="Briefing basis" value={briefing ? `${briefing.guestCount} guests at ${briefing.venue}` : "Waiting for briefing"} />
+          <DataRow label="Billing statement" value={billing ? `${billing.number} - ${formatLabel(billing.status)}` : "Not issued"} />
+          <DataRow label="Official layout" value={officialDraft ? formatLabel(officialDraft.status) : "Not published"} />
+          <DataRow label="Next payment" value={nextPayment ? `${nextPayment.label} on ${nextPayment.dueDate}` : "No open milestone"} />
+        </div>
+      </SectionPanel>
+
+      <SectionPanel icon={MessageSquareText} title="Review path">
+        <div className="space-y-3">
+          {[
+            {
+              label: "Briefing details",
+              value: briefing ? "Ready" : "Waiting",
+              status: briefing ? "approved" : "pending",
+              action: () => setTab("briefing"),
+            },
+            {
+              label: "Planning package",
+              value: proposalReady ? "Ready for review" : "In preparation",
+              status: proposalReady ? "ready" : "pending",
+              action: () => setTab("proposal"),
+            },
+            {
+              label: "Official layout",
+              value: layoutReady ? formatLabel(officialDraft?.status) : "Not published",
+              status: officialDraft?.status ?? "pending",
+              action: () => setTab("floorplan"),
+            },
+            {
+              label: "Billing milestones",
+              value: billing ? formatLabel(billing.status) : "Not issued",
+              status: billing?.status ?? "pending",
+              action: () => setTab("billing"),
+            },
+          ].map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={item.action}
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-background/70 px-3.5 py-3 text-left transition hover:border-primary/30 hover:bg-card"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-foreground">{item.label}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{item.value}</span>
+              </span>
+              <StatusBadge status={item.status} />
+            </button>
+          ))}
+        </div>
+      </SectionPanel>
+    </div>
   );
 }
 

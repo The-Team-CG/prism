@@ -27,7 +27,7 @@ const sourceGuards = [
   },
   {
     file: "apps/event/src/app/page.tsx",
-    markers: ["Client portal", "Billing", "Supplier", "Defense"],
+    markers: ["Billing", "Supplier", "Defense"],
   },
   {
     file: "apps/event/src/app/components/pmcm/coordinator-view.tsx",
@@ -40,6 +40,7 @@ const publicFiles = [
   "apps/client/src/app/components/public-inquiry/PublicInquiryPage.tsx",
   "apps/supplier/src/app/page.tsx",
   "apps/guest/src/app/page.tsx",
+  "apps/event/src/app/page.tsx",
 ];
 
 const forbiddenPatterns = [
@@ -48,11 +49,43 @@ const forbiddenPatterns = [
   /router\.replace\(["']\/dashboard["']\)/,
 ];
 
+const forbiddenPublicPhrases = [
+  /dashboard shortcut/i,
+  /defense/i,
+  /PMCM-only/i,
+  /role-safe/i,
+  /boundary/i,
+  /selected event cockpit/i,
+  /readiness score/i,
+  /See cockpit/i,
+  /demo/i,
+  /Ayala Tech/i,
+  /Leadership Forum/i,
+  /92%/,
+];
+
+function publicSourceFor(file, source) {
+  if (file !== "apps/event/src/app/page.tsx") return source;
+
+  const start = source.indexOf("function SignIn");
+  const end = source.indexOf("function PmcmPortal", start);
+  if (start === -1 || end === -1) {
+    throw new Error("Unable to isolate PMCM public sign-in source for smoke guards.");
+  }
+  return source.slice(start, end);
+}
+
 for (const file of publicFiles) {
   const source = readFileSync(file, "utf8");
+  const publicSource = publicSourceFor(file, source);
   for (const pattern of forbiddenPatterns) {
-    if (pattern.test(source)) {
+    if (pattern.test(publicSource)) {
       throw new Error(`Public dashboard link found in ${file}: ${pattern}`);
+    }
+  }
+  for (const pattern of forbiddenPublicPhrases) {
+    if (pattern.test(publicSource)) {
+      throw new Error(`Forbidden public-facing phrase found in ${file}: ${pattern}`);
     }
   }
 }

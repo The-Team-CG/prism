@@ -1,32 +1,25 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useMemo, useState } from "react";
 import {
   ArrowRight,
-  BadgeCheck,
   CalendarDays,
+  Check,
   CheckCircle2,
-  ClipboardList,
-  Mail,
-  MapPin,
+  ChevronLeft,
+  Flower2,
+  LockKeyhole,
   MessageSquareText,
-  Phone,
+  Send,
   ShieldCheck,
   Sparkles,
-  Users,
+  UserRound,
+  WalletCards,
 } from "lucide-react";
 import { toast } from "sonner";
-import { mvpApi } from "@/lib/mvp-api";
+import { mvpApi, type CreateMvpInquiryInput } from "@/lib/mvp-api";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
 import {
@@ -37,19 +30,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { Separator } from "../ui/separator";
 import { Textarea } from "../ui/textarea";
 
 type InquiryForm = {
   clientName: string;
   companyName: string;
   email: string;
+  phoneNumber: string;
+  clientType: string;
   eventName: string;
   eventType: string;
   eventDate: string;
-  clientType: string;
-  source: string;
+  dateFlexibility: string;
+  expectedGuests: string;
+  venueCity: string;
+  venueStatus: string;
+  budgetRange: string;
+  inquiryPriority: string;
   message: string;
+  source: string;
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
   marketingConsentAccepted: boolean;
@@ -61,41 +60,182 @@ const initialForm: InquiryForm = {
   clientName: "",
   companyName: "",
   email: "",
+  phoneNumber: "",
+  clientType: "",
   eventName: "",
   eventType: "",
   eventDate: "",
-  clientType: "Corporate",
-  source: "Website",
+  dateFlexibility: "",
+  expectedGuests: "",
+  venueCity: "",
+  venueStatus: "",
+  budgetRange: "",
+  inquiryPriority: "",
   message: "",
+  source: "Website",
   privacyConsentAccepted: false,
   privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
   marketingConsentAccepted: false,
 };
 
-const proofPoints = [
-  { label: "Conforme gating", value: "Locked until approved" },
-  { label: "Vendor visibility", value: "Quotes and requests tracked" },
-  { label: "Event readiness", value: "Compliance before launch" },
-];
+const wizardSteps = ["Contact Info", "Event Details", "Budget & Notes", "Confirm"];
 
-const steps = [
-  { title: "Inquiry Review", text: "We classify scope, date risk, and service needs before planning begins." },
-  { title: "Conforme Gate", text: "Signed approval unlocks the client portal, billing, briefing, and operations flow." },
-  { title: "Live Coordination", text: "Supplier quotes, coordinators, compliance, payment, and closure move in one command center." },
+const clientTypes = ["Corporate", "Private", "Government", "School", "Non-profit", "Other"];
+const eventTypes = [
+  "Corporate event",
+  "Conference",
+  "Gala",
+  "Product launch",
+  "Private celebration",
+  "Training or workshop",
+  "Other",
 ];
+const dateOptions = ["Fixed date", "Flexible by a few days", "Flexible by a few weeks", "Still deciding"];
+const venueOptions = ["Confirmed", "Shortlisted", "Still looking", "Not applicable yet"];
+const budgetRanges = ["Below PHP 50k", "PHP 50k-150k", "PHP 150k-500k", "PHP 500k-1M", "PHP 1M+", "TBD / Flexible"];
+const priorityOptions = ["Standard", "Urgent", "Date-sensitive"];
 
-const assuranceItems = [
-  { icon: ShieldCheck, label: "Gate" },
-  { icon: Phone, label: "Call" },
-  { icon: CheckCircle2, label: "Track" },
-];
+const compactControlClass =
+  "h-14 rounded-lg border-[#DDE3EA] bg-white/90 px-5 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
+const compactSelectTriggerClass =
+  "h-14 rounded-lg border-[#DDE3EA] bg-white/90 px-5 text-base shadow-sm focus:border-primary/45 focus:ring-primary/15";
+const compactTextareaClass =
+  "min-h-[120px] rounded-lg border-[#DDE3EA] bg-white/90 px-5 py-4 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
+const compactFieldGroupClass =
+  "gap-6 [&_[data-slot=field-description]]:text-base [&_[data-slot=field-label]]:text-base [&_[data-slot=field-label]]:font-black [&_[data-slot=field]]:gap-3";
 
-const inquirySuccessTitle = "Inquiry received by PMCM";
-const inquirySuccessDescription =
-  "The dashboard is still locked. PMCM reviews the inquiry first, then sends conforme and portal access only after acceptance.";
+function BrandMark() {
+  return (
+    <a href="/" className="flex items-center gap-4 no-underline" aria-label="PMCM P.R.I.S.M home">
+      <span className="grid place-items-center">
+        <Flower2 className="size-11 fill-primary text-primary" strokeWidth={1.8} />
+      </span>
+      <span>
+        <span className="block text-3xl font-black leading-none tracking-tight text-(--prism-ink)">PMCM</span>
+        <span className="mt-1 block text-xs font-black uppercase tracking-[0.46em] text-muted-foreground">P.R.I.S.M</span>
+      </span>
+    </a>
+  );
+}
+
+function Stepper({ currentStep }: { currentStep: number }) {
+  return (
+    <ol className="flex w-full flex-wrap items-center gap-y-4 lg:flex-nowrap">
+      {wizardSteps.map((step, index) => {
+        const active = index === currentStep;
+        const done = index < currentStep;
+
+        return (
+          <li key={step} className={index < wizardSteps.length - 1 ? "contents" : "flex shrink-0 items-center gap-4"}>
+            <span className="flex shrink-0 items-center gap-4">
+              <span
+                className={
+                  done || active
+                    ? "grid size-11 shrink-0 place-items-center rounded-full bg-primary text-base font-black text-primary-foreground shadow-[0_10px_24px_rgba(202,18,96,0.2)]"
+                    : "grid size-11 shrink-0 place-items-center rounded-full bg-muted text-base font-black text-muted-foreground"
+                }
+              >
+                {done ? <Check className="size-5" /> : index + 1}
+              </span>
+              <span className={active || done ? "whitespace-nowrap text-lg font-black text-foreground" : "whitespace-nowrap text-lg font-medium text-muted-foreground"}>
+                {step}
+              </span>
+            </span>
+            {index < wizardSteps.length - 1 && <span aria-hidden="true" className={index < currentStep ? "mx-7 hidden h-px flex-1 bg-primary lg:block" : "mx-7 hidden h-px flex-1 bg-border lg:block"} />}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function TrustList() {
+  const items = ["No commitment required", "Reviewed by PMCM", "Next steps sent after review"];
+
+  return (
+    <div className="mt-10 grid gap-5">
+      {items.map((item) => (
+        <div key={item} className="flex items-center gap-4 text-base font-medium text-(--prism-ink)">
+          <span className="grid size-8 place-items-center rounded-full border border-primary/10 bg-primary/10 text-primary">
+            <Check className="size-4" />
+          </span>
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function InquiryAside({ submitted = false }: { submitted?: boolean }) {
+  return (
+    <aside className="relative flex min-h-[360px] flex-col justify-between overflow-hidden border-r border-primary/10 bg-card/50 px-8 py-7 sm:px-10 lg:min-h-[944px]">
+      <div className="pointer-events-none absolute -bottom-56 -left-24 size-[34rem] rounded-full border border-primary/20" />
+      <div className="pointer-events-none absolute -bottom-40 left-44 size-[30rem] rounded-full border border-primary/20" />
+      <div className="pointer-events-none absolute bottom-60 right-[3.25rem] hidden size-5 rotate-45 bg-primary shadow-[0_0_28px_rgba(202,18,96,0.24)] lg:block" />
+      <div className="relative">
+        <BrandMark />
+        <div className="mt-[4.5rem] inline-flex h-14 min-w-[304px] items-center justify-center gap-3 rounded-full border border-primary/35 bg-primary/5 px-8 text-sm font-black uppercase tracking-[0.18em] text-primary">
+          <Sparkles className="size-5" />
+          PMCM event inquiry
+        </div>
+        <h1 className="mt-9 max-w-[24rem] prism-serif text-[3.5rem] font-black leading-[1.03] text-(--prism-ink)">
+          Tell us about your event<span className="text-primary">.</span>
+        </h1>
+        <p className="mt-8 max-w-[15.5rem] text-lg leading-8 text-muted-foreground">
+          {submitted
+            ? "Review complete. PMCM will use your details to decide the next planning step."
+            : "Share the basics first. PMCM reviews your inquiry before planning begins."}
+        </p>
+        <TrustList />
+      </div>
+      <p className="relative mt-12 text-sm text-muted-foreground">(c) 2026 PMCM Events</p>
+    </aside>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value?: string }) {
+  return (
+    <div>
+      <p className="text-sm font-black text-foreground">{label}</p>
+      <p className="mt-2 text-base leading-7 text-muted-foreground">{value || "Not provided yet"}</p>
+    </div>
+  );
+}
+
+function SummarySection({
+  icon,
+  title,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border border-border bg-background/95 p-5 shadow-sm">
+      <div className="grid gap-5 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
+        <span className="grid size-14 place-items-center rounded-lg bg-primary/10 text-primary">{icon}</span>
+        <div>
+          <h3 className="text-lg font-black text-foreground">{title}</h3>
+          {children}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StepHeading({ title, description, serif = true }: { title: string; description: string; serif?: boolean }) {
+  return (
+    <div className="mb-10">
+      <h2 className={serif ? "prism-serif text-4xl font-black leading-tight text-(--prism-ink)" : "text-4xl font-black leading-tight text-(--prism-ink)"}>{title}</h2>
+      <p className="mt-3 text-lg leading-8 text-muted-foreground">{description}</p>
+    </div>
+  );
+}
 
 export function PublicInquiryPage() {
   const [form, setForm] = useState<InquiryForm>(initialForm);
+  const [currentStep, setCurrentStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,17 +246,65 @@ export function PublicInquiryPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function canContinue(step = currentStep) {
+    if (step === 0) return Boolean(form.clientName && form.email && form.phoneNumber && form.clientType);
+    if (step === 1) return Boolean(form.eventName && form.eventType && form.eventDate && form.expectedGuests);
+    if (step === 2) return Boolean(form.budgetRange && form.inquiryPriority);
+    return form.privacyConsentAccepted;
+  }
+
+  function nextStep() {
+    if (!canContinue()) return;
+    setCurrentStep((step) => Math.min(step + 1, wizardSteps.length - 1));
+  }
+
+  function previousStep() {
+    setCurrentStep((step) => Math.max(step - 1, 0));
+  }
+
+  function buildPayload(): CreateMvpInquiryInput {
+    const reviewNotes = [
+      `Phone: ${form.phoneNumber || "Not provided"}`,
+      `Expected guests: ${form.expectedGuests || "Not provided"}`,
+      `Venue or city: ${form.venueCity || "Not provided"}`,
+      `Venue status: ${form.venueStatus || "Not provided"}`,
+      `Date flexibility: ${form.dateFlexibility || "Not provided"}`,
+      `Budget range: ${form.budgetRange || "Not provided"}`,
+      `Inquiry priority: ${form.inquiryPriority || "Not provided"}`,
+      "",
+      "Client notes:",
+      form.message || "No additional notes provided.",
+    ].join("\n");
+
+    return {
+      clientName: form.clientName,
+      companyName: form.companyName,
+      email: form.email,
+      eventName: form.eventName,
+      eventType: form.eventType,
+      eventDate: form.eventDate,
+      clientType: form.clientType,
+      source: form.source,
+      message: reviewNotes,
+      privacyConsentAccepted: form.privacyConsentAccepted,
+      privacyNoticeVersion: form.privacyNoticeVersion,
+      marketingConsentAccepted: form.marketingConsentAccepted,
+    };
+  }
+
   async function submitInquiry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canContinue(3)) return;
     setBusy(true);
     setError(null);
 
     try {
-      await mvpApi.createInquiry(form);
+      await mvpApi.createInquiry(buildPayload());
       setSubmitted(true);
       setForm(initialForm);
+      setCurrentStep(0);
       toast.success("Inquiry received", {
-        description: "Your inquiry has been added to the local P.R.I.S.M intake queue.",
+        description: "PMCM will review the details and contact you with next steps.",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit inquiry");
@@ -125,309 +313,384 @@ export function PublicInquiryPage() {
     }
   }
 
+  if (submitted) {
+    return (
+      <main className="min-h-screen overflow-auto bg-background text-foreground">
+        <section className="relative min-h-screen overflow-hidden">
+          <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.98),rgba(233,247,251,0.72)_58%,rgba(255,248,242,0.96))]" />
+          <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(204,236,244,0.72)_1px,transparent_1px),linear-gradient(90deg,rgba(204,236,244,0.72)_1px,transparent_1px)] [background-size:42px_42px]" />
+          <div className="relative grid min-h-screen lg:grid-cols-[452px_minmax(0,1fr)]">
+            <InquiryAside submitted />
+            <section className="grid min-h-screen place-items-center px-5 py-6 lg:px-7">
+              <div className="max-w-xl text-center">
+                <span className="mx-auto grid size-20 place-items-center rounded-full bg-(--prism-success)/10 text-(--prism-success)">
+                  <CheckCircle2 className="size-10" />
+                </span>
+                <h2 className="mt-8 prism-serif text-5xl font-black text-(--prism-ink)">Inquiry submitted.</h2>
+                <p className="mt-4 text-lg leading-8 text-muted-foreground">
+                  PMCM will review your event details and contact you with next steps if the inquiry is accepted.
+                </p>
+                <div className="mx-auto mt-6 max-w-sm rounded-lg border border-primary/10 bg-background p-4 text-sm font-bold text-primary">
+                  Reference # INQ-{new Date().getFullYear()}-{Math.floor(1000 + Math.random() * 9000)}
+                </div>
+                <Button type="button" onClick={() => setSubmitted(false)} variant="outline" className="mt-7 h-12 rounded-lg px-6 font-black">
+                  Submit another inquiry
+                </Button>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen overflow-auto bg-background text-foreground">
-      <section className="relative min-h-screen px-5 py-6 sm:px-8 lg:px-10">
-        <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.95)_0%,rgba(255,248,242,0.82)_42%,rgba(233,247,251,0.76)_100%)]" />
-        <div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(#9060A0_1px,transparent_1px),linear-gradient(90deg,#9060A0_1px,transparent_1px)] [background-size:44px_44px]" />
-        <div className="absolute right-[-12rem] top-[-10rem] h-[34rem] w-[34rem] rounded-full border border-[#9060A0]/20" />
-        <div className="absolute bottom-[-18rem] left-[-14rem] h-[40rem] w-[40rem] rounded-full border border-[#F06030]/30" />
+      <section className="relative min-h-screen overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.98),rgba(233,247,251,0.72)_58%,rgba(255,248,242,0.96))]" />
+        <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(204,236,244,0.72)_1px,transparent_1px),linear-gradient(90deg,rgba(204,236,244,0.72)_1px,transparent_1px)] [background-size:42px_42px]" />
 
-        <div className="relative z-10 mx-auto grid min-h-[calc(100vh-3rem)] max-w-[1320px] grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,1fr)_460px]">
-          <Card className="flex min-h-[760px] flex-col justify-between rounded-[0.4rem] border-[#9060A0]/18 bg-card/70 p-5 shadow-[0_24px_80px_rgba(192,24,103,0.13)] backdrop-blur-md sm:p-7 lg:p-9">
-            <header className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-36 items-center justify-center rounded-md border border-[#9060A0]/18 bg-white px-3 shadow-sm">
-                  <img src="/pmcm-logo.png" alt="PMCM logo" className="h-9 w-full object-contain" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.26em] text-primary">P.R.I.S.M</p>
-                  <p className="text-sm text-muted-foreground">Public inquiry desk</p>
-                </div>
+        <div className="relative grid min-h-screen lg:grid-cols-[452px_minmax(0,1fr)]">
+          <InquiryAside />
+
+          <div className="px-5 py-6 lg:pl-0 lg:pr-0">
+            <form
+              onSubmit={submitInquiry}
+              className="ml-0 flex min-h-[944px] w-full max-w-[1060px] flex-col overflow-hidden rounded-lg border border-border/80 bg-card/95 shadow-[0_24px_80px_rgba(23,18,22,0.09)] backdrop-blur"
+            >
+              <div className="px-6 pb-[4.5rem] pt-9 sm:px-10 lg:px-12">
+                <Stepper currentStep={currentStep} />
               </div>
-              <Button asChild variant="outline" className="hidden h-10 rounded-sm font-semibold sm:inline-flex">
-                <a href="/">
-                  Home <ArrowRight data-icon="inline-end" />
-                </a>
-              </Button>
-            </header>
 
-            <div className="max-w-4xl py-10 sm:py-14 lg:py-16">
-              <Badge variant="outline" className="mb-6 rounded-full border-[#F06030]/35 bg-accent/75 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-(--prism-amber)">
-                <Sparkles size={14} />
-                Event planning intake for serious briefs
-              </Badge>
-              <h1 className="max-w-5xl text-5xl font-black leading-[0.94] tracking-normal text-foreground sm:text-6xl lg:text-7xl xl:text-[5.6rem]">
-                Turn your event brief into an operating plan.
-              </h1>
-              <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-                Submit the first details for a P.R.I.S.M-managed event. The inquiry becomes a structured planning record for approvals, supplier coordination, compliance, billing, and post-event closure.
-              </p>
+              <div className="flex-1 px-6 pb-8 sm:px-10 lg:px-12">
+                {currentStep === 0 && (
+                  <section>
+                    <StepHeading title="Contact Info" description="Where should PMCM send follow-up details?" serif={false} />
+                    <FieldGroup className={compactFieldGroupClass}>
+                      <div className="grid gap-x-12 gap-y-7 md:grid-cols-2">
+                        <Field>
+                          <FieldLabel htmlFor="clientName">Full Name</FieldLabel>
+                          <Input
+                            id="clientName"
+                            value={form.clientName}
+                            onChange={(event) => update("clientName", event.target.value)}
+                            placeholder="Enter full name"
+                            required
+                            className={compactControlClass}
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="companyName">Company / Organization</FieldLabel>
+                          <Input
+                            id="companyName"
+                            value={form.companyName}
+                            onChange={(event) => update("companyName", event.target.value)}
+                            placeholder="Enter company / organization"
+                            className={compactControlClass}
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="email">Email Address</FieldLabel>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={form.email}
+                            onChange={(event) => update("email", event.target.value)}
+                            placeholder="Enter email address"
+                            required
+                            className={compactControlClass}
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="phoneNumber">Phone Number</FieldLabel>
+                          <Input
+                            id="phoneNumber"
+                            value={form.phoneNumber}
+                            onChange={(event) => update("phoneNumber", event.target.value)}
+                            placeholder="Enter phone number"
+                            required
+                            className={compactControlClass}
+                          />
+                        </Field>
+                      </div>
+                      <Field>
+                        <FieldLabel>Client Type</FieldLabel>
+                        <Select value={form.clientType} onValueChange={(value) => update("clientType", value)}>
+                          <SelectTrigger className={compactSelectTriggerClass}>
+                            <SelectValue placeholder="Select client type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {clientTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </FieldGroup>
+                  </section>
+                )}
 
-              <div className="mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
-                {proofPoints.map((item) => (
-                  <Card key={item.label} className="gap-0 rounded-sm border-l-2 border-[#F06030] bg-white/45 shadow-none">
-                    <CardContent className="px-4 py-3">
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{item.label}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{item.value}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+                {currentStep === 1 && (
+                  <section>
+                    <StepHeading title="Event Details" description="What event should PMCM review?" />
+                    <FieldGroup className={compactFieldGroupClass}>
+                      <div className="grid gap-x-12 gap-y-7 md:grid-cols-2">
+                        <Field>
+                          <FieldLabel htmlFor="eventName">Event Name</FieldLabel>
+                          <Input
+                            id="eventName"
+                            value={form.eventName}
+                            onChange={(event) => update("eventName", event.target.value)}
+                            placeholder="Enter event name"
+                            required
+                            className={compactControlClass}
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel>Event Type</FieldLabel>
+                          <Select value={form.eventType} onValueChange={(value) => update("eventType", value)}>
+                            <SelectTrigger className={compactSelectTriggerClass}>
+                              <SelectValue placeholder="Select event type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {eventTypes.map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {type}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="eventDate">Preferred Date</FieldLabel>
+                          <Input
+                            id="eventDate"
+                            type="date"
+                            min={minDate}
+                            value={form.eventDate}
+                            onChange={(event) => update("eventDate", event.target.value)}
+                            required
+                            className={compactControlClass}
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel>Date Flexibility</FieldLabel>
+                          <Select value={form.dateFlexibility} onValueChange={(value) => update("dateFlexibility", value)}>
+                            <SelectTrigger className={compactSelectTriggerClass}>
+                              <SelectValue placeholder="Select date flexibility" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {dateOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                      </div>
+                      <Field>
+                        <FieldLabel htmlFor="expectedGuests">Expected Number of Guests</FieldLabel>
+                        <Input
+                          id="expectedGuests"
+                          type="number"
+                          min="1"
+                          value={form.expectedGuests}
+                          onChange={(event) => update("expectedGuests", event.target.value)}
+                          placeholder="e.g., 150"
+                          required
+                          className={compactControlClass}
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="venueCity">Venue or City</FieldLabel>
+                        <Input
+                          id="venueCity"
+                          value={form.venueCity}
+                          onChange={(event) => update("venueCity", event.target.value)}
+                          placeholder="e.g., Manila, Philippines"
+                          className={compactControlClass}
+                        />
+                        <FieldDescription>A general city is enough if the venue is not final.</FieldDescription>
+                      </Field>
+                      <Field>
+                        <FieldLabel>Venue Status</FieldLabel>
+                        <Select value={form.venueStatus} onValueChange={(value) => update("venueStatus", value)}>
+                          <SelectTrigger className={compactSelectTriggerClass}>
+                            <SelectValue placeholder="Confirmed, shortlisted, or still looking" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {venueOptions.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </FieldGroup>
+                  </section>
+                )}
 
-            <Separator className="bg-[#9060A0]/15" />
-            <div className="grid gap-4 pt-5 sm:grid-cols-3">
-              {steps.map((step, index) => (
-                <div key={step.title} className="group">
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="grid size-7 place-items-center rounded-sm bg-[#9060A0] text-xs font-black text-white">
-                      {index + 1}
-                    </span>
-                    <h2 className="text-sm font-bold text-foreground">{step.title}</h2>
-                  </div>
-                  <p className="text-sm leading-6 text-muted-foreground">{step.text}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
+                {currentStep === 2 && (
+                  <section>
+                    <StepHeading title="Budget & Notes" description="Help PMCM understand the scale and urgency." />
+                    <FieldGroup className={compactFieldGroupClass}>
+                      <Field>
+                        <FieldLabel>Budget range</FieldLabel>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          {budgetRanges.map((range) => (
+                            <button
+                              key={range}
+                              type="button"
+                              onClick={() => update("budgetRange", range)}
+                              className={
+                                form.budgetRange === range
+                                  ? "h-[72px] rounded-lg border border-primary bg-primary text-base font-black text-primary-foreground shadow-[0_14px_36px_rgba(202,18,96,0.18)]"
+                                  : "h-[72px] rounded-lg border border-border bg-background text-base font-black text-foreground transition hover:border-primary/45 hover:text-primary"
+                              }
+                            >
+                              {range}
+                            </button>
+                          ))}
+                        </div>
+                      </Field>
+                      <Field>
+                        <FieldLabel>Inquiry Priority</FieldLabel>
+                        <Select value={form.inquiryPriority} onValueChange={(value) => update("inquiryPriority", value)}>
+                          <SelectTrigger className={compactSelectTriggerClass}>
+                            <SelectValue placeholder="Standard, urgent, or date-sensitive" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {priorityOptions.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="message">Additional Notes</FieldLabel>
+                        <Textarea
+                          id="message"
+                          value={form.message}
+                          onChange={(event) => update("message", event.target.value)}
+                          placeholder="Share goals, concerns, theme, venue context, timing, or anything PMCM should know."
+                          rows={5}
+                          maxLength={1000}
+                          className={compactTextareaClass}
+                        />
+                        <FieldDescription className="text-right">{form.message.length} / 1000</FieldDescription>
+                      </Field>
+                      <div className="flex items-start gap-5 rounded-lg border border-primary/15 bg-primary/5 p-5 text-base leading-7 text-muted-foreground">
+                        <ShieldCheck className="mt-1 size-8 shrink-0 text-primary" />
+                        <p>By submitting this inquiry, you agree that PMCM may contact you about this event and process these details for review.</p>
+                      </div>
+                    </FieldGroup>
+                  </section>
+                )}
 
-          <aside className="flex items-center">
-            <Card className="w-full rounded-[0.45rem] border-[#171216]/12 bg-card shadow-[0_28px_90px_rgba(23,18,22,0.18)]">
-              <CardHeader className="flex-row items-start justify-between gap-5 px-5 pb-4 pt-5 sm:px-6">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-(--prism-amber)">Start here</p>
-                  <CardTitle className="mt-2 text-2xl font-black text-foreground">Public Inquiry</CardTitle>
-                  <CardDescription className="mt-1 leading-5">Send the first brief into the P.R.I.S.M intake queue.</CardDescription>
-                </div>
-                <div className="grid size-10 shrink-0 place-items-center rounded-sm bg-secondary text-primary">
-                  <ClipboardList size={22} />
-                </div>
-              </CardHeader>
+                {currentStep === 3 && (
+                  <section>
+                    <StepHeading title="Confirm Inquiry" description="PMCM will review these details and contact you with next steps." />
+                    <div className="grid gap-4">
+                      <SummarySection icon={<UserRound className="size-7" />} title="Contact summary">
+                        <div className="mt-4 grid gap-5 md:grid-cols-4">
+                          <SummaryItem label="Full Name" value={form.clientName} />
+                          <SummaryItem label="Email" value={form.email} />
+                          <SummaryItem label="Phone" value={form.phoneNumber} />
+                          <SummaryItem label="Organization" value={form.companyName || form.clientType} />
+                        </div>
+                      </SummarySection>
 
-              <CardContent className="px-5 pb-5 sm:px-6">
-              {submitted ? (
-                <Alert className="rounded-sm border-[#9060A0]/18 bg-secondary">
-                  <CheckCircle2 className="text-primary" size={28} />
-                  <AlertTitle className="text-xl font-black text-foreground">{inquirySuccessTitle}</AlertTitle>
-                  <AlertDescription className="text-muted-foreground">
-                    {inquirySuccessDescription}
-                  </AlertDescription>
-                  <Button
-                    type="button"
-                    onClick={() => setSubmitted(false)}
-                    className="col-start-2 mt-5 h-11 rounded-sm font-bold"
-                  >
-                    Submit another inquiry <ArrowRight data-icon="inline-end" />
-                  </Button>
-                </Alert>
-              ) : (
-                <form onSubmit={submitInquiry}>
-                  <FieldGroup className="gap-3.5">
-                  <div className="grid gap-3.5 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="clientName" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                        <Users size={14} /> Your name
-                      </FieldLabel>
-                      <Input
-                        id="clientName"
-                        required
-                        value={form.clientName}
-                        onChange={(event) => update("clientName", event.target.value)}
-                        className="h-11 rounded-sm border-border bg-card"
-                        placeholder="Ana Reyes"
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="email" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                        <Mail size={14} /> Email
-                      </FieldLabel>
-                      <Input
-                        id="email"
-                        required
-                        type="email"
-                        value={form.email}
-                        onChange={(event) => update("email", event.target.value)}
-                        className="h-11 rounded-sm border-border bg-card"
-                        placeholder="you@company.com"
-                      />
-                    </Field>
-                  </div>
+                      <SummarySection icon={<CalendarDays className="size-7" />} title="Event summary">
+                        <div className="mt-4 grid gap-5 md:grid-cols-3">
+                          <SummaryItem label="Event Name" value={form.eventName} />
+                          <SummaryItem label="Event Type" value={form.eventType} />
+                          <SummaryItem label="Preferred Date" value={form.eventDate} />
+                          <SummaryItem label="Expected Guests" value={form.expectedGuests} />
+                          <SummaryItem label="Venue or City" value={form.venueCity} />
+                          <SummaryItem label="Venue Status" value={form.venueStatus} />
+                        </div>
+                      </SummarySection>
 
-                  <Field>
-                    <FieldLabel htmlFor="companyName" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                      <BadgeCheck size={14} /> Company or organization
-                    </FieldLabel>
-                    <Input
-                      id="companyName"
-                      value={form.companyName}
-                      onChange={(event) => update("companyName", event.target.value)}
-                      className="h-11 rounded-sm border-border bg-card"
-                      placeholder="SampleCorp"
-                    />
-                  </Field>
+                      <SummarySection icon={<WalletCards className="size-7" />} title="Budget summary">
+                        <div className="mt-4 grid gap-5 md:grid-cols-2">
+                          <SummaryItem label="Estimated Budget" value={form.budgetRange} />
+                          <SummaryItem label="Inquiry Priority" value={form.inquiryPriority} />
+                        </div>
+                      </SummarySection>
 
-                  <div className="grid gap-3.5 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="eventName" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                        <BadgeCheck size={14} /> Event name
-                      </FieldLabel>
-                      <Input
-                        id="eventName"
-                        required
-                        value={form.eventName}
-                        onChange={(event) => update("eventName", event.target.value)}
-                        className="h-11 rounded-sm border-border bg-card"
-                        placeholder="Leadership Forum 2026"
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="eventType" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                        <ClipboardList size={14} /> Event type
-                      </FieldLabel>
-                      <Input
-                        id="eventType"
-                        required
-                        value={form.eventType}
-                        onChange={(event) => update("eventType", event.target.value)}
-                        className="h-11 rounded-sm border-border bg-card"
-                        placeholder="Conference, gala, launch"
-                      />
-                    </Field>
-                  </div>
+                      <SummarySection icon={<MessageSquareText className="size-7" />} title="Notes preview">
+                        <p className="mt-3 text-base leading-7 text-muted-foreground">{form.message || "No additional notes provided."}</p>
+                      </SummarySection>
+                    </div>
 
-                  <div className="grid gap-3.5 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel htmlFor="eventDate" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                        <CalendarDays size={14} /> Event date
-                      </FieldLabel>
-                      <Input
-                        id="eventDate"
-                        required
-                        type="date"
-                        min={minDate}
-                        value={form.eventDate}
-                        onChange={(event) => update("eventDate", event.target.value)}
-                        className="h-11 rounded-sm border-border bg-card"
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                        <MapPin size={14} /> Client type
-                      </FieldLabel>
-                      <Select
-                        value={form.clientType}
-                        onValueChange={(value) => update("clientType", value)}
-                      >
-                        <SelectTrigger className="h-11 rounded-sm border-border bg-card">
-                          <SelectValue placeholder="Select client type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectItem value="Corporate">Corporate</SelectItem>
-                            <SelectItem value="Government">Government</SelectItem>
-                            <SelectItem value="Association">Association</SelectItem>
-                            <SelectItem value="Private">Private</SelectItem>
-                            <SelectItem value="Non-profit">Non-profit</SelectItem>
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
-
-                  <Field>
-                    <FieldLabel className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                      <Phone size={14} /> How did this reach PMCM?
-                    </FieldLabel>
-                    <Select
-                      value={form.source}
-                      onValueChange={(value) => update("source", value)}
-                    >
-                      <SelectTrigger className="h-11 rounded-sm border-border bg-card">
-                        <SelectValue placeholder="Select source" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="Website">Website</SelectItem>
-                          <SelectItem value="Facebook">Facebook</SelectItem>
-                          <SelectItem value="BNI">BNI</SelectItem>
-                          <SelectItem value="Walk-In">Walk-In</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="message" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
-                      <MessageSquareText size={14} /> Brief
-                    </FieldLabel>
-                    <Textarea
-                      id="message"
-                      required
-                      rows={5}
-                      value={form.message}
-                      onChange={(event) => update("message", event.target.value)}
-                      className="min-h-28 rounded-sm border-border bg-card"
-                      placeholder="Tell us about the audience, venue, scope, vendors, risks, and services you need."
-                    />
-                    <FieldDescription className="text-xs leading-5">Include venue, audience size, services, timeline, and risks if known.</FieldDescription>
-                  </Field>
-
-                  <div className="rounded-sm border border-border bg-background p-3">
-                    <label className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
+                    <label className="mt-5 flex items-start gap-3 text-base leading-7 text-foreground">
                       <input
                         type="checkbox"
-                        required
                         checked={form.privacyConsentAccepted}
                         onChange={(event) => update("privacyConsentAccepted", event.target.checked)}
-                        className="mt-1 size-4 accent-primary"
+                        required
+                        className="mt-1 size-5 accent-primary"
                       />
-                      <span>
-                        I consent to PMCM processing these inquiry details for event planning review and follow-up under the current demo privacy notice.
-                      </span>
+                      <span>I confirm these inquiry details are accurate enough for PMCM review.</span>
                     </label>
-                    <label className="mt-3 flex items-start gap-3 text-sm leading-6 text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={form.marketingConsentAccepted}
-                        onChange={(event) => update("marketingConsentAccepted", event.target.checked)}
-                        className="mt-1 size-4 accent-primary"
-                      />
-                      <span>PMCM may also send optional event planning updates and announcements.</span>
-                    </label>
-                  </div>
+                    <div className="mt-2 flex items-start gap-3 text-base leading-7 text-muted-foreground">
+                      <LockKeyhole className="mt-1 size-5 shrink-0 text-muted-foreground" />
+                      <span>PMCM will use this information only to review and follow up on this event inquiry.</span>
+                    </div>
 
-                  {error && (
-                    <Alert variant="destructive" className="rounded-sm">
-                      <AlertTitle>Submission failed</AlertTitle>
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button
-                    type="submit"
-                    disabled={busy || !form.privacyConsentAccepted}
-                    className="h-12 w-full rounded-sm text-sm font-black uppercase tracking-[0.16em]"
-                  >
-                    {busy ? "Submitting" : "Submit inquiry"}
-                    <ArrowRight data-icon="inline-end" />
-                  </Button>
-                  </FieldGroup>
-                </form>
-              )}
-
-              <Separator className="my-4 bg-[#9060A0]/12" />
-              <div className="grid grid-cols-3 gap-2 text-center">
-                {assuranceItems.map(({ icon: Icon, label }) => (
-                  <div key={label} className="rounded-sm bg-background px-2 py-2.5 text-primary">
-                    <Icon className="mx-auto" size={17} />
-                    <p className="mt-1 text-xs font-bold">{label}</p>
-                  </div>
-                ))}
+                    {error && (
+                      <Alert variant="destructive" className="mt-4 rounded-lg">
+                        <AlertTitle>Submission failed</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                      </Alert>
+                    )}
+                    <div className="ml-auto mt-4 flex w-full max-w-[560px] items-center gap-3 rounded-md border border-(--prism-success)/20 bg-(--prism-success)/8 px-5 py-3 text-sm font-medium text-(--prism-success)">
+                      <CheckCircle2 className="size-5 shrink-0" />
+                      After submission, PMCM sends next steps if the inquiry is accepted.
+                    </div>
+                  </section>
+                )}
               </div>
-              </CardContent>
-            </Card>
-          </aside>
+
+              <div className="flex min-h-[148px] items-center justify-between gap-3 border-t border-border bg-card px-6 py-7 sm:px-10 lg:px-12">
+                {currentStep > 0 ? (
+                  <Button type="button" variant="outline" onClick={previousStep} disabled={busy} className="h-14 rounded-lg px-8 text-base font-black">
+                    <ChevronLeft className="size-5" />
+                    Back
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                {currentStep < wizardSteps.length - 1 ? (
+                  <Button type="button" onClick={nextStep} disabled={busy} className="h-[68px] min-w-[264px] rounded-lg px-12 text-lg font-black">
+                    Continue
+                    <ArrowRight className="size-6" />
+                  </Button>
+                ) : (
+                  <Button type="submit" disabled={!canContinue(3) || busy} className="h-[68px] min-w-[264px] rounded-lg px-12 text-lg font-black">
+                    {busy ? "Submitting..." : "Submit Inquiry"}
+                    <Send className="size-6" />
+                  </Button>
+                )}
+              </div>
+            </form>
+          </div>
         </div>
       </section>
     </main>

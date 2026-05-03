@@ -7,25 +7,36 @@ import {
   Activity,
   ArrowRight,
   BadgeCheck,
+  Bell,
   CalendarDays,
   CheckCircle2,
+  ClipboardCheck,
   FileCheck2,
   FileText,
   Home,
   LockKeyhole,
   MapPinned,
+  MessageSquareText,
+  Presentation,
   ReceiptText,
   Send,
   ShieldCheck,
+  Sparkles,
+  Timer,
+  UserRoundCheck,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
 import {
   mvpApi,
+  type MvpBillingStatement,
+  type MvpBriefing,
   type MvpDemoState,
+  type MvpDocument,
   type MvpEvent,
   type MvpFloorPlanDraft,
+  type MvpPaymentMilestone,
   type MvpUser,
 } from "@/lib/mvp-api";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -40,9 +51,7 @@ import {
   PrismAppShell,
   PrismCompactRecordList,
   PrismNoticeBanner,
-  PrismStatusSummary,
   PrismWorkflowTabs,
-  RolePageHeader,
 } from "@prism/ui";
 import { PRESETS, type Preset } from "../editor/presets";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
@@ -52,6 +61,7 @@ import {
   ClientBriefingTab,
   ClientDocumentsTab,
   ClientOverviewTab,
+  ClientProposalTab,
   DashboardSkeleton,
 } from "./dashboard-tabs";
 
@@ -68,7 +78,7 @@ const EditorShell = dynamic(
 );
 
 type ClientSession = MvpUser & { signedInAt: string };
-type DetailTab = "overview" | "floorplan" | "briefing" | "billing" | "documents" | "activity";
+type DetailTab = "overview" | "briefing" | "proposal" | "floorplan" | "billing" | "documents" | "activity";
 type Screen =
   | { name: "dashboard" }
   | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project; readOnly: boolean };
@@ -96,9 +106,10 @@ const initialPreference: PreferenceForm = {
 const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: LucideIcon }> = [
   { id: "overview", label: "Overview", icon: Home },
   { id: "briefing", label: "Briefing", icon: FileCheck2 },
-  { id: "floorplan", label: "Floorplan", icon: MapPinned },
-  { id: "billing", label: "Billing", icon: WalletCards },
+  { id: "proposal", label: "Proposal", icon: Presentation },
+  { id: "floorplan", label: "Layout", icon: MapPinned },
   { id: "documents", label: "Documents", icon: FileText },
+  { id: "billing", label: "Billing", icon: WalletCards },
   { id: "activity", label: "Activity", icon: Activity },
 ];
 
@@ -170,6 +181,24 @@ function portalBadgeLabel(status?: MvpEvent["clientPortalStatus"]) {
   return status === "unlocked" ? "Conforme signed" : "Portal locked";
 }
 
+type ClientDashboardAction = {
+  id: string;
+  title: string;
+  description: string;
+  detail: string;
+  ctaLabel: string;
+  icon: LucideIcon;
+  targetTab: DetailTab;
+  status: string;
+  tone: "primary" | "success" | "warning" | "neutral";
+};
+
+const money = new Intl.NumberFormat("en-PH", {
+  style: "currency",
+  currency: "PHP",
+  maximumFractionDigits: 0,
+});
+
 function readSession(): ClientSession | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(MOCK_AUTH_SESSION_KEY);
@@ -180,6 +209,263 @@ function readSession(): ClientSession | null {
     window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
     return null;
   }
+}
+
+function getClientDashboardActions({
+  selectedEvent,
+  briefing,
+  billing,
+  payments,
+  documents,
+  officialDraft,
+}: {
+  selectedEvent: MvpEvent;
+  briefing?: MvpBriefing;
+  billing?: MvpBillingStatement;
+  payments: MvpPaymentMilestone[];
+  documents: MvpDocument[];
+  officialDraft?: MvpFloorPlanDraft;
+}): ClientDashboardAction[] {
+  const nextPayment = payments.find((payment) => payment.status !== "paid");
+  const documentNeedsAttention = documents.some((document) => /needs|pending|requested/i.test(document.status));
+  const officialNeedsReview = officialDraft && officialDraft.status !== "approved";
+
+  return [
+    {
+      id: "layout-review",
+      title: officialNeedsReview ? "Review official layout" : officialDraft ? "Official layout is approved" : "Send layout preference",
+      description: officialNeedsReview
+        ? "PMCM has published the official layout as a read-only client copy. Review it before planning moves forward."
+        : officialDraft
+          ? "The official layout is locked for this event. Use this space for the client copy and history."
+          : "Share seating, stage, guest-flow, and constraint notes before PMCM prepares the official plan.",
+      detail: officialNeedsReview ? "Client review needed" : officialDraft ? formatStatusLabel(officialDraft.status) : "Preference draft",
+      ctaLabel: officialDraft ? "Review layout" : "Open layout preferences",
+      icon: MapPinned,
+      targetTab: "floorplan",
+      status: officialDraft?.status ?? "pending",
+      tone: officialNeedsReview ? "primary" : officialDraft ? "success" : "warning",
+    },
+    {
+      id: "proposal-package",
+      title: billing && briefing ? "Review proposal package" : "Proposal package in preparation",
+      description: billing && briefing
+        ? "Briefing, package basis, billing statement, and review path are ready without exposing PMCM internal costing."
+        : "The proposal view will populate after PMCM posts the client-safe planning package.",
+      detail: billing ? billing.number : selectedEvent.status,
+      ctaLabel: "Open proposal",
+      icon: Presentation,
+      targetTab: "proposal",
+      status: billing && briefing ? "ready" : "pending",
+      tone: billing && briefing ? "primary" : "neutral",
+    },
+    {
+      id: "documents",
+      title: documentNeedsAttention ? "Complete document checklist" : "Documents are organized",
+      description: documentNeedsAttention
+        ? "Some client files still need review or replacement before final planning checks."
+        : "Signed conforme, client assets, and approval files are grouped with this event.",
+      detail: `${documents.length} file${documents.length === 1 ? "" : "s"}`,
+      ctaLabel: "Open documents",
+      icon: FileText,
+      targetTab: "documents",
+      status: documentNeedsAttention ? "pending" : documents.length ? "ready" : "pending",
+      tone: documentNeedsAttention ? "warning" : documents.length ? "success" : "neutral",
+    },
+    {
+      id: "billing",
+      title: nextPayment ? `Check ${nextPayment.label.toLowerCase()}` : "Billing is on track",
+      description: nextPayment
+        ? `${money.format(nextPayment.amount)} is scheduled for ${nextPayment.dueDate}. Payment recording remains PMCM-managed.`
+        : "All visible billing milestones are marked complete.",
+      detail: nextPayment ? nextPayment.dueDate : "No open milestone",
+      ctaLabel: "Open billing",
+      icon: ReceiptText,
+      targetTab: "billing",
+      status: nextPayment?.status ?? "approved",
+      tone: nextPayment ? "warning" : "success",
+    },
+  ];
+}
+
+function selectNextAction(actions: ClientDashboardAction[]) {
+  return actions.find((action) => action.tone === "primary")
+    ?? actions.find((action) => action.tone === "warning")
+    ?? actions[0];
+}
+
+function actionToneClass(tone: ClientDashboardAction["tone"]) {
+  if (tone === "primary") return "border-primary/20 bg-(--prism-signal-soft) text-primary";
+  if (tone === "success") return "border-(--prism-success)/20 bg-(--prism-success)/10 text-(--prism-success)";
+  if (tone === "warning") return "border-(--prism-amber)/25 bg-(--prism-amber-soft) text-(--prism-amber)";
+  return "border-border bg-secondary text-muted-foreground";
+}
+
+function LifecycleStrip({
+  selectedEvent,
+  briefing,
+  billing,
+  officialDraft,
+}: {
+  selectedEvent: MvpEvent;
+  briefing?: MvpBriefing;
+  billing?: MvpBillingStatement;
+  officialDraft?: MvpFloorPlanDraft;
+}) {
+  const steps = [
+    { label: "Inquiry accepted", state: "done", icon: BadgeCheck },
+    { label: "Conforme signed", state: selectedEvent.clientPortalStatus === "unlocked" ? "done" : "pending", icon: ShieldCheck },
+    { label: "Briefing / proposal", state: briefing && billing ? "done" : "current", icon: Presentation },
+    { label: "Planning", state: officialDraft?.status === "approved" ? "done" : "current", icon: MapPinned },
+    { label: "Event day", state: "pending", icon: CalendarDays },
+    { label: "Closure", state: "pending", icon: CheckCircle2 },
+  ];
+
+  return (
+    <section className="rounded-lg border border-border bg-card px-4 py-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Lifecycle</p>
+          <h2 className="mt-1 text-lg font-black text-foreground">Guided from inquiry to closure</h2>
+        </div>
+        <StatusBadge status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />
+      </div>
+      <ol className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+        {steps.map((step, index) => {
+          const Icon = step.icon;
+          const isDone = step.state === "done";
+          const isCurrent = step.state === "current";
+          return (
+            <li
+              key={step.label}
+              className={
+                isDone
+                  ? "rounded-lg border border-(--prism-success)/20 bg-(--prism-success)/8 px-3 py-3"
+                  : isCurrent
+                    ? "rounded-lg border border-primary/25 bg-(--prism-signal-soft) px-3 py-3"
+                    : "rounded-lg border border-border bg-background/70 px-3 py-3"
+              }
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                  Step {index + 1}
+                </span>
+                <Icon className={isDone ? "size-4 text-(--prism-success)" : isCurrent ? "size-4 text-primary" : "size-4 text-muted-foreground"} />
+              </div>
+              <p className="mt-2 text-sm font-black leading-tight text-foreground">{step.label}</p>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function NextActionHero({
+  event,
+  action,
+  onSelect,
+}: {
+  event: MvpEvent;
+  action: ClientDashboardAction;
+  onSelect: () => void;
+}) {
+  const Icon = action.icon;
+
+  return (
+    <section className="relative overflow-hidden rounded-lg border border-primary/12 bg-card p-5 shadow-[0_22px_70px_rgba(23,18,22,0.08)] sm:p-6">
+      <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(90deg,rgba(234,213,206,0.52)_1px,transparent_1px),linear-gradient(rgba(234,213,206,0.52)_1px,transparent_1px)] [background-size:34px_34px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(132deg,rgba(255,248,242,0.92),rgba(255,255,255,0.72)_52%,rgba(233,247,251,0.86))]" />
+      <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-end">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+              <Sparkles className="size-3.5" />
+              Next required action
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-(--prism-amber)/25 bg-(--prism-amber-soft) px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-(--prism-amber)">
+              <Timer className="size-3.5" />
+              {action.detail}
+            </span>
+          </div>
+          <h2 className="mt-5 max-w-3xl text-3xl font-black leading-[1.05] text-foreground sm:text-4xl">
+            {action.title}
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+            {action.description}
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Button onClick={onSelect} className="min-h-12 rounded-md px-5 font-black">
+              {action.ctaLabel} <ArrowRight className="size-4" />
+            </Button>
+            <span className="text-sm font-semibold text-muted-foreground">
+              {event.eventDate} · {formatStatusLabel(event.readiness)}
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-white/82 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <span className={`grid size-11 shrink-0 place-items-center rounded-md border ${actionToneClass(action.tone)}`}>
+              <Icon className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-foreground">{event.eventName}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Confirmed client workspace. PMCM keeps internal planning details private while client-visible approvals stay here.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ClientActionQueue({
+  actions,
+  onSelect,
+}: {
+  actions: ClientDashboardAction[];
+  onSelect: (action: ClientDashboardAction) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Action queue</p>
+          <h3 className="mt-1 text-lg font-black text-foreground">Client-visible blockers</h3>
+        </div>
+        <Badge variant="outline" className="rounded-full border-primary/20 bg-secondary text-primary">
+          {actions.length} workflows
+        </Badge>
+      </div>
+      <div className="mt-4 grid gap-2">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => onSelect(action)}
+              className="group flex min-h-20 items-start gap-3 rounded-lg border border-border bg-background/70 p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-sm"
+            >
+              <span className={`grid size-9 shrink-0 place-items-center rounded-md border ${actionToneClass(action.tone)}`}>
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-black text-foreground">{action.title}</span>
+                  <StatusBadge status={action.status} />
+                </span>
+                <span className="mt-1 line-clamp-2 block text-xs leading-5 text-muted-foreground">{action.description}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function projectFromDraft(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {
@@ -267,7 +553,7 @@ export function Dashboard() {
   const billing = state?.billingStatements.find((b) => b.eventId === selectedEvent?.id);
   const documents = state?.documents.filter((d) => d.eventId === selectedEvent?.id) ?? [];
   const audit = state?.auditLogs.filter((a) => a.eventId === selectedEvent?.id).slice(0, 10) ?? [];
-  const firstName = session?.name.split(" ")[0] || "there";
+  const notifications = state?.notificationLogs.filter((item) => item.eventId === selectedEvent?.id).slice(0, 4) ?? [];
 
   useEffect(() => {
     if (!officialDraft || !selectedEvent) {
@@ -372,6 +658,26 @@ export function Dashboard() {
     } finally {
       setBusy(null);
     }
+  }
+
+  const clientActions = selectedEvent
+    ? getClientDashboardActions({
+        selectedEvent,
+        briefing,
+        billing,
+        payments,
+        documents,
+        officialDraft,
+      })
+    : [];
+  const nextAction = selectNextAction(clientActions);
+
+  function runClientAction(action: ClientDashboardAction) {
+    if (action.id === "layout-review" && officialDraft) {
+      void openFloorplanEditor(officialDraft, true);
+      return;
+    }
+    setTab(action.targetTab);
   }
 
   /* ── Loading / auth redirects ─────────────────────────────── */
@@ -481,47 +787,19 @@ export function Dashboard() {
   }));
 
   const shellCommandActions = selectedEvent
-    ? [
-        {
-          id: "briefing",
-          label: "Review briefing",
-          description: briefing ? "Venue, scope, guest count, and service notes are ready." : "Briefing appears after your event team publishes it.",
-          icon: FileCheck2,
-          status: briefing ? "ready" : "pending",
-          onSelect: () => setTab("briefing"),
-        },
-        {
-          id: "floorplan",
-          label: officialDraft ? "View official layout" : "Send layout preference",
-          description: officialDraft
-            ? "Read-only official copy is available."
-            : "Share seating, stage, and flow notes.",
-          icon: MapPinned,
-          status: officialDraft?.status ?? "pending",
-          onSelect: () => setTab("floorplan"),
-        },
-        {
-          id: "billing",
-          label: "Check billing",
-          description: billing ? "Statement and milestones are visible." : "Milestones appear after billing is posted.",
-          icon: ReceiptText,
-          status: billing?.status ?? "pending",
-          onSelect: () => setTab("billing"),
-        },
-        {
-          id: "documents",
-          label: "Open documents",
-          description: `${documents.length} document${documents.length === 1 ? "" : "s"} in this event.`,
-          icon: FileText,
-          status: documents.length ? "ready" : "pending",
-          onSelect: () => setTab("documents"),
-        },
-      ]
+    ? clientActions.slice(0, 4).map((action) => ({
+        id: action.id,
+        label: action.title,
+        description: action.description,
+        icon: action.icon,
+        status: action.status,
+        onSelect: () => runClientAction(action),
+      }))
     : [];
 
   const shellMobileActions = [
     { id: "overview", label: "Overview", icon: Home, active: tab === "overview", onSelect: () => setTab("overview") },
-    { id: "floorplan", label: "Plan", icon: MapPinned, active: tab === "floorplan", disabled: !selectedEvent, onSelect: () => setTab("floorplan") },
+    { id: "floorplan", label: "Layout", icon: MapPinned, active: tab === "floorplan", disabled: !selectedEvent, onSelect: () => setTab("floorplan") },
     { id: "billing", label: "Pay", icon: WalletCards, active: tab === "billing", disabled: !selectedEvent, onSelect: () => setTab("billing") },
   ];
 
@@ -562,10 +840,81 @@ export function Dashboard() {
       </section>
 
       <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Layout boundary</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Official floorplans are view-only in this portal. Use preference drafts to share layout ideas before the official version is published for review.
-        </p>
+        <div className="flex items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-md bg-(--prism-signal-soft) text-primary">
+            <UserRoundCheck className="size-4" />
+          </span>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">PMCM contact</p>
+            <h3 className="mt-1 text-sm font-black text-foreground">Planning desk</h3>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              PMCM keeps supplier, coordinator, and internal cost decisions private. Client actions stay focused on approvals, files, billing visibility, and event preferences.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Key deadlines</p>
+        <div className="mt-3 space-y-2">
+          {[
+            {
+              label: "Event day",
+              value: selectedEvent?.eventDate ?? "Pending",
+              icon: CalendarDays,
+            },
+            {
+              label: "Layout review",
+              value: officialDraft ? formatStatusLabel(officialDraft.status) : "Not published",
+              icon: MapPinned,
+            },
+            {
+              label: "Next payment",
+              value: payments.find((payment) => payment.status !== "paid")?.dueDate ?? "No open milestone",
+              icon: ReceiptText,
+            },
+            {
+              label: "Documents",
+              value: documents.some((document) => /needs|pending|requested/i.test(document.status)) ? "Needs attention" : `${documents.length} received`,
+              icon: ClipboardCheck,
+            },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className="flex items-center gap-3 rounded-md bg-background/70 px-3 py-2.5">
+                <Icon className="size-4 shrink-0 text-(--prism-amber)" />
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-foreground">{item.label}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.value}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Notifications</p>
+          <Bell className="size-4 text-(--prism-amber)" />
+        </div>
+        {notifications.length ? (
+          <div className="mt-3 space-y-2">
+            {notifications.map((notification) => (
+              <div key={notification.id} className="rounded-md border border-border bg-background/70 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-black text-foreground">{notification.channel.toUpperCase()}</p>
+                  <StatusBadge status={notification.status} />
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{notification.message}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Email and Viber notifications will appear here when PMCM posts client-visible updates.
+          </p>
+        )}
       </section>
     </div>
   );
@@ -578,7 +927,7 @@ export function Dashboard() {
       title={selectedEvent?.eventName ?? "Client portal"}
       description={
         selectedEvent
-          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Briefing, billing, documents, and official layout review stay in this signed-in portal.`
+          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Next actions, proposal review, documents, billing, and official layout review stay in this signed-in portal.`
           : "The portal opens after your inquiry is accepted and the signed conforme is recorded."
       }
       activeItemId={tab}
@@ -589,7 +938,7 @@ export function Dashboard() {
         detail: session.organization,
         initials: session.name.slice(0, 2).toUpperCase(),
       }}
-      searchPlaceholder="Search briefing, billing, documents..."
+      searchPlaceholder="Search proposal, billing, documents..."
       commandActions={shellCommandActions}
       headerActions={
         <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => void refresh()}>
@@ -610,139 +959,51 @@ export function Dashboard() {
 
             {selectedEvent ? (
               <>
-                {/* Hero greeting */}
-                <section className="rounded-xl border border-border bg-secondary/60 px-6 py-5">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <h2 className="text-2xl font-black leading-none text-foreground">
-                        Hello, {firstName}.
-                      </h2>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Quick access to briefing, billing, documents, preference drafts, and official layout review.
-                      </p>
-                    </div>
-                    <StatusBadge
-                      status={portalBadgeStatus(selectedEvent.clientPortalStatus)}
-                      label={portalBadgeLabel(selectedEvent.clientPortalStatus)}
-                    />
-                  </div>
+                {nextAction ? (
+                  <NextActionHero
+                    event={selectedEvent}
+                    action={nextAction}
+                    onSelect={() => runClientAction(nextAction)}
+                  />
+                ) : null}
 
-                  {/* Quick action cards */}
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-                    {[
-                      { label: "Briefing", detail: "Review venue and service notes", icon: FileCheck2, nextTab: "briefing" as DetailTab, color: "bg-secondary text-foreground" },
-                      { label: "Layout", detail: "Preferences and official review", icon: MapPinned, nextTab: "floorplan" as DetailTab, color: "bg-(--prism-amber-soft) text-(--prism-amber)" },
-                      { label: "Documents", detail: "Conforme files and approvals", icon: FileText, nextTab: "documents" as DetailTab, color: "bg-secondary text-primary" },
-                      { label: "Billing", detail: "Milestones and statement status", icon: ReceiptText, nextTab: "billing" as DetailTab, color: "bg-(--prism-signal-soft) text-(--prism-danger)" },
-                      { label: "Activity", detail: "Client-visible event updates", icon: Activity, nextTab: "activity" as DetailTab, color: "bg-muted text-muted-foreground" },
-                    ].map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => setTab(action.nextTab)}
-                        className="group min-h-[7.5rem] rounded-lg border border-border bg-card p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
-                      >
-                        <span className={`grid size-8 place-items-center rounded-md ${action.color}`}>
-                          <action.icon className="size-4" />
-                        </span>
-                        <p className="mt-3 text-sm font-black text-foreground">{action.label}</p>
-                        <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{action.detail}</p>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <RolePageHeader
-                  eyebrow="Confirmed client portal"
-                  title="Your event is open because the signed conforme is on file."
-                  description="Use this portal for briefing details, document submissions, billing milestones, preference drafts, and read-only review of the official floorplan."
-                  meta={[
-                    <StatusBadge
-                      key="portal-status"
-                      status={portalBadgeStatus(selectedEvent.clientPortalStatus)}
-                      label={portalBadgeLabel(selectedEvent.clientPortalStatus)}
-                    />,
-                  ]}
+                <LifecycleStrip
+                  selectedEvent={selectedEvent}
+                  briefing={briefing}
+                  billing={billing}
+                  officialDraft={officialDraft}
                 />
 
-                {/* Event cards */}
-                <section>
-                  <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-black text-foreground">Switch event</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Only accepted inquiries with signed conformes appear here.
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="rounded-full border-(--prism-amber)/35 bg-accent text-(--prism-amber) text-xs">
-                      {events.length} active
-                    </Badge>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                    {events.slice(0, 4).map((ev) => {
-                      const draftsForEvent = state.floorPlanDrafts.filter((d) => d.eventId === ev.id);
-                      const activeForEvent = draftsForEvent.find((d) => d.isActive) ?? draftsForEvent[0];
-                      const isActive = ev.id === selectedEvent.id;
-                      return (
-                        <button
-                          key={ev.id}
-                          onClick={() => { setSelectedEventId(ev.id); setTab("overview"); }}
-                          aria-pressed={isActive}
-                          className={`flex min-h-24 items-start gap-3 rounded-lg border bg-card p-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                            isActive ? "border-primary/40 ring-2 ring-primary/10" : "border-border hover:border-primary/25"
-                          }`}
-                        >
-                          <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-md bg-secondary text-primary">
-                            <CalendarDays className="size-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--prism-amber)">
-                              {isActive ? "Selected event" : "Confirmed event"}
-                            </p>
-                            <p className="mt-1 line-clamp-2 text-sm font-black text-foreground">{ev.eventName}</p>
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <span className="text-xs text-muted-foreground">{ev.eventDate}</span>
-                              <StatusBadge status={activeForEvent?.status ?? ev.status} />
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+                  <ClientActionQueue actions={clientActions} onSelect={runClientAction} />
 
-                <PrismStatusSummary
-                  columns="four"
-                  items={[
-                    {
-                      id: "portal",
-                      label: "Conforme gate",
-                      value: portalBadgeLabel(selectedEvent.clientPortalStatus),
-                      icon: BadgeCheck,
-                      status: portalBadgeStatus(selectedEvent.clientPortalStatus),
-                    },
-                    {
-                      id: "floorplan",
-                      label: "Official layout",
-                      value: officialDraft ? formatStatusLabel(officialDraft.status) : preferenceDrafts.length ? "Preference sent" : "Pending",
-                      icon: MapPinned,
-                      status: officialDraft?.status ?? (preferenceDrafts.length ? "submitted" : "pending"),
-                    },
-                    {
-                      id: "billing",
-                      label: "Payment milestones",
-                      value: billing ? formatStatusLabel(billing.status) : "Pending",
-                      icon: ReceiptText,
-                      status: billing?.status ?? "pending",
-                    },
-                    {
-                      id: "activity",
-                      label: "Event updates",
-                      value: audit.length,
-                      icon: Activity,
-                      detail: "Client-visible updates for this event.",
-                    },
-                  ]}
-                />
+                  <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
+                    <div className="flex items-start gap-3">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-md bg-(--prism-ink) text-sidebar-foreground">
+                        <MessageSquareText className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Client workspace</p>
+                        <h3 className="mt-1 text-lg font-black text-foreground">What this portal is for</h3>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          Review PMCM-published planning details, respond to client-visible blockers, and keep event files in one record. Supplier choices, coordinator operations, internal CE, and audit controls stay outside this portal.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-2">
+                      {[
+                        ["Conforme gate", portalBadgeLabel(selectedEvent.clientPortalStatus)],
+                        ["Official layout", officialDraft ? formatStatusLabel(officialDraft.status) : "Not published"],
+                        ["Billing", billing ? formatStatusLabel(billing.status) : "Pending"],
+                      ].map(([label, value]) => (
+                        <div key={label} className="flex items-center justify-between gap-3 rounded-md bg-background/70 px-3 py-2.5">
+                          <span className="text-xs font-bold text-muted-foreground">{label}</span>
+                          <span className="text-xs font-black text-foreground">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
 
                 <PrismWorkflowTabs items={DETAIL_TABS} activeId={tab} onSelect={(id) => setTab(id as DetailTab)} />
 
@@ -921,6 +1182,16 @@ export function Dashboard() {
                 )}
 
                 {tab === "briefing" && <ClientBriefingTab briefing={briefing} />}
+                {tab === "proposal" && (
+                  <ClientProposalTab
+                    selectedEvent={selectedEvent}
+                    briefing={briefing}
+                    billing={billing}
+                    payments={payments}
+                    officialDraft={officialDraft}
+                    setTab={setTab}
+                  />
+                )}
                 {tab === "billing" && <ClientBillingTab payments={payments} billing={billing} />}
                 {tab === "documents" && <ClientDocumentsTab documents={documents} />}
                 {tab === "activity" && <ClientActivityTab audit={audit} />}

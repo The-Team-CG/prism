@@ -7,8 +7,10 @@ import {
   BadgeCheck,
   Eye,
   EyeOff,
+  Handshake,
   LockKeyhole,
   Mail,
+  Megaphone,
   Send,
   ShieldCheck,
 } from "lucide-react";
@@ -135,19 +137,19 @@ export function SignInPage() {
   return (
     <PrismPublicShell
       productDetail="Client portal"
-      eyebrow="Client access"
+      eyebrow="Event workspace access"
       badgeIcon={ShieldCheck}
       badgeText="Accepted inquiry and signed conforme required"
-      title="Sign in to your confirmed event workspace."
-      description="Client access opens only after your inquiry is accepted and the signed conforme is recorded. The portal shows briefing, documents, billing, activity, and official read-only floorplans."
+      title="Sign in to continue your PMCM planning."
+      description="Your workspace opens only after the inquiry is accepted and signed conforme is on file. Access gives you briefings, documents, billing milestones, activity updates, and the approved floorplan preview."
       aside={
         <Card className="rounded-lg border-[#171216]/12 bg-card shadow-[0_28px_90px_rgba(23,18,22,0.18)]">
           <CardHeader className="gap-2">
-            <div className="mb-2 grid size-11 place-items-center rounded-md bg-secondary text-primary">
-              <LockKeyhole size={20} />
+            <div className="mb-2 grid size-11 place-items-center rounded-md bg-primary/10 text-primary">
+              <ShieldCheck size={20} />
             </div>
-            <CardTitle className="text-2xl font-black text-foreground">Sign in</CardTitle>
-            <CardDescription>Approved client accounts can continue. Pending accounts must request event team approval.</CardDescription>
+            <CardTitle className="text-2xl font-black text-foreground">Client sign-in</CardTitle>
+            <CardDescription>Approved clients can open their live workspace instantly. Others can request access in one step.</CardDescription>
           </CardHeader>
           <CardContent>
             {signedInUser ? (
@@ -164,7 +166,7 @@ export function SignInPage() {
                 </Button>
               </Alert>
             ) : (
-              <form onSubmit={submit}>
+                  <form onSubmit={submit}>
                 <FieldGroup>
                   <Field>
                     <FieldLabel htmlFor="email" className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-primary">
@@ -176,7 +178,7 @@ export function SignInPage() {
                       required
                       value={form.email}
                       onChange={(event) => update("email", event.target.value)}
-                      className="h-11 rounded-md border-border bg-card"
+                      className="h-12 rounded-md border-border bg-card"
                       placeholder="ana@ayala.test"
                     />
                   </Field>
@@ -195,14 +197,14 @@ export function SignInPage() {
                         {showPassword ? "Hide" : "Show"}
                       </button>
                     </div>
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={form.password}
-                      onChange={(event) => update("password", event.target.value)}
-                      className="h-11 rounded-md border-border bg-card"
-                    />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={form.password}
+                        onChange={(event) => update("password", event.target.value)}
+                        className="h-12 rounded-md border-border bg-card"
+                      />
                     <FieldDescription className="text-xs leading-5">
                       Credentials and approval status are checked against the PMCM portal access list.
                     </FieldDescription>
@@ -247,15 +249,24 @@ export function SignInPage() {
                   <Button type="submit" disabled={busy} className="h-12 rounded-md text-sm font-black uppercase tracking-[0.16em]">
                     {busy ? "Signing in" : "Sign in"} <ArrowRight data-icon="inline-end" />
                   </Button>
+
+                  <Button asChild variant="outline" className="h-12 rounded-md text-sm font-black uppercase tracking-[0.16em]">
+                    <a href="/sign-up">
+                      Request access
+                      <ArrowRight data-icon="inline-end" />
+                    </a>
+                  </Button>
                 </FieldGroup>
               </form>
             )}
 
             <Separator className="my-5 bg-primary/12" />
-            <p className="text-center text-sm text-muted-foreground">
-              Need to start an event?{" "}
+            <p className="text-center text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+              New here? or need PMCM review?
+            </p>
+            <p className="mt-2 text-center text-sm text-muted-foreground">
               <a href="/inquiry" className="font-bold text-foreground underline-offset-4 hover:underline">
-                Submit an inquiry
+                Start with an inquiry
               </a>
             </p>
           </CardContent>
@@ -277,6 +288,21 @@ export function SignInPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+      <div className="mt-6 grid gap-3 rounded-lg border border-primary/12 bg-card/90 p-4 sm:grid-cols-3">
+        <p className="col-span-3 text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">What happens after sign in:</p>
+        <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-background p-3">
+          <Handshake className="mt-0.5 size-5 text-primary" />
+          <p className="text-sm text-muted-foreground">Conforme lock check and event scope validation.</p>
+        </div>
+        <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-background p-3">
+          <Megaphone className="mt-0.5 size-5 text-primary" />
+          <p className="text-sm text-muted-foreground">Current billing and workflow milestones become visible.</p>
+        </div>
+        <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-background p-3">
+          <Mail className="mt-0.5 size-5 text-primary" />
+          <p className="text-sm text-muted-foreground">Official floorplan read-only updates are ready to review.</p>
+        </div>
       </div>
     </PrismPublicShell>
   );

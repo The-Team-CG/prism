@@ -213,6 +213,10 @@
     background: var(--prism-amber-soft);
     color: var(--prism-ink);
   }
+
+  .prism-serif {
+    font-family: Georgia, "Times New Roman", serif !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

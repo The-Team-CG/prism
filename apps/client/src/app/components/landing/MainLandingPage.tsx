@@ -4,26 +4,23 @@ import type { ReactNode } from "react";
 import {
   ArrowRight,
   BadgeCheck,
-  CalendarClock,
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
+  Flower2,
   Gauge,
   LockKeyhole,
   Mail,
   MapPinned,
   MessageSquareText,
-  Network,
   PartyPopper,
   ReceiptText,
   ShieldCheck,
   Sparkles,
   UserCheck,
-  UsersRound,
   Warehouse,
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
-import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -39,18 +36,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
 } from "../ui/navigation-menu";
-import { Progress } from "../ui/progress";
-import { Separator } from "../ui/separator";
 import { PrismLifecycleStrip, PrismPublicRoleGrid } from "@prism/ui/public-blocks";
-
-const lifecycle = [
-  "Inquiry",
-  "Conforme",
-  "Briefing",
-  "Planning",
-  "Event day",
-  "Closure",
-];
 
 const lifecycleSteps = [
   { label: "Inquiry", description: "Submit event basics through the public form.", state: "current" as const },
@@ -62,28 +48,26 @@ const lifecycleSteps = [
 
 const roleCards = [
   {
-    title: "Clients",
+    title: "Start with inquiry",
     badge: "Inquiry first",
-    description: "Start with an inquiry or sign in after PMCM has accepted the event and issued portal access.",
+    description: "Share the event brief publicly so PMCM can review fit, scope, dates, and next steps before any workspace opens.",
     href: "/inquiry",
     actionLabel: "Start inquiry",
     icon: <FileCheck2 className="size-5" />,
   },
   {
-    title: "Suppliers",
-    badge: "Assigned only",
-    description: "Suppliers use the separate portal for quotes, readiness, contract metadata, and event-day status.",
-    href: "http://localhost:3002/sign-in",
-    actionLabel: "Supplier sign-in",
-    icon: <Warehouse className="size-5" />,
+    title: "Wait for PMCM acceptance",
+    badge: "Conforme gate",
+    description: "Client access begins after PMCM accepts the inquiry and the signed conforme is on file.",
+    href: "/sign-in",
+    actionLabel: "Client sign-in",
+    icon: <ShieldCheck className="size-5" />,
   },
   {
-    title: "Guests",
-    badge: "Event code",
-    description: "Guests enter through an event code before check-in, consent, or feedback becomes available.",
-    href: "http://localhost:3003/open",
-    actionLabel: "Open guest access",
-    icon: <PartyPopper className="size-5" />,
+    title: "Review the event workspace",
+    badge: "Client view",
+    description: "Track billing, documents, PMCM updates, layout preferences, and published official floorplans in one place.",
+    icon: <MapPinned className="size-5" />,
   },
 ];
 
@@ -101,17 +85,17 @@ const platformFeatures = [
   {
     icon: MapPinned,
     title: "Official layout workflow",
-    text: "Clients provide structured spatial preferences while PMCM owns official room layout editing, review, and approval.",
+    text: "Share room preferences, then review the approved layout when PMCM publishes it for the event.",
   },
   {
     icon: Gauge,
-    title: "Compliance readiness",
-    text: "Surface must-fix items, pre-event checks, payment risk, supplier readiness, and event-day blockers.",
+    title: "Planning checks",
+    text: "Keep pre-event requirements, payment milestones, supplier status, and event-day needs visible.",
   },
   {
     icon: Warehouse,
     title: "Supplier coordination",
-    text: "Replace scattered quote requests with scoped supplier records, confirmations, ingress windows, and readiness signals.",
+    text: "Replace scattered quote requests with supplier records, confirmations, ingress windows, and status updates.",
   },
   {
     icon: UserCheck,
@@ -126,116 +110,159 @@ const platformFeatures = [
   {
     icon: ReceiptText,
     title: "Billing and archive",
-    text: "Carry payment milestones, audit notes, files, and closure documents into a searchable event memory.",
+    text: "Carry payment milestones, important notes, files, and closure documents into one event memory.",
   },
 ];
 
 const comparison = [
-  { tool: "Excel", prism: "Live event state, gates, and readiness signals" },
+  { tool: "Excel", prism: "Live event state, approvals, and planning signals" },
   { tool: "Viber", prism: "Structured supplier and coordinator acknowledgments" },
   { tool: "Google Drive", prism: "Per-event file hub with lifecycle context" },
   { tool: "Canva / PowerPoint", prism: "Proposal artifacts connected to approvals" },
-  { tool: "Email", prism: "Traceable requests, decisions, and audit history" },
+  { tool: "Email", prism: "Traceable requests, decisions, and approval history" },
 ];
 
 function BrandMark({ tone = "dark" }: { tone?: "dark" | "light" }) {
   return (
     <div className="flex items-center gap-3">
-      <div
-        className={
-          tone === "dark"
-            ? "flex h-12 w-36 items-center justify-center rounded-md border border-primary/12 bg-white px-3 shadow-sm"
-            : "flex h-12 w-36 items-center justify-center rounded-md border border-white/15 bg-white px-3 shadow-sm"
-        }
-      >
-        <img src="/pmcm-logo.png" alt="PMCM logo" className="h-9 w-full object-contain" />
-      </div>
+      <Flower2 className={tone === "dark" ? "size-11 fill-primary text-primary" : "size-11 fill-primary text-primary"} strokeWidth={1.8} />
       <div>
-        <p className={tone === "dark" ? "text-xs font-black uppercase tracking-[0.24em] text-foreground" : "text-xs font-black uppercase tracking-[0.24em] text-sidebar-foreground"}>P.R.I.S.M</p>
-        <p className={tone === "dark" ? "text-sm text-muted-foreground" : "text-sm text-sidebar-foreground/75"}>Event operating system</p>
+        <p className={tone === "dark" ? "text-3xl font-black leading-none tracking-tight text-(--prism-ink)" : "text-3xl font-black leading-none tracking-tight text-sidebar-foreground"}>PMCM</p>
+        <p className={tone === "dark" ? "mt-1 text-xs font-black uppercase tracking-[0.42em] text-muted-foreground" : "mt-1 text-xs font-black uppercase tracking-[0.42em] text-sidebar-foreground/75"}>P.R.I.S.M</p>
       </div>
     </div>
   );
 }
 
-function MetricCard({ label, value, text }: { label: string; value: string; text: string }) {
+function HeroTrustStrip() {
+  const items = [
+    { icon: UserCheck, title: "PMCM-led planning" },
+    { icon: MapPinned, title: "Official layout review" },
+    { icon: ReceiptText, title: "Clear billing" },
+    { icon: FileCheck2, title: "Document handoff" },
+  ];
+
   return (
-    <Card className="gap-0 rounded-md border-primary/15 bg-card/80 shadow-none backdrop-blur">
-      <CardContent className="p-4">
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">{label}</p>
-        <p className="mt-2 text-3xl font-black text-foreground">{value}</p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{text}</p>
-      </CardContent>
-    </Card>
+    <div className="mt-10 grid grid-cols-2 gap-5 sm:grid-cols-4">
+      {items.map(({ icon: Icon, title }) => (
+        <div key={title} className="text-center">
+          <span className="mx-auto grid size-14 place-items-center rounded-full bg-primary/8 text-primary">
+            <Icon className="size-6" />
+          </span>
+          <p className="mt-3 text-sm font-black text-foreground">{title}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
 function ProductPanel() {
   return (
-    <div className="relative min-h-[620px] overflow-hidden rounded-lg border border-primary/15 bg-secondary shadow-[0_34px_120px_rgba(23,18,22,0.22)]">
+    <div className="relative min-h-[650px] overflow-hidden rounded-lg border border-primary/15 bg-card shadow-[0_34px_120px_rgba(23,18,22,0.16)]">
       <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(#CCECF4_1px,transparent_1px),linear-gradient(90deg,#CCECF4_1px,transparent_1px)] [background-size:34px_34px]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(240,96,48,0.32),transparent_28%),radial-gradient(circle_at_86%_16%,rgba(192,24,103,0.18),transparent_34%)]" />
-
-      <Card className="absolute left-6 right-6 top-6 gap-0 rounded-lg border-primary/10 bg-card/85 shadow-none backdrop-blur">
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-(--prism-amber)">Live event record</p>
-            <p className="mt-1 text-lg font-black text-foreground">Leadership Forum 2026</p>
-          </div>
-          <Badge variant="secondary" className="rounded-full bg-secondary text-(--prism-success)">Ready for PMCM review</Badge>
-        </CardContent>
-      </Card>
-
-      <div className="absolute left-7 right-7 top-28 grid gap-3 md:grid-cols-3">
-        {lifecycle.map((item, index) => (
-          <Card key={item} className="gap-0 rounded-lg border-primary/12 bg-card/82 shadow-none backdrop-blur">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="grid size-7 place-items-center rounded-md bg-(--prism-ink) text-xs font-black text-sidebar-foreground">{index + 1}</span>
-                {index < 3 ? <CheckCircle2 className="size-4 text-(--prism-success)" /> : <CalendarClock className="size-4 text-(--prism-amber)" />}
-              </div>
-              <p className="mt-3 text-sm font-black text-foreground">{item}</p>
-            </CardContent>
-          </Card>
+      <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(255,248,242,0.68),transparent_44%),radial-gradient(circle_at_82%_6%,rgba(192,24,103,0.12),transparent_34%)]" />
+      <div className="absolute inset-y-0 left-0 hidden w-16 flex-col items-center gap-6 rounded-l-lg bg-(--prism-ink) py-8 text-sidebar-foreground lg:flex">
+        {[MapPinned, ReceiptText, FileCheck2, UserCheck, MessageSquareText, Gauge].map((Icon, index) => (
+          <span key={index} className={index === 0 ? "grid size-9 place-items-center rounded-md bg-white/14 text-white" : "grid size-9 place-items-center rounded-md text-white/72"}>
+            <Icon className="size-5" />
+          </span>
         ))}
       </div>
 
-      <Card className="absolute bottom-7 left-7 w-[min(21rem,calc(100%-3.5rem))] gap-0 rounded-lg border-primary/12 bg-card/92 shadow-none backdrop-blur">
-        <CardContent className="p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-foreground">Readiness</p>
-            <Badge variant="outline" className="rounded-full border-[#F06030]/30 text-(--prism-amber)">86%</Badge>
+      <div className="absolute left-6 right-6 top-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-primary/10 bg-card/86 p-4 backdrop-blur lg:left-[5.5rem]">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-md bg-primary/10 text-primary">
+            <MapPinned className="size-5" />
+          </span>
+          <div>
+            <p className="text-xl font-black text-foreground">Your event workspace</p>
+            <p className="mt-1 text-sm text-muted-foreground">Confirmed event · PMCM-guided planning</p>
           </div>
-          <Progress value={86} className="h-2" />
-          <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
-            {[
-              "Supplier quotes received",
-              "Official layout approved",
-              "Coordinator assignments pending",
-            ].map((item) => (
-              <div key={item} className="flex items-center justify-between gap-3">
-                <span>{item}</span>
-                <BadgeCheck className="size-4 text-(--prism-success)" />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <button className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-bold text-foreground">
+          Planning overview
+        </button>
+      </div>
 
-      <Card className="absolute bottom-7 right-7 hidden w-80 gap-0 rounded-lg border-primary/12 bg-(--prism-ink) text-sidebar-foreground shadow-[0_24px_80px_rgba(23,18,22,0.34)] md:block">
-        <CardContent className="p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-(--prism-amber)">Role handoff</p>
-          <div className="mt-4 flex -space-x-2">
-            {['PM', 'CL', 'SU', 'CO', 'GU'].map((item) => (
-              <Avatar key={item} className="size-9 border-2 border-primary">
-                <AvatarFallback className="bg-card text-xs font-black text-foreground">{item}</AvatarFallback>
-              </Avatar>
-            ))}
+      <div className="absolute left-7 right-7 top-28 grid gap-4 lg:left-[5.5rem] lg:grid-cols-[1fr_0.72fr]">
+        <div className="rounded-lg border border-primary/12 bg-card/88 p-4 shadow-sm backdrop-blur">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Official floorplan review</p>
+              <h2 className="mt-2 text-2xl font-black leading-tight text-foreground">Approved ballroom layout</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">Review the approved layout with guest flow, entrances, and service access.</p>
+            </div>
+            <Badge variant="outline" className="rounded-full border-border bg-secondary text-muted-foreground">Read-only</Badge>
           </div>
-          <p className="mt-5 text-2xl font-black leading-tight">One event record. Every role aligned.</p>
-          <p className="mt-3 text-sm leading-6 text-sidebar-foreground/75">Client approvals, supplier status, guest flows, coordinator tasks, billing, and archive all point back to the same operational source.</p>
-        </CardContent>
-      </Card>
+          <div className="mt-4 grid aspect-[1.58] gap-2 rounded-lg border border-border bg-secondary/45 p-4">
+            <div className="grid grid-cols-[0.5fr_1.05fr_0.5fr] gap-2">
+              <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-[10px] font-black uppercase text-muted-foreground">BAR</div>
+              <div className="rounded-md bg-(--prism-ink) p-2 text-center text-xs font-black uppercase tracking-wide text-sidebar-foreground">Stage</div>
+              <div className="rounded-md border border-primary/15 bg-card p-2 text-center text-[10px] font-black uppercase text-muted-foreground">AV</div>
+            </div>
+            <div className="grid grid-cols-5 gap-2 px-5">
+              {Array.from({ length: 15 }).map((_, index) => (
+                <span key={index} className="aspect-square rounded-full border border-primary/20 bg-card shadow-sm" />
+              ))}
+            </div>
+            <div className="grid grid-cols-[0.7fr_1fr_0.7fr] gap-2">
+              <div className="rounded-md border border-primary/20 bg-card p-2 text-[10px] font-black uppercase text-muted-foreground">Guest flow</div>
+              <div className="rounded-md border border-primary/20 bg-card p-2 text-center text-[10px] font-black uppercase text-primary">Registration</div>
+              <div className="rounded-md border border-(--prism-amber)/25 bg-(--prism-amber)/10 p-2 text-[10px] font-black uppercase text-(--prism-amber)">Service access</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3">
+          {[
+            { title: "Conforme status", detail: "Accepted and signed.", icon: CheckCircle2, state: "done" },
+            { title: "Billing milestone", detail: "Deposit paid · balance next.", icon: ReceiptText, state: "active" },
+            { title: "Document checklist", detail: "Briefs and files in one place.", icon: FileCheck2, state: "active" },
+            { title: "Activity", detail: "Recent PMCM updates.", icon: MessageSquareText, state: "active" },
+          ].map(({ title, detail, icon: Icon, state }) => (
+            <div key={title} className="rounded-lg border border-primary/12 bg-card/90 p-4 shadow-sm backdrop-blur">
+              <div className="flex items-start gap-3">
+                <span className={state === "done" ? "grid size-9 place-items-center rounded-md bg-(--prism-success)/10 text-(--prism-success)" : "grid size-9 place-items-center rounded-md bg-primary/10 text-primary"}>
+                  <Icon className="size-4" />
+                </span>
+                <span>
+                  <span className="block text-sm font-black text-foreground">{title}</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{detail}</span>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="absolute bottom-7 left-7 right-7 grid gap-4 lg:left-[5.5rem] lg:grid-cols-[0.48fr_0.52fr]">
+        <div className="rounded-lg border border-primary/12 bg-card/92 p-4 backdrop-blur">
+          <p className="mb-3 text-sm font-black text-foreground">Document checklist</p>
+          {["Event brief", "Signed conforme", "Floorplan preferences", "Catering proposal"].map((item, index) => (
+            <div key={item} className="flex items-center justify-between border-b border-border py-2 last:border-0">
+              <span className="text-sm text-muted-foreground">{item}</span>
+              {index < 3 ? <BadgeCheck className="size-4 text-(--prism-success)" /> : <span className="size-4 rounded-full border border-border" />}
+            </div>
+          ))}
+        </div>
+        <div className="rounded-lg border border-primary/12 bg-card/92 p-4 backdrop-blur">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-black text-foreground">Activity</p>
+            <span className="text-xs font-black text-primary">View all</span>
+          </div>
+          {[
+            "Conforme accepted",
+            "Official floorplan published for review",
+            "Deposit payment recorded",
+            "Event brief uploaded",
+          ].map((item, index) => (
+            <div key={item} className="flex gap-3 py-2">
+              <span className={index < 3 ? "mt-1 size-2.5 rounded-full bg-(--prism-success)" : "mt-1 size-2.5 rounded-full border border-border"} />
+              <span className="text-sm leading-5 text-muted-foreground">{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -284,20 +311,20 @@ export function MainLandingPage() {
       <section className="relative min-h-screen px-5 py-5 sm:px-8 lg:px-10">
         <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_1px_1px,#C01867_1px,transparent_0)] [background-size:30px_30px]" />
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.96),rgba(233,247,251,0.76)_52%,rgba(255,248,242,0.95))]" />
-        <div className="relative mx-auto max-w-[1480px]">
-          <header className="sticky top-4 z-30 rounded-lg border border-primary/12 bg-card/82 px-4 py-3 shadow-[0_18px_60px_rgba(23,18,22,0.08)] backdrop-blur-xl">
+        <div className="relative mx-auto max-w-[1320px]">
+          <header className="bg-background/80 px-1 py-6 backdrop-blur-xl">
             <div className="flex items-center justify-between gap-4">
               <BrandMark />
               <NavigationMenu className="hidden lg:flex">
                 <NavigationMenuList className="gap-1">
                   {[
-                    ["Platform", "#platform"],
-                    ["Roles", "#roles"],
-                    ["Operations", "#operations"],
-                    ["FAQ", "#faq"],
+                    ["Services", "#platform"],
+                    ["Floorplans", "#floorplans"],
+                    ["Planning", "#roles"],
+                    ["Support", "#faq"],
                   ].map(([label, href]) => (
                     <NavigationMenuItem key={label}>
-                      <NavigationMenuLink href={href} className="rounded-full px-4 py-2 text-sm font-bold text-muted-foreground hover:bg-secondary hover:text-foreground">
+                      <NavigationMenuLink href={href} className={label === "Services" ? "rounded-md border-b-2 border-primary px-4 py-2 text-sm font-black text-foreground transition hover:text-primary" : "rounded-md px-4 py-2 text-sm font-black text-foreground transition hover:text-primary"}>
                         {label}
                       </NavigationMenuLink>
                     </NavigationMenuItem>
@@ -305,35 +332,35 @@ export function MainLandingPage() {
                 </NavigationMenuList>
               </NavigationMenu>
               <div className="flex items-center gap-2">
-                <Button asChild variant="outline" className="hidden h-10 rounded-full font-bold md:inline-flex">
+                <Button asChild variant="outline" className="hidden h-11 rounded-md font-bold md:inline-flex">
                   <a href="/sign-in">
                     <LockKeyhole data-icon="inline-start" />
                     Sign in
                   </a>
                 </Button>
-                <Button asChild className="h-10 rounded-full font-black shadow-[0_16px_36px_rgba(23,18,22,0.2)]">
+                <Button asChild className="h-11 rounded-md font-black shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
                   <a href="/inquiry">
                     <Mail data-icon="inline-start" />
-                    Inquiry
+                    Start inquiry
                   </a>
                 </Button>
               </div>
             </div>
           </header>
 
-          <div className="grid min-h-[calc(100vh-5.5rem)] items-center gap-12 py-12 lg:grid-cols-[minmax(0,0.92fr)_minmax(520px,0.78fr)]">
+          <div className="grid min-h-[calc(100vh-5.5rem)] items-start gap-12 py-14 lg:grid-cols-[minmax(0,0.92fr)_minmax(520px,0.78fr)] xl:py-20">
             <div className="max-w-5xl">
               <Badge variant="outline" className="mb-7 rounded-full border-[#F06030]/30 bg-accent/75 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">
                 <Sparkles className="size-4" />
-                PMCM-grade event operations
+                PMCM-led client planning
               </Badge>
-              <h1 className="text-5xl font-black leading-[0.9] text-foreground sm:text-7xl xl:text-[6.7rem]">
-                One operating system for every event moving part.
+              <h1 className="max-w-4xl prism-serif text-4xl font-black leading-[0.93] tracking-tight text-(--prism-ink) sm:text-5xl lg:text-[3.75rem] xl:text-[4.55rem]">
+                Your event plan, floorplan, and approvals in one <span className="text-primary">guided workspace</span>
               </h1>
-              <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground">
-                P.R.I.S.M connects public inquiries, conforme gates, official layouts, suppliers, coordinators, guests, billing, compliance, and closure into one auditable event command center.
+              <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground xl:text-lg xl:leading-8">
+                Start with a PMCM inquiry, then review approved layouts, billing, documents, and activity in one place.
               </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button asChild className="h-12 rounded-full px-5 text-sm font-black uppercase tracking-[0.14em] shadow-[0_18px_40px_rgba(23,18,22,0.24)]">
                   <a href="/inquiry">
                     Start an inquiry <ArrowRight data-icon="inline-end" />
@@ -346,11 +373,7 @@ export function MainLandingPage() {
                   </a>
                 </Button>
               </div>
-              <div className="mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
-                <MetricCard label="Personas" value="5" text="PMCM, clients, suppliers, coordinators, and guests." />
-                <MetricCard label="Lifecycle" value="6" text="From inquiry through post-event closure." />
-                <MetricCard label="Source" value="1" text="Every role returns to the same event record." />
-              </div>
+              <HeroTrustStrip />
             </div>
 
             <ProductPanel />
@@ -358,120 +381,188 @@ export function MainLandingPage() {
         </div>
       </section>
 
-      <section id="platform" className="border-y border-primary/12 bg-card px-5 py-20 sm:px-8 lg:px-10">
-        <div className="mx-auto max-w-[1480px]">
-          <SectionHeading
-            eyebrow="Platform surface"
-            title="Built around the actual event lifecycle."
-            text="P.R.I.S.M is not a generic task board. Each surface exists because event operations need gates, approvals, role handoffs, supplier visibility, and closure discipline."
-          />
-          <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {platformFeatures.map((feature) => (
-              <FeatureCard key={feature.title} {...feature} />
-            ))}
+      <section className="px-5 py-10 sm:px-8 lg:px-10">
+        <div className="mx-auto grid max-w-[1320px] gap-5 rounded-lg border border-primary/12 bg-card p-7 shadow-[0_20px_70px_rgba(23,18,22,0.08)] md:grid-cols-4">
+          {[
+            [UserCheck, "PMCM-led planning", "Every step is guided by PMCM from inquiry to event day."],
+            [ShieldCheck, "Official layout review", "PMCM owns the official floorplan and shares approved views."],
+            [ReceiptText, "Clear billing", "Milestones and dates stay visible, with no surprises."],
+            [FileCheck2, "Document handoff", "Files, briefs, and approvals live in one event record."],
+          ].map(([Icon, title, text]) => {
+            const IconComponent = Icon as typeof UserCheck;
+            return (
+              <div key={title as string} className="flex items-start gap-4 border-border md:not-last:border-r md:not-last:pr-5">
+                <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/8 text-primary"><IconComponent className="size-5" /></span>
+                <span>
+                  <span className="block font-black text-foreground">{title as string}</span>
+                  <span className="mt-1 block text-sm leading-5 text-muted-foreground">{text as string}</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section id="platform" className="px-5 py-16 sm:px-8 lg:px-10">
+        <div className="mx-auto grid max-w-[1320px] gap-8 lg:grid-cols-[0.34fr_0.66fr] lg:items-center">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Your workspace</p>
+            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink) sm:text-5xl">Everything you need, all in one place</h2>
+            <p className="mt-4 text-lg leading-8 text-muted-foreground">From the official floorplan to billing, documents, and activity, stay informed and in control as your event comes to life.</p>
+            <div className="mt-6 grid gap-3 text-sm text-muted-foreground">
+              {["Read-only official floorplans", "Milestone billing with dates", "Documents organized by stage", "Activity updates from PMCM"].map((item) => (
+                <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-(--prism-success)" />{item}</span>
+              ))}
+            </div>
+            <a href="#floorplans" className="mt-6 inline-flex items-center gap-2 text-sm font-black text-primary">See how it works <ArrowRight className="size-4" /></a>
           </div>
-          <div className="mt-10">
-            <PrismLifecycleStrip steps={lifecycleSteps} />
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_0.48fr]">
+            <div className="rounded-lg border border-primary/12 bg-card p-5 shadow-[0_22px_70px_rgba(23,18,22,0.1)]">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="font-black text-foreground">Official floorplan review</p>
+                <Badge variant="outline" className="rounded-full bg-secondary text-muted-foreground">Read-only</Badge>
+              </div>
+              <div className="grid aspect-[1.5] gap-2 rounded-lg border border-border bg-secondary/45 p-4">
+                <div className="grid grid-cols-[0.52fr_1.08fr_0.52fr] gap-2">
+                  <span className="rounded-md border border-primary/15 bg-card p-2 text-center text-[10px] font-black uppercase text-muted-foreground">Bar</span>
+                  <span className="rounded-md bg-(--prism-ink) p-2 text-center text-xs font-black uppercase text-sidebar-foreground">Stage</span>
+                  <span className="rounded-md border border-primary/15 bg-card p-2 text-center text-[10px] font-black uppercase text-muted-foreground">AV</span>
+                </div>
+                <div className="grid grid-cols-5 gap-2 px-5">
+                  {Array.from({ length: 15 }).map((_, index) => <span key={index} className="aspect-square rounded-full border border-primary/20 bg-card" />)}
+                </div>
+                <div className="grid grid-cols-[0.7fr_1fr_0.7fr] gap-2">
+                  <span className="rounded-md border border-primary/20 bg-card p-2 text-[10px] font-black uppercase text-primary">Guest flow</span>
+                  <span className="rounded-md border border-primary/20 bg-card p-2 text-center text-[10px] font-black uppercase text-muted-foreground">Registration</span>
+                  <span className="rounded-md border border-(--prism-amber)/25 bg-(--prism-amber)/10 p-2 text-[10px] font-black uppercase text-(--prism-amber)">Service access</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="rounded-lg border border-primary/12 bg-card p-5 shadow-[0_18px_60px_rgba(23,18,22,0.08)]">
+                <p className="font-black text-foreground">Billing milestone</p>
+                <p className="mt-4 text-sm font-black text-[#F06030]">Deposit paid</p>
+                <div className="mt-4 h-2 rounded-full bg-secondary"><div className="h-2 w-2/5 rounded-full bg-[#F06030]" /></div>
+                <p className="mt-3 text-xs text-muted-foreground">Next: Balance due</p>
+              </div>
+              <div className="rounded-lg border border-primary/12 bg-card p-5 shadow-[0_18px_60px_rgba(23,18,22,0.08)]">
+                <p className="font-black text-foreground">Document checklist</p>
+                {["Event brief", "Signed conforme", "Floorplan preferences", "Catering proposal"].map((item, index) => (
+                  <div key={item} className="flex items-center justify-between border-b border-border py-2 text-sm last:border-0">
+                    <span className="text-muted-foreground">{item}</span>
+                    {index < 3 ? <CheckCircle2 className="size-4 text-(--prism-success)" /> : <span className="size-4 rounded-full border border-border" />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="roles" className="border-y border-primary/10 bg-card px-5 py-20 sm:px-8 lg:px-10">
+        <div className="mx-auto max-w-[1320px]">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Your event life cycle</p>
+          <div className="mt-4 grid gap-8 lg:grid-cols-[0.32fr_0.68fr] lg:items-center">
+            <h2 className="prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink) sm:text-5xl">Guided from inquiry to closure</h2>
+            <div className="grid gap-4 md:grid-cols-6">
+              {[
+                [Mail, "Inquiry", "Start your inquiry with PMCM."],
+                [UserCheck, "PMCM review", "We review scope, space, and goals."],
+                [ShieldCheck, "Conforme", "Sign conforme to unlock planning."],
+                [MapPinned, "Planning", "Review layouts, documents, and billing."],
+                [PartyPopper, "Event day", "Coordinated execution and support."],
+                [Warehouse, "Closure", "Final documents and records handed off."],
+              ].map(([Icon, title, text]) => {
+                const IconComponent = Icon as typeof Mail;
+                return (
+                  <div key={title as string} className="text-center">
+                    <span className="mx-auto grid size-14 place-items-center rounded-full bg-primary/8 text-primary"><IconComponent className="size-5" /></span>
+                    <p className="mt-3 text-sm font-black text-foreground">{title as string}</p>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{text as string}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
 
       <DarkBand>
-        <div id="roles" className="grid gap-10 lg:grid-cols-[0.72fr_1fr] lg:items-start">
+        <div id="floorplans" className="grid gap-10 lg:grid-cols-[0.34fr_0.66fr] lg:items-center">
           <div>
-            <Badge variant="outline" className="mb-6 rounded-full border-(--prism-amber)/35 bg-card/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">
-              Connected roles
-            </Badge>
-            <h2 className="text-4xl font-black leading-[0.98] sm:text-5xl lg:text-6xl">Every portal is a focused view of the same operation.</h2>
-            <p className="mt-5 text-lg leading-8 text-sidebar-foreground/75">The main platform, supplier portal, guest portal, and event command surface should feel connected while staying precise for each audience.</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Official floorplan control</p>
+            <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-sidebar-foreground sm:text-5xl">Review layouts with confidence</h2>
+            <p className="mt-5 text-lg leading-8 text-sidebar-foreground/75">PMCM creates and controls the official floorplans so accuracy, safety, and version history stay protected from the start.</p>
+            <div className="mt-6 grid gap-3 text-sm text-sidebar-foreground/75">
+              {["To-scale accuracy", "Safety and access validation", "Change-controlled versions"].map((item) => (
+                <span key={item} className="flex items-center gap-2"><CheckCircle2 className="size-4 text-(--prism-success)" />{item}</span>
+              ))}
+            </div>
+            <Button asChild variant="outline" className="mt-8 h-11 rounded-md border-white/25 bg-transparent font-black text-sidebar-foreground hover:bg-card hover:text-foreground">
+              <a href="/inquiry">Learn more about floorplans</a>
+            </Button>
           </div>
 
-          <PrismPublicRoleGrid roles={roleCards} />
+          <div className="grid gap-5 md:grid-cols-3">
+            {["Banquet layout", "Conference layout", "Reception layout"].map((title, index) => (
+              <div key={title} className="rounded-lg border border-white/12 bg-card p-4 text-foreground shadow-[0_26px_80px_rgba(0,0,0,0.24)]">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="font-black">{title}</p>
+                  <Badge variant="outline" className={index === 2 ? "rounded-full border-[#F06030]/25 bg-[#F06030]/10 text-[#F06030]" : "rounded-full border-(--prism-success)/25 bg-(--prism-success)/10 text-(--prism-success)"}>{index === 2 ? "In review" : "Approved"}</Badge>
+                </div>
+                <div className="grid aspect-[0.86] gap-2 rounded-md border border-border bg-secondary/45 p-3">
+                  <span className="rounded bg-(--prism-ink) p-1 text-center text-[10px] font-black uppercase text-sidebar-foreground">Stage</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Array.from({ length: index === 1 ? 12 : 9 }).map((_, tableIndex) => <span key={tableIndex} className="aspect-square rounded-full border border-primary/20 bg-card" />)}
+                  </div>
+                  <span className="rounded border border-primary/15 bg-card p-1 text-center text-[10px] font-black uppercase text-muted-foreground">Registration</span>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">{index === 0 ? "Ideal for dinners and galas." : index === 1 ? "Built for presentations and sessions." : "Perfect for networking and receptions."}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </DarkBand>
 
-      <section id="operations" className="bg-background px-5 py-20 sm:px-8 lg:px-10">
-        <div className="mx-auto grid max-w-[1480px] gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div>
-            <Badge variant="outline" className="mb-6 rounded-full border-[#F06030]/30 bg-accent/75 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">
-              Why it exists
-            </Badge>
-            <h2 className="text-4xl font-black leading-[0.98] text-foreground sm:text-5xl lg:text-6xl">Replace scattered coordination with controlled handoffs.</h2>
-            <p className="mt-5 text-lg leading-8 text-muted-foreground">P.R.I.S.M keeps the warmth of PMCM service while adding operational memory, approval gates, and visible accountability.</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button asChild className="h-12 rounded-full px-5 text-sm font-black uppercase tracking-[0.14em]">
-                <a href="/inquiry">Start a serious brief <ArrowRight data-icon="inline-end" /></a>
-              </Button>
-              <Button asChild variant="outline" className="h-12 rounded-full px-5 text-sm font-black uppercase tracking-[0.14em]">
-                <a href="/sign-in">
-                  <MapPinned data-icon="inline-start" />
-                  Sign in
-                </a>
-              </Button>
+      <section className="px-5 py-20 sm:px-8 lg:px-10">
+        <div className="mx-auto max-w-4xl text-center">
+          <p className="text-6xl font-black text-primary [font-family:Georgia,serif]">"</p>
+          <p className="prism-serif text-2xl font-black leading-9 text-(--prism-ink)">PMCM's clarity and process gave us confidence at every step. Our floorplan was perfect, billing was transparent, and everything was in one place.</p>
+          <div className="mt-5 text-primary">*****</div>
+          <p className="mt-2 text-sm font-black text-muted-foreground">PMCM Client</p>
+        </div>
+
+        <div className="mx-auto mt-14 grid max-w-[1040px] gap-6 rounded-lg border border-primary/12 bg-card p-8 shadow-[0_24px_80px_rgba(23,18,22,0.08)] md:grid-cols-[0.32fr_0.68fr] md:items-center">
+          <div className="rounded-lg bg-secondary p-5">
+            <div className="grid grid-cols-3 gap-2">
+              <span className="h-16 rounded-full bg-primary/15" />
+              <span className="h-16 rounded-full bg-(--prism-success)/15" />
+              <span className="h-16 rounded-full bg-[#F06030]/15" />
             </div>
           </div>
-
-          <Card className="rounded-lg border-primary/12 bg-card shadow-[0_28px_90px_rgba(23,18,22,0.13)]">
-            <CardHeader>
-              <CardTitle className="text-2xl font-black text-foreground">From tool sprawl to one event record</CardTitle>
-              <CardDescription>Marketing copy is grounded in the docs: the current alternative is spreadsheets, chat, documents, folders, and email.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {comparison.map((item) => (
-                <div key={item.tool} className="grid gap-3 rounded-lg border border-primary/10 bg-background p-4 sm:grid-cols-[0.42fr_1fr]">
-                  <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em] text-(--prism-amber)">
-                    <MessageSquareText className="size-4" />
-                    {item.tool}
-                  </div>
-                  <div className="text-sm font-semibold leading-6 text-primary">{item.prism}</div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section id="faq" className="border-t border-primary/12 bg-card px-5 py-20 sm:px-8 lg:px-10">
-        <div className="mx-auto grid max-w-[1180px] gap-10 lg:grid-cols-[0.8fr_1fr]">
           <div>
-            <Badge variant="outline" className="mb-6 rounded-full border-[#F06030]/30 bg-accent/75 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">
-              Operating rules
-            </Badge>
-            <h2 className="text-4xl font-black leading-[0.98] text-foreground sm:text-5xl">Clear gates before access.</h2>
-            <p className="mt-5 text-lg leading-8 text-muted-foreground">The public pages can sell the platform vision, but the product rules stay precise: sign-in approval and conforme gates matter.</p>
+            <h2 className="prism-serif text-3xl font-black leading-tight text-(--prism-ink)">Start your PMCM inquiry</h2>
+            <p className="mt-2 text-muted-foreground">Tell us about your event and our team will guide you from inquiry to a successful event.</p>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <Button asChild className="h-11 rounded-md font-black"><a href="/inquiry">Start an inquiry <ArrowRight className="size-4" /></a></Button>
+              <Button asChild variant="outline" className="h-11 rounded-md font-black"><a href="/sign-in"><LockKeyhole className="size-4" /> Sign in</a></Button>
+            </div>
           </div>
-          <Accordion type="single" collapsible className="rounded-lg border border-primary/12 bg-background px-5">
-            <AccordionItem value="approval">
-              <AccordionTrigger>Can users sign in immediately?</AccordionTrigger>
-              <AccordionContent>No. Mock sign-in already requires admin approval before access is granted.</AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="conforme">
-              <AccordionTrigger>When does event work begin?</AccordionTrigger>
-              <AccordionContent>Event creation and client portal activation should remain gated by conforme and PMCM approval.</AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="satellites">
-              <AccordionTrigger>Are supplier and guest portals live now?</AccordionTrigger>
-              <AccordionContent>This pass creates polished portal landing pages. Full supplier, guest, and event workflows remain future implementation work.</AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="backend">
-              <AccordionTrigger>Does this change backend behavior?</AccordionTrigger>
-              <AccordionContent>No. This is a public/frontend landing pass only.</AccordionContent>
-            </AccordionItem>
-          </Accordion>
         </div>
       </section>
 
-      <footer className="bg-(--prism-ink) px-5 py-10 text-sidebar-foreground sm:px-8 lg:px-10">
-        <div className="mx-auto flex max-w-[1480px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <BrandMark tone="light" />
-          <div className="flex flex-wrap gap-3">
-            <Button asChild variant="secondary" className="rounded-full font-black">
-              <a href="/inquiry">Start inquiry</a>
-            </Button>
-            <Button asChild variant="outline" className="rounded-full border-white/30 bg-transparent font-black text-sidebar-foreground hover:bg-card hover:text-foreground">
-              <a href="/sign-in">Sign in</a>
-            </Button>
-          </div>
+      <footer className="border-t border-primary/10 bg-background px-5 py-10 sm:px-8 lg:px-10">
+        <div className="mx-auto grid max-w-[1320px] gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <BrandMark />
+          {[
+            ["Platform", "How it works", "Features", "Security", "FAQ"],
+            ["Services", "Event planning", "Floorplan review", "Operations support", "Client success"],
+            ["Resources", "Help center", "Guides", "Templates", "Contact us"],
+          ].map(([title, ...items]) => (
+            <div key={title}><p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{title}</p><div className="mt-3 grid gap-2 text-sm text-muted-foreground">{items.map((item) => <span key={item}>{item}</span>)}</div></div>
+          ))}
         </div>
       </footer>
     </main>
