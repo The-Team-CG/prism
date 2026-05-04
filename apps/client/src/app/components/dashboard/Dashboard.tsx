@@ -235,9 +235,9 @@ function getClientDashboardActions({
       id: "layout-review",
       title: officialNeedsReview ? "Review official layout" : officialDraft ? "Official layout is approved" : "Send layout preference",
       description: officialNeedsReview
-        ? "PMCM has published the official layout as a read-only client copy. Review it before planning moves forward."
+        ? "PMCM has published the official layout. Open the floor plan before planning moves forward."
         : officialDraft
-          ? "The official layout is locked for this event. Use this space for the client copy and history."
+          ? "The official layout is approved for this event. Use this space for the client copy and history."
           : "Share seating, stage, guest-flow, and constraint notes before PMCM prepares the official plan.",
       detail: officialNeedsReview ? "Client review needed" : officialDraft ? formatStatusLabel(officialDraft.status) : "Preference draft",
       ctaLabel: officialDraft ? "Review layout" : "Open layout preferences",
@@ -1050,7 +1050,7 @@ export function Dashboard() {
                             <div>
                               <p className="text-sm font-bold text-foreground">Preference canvas</p>
                               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                                Sketch seating, stage, and guest-flow ideas here. The official floorplan remains a separate read-only review.
+                                Sketch seating, stage, and guest-flow ideas here. The official floor plan remains separate for client review.
                               </p>
                             </div>
                             {preferenceDrafts[0] && (
@@ -1164,7 +1164,7 @@ export function Dashboard() {
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="font-bold text-foreground">{officialDraft.name}</p>
-                                <p className="mt-0.5 text-xs text-muted-foreground">Read-only official version for approval or revision comments.</p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">Official floor plan for approval or revision comments.</p>
                               </div>
                               <StatusBadge status={officialDraft.status} />
                             </div>
@@ -1173,7 +1173,7 @@ export function Dashboard() {
                               className="w-full rounded-lg font-bold"
                               onClick={() => openFloorplanEditor(officialDraft, true)}
                             >
-                              View read-only plan
+                              Open floor plan
                             </Button>
                             <LayoutPreview project={officialProject} />
                           </div>

@@ -145,7 +145,7 @@ export function TopBar({
         </span>
         {readOnly ? (
           <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-3 text-xs font-medium text-neutral-700">
-            <Eye size={13} /> Read-only
+            <Eye size={13} /> Floor plan view
           </span>
         ) : (
           <>

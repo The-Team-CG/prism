@@ -185,6 +185,7 @@ export default function GuestDashboard() {
   };
 
   const scrollToCheckIn = () => document.getElementById("guest-check-in")?.scrollIntoView({ behavior: "smooth" });
+  const scrollToDetails = () => document.getElementById("guest-details")?.scrollIntoView({ behavior: "smooth" });
   const scrollToFeedback = () => document.getElementById("guest-feedback")?.scrollIntoView({ behavior: "smooth" });
   const attendanceState = checkedIn ? (walkIn ? "Flagged walk-in" : "Recorded") : "Pending";
   const checkInButtonLabel = checkedIn ? "Attendance recorded" : walkIn ? "Submit walk-in for verification" : "Record name check-in";
@@ -205,6 +206,7 @@ export default function GuestDashboard() {
       ]}
       onNavSelect={(id) => {
         if (id === "check-in") scrollToCheckIn();
+        if (id === "agenda") scrollToDetails();
         if (id === "feedback") scrollToFeedback();
       }}
       user={{ name: session.guestName, detail: session.guestAccessCode }}
@@ -240,6 +242,7 @@ export default function GuestDashboard() {
       mobileActions={[
         { id: "pass", label: "Pass", icon: TicketCheck, active: true },
         { id: "check-in", label: "Check in", icon: ScanLine, onSelect: scrollToCheckIn },
+        { id: "agenda", label: "Details", icon: ClipboardCheck, onSelect: scrollToDetails },
         { id: "feedback", label: "Feedback", icon: MessageCircleHeart, onSelect: scrollToFeedback },
       ]}
       rightRail={
@@ -339,6 +342,52 @@ export default function GuestDashboard() {
                   <TicketCheck className="size-4" />
                   {checkInButtonLabel}
                 </Button>
+              </div>
+            </PrismSectionPanel>
+
+            <PrismSectionPanel
+              title="Event details"
+              icon={ClipboardCheck}
+              description="Guest-safe event information for arrival, access, and current event-day state."
+            >
+              <div id="guest-details" className="scroll-mt-24" />
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  ["Event", session.eventName],
+                  ["Date", session.eventDate],
+                  ["Client", session.clientName],
+                  ["Access code", session.guestAccessCode],
+                  ["Readiness", session.readiness.replaceAll("_", " ")],
+                  ["Floorplan", session.floorPlanStatus.replaceAll("_", " ")],
+                ].map(([label, value]) => (
+                  <div key={label} className="border-l border-border bg-background/60 px-3 py-2.5">
+                    <p className="text-xs font-bold text-muted-foreground">{label}</p>
+                    <p className="mt-1 text-sm font-black text-foreground">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {[
+                  ["Planning", "completed"],
+                  ["Event day", checkedIn ? "completed" : "current"],
+                  ["Done", feedbackSubmitted ? "completed" : "pending"],
+                ].map(([label, state]) => (
+                  <div
+                    key={label}
+                    className={`border-l px-3 py-2 text-sm ${
+                      state === "completed"
+                        ? "border-l-(--prism-sage) bg-(--prism-sage)/10"
+                        : state === "current"
+                          ? "border-l-(--prism-signal) bg-(--prism-signal)/8"
+                          : "border-l-border bg-background/60"
+                    }`}
+                  >
+                    <p className="font-black text-foreground">{label}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {state === "completed" ? "Complete" : state === "current" ? "Current step" : "Pending"}
+                    </p>
+                  </div>
+                ))}
               </div>
             </PrismSectionPanel>
 

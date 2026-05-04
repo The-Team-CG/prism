@@ -255,10 +255,11 @@ export function PrismTopBar({
 
 export function MobileActionDock({ actions }: { actions: PrismMobileAction[] }) {
   if (!actions.length) return null;
+  const visibleActions = actions.slice(0, 4);
   return (
     <div className="mx-4 mt-4 rounded-lg border border-border bg-card p-1.5 shadow-sm sm:mx-5 lg:hidden">
-      <div className="grid grid-cols-3 gap-1">
-        {actions.slice(0, 3).map((action) => (
+      <div className={cn("grid gap-1", visibleActions.length === 4 ? "grid-cols-4" : "grid-cols-3")}>
+        {visibleActions.map((action) => (
           <button
             key={action.id}
             type="button"

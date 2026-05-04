@@ -99,6 +99,9 @@ type Screen =
   | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project };
 type DetailTab = PmcmDetailTab;
 type DashboardSection = "events" | "suppliers" | "audit";
+type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: string };
+
+export type EventDashboardClientProps = Partial<RouteState>;
 
 const EVENT_TAB_ROUTES: Record<DetailTab, string> = {
   overview: "overview",
@@ -116,7 +119,7 @@ const EVENT_TAB_BY_ROUTE = Object.fromEntries(
   Object.entries(EVENT_TAB_ROUTES).map(([tabId, route]) => [route, tabId]),
 ) as Record<string, DetailTab>;
 
-function routeStateFromPath(pathname: string): { section: DashboardSection; tab: DetailTab; eventId?: string } {
+function routeStateFromPath(pathname: string): RouteState {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] !== "dashboard") return { section: "events", tab: "overview" };
   if (parts[1] === "suppliers") return { section: "suppliers", tab: "overview" };
@@ -200,10 +203,21 @@ function buildProject(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset
   };
 }
 
-export default function EventDashboard() {
+export default function EventDashboard({
+  section: initialSection,
+  tab: initialTab,
+  eventId: initialEventId,
+}: EventDashboardClientProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
-  const routeState = useMemo(() => routeStateFromPath(pathname), [pathname]);
+  const routeState = useMemo<RouteState>(() => {
+    const pathState = routeStateFromPath(pathname);
+    return {
+      section: initialSection ?? pathState.section,
+      tab: initialTab ?? pathState.tab,
+      eventId: initialEventId ?? pathState.eventId,
+    };
+  }, [initialEventId, initialSection, initialTab, pathname]);
   const [session, setSession] = useState<EventSession | null>(null);
   const [state, setState] = useState<MvpDemoState | null>(null);
   const [coordinatorState, setCoordinatorState] = useState<MvpCoordinatorWorkspace | null>(null);

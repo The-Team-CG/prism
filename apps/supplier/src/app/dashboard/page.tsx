@@ -164,6 +164,16 @@ export default function SupplierDashboard() {
     request.assignmentStatus !== "confirmed" || request.readinessStatus !== "confirmed" || !request.contractDocumentId,
   ).length;
   const needsActionCount = quoteRequestsNeedingSubmission + selectedAssignmentsNeedingHandoff;
+  const quotesSubmitted = workspace?.supplierQuotes.length ?? 0;
+  const eventsThisMonth = useMemo(() => {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return new Set(
+      (workspace?.quoteRequests ?? [])
+        .filter((request) => request.createdAt.startsWith(monthKey))
+        .map((request) => request.eventId),
+    ).size;
+  }, [workspace?.quoteRequests]);
 
   function updateForm(requestId: string, patch: Partial<QuoteFormState>) {
     setForms((cur) => ({
@@ -255,7 +265,6 @@ export default function SupplierDashboard() {
   const scrollToReadiness = () => document.getElementById("supplier-readiness")?.scrollIntoView({ behavior: "smooth" });
   const scrollToFiles = () => document.getElementById("supplier-contract-metadata")?.scrollIntoView({ behavior: "smooth" });
   const scrollToEventDay = () => document.getElementById("supplier-event-day")?.scrollIntoView({ behavior: "smooth" });
-  const readinessPending = selectedAssignments.some((request) => request.readinessStatus !== "confirmed");
   const selectedAnchorRequestId = selectedAssignments[0]?.id;
 
   return (
@@ -372,9 +381,9 @@ export default function SupplierDashboard() {
 
         <div className="grid gap-3 md:grid-cols-4">
           <PrismMetricTile label="Needs first quote" value={String(quoteRequestsNeedingSubmission)} icon={ClipboardList} detail={`${openRevisionWindows} revision window(s) open`} />
+          <PrismMetricTile label="Quotes submitted" value={String(quotesSubmitted)} icon={Send} detail="Visible quote records only" />
           <PrismMetricTile label="Selected work" value={String(selectedQuotes.length)} icon={BadgeCheck} detail={`${selectedAssignmentsNeedingHandoff} handoff item(s) pending`} />
-          <PrismMetricTile label="Readiness" value={readinessPending ? "Pending" : "Clear"} icon={PackageCheck} detail={openDeadlines ? `${openDeadlines} active deadline(s)` : "No dated deadline"} />
-          <PrismMetricTile label="Certifications" value={String(workspace?.supplier.certifications.length ?? 0)} icon={CalendarClock} detail="Supplier profile only" />
+          <PrismMetricTile label="Events this month" value={String(eventsThisMonth)} icon={CalendarClock} detail={openDeadlines ? `${openDeadlines} active deadline(s)` : "No dated deadline"} />
         </div>
 
         <RolePageHeader

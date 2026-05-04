@@ -230,7 +230,7 @@ export function ClientOverviewTab({
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {portalOpen
                 ? officialDraft
-                  ? "Your event team has published an official layout. Open it to review without changing the plan."
+                  ? "Your event team has published an official layout. Open the floor plan to review it."
                   : "Submit your seating, stage, and flow preferences so your event team can build the official layout."
                 : "The client portal opens after the inquiry is accepted and the signed conforme is uploaded."}
             </p>
@@ -249,7 +249,7 @@ export function ClientOverviewTab({
             }
             className="h-10 rounded-md font-black"
           >
-            {officialDraft ? "View floorplan" : "Open layout"} <ArrowRight className="size-4" />
+            {officialDraft ? "Open floor plan" : "Open layout"} <ArrowRight className="size-4" />
           </Button>
           <Button variant="outline" onClick={() => setTab("documents")} className="h-10 rounded-md font-bold">
             View documents
@@ -302,7 +302,7 @@ export function ClientOverviewTab({
         >
           <p className="text-sm leading-6 text-muted-foreground">
             Preference drafts are separate from the official floorplan. When the official version is published,
-            this becomes a read-only review space.
+            this becomes the client review space.
           </p>
           <div className="mt-3 divide-y divide-border">
             <DataRow label="Preference drafts" value={preferenceDraftCount || "None yet"} />
@@ -320,7 +320,7 @@ export function ClientOverviewTab({
             }
             className="mt-5 min-h-10 w-full rounded-lg font-bold"
           >
-            {officialDraft ? "View read-only plan" : "Open layout preferences"}{" "}
+            {officialDraft ? "Open floor plan" : "Open layout preferences"}{" "}
             <ArrowRight className="size-4" />
           </Button>
         </SectionPanel>

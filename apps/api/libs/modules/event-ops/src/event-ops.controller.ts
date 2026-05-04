@@ -21,6 +21,7 @@ import {
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
+  FloorPlanSnapshotQueryDto,
   GuestCheckInDto,
   GuestFeedbackDto,
   ListAuditLogsDto,
@@ -386,9 +387,9 @@ export class OpsEventsController {
   getFloorPlanSnapshot(
     @Param('eventId') eventId: string,
     @Param('draftId') draftId: string,
-    @Query('type') type: 'submitted' | 'approved' = 'approved',
-    @Query() actor: DemoActorDto,
+    @Query() query: FloorPlanSnapshotQueryDto,
   ) {
+    const { type = 'approved', ...actor } = query;
     return this.eventOpsService.getFloorPlanSnapshot(eventId, draftId, type, actor);
   }
 

@@ -113,6 +113,12 @@ export class DemoActorDto {
   accessCode?: string;
 }
 
+export class FloorPlanSnapshotQueryDto extends DemoActorDto {
+  @IsOptional()
+  @IsIn(['submitted', 'approved'])
+  type?: 'submitted' | 'approved';
+}
+
 export class CreateInquiryDto {
   @IsString()
   clientName!: string;
