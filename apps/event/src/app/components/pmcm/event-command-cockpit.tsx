@@ -243,7 +243,7 @@ export function DefenseControlPanel({
             Current stage: {label(defenseReadiness.lifecycleStage)}. The checklist keeps the selected event on the May 9 local defense path.
           </p>
         </div>
-        <div className="grid min-w-[220px] grid-cols-2 gap-2 rounded-lg border border-border bg-secondary/60 p-3">
+        <div className="grid min-w-[220px] grid-cols-2 gap-4 border-l border-border bg-background/60 px-3 py-2.5">
           <div>
             <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Guests</p>
             <p className="mt-1 text-xl font-black text-foreground">{defenseReadiness.summary.guestAttendanceCount}</p>
@@ -255,7 +255,7 @@ export function DefenseControlPanel({
         </div>
       </div>
       {defenseReadiness.liveAiBlocked && (
-        <div className="mt-4 flex flex-wrap items-start gap-3 rounded-lg border border-(--prism-amber)/25 bg-(--prism-amber)/8 p-3 text-sm">
+        <div className="mt-4 flex flex-wrap items-start gap-3 border-l border-(--prism-amber) bg-(--prism-amber)/8 px-3 py-2.5 text-sm">
           <WifiOff className="mt-0.5 size-4 shrink-0 text-(--prism-amber)" />
           <div className="min-w-0">
             <p className="font-black text-foreground">Local-only defense mode</p>
@@ -266,16 +266,16 @@ export function DefenseControlPanel({
           </div>
         </div>
       )}
-      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 divide-y divide-border">
         {checklist.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => onSelectTab(item.tab)}
-            className="rounded-lg border border-border bg-secondary/35 p-3 text-left transition hover:border-primary/30 hover:bg-secondary"
+            className="w-full border-l-2 border-l-transparent px-3 py-3 text-left transition hover:border-l-(--prism-signal) hover:bg-muted/50"
           >
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-card text-primary">
+              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
                 {item.ready ? <CheckCircle2 className="size-4" /> : <CircleDot className="size-4" />}
               </span>
               <span className="min-w-0 flex-1">
@@ -295,13 +295,13 @@ export function DefenseControlPanel({
           <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Action queue</p>
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+      <div className="divide-y divide-border">
         {defenseReadiness.nextActions.map((action) => (
           <button
             key={action.key}
             type="button"
             onClick={() => onSelectTab(action.targetTab as PmcmDetailTab)}
-            className="rounded-lg border border-border bg-secondary/45 p-3 text-left transition hover:border-primary/30 hover:bg-secondary"
+            className="w-full border-l-2 border-l-transparent px-3 py-3 text-left transition hover:border-l-(--prism-signal) hover:bg-muted/50"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-black text-foreground">{action.label}</p>
@@ -394,7 +394,7 @@ export function EventOverviewPanels({
             { label: "Floor plan", value: <StatusBadge status={event.floorPlanStatus} /> },
             { label: "Guest code", value: event.guestAccessCode ?? "Generated after event" },
           ].map(({ label: itemLabel, value }) => (
-            <div key={itemLabel} className="rounded-lg border border-border bg-secondary/35 px-3 py-2.5">
+            <div key={itemLabel} className="border-l border-border bg-background/60 px-3 py-2.5">
               <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{itemLabel}</p>
               <div className="mt-1 text-sm font-black text-foreground">{value}</div>
             </div>

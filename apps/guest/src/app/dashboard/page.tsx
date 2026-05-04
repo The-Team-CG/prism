@@ -10,6 +10,7 @@ import {
   QrCode,
   ScanLine,
   ShieldCheck,
+  Star,
   TicketCheck,
   Users,
 } from "lucide-react";
@@ -243,7 +244,7 @@ export default function GuestDashboard() {
       ]}
       rightRail={
         <div className="flex flex-col gap-3">
-          <div className="overflow-hidden rounded-lg border border-primary/20 bg-(--prism-ink) text-sidebar-foreground shadow-[0_20px_60px_rgba(23,18,22,0.2)]">
+          <div className="overflow-hidden rounded-lg border border-primary/20 bg-(--prism-ink) text-sidebar-foreground shadow-sm">
             <div className="p-5">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-(--prism-amber)">Guest pass</p>
               <h2 className="mt-2 text-xl font-black leading-tight">{session.eventName}</h2>
@@ -293,13 +294,13 @@ export default function GuestDashboard() {
             >
               <div id="guest-check-in" className="scroll-mt-24" />
               <div className="flex flex-col gap-3">
-                <div className="rounded-lg bg-secondary/60 p-4 text-sm">
+                <div className="border-l border-(--prism-sage) bg-background/60 px-3 py-2.5 text-sm">
                   <p className="font-bold text-foreground">Name-based check-in</p>
                   <p className="mt-0.5 leading-6 text-muted-foreground">
                     This browser-based check-in records guest name, check-in mode, consent version, and attendance time for PMCM registration review.
                   </p>
                 </div>
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card p-3 text-sm font-semibold">
+                <label className="flex cursor-pointer items-center gap-3 border-l border-border px-3 py-2.5 text-sm font-semibold">
                   <input
                     type="checkbox"
                     checked={walkIn}
@@ -313,7 +314,7 @@ export default function GuestDashboard() {
                     </span>
                   </span>
                 </label>
-                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm leading-5 text-muted-foreground">
+                <label className="flex cursor-pointer items-start gap-3 border-l border-border bg-background/60 px-3 py-2.5 text-sm leading-5 text-muted-foreground">
                   <input
                     type="checkbox"
                     checked={checkInConsentAccepted}
@@ -348,35 +349,50 @@ export default function GuestDashboard() {
             >
               <div id="guest-feedback" className="scroll-mt-24" />
               <form onSubmit={submitFeedback} className="flex flex-col gap-3">
-                <div className="rounded-lg bg-secondary/60 p-4 text-sm">
+                <div className="border-l border-(--prism-sage) bg-background/60 px-3 py-2.5 text-sm">
                   <p className="font-bold text-foreground">Moderation state</p>
                   <p className="mt-0.5 leading-6 text-muted-foreground">
                     Submissions enter PMCM review. Nothing becomes public, client-facing, or testimonial content automatically.
                   </p>
                 </div>
-                <label className="grid gap-1.5">
+                <div className="grid gap-2">
                   <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Rating</span>
-                  <Input
-                    value={feedbackRating}
+                  <div className="flex gap-2" role="radiogroup" aria-label="Feedback rating">
+                    {[1, 2, 3, 4, 5].map((rating) => {
+                      const active = rating <= Number(feedbackRating);
+                      return (
+                        <button
+                          key={rating}
+                          type="button"
+                          role="radio"
+                          aria-checked={Number(feedbackRating) === rating}
+                          onClick={() => {
+                            setFeedbackRating(String(rating));
+                            setFeedbackSubmitted(false);
+                          }}
+                          className="grid size-11 place-items-center rounded-md border border-border bg-background text-(--prism-amber) transition hover:border-(--prism-amber)/40 hover:bg-(--prism-amber)/8"
+                        >
+                          <Star className={active ? "size-5 fill-(--prism-amber)" : "size-5"} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <label className="grid gap-1.5">
+                  <span className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                    <span>Comment</span>
+                    <span>{feedbackComment.length}/500</span>
+                  </span>
+                  <PrismTextarea
+                    value={feedbackComment}
+                    maxLength={500}
                     onChange={(ev) => {
-                      setFeedbackRating(ev.target.value);
+                      setFeedbackComment(ev.target.value);
                       setFeedbackSubmitted(false);
                     }}
-                    type="number"
-                    min="1"
-                    max="5"
-                    className="h-11 rounded-md"
-                    placeholder="Rating 1-5"
+                    placeholder="Share feedback for PMCM moderation"
                   />
                 </label>
-                <PrismTextarea
-                  value={feedbackComment}
-                  onChange={(ev) => {
-                    setFeedbackComment(ev.target.value);
-                    setFeedbackSubmitted(false);
-                  }}
-                  placeholder="Share feedback for PMCM moderation"
-                />
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm leading-5 text-muted-foreground">
                   <input
                     type="checkbox"
@@ -391,6 +407,12 @@ export default function GuestDashboard() {
                 <Button disabled={busy === "feedback" || !feedbackConsentAccepted} className="h-12 rounded-md px-5 font-bold sm:w-fit" type="submit">
                   <MessageCircleHeart className="size-4" /> Send to PMCM moderation
                 </Button>
+                {feedbackSubmitted ? (
+                  <div className="flex items-start gap-2 rounded-lg border border-(--prism-success)/20 bg-(--prism-success)/8 p-3 text-sm leading-6 text-(--prism-success)">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                    <span>Thank you. PMCM will review this feedback before any post-event reuse.</span>
+                  </div>
+                ) : null}
               </form>
             </PrismSectionPanel>
           </div>

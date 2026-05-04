@@ -12,7 +12,7 @@ const inquirySources = ["Facebook", "Website", "BNI", "Walk-In", "Log on Behalf"
 const declineReasons = ["Date Unavailable", "Outside Service Scope", "Budget Too Low", "Prior Issue", "Other"];
 
 function statusTone(status: string) {
-  if (status === "new") return "bg-blue-50 text-blue-700 ring-blue-100";
+  if (status === "new") return "bg-(--prism-amber)/10 text-(--prism-amber) ring-(--prism-amber)/20";
   if (status === "accepted") return "bg-emerald-50 text-emerald-700 ring-emerald-100";
   if (status === "pending") return "bg-amber-50 text-amber-800 ring-amber-100";
   if (status === "declined") return "bg-rose-50 text-rose-700 ring-rose-100";
@@ -109,9 +109,9 @@ export function InquiryIntakeLog({
         </select>
       </div>
 
-      <div className="mt-4 grid gap-3 xl:grid-cols-2">
+      <div className="mt-4 divide-y divide-border">
         {filtered.map((inquiry) => (
-          <div key={inquiry.id} className="rounded-lg border border-border bg-muted p-4">
+          <div key={inquiry.id} className="py-4 first:pt-0 last:pb-0">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-base font-black">{inquiry.clientName}</p>
@@ -121,22 +121,22 @@ export function InquiryIntakeLog({
                 {label(inquiry.status)}
               </span>
             </div>
-            <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <div className="rounded-md bg-background p-3"><p className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Event Type</p><p className="mt-1 font-semibold">{inquiry.eventType || inquiry.clientType}</p></div>
-              <div className="rounded-md bg-background p-3"><p className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Approx. Date</p><p className="mt-1 font-semibold">{inquiry.eventDate}</p></div>
-              <div className="rounded-md bg-background p-3"><p className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Source</p><p className="mt-1 font-semibold">{inquiry.source}</p></div>
-              <div className="rounded-md bg-background p-3"><p className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Received</p><p className="mt-1 font-semibold">{compactTimestamp(inquiry.createdAt)}</p></div>
-            </div>
+            <dl className="mt-3 grid gap-x-5 gap-y-2 text-sm sm:grid-cols-2">
+              <div className="border-l border-border px-3 py-1.5"><dt className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Event Type</dt><dd className="mt-1 font-semibold">{inquiry.eventType || inquiry.clientType}</dd></div>
+              <div className="border-l border-border px-3 py-1.5"><dt className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Approx. Date</dt><dd className="mt-1 font-semibold">{inquiry.eventDate}</dd></div>
+              <div className="border-l border-border px-3 py-1.5"><dt className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Source</dt><dd className="mt-1 font-semibold">{inquiry.source}</dd></div>
+              <div className="border-l border-border px-3 py-1.5"><dt className="text-xs font-black uppercase tracking-wide text-(--prism-amber)">Received</dt><dd className="mt-1 font-semibold">{compactTimestamp(inquiry.createdAt)}</dd></div>
+            </dl>
             {(inquiry.duplicate || inquiry.previouslyDeclined || inquiry.referralDetails || inquiry.loggedByName) && (
               <div className="mt-3 grid gap-2 text-xs font-semibold">
-                {inquiry.duplicate && <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Duplicate of {inquiry.duplicateOfInquiryId}</p>}
-                {inquiry.previouslyDeclined && <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700">Previous rejection: {inquiry.previousDeclineReason}</p>}
-                {inquiry.referralDetails && <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700">Referral: {inquiry.referralDetails}</p>}
-                {inquiry.loggedByName && <p className="rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-violet-700">Logged by {inquiry.loggedByName}</p>}
+                {inquiry.duplicate && <p className="border-l border-amber-300 bg-amber-50 px-3 py-2 text-amber-800">Duplicate of {inquiry.duplicateOfInquiryId}</p>}
+                {inquiry.previouslyDeclined && <p className="border-l border-rose-300 bg-rose-50 px-3 py-2 text-rose-700">Previous rejection: {inquiry.previousDeclineReason}</p>}
+                {inquiry.referralDetails && <p className="border-l border-(--prism-sage) bg-secondary/45 px-3 py-2 text-foreground">Referral: {inquiry.referralDetails}</p>}
+                {inquiry.loggedByName && <p className="border-l border-(--prism-signal) bg-(--prism-signal)/8 px-3 py-2 text-(--prism-signal)">Logged by {inquiry.loggedByName}</p>}
               </div>
             )}
             {inquiry.declineReason && (
-              <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+              <p className="mt-3 border-l border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
                 Declined: {inquiry.declineReason}
               </p>
             )}

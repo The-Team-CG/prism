@@ -25,7 +25,7 @@ export function ClientOnboardingTracker({
       description="Inquiry acceptance, conforme, invitation, and briefing state"
       icon={FileCheck2}
     >
-      <div className="space-y-3">
+      <div className="divide-y divide-border">
         {tracked.map((inquiry) => {
           const timeline = [
             {
@@ -55,7 +55,7 @@ export function ClientOnboardingTracker({
           ];
 
           return (
-            <article key={inquiry.id} className="rounded-lg border border-border bg-muted/45 p-4">
+            <article key={inquiry.id} className="py-4 first:pt-0 last:pb-0">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-black text-foreground">{inquiry.eventName}</p>
@@ -73,7 +73,7 @@ export function ClientOnboardingTracker({
               </div>
 
               {!inquiry.conformeSignedAt ? (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-primary/12 bg-card p-3">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-l border-primary/20 bg-background/70 px-3 py-2.5">
                   <p className="text-sm text-muted-foreground">
                     {inquiry.reminderDueAt
                       ? `Next reminder due: ${compactTimestamp(inquiry.reminderDueAt)}`

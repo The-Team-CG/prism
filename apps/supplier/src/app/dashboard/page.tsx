@@ -323,17 +323,17 @@ export default function SupplierDashboard() {
             </div>
             <Truck className="size-7 text-(--prism-amber)" />
           </div>
-          <div className="mt-5 flex flex-col gap-3">
-            <div className="rounded-lg bg-white/8 p-3">
+          <div className="mt-5 flex flex-col divide-y divide-white/12">
+            <div className="py-3 first:pt-0">
               <p className="text-xs font-black text-(--prism-amber)">{fmt(workspace?.supplier.tier ?? "supplier")}</p>
               <p className="mt-1 text-sm font-bold">{workspace?.supplier.contactName || session.name}</p>
               <p className="mt-0.5 text-xs text-sidebar-foreground/70">{workspace?.supplier.email || session.email}</p>
             </div>
-            <div className="rounded-lg bg-white/8 p-3">
+            <div className="py-3">
               <p className="text-xs font-bold uppercase tracking-wide text-sidebar-foreground/60">Service inclusions</p>
               <p className="mt-1.5 text-sm leading-5 text-sidebar-foreground/80">{workspace?.supplier.serviceInclusions || "No inclusions saved yet."}</p>
             </div>
-            <div className="rounded-lg bg-white/8 p-3">
+            <div className="py-3">
               <p className="text-xs font-bold uppercase tracking-wide text-sidebar-foreground/60">Certifications</p>
               {workspace?.supplier.certifications.length === 0 ? (
                 <p className="mt-1.5 text-sm text-sidebar-foreground/60">No certifications recorded.</p>
@@ -352,7 +352,7 @@ export default function SupplierDashboard() {
               )}
             </div>
             {selectedQuotes.map((quote) => (
-              <div key={quote.id} className="rounded-lg bg-(--prism-success)/15 p-3">
+              <div key={quote.id} className="border-l border-(--prism-success) bg-(--prism-success)/10 px-3 py-3">
                 <p className="flex items-center gap-2 text-sm font-bold text-(--prism-success)">
                   <CheckCircle2 className="size-4" /> Selected assignment
                 </p>
@@ -420,7 +420,7 @@ export default function SupplierDashboard() {
                     : "PMCM closed this request. Quote editing is locked in this portal.";
 
               return (
-                <div key={request.id} className="rounded-lg border border-border bg-secondary/40 p-4">
+                <div key={request.id} className="border-t border-border py-4 first:border-t-0">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -432,7 +432,7 @@ export default function SupplierDashboard() {
                         ) : null}
                       </div>
                       <p className="mt-1 text-xs leading-5 text-muted-foreground">{request.message}</p>
-                      <p className={`mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${deadlinePast ? "bg-(--prism-danger)/10 text-(--prism-danger)" : "bg-card text-muted-foreground"}`}>
+                      <p className={`mt-1 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold ${deadlinePast ? "bg-(--prism-danger)/10 text-(--prism-danger)" : "bg-secondary/60 text-muted-foreground"}`}>
                         <Clock3 className="size-3.5" />
                         {deadlinePast ? "Past deadline" : "Quote deadline"}: {formatDate(request.dueDate)}
                       </p>
@@ -446,7 +446,7 @@ export default function SupplierDashboard() {
                   </div>
 
                   {quote && (
-                    <div className="mt-3 grid gap-3 rounded-lg border border-border bg-card p-3 text-sm sm:grid-cols-3">
+                    <div className="mt-3 grid gap-3 border-l border-border bg-background/70 px-3 py-2 text-sm sm:grid-cols-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Amount</p>
                         <p className="mt-1 font-bold">{money.format(quote.amount)}</p>
@@ -463,7 +463,7 @@ export default function SupplierDashboard() {
                   )}
 
                   {closed && (
-                    <div className="mt-3 rounded-md border border-primary/15 bg-card px-3 py-2 text-xs font-semibold leading-5 text-muted-foreground">
+                    <div className="mt-3 border-l border-primary/20 bg-background/70 px-3 py-2 text-xs font-semibold leading-5 text-muted-foreground">
                       {closedReason}
                     </div>
                   )}
@@ -495,7 +495,7 @@ export default function SupplierDashboard() {
                   </form>
 
                   {selected && (
-                    <div className="mt-4 flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
+                    <div className="mt-4 flex flex-col gap-4 border-l-4 border-l-(--prism-signal) bg-background/70 p-4">
                       {request.id === selectedAnchorRequestId ? <div id="supplier-readiness" className="scroll-mt-24" /> : null}
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -510,22 +510,22 @@ export default function SupplierDashboard() {
                       </div>
 
                       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                        <div className="rounded-md border border-border bg-secondary/35 p-3">
+                        <div className="border-l border-border bg-background/60 px-3 py-2">
                           <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Assignment</p>
                           <div className="mt-1"><StatusBadge status={request.assignmentStatus ?? "pending_confirmation"} label={fmt(request.assignmentStatus ?? "pending_confirmation")} /></div>
                           <p className="mt-1 text-xs text-muted-foreground">{request.assignmentConfirmedAt ? `Confirmed ${formatDate(request.assignmentConfirmedAt)}` : "Waiting for supplier confirmation"}</p>
                         </div>
-                        <div className="rounded-md border border-border bg-secondary/35 p-3">
+                        <div className="border-l border-border bg-background/60 px-3 py-2">
                           <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Readiness</p>
                           <div className="mt-1"><StatusBadge status={request.readinessStatus ?? "not_requested"} label={fmt(request.readinessStatus ?? "not_requested")} /></div>
                           <p className="mt-1 text-xs text-muted-foreground">{request.readinessConfirmedAt ? `Confirmed ${formatDate(request.readinessConfirmedAt)}` : "Confirm before event day"}</p>
                         </div>
-                        <div className="rounded-md border border-border bg-secondary/35 p-3">
+                        <div className="border-l border-border bg-background/60 px-3 py-2">
                           <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Contract metadata</p>
                           <p className="mt-1 text-sm font-black text-foreground">{request.contractDocumentId ? "Saved" : "Needed"}</p>
                           <p className="mt-1 text-xs text-muted-foreground">{request.contractDocumentId ? "Portal file hub record exists" : "Save filename metadata below"}</p>
                         </div>
-                        <div className="rounded-md border border-border bg-secondary/35 p-3">
+                        <div className="border-l border-border bg-background/60 px-3 py-2">
                           <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Event day</p>
                           <div className="mt-1"><StatusBadge status={request.eventDayStatus ?? "not_started"} label={fmt(request.eventDayStatus ?? "not_started")} /></div>
                           <p className="mt-1 text-xs text-muted-foreground">{request.eventDayStatusAt ? `Updated ${formatDate(request.eventDayStatusAt)}` : "Use the large buttons onsite"}</p>
@@ -557,14 +557,14 @@ export default function SupplierDashboard() {
                       </div>
 
                       {request.id === selectedAnchorRequestId ? <div id="supplier-event-day" className="scroll-mt-24" /> : null}
-                      <div className="flex flex-col gap-3 rounded-md border border-primary/10 bg-secondary/25 p-3">
+                      <div className="flex flex-col gap-3 border-l border-primary/20 bg-background/60 px-3 py-2.5">
                         <div>
                           <p className="text-sm font-black text-foreground">Event-day status</p>
                           <p className="mt-1 text-xs leading-5 text-muted-foreground">Large buttons are sized for phone use at the venue. These update the portal record for PMCM to verify.</p>
                         </div>
                         <label className="grid gap-1.5 text-sm font-bold text-foreground">
                           <span>Status note</span>
-                          <Input value={statusNotes[request.id] ?? request.eventDayNotes ?? ""} onChange={(ev) => setStatusNotes((c) => ({ ...c, [request.id]: ev.target.value }))} className="h-11 rounded-md bg-card" placeholder="Optional note for PMCM verification" />
+                          <Input value={statusNotes[request.id] ?? request.eventDayNotes ?? ""} onChange={(ev) => setStatusNotes((c) => ({ ...c, [request.id]: ev.target.value }))} className="h-11 rounded-md" placeholder="Optional note for PMCM verification" />
                         </label>
                         <div className="grid gap-2 sm:grid-cols-3">
                           {eventStatusActions.map(({ status, label, helper }) => (

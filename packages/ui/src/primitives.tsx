@@ -4,16 +4,17 @@ import type * as React from "react";
 import { cn } from "./utils";
 
 export interface PrismButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "secondary" | "outline" | "ghost" | "danger";
+  variant?: "default" | "secondary" | "outline" | "ghost" | "danger" | "signal";
   size?: "sm" | "md" | "lg" | "icon";
 }
 
 const buttonVariants: Record<NonNullable<PrismButtonProps["variant"]>, string> = {
-  default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/92",
+  default: "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg",
   secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/78",
   outline: "border border-border bg-card text-foreground hover:bg-secondary",
   ghost: "text-foreground hover:bg-secondary",
-  danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+  danger: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+  signal: "bg-(--prism-signal) text-white shadow-md hover:bg-(--prism-signal)/90 hover:shadow-lg",
 };
 
 const buttonSizes: Record<NonNullable<PrismButtonProps["size"]>, string> = {
@@ -34,7 +35,7 @@ export function PrismButton({
     <button
       type={type}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md font-bold transition disabled:pointer-events-none disabled:opacity-55 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+        "inline-flex items-center justify-center gap-2 rounded-md font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-55 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
         buttonVariants[variant],
         buttonSizes[size],
         className,
@@ -44,7 +45,7 @@ export function PrismButton({
   );
 }
 
-export type PrismBadgeTone = "default" | "secondary" | "outline" | "success" | "warning" | "danger" | "info" | "neutral";
+export type PrismBadgeTone = "default" | "secondary" | "outline" | "success" | "warning" | "danger" | "info" | "neutral" | "signal" | "amber";
 
 export interface PrismBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: PrismBadgeTone;
@@ -60,6 +61,8 @@ const badgeVariants: Record<PrismBadgeTone, string> = {
   danger: "bg-(--prism-danger)/10 text-(--prism-danger) ring-(--prism-danger)/20",
   info: "bg-primary/10 text-primary ring-primary/20",
   neutral: "bg-muted text-muted-foreground ring-border",
+  signal: "bg-(--prism-signal)/10 text-(--prism-signal) ring-(--prism-signal)/20",
+  amber: "bg-(--prism-amber)/10 text-(--prism-amber) ring-(--prism-amber)/20",
 };
 
 export function PrismBadge({ className, variant = "default", tone, ...props }: PrismBadgeProps) {
@@ -68,7 +71,7 @@ export function PrismBadge({ className, variant = "default", tone, ...props }: P
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1",
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1",
         badgeVariants[resolvedVariant],
         className,
       )}

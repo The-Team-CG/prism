@@ -114,8 +114,8 @@ function Inner({
         )}
 
         <div className="relative min-w-0 flex-1">
-          <div className={readOnly ? "pointer-events-none size-full" : "size-full"}>
-            <Canvas />
+          <div className="size-full">
+            <Canvas readOnly={readOnly} />
           </div>
           {!readOnly && (
             <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">

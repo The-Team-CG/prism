@@ -28,7 +28,7 @@ function hitTest(o: CanvasObject, wx: number, wy: number): boolean {
   return Math.abs(lx) <= o.w / 2 && Math.abs(ly) <= o.h / 2;
 }
 
-export function Canvas() {
+export function Canvas({ readOnly = false }: { readOnly?: boolean }) {
   const { state, dispatch } = useEditor();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -480,6 +480,11 @@ export function Canvas() {
     const world = toWorld(sx, sy);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
+    if (readOnly) {
+      pointerRef.current = { mode: "pan", startX: sx, startY: sy, startWorld: world };
+      return;
+    }
+
     if (tool === "hand" || e.button === 1 || e.altKey) {
       pointerRef.current = { mode: "pan", startX: sx, startY: sy, startWorld: world };
       return;
@@ -561,6 +566,7 @@ export function Canvas() {
       return;
     }
     if (p.mode === "marquee") {
+      if (readOnly) return;
       setMarquee({
         x: Math.min(sx, p.startX),
         y: Math.min(sy, p.startY),
@@ -570,6 +576,7 @@ export function Canvas() {
       return;
     }
     if (p.mode === "drag" && p.origObjects) {
+      if (readOnly) return;
       const dx = world.x - p.startWorld.x;
       const dy = world.y - p.startWorld.y;
       const patches = p.origObjects.map((o) => ({ id: o.id, patch: { x: snapCoord(o.x + dx), y: snapCoord(o.y + dy) } }));
@@ -577,6 +584,7 @@ export function Canvas() {
       return;
     }
     if (p.mode === "draw" && p.drawId) {
+      if (readOnly) return;
       const x0 = p.startWorld.x;
       const y0 = p.startWorld.y;
       const nx = Math.min(x0, world.x);
@@ -587,6 +595,7 @@ export function Canvas() {
       return;
     }
     if (p.mode === "resize" && p.origObjects && p.resizeHandle) {
+      if (readOnly) return;
       const o = p.origObjects[0];
       if (!o) return;
       const dx = world.x - p.startWorld.x;
@@ -601,6 +610,7 @@ export function Canvas() {
       return;
     }
     if (p.mode === "rotate" && p.origObjects) {
+      if (readOnly) return;
       const o = p.origObjects[0];
       if (!o) return;
       const cx = o.x + o.w / 2;
@@ -613,7 +623,7 @@ export function Canvas() {
 
   function onPointerUp() {
     const p = pointerRef.current;
-    if (p.mode === "marquee" && marquee) {
+    if (!readOnly && p.mode === "marquee" && marquee) {
       const x0 = (marquee.x - viewport.tx) / viewport.zoom;
       const y0 = (marquee.y - viewport.ty) / viewport.zoom;
       const x1 = x0 + marquee.w / viewport.zoom;
@@ -659,6 +669,7 @@ export function Canvas() {
   }
 
   function onDragOver(e: React.DragEvent) {
+    if (readOnly) return;
     if (
       e.dataTransfer.types.includes("application/x-prism-asset") ||
       e.dataTransfer.types.includes("application/x-prism-guest") ||
@@ -668,6 +679,10 @@ export function Canvas() {
     }
   }
   function onDrop(e: React.DragEvent) {
+    if (readOnly) {
+      e.preventDefault();
+      return;
+    }
     const rect = canvasRef.current!.getBoundingClientRect();
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
@@ -714,7 +729,7 @@ export function Canvas() {
   }
 
   const cursor =
-    tool === "hand" ? "grab" : tool === "rect" || tool === "ellipse" || tool === "line" ? "crosshair" : "default";
+    readOnly ? "grab" : tool === "hand" ? "grab" : tool === "rect" || tool === "ellipse" || tool === "line" ? "crosshair" : "default";
 
   return (
     <div ref={wrapRef} className="relative size-full overflow-hidden" onDragOver={onDragOver} onDrop={onDrop}>

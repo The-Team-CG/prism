@@ -21,7 +21,6 @@ import {
   ReceiptText,
   Send,
   ShieldCheck,
-  Sparkles,
   Timer,
   UserRoundCheck,
   WalletCards,
@@ -52,6 +51,7 @@ import {
   PrismCompactRecordList,
   PrismNoticeBanner,
   PrismWorkflowTabs,
+  RolePageHeader,
 } from "@prism/ui";
 import { PRESETS, type Preset } from "../editor/presets";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
@@ -71,7 +71,7 @@ const EditorShell = dynamic(
     ssr: false,
     loading: () => (
       <div className="grid size-full place-items-center bg-background text-sm text-muted-foreground">
-        Loading layout view…
+        Loading layout view...
       </div>
     ),
   },
@@ -163,7 +163,7 @@ function LayoutPreview({ project }: { project: Project | null }) {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-3 text-xs text-muted-foreground">
         <span>{project.name}</span>
-        <span>{project.widthM}m × {project.heightM}m</span>
+        <span>{project.widthM}m x {project.heightM}m</span>
       </div>
     </div>
   );
@@ -340,10 +340,10 @@ function LifecycleStrip({
               key={step.label}
               className={
                 isDone
-                  ? "rounded-lg border border-(--prism-success)/20 bg-(--prism-success)/8 px-3 py-3"
+                  ? "border-l-2 border-l-(--prism-success) bg-(--prism-success)/8 px-3 py-2.5"
                   : isCurrent
-                    ? "rounded-lg border border-primary/25 bg-(--prism-signal-soft) px-3 py-3"
-                    : "rounded-lg border border-border bg-background/70 px-3 py-3"
+                    ? "border-l-2 border-l-(--prism-signal) bg-(--prism-signal-soft) px-3 py-2.5"
+                    : "border-l-2 border-l-border px-3 py-2.5"
               }
             >
               <div className="flex items-center justify-between gap-2">
@@ -373,22 +373,11 @@ function NextActionHero({
   const Icon = action.icon;
 
   return (
-    <section className="relative overflow-hidden rounded-lg border border-primary/12 bg-card p-5 shadow-[0_22px_70px_rgba(23,18,22,0.08)] sm:p-6">
-      <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(90deg,rgba(234,213,206,0.52)_1px,transparent_1px),linear-gradient(rgba(234,213,206,0.52)_1px,transparent_1px)] [background-size:34px_34px]" />
-      <div className="absolute inset-0 bg-[linear-gradient(132deg,rgba(255,248,242,0.92),rgba(255,255,255,0.72)_52%,rgba(233,247,251,0.86))]" />
-      <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-end">
+    <section className="rounded-lg border border-border border-l-4 border-l-(--prism-signal) bg-card p-5 shadow-sm sm:p-6">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-end">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-white/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-              <Sparkles className="size-3.5" />
-              Next required action
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-(--prism-amber)/25 bg-(--prism-amber-soft) px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-(--prism-amber)">
-              <Timer className="size-3.5" />
-              {action.detail}
-            </span>
-          </div>
-          <h2 className="mt-5 max-w-3xl text-3xl font-black leading-[1.05] text-foreground sm:text-4xl">
+          <p className="text-sm font-bold text-primary">Next action</p>
+          <h2 className="mt-2 max-w-3xl text-2xl font-black leading-tight text-foreground sm:text-3xl">
             {action.title}
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
@@ -398,13 +387,14 @@ function NextActionHero({
             <Button onClick={onSelect} className="min-h-12 rounded-md px-5 font-black">
               {action.ctaLabel} <ArrowRight className="size-4" />
             </Button>
-            <span className="text-sm font-semibold text-muted-foreground">
-              {event.eventDate} · {formatStatusLabel(event.readiness)}
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+              <Timer className="size-4 text-(--prism-amber)" />
+              {action.detail} - {event.eventDate} - {formatStatusLabel(event.readiness)}
             </span>
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-white/82 p-4 shadow-sm">
+        <div className="border-l border-border pl-4">
           <div className="flex items-start gap-3">
             <span className={`grid size-11 shrink-0 place-items-center rounded-md border ${actionToneClass(action.tone)}`}>
               <Icon className="size-5" />
@@ -436,11 +426,11 @@ function ClientActionQueue({
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Action queue</p>
           <h3 className="mt-1 text-lg font-black text-foreground">Client-visible blockers</h3>
         </div>
-        <Badge variant="outline" className="rounded-full border-primary/20 bg-secondary text-primary">
+        <Badge variant="outline" className="rounded-md border-primary/20 bg-secondary text-primary">
           {actions.length} workflows
         </Badge>
       </div>
-      <div className="mt-4 grid gap-2">
+      <div className="mt-4 divide-y divide-border">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
@@ -448,7 +438,7 @@ function ClientActionQueue({
               key={action.id}
               type="button"
               onClick={() => onSelect(action)}
-              className="group flex min-h-20 items-start gap-3 rounded-lg border border-border bg-background/70 p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-sm"
+              className="group flex min-h-20 w-full items-start gap-3 border-l-2 border-l-transparent px-3 py-3 text-left transition hover:border-l-(--prism-signal) hover:bg-muted/50"
             >
               <span className={`grid size-9 shrink-0 place-items-center rounded-md border ${actionToneClass(action.tone)}`}>
                 <Icon className="size-4" />
@@ -680,12 +670,12 @@ export function Dashboard() {
     setTab(action.targetTab);
   }
 
-  /* ── Loading / auth redirects ─────────────────────────────── */
+  /* Loading and auth redirects */
 
   if (!session) {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-6">
-        <Skeleton className="h-24 w-full max-w-sm rounded-xl" />
+        <Skeleton className="h-24 w-full max-w-sm rounded-lg" />
       </main>
     );
   }
@@ -693,7 +683,7 @@ export function Dashboard() {
   if (session.role !== "client") {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-6">
-        <section className="w-full max-w-md rounded-xl border border-border bg-card p-7 shadow-[0_18px_70px_rgba(23,18,22,0.08)]">
+        <section className="w-full max-w-md rounded-lg border border-border bg-card p-7 shadow-sm">
           <span className="grid size-11 place-items-center rounded-lg bg-amber-50 text-amber-600">
             <ShieldCheck className="size-5" />
           </span>
@@ -740,7 +730,7 @@ export function Dashboard() {
         <aside className="border-r border-primary/20 bg-sidebar p-5" />
         <div className="p-8">
           {error ? (
-            <Alert variant="destructive" className="rounded-xl">
+            <Alert variant="destructive" className="rounded-lg">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : (
@@ -751,9 +741,8 @@ export function Dashboard() {
     );
   }
 
-  /* ── Editor fullscreen ────────────────────────────────────── */
-
   if (screen.name === "editor") {
+    const editable = !screen.readOnly;
     return (
       <main className="h-screen w-full overflow-hidden bg-background">
         <EditorShell
@@ -766,20 +755,24 @@ export function Dashboard() {
             setScreen({ name: "dashboard" });
             setTab("floorplan");
           }}
-          onSave={(project) => mvpApi.savePlan(project, session ?? undefined)}
-          onSubmit={async (project) => {
-            await mvpApi.savePlan(project, session ?? undefined);
-            await refresh();
-            setNotice("Preference draft saved. Your event team can use it when preparing the official layout.");
-            setScreen({ name: "dashboard" });
-            setTab("floorplan");
-          }}
+          onSave={editable ? (project) => mvpApi.savePlan(project, session ?? undefined) : undefined}
+          onSubmit={
+            editable
+              ? async (project) => {
+                  await mvpApi.savePlan(project, session ?? undefined);
+                  await refresh();
+                  setNotice("Preference draft saved. Your event team can use it when preparing the official layout.");
+                  setScreen({ name: "dashboard" });
+                  setTab("floorplan");
+                }
+              : undefined
+          }
         />
       </main>
     );
   }
 
-  /* ── Main dashboard ───────────────────────────────────────── */
+  /* Main dashboard */
 
   const shellNavItems = DETAIL_TABS.map((item) => ({
     ...item,
@@ -881,7 +874,7 @@ export function Dashboard() {
           ].map((item) => {
             const Icon = item.icon;
             return (
-              <div key={item.label} className="flex items-center gap-3 rounded-md bg-background/70 px-3 py-2.5">
+              <div key={item.label} className="flex items-center gap-3 border-t border-border px-1 py-2.5 first:border-t-0">
                 <Icon className="size-4 shrink-0 text-(--prism-amber)" />
                 <div className="min-w-0">
                   <p className="text-xs font-black text-foreground">{item.label}</p>
@@ -901,7 +894,7 @@ export function Dashboard() {
         {notifications.length ? (
           <div className="mt-3 space-y-2">
             {notifications.map((notification) => (
-              <div key={notification.id} className="rounded-md border border-border bg-background/70 px-3 py-2.5">
+              <div key={notification.id} className="border-l border-border px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-black text-foreground">{notification.channel.toUpperCase()}</p>
                   <StatusBadge status={notification.status} />
@@ -959,6 +952,22 @@ export function Dashboard() {
 
             {selectedEvent ? (
               <>
+                <RolePageHeader
+                  eyebrow="Event context"
+                  title={selectedEvent.eventName}
+                  description={`${selectedEvent.clientName} - ${selectedEvent.eventDate}. This signed-in surface stays focused on client approvals, documents, billing visibility, and official layout review.`}
+                  meta={[
+                    <StatusBadge key="stage" status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />,
+                    <StatusBadge key="portal" status={portalBadgeStatus(selectedEvent.clientPortalStatus)} label={portalBadgeLabel(selectedEvent.clientPortalStatus)} />,
+                    selectedEvent.readiness ? `Readiness ${formatStatusLabel(selectedEvent.readiness)}` : "Readiness pending",
+                  ]}
+                  action={
+                    <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => setTab("activity")}>
+                      Activity
+                    </Button>
+                  }
+                />
+
                 {nextAction ? (
                   <NextActionHero
                     event={selectedEvent}
@@ -996,7 +1005,7 @@ export function Dashboard() {
                         ["Official layout", officialDraft ? formatStatusLabel(officialDraft.status) : "Not published"],
                         ["Billing", billing ? formatStatusLabel(billing.status) : "Pending"],
                       ].map(([label, value]) => (
-                        <div key={label} className="flex items-center justify-between gap-3 rounded-md bg-background/70 px-3 py-2.5">
+                        <div key={label} className="flex items-center justify-between gap-3 border-t border-border px-1 py-2.5 first:border-t-0">
                           <span className="text-xs font-bold text-muted-foreground">{label}</span>
                           <span className="text-xs font-black text-foreground">{value}</span>
                         </div>
@@ -1028,7 +1037,7 @@ export function Dashboard() {
                 {tab === "floorplan" && (
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
                     {/* Draft panel */}
-                    <section className="rounded-xl border border-border bg-card shadow-sm">
+                    <section className="rounded-lg border border-border bg-card shadow-sm">
                       <header className="flex items-center gap-2.5 border-b border-border px-5 py-3.5">
                         <span className="grid size-7 place-items-center rounded-md bg-secondary text-(--prism-amber)">
                           <MapPinned className="size-3.5" />
@@ -1036,8 +1045,7 @@ export function Dashboard() {
                         <h3 className="text-sm font-bold text-foreground">Layout preference draft</h3>
                       </header>
                       <div className="p-5 space-y-5">
-                        {/* Canvas presets */}
-                        <div className="rounded-xl border border-border bg-secondary/50 p-4">
+                        <div className="border-l border-(--prism-sage) bg-secondary/45 px-3 py-2.5">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
                               <p className="text-sm font-bold text-foreground">Preference canvas</p>
@@ -1124,10 +1132,10 @@ export function Dashboard() {
 
                         {/* Existing drafts */}
                         {preferenceDrafts.length > 0 && (
-                          <div className="space-y-2 border-t border-border pt-4">
+                          <div className="border-t border-border pt-4">
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Your preference drafts</p>
                             {preferenceDrafts.slice(0, 4).map((draft) => (
-                              <div key={draft.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background p-3 text-sm">
+                              <div key={draft.id} className="flex items-center justify-between gap-3 border-t border-border px-1 py-3 text-sm first:mt-2 first:border-t-0">
                                 <div className="min-w-0">
                                   <p className="truncate font-semibold text-foreground">{draft.name}</p>
                                   <StatusBadge status={draft.status} className="mt-1.5" />
@@ -1143,7 +1151,7 @@ export function Dashboard() {
                     </section>
 
                     {/* Official review panel */}
-                    <section className="rounded-xl border border-border bg-card shadow-sm">
+                    <section className="rounded-lg border border-border bg-card shadow-sm">
                       <header className="flex items-center gap-2.5 border-b border-border px-5 py-3.5">
                         <span className="grid size-7 place-items-center rounded-md bg-secondary text-(--prism-amber)">
                           <CheckCircle2 className="size-3.5" />
