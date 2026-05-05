@@ -1,7 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { Bell, LogOut, Menu, Search, Sparkles, X } from "lucide-react";
+import { Bell, PanelLeft, Search, X } from "lucide-react";
 import * as React from "react";
 import { PrismBadge, PrismButton } from "./primitives";
 import { cn } from "./utils";
@@ -45,7 +45,6 @@ export interface PrismAppShellProps {
   eyebrow: string;
   title: string;
   description?: string;
-  activeItemLabel?: string;
   activeItemId: string;
   navItems: PrismNavItem[];
   onNavSelect?: (id: string) => void;
@@ -81,11 +80,10 @@ export function PrismSidebar({
   activeItemId,
   navItems,
   onNavSelect,
-  user,
   commandActions = [],
   commandSectionLabel = "Workflows",
-  onSignOut,
   homeHref = "/",
+  collapsed = false,
 }: Pick<
   PrismAppShellProps,
   | "productLabel"
@@ -93,12 +91,12 @@ export function PrismSidebar({
   | "activeItemId"
   | "navItems"
   | "onNavSelect"
-  | "user"
   | "commandActions"
   | "commandSectionLabel"
-  | "onSignOut"
   | "homeHref"
->) {
+> & {
+  collapsed?: boolean;
+}) {
   const navGroups = navItems.reduce<Array<{ section: string; items: PrismNavItem[] }>>((groups, item) => {
     const section = item.section ?? "Dashboards";
     const existing = groups.find((group) => group.section === section);
@@ -111,15 +109,19 @@ export function PrismSidebar({
   }, []);
 
   return (
-    <div className="flex h-full flex-col bg-card text-foreground">
+    <div className="flex h-full min-w-0 flex-col bg-card text-foreground">
       <a
         href={homeHref}
-        className="flex items-center gap-2.5 px-4 py-4 text-foreground no-underline"
+        className={cn(
+          "flex min-h-16 items-center gap-2.5 px-3 text-foreground no-underline",
+          collapsed && "justify-center px-2",
+        )}
+        title={collapsed ? productLabel : undefined}
       >
         <span className="grid size-8 place-items-center rounded-md bg-foreground text-xs font-black text-background shadow-sm">
           P
         </span>
-        <span className="min-w-0">
+        <span className={cn("min-w-0", collapsed && "sr-only")}>
           <span className="block truncate text-sm font-black leading-4 text-foreground">
             {productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
           </span>
@@ -129,10 +131,10 @@ export function PrismSidebar({
         </span>
       </a>
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3 pt-1">
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-3 pt-1">
         {navGroups.map((group, groupIndex) => (
           <div key={group.section} className={cn("flex flex-col gap-1", groupIndex > 0 && "mt-5")}>
-            <p className="px-2.5 pb-1.5 text-[10px] font-black uppercase text-muted-foreground">
+            <p className={cn("px-2 pb-1.5 text-[11px] font-black uppercase text-muted-foreground", collapsed && "sr-only")}>
               {group.section}
             </p>
             {group.items.map((item) => (
@@ -143,11 +145,15 @@ export function PrismSidebar({
                 aria-current={item.id === activeItemId ? "page" : undefined}
                 data-active={item.id === activeItemId}
                 onClick={() => onNavSelect?.(item.id)}
-                className="flex h-8 items-center gap-2 rounded-md px-2.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-foreground data-[active=true]:font-bold data-[active=true]:text-background data-[active=true]:shadow-sm"
+                title={collapsed ? item.label : undefined}
+                className={cn(
+                  "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-foreground data-[active=true]:font-bold data-[active=true]:text-background",
+                  collapsed && "justify-center px-0",
+                )}
               >
                 <item.icon aria-hidden="true" className="size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.badge ? (
+                <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{item.label}</span>
+                {item.badge && !collapsed ? (
                   <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-foreground ring-1 ring-border">
                     {item.badge}
                   </span>
@@ -157,9 +163,9 @@ export function PrismSidebar({
           </div>
         ))}
 
-        {commandActions.length ? (
+        {commandActions.length && !collapsed ? (
           <div className="mt-5 flex flex-col gap-1">
-            <p className="px-2.5 pb-1.5 text-[10px] font-black uppercase text-muted-foreground">
+            <p className="px-2 pb-1.5 text-[11px] font-black uppercase text-muted-foreground">
               {commandSectionLabel}
             </p>
             {commandActions.slice(0, 5).map((action) => (
@@ -188,30 +194,6 @@ export function PrismSidebar({
           </div>
         ) : null}
       </nav>
-
-      <div className="border-t border-border px-3 py-3">
-        <div className="rounded-md border border-border bg-background p-3">
-          <div className="mb-3 grid h-16 place-items-center rounded-md bg-secondary/70">
-            <span className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground shadow-sm">
-              <Sparkles aria-hidden="true" className="size-4" />
-            </span>
-          </div>
-          <p className="truncate text-[13px] font-black text-foreground">{user?.name ?? "PMCM workspace"}</p>
-          <p className="truncate text-[11px] font-semibold text-muted-foreground">
-            {user?.detail ?? roleLabel}
-          </p>
-          {onSignOut ? (
-            <button
-              type="button"
-              className="mt-3 inline-flex h-8 w-full items-center justify-center gap-2 rounded-md bg-foreground px-3 text-xs font-bold text-background transition hover:opacity-90"
-              onClick={onSignOut}
-            >
-              <LogOut aria-hidden="true" className="size-3.5" />
-              Sign out
-            </button>
-          ) : null}
-        </div>
-      </div>
     </div>
   );
 }
@@ -220,41 +202,56 @@ export function PrismTopBar({
   eyebrow,
   title,
   description,
-  activeItemLabel,
   searchPlaceholder,
   headerActions,
   user,
-  onOpenNav,
+  onOpenMobileNav,
+  onToggleDesktopNav,
+  sidebarCollapsed,
 }: Pick<
   PrismAppShellProps,
-  "eyebrow" | "title" | "description" | "activeItemLabel" | "searchPlaceholder" | "headerActions" | "user"
+  "eyebrow" | "title" | "description" | "searchPlaceholder" | "headerActions" | "user"
 > & {
-  onOpenNav?: () => void;
+  onOpenMobileNav?: () => void;
+  onToggleDesktopNav?: () => void;
+  sidebarCollapsed?: boolean;
 }) {
   const placeholder = searchPlaceholder ?? "Search";
 
   return (
     <header
-      className="sticky top-0 z-30 h-14 border-b border-border bg-card/95 px-3 backdrop-blur sm:px-4"
+      className="sticky top-3 z-40 mx-3 mb-4 mt-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm sm:top-4 sm:mx-4 sm:mt-4 sm:mb-5 sm:px-4 md:top-5 md:mx-5 md:mt-5"
       aria-label={`${eyebrow}: ${title}`}
     >
-      <div className="flex h-full items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          {onOpenNav ? (
+          {onOpenMobileNav ? (
             <PrismButton
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="size-8 bg-background lg:hidden"
-              onClick={onOpenNav}
+              className="size-8 text-muted-foreground md:hidden"
+              onClick={onOpenMobileNav}
               aria-label="Open navigation"
             >
-              <Menu aria-hidden="true" />
+              <PanelLeft aria-hidden="true" />
             </PrismButton>
           ) : null}
-          <label className="relative w-full max-w-[14rem] sm:max-w-[18rem]">
+          {onToggleDesktopNav ? (
+            <PrismButton
+              variant="ghost"
+              size="icon"
+              className="hidden size-8 text-muted-foreground md:inline-flex"
+              onClick={onToggleDesktopNav}
+              aria-label={sidebarCollapsed ? "Expand navigation" : "Collapse navigation"}
+            >
+              <PanelLeft aria-hidden="true" />
+            </PrismButton>
+          ) : null}
+          <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+          <label className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-3 text-[13px] font-medium outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
+              className="h-10 w-full rounded-md border-0 bg-transparent pl-8 pr-3 text-sm font-medium outline-none placeholder:text-muted-foreground focus-visible:ring-0"
               placeholder={placeholder}
             />
             <span className="sr-only">
@@ -263,26 +260,17 @@ export function PrismTopBar({
           </label>
         </div>
         {headerActions ? <div className="hidden shrink-0 items-center gap-2 md:flex">{headerActions}</div> : null}
-        {activeItemLabel ? (
-          <PrismBadge variant="secondary" className="hidden h-7 rounded-md px-2.5 text-[11px] md:inline-flex">
-            {activeItemLabel}
-          </PrismBadge>
-        ) : null}
         <button
           type="button"
-          className="relative grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+          className="relative grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition hover:text-foreground"
           aria-label="Notifications"
         >
           <Bell aria-hidden="true" className="size-3.5" />
-          {activeItemLabel ? (
-            <span className="absolute right-2 top-2 size-1.5 rounded-full bg-foreground" aria-hidden="true" />
-          ) : null}
+          <span className="absolute right-1 top-1 size-1.5 rounded-full bg-(--prism-amber) ring-2 ring-card" aria-hidden="true" />
         </button>
         {user ? (
-          <div className="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background">
-            <span className="grid size-6 place-items-center rounded-full bg-foreground text-[9px] font-black text-background">
-              {user.initials ?? initialsFor(user.name)}
-            </span>
+          <div className="grid size-9 shrink-0 place-items-center rounded-full border border-border bg-background text-xs font-semibold text-foreground">
+            {user.initials ?? initialsFor(user.name)}
           </div>
         ) : null}
       </div>
@@ -294,7 +282,7 @@ export function MobileActionDock({ actions }: { actions: PrismMobileAction[] }) 
   if (!actions.length) return null;
   const visibleActions = actions.slice(0, 4);
   return (
-    <div className="mx-4 mt-4 rounded-lg border border-border bg-card p-1.5 shadow-sm sm:mx-5 lg:hidden">
+    <div className="mx-4 mt-4 rounded-lg border border-border bg-card p-1.5 shadow-sm sm:mx-5 md:hidden">
       <div className={cn("grid gap-1", visibleActions.length === 4 ? "grid-cols-4" : "grid-cols-3")}>
         {visibleActions.map((action) => (
           <button
@@ -366,7 +354,6 @@ export function PrismAppShell({
   eyebrow,
   title,
   description,
-  activeItemLabel,
   activeItemId,
   navItems,
   onNavSelect,
@@ -377,15 +364,15 @@ export function PrismAppShell({
   headerActions,
   rightRail,
   mobileActions = [],
-  onSignOut,
   children,
   className,
   contentClassName,
   homeHref,
 }: PrismAppShellProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [desktopOpen, setDesktopOpen] = React.useState(true);
 
-  const sidebar = (
+  const renderSidebar = (collapsed = false) => (
     <PrismSidebar
       productLabel={productLabel}
       roleLabel={roleLabel}
@@ -395,22 +382,26 @@ export function PrismAppShell({
         onNavSelect?.(id);
         setMobileOpen(false);
       }}
-      user={user}
       commandActions={commandActions}
       commandSectionLabel={commandSectionLabel}
-      onSignOut={onSignOut}
       homeHref={homeHref}
+      collapsed={collapsed}
     />
   );
 
   return (
     <div className={cn("min-h-screen bg-background text-foreground", className)}>
-      <aside className="fixed inset-y-0 left-0 hidden w-56 border-r border-border bg-card lg:block">
-        {sidebar}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-card transition-[width] duration-200 ease-linear md:flex",
+          desktopOpen ? "w-64" : "w-16",
+        )}
+      >
+        {renderSidebar(!desktopOpen)}
       </aside>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden" data-state="open">
+        <div className="fixed inset-0 z-50 md:hidden" data-state="open">
           <button
             type="button"
             aria-label="Close navigation"
@@ -418,7 +409,7 @@ export function PrismAppShell({
             onClick={() => setMobileOpen(false)}
           />
           <aside className="relative h-full w-80 max-w-[86vw] border-r border-border bg-card shadow-2xl">
-            {sidebar}
+            {renderSidebar(false)}
             <PrismButton
               variant="ghost"
               size="icon"
@@ -432,16 +423,22 @@ export function PrismAppShell({
         </div>
       ) : null}
 
-      <main className="lg:pl-56">
+      <main
+        className={cn(
+          "min-h-screen transition-[padding-left] duration-200 ease-linear",
+          desktopOpen ? "md:pl-64" : "md:pl-16",
+        )}
+      >
         <PrismTopBar
           eyebrow={eyebrow}
           title={title}
           description={description}
-          activeItemLabel={activeItemLabel}
           searchPlaceholder={searchPlaceholder}
           headerActions={headerActions}
           user={user}
-          onOpenNav={() => setMobileOpen(true)}
+          onOpenMobileNav={() => setMobileOpen(true)}
+          onToggleDesktopNav={() => setDesktopOpen((open) => !open)}
+          sidebarCollapsed={!desktopOpen}
         />
         <MobileActionDock actions={mobileActions} />
         <div

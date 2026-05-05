@@ -962,11 +962,6 @@ export function Dashboard() {
         initials: session.name.slice(0, 2).toUpperCase(),
       }}
       searchPlaceholder="Search proposal, billing, documents..."
-      headerActions={
-        <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => void refresh()}>
-          Refresh
-        </Button>
-      }
       rightRail={shellRightRail}
       mobileActions={shellMobileActions}
       onSignOut={signOut}
