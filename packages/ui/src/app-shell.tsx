@@ -28,6 +28,24 @@ export interface PrismNavItem {
   label: string;
   icon: LucideIcon;
   section?: string;
+  groupId?: string;
+  badge?: string | number;
+  disabled?: boolean;
+  subItems?: PrismNavSubItem[];
+}
+
+export interface PrismNavSubItem {
+  id: string;
+  label: string;
+  badge?: string | number;
+  disabled?: boolean;
+}
+
+export interface PrismPrimaryNavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  targetId?: string;
   badge?: string | number;
   disabled?: boolean;
 }
@@ -75,6 +93,10 @@ export interface PrismAppShellProps {
   activeItemId: string;
   navItems: PrismNavItem[];
   onNavSelect?: (id: string) => void;
+  primaryNavItems?: PrismPrimaryNavItem[];
+  activePrimaryItemId?: string;
+  nestedSidebarTitle?: string;
+  nestedSidebarDetail?: string;
   user?: PrismUserSummary;
   searchPlaceholder?: string;
   commandActions?: PrismPageAction[];
@@ -83,6 +105,7 @@ export interface PrismAppShellProps {
   accountMenuItems?: PrismAccountMenuItem[];
   rightRail?: React.ReactNode;
   mobileActions?: PrismMobileAction[];
+  sidebarMode?: "auto" | "single";
   onSignOut?: () => void;
   children: React.ReactNode;
   className?: string;
@@ -127,7 +150,8 @@ type PrismRailItem = {
 };
 
 function navSearchText(item: PrismNavItem) {
-  return `${item.id} ${item.label} ${item.section ?? ""}`.toLowerCase();
+  const subItems = item.subItems?.map((subItem) => `${subItem.id} ${subItem.label}`).join(" ") ?? "";
+  return `${item.id} ${item.label} ${item.section ?? ""} ${subItems}`.toLowerCase();
 }
 
 function findRailTarget(
@@ -378,6 +402,10 @@ export function PrismSidebar({
   homeHref = "/",
   collapsed = false,
   hiddenItemIds,
+  visibleGroupId,
+  showBrand = true,
+  panelTitle,
+  panelDetail,
 }: Pick<
   PrismAppShellProps,
   | "productLabel"
@@ -391,8 +419,15 @@ export function PrismSidebar({
 > & {
   collapsed?: boolean;
   hiddenItemIds?: ReadonlySet<string>;
+  visibleGroupId?: string;
+  showBrand?: boolean;
+  panelTitle?: string;
+  panelDetail?: string;
 }) {
-  const visibleNavItems = hiddenItemIds?.size ? navItems.filter((item) => !hiddenItemIds.has(item.id)) : navItems;
+  const groupFilteredNavItems = visibleGroupId ? navItems.filter((item) => item.groupId === visibleGroupId) : navItems;
+  const visibleNavItems = hiddenItemIds?.size
+    ? groupFilteredNavItems.filter((item) => !hiddenItemIds.has(item.id))
+    : groupFilteredNavItems;
   const navGroups = visibleNavItems.reduce<Array<{ section: string; items: PrismNavItem[] }>>((groups, item) => {
     const section = item.section ?? "Dashboards";
     const existing = groups.find((group) => group.section === section);
@@ -406,16 +441,23 @@ export function PrismSidebar({
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col bg-card text-foreground">
-      <PrismBrandLogo
-        href={homeHref}
-        title={productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
-        detail={roleLabel}
-        compact={collapsed}
-        className={cn("min-h-16 px-3", collapsed && "justify-center px-2")}
-        markClassName="size-8 bg-transparent ring-0"
-      />
+      {showBrand ? (
+        <PrismBrandLogo
+          href={homeHref}
+          title={productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
+          detail={roleLabel}
+          compact={collapsed}
+          className={cn("min-h-16 px-3", collapsed && "justify-center px-2")}
+          markClassName="size-8 bg-transparent ring-0"
+        />
+      ) : (
+        <div className="min-h-16 border-b border-border px-4 py-4">
+          <p className="truncate text-sm font-black text-foreground">{panelTitle ?? roleLabel}</p>
+          {panelDetail ? <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{panelDetail}</p> : null}
+        </div>
+      )}
 
-      {!collapsed ? (
+      {!collapsed && showBrand ? (
         <div className="px-3 pb-3">
           <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-background/80 px-2.5 text-xs font-semibold text-muted-foreground shadow-sm">
             <Search aria-hidden="true" className="size-3.5 shrink-0" />
@@ -431,29 +473,59 @@ export function PrismSidebar({
             <p className={cn("px-2 pb-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground", collapsed && "sr-only")}>
               {group.section}
             </p>
-            {group.items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                disabled={item.disabled}
-                aria-current={item.id === activeItemId ? "page" : undefined}
-                data-active={item.id === activeItemId}
-                onClick={() => onNavSelect?.(item.id)}
-                title={collapsed ? item.label : undefined}
-                className={cn(
-                  "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground active:bg-secondary disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:font-bold data-[active=true]:text-primary",
-                  collapsed && "justify-center px-0",
-                )}
-              >
-                <item.icon aria-hidden="true" className="size-3.5 shrink-0" />
-                <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{item.label}</span>
-                {item.badge && !collapsed ? (
-                  <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-muted-foreground ring-1 ring-border">
-                    {item.badge}
-                  </span>
-                ) : null}
-              </button>
-            ))}
+            {group.items.map((item) => {
+              const subItemActive = item.subItems?.some((subItem) => subItem.id === activeItemId) ?? false;
+              const itemActive = item.id === activeItemId || subItemActive;
+
+              return (
+                <div key={item.id} className="min-w-0">
+                  <button
+                    type="button"
+                    disabled={item.disabled}
+                    aria-current={item.id === activeItemId ? "page" : undefined}
+                    data-active={itemActive}
+                    onClick={() => onNavSelect?.(item.id)}
+                    title={collapsed ? item.label : undefined}
+                    className={cn(
+                      "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground active:bg-secondary disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:font-bold data-[active=true]:text-primary",
+                      collapsed && "justify-center px-0",
+                    )}
+                  >
+                    <item.icon aria-hidden="true" className="size-3.5 shrink-0" />
+                    <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{item.label}</span>
+                    {item.badge && !collapsed ? (
+                      <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-muted-foreground ring-1 ring-border">
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </button>
+
+                  {item.subItems?.length && !collapsed ? (
+                    <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-border/80 pl-2">
+                      {item.subItems.map((subItem) => (
+                        <button
+                          key={subItem.id}
+                          type="button"
+                          disabled={item.disabled || subItem.disabled}
+                          aria-current={subItem.id === activeItemId ? "page" : undefined}
+                          data-active={subItem.id === activeItemId}
+                          onClick={() => onNavSelect?.(subItem.id)}
+                          className="flex min-h-7 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:font-bold data-[active=true]:text-primary"
+                        >
+                          <span className="size-1.5 shrink-0 rounded-full bg-current opacity-40" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate">{subItem.label}</span>
+                          {subItem.badge ? (
+                            <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-muted-foreground ring-1 ring-border">
+                              {subItem.badge}
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         ))}
 
@@ -560,6 +632,58 @@ function PrismIconRail({
           </span>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function PrismMainSidebar({
+  productLabel = "P.R.I.S.M",
+  roleLabel,
+  items,
+  activeItemId,
+  onNavSelect,
+  homeHref = "/",
+}: {
+  productLabel?: string;
+  roleLabel: string;
+  items: PrismPrimaryNavItem[];
+  activeItemId?: string;
+  onNavSelect?: (id: string) => void;
+  homeHref?: string;
+}) {
+  return (
+    <div className="flex h-full w-[3.75rem] shrink-0 flex-col items-center border-r border-border bg-background px-2 py-3 text-foreground">
+      <PrismBrandLogo
+        href={homeHref}
+        title={productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
+        detail={roleLabel}
+        compact
+        className="min-h-10 justify-center"
+        markClassName="size-8 rounded-lg bg-transparent ring-0"
+      />
+
+      <nav className="mt-5 flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto" aria-label="Main sidebar">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            disabled={item.disabled}
+            data-active={item.id === activeItemId}
+            aria-current={item.id === activeItemId ? "page" : undefined}
+            aria-label={item.label}
+            title={item.label}
+            onClick={() => onNavSelect?.(item.targetId ?? item.id)}
+            className="group relative grid size-9 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:text-primary"
+          >
+            <item.icon aria-hidden="true" className="size-4 shrink-0" />
+            {item.badge ? (
+              <span className="absolute right-1 top-1 grid min-w-3 place-items-center rounded-full bg-primary px-1 text-[8px] font-black leading-3 text-primary-foreground ring-2 ring-background">
+                {Number(item.badge) > 9 ? "9+" : item.badge}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
@@ -723,6 +847,10 @@ export function PrismAppShell({
   activeItemId,
   navItems,
   onNavSelect,
+  primaryNavItems,
+  activePrimaryItemId,
+  nestedSidebarTitle,
+  nestedSidebarDetail,
   user,
   searchPlaceholder,
   commandActions,
@@ -731,6 +859,7 @@ export function PrismAppShell({
   accountMenuItems,
   rightRail,
   mobileActions = [],
+  sidebarMode = "auto",
   children,
   className,
   contentClassName,
@@ -739,10 +868,12 @@ export function PrismAppShell({
 }: PrismAppShellProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [desktopOpen, setDesktopOpen] = React.useState(true);
+  const useSingleSidebar = sidebarMode === "single";
+  const hasStructuredPrimaryNav = !useSingleSidebar && Boolean(primaryNavItems?.length);
   const primaryRail = React.useMemo(() => buildPrimaryRail(navItems, activeItemId), [navItems, activeItemId]);
   const desktopHiddenItemIds = React.useMemo(
     () =>
-      navItems.length > 6
+      !hasStructuredPrimaryNav && navItems.length > 6
         ? new Set(
             Array.from(primaryRail.targetIds).filter(
               (id) =>
@@ -755,7 +886,7 @@ export function PrismAppShell({
             ),
           )
         : new Set<string>(),
-    [navItems.length, primaryRail.targetIds],
+    [hasStructuredPrimaryNav, navItems.length, primaryRail.targetIds],
   );
 
   const handleNavSelect = React.useCallback((id: string) => {
@@ -774,6 +905,10 @@ export function PrismAppShell({
       commandSectionLabel={commandSectionLabel}
       homeHref={homeHref}
       collapsed={collapsed}
+      visibleGroupId={hasStructuredPrimaryNav ? activePrimaryItemId : undefined}
+      showBrand={!hasStructuredPrimaryNav}
+      panelTitle={nestedSidebarTitle}
+      panelDetail={nestedSidebarDetail}
       hiddenItemIds={collapsed || !hidePrimaryRailItems ? undefined : desktopHiddenItemIds}
     />
   );
@@ -783,19 +918,34 @@ export function PrismAppShell({
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-30 hidden overflow-hidden border-r border-border bg-card transition-[width] duration-200 ease-linear md:flex",
-          desktopOpen ? "w-[18rem]" : "w-[3.75rem]",
+          hasStructuredPrimaryNav
+            ? desktopOpen ? "w-[20rem]" : "w-[3.75rem]"
+            : desktopOpen ? "w-[18rem]" : "w-[3.75rem]",
         )}
       >
-        <PrismIconRail
-          productLabel={productLabel}
-          activeItemId={activeItemId}
-          navItems={navItems}
-          onNavSelect={handleNavSelect}
-          homeHref={homeHref}
-          user={user}
-          railItems={primaryRail.items}
-        />
-        {desktopOpen ? (
+        {hasStructuredPrimaryNav ? (
+          <PrismMainSidebar
+            productLabel={productLabel}
+            roleLabel={roleLabel}
+            items={primaryNavItems ?? []}
+            activeItemId={activePrimaryItemId}
+            onNavSelect={handleNavSelect}
+            homeHref={homeHref}
+          />
+        ) : useSingleSidebar ? null : (
+          <PrismIconRail
+            productLabel={productLabel}
+            activeItemId={activeItemId}
+            navItems={navItems}
+            onNavSelect={handleNavSelect}
+            homeHref={homeHref}
+            user={user}
+            railItems={primaryRail.items}
+          />
+        )}
+        {useSingleSidebar ? (
+          renderSidebar(!desktopOpen)
+        ) : desktopOpen ? (
           <div className="min-w-0 flex-1 bg-card">
             {renderSidebar(false, true)}
           </div>
@@ -810,8 +960,29 @@ export function PrismAppShell({
             className="absolute inset-0 bg-black/35"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative h-full w-80 max-w-[86vw] border-r border-primary/15 bg-card shadow-2xl">
-            {renderSidebar(false)}
+          <aside
+            className={cn(
+              "relative h-full border-r border-primary/15 bg-card shadow-2xl",
+              hasStructuredPrimaryNav ? "w-[min(100vw,20rem)]" : "w-80 max-w-[86vw]",
+            )}
+          >
+            {hasStructuredPrimaryNav ? (
+              <div className="flex h-full">
+                <PrismMainSidebar
+                  productLabel={productLabel}
+                  roleLabel={roleLabel}
+                  items={primaryNavItems ?? []}
+                  activeItemId={activePrimaryItemId}
+                  onNavSelect={handleNavSelect}
+                  homeHref={homeHref}
+                />
+                <div className="min-w-0 flex-1">
+                  {renderSidebar(false)}
+                </div>
+              </div>
+            ) : (
+              renderSidebar(false)
+            )}
             <PrismButton
               variant="ghost"
               size="icon"
@@ -828,7 +999,9 @@ export function PrismAppShell({
       <main
         className={cn(
           "min-h-screen transition-[padding-left] duration-200 ease-linear",
-          desktopOpen ? "md:pl-[18rem]" : "md:pl-[3.75rem]",
+          hasStructuredPrimaryNav
+            ? desktopOpen ? "md:pl-[20rem]" : "md:pl-[3.75rem]"
+            : desktopOpen ? "md:pl-[18rem]" : "md:pl-[3.75rem]",
         )}
       >
         <PrismTopBar
