@@ -74,7 +74,6 @@ import {
   SupplierQuotePlanner,
 } from "./components/pmcm";
 import {
-  DefenseControlPanel,
   EventOverviewPanels,
   EventQueuePanel,
   EventWorkflowTabs,
@@ -1281,8 +1280,6 @@ function PmcmPortal({
               openActionCount={openActionCount}
               action={selectedEventActions}
             />
-
-            {defenseReadiness && <DefenseControlPanel defenseReadiness={defenseReadiness} onSelectTab={setTab} />}
 
             <SelectedEventStatusSummary
               drafts={drafts}

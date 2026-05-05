@@ -58,10 +58,7 @@ import {
   SupplierQuotePlanner,
 } from "@/app/components/pmcm";
 import {
-  DefenseControlPanel,
   EventOverviewPanels,
-  EventWorkflowTabs,
-  buildEventWorkflowTabs,
   type PmcmDetailTab,
 } from "@/app/components/pmcm/event-command-cockpit";
 import { PRESETS, type Preset } from "@/app/components/editor/presets";
@@ -84,7 +81,7 @@ type Screen =
   | { name: "portal" }
   | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project };
 type DetailTab = PmcmDetailTab;
-type DashboardSection = "events" | "suppliers" | "audit";
+type DashboardSection = "events" | "inquiries" | "events-list" | "suppliers" | "audit";
 type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: string };
 
 export type EventDashboardClientProps = Partial<RouteState>;
@@ -1171,6 +1168,8 @@ export default function EventDashboard({
     setSection(nextSection);
     if (nextSection === "suppliers") { router.push("/dashboard/suppliers"); return; }
     if (nextSection === "audit") { router.push("/dashboard/audit"); return; }
+    if (nextSection === "inquiries") { router.push("/dashboard/events"); return; }
+    if (nextSection === "events-list") { router.push("/dashboard/events"); return; }
     const targetId = selectedEvent?.id ?? selectedEventId;
     router.push(targetId ? eventRoute(targetId, tab) : "/dashboard/events");
   }
@@ -1179,8 +1178,8 @@ export default function EventDashboard({
     setSidebarActiveOverride(id);
     switch (id) {
       case "command-home": router.push("/dashboard/events"); setSection("events"); return;
-      case "command-inquiries": navigateSection("events", { preserveSidebarActive: true }); return;
-      case "command-events": navigateSection("events", { preserveSidebarActive: true }); return;
+      case "command-inquiries": navigateSection("inquiries", { preserveSidebarActive: true }); return;
+      case "command-events": navigateSection("events-list", { preserveSidebarActive: true }); return;
       case "event-overview": navigateEventTab("overview", { preserveSidebarActive: true }); return;
       case "event-briefing": navigateEventTab("briefing", { preserveSidebarActive: true }); return;
       case "event-floorplans": navigateEventTab("floorplans", { preserveSidebarActive: true }); return;
@@ -1323,19 +1322,14 @@ export default function EventDashboard({
 
   /* Main PMCM portal */
   const openCheckCount = checks.filter((item) => item.status === "open").length;
-  const eventTabItems = buildEventWorkflowTabs({
-    draftsCount: drafts.length,
-    quotesCount: quotes.length,
-    assignmentsCount: assignments.length,
-    paymentsCount: payments.length,
-    openChecksCount: openCheckCount,
-  });
   const openActionCount = defenseReadiness?.nextActions.length ?? pendingApprovals.length + unreviewedInquiries;
   const eventWorkspaceDisabled = !selectedEvent;
 
   const activeSidebarItemId =
     section === "suppliers" ? "supplier-directory"
     : section === "audit" ? "audit-log"
+    : section === "inquiries" ? "command-inquiries"
+    : section === "events-list" ? "command-events"
     : routeState.eventId
       ? ({
           overview: "event-overview",
@@ -1367,8 +1361,10 @@ export default function EventDashboard({
     { id: "audit-log", icon: ShieldCheck, label: "Audit Log", section: "Admin" },
   ];
 
-  /* Section: Home (events list route without a selected event) */
+  /* Section routing flags */
   const isHome = section === "events" && !routeState.eventId;
+  const isEventsList = section === "events-list";
+  const isInquiries = section === "inquiries";
 
   return (
     <PrismDashboardShell
@@ -1377,18 +1373,24 @@ export default function EventDashboard({
       eyebrow={
         section === "suppliers" ? "Supplier directory"
         : section === "audit" ? "Audit log"
+        : isInquiries ? "Inquiries"
+        : isEventsList ? "Events"
         : isHome ? "Command home"
         : "Event workspace"
       }
       title={
         section === "suppliers" ? "Supplier Directory"
         : section === "audit" ? "Audit Trail"
+        : isInquiries ? "Inquiry Intake"
+        : isEventsList ? "All Events"
         : selectedEvent?.eventName ?? "Event Manager"
       }
       description={
         section === "suppliers" ? "Master supplier directory with category tagging, tiering, and performance reviews."
         : section === "audit" ? "Complete audit trail of all actions, approvals, and system events."
-        : isHome ? "Inquiry intake, onboarding, and active event workspaces."
+        : isInquiries ? "Review, accept, pend, or decline incoming event inquiries."
+        : isEventsList ? "Confirmed event workspaces ready for planning and operations."
+        : isHome ? "Active event workspaces, inquiry intake, and client onboarding."
         : selectedEvent ? `${selectedEvent.clientName} — ${selectedEvent.eventDate}`
         : "Select an event or accept an inquiry to begin."
       }
@@ -1421,6 +1423,30 @@ export default function EventDashboard({
           />
         ) : section === "audit" ? (
           <AuditTrailPanel events={events} users={state.users} session={session} />
+        ) : isInquiries ? (
+          <>
+            <InquiryIntakeLog
+              inquiries={state.inquiries}
+              onAccept={(inq) => run("accept inquiry", () => mvpApi.acceptInquiry(inq.id))}
+              onPend={(inq) => run("pend inquiry", () => mvpApi.pendInquiry(inq.id))}
+              onDecline={(inq, reason) => run("decline inquiry", () => mvpApi.declineInquiry(inq.id, reason))}
+              busy={Boolean(busy)}
+            />
+            <ClientOnboardingTracker
+              inquiries={state.inquiries}
+              onUploadConforme={(inq) => run("upload conforme", () => mvpApi.uploadConforme(inq.id))}
+              onSendReminder={(inq) => run("conforme reminder", () => mvpApi.sendConformeReminder(inq.id))}
+              busy={Boolean(busy)}
+            />
+          </>
+        ) : isEventsList ? (
+          <EventQueueCard
+            events={events}
+            selectedEventId={selectedEvent?.id}
+            onSelectEvent={(id) => navigateEvent(id)}
+            onReset={() => run("reset", mvpApi.reset)}
+            onNavigateEvent={(id) => navigateEvent(id, "overview")}
+          />
         ) : isHome ? (
           <>
             <CommandHomePage
@@ -1518,12 +1544,6 @@ export default function EventDashboard({
                   </Button>
                 </div>
               </div>
-
-              {defenseReadiness && (
-                <DefenseControlPanel defenseReadiness={defenseReadiness} onSelectTab={navigateEventTab} />
-              )}
-
-              <EventWorkflowTabs items={eventTabItems} activeTab={tab} onSelectTab={navigateEventTab} />
 
               {tab === "overview" && (
                 <EventOverviewPanels

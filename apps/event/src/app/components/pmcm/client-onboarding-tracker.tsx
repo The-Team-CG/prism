@@ -1,8 +1,24 @@
-import { FileCheck2 } from "lucide-react";
+import { CheckCircle2, Circle, FileCheck2 } from "lucide-react";
 
 import type { MvpInquiry } from "@/lib/mvp-api";
-import { PrismSectionPanel, PrismStatusTimeline } from "@prism/ui";
-import { compactTimestamp, invitationTone, label } from "./helpers";
+import { Button } from "@/app/components/ui/button";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { compactTimestamp, label } from "./helpers";
+
+function TimelineStep({ title, done, meta }: { title: string; done: boolean; meta?: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full ${done ? "bg-(--prism-success) text-white" : "border-2 border-border bg-background text-muted-foreground"}`}>
+        {done ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={`text-xs font-bold ${done ? "text-(--prism-success)" : "text-muted-foreground"}`}>{title}</p>
+        {meta && <p className="mt-0.5 text-[10px] text-muted-foreground">{meta}</p>}
+      </div>
+    </div>
+  );
+}
 
 export function ClientOnboardingTracker({
   inquiries,
@@ -16,98 +32,95 @@ export function ClientOnboardingTracker({
   busy: boolean;
 }) {
   const tracked = inquiries
-    .filter((inquiry) => inquiry.status === "accepted" || Boolean(inquiry.acceptedAt))
+    .filter((inq) => inq.status === "accepted" || Boolean(inq.acceptedAt))
     .sort((a, b) => new Date(b.acceptedAt ?? b.createdAt).getTime() - new Date(a.acceptedAt ?? a.createdAt).getTime());
 
   return (
-    <PrismSectionPanel
-      title="Client unlock path"
-      description="Inquiry acceptance, conforme, invitation, and briefing state"
-      icon={FileCheck2}
-    >
-      <div className="divide-y divide-border">
-        {tracked.map((inquiry) => {
-          const timeline = [
-            {
-              id: `${inquiry.id}-accepted`,
-              title: "Inquiry accepted",
-              status: inquiry.acceptedAt ? "completed" : "pending",
-              meta: compactTimestamp(inquiry.acceptedAt),
-            },
-            {
-              id: `${inquiry.id}-sent`,
-              title: "Conforme sent",
-              status: inquiry.conformeSentAt ? "completed" : "pending",
-              meta: compactTimestamp(inquiry.conformeSentAt),
-            },
-            {
-              id: `${inquiry.id}-signed`,
-              title: "Conforme signed",
-              status: inquiry.conformeSignedAt ? "completed" : "pending",
-              meta: compactTimestamp(inquiry.conformeSignedAt),
-            },
-            {
-              id: `${inquiry.id}-portal`,
-              title: "Portal activated",
-              status: inquiry.portalActivatedAt ? "completed" : "pending",
-              meta: compactTimestamp(inquiry.portalActivatedAt),
-            },
-          ];
-
-          return (
-            <article key={inquiry.id} className="py-4 first:pt-0 last:pb-0">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-black text-foreground">{inquiry.eventName}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {inquiry.clientName} - follow up every {inquiry.followUpIntervalDays ?? 3} days
-                  </p>
-                </div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1 ${invitationTone(inquiry.portalInvitationStatus)}`}>
-                  Invitation {label(inquiry.portalInvitationStatus ?? "not_sent")}
-                </span>
-              </div>
-
-              <div className="mt-4">
-                <PrismStatusTimeline items={timeline} />
-              </div>
-
-              {!inquiry.conformeSignedAt ? (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-l border-primary/20 bg-background/70 px-3 py-2.5">
-                  <p className="text-sm text-muted-foreground">
-                    {inquiry.reminderDueAt
-                      ? `Next reminder due: ${compactTimestamp(inquiry.reminderDueAt)}`
-                      : "Reminder schedule starts after conforme is sent."}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {inquiry.reminderDue && inquiry.conformeSentAt ? (
-                      <button
-                        disabled={busy}
-                        onClick={() => onSendReminder(inquiry)}
-                        className="h-9 rounded-md border border-(--prism-amber)/25 bg-(--prism-amber)/10 px-3 text-xs font-black text-(--prism-amber) disabled:opacity-60"
-                      >
-                        Send reminder
-                      </button>
-                    ) : null}
-                    <button
-                      disabled={busy}
-                      onClick={() => onUploadConforme(inquiry)}
-                      className="h-9 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60"
-                    >
-                      Upload signed conforme
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </article>
-          );
-        })}
-        {tracked.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-muted p-8 text-center text-sm text-muted-foreground">
-            Accepted inquiries will appear here after PMCM begins onboarding.
-          </div>
-        ) : null}
+    <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-6 py-4">
+        <div className="flex items-center gap-2">
+          <FileCheck2 className="size-4 text-(--prism-signal)" />
+          <h2 className="text-sm font-bold text-foreground">Client unlock path</h2>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Inquiry acceptance, conforme, invitation, and briefing state.
+        </p>
       </div>
-    </PrismSectionPanel>
+
+      {tracked.length === 0 ? (
+        <div className="px-6 py-8">
+          <EmptyState
+            icon={FileCheck2}
+            title="No onboarding in progress"
+            description="Accepted inquiries will appear here after PMCM begins onboarding."
+          />
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {tracked.map((inq) => {
+            const steps = [
+              { title: "Inquiry accepted", done: Boolean(inq.acceptedAt), meta: compactTimestamp(inq.acceptedAt) },
+              { title: "Conforme sent", done: Boolean(inq.conformeSentAt), meta: compactTimestamp(inq.conformeSentAt) },
+              { title: "Conforme signed", done: Boolean(inq.conformeSignedAt), meta: compactTimestamp(inq.conformeSignedAt) },
+              { title: "Portal activated", done: Boolean(inq.portalActivatedAt), meta: compactTimestamp(inq.portalActivatedAt) },
+            ];
+
+            return (
+              <div key={inq.id} className="px-6 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground">{inq.eventName}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {inq.clientName} — follow up every {inq.followUpIntervalDays ?? 3} days
+                    </p>
+                  </div>
+                  <StatusBadge
+                    status={inq.portalInvitationStatus ?? "pending"}
+                    label={`Invitation ${label(inq.portalInvitationStatus ?? "not_sent")}`}
+                  />
+                </div>
+
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  {steps.map((step) => (
+                    <TimelineStep key={step.title} title={step.title} done={step.done} meta={step.meta} />
+                  ))}
+                </div>
+
+                {!inq.conformeSignedAt && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-(--prism-amber)/20 bg-(--prism-amber)/5 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">
+                      {inq.reminderDueAt
+                        ? `Next reminder due: ${compactTimestamp(inq.reminderDueAt)}`
+                        : "Reminder schedule starts after conforme is sent."}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {inq.reminderDue && inq.conformeSentAt && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => onSendReminder(inq)}
+                          className="rounded-lg border-(--prism-amber)/25 font-bold text-(--prism-amber) hover:bg-(--prism-amber)/8"
+                        >
+                          Send reminder
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => onUploadConforme(inq)}
+                        className="rounded-lg font-bold"
+                      >
+                        Upload signed conforme
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

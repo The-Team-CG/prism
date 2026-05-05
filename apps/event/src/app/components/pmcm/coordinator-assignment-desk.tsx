@@ -10,8 +10,21 @@ import type {
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
-import { cx, dateKey } from "./helpers";
-import { Panel } from "./primitives";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { dateKey } from "./helpers";
+
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>;
+}
+function CardHeader({ children }: { children: React.ReactNode }) {
+  return <div className="border-b border-border px-6 py-4">{children}</div>;
+}
+function CardBody({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`px-6 py-5 ${className}`}>{children}</div>;
+}
+function SectionAccent({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>;
+}
 
 export function CoordinatorAssignmentDesk({
   event,
@@ -38,53 +51,58 @@ export function CoordinatorAssignmentDesk({
   } | null>(null);
 
   const eventDate = dateKey(event.eventDate);
-  const eventAssignments = assignments.filter((assignment) => assignment.eventId === event.id);
+  const eventAssignments = assignments.filter((a) => a.eventId === event.id);
+
   const roleOptions = useMemo(
     () =>
       Array.from(
         new Set([
-          ...roleRequirements.map((item) => item.role),
-          ...coordinators.flatMap((coordinator) => coordinator.roleTags),
+          ...roleRequirements.map((r) => r.role),
+          ...coordinators.flatMap((c) => c.roleTags),
         ]),
       ).sort((a, b) => a.localeCompare(b)),
     [coordinators, roleRequirements],
   );
+
   const skillOptions = useMemo(
     () =>
-      Array.from(new Set(coordinators.flatMap((coordinator) => coordinator.skillsTags))).sort((a, b) =>
+      Array.from(new Set(coordinators.flatMap((c) => c.skillsTags))).sort((a, b) =>
         a.localeCompare(b),
       ),
     [coordinators],
   );
+
   const assignmentCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    eventAssignments.forEach((assignment) => {
-      counts.set(assignment.role, (counts.get(assignment.role) ?? 0) + 1);
+    eventAssignments.forEach((a) => {
+      counts.set(a.role, (counts.get(a.role) ?? 0) + 1);
     });
     return counts;
   }, [eventAssignments]);
 
   function conflictFor(coordinator: MvpCoordinator) {
     return assignments.find(
-      (assignment) =>
-        assignment.coordinatorId === coordinator.id &&
-        assignment.eventId !== event.id &&
-        dateKey(assignment.eventDate) === eventDate,
+      (a) =>
+        a.coordinatorId === coordinator.id &&
+        a.eventId !== event.id &&
+        dateKey(a.eventDate) === eventDate,
     );
   }
 
   function toggleSkill(skill: string) {
-    setSelectedSkills((current) =>
-      current.includes(skill) ? current.filter((item) => item !== skill) : [...current, skill],
+    setSelectedSkills((prev) =>
+      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
     );
   }
 
-  const filteredCoordinators = coordinators.filter((coordinator) => {
-    const roleMatch = roleFilter === "all" || coordinator.roleTags.includes(roleFilter);
-    const skillMatch = selectedSkills.every((skill) => coordinator.skillsTags.includes(skill));
-    const availabilityMatch = !onlyAvailable || !conflictFor(coordinator);
-    return coordinator.active && roleMatch && skillMatch && availabilityMatch;
+  const filteredCoordinators = coordinators.filter((c) => {
+    if (!c.active) return false;
+    if (roleFilter !== "all" && !c.roleTags.includes(roleFilter)) return false;
+    if (!selectedSkills.every((s) => c.skillsTags.includes(s))) return false;
+    if (onlyAvailable && conflictFor(c)) return false;
+    return true;
   });
+
   const groupedRoles = roleFilter === "all" ? roleOptions : [roleFilter];
 
   async function assign(coordinator: MvpCoordinator, role: string) {
@@ -98,160 +116,192 @@ export function CoordinatorAssignmentDesk({
 
   return (
     <div className="space-y-5">
-      <Panel title="Staffing summary" icon={UsersRound}>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {roleRequirements.map((item) => {
-            const assigned = assignmentCounts.get(item.role) ?? 0;
-            const complete = assigned >= item.required;
-            return (
-              <div key={item.role} className="rounded-md border border-border bg-background p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-black">{item.role}</p>
-                  <span className={cx("rounded-full px-2 py-0.5 text-xs font-black ring-1", complete ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-amber-50 text-amber-800 ring-amber-100")}>
-                    {assigned}/{item.required}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {complete ? "Covered for this event." : "Still needs staffing."}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </Panel>
+      {/* Staffing summary */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <UsersRound className="size-4 text-(--prism-signal)" />
+            <h2 className="text-sm font-bold text-foreground">Staffing summary</h2>
+          </div>
+        </CardHeader>
+        <CardBody>
+          {roleRequirements.length === 0 ? (
+            <EmptyState icon={UsersRound} title="No role requirements" description="Add role requirements to start tracking staffing coverage." />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {roleRequirements.map((req) => {
+                const assigned = assignmentCounts.get(req.role) ?? 0;
+                const complete = assigned >= req.required;
+                return (
+                  <div key={req.role} className="rounded-xl border border-border bg-muted/30 p-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-foreground">{req.role}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${complete ? "bg-(--prism-success)/10 text-(--prism-success)" : "bg-(--prism-amber)/10 text-(--prism-amber)"}`}>
+                        {assigned}/{req.required}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {complete ? "Covered for this event." : "Still needs staffing."}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
-      <Panel title="Coordinator assignment" icon={UserCheck}>
-        <div className="grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)]">
-          <div className="space-y-3 rounded-md border border-border bg-background p-3">
-            <label className="block text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-              Role
-              <select
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm font-semibold normal-case tracking-normal text-foreground"
-              >
-                <option value="all">All roles</option>
-                {roleOptions.map((role) => (
-                  <option key={role} value={role}>{role}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-2 rounded-md bg-white p-2 text-sm font-semibold">
-              <input
-                type="checkbox"
-                checked={onlyAvailable}
-                onChange={(event) => setOnlyAvailable(event.target.checked)}
-              />
-              Available only
-            </label>
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Skills</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {skillOptions.map((skill) => (
-                  <button
-                    key={skill}
-                    onClick={() => toggleSkill(skill)}
-                    className={cx(
-                      "rounded-full px-2.5 py-1 text-xs font-black ring-1",
-                      selectedSkills.includes(skill)
-                        ? "bg-(--prism-ink) text-sidebar-foreground ring-transparent"
-                        : "bg-white text-muted-foreground ring-border",
-                    )}
-                  >
-                    {skill}
-                  </button>
-                ))}
+      {/* Coordinator assignment */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <UserCheck className="size-4 text-(--prism-signal)" />
+            <h2 className="text-sm font-bold text-foreground">Coordinator assignment</h2>
+          </div>
+        </CardHeader>
+        <CardBody>
+          <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
+            {/* Filters */}
+            <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Role</p>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="mt-2 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                >
+                  <option value="all">All roles</option>
+                  {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <label className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-semibold text-foreground">
+                <input
+                  type="checkbox"
+                  checked={onlyAvailable}
+                  onChange={(e) => setOnlyAvailable(e.target.checked)}
+                  className="size-4 rounded"
+                />
+                Available only
+              </label>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Skills</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {skillOptions.map((skill) => (
+                    <button
+                      key={skill}
+                      type="button"
+                      onClick={() => toggleSkill(skill)}
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold transition ${
+                        selectedSkills.includes(skill)
+                          ? "bg-(--prism-signal) text-white"
+                          : "border border-border bg-background text-muted-foreground hover:border-(--prism-signal)/40"
+                      }`}
+                    >
+                      {skill}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
-            {groupedRoles.map((role) => {
-              const roleCoordinators = filteredCoordinators.filter((coordinator) =>
-                coordinator.roleTags.includes(role),
-              );
-              if (roleCoordinators.length === 0) return null;
-              return (
-                <section key={role} className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <h4 className="text-sm font-black uppercase tracking-[0.14em] text-muted-foreground">{role}</h4>
-                    <span className="text-xs font-semibold text-muted-foreground">{roleCoordinators.length} available match{roleCoordinators.length === 1 ? "" : "es"}</span>
-                  </div>
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    {roleCoordinators.map((coordinator) => {
-                      const conflict = conflictFor(coordinator);
-                      const assignedHere = eventAssignments.some(
-                        (assignment) => assignment.coordinatorId === coordinator.id && assignment.role === role,
-                      );
-                      return (
-                        <article key={`${role}-${coordinator.id}`} className="rounded-lg border border-border bg-muted p-4">
-                          <div className="flex items-start gap-3">
-                            <Avatar className="size-11 border border-primary/10">
-                              <AvatarFallback className="bg-white text-xs font-black text-foreground">
-                                {coordinator.name.slice(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="font-black">{coordinator.name}</p>
-                                <Badge variant="outline" className={cx("rounded-full px-2 py-0.5 text-[11px] font-black", conflict ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-700")}>
-                                  {conflict ? "Has conflict" : "Available"}
-                                </Badge>
+            {/* Coordinator list */}
+            <div className="space-y-5">
+              {filteredCoordinators.length === 0 ? (
+                <EmptyState icon={UserCheck} title="No coordinators match" description="Adjust role, skill, and availability filters to see more coordinators." />
+              ) : (
+                groupedRoles.map((role) => {
+                  const roleCoords = filteredCoordinators.filter((c) => c.roleTags.includes(role));
+                  if (roleCoords.length === 0) return null;
+                  return (
+                    <div key={role}>
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{role}</p>
+                        <span className="text-xs text-muted-foreground">{roleCoords.length} match{roleCoords.length === 1 ? "" : "es"}</span>
+                      </div>
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        {roleCoords.map((coord) => {
+                          const conflict = conflictFor(coord);
+                          const assignedHere = eventAssignments.some(
+                            (a) => a.coordinatorId === coord.id && a.role === role,
+                          );
+                          return (
+                            <div key={`${role}-${coord.id}`} className="rounded-2xl border border-border bg-muted/30 p-4">
+                              <div className="flex items-start gap-3">
+                                <Avatar className="size-10 border border-border">
+                                  <AvatarFallback className="bg-card text-xs font-bold text-foreground">
+                                    {coord.name.slice(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-sm font-bold text-foreground">{coord.name}</p>
+                                    <Badge
+                                      variant="outline"
+                                      className={`rounded-full text-[10px] font-bold ${conflict ? "border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)" : "border-(--prism-success)/25 bg-(--prism-success)/8 text-(--prism-success)"}`}
+                                    >
+                                      {conflict ? "Has conflict" : "Available"}
+                                    </Badge>
+                                  </div>
+                                  <p className="mt-0.5 text-xs text-muted-foreground">{coord.email}</p>
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {coord.roleTags.map((tag) => (
+                                      <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-foreground">{tag}</span>
+                                    ))}
+                                  </div>
+                                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                    {coord.skillsTags.map((tag) => (
+                                      <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{tag}</span>
+                                    ))}
+                                  </div>
+                                  {conflict && (
+                                    <p className="mt-2 text-xs font-semibold text-(--prism-amber)">
+                                      Assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
+                                    </p>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    disabled={busy || assignedHere}
+                                    onClick={() => assign(coord, role)}
+                                    className="mt-3 rounded-xl font-bold"
+                                    variant={assignedHere ? "outline" : "default"}
+                                  >
+                                    <UserCheck className="size-3.5" />
+                                    {assignedHere ? "Assigned" : conflict ? "Review conflict" : "Quick assign"}
+                                  </Button>
+                                </div>
                               </div>
-                              <p className="mt-1 text-xs text-muted-foreground">{coordinator.email}</p>
-                              <div className="mt-3 flex flex-wrap gap-1.5">
-                                {coordinator.roleTags.map((tag) => (
-                                  <span key={tag} className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-foreground">{tag}</span>
-                                ))}
-                              </div>
-                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                {coordinator.skillsTags.map((tag) => (
-                                  <span key={tag} className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-muted-foreground">{tag}</span>
-                                ))}
-                              </div>
-                              {conflict && (
-                                <p className="mt-3 text-xs font-semibold text-amber-800">
-                                  Already assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
-                                </p>
-                              )}
-                              <Button
-                                disabled={busy || assignedHere}
-                                onClick={() => assign(coordinator, role)}
-                                className="mt-4 h-9 rounded-md text-xs font-black"
-                              >
-                                <UserCheck className="size-4" /> {assignedHere ? "Assigned" : conflict ? "Review conflict" : "Quick assign"}
-                              </Button>
                             </div>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
-            {filteredCoordinators.length === 0 && (
-              <div className="rounded-lg border border-dashed border-border bg-muted p-8 text-center text-sm text-muted-foreground">
-                No coordinators match the active role, skill, and availability filters.
-              </div>
-            )}
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
-      </Panel>
+        </CardBody>
+      </Card>
 
+      {/* Conflict modal */}
       {pendingConflict && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-2xl">
-            <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-800">Double-booking warning</Badge>
-            <h3 className="mt-4 text-xl font-black text-foreground">Confirm coordinator assignment</h3>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              {pendingConflict.coordinator.name} is already assigned to {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Are you sure you want to assign them?
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <Badge variant="outline" className="rounded-full border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)">
+              Double-booking warning
+            </Badge>
+            <h3 className="mt-4 text-base font-bold text-foreground">Confirm coordinator assignment</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {pendingConflict.coordinator.name} is already assigned to{" "}
+              {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Are you sure you want to assign them?
             </p>
             <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" className="rounded-md" onClick={() => setPendingConflict(null)}>Cancel</Button>
+              <Button variant="outline" className="rounded-xl font-bold" onClick={() => setPendingConflict(null)}>
+                Cancel
+              </Button>
               <Button
                 disabled={busy}
-                className="rounded-md font-black"
+                className="rounded-xl font-bold"
                 onClick={async () => {
                   const next = pendingConflict;
                   setPendingConflict(null);
