@@ -7,7 +7,6 @@ import {
   Check,
   CheckCircle2,
   ChevronLeft,
-  Flower2,
   LockKeyhole,
   MessageSquareText,
   Send,
@@ -17,6 +16,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PrismBrandLogo } from "@prism/ui";
 import { mvpApi, type CreateMvpInquiryInput } from "@/lib/mvp-api";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
@@ -106,15 +106,7 @@ const compactFieldGroupClass =
 
 function BrandMark() {
   return (
-    <a href="/" className="flex items-center gap-4 no-underline" aria-label="PMCM P.R.I.S.M home">
-      <span className="grid place-items-center">
-        <Flower2 className="size-11 fill-primary text-primary" strokeWidth={1.8} />
-      </span>
-      <span>
-        <span className="block text-3xl font-black leading-none tracking-normal text-(--prism-ink)">PMCM</span>
-        <span className="mt-1 block text-xs font-black uppercase tracking-[0.46em] text-muted-foreground">P.R.I.S.M</span>
-      </span>
-    </a>
+    <PrismBrandLogo href="/" detail="Client Inquiry" markClassName="size-12 bg-transparent ring-0" />
   );
 }
 

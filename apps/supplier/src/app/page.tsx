@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
-  Flower2,
   LayoutGrid,
   LockKeyhole,
   MessageSquareText,
@@ -21,23 +20,11 @@ import {
   Truck,
   UserRound,
 } from "lucide-react";
+import { PrismBrandLogo } from "@prism/ui";
 
 function BrandMark() {
   return (
-    <a href="/" className="flex min-w-0 items-center gap-4 no-underline">
-      <span className="flex items-center gap-3">
-        <Flower2 className="size-11 fill-primary text-primary" strokeWidth={1.8} />
-        <span>
-          <span className="block text-3xl font-black leading-none tracking-normal text-(--prism-ink)">PMCM</span>
-          <span className="mt-1 block text-xs font-black uppercase tracking-[0.42em] text-muted-foreground">P.R.I.S.M</span>
-        </span>
-      </span>
-      <span className="hidden h-9 w-px bg-border sm:block" />
-      <span className="min-w-0">
-        <span className="block text-[11px] font-black uppercase tracking-[0.26em] text-primary">Supplier</span>
-        <span className="block text-[11px] font-black uppercase tracking-[0.26em] text-primary">Portal</span>
-      </span>
-    </a>
+    <PrismBrandLogo href="/" detail="Supplier Portal" markClassName="size-12 bg-transparent ring-0" />
   );
 }
 

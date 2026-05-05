@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Bell, PanelLeft, Search, X } from "lucide-react";
 import * as React from "react";
+import { PrismBrandLogo } from "./brand";
 import { PrismBadge, PrismButton } from "./primitives";
 import { cn } from "./utils";
 
@@ -110,26 +111,14 @@ export function PrismSidebar({
 
   return (
     <div className="flex h-full min-w-0 flex-col bg-card text-foreground">
-      <a
+      <PrismBrandLogo
         href={homeHref}
-        className={cn(
-          "flex min-h-16 items-center gap-2.5 px-4 text-foreground no-underline",
-          collapsed && "justify-center px-2",
-        )}
-        title={collapsed ? productLabel : undefined}
-      >
-        <span className="grid size-8 place-items-center rounded-md bg-primary text-xs font-black text-primary-foreground shadow-sm shadow-primary/15">
-          P
-        </span>
-        <span className={cn("min-w-0", collapsed && "sr-only")}>
-          <span className="block truncate text-sm font-black leading-4 text-foreground">
-            {productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
-          </span>
-          <span className="block truncate text-[11px] font-semibold leading-4 text-muted-foreground">
-            {roleLabel}
-          </span>
-        </span>
-      </a>
+        title={productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
+        detail={roleLabel}
+        compact={collapsed}
+        className={cn("min-h-16 px-4", collapsed && "justify-center px-2")}
+        markClassName="size-9 bg-transparent ring-0"
+      />
 
       <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-1">
         {navGroups.map((group, groupIndex) => (

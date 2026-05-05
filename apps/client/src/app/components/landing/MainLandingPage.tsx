@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
-  Flower2,
   Gauge,
   LockKeyhole,
   Mail,
@@ -36,6 +35,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
 } from "../ui/navigation-menu";
+import { PrismBrandLogo } from "@prism/ui";
 import { PrismLifecycleStrip, PrismPublicRoleGrid } from "@prism/ui/public-blocks";
 
 const lifecycleSteps = [
@@ -124,13 +124,11 @@ const comparison = [
 
 function BrandMark({ tone = "dark" }: { tone?: "dark" | "light" }) {
   return (
-    <div className="flex items-center gap-3">
-      <Flower2 className={tone === "dark" ? "size-11 fill-primary text-primary" : "size-11 fill-primary text-primary"} strokeWidth={1.8} />
-      <div>
-        <p className={tone === "dark" ? "text-3xl font-black leading-none tracking-normal text-(--prism-ink)" : "text-3xl font-black leading-none tracking-normal text-sidebar-foreground"}>PMCM</p>
-        <p className={tone === "dark" ? "mt-1 text-xs font-black uppercase tracking-[0.42em] text-muted-foreground" : "mt-1 text-xs font-black uppercase tracking-[0.42em] text-sidebar-foreground/75"}>P.R.I.S.M</p>
-      </div>
-    </div>
+    <PrismBrandLogo
+      detail="Client Portal"
+      dark={tone === "light"}
+      markClassName="size-12 bg-transparent ring-0"
+    />
   );
 }
 

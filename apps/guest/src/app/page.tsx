@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   DoorOpen,
-  Flower2,
   HelpCircle,
   LockKeyhole,
   MessageCircleHeart,
@@ -18,21 +17,11 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { PrismBrandLogo } from "@prism/ui";
 
 function BrandMark() {
   return (
-    <a href="/" className="flex min-w-0 items-center gap-3 no-underline">
-      <span className="flex items-center gap-3">
-        <Flower2 className="size-11 fill-primary text-primary" strokeWidth={1.8} />
-        <span>
-          <span className="block text-3xl font-black leading-none tracking-normal text-(--prism-ink)">PMCM</span>
-          <span className="mt-1 block text-xs font-black uppercase tracking-[0.42em] text-muted-foreground">P.R.I.S.M</span>
-        </span>
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm text-muted-foreground">Guest Portal</span>
-      </span>
-    </a>
+    <PrismBrandLogo href="/" detail="Guest Portal" markClassName="size-12 bg-transparent ring-0" />
   );
 }
 

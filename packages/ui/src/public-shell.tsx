@@ -2,6 +2,7 @@
 
 import type * as React from "react";
 import { ArrowRight, type LucideIcon } from "lucide-react";
+import { PrismBrandLogo } from "./brand";
 import { PrismBadge } from "./primitives";
 import { cn } from "./utils";
 
@@ -35,15 +36,7 @@ export function PrismPublicShell({
         <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] [background-size:38px_38px]" />
         <div className="relative mx-auto grid min-h-[calc(100vh-3rem)] max-w-[1180px] grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,0.95fr)_420px]">
           <div className="max-w-3xl">
-            <a href="/" className="mb-10 inline-flex items-center gap-3 no-underline">
-              <span className="flex h-12 w-36 items-center justify-center rounded-md border border-primary/12 bg-white px-3 shadow-sm">
-                <img src="/pmcm-logo.png" alt="PMCM logo" className="h-9 w-full object-contain" />
-              </span>
-              <span>
-                <span className="block text-xs font-black uppercase tracking-[0.24em] text-foreground">P.R.I.S.M</span>
-                <span className="block text-sm text-muted-foreground">{productDetail}</span>
-              </span>
-            </a>
+            <PrismBrandLogo href="/" detail={productDetail} className="mb-10" markClassName="size-12 bg-transparent ring-0" />
 
             {badgeText ? (
               <PrismBadge variant="warning" className="mb-6 px-4 py-2 uppercase tracking-[0.16em]">
@@ -144,15 +137,12 @@ export function PrismMarketingShell({
               ? "border-white/10 bg-white/8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]"
               : "border-primary/12 bg-card/84 shadow-[0_18px_60px_rgba(23,18,22,0.08)]",
           )}>
-            <a href="/" className="flex min-w-0 items-center gap-3 no-underline">
-              <span className="flex h-12 w-36 shrink-0 items-center justify-center rounded-md border border-primary/12 bg-white px-3 shadow-sm">
-                <img src="/pmcm-logo.png" alt="PMCM logo" className="h-9 w-full object-contain" />
-              </span>
-              <span className="min-w-0">
-                <span className={cn("block text-xs font-black uppercase tracking-[0.24em]", dark ? "text-sidebar-foreground" : "text-foreground")}>P.R.I.S.M</span>
-                <span className={cn("block truncate text-sm", dark ? "text-sidebar-foreground/70" : "text-muted-foreground")}>{productDetail}</span>
-              </span>
-            </a>
+            <PrismBrandLogo
+              href="/"
+              detail={productDetail}
+              dark={dark}
+              markClassName="size-12 bg-transparent ring-0"
+            />
 
             {navItems.length > 0 ? (
               <nav className="hidden items-center gap-1 lg:flex" aria-label="Landing page sections">

@@ -12,7 +12,6 @@ import {
   Clock3,
   Filter,
   FileCheck2,
-  Flower2,
   KeyRound,
   LayoutGrid,
   ListFilter,
@@ -51,6 +50,7 @@ import {
   type MvpUser,
 } from "@/lib/mvp-api";
 import {
+  PrismBrandLogo,
   PrismDashboardShell,
   PrismSectionPanel,
 } from "@prism/ui";
@@ -189,15 +189,7 @@ function Brand({ session, onSignOut }: { session?: EventSession | null; onSignOu
   return (
     <header className="border-b border-border bg-card/92 px-5 py-3.5 backdrop-blur sm:px-8">
       <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
-        <a href="http://localhost:3001" className="flex items-center gap-3">
-          <span className="flex h-10 w-28 items-center justify-center rounded-lg border border-border bg-white px-2.5 shadow-sm">
-            <img src="/pmcm-logo.png" alt="PMCM logo" className="h-7 w-full object-contain" />
-          </span>
-          <span>
-            <span className="block text-xs font-black uppercase tracking-[0.22em] text-foreground">P.R.I.S.M</span>
-            <span className="block text-xs text-muted-foreground">Event Command</span>
-          </span>
-        </a>
+        <PrismBrandLogo href="http://localhost:3001" detail="Event Command" markClassName="bg-transparent ring-0" />
         <div className="flex items-center gap-2">
           {session && (
             <span className="hidden rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-bold text-foreground sm:inline-flex">
@@ -225,19 +217,7 @@ function Panel({ title, icon: Icon, children, aside }: { title: string; icon: Lu
 
 function PublicBrand({ label }: { label?: string }) {
   return (
-    <a href="/" className="flex min-w-0 items-center gap-3 no-underline">
-      <Flower2 className="size-11 shrink-0 fill-primary text-primary" strokeWidth={1.8} />
-      <span className="min-w-0">
-        <span className="block text-3xl font-black leading-none tracking-normal text-(--prism-ink)">PMCM</span>
-        <span className="mt-1 block text-xs font-black uppercase tracking-[0.42em] text-muted-foreground">P.R.I.S.M</span>
-      </span>
-      {label && (
-        <>
-          <span className="mx-2 hidden h-10 w-px bg-border sm:block" />
-          <span className="hidden text-[11px] font-black uppercase tracking-[0.22em] text-primary sm:block">{label}</span>
-        </>
-      )}
-    </a>
+    <PrismBrandLogo href="/" detail={label ?? "Event Command"} markClassName="size-12 bg-transparent ring-0" />
   );
 }
 

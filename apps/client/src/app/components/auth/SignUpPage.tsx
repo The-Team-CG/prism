@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { FormEvent, useState } from "react";
 import {
   ArrowRight,
@@ -14,6 +13,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PrismBrandLogo } from "@prism/ui";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 
@@ -62,21 +62,12 @@ export function SignUpPage() {
     <main className="min-h-screen bg-[#f6f6f6]">
       <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
         <section className="mx-auto mt-6 w-full max-w-lg sm:mt-8">
-          {/* Logo + title */}
-          <div className="flex flex-col items-center text-center">
-            <Image
-              src="/pmcm-logo.png"
-              alt="PMCM Events"
-              width={96}
-              height={96}
-              className="h-20 w-20 object-contain sm:h-24 sm:w-24"
+          <div className="flex justify-center">
+            <PrismBrandLogo
+              detail="Client Portal"
+              className="justify-center"
+              markClassName="size-16 bg-transparent ring-0 sm:size-20"
             />
-            <h1 className="mt-2 text-[40px] font-black leading-10 text-[#171216] sm:text-[36px] sm:leading-9">
-              P.R.I.S.M
-            </h1>
-            <p className="mt-1 text-lg leading-7 text-[#888888] sm:text-base sm:leading-6">
-              Client Portal
-            </p>
           </div>
 
           {/* Card */}
