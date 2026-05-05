@@ -113,12 +113,12 @@ export function PrismSidebar({
       <a
         href={homeHref}
         className={cn(
-          "flex min-h-16 items-center gap-2.5 px-3 text-foreground no-underline",
+          "flex min-h-16 items-center gap-2.5 px-4 text-foreground no-underline",
           collapsed && "justify-center px-2",
         )}
         title={collapsed ? productLabel : undefined}
       >
-        <span className="grid size-8 place-items-center rounded-md bg-foreground text-xs font-black text-background shadow-sm">
+        <span className="grid size-8 place-items-center rounded-md bg-primary text-xs font-black text-primary-foreground shadow-sm shadow-primary/15">
           P
         </span>
         <span className={cn("min-w-0", collapsed && "sr-only")}>
@@ -131,10 +131,10 @@ export function PrismSidebar({
         </span>
       </a>
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-3 pt-1">
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-1">
         {navGroups.map((group, groupIndex) => (
-          <div key={group.section} className={cn("flex flex-col gap-1", groupIndex > 0 && "mt-5")}>
-            <p className={cn("px-2 pb-1.5 text-[11px] font-black uppercase text-muted-foreground", collapsed && "sr-only")}>
+          <div key={group.section} className={cn("flex flex-col gap-1.5", groupIndex > 0 && "mt-6")}>
+            <p className={cn("px-1.5 pb-1 text-[11px] font-black uppercase text-primary", collapsed && "sr-only")}>
               {group.section}
             </p>
             {group.items.map((item) => (
@@ -147,7 +147,7 @@ export function PrismSidebar({
                 onClick={() => onNavSelect?.(item.id)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-foreground data-[active=true]:font-bold data-[active=true]:text-background",
+                  "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-primary/8 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:font-bold data-[active=true]:text-primary-foreground",
                   collapsed && "justify-center px-0",
                 )}
               >
@@ -164,8 +164,8 @@ export function PrismSidebar({
         ))}
 
         {commandActions.length && !collapsed ? (
-          <div className="mt-5 flex flex-col gap-1">
-            <p className="px-2 pb-1.5 text-[11px] font-black uppercase text-muted-foreground">
+          <div className="mt-6 flex flex-col gap-1.5">
+            <p className="px-1.5 pb-1 text-[11px] font-black uppercase text-primary">
               {commandSectionLabel}
             </p>
             {commandActions.slice(0, 5).map((action) => (
@@ -173,7 +173,7 @@ export function PrismSidebar({
                 key={action.id}
                 type="button"
                 onClick={action.onSelect}
-                className="group flex min-h-8 items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                className="group flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-primary/8 hover:text-primary"
               >
                 {action.icon ? <action.icon aria-hidden="true" className="size-3.5 shrink-0" /> : null}
                 <span className="min-w-0 flex-1">
@@ -291,7 +291,7 @@ export function MobileActionDock({ actions }: { actions: PrismMobileAction[] }) 
             disabled={action.disabled}
             data-active={action.active}
             onClick={action.onSelect}
-            className="flex h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-45 data-[active=true]:bg-foreground data-[active=true]:text-background"
+            className="flex h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-bold text-muted-foreground transition hover:bg-primary/8 hover:text-primary disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
           >
             <action.icon aria-hidden="true" className="size-5" />
             <span>{action.label}</span>
@@ -393,7 +393,7 @@ export function PrismAppShell({
     <div className={cn("min-h-screen bg-background text-foreground", className)}>
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden border-r border-border bg-card transition-[width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 left-0 z-30 hidden border-r border-primary/15 bg-card transition-[width] duration-200 ease-linear md:flex",
           desktopOpen ? "w-64" : "w-16",
         )}
       >
@@ -408,15 +408,15 @@ export function PrismAppShell({
             className="absolute inset-0 bg-black/35"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative h-full w-80 max-w-[86vw] border-r border-border bg-card shadow-2xl">
+          <aside className="relative h-full w-80 max-w-[86vw] border-r border-primary/15 bg-card shadow-2xl">
             {renderSidebar(false)}
             <PrismButton
               variant="ghost"
               size="icon"
               className="absolute right-3 top-3 text-foreground"
-              onClick={() => setMobileOpen(false)}
-              aria-label="Close navigation"
-            >
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation"
+          >
               <X aria-hidden="true" />
             </PrismButton>
           </aside>

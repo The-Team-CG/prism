@@ -122,7 +122,7 @@ function SectionPanel({
             <Icon className="size-4" />
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-black tracking-tight text-foreground">{title}</h3>
+            <h3 className="text-sm font-black tracking-normal text-foreground">{title}</h3>
             {description ? (
               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p>
             ) : null}

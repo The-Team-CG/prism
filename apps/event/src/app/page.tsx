@@ -228,7 +228,7 @@ function PublicBrand({ label }: { label?: string }) {
     <a href="/" className="flex min-w-0 items-center gap-3 no-underline">
       <Flower2 className="size-11 shrink-0 fill-primary text-primary" strokeWidth={1.8} />
       <span className="min-w-0">
-        <span className="block text-3xl font-black leading-none tracking-tight text-(--prism-ink)">PMCM</span>
+        <span className="block text-3xl font-black leading-none tracking-normal text-(--prism-ink)">PMCM</span>
         <span className="mt-1 block text-xs font-black uppercase tracking-[0.42em] text-muted-foreground">P.R.I.S.M</span>
       </span>
       {label && (
@@ -243,7 +243,7 @@ function PublicBrand({ label }: { label?: string }) {
 
 function DisplayTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <h1 className={cx("prism-serif text-5xl font-black leading-[0.93] tracking-tight text-(--prism-ink) sm:text-6xl xl:text-[4.85rem]", className)}>
+    <h1 className={cx("prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.85rem]", className)}>
       {children}
     </h1>
   );
@@ -251,7 +251,7 @@ function DisplayTitle({ children, className }: { children: React.ReactNode; clas
 
 function SectionTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <h2 className={cx("prism-serif text-4xl font-black leading-[0.98] tracking-tight text-(--prism-ink) sm:text-5xl", className)}>
+    <h2 className={cx("prism-serif text-4xl font-black leading-[0.98] tracking-normal text-(--prism-ink) sm:text-5xl", className)}>
       {children}
     </h2>
   );
@@ -651,7 +651,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
           </div>
         </div>
         <div className="mx-auto mt-16 max-w-3xl text-center">
-          <p className="text-5xl font-black text-primary [font-family:Georgia,serif]">“</p>
+          <p className="font-display text-5xl font-black text-primary">“</p>
           <p className="text-xl leading-8 text-(--prism-ink)">Command gives our operations team one source of truth for every handoff. We see what needs action, coordinate with confidence, and deliver PMCM events without missing a beat.</p>
           <p className="mt-5 text-sm font-black text-muted-foreground">PMCM Operations Team</p>
         </div>

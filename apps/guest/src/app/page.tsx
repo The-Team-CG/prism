@@ -25,7 +25,7 @@ function BrandMark() {
       <span className="flex items-center gap-3">
         <Flower2 className="size-11 fill-primary text-primary" strokeWidth={1.8} />
         <span>
-          <span className="block text-3xl font-black leading-none tracking-tight text-(--prism-ink)">PMCM</span>
+          <span className="block text-3xl font-black leading-none tracking-normal text-(--prism-ink)">PMCM</span>
           <span className="mt-1 block text-xs font-black uppercase tracking-[0.42em] text-muted-foreground">P.R.I.S.M</span>
         </span>
       </span>
@@ -137,7 +137,7 @@ export default function GuestHome() {
                 <PartyPopper className="size-4" />
                 Event access made for you
               </span>
-              <h1 className="mt-7 max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-tight text-(--prism-ink) sm:text-6xl xl:text-[4.65rem]">
+              <h1 className="mt-7 max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.65rem]">
                 Fast event access for check-in, consent, and <span className="text-primary">feedback</span>
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">

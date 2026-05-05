@@ -127,7 +127,7 @@ function BrandMark({ tone = "dark" }: { tone?: "dark" | "light" }) {
     <div className="flex items-center gap-3">
       <Flower2 className={tone === "dark" ? "size-11 fill-primary text-primary" : "size-11 fill-primary text-primary"} strokeWidth={1.8} />
       <div>
-        <p className={tone === "dark" ? "text-3xl font-black leading-none tracking-tight text-(--prism-ink)" : "text-3xl font-black leading-none tracking-tight text-sidebar-foreground"}>PMCM</p>
+        <p className={tone === "dark" ? "text-3xl font-black leading-none tracking-normal text-(--prism-ink)" : "text-3xl font-black leading-none tracking-normal text-sidebar-foreground"}>PMCM</p>
         <p className={tone === "dark" ? "mt-1 text-xs font-black uppercase tracking-[0.42em] text-muted-foreground" : "mt-1 text-xs font-black uppercase tracking-[0.42em] text-sidebar-foreground/75"}>P.R.I.S.M</p>
       </div>
     </div>
@@ -354,7 +354,7 @@ export function MainLandingPage() {
                 <Sparkles className="size-4" />
                 PMCM-led client planning
               </Badge>
-              <h1 className="max-w-4xl prism-serif text-4xl font-black leading-[0.93] tracking-tight text-(--prism-ink) sm:text-5xl lg:text-[3.75rem] xl:text-[4.55rem]">
+              <h1 className="max-w-4xl prism-serif text-4xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-5xl lg:text-[3.75rem] xl:text-[4.55rem]">
                 Your event plan, floorplan, and approvals in one <span className="text-primary">guided workspace</span>
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground xl:text-lg xl:leading-8">
@@ -528,7 +528,7 @@ export function MainLandingPage() {
 
       <section className="px-5 py-20 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-4xl text-center">
-          <p className="text-6xl font-black text-primary [font-family:Georgia,serif]">"</p>
+          <p className="font-display text-6xl font-black text-primary">"</p>
           <p className="prism-serif text-2xl font-black leading-9 text-(--prism-ink)">PMCM's clarity and process gave us confidence at every step. Our floorplan was perfect, billing was transparent, and everything was in one place.</p>
           <div className="mt-5 text-primary">*****</div>
           <p className="mt-2 text-sm font-black text-muted-foreground">PMCM Client</p>

@@ -148,8 +148,8 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: "Source Sans 3", system-ui, sans-serif;
-    font-feature-settings: "tnum";
+    font-family: var(--prism-font-ui);
+    font-feature-settings: "kern", "liga", "tnum";
     letter-spacing: 0;
   }
 
@@ -159,7 +159,7 @@
   h4,
   h5,
   h6 {
-    font-family: "Lexend", "Source Sans 3", system-ui, sans-serif;
+    font-family: var(--prism-font-heading);
     letter-spacing: 0;
   }
 
@@ -215,7 +215,8 @@
   }
 
   .prism-serif {
-    font-family: Georgia, "Times New Roman", serif !important;
+    font-family: var(--prism-font-display) !important;
+    letter-spacing: 0;
   }
 }
 

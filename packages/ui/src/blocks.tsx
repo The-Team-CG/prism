@@ -31,7 +31,7 @@ export function PrismMetricTile({ label, value, icon: Icon, detail, trend, class
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <p className="text-[28px] font-black leading-none tracking-tight text-foreground">{value}</p>
+          <p className="text-[28px] font-black leading-none tracking-normal text-foreground">{value}</p>
           {trend ? <PrismBadge variant="success">{trend}</PrismBadge> : null}
         </div>
         <p className="mt-1.5 truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -72,7 +72,7 @@ export function PrismSectionPanel({
             </span>
           ) : null}
           <div className="min-w-0">
-            <h3 className="text-sm font-black tracking-tight text-foreground">{title}</h3>
+            <h3 className="text-sm font-black tracking-normal text-foreground">{title}</h3>
             {description ? <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{description}</p> : null}
           </div>
         </div>

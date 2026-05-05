@@ -28,7 +28,7 @@ function BrandMark() {
       <span className="flex items-center gap-3">
         <Flower2 className="size-11 fill-primary text-primary" strokeWidth={1.8} />
         <span>
-          <span className="block text-3xl font-black leading-none tracking-tight text-(--prism-ink)">PMCM</span>
+          <span className="block text-3xl font-black leading-none tracking-normal text-(--prism-ink)">PMCM</span>
           <span className="mt-1 block text-xs font-black uppercase tracking-[0.42em] text-muted-foreground">P.R.I.S.M</span>
         </span>
       </span>
@@ -163,8 +163,7 @@ export default function SupplierHome() {
                 Assigned suppliers only
               </span>
               <h1
-                className="mt-7 max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-tight text-(--prism-ink) sm:text-6xl xl:text-[4.6rem]"
-                style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+                className="mt-7 max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.6rem]"
               >
                 Know what is due, what is locked, and what PMCM needs next
               </h1>
@@ -341,7 +340,7 @@ export default function SupplierHome() {
           </div>
         </div>
         <div className="mx-auto mt-16 max-w-3xl text-center">
-          <p className="text-5xl font-black text-primary [font-family:Georgia,serif]">“</p>
+          <p className="font-display text-5xl font-black text-primary">“</p>
           <p className="text-xl leading-8 text-(--prism-ink)">The supplier portal keeps everything clear and easy to find. We know what is due, what is locked, and how to stay in sync onsite.</p>
           <p className="mt-5 text-sm font-black text-muted-foreground">PMCM Supplier Partner</p>
         </div>

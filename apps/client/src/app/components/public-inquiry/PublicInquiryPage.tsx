@@ -111,7 +111,7 @@ function BrandMark() {
         <Flower2 className="size-11 fill-primary text-primary" strokeWidth={1.8} />
       </span>
       <span>
-        <span className="block text-3xl font-black leading-none tracking-tight text-(--prism-ink)">PMCM</span>
+        <span className="block text-3xl font-black leading-none tracking-normal text-(--prism-ink)">PMCM</span>
         <span className="mt-1 block text-xs font-black uppercase tracking-[0.46em] text-muted-foreground">P.R.I.S.M</span>
       </span>
     </a>

@@ -179,7 +179,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
         <div className="mx-auto flex max-w-[1500px] items-center justify-between px-6 py-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">P.R.I.S.M Defense MVP</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">{event.eventName}</h1>
+            <h1 className="mt-1 text-2xl font-semibold tracking-normal">{event.eventName}</h1>
           </div>
           <div className="flex items-center gap-2">
             {(["pmcm-admin", "client", "coordinator", "supplier"] as DemoRole[]).map((item) => (

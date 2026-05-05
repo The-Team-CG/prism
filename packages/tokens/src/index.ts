@@ -15,6 +15,14 @@ export const prismTokens = {
     danger: "at_risk",
     blocked: "blocked",
   },
+  typography: {
+    ui: "Manrope",
+    heading: "Sora",
+    display: "Sora",
+    bodySize: "0.9375rem",
+    bodyLineHeight: "1.55",
+    headingLineHeight: "1.2",
+  },
 } as const;
 
 export type PrismTokens = typeof prismTokens;

@@ -1,0 +1,85 @@
+:root {
+  --font-size: 16px;
+  --prism-font-ui: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --prism-font-heading: "Sora", var(--prism-font-ui);
+  --prism-font-display: "Sora", var(--prism-font-ui);
+  --prism-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  --prism-type-caption: 0.75rem;
+  --prism-type-small: 0.8125rem;
+  --prism-type-body: 0.9375rem;
+  --prism-type-body-lg: 1rem;
+  --prism-type-subtitle: 1.125rem;
+  --prism-type-title: 1.375rem;
+  --prism-type-display: 2.5rem;
+  --prism-leading-tight: 1.15;
+  --prism-leading-heading: 1.2;
+  --prism-leading-body: 1.55;
+  --prism-leading-ui: 1.4;
+}
+
+@theme inline {
+  --font-sans: var(--prism-font-ui);
+  --font-body: var(--prism-font-ui);
+  --font-heading: var(--prism-font-heading);
+  --font-display: var(--prism-font-display);
+  --font-serif: var(--prism-font-display);
+  --font-mono: var(--prism-font-mono);
+}
+
+@layer base {
+  html {
+    font-size: var(--font-size);
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--prism-font-ui);
+    font-feature-settings: "kern", "liga", "tnum";
+    font-kerning: normal;
+    font-optical-sizing: auto;
+    line-height: var(--prism-leading-body);
+    letter-spacing: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--prism-font-heading);
+    font-feature-settings: "kern", "liga";
+    font-kerning: normal;
+    font-optical-sizing: auto;
+    line-height: var(--prism-leading-heading);
+    letter-spacing: 0;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--prism-font-mono);
+  }
+
+  .prism-serif,
+  .font-display {
+    font-family: var(--prism-font-display) !important;
+    letter-spacing: 0;
+  }
+
+  .font-heading {
+    font-family: var(--prism-font-heading) !important;
+  }
+
+  .font-body {
+    font-family: var(--prism-font-ui) !important;
+  }
+}
