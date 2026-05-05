@@ -3,6 +3,8 @@
 import type * as React from "react";
 import { cn } from "./utils";
 
+const PRISM_LOGO_SRC = new URL("../assets/images/prism-logo.png", import.meta.url).toString();
+
 export interface PrismBrandLogoProps {
   href?: string;
   title?: string;
@@ -32,7 +34,7 @@ function PrismBrandLogoContent({
           markClassName,
         )}
       >
-        <img src="/prism-logo.png" alt="" aria-hidden="true" className="size-full object-contain p-0.5" />
+        <img src={PRISM_LOGO_SRC} alt="" aria-hidden="true" className="size-full object-contain p-0.5" />
       </span>
       <span className={cn("min-w-0", compact && "sr-only", textClassName)}>
         <span
