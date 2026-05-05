@@ -19,7 +19,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
-  PrismAppShell,
+  PrismDashboardShell,
   PrismMetricTile,
   PrismNoticeBanner,
   PrismSectionPanel,
@@ -192,7 +192,7 @@ export default function GuestDashboard() {
   const feedbackState = feedbackSubmitted ? "Pending review" : feedbackConsentAccepted ? "Consent ready" : "Consent needed";
 
   return (
-    <PrismAppShell
+    <PrismDashboardShell
       roleLabel="Guest experience"
       eyebrow="Guest dashboard"
       title={`Hello, ${session.guestName}.`}
@@ -488,6 +488,6 @@ export default function GuestDashboard() {
           </PrismSectionPanel>
         </div>
       </div>
-    </PrismAppShell>
+    </PrismDashboardShell>
   );
 }

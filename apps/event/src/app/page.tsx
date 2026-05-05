@@ -20,7 +20,6 @@ import {
   MapPinned,
   MessageSquareText,
   Radio,
-  Search,
   ShieldCheck,
   Star,
   Tags,
@@ -56,20 +55,10 @@ import {
   PrismSectionPanel,
 } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/app/components/ui/breadcrumb";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Card } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
-import { Separator } from "@/app/components/ui/separator";
 import { StatusBadge, statusClass } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import {
@@ -739,11 +728,13 @@ function PmcmPortal({
   state,
   onRefresh,
   onOpenEditor,
+  onSignOut,
 }: {
   session: EventSession;
   state: MvpDemoState;
   onRefresh: () => Promise<void>;
   onOpenEditor: (event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset) => Promise<void>;
+  onSignOut: () => void;
 }) {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(state.events[0]?.id ?? null);
   const [section, setSection] = useState<"events" | "suppliers" | "audit">("events");
@@ -1210,7 +1201,10 @@ function PmcmPortal({
       activeItemId={section}
       navItems={shellNavItems}
       onNavSelect={(id) => setSection(id as "events" | "suppliers" | "audit")}
+      user={{ name: session.name, detail: label(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
+      searchPlaceholder="Search events, approval requests, suppliers..."
       commandActions={commandActions}
+      onSignOut={onSignOut}
       rightRail={section === "events" ? eventRail : undefined}
     >
       <section className="min-w-0 space-y-4">
@@ -1605,58 +1599,36 @@ export default function EventCommandHome() {
     );
   }
 
+  const signOut = () => {
+    window.localStorage.removeItem(EVENT_SESSION_KEY);
+    setSession(null);
+    setState(null);
+    setCoordinatorState(null);
+  };
+  const isLoadingRoleData = session.role === "coordinator" ? !coordinatorState : !state;
+
+  if (session.role !== "coordinator" && state) {
+    return (
+      <PmcmPortal
+        session={session}
+        state={state}
+        onRefresh={() => refresh(session)}
+        onOpenEditor={openEditor}
+        onSignOut={signOut}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <Brand
-        session={session}
-        onSignOut={() => {
-          window.localStorage.removeItem(EVENT_SESSION_KEY);
-          setSession(null);
-          setState(null);
-          setCoordinatorState(null);
-        }}
-      />
+      <Brand session={session} onSignOut={signOut} />
       <section className="mx-auto max-w-[1480px] px-5 py-6 sm:px-8">
-        <Card className="sticky top-0 z-30 mb-5 gap-0 rounded-lg border-primary/12 bg-card/92 shadow-[0_12px_40px_rgba(23,18,22,0.06)] backdrop-blur">
-          <CardContent className="p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Button variant="ghost" size="icon" className="hidden size-9 rounded-md sm:inline-flex">
-                  <Radio className="size-4" />
-                </Button>
-                <Separator orientation="vertical" className="hidden h-4 bg-[#EAD5CE] sm:block" />
-                <Breadcrumb className="hidden sm:block">
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink href="/">Event</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>{session.role === "coordinator" ? "Coordinator Command" : "PMCM Manager"}</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="rounded-full border-[#F06030]/30 bg-accent text-(--prism-amber)">
-                  {label(session.role)}
-                </Badge>
-                <Avatar className="size-9 rounded-md">
-                  <AvatarFallback className="rounded-md">{session.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-              </div>
-            </div>
-            <div className="mt-3 flex min-w-[18rem] flex-1 items-center gap-3">
-              <Input className="h-10 bg-white" placeholder="Search events, approval requests, suppliers..." />
-            </div>
-          </CardContent>
-        </Card>
         {error && (
           <Alert variant="destructive" className="mb-5 rounded-lg">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        {(session.role === "coordinator" ? !coordinatorState : !state) ? (
+        {isLoadingRoleData ? (
           <Card className="min-h-[420px] rounded-lg border-primary/12 bg-card p-6" aria-live="polite">
             <div className="mx-auto grid max-w-2xl gap-4 py-10 text-center">
               <span className="mx-auto grid size-11 place-items-center rounded-lg bg-secondary text-primary">
@@ -1681,8 +1653,6 @@ export default function EventCommandHome() {
           </Card>
         ) : session.role === "coordinator" && coordinatorState ? (
           <CoordinatorView session={session} state={coordinatorState} onRefresh={() => refresh(session)} />
-        ) : state ? (
-          <PmcmPortal session={session} state={state} onRefresh={() => refresh(session)} onOpenEditor={openEditor} />
         ) : (
           null
         )}

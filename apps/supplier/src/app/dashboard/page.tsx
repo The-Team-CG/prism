@@ -23,7 +23,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
-  PrismAppShell,
+  PrismDashboardShell,
   PrismEmptyState,
   PrismMetricTile,
   PrismNoticeBanner,
@@ -268,7 +268,7 @@ export default function SupplierDashboard() {
   const selectedAnchorRequestId = selectedAssignments[0]?.id;
 
   return (
-    <PrismAppShell
+    <PrismDashboardShell
       roleLabel="Supplier portal"
       eyebrow="Supplier dashboard"
       title={`Hello, ${session.name}.`}
@@ -595,6 +595,6 @@ export default function SupplierDashboard() {
           )}
         </PrismSectionPanel>
       </div>
-    </PrismAppShell>
+    </PrismDashboardShell>
   );
 }

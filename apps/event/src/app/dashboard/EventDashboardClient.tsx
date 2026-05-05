@@ -623,7 +623,10 @@ export default function EventDashboard({
       activeItemId={section}
       navItems={shellNavItems}
       onNavSelect={(id) => navigateSection(id as DashboardSection)}
+      user={{ name: session.name, detail: label(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
+      searchPlaceholder="Search events, approval requests, suppliers..."
       commandActions={commandActions}
+      onSignOut={signOut}
       rightRail={section === "events" ? eventRail : undefined}
     >
       <section className="min-w-0 space-y-4">

@@ -15,6 +15,7 @@ import {
   FileText,
   Home,
   LockKeyhole,
+  LogOut,
   MapPinned,
   MessageSquareText,
   Presentation,
@@ -47,8 +48,8 @@ import { Skeleton } from "../ui/skeleton";
 import { StatusBadge } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
 import {
-  PrismAppShell,
   PrismCompactRecordList,
+  PrismDashboardShell,
   PrismNoticeBanner,
   PrismWorkflowTabs,
   RolePageHeader,
@@ -79,6 +80,16 @@ const EditorShell = dynamic(
 
 type ClientSession = MvpUser & { signedInAt: string };
 type DetailTab = "overview" | "briefing" | "proposal" | "floorplan" | "billing" | "documents" | "activity";
+type ClientSidebarAction = "sign-out";
+type ClientSidebarNavItem = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  section: string;
+  targetTab?: DetailTab;
+  action?: ClientSidebarAction;
+  requiresEvent?: boolean;
+};
 type Screen =
   | { name: "dashboard" }
   | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project; readOnly: boolean };
@@ -103,14 +114,33 @@ const initialPreference: PreferenceForm = {
   notes: "Client prefers a clean technology summit layout with clear photo wall access.",
 };
 
-const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: LucideIcon }> = [
-  { id: "overview", label: "Overview", icon: Home },
-  { id: "briefing", label: "Briefing", icon: FileCheck2 },
-  { id: "proposal", label: "Proposal", icon: Presentation },
-  { id: "floorplan", label: "Layout", icon: MapPinned },
-  { id: "documents", label: "Documents", icon: FileText },
-  { id: "billing", label: "Billing", icon: WalletCards },
-  { id: "activity", label: "Activity", icon: Activity },
+const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: LucideIcon; section: string }> = [
+  { id: "overview", label: "Overview", icon: Home, section: "Dashboard" },
+  { id: "activity", label: "Timeline", icon: Activity, section: "Dashboard" },
+  { id: "briefing", label: "Briefing", icon: FileCheck2, section: "Event" },
+  { id: "floorplan", label: "Layout Preferences", icon: MapPinned, section: "Event" },
+  { id: "proposal", label: "Proposal", icon: Presentation, section: "Documents" },
+  { id: "documents", label: "Files", icon: FileText, section: "Documents" },
+  { id: "billing", label: "Billing", icon: WalletCards, section: "Finance" },
+];
+
+const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
+  { id: "overview", label: "Overview", icon: Home, section: "Dashboard", targetTab: "overview" },
+  { id: "action-items", label: "Action Items", icon: ClipboardCheck, section: "Dashboard", targetTab: "overview", requiresEvent: true },
+  { id: "activity", label: "Timeline", icon: Activity, section: "Dashboard", targetTab: "activity", requiresEvent: true },
+  { id: "event-details", label: "Event Details", icon: CalendarDays, section: "Event", targetTab: "overview", requiresEvent: true },
+  { id: "briefing", label: "Briefing", icon: FileCheck2, section: "Event", targetTab: "briefing", requiresEvent: true },
+  { id: "floorplan", label: "Layout Preferences", icon: MapPinned, section: "Event", targetTab: "floorplan", requiresEvent: true },
+  { id: "conforme", label: "Conforme", icon: ShieldCheck, section: "Documents", targetTab: "documents", requiresEvent: true },
+  { id: "proposal", label: "Proposal", icon: Presentation, section: "Documents", targetTab: "proposal", requiresEvent: true },
+  { id: "documents", label: "Files", icon: FileText, section: "Documents", targetTab: "documents", requiresEvent: true },
+  { id: "approvals", label: "Approvals", icon: CheckCircle2, section: "Documents", targetTab: "documents", requiresEvent: true },
+  { id: "billing", label: "Billing", icon: WalletCards, section: "Finance", targetTab: "billing", requiresEvent: true },
+  { id: "payment-status", label: "Payment Status", icon: ReceiptText, section: "Finance", targetTab: "billing", requiresEvent: true },
+  { id: "messages", label: "PMCM Messages", icon: MessageSquareText, section: "Messages", targetTab: "activity", requiresEvent: true },
+  { id: "notifications", label: "Notifications", icon: Bell, section: "Messages", targetTab: "activity", requiresEvent: true },
+  { id: "client-profile", label: "Client Profile", icon: UserRoundCheck, section: "Account", targetTab: "overview" },
+  { id: "sign-out", label: "Sign Out", icon: LogOut, section: "Account", action: "sign-out" },
 ];
 
 function draftIsOfficial(draft: MvpFloorPlanDraft) {
@@ -774,10 +804,27 @@ export function Dashboard() {
 
   /* Main dashboard */
 
-  const shellNavItems = DETAIL_TABS.map((item) => ({
+  const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
     ...item,
-    disabled: !selectedEvent && item.id !== "overview",
+    disabled: item.requiresEvent && !selectedEvent,
   }));
+
+  const signOut = () => {
+    window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
+    router.replace("/sign-in");
+  };
+
+  const handleShellNavSelect = (id: string) => {
+    const item = CLIENT_SIDEBAR_ITEMS.find((candidate) => candidate.id === id);
+    if (!item) return;
+    if (item.action === "sign-out") {
+      signOut();
+      return;
+    }
+    if (item.targetTab) {
+      setTab(item.targetTab);
+    }
+  };
 
   const shellCommandActions = selectedEvent
     ? clientActions.slice(0, 4).map((action) => ({
@@ -913,7 +960,7 @@ export function Dashboard() {
   );
 
   return (
-    <PrismAppShell
+    <PrismDashboardShell
       productLabel="P.R.I.S.M"
       roleLabel="Client Portal"
       eyebrow="Confirmed client event"
@@ -925,7 +972,7 @@ export function Dashboard() {
       }
       activeItemId={tab}
       navItems={shellNavItems}
-      onNavSelect={(id) => setTab(id as DetailTab)}
+      onNavSelect={handleShellNavSelect}
       user={{
         name: session.name,
         detail: session.organization,
@@ -933,6 +980,7 @@ export function Dashboard() {
       }}
       searchPlaceholder="Search proposal, billing, documents..."
       commandActions={shellCommandActions}
+      commandSectionLabel="Action items"
       headerActions={
         <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => void refresh()}>
           Refresh
@@ -940,10 +988,6 @@ export function Dashboard() {
       }
       rightRail={shellRightRail}
       mobileActions={shellMobileActions}
-      onSignOut={() => {
-        window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
-        router.replace("/sign-in");
-      }}
     >
       <div className="space-y-5">
 
@@ -1213,6 +1257,6 @@ export function Dashboard() {
               />
             )}
       </div>
-    </PrismAppShell>
+    </PrismDashboardShell>
   );
 }

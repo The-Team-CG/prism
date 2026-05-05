@@ -24,7 +24,7 @@ These notes preserve the product boundaries established by the project docs and 
 
 ## Floorplan Rule
 
-- Clients do not manage official floorplans from the dashboard.
+- Clients can manage official floorplans from the dashboard.
 - Official floorplans are managed from the selected event workspace in `apps/event`.
 - Clients submit guided layout preferences inside a confirmed event.
 - PMCM can edit the real floorplan and controls submit/approve workflow in `prism-event`.

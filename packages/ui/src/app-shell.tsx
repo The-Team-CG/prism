@@ -1,7 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { Menu, Search, X } from "lucide-react";
+import { Bell, LogOut, Menu, Search, Sparkles, X } from "lucide-react";
 import * as React from "react";
 import { PrismBadge, PrismButton } from "./primitives";
 import { cn } from "./utils";
@@ -10,6 +10,7 @@ export interface PrismNavItem {
   id: string;
   label: string;
   icon: LucideIcon;
+  section?: string;
   badge?: string | number;
   disabled?: boolean;
 }
@@ -51,6 +52,7 @@ export interface PrismAppShellProps {
   user?: PrismUserSummary;
   searchPlaceholder?: string;
   commandActions?: PrismPageAction[];
+  commandSectionLabel?: string;
   headerActions?: React.ReactNode;
   rightRail?: React.ReactNode;
   mobileActions?: PrismMobileAction[];
@@ -81,6 +83,7 @@ export function PrismSidebar({
   onNavSelect,
   user,
   commandActions = [],
+  commandSectionLabel = "Workflows",
   onSignOut,
   homeHref = "/",
 }: Pick<
@@ -92,109 +95,123 @@ export function PrismSidebar({
   | "onNavSelect"
   | "user"
   | "commandActions"
+  | "commandSectionLabel"
   | "onSignOut"
   | "homeHref"
 >) {
+  const navGroups = navItems.reduce<Array<{ section: string; items: PrismNavItem[] }>>((groups, item) => {
+    const section = item.section ?? "Dashboards";
+    const existing = groups.find((group) => group.section === section);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      groups.push({ section, items: [item] });
+    }
+    return groups;
+  }, []);
+
   return (
-    <div className="flex h-full flex-col gap-4 bg-sidebar p-4 text-sidebar-foreground">
-      {/* Brand */}
+    <div className="flex h-full flex-col bg-card text-foreground">
       <a
         href={homeHref}
-        className="flex items-center gap-3 rounded-md px-1 py-1 text-sidebar-foreground no-underline"
+        className="flex items-center gap-2.5 px-4 py-4 text-foreground no-underline"
       >
-        <span className="grid size-10 place-items-center rounded-md border border-white/10 bg-white text-sm font-black text-foreground shadow-sm">
+        <span className="grid size-8 place-items-center rounded-md bg-foreground text-xs font-black text-background shadow-sm">
           P
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-xs font-black uppercase tracking-[0.18em] text-sidebar-primary">
-            {productLabel}
+          <span className="block truncate text-sm font-black leading-4 text-foreground">
+            {productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
           </span>
-          <span className="block truncate text-xs text-sidebar-foreground/68">{roleLabel}</span>
+          <span className="block truncate text-[11px] font-semibold leading-4 text-muted-foreground">
+            {roleLabel}
+          </span>
         </span>
       </a>
 
-      {/* User card */}
-      {user ? (
-        <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/7 p-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-card text-xs font-black text-foreground ring-2 ring-white/15">
-            {user.initials ?? initialsFor(user.name)}
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-black">{user.name}</span>
-            {user.detail ? (
-              <span className="block truncate text-xs text-sidebar-foreground/62">{user.detail}</span>
-            ) : null}
-          </span>
-        </div>
-      ) : null}
-
-      {/* Nav */}
-      <nav className="flex min-h-0 flex-1 flex-col gap-0.5">
-        <p className="px-3 pb-1.5 pt-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-sidebar-primary/70">
-          Navigation
-        </p>
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            disabled={item.disabled}
-            aria-current={item.id === activeItemId ? "page" : undefined}
-            data-active={item.id === activeItemId}
-            onClick={() => onNavSelect?.(item.id)}
-            className="flex h-10 items-center gap-3 rounded-md px-3 text-left text-sm font-bold text-sidebar-foreground/76 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-sidebar-accent data-[active=true]:font-black data-[active=true]:text-sidebar-accent-foreground"
-          >
-            <item.icon aria-hidden="true" className="size-4 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{item.label}</span>
-            {item.badge ? (
-              <span className="rounded-full bg-sidebar-primary px-2 py-0.5 text-[10px] font-black text-sidebar-primary-foreground">
-                {item.badge}
-              </span>
-            ) : null}
-          </button>
-        ))}
-      </nav>
-
-      {/* Separator before command actions */}
-      {commandActions.length ? (
-        <>
-          <div className="h-px w-full bg-white/10" aria-hidden="true" />
-          <div className="pt-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sidebar-primary/70">
-              Action queue
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3 pt-1">
+        {navGroups.map((group, groupIndex) => (
+          <div key={group.section} className={cn("flex flex-col gap-1", groupIndex > 0 && "mt-5")}>
+            <p className="px-2.5 pb-1.5 text-[10px] font-black uppercase text-muted-foreground">
+              {group.section}
             </p>
-            <div className="mt-2.5 flex flex-col gap-2">
-              {commandActions.slice(0, 4).map((action) => (
-                <button
-                  key={action.id}
-                  type="button"
-                  onClick={action.onSelect}
-                  className="border-l border-white/10 px-2 py-2 text-left transition hover:border-sidebar-primary/40 hover:bg-white/8"
-                >
-                  <span className="flex items-center gap-2 text-xs font-black">
-                    {action.icon ? <action.icon aria-hidden="true" className="size-3.5 shrink-0" /> : null}
-                    <span className="truncate">{action.label}</span>
+            {group.items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={item.disabled}
+                aria-current={item.id === activeItemId ? "page" : undefined}
+                data-active={item.id === activeItemId}
+                onClick={() => onNavSelect?.(item.id)}
+                className="flex h-8 items-center gap-2 rounded-md px-2.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-foreground data-[active=true]:font-bold data-[active=true]:text-background data-[active=true]:shadow-sm"
+              >
+                <item.icon aria-hidden="true" className="size-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                {item.badge ? (
+                  <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-foreground ring-1 ring-border">
+                    {item.badge}
                   </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ))}
+
+        {commandActions.length ? (
+          <div className="mt-5 flex flex-col gap-1">
+            <p className="px-2.5 pb-1.5 text-[10px] font-black uppercase text-muted-foreground">
+              {commandSectionLabel}
+            </p>
+            {commandActions.slice(0, 5).map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                onClick={action.onSelect}
+                className="group flex min-h-8 items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              >
+                {action.icon ? <action.icon aria-hidden="true" className="size-3.5 shrink-0" /> : null}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{action.label}</span>
                   {action.description ? (
-                    <span className="mt-1 block line-clamp-2 text-[11px] leading-4 text-sidebar-foreground/65">
+                    <span className="block truncate text-[11px] font-medium text-muted-foreground group-hover:text-foreground/75">
                       {action.description}
                     </span>
                   ) : null}
-                </button>
-              ))}
-            </div>
+                </span>
+                {action.status ? (
+                  <span className="max-w-12 truncate rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-foreground ring-1 ring-border">
+                    {action.status}
+                  </span>
+                ) : null}
+              </button>
+            ))}
           </div>
-        </>
-      ) : null}
+        ) : null}
+      </nav>
 
-      {onSignOut ? (
-        <PrismButton
-          variant="outline"
-          className="w-full border-white/15 bg-transparent text-sidebar-foreground hover:bg-white/10"
-          onClick={onSignOut}
-        >
-          Sign out
-        </PrismButton>
-      ) : null}
+      <div className="border-t border-border px-3 py-3">
+        <div className="rounded-md border border-border bg-background p-3">
+          <div className="mb-3 grid h-16 place-items-center rounded-md bg-secondary/70">
+            <span className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground shadow-sm">
+              <Sparkles aria-hidden="true" className="size-4" />
+            </span>
+          </div>
+          <p className="truncate text-[13px] font-black text-foreground">{user?.name ?? "PMCM workspace"}</p>
+          <p className="truncate text-[11px] font-semibold text-muted-foreground">
+            {user?.detail ?? roleLabel}
+          </p>
+          {onSignOut ? (
+            <button
+              type="button"
+              className="mt-3 inline-flex h-8 w-full items-center justify-center gap-2 rounded-md bg-foreground px-3 text-xs font-bold text-background transition hover:opacity-90"
+              onClick={onSignOut}
+            >
+              <LogOut aria-hidden="true" className="size-3.5" />
+              Sign out
+            </button>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -206,48 +223,68 @@ export function PrismTopBar({
   activeItemLabel,
   searchPlaceholder,
   headerActions,
+  user,
   onOpenNav,
 }: Pick<
   PrismAppShellProps,
-  "eyebrow" | "title" | "description" | "activeItemLabel" | "searchPlaceholder" | "headerActions"
+  "eyebrow" | "title" | "description" | "activeItemLabel" | "searchPlaceholder" | "headerActions" | "user"
 > & {
   onOpenNav?: () => void;
 }) {
+  const placeholder = searchPlaceholder ?? "Search";
+
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-card/92 px-4 py-3 backdrop-blur sm:px-5">
-      <div className="flex items-center gap-3">
-        {onOpenNav ? (
-          <PrismButton
-            variant="outline"
-            size="icon"
-            className="lg:hidden"
-            onClick={onOpenNav}
-            aria-label="Open navigation"
-          >
-            <Menu aria-hidden="true" />
-          </PrismButton>
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-primary">{eyebrow}</p>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h1 className="truncate text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h1>
-            {activeItemLabel ? <PrismBadge variant="secondary">{activeItemLabel}</PrismBadge> : null}
-          </div>
-          {description ? (
-            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{description}</p>
+    <header
+      className="sticky top-0 z-30 h-14 border-b border-border bg-card/95 px-3 backdrop-blur sm:px-4"
+      aria-label={`${eyebrow}: ${title}`}
+    >
+      <div className="flex h-full items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {onOpenNav ? (
+            <PrismButton
+              variant="outline"
+              size="icon"
+              className="size-8 bg-background lg:hidden"
+              onClick={onOpenNav}
+              aria-label="Open navigation"
+            >
+              <Menu aria-hidden="true" />
+            </PrismButton>
           ) : null}
-        </div>
-        {searchPlaceholder ? (
-          <label className="relative hidden min-w-56 xl:block">
+          <label className="relative w-full max-w-[14rem] sm:max-w-[18rem]">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
-              placeholder={searchPlaceholder}
+              className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-3 text-[13px] font-medium outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
+              placeholder={placeholder}
             />
-            <span className="sr-only">Search</span>
+            <span className="sr-only">
+              {description ? `${title}. ${description}` : title}
+            </span>
           </label>
+        </div>
+        {headerActions ? <div className="hidden shrink-0 items-center gap-2 md:flex">{headerActions}</div> : null}
+        {activeItemLabel ? (
+          <PrismBadge variant="secondary" className="hidden h-7 rounded-md px-2.5 text-[11px] md:inline-flex">
+            {activeItemLabel}
+          </PrismBadge>
         ) : null}
-        {headerActions ? <div className="flex shrink-0 items-center gap-2">{headerActions}</div> : null}
+        <button
+          type="button"
+          className="relative grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+          aria-label="Notifications"
+        >
+          <Bell aria-hidden="true" className="size-3.5" />
+          {activeItemLabel ? (
+            <span className="absolute right-2 top-2 size-1.5 rounded-full bg-foreground" aria-hidden="true" />
+          ) : null}
+        </button>
+        {user ? (
+          <div className="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background">
+            <span className="grid size-6 place-items-center rounded-full bg-foreground text-[9px] font-black text-background">
+              {user.initials ?? initialsFor(user.name)}
+            </span>
+          </div>
+        ) : null}
       </div>
     </header>
   );
@@ -266,7 +303,7 @@ export function MobileActionDock({ actions }: { actions: PrismMobileAction[] }) 
             disabled={action.disabled}
             data-active={action.active}
             onClick={action.onSelect}
-            className="flex h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+            className="flex h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-45 data-[active=true]:bg-foreground data-[active=true]:text-background"
           >
             <action.icon aria-hidden="true" className="size-5" />
             <span>{action.label}</span>
@@ -293,24 +330,18 @@ export function RolePageHeader({
   className?: string;
 }) {
   return (
-    <section
-      className={cn(
-        "border-y border-r-0 border-border bg-card/80 p-4 shadow-sm sm:p-5",
-        "border-l-4 border-l-(--prism-signal)",
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className={cn("rounded-md border border-border bg-card px-4 py-3 shadow-sm", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="text-[10px] font-black uppercase tracking-widest text-(--prism-signal)">{eyebrow}</p>
+            <p className="text-[10px] font-black uppercase text-muted-foreground">{eyebrow}</p>
           ) : null}
-          <h2 className="mt-1 text-xl font-black leading-tight text-foreground sm:text-2xl">{title}</h2>
+          <h2 className="mt-0.5 text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h2>
           {description ? (
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>
+            <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p>
           ) : null}
           {meta?.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               {meta.map((item, index) =>
                 typeof item === "string" ? (
                   <PrismBadge key={`${item}-${index}`} variant="outline">
@@ -342,6 +373,7 @@ export function PrismAppShell({
   user,
   searchPlaceholder,
   commandActions,
+  commandSectionLabel,
   headerActions,
   rightRail,
   mobileActions = [],
@@ -365,6 +397,7 @@ export function PrismAppShell({
       }}
       user={user}
       commandActions={commandActions}
+      commandSectionLabel={commandSectionLabel}
       onSignOut={onSignOut}
       homeHref={homeHref}
     />
@@ -372,7 +405,7 @@ export function PrismAppShell({
 
   return (
     <div className={cn("min-h-screen bg-background text-foreground", className)}>
-      <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-sidebar-border lg:block">
+      <aside className="fixed inset-y-0 left-0 hidden w-56 border-r border-border bg-card lg:block">
         {sidebar}
       </aside>
 
@@ -384,12 +417,12 @@ export function PrismAppShell({
             className="absolute inset-0 bg-black/35"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative h-full w-80 max-w-[86vw] border-r border-sidebar-border shadow-2xl">
+          <aside className="relative h-full w-80 max-w-[86vw] border-r border-border bg-card shadow-2xl">
             {sidebar}
             <PrismButton
               variant="ghost"
               size="icon"
-              className="absolute right-3 top-3 text-sidebar-foreground"
+              className="absolute right-3 top-3 text-foreground"
               onClick={() => setMobileOpen(false)}
               aria-label="Close navigation"
             >
@@ -399,7 +432,7 @@ export function PrismAppShell({
         </div>
       ) : null}
 
-      <main className="lg:pl-72">
+      <main className="lg:pl-56">
         <PrismTopBar
           eyebrow={eyebrow}
           title={title}
@@ -407,12 +440,13 @@ export function PrismAppShell({
           activeItemLabel={activeItemLabel}
           searchPlaceholder={searchPlaceholder}
           headerActions={headerActions}
+          user={user}
           onOpenNav={() => setMobileOpen(true)}
         />
         <MobileActionDock actions={mobileActions} />
         <div
           className={cn(
-            "grid gap-5 p-4 sm:p-5",
+            "mx-auto grid w-full max-w-[1360px] gap-4 p-4 sm:p-5",
             rightRail ? "xl:grid-cols-[minmax(0,1fr)_22rem]" : "",
             contentClassName,
           )}
