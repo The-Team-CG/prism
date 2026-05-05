@@ -17,6 +17,9 @@ type UpdatePlanChanges = {
 type PlanActor = {
   actorRole?: string;
   role?: string;
+  actorName?: string;
+  actorEmail?: string;
+  clientName?: string;
 };
 
 type PlanWithObjects = PrismaFloorPlan & { objectRows?: PrismaFloorPlanObject[] };
@@ -147,13 +150,22 @@ export class PlansService {
 
     const plan = (await this.prisma.floorPlan.findUnique({
       where: { id: planId },
-      include: { opsDraft: true },
+      include: { opsDraft: { include: { event: true } } },
     } as any)) as any;
     const draft = plan?.opsDraft;
-    if (!draft) return;
-    const officialStatus = ['in_review', 'approved'].includes(draft.status);
-    if (officialStatus || draft.createdByRole !== 'client') {
-      throw new ForbiddenException('Clients cannot edit official floorplans');
+    if (!draft) {
+      throw new ForbiddenException('Clients cannot edit this floorplan');
+    }
+    if (draft.status === 'approved') {
+      throw new ForbiddenException('Approved floorplans are read-only');
+    }
+
+    const actorClientName = (actor.clientName ?? actor.actorName ?? '').trim().toLowerCase();
+    const eventClientName = (draft.event?.clientName ?? '').trim().toLowerCase();
+    const portalUnlocked = draft.event?.clientPortalStatus === 'unlocked';
+
+    if (!portalUnlocked || !actorClientName || actorClientName !== eventClientName) {
+      throw new ForbiddenException('Clients cannot edit this event floorplan');
     }
   }
 }

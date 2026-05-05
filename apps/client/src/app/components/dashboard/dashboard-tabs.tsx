@@ -58,7 +58,7 @@ function portalBadgeStatus(status: MvpEvent["clientPortalStatus"]) {
   return status === "unlocked" ? "approved" : "locked";
 }
 
-function clientActivityTitle(action: string) {
+export function clientActivityTitle(action: string) {
   if (/created demo event workspace/i.test(action)) return "Opened event workspace";
   return action
     .replaceAll("_", " ")
@@ -67,7 +67,7 @@ function clientActivityTitle(action: string) {
     .replace(/\bAdmin\b/gi, "team");
 }
 
-function clientActivityActor(actor: string) {
+export function clientActivityActor(actor: string) {
   return /pmcm|admin/i.test(actor) ? "Event team" : actor;
 }
 

@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
-  Activity,
   ArrowRight,
   BadgeCheck,
   Bell,
@@ -29,6 +28,7 @@ import {
 import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
 import {
   mvpApi,
+  type CreateMvpInquiryInput,
   type MvpBillingStatement,
   type MvpBriefing,
   type MvpDemoState,
@@ -50,19 +50,19 @@ import {
   PrismCompactRecordList,
   PrismDashboardShell,
   PrismNoticeBanner,
-  PrismWorkflowTabs,
   RolePageHeader,
 } from "@prism/ui";
 import { PRESETS, type Preset } from "../editor/presets";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
 import {
-  ClientActivityTab,
   ClientBillingTab,
   ClientBriefingTab,
   ClientDocumentsTab,
   ClientOverviewTab,
   ClientProposalTab,
   DashboardSkeleton,
+  clientActivityActor,
+  clientActivityTitle,
 } from "./dashboard-tabs";
 
 const EditorShell = dynamic(
@@ -79,13 +79,24 @@ const EditorShell = dynamic(
 
 type ClientSession = MvpUser & { signedInAt: string };
 type DetailTab = "overview" | "briefing" | "proposal" | "floorplan" | "billing" | "documents" | "activity";
+export type ClientDashboardRoute =
+  | "home"
+  | "request"
+  | "events"
+  | "overview"
+  | "actions"
+  | "briefing"
+  | "proposal"
+  | "floorplan"
+  | "documents"
+  | "billing"
+  | "messages";
 type ClientSidebarNavItem = {
   id: string;
   label: string;
   icon: LucideIcon;
   section: string;
-  targetTab?: DetailTab;
-  href?: string;
+  route: ClientDashboardRoute;
   requiresEvent?: boolean;
 };
 type Screen =
@@ -112,29 +123,63 @@ const initialPreference: PreferenceForm = {
   notes: "Client prefers a clean technology summit layout with clear photo wall access.",
 };
 
-const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: LucideIcon; section: string }> = [
-  { id: "overview", label: "Overview", icon: Home, section: "Dashboard" },
-  { id: "activity", label: "Timeline", icon: Activity, section: "Dashboard" },
-  { id: "briefing", label: "Briefing", icon: FileCheck2, section: "Event" },
-  { id: "floorplan", label: "Layout Preferences", icon: MapPinned, section: "Event" },
-  { id: "proposal", label: "Proposal", icon: Presentation, section: "Documents" },
-  { id: "documents", label: "Files", icon: FileText, section: "Documents" },
-  { id: "billing", label: "Billing", icon: WalletCards, section: "Finance" },
+const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
+  { id: "client-home", label: "Home", icon: Home, section: "Client", route: "home" },
+  { id: "new-event-request", label: "New Event Request", icon: Send, section: "Client", route: "request" },
+  { id: "my-events", label: "My Events", icon: CalendarDays, section: "Client", route: "events" },
+  { id: "event-overview", label: "Overview", icon: Home, section: "Event Workspace", route: "overview", requiresEvent: true },
+  { id: "action-items", label: "Action Items", icon: ClipboardCheck, section: "Event Workspace", route: "actions", requiresEvent: true },
+  { id: "briefing", label: "Briefing", icon: FileCheck2, section: "Event Workspace", route: "briefing", requiresEvent: true },
+  { id: "proposal", label: "Proposal", icon: Presentation, section: "Event Workspace", route: "proposal", requiresEvent: true },
+  { id: "floorplan", label: "Floor Plan", icon: MapPinned, section: "Event Workspace", route: "floorplan", requiresEvent: true },
+  { id: "documents", label: "Documents", icon: FileText, section: "Event Workspace", route: "documents", requiresEvent: true },
+  { id: "billing", label: "Billing", icon: WalletCards, section: "Event Workspace", route: "billing", requiresEvent: true },
+  { id: "messages", label: "Messages", icon: MessageSquareText, section: "Event Workspace", route: "messages", requiresEvent: true },
 ];
 
-const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
-  { id: "client-home", label: "Home", icon: Home, section: "Client", targetTab: "overview" },
-  { id: "new-event-request", label: "New Event Request", icon: Send, section: "Client", href: "/inquiry" },
-  { id: "my-events", label: "My Events", icon: CalendarDays, section: "Client", targetTab: "overview" },
-  { id: "event-overview", label: "Overview", icon: Home, section: "Event Workspace", targetTab: "overview", requiresEvent: true },
-  { id: "action-items", label: "Action Items", icon: ClipboardCheck, section: "Event Workspace", targetTab: "overview", requiresEvent: true },
-  { id: "briefing", label: "Briefing", icon: FileCheck2, section: "Event Workspace", targetTab: "briefing", requiresEvent: true },
-  { id: "proposal", label: "Proposal", icon: Presentation, section: "Event Workspace", targetTab: "proposal", requiresEvent: true },
-  { id: "floorplan", label: "Floor Plan", icon: MapPinned, section: "Event Workspace", targetTab: "floorplan", requiresEvent: true },
-  { id: "documents", label: "Documents", icon: FileText, section: "Event Workspace", targetTab: "documents", requiresEvent: true },
-  { id: "billing", label: "Billing", icon: WalletCards, section: "Event Workspace", targetTab: "billing", requiresEvent: true },
-  { id: "messages", label: "Messages", icon: MessageSquareText, section: "Event Workspace", targetTab: "activity", requiresEvent: true },
-];
+const ROUTE_TO_NAV_ITEM: Record<ClientDashboardRoute, string> = {
+  home: "client-home",
+  request: "new-event-request",
+  events: "my-events",
+  overview: "event-overview",
+  actions: "action-items",
+  briefing: "briefing",
+  proposal: "proposal",
+  floorplan: "floorplan",
+  documents: "documents",
+  billing: "billing",
+  messages: "messages",
+};
+
+const ROUTE_TO_DETAIL_TAB: Partial<Record<ClientDashboardRoute, DetailTab>> = {
+  overview: "overview",
+  actions: "overview",
+  briefing: "briefing",
+  proposal: "proposal",
+  floorplan: "floorplan",
+  documents: "documents",
+  billing: "billing",
+  messages: "activity",
+};
+
+const DETAIL_TAB_TO_ROUTE: Record<DetailTab, ClientDashboardRoute> = {
+  overview: "overview",
+  activity: "messages",
+  briefing: "briefing",
+  proposal: "proposal",
+  floorplan: "floorplan",
+  documents: "documents",
+  billing: "billing",
+};
+
+function dashboardHref(route: ClientDashboardRoute, eventId?: string) {
+  if (route === "home") return "/dashboard";
+  if (route === "request") return "/dashboard/request";
+  if (route === "events") return "/dashboard/events";
+  if (!eventId) return "/dashboard/events";
+  const section = route === "floorplan" ? "floor-plan" : route;
+  return `/dashboard/events/${eventId}/${section}`;
+}
 
 function draftIsOfficial(draft: MvpFloorPlanDraft) {
   return draft.status === "in_review" || draft.status === "approved";
@@ -512,14 +557,41 @@ function FieldGroup({ label: labelText, children }: { label: string; children: R
   );
 }
 
-export function Dashboard() {
+type ClientRequestForm = {
+  eventName: string;
+  eventDate: string;
+  eventType: string;
+  clientType: string;
+  venueCity: string;
+  budgetRange: string;
+  message: string;
+};
+
+const initialRequestForm: ClientRequestForm = {
+  eventName: "",
+  eventDate: "",
+  eventType: "Corporate event",
+  clientType: "Corporate",
+  venueCity: "",
+  budgetRange: "TBD / Flexible",
+  message: "",
+};
+
+export function Dashboard({
+  route = "home",
+  eventId,
+}: {
+  route?: ClientDashboardRoute;
+  eventId?: string;
+}) {
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
   const [state, setState] = useState<MvpDemoState | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [tab, setTab] = useState<DetailTab>("overview");
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
+  const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
+  const [eventSearch, setEventSearch] = useState("");
   const [officialProject, setOfficialProject] = useState<Project | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -528,7 +600,7 @@ export function Dashboard() {
   useEffect(() => {
     const current = readSession();
     if (!current) {
-      router.replace("/sign-in?next=/dashboard");
+      router.replace(`/sign-in?next=${encodeURIComponent(dashboardHref(route, eventId))}`);
       return;
     }
     setSession(current);
@@ -540,10 +612,10 @@ export function Dashboard() {
         const firstClientEvent = next.events.find(
           (ev) => ev.clientName === current.name && ev.clientPortalStatus === "unlocked",
         );
-        setSelectedEventId(firstClientEvent?.id ?? null);
+        setSelectedEventId(eventId ?? firstClientEvent?.id ?? null);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load client portal"));
-  }, [router]);
+  }, [eventId, route, router]);
 
   const events = useMemo(() => {
     if (!state || !session) return [];
@@ -552,7 +624,9 @@ export function Dashboard() {
     );
   }, [session, state]);
 
-  const selectedEvent = events.find((ev) => ev.id === selectedEventId) ?? events[0];
+  const selectedEvent = eventId
+    ? events.find((ev) => ev.id === eventId)
+    : events.find((ev) => ev.id === selectedEventId) ?? events[0];
   const eventDrafts = selectedEvent
     ? state?.floorPlanDrafts.filter((d) => d.eventId === selectedEvent.id) ?? []
     : [];
@@ -600,10 +674,11 @@ export function Dashboard() {
 
   async function openFloorplanEditor(draft: MvpFloorPlanDraft, readOnly = false, preset?: Preset) {
     if (!selectedEvent) return;
+    const locked = readOnly || draft.status === "approved";
     const fallback = projectFromDraft(selectedEvent, draft, preset);
     const project = preset
       ? fallback
-      : readOnly && draftIsOfficial(draft)
+      : locked && draftIsOfficial(draft)
         ? await mvpApi.loadFloorPlanSnapshot(
             selectedEvent.id,
             draft.id,
@@ -613,7 +688,7 @@ export function Dashboard() {
           )
         : await mvpApi.loadPlan(draft.floorPlanId, fallback, session ?? undefined);
     if (preset) await mvpApi.savePlan(project, session ?? undefined);
-    setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly });
+    setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
   }
 
   async function createEditorDraft(preset: Preset) {
@@ -665,7 +740,7 @@ export function Dashboard() {
         session ?? undefined,
       );
       await refresh();
-      setNotice("Layout preference sent. Your event team will prepare the official floorplan for review.");
+      setNotice("Floor plan draft saved. PMCM can review it, and approval will lock the plan.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit layout preference");
     } finally {
@@ -687,10 +762,53 @@ export function Dashboard() {
 
   function runClientAction(action: ClientDashboardAction) {
     if (action.id === "layout-review" && officialDraft) {
-      void openFloorplanEditor(officialDraft, true);
+      void openFloorplanEditor(officialDraft, officialDraft.status === "approved");
       return;
     }
-    setTab(action.targetTab);
+    navigateToEventRoute(action.targetTab);
+  }
+
+  function navigateToEventRoute(next: DetailTab | ClientDashboardRoute, nextEventId = selectedEvent?.id) {
+    const nextRoute = ROUTE_TO_DETAIL_TAB[next as ClientDashboardRoute]
+      ? (next as ClientDashboardRoute)
+      : DETAIL_TAB_TO_ROUTE[next as DetailTab];
+    router.push(dashboardHref(nextRoute, nextEventId));
+  }
+
+  async function submitNewEventRequest(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    if (!session) return;
+    setBusy("event-request");
+    setError(null);
+    setNotice(null);
+    try {
+      const payload: CreateMvpInquiryInput = {
+        clientName: session.name,
+        companyName: session.organization,
+        email: session.email,
+        clientType: requestForm.clientType,
+        eventType: requestForm.eventType,
+        eventName: requestForm.eventName,
+        eventDate: requestForm.eventDate,
+        source: "Client Portal",
+        referralDetails: "Signed-in client request",
+        message: [
+          requestForm.message,
+          requestForm.venueCity ? `Preferred venue/city: ${requestForm.venueCity}` : "",
+          requestForm.budgetRange ? `Budget range: ${requestForm.budgetRange}` : "",
+        ].filter(Boolean).join("\n\n"),
+        privacyConsentAccepted: true,
+        privacyNoticeVersion: "2026-05-01",
+        marketingConsentAccepted: false,
+      };
+      await mvpApi.createInquiry(payload);
+      setRequestForm(initialRequestForm);
+      setNotice("New event request submitted. PMCM will review it before conforme and portal activation.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit event request");
+    } finally {
+      setBusy(null);
+    }
   }
 
   /* Loading and auth redirects */
@@ -765,7 +883,7 @@ export function Dashboard() {
   }
 
   if (screen.name === "editor") {
-    const editable = !screen.readOnly;
+    const editable = !screen.readOnly && screen.draft.status !== "approved";
     return (
       <main className="h-screen w-full overflow-hidden bg-background">
         <EditorShell
@@ -776,7 +894,6 @@ export function Dashboard() {
           readOnly={screen.readOnly}
           onBack={() => {
             setScreen({ name: "dashboard" });
-            setTab("floorplan");
           }}
           onSave={editable ? (project) => mvpApi.savePlan(project, session ?? undefined) : undefined}
           onSubmit={
@@ -784,9 +901,8 @@ export function Dashboard() {
               ? async (project) => {
                   await mvpApi.savePlan(project, session ?? undefined);
                   await refresh();
-                  setNotice("Preference draft saved. Your event team can use it when preparing the official layout.");
+                  setNotice("Floor plan saved. PMCM approval will lock this plan for review.");
                   setScreen({ name: "dashboard" });
-                  setTab("floorplan");
                 }
               : undefined
           }
@@ -801,7 +917,7 @@ export function Dashboard() {
     ...item,
     disabled: item.requiresEvent && !selectedEvent,
   }));
-  const activeShellItemId = tab === "overview" ? "event-overview" : tab === "activity" ? "messages" : tab;
+  const activeShellItemId = ROUTE_TO_NAV_ITEM[route];
 
   const signOut = () => {
     window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
@@ -811,19 +927,14 @@ export function Dashboard() {
   const handleShellNavSelect = (id: string) => {
     const item = CLIENT_SIDEBAR_ITEMS.find((candidate) => candidate.id === id);
     if (!item) return;
-    if (item.href) {
-      router.push(item.href);
-      return;
-    }
-    if (item.targetTab) {
-      setTab(item.targetTab);
-    }
+    router.push(dashboardHref(item.route, selectedEvent?.id));
   };
 
   const shellMobileActions = [
-    { id: "overview", label: "Overview", icon: Home, active: tab === "overview", onSelect: () => setTab("overview") },
-    { id: "floorplan", label: "Layout", icon: MapPinned, active: tab === "floorplan", disabled: !selectedEvent, onSelect: () => setTab("floorplan") },
-    { id: "billing", label: "Pay", icon: WalletCards, active: tab === "billing", disabled: !selectedEvent, onSelect: () => setTab("billing") },
+    { id: "home", label: "Home", icon: Home, active: route === "home", onSelect: () => router.push("/dashboard") },
+    { id: "overview", label: "Overview", icon: Home, active: route === "overview", disabled: !selectedEvent, onSelect: () => navigateToEventRoute("overview") },
+    { id: "floorplan", label: "Plan", icon: MapPinned, active: route === "floorplan", disabled: !selectedEvent, onSelect: () => navigateToEventRoute("floorplan") },
+    { id: "billing", label: "Pay", icon: WalletCards, active: route === "billing", disabled: !selectedEvent, onSelect: () => navigateToEventRoute("billing") },
   ];
 
   const shellRightRail = (
@@ -855,7 +966,7 @@ export function Dashboard() {
               active: ev.id === selectedEvent?.id,
               onSelect: () => {
                 setSelectedEventId(ev.id);
-                setTab("overview");
+                router.push(dashboardHref(route === "home" || route === "request" || route === "events" ? "overview" : route, ev.id));
               },
             };
           })}
@@ -942,17 +1053,467 @@ export function Dashboard() {
     </div>
   );
 
+  const shellTitle =
+    route === "request"
+      ? "New event request"
+      : route === "events"
+        ? "My events"
+        : selectedEvent?.eventName ?? "Client portal";
+  const shellEyebrow =
+    route === "home"
+      ? "Client home"
+      : route === "request"
+        ? "Signed-in request"
+        : route === "events"
+          ? "Event portfolio"
+          : "Event workspace";
+  const shellDescription =
+    route === "request"
+      ? "Start another event request using your client account details. PMCM still reviews and gates access through conforme."
+      : route === "events"
+        ? "Review your confirmed PMCM events and open the workspace for each event."
+        : selectedEvent
+          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Client-visible approvals, floorplans, documents, billing, and PMCM updates stay here.`
+          : "The portal opens after your inquiry is accepted and the signed conforme is recorded.";
+
+  const eventHeader = selectedEvent ? (
+    <RolePageHeader
+      eyebrow="Event context"
+      title={selectedEvent.eventName}
+      description={`${selectedEvent.clientName} - ${selectedEvent.eventDate}. Floorplans stay editable until PMCM approval locks the final plan.`}
+      meta={[
+        <StatusBadge key="stage" status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />,
+        <StatusBadge key="portal" status={portalBadgeStatus(selectedEvent.clientPortalStatus)} label={portalBadgeLabel(selectedEvent.clientPortalStatus)} />,
+        selectedEvent.readiness ? `Readiness ${formatStatusLabel(selectedEvent.readiness)}` : "Readiness pending",
+      ]}
+      action={
+        <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => navigateToEventRoute("messages")}>
+          Messages
+        </Button>
+      }
+    />
+  ) : null;
+
+  const renderActionGroup = (title: string, description: string, actions: ClientDashboardAction[]) => (
+    <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+        </div>
+        <Badge variant="outline" className="rounded-md bg-secondary text-primary">{actions.length}</Badge>
+      </div>
+      <div className="mt-4 divide-y divide-border">
+        {actions.length ? actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => runClientAction(action)}
+              className="flex min-h-20 w-full items-start gap-3 px-2 py-3 text-left transition hover:bg-secondary"
+            >
+              <span className={`grid size-9 shrink-0 place-items-center rounded-md border ${actionToneClass(action.tone)}`}>
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-black text-foreground">{action.title}</span>
+                  <StatusBadge status={action.status} />
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{action.description}</span>
+              </span>
+            </button>
+          );
+        }) : (
+          <p className="py-4 text-sm text-muted-foreground">No items in this lane.</p>
+        )}
+      </div>
+    </section>
+  );
+
+  const visibleEvents = events.filter((ev) => {
+    const query = eventSearch.trim().toLowerCase();
+    if (!query) return true;
+    return `${ev.eventName} ${ev.eventDate} ${ev.status} ${ev.readiness}`.toLowerCase().includes(query);
+  });
+
+  const renderEventsPage = () => (
+    <div className="space-y-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">My events</p>
+            <h2 className="mt-1 text-2xl font-black text-foreground">Confirmed PMCM event workspaces</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Only events with accepted inquiry and signed conforme appear here.
+            </p>
+          </div>
+          <Button className="rounded-md font-black" onClick={() => router.push("/dashboard/request")}>
+            New request <Send className="size-4" />
+          </Button>
+        </div>
+        <Input
+          value={eventSearch}
+          onChange={(event) => setEventSearch(event.target.value)}
+          placeholder="Search event name, date, or status..."
+          className="mt-5 max-w-md"
+        />
+      </section>
+
+      <div className="grid gap-3">
+        {visibleEvents.length ? visibleEvents.map((ev) => {
+          const draftsForEvent = state.floorPlanDrafts.filter((draft) => draft.eventId === ev.id);
+          const activeForEvent = draftsForEvent.find((draft) => draft.isActive) ?? draftsForEvent[0];
+          const statement = state.billingStatements.find((item) => item.eventId === ev.id);
+          return (
+            <section key={ev.id} className="rounded-lg border border-border bg-card p-4 shadow-sm transition hover:border-primary/25 sm:p-5">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-black text-foreground">{ev.eventName}</h3>
+                    <StatusBadge status={ev.status} label={formatStatusLabel(ev.status)} />
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{ev.eventDate} - {ev.readiness}</p>
+                  <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+                    <span className="rounded-md bg-secondary px-3 py-2 font-bold text-muted-foreground">Floor plan: {activeForEvent ? formatStatusLabel(activeForEvent.status) : "Not started"}</span>
+                    <span className="rounded-md bg-secondary px-3 py-2 font-bold text-muted-foreground">Billing: {statement ? formatStatusLabel(statement.status) : "Pending"}</span>
+                    <span className="rounded-md bg-secondary px-3 py-2 font-bold text-muted-foreground">Portal: {portalBadgeLabel(ev.clientPortalStatus)}</span>
+                  </div>
+                </div>
+                <Button className="rounded-md font-black" onClick={() => router.push(dashboardHref("overview", ev.id))}>
+                  Open workspace <ArrowRight className="size-4" />
+                </Button>
+              </div>
+            </section>
+          );
+        }) : (
+          <EmptyState icon={CalendarDays} title="No matching events" description="Try another search, or start a new event request." />
+        )}
+      </div>
+    </div>
+  );
+
+  const renderRequestPage = () => (
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <section className="rounded-lg border border-border bg-card shadow-sm">
+        <header className="border-b border-border px-5 py-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">New event request</p>
+          <h2 className="mt-1 text-2xl font-black text-foreground">Tell PMCM about the next event</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            This creates a new inquiry from your signed-in client account. It does not bypass PMCM review, acceptance, or signed conforme.
+          </p>
+        </header>
+        <form className="space-y-5 p-5" onSubmit={submitNewEventRequest}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FieldGroup label="Client name">
+              <Input value={session.name} readOnly />
+            </FieldGroup>
+            <FieldGroup label="Company">
+              <Input value={session.organization} readOnly />
+            </FieldGroup>
+          </div>
+          <FieldGroup label="Event name">
+            <Input required value={requestForm.eventName} onChange={(event) => setRequestForm({ ...requestForm, eventName: event.target.value })} placeholder="e.g. Leadership Summit 2026" />
+          </FieldGroup>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FieldGroup label="Event date">
+              <Input required type="date" value={requestForm.eventDate} onChange={(event) => setRequestForm({ ...requestForm, eventDate: event.target.value })} />
+            </FieldGroup>
+            <FieldGroup label="Event type">
+              <Input value={requestForm.eventType} onChange={(event) => setRequestForm({ ...requestForm, eventType: event.target.value })} />
+            </FieldGroup>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FieldGroup label="Venue or city">
+              <Input value={requestForm.venueCity} onChange={(event) => setRequestForm({ ...requestForm, venueCity: event.target.value })} placeholder="Venue, city, or TBD" />
+            </FieldGroup>
+            <FieldGroup label="Budget range">
+              <Input value={requestForm.budgetRange} onChange={(event) => setRequestForm({ ...requestForm, budgetRange: event.target.value })} />
+            </FieldGroup>
+          </div>
+          <FieldGroup label="Planning notes">
+            <textarea
+              required
+              value={requestForm.message}
+              onChange={(event) => setRequestForm({ ...requestForm, message: event.target.value })}
+              rows={5}
+              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              placeholder="Share goals, estimated guests, event format, program notes, or early constraints."
+            />
+          </FieldGroup>
+          <Button type="submit" disabled={busy === "event-request"} className="min-h-11 rounded-md font-black">
+            Submit request <Send className="size-4" />
+          </Button>
+        </form>
+      </section>
+
+      <aside className="space-y-4">
+        <section className="rounded-lg border border-primary/15 bg-(--prism-signal-soft) p-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">What happens next</p>
+          <div className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+            <p><strong className="text-foreground">1. PMCM reviews fit and scope.</strong></p>
+            <p><strong className="text-foreground">2. PMCM accepts, pends, or declines.</strong></p>
+            <p><strong className="text-foreground">3. Signed conforme unlocks the workspace.</strong></p>
+          </div>
+        </section>
+        <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+          <p className="text-sm font-black text-foreground">Your account details</p>
+          <div className="mt-3 divide-y divide-border text-sm">
+            <div className="flex justify-between gap-3 py-2"><span className="text-muted-foreground">Name</span><span className="font-bold">{session.name}</span></div>
+            <div className="flex justify-between gap-3 py-2"><span className="text-muted-foreground">Email</span><span className="font-bold">{session.email}</span></div>
+            <div className="flex justify-between gap-3 py-2"><span className="text-muted-foreground">Company</span><span className="font-bold">{session.organization}</span></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  );
+
+  const renderHomePage = () => (
+    <div className="space-y-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Client portal</p>
+            <h1 className="mt-2 text-3xl font-black leading-tight text-foreground">Welcome back, {session.name}.</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Track confirmed event workspaces, client action items, editable floorplans before approval, billing milestones, and PMCM updates.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button className="rounded-md font-black" onClick={() => router.push("/dashboard/request")}>New request</Button>
+            <Button variant="outline" className="rounded-md font-bold" onClick={() => router.push("/dashboard/events")}>My events</Button>
+          </div>
+        </div>
+      </section>
+
+      {selectedEvent && nextAction ? (
+        <>
+          <NextActionHero event={selectedEvent} action={nextAction} onSelect={() => runClientAction(nextAction)} />
+          <LifecycleStrip selectedEvent={selectedEvent} briefing={briefing} billing={billing} officialDraft={officialDraft} />
+        </>
+      ) : (
+        <EmptyState icon={LockKeyhole} title="No active event portal" description="The client portal opens after PMCM accepts the inquiry and records the signed conforme." />
+      )}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <ClientActionQueue actions={clientActions} onSelect={runClientAction} />
+        <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Recent PMCM updates</p>
+          {notifications.length ? (
+            <div className="mt-3 divide-y divide-border">
+              {notifications.map((notification) => (
+                <div key={notification.id} className="py-3">
+                  <p className="text-sm font-black text-foreground">{notification.channel.toUpperCase()}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{notification.message}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">PMCM updates will appear here once planning activity starts.</p>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+
+  const renderFloorPlanPage = () => {
+    const activeDraft = officialDraft ?? preferenceDrafts[0];
+    const approved = activeDraft?.status === "approved";
+    return (
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <section className="rounded-lg border border-border bg-card shadow-sm">
+          <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Floor plan workspace</p>
+              <h2 className="mt-1 text-xl font-black text-foreground">
+                {approved ? "Approved floor plan is locked" : "Editable floor plan"}
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Clients can edit the floor plan until PMCM approves it. After approval, this page becomes a read-only record.
+              </p>
+            </div>
+            {activeDraft ? <StatusBadge status={activeDraft.status} label={formatStatusLabel(activeDraft.status)} /> : null}
+          </header>
+          <div className="space-y-5 p-5">
+            {activeDraft ? (
+              <>
+                <div className="rounded-lg border border-primary/12 bg-secondary/50 p-4">
+                  <p className="text-sm font-black text-foreground">{activeDraft.name}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {approved
+                      ? "This approved version is frozen for event reference."
+                      : "Open the editor to adjust seating, flow, stage placement, and notes before approval."}
+                  </p>
+                  <Button className="mt-4 rounded-md font-black" onClick={() => openFloorplanEditor(activeDraft, approved)}>
+                    {approved ? "Open floor plan" : "Edit floor plan"} <ArrowRight className="size-4" />
+                  </Button>
+                </div>
+                <LayoutPreview project={approved ? officialProject : null} />
+              </>
+            ) : (
+              <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start with a guided preference draft or choose a layout preset." />
+            )}
+
+            {!approved ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {PRESETS.slice(0, 4).map((preset) => (
+                  <button
+                    key={preset.id}
+                    disabled={busy === `editor-${preset.id}`}
+                    onClick={() => createEditorDraft(preset)}
+                    className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/35 disabled:opacity-60"
+                  >
+                    <p className="text-sm font-bold text-foreground">{preset.name}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{preset.description}</p>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-border bg-card shadow-sm">
+          <header className="border-b border-border px-5 py-4">
+            <p className="text-sm font-black text-foreground">Guided floor plan notes</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Use this form to send PMCM structured layout context.</p>
+          </header>
+          <form onSubmit={submitPreference} className="space-y-4 p-5">
+            <FieldGroup label="Preference title">
+              <Input disabled={approved} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </FieldGroup>
+            <FieldGroup label="Seating style">
+              <Input disabled={approved} value={form.seatingStyle} onChange={(e) => setForm({ ...form, seatingStyle: e.target.value })} />
+            </FieldGroup>
+            <FieldGroup label="Stage preference">
+              <Input disabled={approved} value={form.stagePreference} onChange={(e) => setForm({ ...form, stagePreference: e.target.value })} />
+            </FieldGroup>
+            <FieldGroup label="Guest flow notes">
+              <textarea
+                disabled={approved}
+                value={form.flowNotes}
+                onChange={(e) => setForm({ ...form, flowNotes: e.target.value })}
+                rows={3}
+                className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:opacity-60"
+              />
+            </FieldGroup>
+            <FieldGroup label="Guests">
+              <Input disabled={approved} type="number" min={1} value={form.guestCount} onChange={(e) => setForm({ ...form, guestCount: Number(e.target.value) })} />
+            </FieldGroup>
+            <FieldGroup label="Constraints">
+              <textarea
+                disabled={approved}
+                value={form.constraints}
+                onChange={(e) => setForm({ ...form, constraints: e.target.value })}
+                rows={3}
+                className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:opacity-60"
+              />
+            </FieldGroup>
+            <Button disabled={approved || busy === "layout-preference"} className="min-h-11 w-full gap-2 rounded-lg font-bold" type="submit">
+              <Send className="size-4" /> Save floor plan notes
+            </Button>
+          </form>
+        </section>
+      </div>
+    );
+  };
+
+  const renderMessagesPage = () => {
+    const messageItems = [
+      ...notifications.map((item) => ({
+        id: item.id,
+        title: `${item.channel.toUpperCase()} update`,
+        detail: item.message,
+        meta: item.createdAt,
+        status: item.status,
+      })),
+      ...audit.map((item) => ({
+        id: item.id,
+        title: clientActivityTitle(item.action),
+        detail: `Updated by ${clientActivityActor(item.actor)}`,
+        meta: item.createdAt,
+        status: "logged",
+      })),
+    ];
+
+    return (
+      <section className="rounded-lg border border-border bg-card shadow-sm">
+        <header className="border-b border-border px-5 py-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Messages</p>
+          <h2 className="mt-1 text-xl font-black text-foreground">PMCM updates and client-visible activity</h2>
+        </header>
+        <div className="divide-y divide-border p-5">
+          {messageItems.length ? messageItems.map((item) => (
+            <div key={item.id} className="flex items-start gap-3 py-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-black text-primary">PM</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-black text-foreground">{item.title}</p>
+                  <StatusBadge status={item.status} />
+                </div>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.detail}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{item.meta}</p>
+              </div>
+            </div>
+          )) : (
+            <EmptyState icon={MessageSquareText} title="No messages yet" description="PMCM messages and client-visible updates will appear here." />
+          )}
+        </div>
+      </section>
+    );
+  };
+
+  const renderEventPage = () => {
+    if (!selectedEvent) {
+      return <EmptyState icon={LockKeyhole} title="No active event portal" description="The client portal opens after your inquiry is accepted and the signed conforme is uploaded." className="mt-8" />;
+    }
+    const needsAction = clientActions.filter((action) => action.tone === "primary" || action.tone === "warning");
+    const waiting = clientActions.filter((action) => action.tone === "neutral");
+    const completed = clientActions.filter((action) => action.tone === "success");
+    return (
+      <>
+        {eventHeader}
+        {route === "overview" && (
+          <>
+            <LifecycleStrip selectedEvent={selectedEvent} briefing={briefing} billing={billing} officialDraft={officialDraft} />
+            <ClientOverviewTab selectedEvent={selectedEvent} briefing={briefing} payments={payments} billing={billing} documents={documents} audit={audit} officialDraft={officialDraft} preferenceDraftCount={preferenceDrafts.length} onOpenOfficialFloorplan={officialDraft ? () => openFloorplanEditor(officialDraft, officialDraft.status === "approved") : undefined} setTab={(next) => navigateToEventRoute(next)} />
+          </>
+        )}
+        {route === "actions" && (
+          <div className="grid gap-5 xl:grid-cols-3">
+            {renderActionGroup("Needs your action", "Client decisions or updates that can move planning forward.", needsAction)}
+            {renderActionGroup("Waiting on PMCM", "Items being prepared or reviewed by the PMCM event team.", waiting)}
+            {renderActionGroup("Completed", "Finished client-visible workflow items.", completed)}
+          </div>
+        )}
+        {route === "briefing" && <ClientBriefingTab briefing={briefing} />}
+        {route === "proposal" && <ClientProposalTab selectedEvent={selectedEvent} briefing={briefing} billing={billing} payments={payments} officialDraft={officialDraft} setTab={(next) => navigateToEventRoute(next)} />}
+        {route === "floorplan" && renderFloorPlanPage()}
+        {route === "documents" && <ClientDocumentsTab documents={documents} />}
+        {route === "billing" && <ClientBillingTab payments={payments} billing={billing} />}
+        {route === "messages" && renderMessagesPage()}
+      </>
+    );
+  };
+
+  const pageContent = (
+    <div className="space-y-5">
+      {error && <PrismNoticeBanner tone="danger">{error}</PrismNoticeBanner>}
+      {notice && <PrismNoticeBanner tone="success">{notice}</PrismNoticeBanner>}
+      {route === "home" && renderHomePage()}
+      {route === "request" && renderRequestPage()}
+      {route === "events" && renderEventsPage()}
+      {route !== "home" && route !== "request" && route !== "events" && renderEventPage()}
+    </div>
+  );
+
   return (
     <PrismDashboardShell
       productLabel="P.R.I.S.M"
       roleLabel="Client Portal"
-      eyebrow="Confirmed client event"
-      title={selectedEvent?.eventName ?? "Client portal"}
-      description={
-        selectedEvent
-          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Next actions, proposal review, documents, billing, and official layout review stay in this signed-in portal.`
-          : "The portal opens after your inquiry is accepted and the signed conforme is recorded."
-      }
+      eyebrow={shellEyebrow}
+      title={shellTitle}
+      description={shellDescription}
       activeItemId={activeShellItemId}
       navItems={shellNavItems}
       onNavSelect={handleShellNavSelect}
@@ -966,274 +1527,7 @@ export function Dashboard() {
       mobileActions={shellMobileActions}
       onSignOut={signOut}
     >
-      <div className="space-y-5">
-
-            {error && <PrismNoticeBanner tone="danger">{error}</PrismNoticeBanner>}
-            {notice && <PrismNoticeBanner tone="success">{notice}</PrismNoticeBanner>}
-
-            {selectedEvent ? (
-              <>
-                <RolePageHeader
-                  eyebrow="Event context"
-                  title={selectedEvent.eventName}
-                  description={`${selectedEvent.clientName} - ${selectedEvent.eventDate}. This signed-in surface stays focused on client approvals, documents, billing visibility, and official layout review.`}
-                  meta={[
-                    <StatusBadge key="stage" status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />,
-                    <StatusBadge key="portal" status={portalBadgeStatus(selectedEvent.clientPortalStatus)} label={portalBadgeLabel(selectedEvent.clientPortalStatus)} />,
-                    selectedEvent.readiness ? `Readiness ${formatStatusLabel(selectedEvent.readiness)}` : "Readiness pending",
-                  ]}
-                  action={
-                    <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => setTab("activity")}>
-                      Activity
-                    </Button>
-                  }
-                />
-
-                {nextAction ? (
-                  <NextActionHero
-                    event={selectedEvent}
-                    action={nextAction}
-                    onSelect={() => runClientAction(nextAction)}
-                  />
-                ) : null}
-
-                <LifecycleStrip
-                  selectedEvent={selectedEvent}
-                  briefing={briefing}
-                  billing={billing}
-                  officialDraft={officialDraft}
-                />
-
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-                  <ClientActionQueue actions={clientActions} onSelect={runClientAction} />
-
-                  <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
-                    <div className="flex items-start gap-3">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-md bg-(--prism-ink) text-sidebar-foreground">
-                        <MessageSquareText className="size-4" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Client workspace</p>
-                        <h3 className="mt-1 text-lg font-black text-foreground">What this portal is for</h3>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                          Review PMCM-published planning details, respond to client-visible blockers, and keep event files in one record. Supplier choices, coordinator operations, internal CE, and audit controls stay outside this portal.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 grid gap-2">
-                      {[
-                        ["Conforme gate", portalBadgeLabel(selectedEvent.clientPortalStatus)],
-                        ["Official layout", officialDraft ? formatStatusLabel(officialDraft.status) : "Not published"],
-                        ["Billing", billing ? formatStatusLabel(billing.status) : "Pending"],
-                      ].map(([label, value]) => (
-                        <div key={label} className="flex items-center justify-between gap-3 border-t border-border px-1 py-2.5 first:border-t-0">
-                          <span className="text-xs font-bold text-muted-foreground">{label}</span>
-                          <span className="text-xs font-black text-foreground">{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                </div>
-
-                <PrismWorkflowTabs items={DETAIL_TABS} activeId={tab} onSelect={(id) => setTab(id as DetailTab)} />
-
-                {/* Tab content */}
-                {tab === "overview" && (
-                  <ClientOverviewTab
-                    selectedEvent={selectedEvent}
-                    briefing={briefing}
-                    payments={payments}
-                    billing={billing}
-                    documents={documents}
-                    audit={audit}
-                    officialDraft={officialDraft}
-                    preferenceDraftCount={preferenceDrafts.length}
-                    onOpenOfficialFloorplan={
-                      officialDraft ? () => openFloorplanEditor(officialDraft, true) : undefined
-                    }
-                    setTab={setTab}
-                  />
-                )}
-
-                {tab === "floorplan" && (
-                  <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
-                    {/* Draft panel */}
-                    <section className="rounded-lg border border-border bg-card shadow-sm">
-                      <header className="flex items-center gap-2.5 border-b border-border px-5 py-3.5">
-                        <span className="grid size-7 place-items-center rounded-md bg-secondary text-(--prism-amber)">
-                          <MapPinned className="size-3.5" />
-                        </span>
-                        <h3 className="text-sm font-bold text-foreground">Layout preference draft</h3>
-                      </header>
-                      <div className="p-5 space-y-5">
-                        <div className="border-l border-(--prism-sage) bg-secondary/45 px-3 py-2.5">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-bold text-foreground">Preference canvas</p>
-                              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                                Sketch seating, stage, and guest-flow ideas here. The official floor plan remains separate for client review.
-                              </p>
-                            </div>
-                            {preferenceDrafts[0] && (
-                              <Button
-                                size="sm"
-                                onClick={() => openFloorplanEditor(preferenceDrafts[0])}
-                                className="rounded-lg font-bold"
-                              >
-                                Open latest preference
-                              </Button>
-                            )}
-                          </div>
-                          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                            {PRESETS.slice(0, 4).map((preset) => (
-                              <button
-                                key={preset.id}
-                                disabled={busy === `editor-${preset.id}`}
-                                onClick={() => createEditorDraft(preset)}
-                                className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/35 disabled:opacity-60"
-                              >
-                                <p className="text-sm font-bold text-foreground">{preset.name}</p>
-                                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{preset.description}</p>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Preference form */}
-                        <form onSubmit={submitPreference} className="space-y-4">
-                          <FieldGroup label="Preference title">
-                            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                          </FieldGroup>
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            <FieldGroup label="Seating style">
-                              <Input value={form.seatingStyle} onChange={(e) => setForm({ ...form, seatingStyle: e.target.value })} />
-                            </FieldGroup>
-                            <FieldGroup label="Stage preference">
-                              <Input value={form.stagePreference} onChange={(e) => setForm({ ...form, stagePreference: e.target.value })} />
-                            </FieldGroup>
-                          </div>
-                          <FieldGroup label="Guest flow notes">
-                            <textarea
-                              value={form.flowNotes}
-                              onChange={(e) => setForm({ ...form, flowNotes: e.target.value })}
-                              rows={3}
-                              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                            />
-                          </FieldGroup>
-                          <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
-                            <FieldGroup label="Guests">
-                              <Input
-                                type="number"
-                                min={1}
-                                value={form.guestCount}
-                                onChange={(e) => setForm({ ...form, guestCount: Number(e.target.value) })}
-                              />
-                            </FieldGroup>
-                            <FieldGroup label="Constraints">
-                              <textarea
-                                value={form.constraints}
-                                onChange={(e) => setForm({ ...form, constraints: e.target.value })}
-                                rows={3}
-                                className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                              />
-                            </FieldGroup>
-                          </div>
-                          <FieldGroup label="Optional notes">
-                            <textarea
-                              value={form.notes}
-                              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                              rows={2}
-                              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                            />
-                          </FieldGroup>
-                          <Button disabled={busy === "layout-preference"} className="min-h-11 gap-2 rounded-lg font-bold" type="submit">
-                            <Send className="size-4" /> Submit preference draft
-                          </Button>
-                        </form>
-
-                        {/* Existing drafts */}
-                        {preferenceDrafts.length > 0 && (
-                          <div className="border-t border-border pt-4">
-                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Your preference drafts</p>
-                            {preferenceDrafts.slice(0, 4).map((draft) => (
-                              <div key={draft.id} className="flex items-center justify-between gap-3 border-t border-border px-1 py-3 text-sm first:mt-2 first:border-t-0">
-                                <div className="min-w-0">
-                                  <p className="truncate font-semibold text-foreground">{draft.name}</p>
-                                  <StatusBadge status={draft.status} className="mt-1.5" />
-                                </div>
-                                <Button variant="outline" size="sm" className="min-h-10 shrink-0 rounded-lg" onClick={() => openFloorplanEditor(draft)}>
-                                  Edit preference
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </section>
-
-                    {/* Official review panel */}
-                    <section className="rounded-lg border border-border bg-card shadow-sm">
-                      <header className="flex items-center gap-2.5 border-b border-border px-5 py-3.5">
-                        <span className="grid size-7 place-items-center rounded-md bg-secondary text-(--prism-amber)">
-                          <CheckCircle2 className="size-3.5" />
-                        </span>
-                        <h3 className="text-sm font-bold text-foreground">Official floorplan review</h3>
-                      </header>
-                      <div className="p-5">
-                        {officialDraft ? (
-                          <div className="space-y-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="font-bold text-foreground">{officialDraft.name}</p>
-                                <p className="mt-0.5 text-xs text-muted-foreground">Official floor plan for approval or revision comments.</p>
-                              </div>
-                              <StatusBadge status={officialDraft.status} />
-                            </div>
-                            <Button
-                              variant="outline"
-                              className="w-full rounded-lg font-bold"
-                              onClick={() => openFloorplanEditor(officialDraft, true)}
-                            >
-                              Open floor plan
-                            </Button>
-                            <LayoutPreview project={officialProject} />
-                          </div>
-                        ) : (
-                          <EmptyState
-                            icon={LockKeyhole}
-                            title="No official layout yet"
-                            description="Your event team will publish the official layout here after reviewing your preference."
-                          />
-                        )}
-                      </div>
-                    </section>
-                  </div>
-                )}
-
-                {tab === "briefing" && <ClientBriefingTab briefing={briefing} />}
-                {tab === "proposal" && (
-                  <ClientProposalTab
-                    selectedEvent={selectedEvent}
-                    briefing={briefing}
-                    billing={billing}
-                    payments={payments}
-                    officialDraft={officialDraft}
-                    setTab={setTab}
-                  />
-                )}
-                {tab === "billing" && <ClientBillingTab payments={payments} billing={billing} />}
-                {tab === "documents" && <ClientDocumentsTab documents={documents} />}
-                {tab === "activity" && <ClientActivityTab audit={audit} />}
-              </>
-            ) : (
-              <EmptyState
-                icon={LockKeyhole}
-                title="No active event portal"
-                description="The client portal opens after your inquiry is accepted and the signed conforme is uploaded."
-                className="mt-8"
-              />
-            )}
-      </div>
+      {pageContent}
     </PrismDashboardShell>
   );
 }
