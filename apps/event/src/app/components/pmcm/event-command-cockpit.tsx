@@ -74,7 +74,7 @@ export function buildEventWorkflowTabs({
     { id: "live-ops", label: "Live ops", icon: Radio },
     { id: "billing", label: "Finance", icon: ReceiptText, badge: paymentsCount || undefined },
     { id: "closure", label: "Closure", icon: Archive, badge: openChecksCount || undefined },
-    { id: "activity", label: "Activity", icon: MessageSquareText },
+    { id: "activity", label: "Messages", icon: MessageSquareText },
   ];
 }
 

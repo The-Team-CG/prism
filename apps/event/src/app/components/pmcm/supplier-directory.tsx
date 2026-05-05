@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, FilePlus2, Plus, Search, Star } from "lucide-react";
+import { ArrowLeft, Check, FilePlus2, Plus, Search, Star } from "lucide-react";
 
 import type { MvpSupplier, MvpSupplierCategory } from "@/lib/mvp-api";
 import { Badge } from "@/app/components/ui/badge";
@@ -56,7 +56,7 @@ export function SupplierDirectory({
   const [categoryId, setCategoryId] = useState("all");
   const [tier, setTier] = useState("all");
   const [rating, setRating] = useState("all");
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(suppliers[0]?.id ?? null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
     categoryId: categories[0]?.id ?? "",
@@ -82,7 +82,7 @@ export function SupplierDirectory({
 
   useEffect(() => {
     if (!selectedSupplierId || suppliers.some((supplier) => supplier.id === selectedSupplierId)) return;
-    setSelectedSupplierId(suppliers[0]?.id ?? null);
+    setSelectedSupplierId(null);
   }, [selectedSupplierId, suppliers]);
 
   const filtered = suppliers.filter((supplier) => {
@@ -95,8 +95,9 @@ export function SupplierDirectory({
     if (rating === "unrated" && supplier.aggregateRating !== null) return false;
     return true;
   });
-  const selectedSupplier =
-    suppliers.find((supplier) => supplier.id === selectedSupplierId) ?? filtered[0] ?? suppliers[0];
+  const selectedSupplier = selectedSupplierId
+    ? suppliers.find((supplier) => supplier.id === selectedSupplierId)
+    : undefined;
 
   useEffect(() => {
     if (!createForm.categoryId && categories[0]?.id) {
@@ -150,7 +151,8 @@ export function SupplierDirectory({
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+    <div className="grid gap-5">
+      {!selectedSupplier ? (
       <section className="min-w-0 rounded-lg border border-primary/12 bg-card p-4 shadow-none">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -174,7 +176,7 @@ export function SupplierDirectory({
 
         {showCreate && (
           <div className="mt-5 rounded-lg border border-border bg-muted p-4">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">New Supplier Profile</p>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">New supplier</p>
             <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               <Input value={createForm.name} onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))} className="h-10 bg-white" placeholder="Supplier name" />
               <Input value={createForm.contactName} onChange={(event) => setCreateForm((current) => ({ ...current, contactName: event.target.value }))} className="h-10 bg-white" placeholder="Contact person" />
@@ -245,7 +247,7 @@ export function SupplierDirectory({
                 onClick={() => setSelectedSupplierId(supplier.id)}
                 className={cx(
                   "grid min-w-[960px] w-full grid-cols-[minmax(220px,1.2fr)_180px_160px_130px_160px_130px] items-center gap-0 border-t border-border px-3 py-3 text-left text-sm hover:bg-secondary/70",
-                  supplier.id === selectedSupplier?.id && "bg-secondary",
+                  supplier.id === selectedSupplierId && "bg-secondary",
                 )}
               >
                 <span className="min-w-0">
@@ -273,17 +275,24 @@ export function SupplierDirectory({
           </div>
         </div>
       </section>
-
-      <section className="rounded-lg border border-primary/12 bg-card p-5 shadow-none">
-        {!selectedSupplier ? (
-          <div className="grid min-h-[420px] place-items-center text-center text-sm text-muted-foreground">
-            Select a supplier to open the full PMCM profile.
-          </div>
-        ) : (
+      ) : (
+        <section className="rounded-lg border border-primary/12 bg-card p-5 shadow-none">
           <div className="space-y-5">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">Supplier Profile</p>
-              <h3 className="mt-2 text-2xl font-black">{selectedSupplier.name}</h3>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">Supplier Profile</p>
+                  <h3 className="mt-2 truncate text-2xl font-black">{selectedSupplier.name}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSupplierId(null)}
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-white px-3 text-xs font-black text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+                >
+                  <ArrowLeft className="size-4" />
+                  Supplier list
+                </button>
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <SupplierTierBadge tier={selectedSupplier.tier} />
                 <Badge variant="outline" className="rounded-full bg-secondary">{selectedSupplier.categoryName}</Badge>
@@ -438,8 +447,8 @@ export function SupplierDirectory({
               <p className="mt-3 text-xs text-muted-foreground">Application date: {selectedSupplier.applicationDate}</p>
             </div>
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
