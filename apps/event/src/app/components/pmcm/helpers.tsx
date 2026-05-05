@@ -45,7 +45,7 @@ export function tierTone(tier: string) {
 
 export function SupplierTierBadge({ tier }: { tier: string }) {
   return (
-    <span className={cx("inline-flex rounded-full border px-2.5 py-1 text-xs font-black", tierTone(tier))}>
+    <span className={cx("inline-flex w-fit items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-black", tierTone(tier))}>
       {tierLabel(tier)}
     </span>
   );

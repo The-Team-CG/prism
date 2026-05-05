@@ -231,8 +231,9 @@ export function SupplierDirectory({
           </select>
         </div>
 
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-          <div className="grid min-w-[960px] grid-cols-[minmax(220px,1.2fr)_180px_160px_130px_160px_130px] bg-muted px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <div className="overflow-x-auto">
+          <div className="grid min-w-[1040px] grid-cols-[minmax(260px,1.6fr)_minmax(160px,1fr)_9rem_7rem_10rem_8rem] gap-4 border-b border-border bg-secondary/45 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground">
             <span>Name</span>
             <span>Category</span>
             <span>Tier</span>
@@ -240,31 +241,35 @@ export function SupplierDirectory({
             <span>Aggregate Rating</span>
             <span>Last Event</span>
           </div>
-          <div className="max-h-[520px] overflow-y-auto">
+          <div className="max-h-[560px] min-w-[1040px] overflow-y-auto">
             {filtered.map((supplier) => (
               <button
                 key={supplier.id}
                 onClick={() => setSelectedSupplierId(supplier.id)}
                 className={cx(
-                  "grid min-w-[960px] w-full grid-cols-[minmax(220px,1.2fr)_180px_160px_130px_160px_130px] items-center gap-0 border-t border-border px-3 py-3 text-left text-sm hover:bg-secondary/70",
+                  "grid w-full grid-cols-[minmax(260px,1.6fr)_minmax(160px,1fr)_9rem_7rem_10rem_8rem] items-center gap-4 border-b border-border px-4 py-4 text-left text-sm transition last:border-b-0 hover:bg-secondary/55 focus-visible:bg-secondary focus-visible:outline-none",
                   supplier.id === selectedSupplierId && "bg-secondary",
                 )}
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-black">{supplier.name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{supplier.email || supplier.phone}</span>
+                  <span className="block truncate text-[15px] font-black text-foreground">{supplier.name}</span>
+                  <span className="mt-1 block truncate text-xs font-medium text-muted-foreground">{supplier.email || supplier.phone || "No contact on file"}</span>
                 </span>
-                <span className="text-muted-foreground">{supplier.categoryName}</span>
-                <SupplierTierBadge tier={supplier.tier} />
+                <span className="truncate font-medium text-muted-foreground">{supplier.categoryName}</span>
+                <span>
+                  <SupplierTierBadge tier={supplier.tier} />
+                </span>
                 <span>
                   {supplier.bniMember ? (
-                    <Badge variant="outline" className="rounded-full border-[#F06030]/30 bg-accent text-(--prism-amber)">BNI</Badge>
+                    <Badge variant="outline" className="rounded-full border-[#F06030]/30 bg-accent px-2.5 py-1 text-[11px] font-black text-(--prism-amber)">BNI</Badge>
                   ) : (
-                    <span className="text-xs text-muted-foreground">No</span>
+                    <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-[11px] font-black text-muted-foreground">No BNI</span>
                   )}
                 </span>
-                <RatingStars rating={supplier.aggregateRating} />
-                <span className="text-muted-foreground">{supplier.lastEventDate ?? "None"}</span>
+                <span>
+                  <RatingStars rating={supplier.aggregateRating} />
+                </span>
+                <span className="font-medium text-muted-foreground">{supplier.lastEventDate ?? "None"}</span>
               </button>
             ))}
             {filtered.length === 0 && (
@@ -272,6 +277,7 @@ export function SupplierDirectory({
                 No suppliers match the active filters.
               </div>
             )}
+          </div>
           </div>
         </div>
       </section>
