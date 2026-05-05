@@ -1,0 +1,54 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - link "Back to P.R.I.S.M. home" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - img [ref=e5]
+      - generic [ref=e7]:
+        - generic [ref=e9]:
+          - img [ref=e11]
+          - generic [ref=e12]:
+            - generic [ref=e13]: P.R.I.S.M.
+            - generic [ref=e14]: Client Portal
+        - generic [ref=e15]:
+          - generic [ref=e16]:
+            - img [ref=e18]
+            - generic [ref=e23]:
+              - heading "Welcome Back" [level=2] [ref=e24]
+              - paragraph [ref=e25]: Sign in to continue
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - generic [ref=e28]:
+                - generic [ref=e29]: Email address
+                - textbox "Email address" [ref=e30]:
+                  - /placeholder: ana@ayala.test
+                  - text: ana@ayala.test
+              - generic [ref=e31]:
+                - generic [ref=e32]: Password
+                - generic [ref=e33]:
+                  - textbox "Password" [ref=e34]:
+                    - /placeholder: Enter your password
+                    - text: prism-client
+                  - button "Show password" [ref=e35] [cursor=pointer]:
+                    - img [ref=e36]
+              - button "Sign in" [ref=e39] [cursor=pointer]
+              - generic [ref=e40]:
+                - link "Need access? Request here" [ref=e41] [cursor=pointer]:
+                  - /url: /sign-up
+                - link "No inquiry yet?" [ref=e42] [cursor=pointer]:
+                  - /url: /inquiry
+            - generic [ref=e43]:
+              - paragraph [ref=e44]: Demo accounts
+              - button "Ana Reyes Ayala Corp" [ref=e46] [cursor=pointer]:
+                - generic [ref=e47]:
+                  - paragraph [ref=e48]: Ana Reyes
+                  - paragraph [ref=e49]: Ayala Corp
+                - img [ref=e50]
+        - generic [ref=e52]:
+          - paragraph [ref=e53]:
+            - img [ref=e54]
+            - text: Approved clients only. Access requires a signed conforme.
+          - paragraph [ref=e56]: Contact PMCM for account issues or access requests.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e62] [cursor=pointer]:
+    - img [ref=e63]

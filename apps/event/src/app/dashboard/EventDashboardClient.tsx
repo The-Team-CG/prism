@@ -102,6 +102,7 @@ type Screen =
   | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project };
 type DetailTab = PmcmDetailTab;
 type DashboardSection =
+  | "dashboard"
   | "events"
   | "inquiries"
   | "events-list"
@@ -115,7 +116,7 @@ type DashboardSection =
   | "finance"
   | "audit"
   | "settings";
-type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: string; clientId?: string };
+type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: string; clientId?: string; view?: string };
 
 export type EventDashboardClientProps = Partial<RouteState>;
 
@@ -135,33 +136,327 @@ const EVENT_TAB_BY_ROUTE = Object.fromEntries(
   Object.entries(EVENT_TAB_ROUTES).map(([tabId, route]) => [route, tabId]),
 ) as Record<string, DetailTab>;
 
+const DASHBOARD_ROUTE_ITEMS: Record<string, string> = {
+  overview: "dashboard-overview",
+  "upcoming-events": "dashboard-upcoming",
+  "pending-tasks": "dashboard-pending",
+  "recent-messages": "dashboard-messages",
+  "financial-summary": "dashboard-finance",
+};
+
+const CLIENT_LIST_ROUTE_ITEMS: Record<string, string> = {
+  all: "clients-all",
+  active: "clients-active",
+  prospects: "clients-prospects",
+  past: "clients-past",
+  archived: "clients-archived",
+};
+
+const CLIENT_DETAIL_ROUTE_ITEMS: Record<string, string> = {
+  overview: "client-overview",
+  events: "client-events",
+  contacts: "client-contacts",
+  files: "client-files",
+  messages: "client-messages",
+  contracts: "client-contracts",
+  invoices: "client-invoices",
+  notes: "client-notes",
+  "activity-log": "client-activity",
+};
+
+const EVENT_LIST_ROUTE_ITEMS: Record<string, string> = {
+  all: "events-all",
+  upcoming: "events-upcoming",
+  ongoing: "events-ongoing",
+  completed: "events-completed",
+  cancelled: "events-cancelled",
+  draft: "events-draft",
+  "by-client": "events-by-client",
+  "by-event-type": "events-by-type",
+};
+
+const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
+  overview: "overview",
+  "planning-checklist": "briefing",
+  schedule: "live-ops",
+  attendees: "live-ops",
+  staff: "coordinators",
+  suppliers: "suppliers",
+  budget: "billing",
+  files: "floorplans",
+  messages: "activity",
+  timeline: "live-ops",
+  "post-event-report": "closure",
+  floorplans: "floorplans",
+  briefing: "briefing",
+  coordinators: "coordinators",
+  "live-ops": "live-ops",
+  billing: "billing",
+  closure: "closure",
+  activity: "activity",
+};
+
+const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
+  overview: "event-overview",
+  "planning-checklist": "event-planning",
+  briefing: "event-planning",
+  schedule: "event-schedule",
+  attendees: "event-attendees",
+  staff: "event-staff",
+  coordinators: "event-staff",
+  suppliers: "event-suppliers",
+  budget: "event-budget",
+  billing: "event-budget",
+  files: "event-files",
+  floorplans: "event-files",
+  messages: "event-messages",
+  activity: "event-messages",
+  timeline: "event-timeline",
+  "live-ops": "event-timeline",
+  "post-event-report": "event-report",
+  closure: "event-report",
+};
+
+const SECTION_ROUTE_ITEMS: Record<string, Record<string, string>> = {
+  calendar: {
+    all: "calendar-all",
+    events: "calendar-events",
+    "task-deadlines": "calendar-tasks",
+    "client-meetings": "calendar-clients",
+    "staff-availability": "calendar-team",
+    "supplier-bookings": "calendar-suppliers",
+    "payment-due-dates": "calendar-payments",
+  },
+  tasks: {
+    mine: "tasks-my",
+    all: "tasks-all",
+    overdue: "tasks-overdue",
+    "due-today": "tasks-today",
+    "due-this-week": "tasks-week",
+    "assigned-to-me": "tasks-assigned",
+    "by-client": "tasks-by-client",
+    "by-event": "tasks-by-event",
+    templates: "tasks-templates",
+  },
+  messages: {
+    inbox: "messages-inbox",
+    client: "messages-client",
+    event: "messages-event",
+    team: "messages-team",
+    approvals: "messages-approvals",
+    announcements: "messages-announcements",
+    archived: "messages-archived",
+  },
+  files: {
+    all: "files-all",
+    client: "files-client",
+    event: "files-event",
+    contracts: "files-contracts",
+    quotations: "files-quotations",
+    invoices: "files-invoices",
+    "floor-plans": "files-floorplans",
+    permits: "files-permits",
+    media: "files-media",
+    archived: "files-archived",
+  },
+  team: {
+    all: "team-all",
+    roles: "team-roles",
+    availability: "team-availability",
+    assignments: "team-assignments",
+    workload: "team-workload",
+    departments: "team-departments",
+    archived: "team-archived",
+  },
+  suppliers: {
+    all: "suppliers-all",
+    preferred: "suppliers-preferred",
+    venues: "suppliers-venues",
+    catering: "suppliers-catering",
+    "photography-videography": "suppliers-media",
+    "lights-sounds": "suppliers-lights",
+    decorations: "suppliers-decor",
+    transportation: "suppliers-transport",
+    contracts: "suppliers-contracts",
+    payments: "suppliers-payments",
+  },
+  finance: {
+    overview: "finance-overview",
+    quotations: "finance-quotations",
+    invoices: "finance-invoices",
+    payments: "finance-payments",
+    expenses: "finance-expenses",
+    "client-balances": "finance-balances",
+    "event-profit-loss": "finance-profit",
+    reports: "finance-reports",
+  },
+  settings: {
+    "organization-profile": "settings-organization",
+    "users-permissions": "settings-users",
+    roles: "settings-roles",
+    "event-types": "settings-event-types",
+    "task-templates": "settings-task-templates",
+    "message-templates": "settings-message-templates",
+    "file-categories": "settings-file-categories",
+    "notification-settings": "settings-notifications",
+    "system-logs": "settings-system-logs",
+  },
+};
+
+const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
+  "dashboard-overview": "/dashboard",
+  "dashboard-upcoming": "/dashboard/upcoming-events",
+  "dashboard-pending": "/dashboard/pending-tasks",
+  "dashboard-messages": "/dashboard/recent-messages",
+  "dashboard-finance": "/dashboard/financial-summary",
+  "clients-all": "/dashboard/clients",
+  "clients-active": "/dashboard/clients/active",
+  "clients-prospects": "/dashboard/clients/prospects",
+  "clients-past": "/dashboard/clients/past",
+  "clients-archived": "/dashboard/clients/archived",
+  "events-all": "/dashboard/events",
+  "events-upcoming": "/dashboard/events/upcoming",
+  "events-ongoing": "/dashboard/events/ongoing",
+  "events-completed": "/dashboard/events/completed",
+  "events-cancelled": "/dashboard/events/cancelled",
+  "events-draft": "/dashboard/events/draft",
+  "events-by-client": "/dashboard/events/by-client",
+  "events-by-type": "/dashboard/events/by-event-type",
+  "calendar-all": "/dashboard/calendar",
+  "calendar-events": "/dashboard/calendar/events",
+  "calendar-tasks": "/dashboard/calendar/task-deadlines",
+  "calendar-clients": "/dashboard/calendar/client-meetings",
+  "calendar-team": "/dashboard/calendar/staff-availability",
+  "calendar-suppliers": "/dashboard/calendar/supplier-bookings",
+  "calendar-payments": "/dashboard/calendar/payment-due-dates",
+  "tasks-my": "/dashboard/tasks",
+  "tasks-all": "/dashboard/tasks/all",
+  "tasks-overdue": "/dashboard/tasks/overdue",
+  "tasks-today": "/dashboard/tasks/due-today",
+  "tasks-week": "/dashboard/tasks/due-this-week",
+  "tasks-assigned": "/dashboard/tasks/assigned-to-me",
+  "tasks-by-client": "/dashboard/tasks/by-client",
+  "tasks-by-event": "/dashboard/tasks/by-event",
+  "tasks-templates": "/dashboard/tasks/templates",
+  "messages-inbox": "/dashboard/messages",
+  "messages-client": "/dashboard/messages/client",
+  "messages-event": "/dashboard/messages/event",
+  "messages-team": "/dashboard/messages/team",
+  "messages-approvals": "/dashboard/messages/approvals",
+  "messages-announcements": "/dashboard/messages/announcements",
+  "messages-archived": "/dashboard/messages/archived",
+  "files-all": "/dashboard/files",
+  "files-client": "/dashboard/files/client",
+  "files-event": "/dashboard/files/event",
+  "files-contracts": "/dashboard/files/contracts",
+  "files-quotations": "/dashboard/files/quotations",
+  "files-invoices": "/dashboard/files/invoices",
+  "files-floorplans": "/dashboard/files/floor-plans",
+  "files-permits": "/dashboard/files/permits",
+  "files-media": "/dashboard/files/media",
+  "files-archived": "/dashboard/files/archived",
+  "team-all": "/dashboard/team",
+  "team-roles": "/dashboard/team/roles",
+  "team-availability": "/dashboard/team/availability",
+  "team-assignments": "/dashboard/team/assignments",
+  "team-workload": "/dashboard/team/workload",
+  "team-departments": "/dashboard/team/departments",
+  "team-archived": "/dashboard/team/archived",
+  "suppliers-all": "/dashboard/suppliers",
+  "suppliers-preferred": "/dashboard/suppliers/preferred",
+  "suppliers-venues": "/dashboard/suppliers/venues",
+  "suppliers-catering": "/dashboard/suppliers/catering",
+  "suppliers-media": "/dashboard/suppliers/photography-videography",
+  "suppliers-lights": "/dashboard/suppliers/lights-sounds",
+  "suppliers-decor": "/dashboard/suppliers/decorations",
+  "suppliers-transport": "/dashboard/suppliers/transportation",
+  "suppliers-contracts": "/dashboard/suppliers/contracts",
+  "suppliers-payments": "/dashboard/suppliers/payments",
+  "finance-overview": "/dashboard/finance",
+  "finance-quotations": "/dashboard/finance/quotations",
+  "finance-invoices": "/dashboard/finance/invoices",
+  "finance-payments": "/dashboard/finance/payments",
+  "finance-expenses": "/dashboard/finance/expenses",
+  "finance-balances": "/dashboard/finance/client-balances",
+  "finance-profit": "/dashboard/finance/event-profit-loss",
+  "finance-reports": "/dashboard/finance/reports",
+  "settings-organization": "/dashboard/settings",
+  "settings-users": "/dashboard/settings/users-permissions",
+  "settings-roles": "/dashboard/settings/roles",
+  "settings-event-types": "/dashboard/settings/event-types",
+  "settings-task-templates": "/dashboard/settings/task-templates",
+  "settings-message-templates": "/dashboard/settings/message-templates",
+  "settings-file-categories": "/dashboard/settings/file-categories",
+  "settings-notifications": "/dashboard/settings/notification-settings",
+  "settings-system-logs": "/dashboard/settings/system-logs",
+};
+
+const CLIENT_DETAIL_ROUTES: Record<string, string> = {
+  "client-overview": "overview",
+  "client-events": "events",
+  "client-contacts": "contacts",
+  "client-files": "files",
+  "client-messages": "messages",
+  "client-contracts": "contracts",
+  "client-invoices": "invoices",
+  "client-notes": "notes",
+  "client-activity": "activity-log",
+};
+
+const EVENT_DETAIL_ROUTES: Record<string, string> = {
+  "event-overview": "overview",
+  "event-planning": "planning-checklist",
+  "event-schedule": "schedule",
+  "event-attendees": "attendees",
+  "event-staff": "staff",
+  "event-suppliers": "suppliers",
+  "event-budget": "budget",
+  "event-files": "files",
+  "event-messages": "messages",
+  "event-timeline": "timeline",
+  "event-report": "post-event-report",
+};
+
 function routeStateFromPath(pathname: string): RouteState {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[0] !== "dashboard") return { section: "events", tab: "overview" };
-  if (parts.length === 1) return { section: "events", tab: "overview" };
-  if (parts[1] === "inquiries") return { section: "inquiries", tab: "overview" };
-  if (parts[1] === "clients" && parts[2]) {
-    return { section: "clients", tab: "overview", clientId: decodeURIComponent(parts[2]) };
+  if (parts[0] !== "dashboard") return { section: "dashboard", tab: "overview", view: "overview" };
+  if (parts.length === 1) return { section: "dashboard", tab: "overview", view: "overview" };
+  if (DASHBOARD_ROUTE_ITEMS[parts[1]]) {
+    return { section: "dashboard", tab: "overview", view: parts[1] };
   }
-  if (parts[1] === "clients") return { section: "clients", tab: "overview" };
-  if (parts[1] === "calendar") return { section: "calendar", tab: "overview" };
-  if (parts[1] === "tasks") return { section: "tasks", tab: "overview" };
-  if (parts[1] === "team") return { section: "team", tab: "coordinators" };
-  if (parts[1] === "suppliers") return { section: "suppliers", tab: "overview" };
-  if (parts[1] === "files") return { section: "files", tab: "floorplans" };
-  if (parts[1] === "messages") return { section: "messages", tab: "activity" };
-  if (parts[1] === "finance") return { section: "finance", tab: "billing" };
-  if (parts[1] === "audit") return { section: "audit", tab: "overview" };
-  if (parts[1] === "settings") return { section: "settings", tab: "overview" };
+  if (parts[1] === "inquiries") return { section: "inquiries", tab: "overview", view: "prospects" };
+  if (parts[1] === "clients") {
+    if (!parts[2]) return { section: "clients", tab: "overview", view: "all" };
+    if (CLIENT_LIST_ROUTE_ITEMS[parts[2]]) return { section: "clients", tab: "overview", view: parts[2] };
+    return {
+      section: "clients",
+      tab: "overview",
+      clientId: decodeURIComponent(parts[2]),
+      view: parts[3] ?? "overview",
+    };
+  }
   if (parts[1] === "events" && parts[2]) {
+    if (EVENT_LIST_ROUTE_ITEMS[parts[2]]) return { section: "events-list", tab: "overview", view: parts[2] };
+    const eventRoute = parts[3] ?? "overview";
     return {
       section: "events",
       eventId: decodeURIComponent(parts[2]),
-      tab: EVENT_TAB_BY_ROUTE[parts[3] ?? "overview"] ?? "overview",
+      tab: EVENT_WORKSPACE_ROUTE_TABS[eventRoute] ?? EVENT_TAB_BY_ROUTE[eventRoute] ?? "overview",
+      view: eventRoute,
     };
   }
-  if (parts[1] === "events") return { section: "events-list", tab: "overview" };
-  return { section: "events", tab: "overview" };
+  if (parts[1] === "events") return { section: "events-list", tab: "overview", view: "all" };
+  if (parts[1] === "calendar") return { section: "calendar", tab: "overview", view: parts[2] ?? "all" };
+  if (parts[1] === "tasks") return { section: "tasks", tab: "overview", view: parts[2] ?? "mine" };
+  if (parts[1] === "team") return { section: "team", tab: "coordinators", view: parts[2] ?? "all" };
+  if (parts[1] === "suppliers") return { section: "suppliers", tab: "overview", view: parts[2] ?? "all" };
+  if (parts[1] === "files") return { section: "files", tab: "floorplans", view: parts[2] ?? "all" };
+  if (parts[1] === "messages") return { section: "messages", tab: "activity", view: parts[2] ?? "inbox" };
+  if (parts[1] === "finance") return { section: "finance", tab: "billing", view: parts[2] ?? "overview" };
+  if (parts[1] === "audit") return { section: "audit", tab: "overview", view: "system-logs" };
+  if (parts[1] === "settings" && parts[2] === "system-logs") return { section: "audit", tab: "overview", view: "system-logs" };
+  if (parts[1] === "settings") return { section: "settings", tab: "overview", view: parts[2] ?? "organization-profile" };
+  return { section: "dashboard", tab: "overview", view: "overview" };
 }
 
 function lbl(value: string) {
@@ -570,31 +865,26 @@ function eventDashboardSkeletonVariant(routeState: RouteState): EventDashboardSk
 }
 
 function activeSidebarItemFromRoute(routeState: RouteState) {
-  if (routeState.section === "suppliers") return "suppliers-all";
+  if (routeState.section === "dashboard") return DASHBOARD_ROUTE_ITEMS[routeState.view ?? "overview"] ?? "dashboard-overview";
+  if (routeState.section === "suppliers") return SECTION_ROUTE_ITEMS.suppliers[routeState.view ?? "all"] ?? "suppliers-all";
   if (routeState.section === "audit") return "settings-system-logs";
-  if (routeState.section === "clients") return routeState.clientId ? "client-overview" : "clients-all";
-  if (routeState.section === "calendar") return "calendar-all";
-  if (routeState.section === "tasks") return "tasks-my";
-  if (routeState.section === "team") return "team-all";
-  if (routeState.section === "files") return "files-all";
-  if (routeState.section === "messages") return "messages-inbox";
-  if (routeState.section === "finance") return "finance-overview";
-  if (routeState.section === "settings") return "settings-organization";
+  if (routeState.section === "clients") {
+    return routeState.clientId
+      ? CLIENT_DETAIL_ROUTE_ITEMS[routeState.view ?? "overview"] ?? "client-overview"
+      : CLIENT_LIST_ROUTE_ITEMS[routeState.view ?? "all"] ?? "clients-all";
+  }
+  if (routeState.section === "calendar") return SECTION_ROUTE_ITEMS.calendar[routeState.view ?? "all"] ?? "calendar-all";
+  if (routeState.section === "tasks") return SECTION_ROUTE_ITEMS.tasks[routeState.view ?? "mine"] ?? "tasks-my";
+  if (routeState.section === "team") return SECTION_ROUTE_ITEMS.team[routeState.view ?? "all"] ?? "team-all";
+  if (routeState.section === "files") return SECTION_ROUTE_ITEMS.files[routeState.view ?? "all"] ?? "files-all";
+  if (routeState.section === "messages") return SECTION_ROUTE_ITEMS.messages[routeState.view ?? "inbox"] ?? "messages-inbox";
+  if (routeState.section === "finance") return SECTION_ROUTE_ITEMS.finance[routeState.view ?? "overview"] ?? "finance-overview";
+  if (routeState.section === "settings") return SECTION_ROUTE_ITEMS.settings[routeState.view ?? "organization-profile"] ?? "settings-organization";
   if (routeState.section === "inquiries") return "clients-prospects";
-  if (routeState.section === "events-list") return "events-all";
+  if (routeState.section === "events-list") return EVENT_LIST_ROUTE_ITEMS[routeState.view ?? "all"] ?? "events-all";
   if (!routeState.eventId) return "dashboard-overview";
 
-  return ({
-    overview: "event-overview",
-    floorplans: "event-files",
-    briefing: "event-planning",
-    suppliers: "event-suppliers",
-    coordinators: "event-staff",
-    "live-ops": "event-timeline",
-    billing: "event-budget",
-    closure: "event-report",
-    activity: "event-messages",
-  } satisfies Record<DetailTab, string>)[routeState.tab];
+  return EVENT_WORKSPACE_ROUTE_ITEMS[routeState.view ?? "overview"] ?? EVENT_WORKSPACE_ROUTE_ITEMS[EVENT_TAB_ROUTES[routeState.tab]] ?? "event-overview";
 }
 
 function loadingShellNavItems(hasEvent: boolean): PrismNavItem[] {
@@ -1953,6 +2243,8 @@ export default function EventDashboard({
   section: initialSection,
   tab: initialTab,
   eventId: initialEventId,
+  clientId: initialClientId,
+  view: initialView,
 }: EventDashboardClientProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1962,8 +2254,10 @@ export default function EventDashboard({
       section: initialSection ?? pathState.section,
       tab: initialTab ?? pathState.tab,
       eventId: initialEventId ?? pathState.eventId,
+      clientId: initialClientId ?? pathState.clientId,
+      view: initialView ?? pathState.view,
     };
-  }, [initialEventId, initialSection, initialTab, pathname]);
+  }, [initialClientId, initialEventId, initialSection, initialTab, initialView, pathname]);
 
   const [session, setSession] = useState<EventSession | null>(null);
   const [state, setState] = useState<MvpDemoState | null>(null);
@@ -2087,8 +2381,8 @@ export default function EventDashboard({
     setSection(routeState.section);
     setTab(routeState.tab);
     if (routeState.eventId) setSelectedEventId(routeState.eventId);
-    if (routeState.clientId) setSelectedClientId(routeState.clientId);
-  }, [routeState.clientId, routeState.eventId, routeState.section, routeState.tab]);
+    if (routeState.section === "clients") setSelectedClientId(routeState.clientId ?? null);
+  }, [routeState.clientId, routeState.eventId, routeState.section, routeState.tab, routeState.view]);
 
   useEffect(() => {
     if (!session || screen.name !== "portal") return;
@@ -2149,6 +2443,38 @@ export default function EventDashboard({
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [events, inquiries]);
   const selectedClient = clientRecords.find((client) => client.id === selectedClientId) ?? null;
+  const clientListView = !selectedClient ? routeState.view ?? "all" : "all";
+  const clientRecordsForView = useMemo(() => {
+    switch (clientListView) {
+      case "active":
+        return clientRecords.filter((client) => client.events.length > 0);
+      case "prospects":
+        return clientRecords.filter((client) => client.inquiries.length > 0 && client.events.length === 0);
+      case "past":
+        return clientRecords.filter((client) => client.events.some((event) => /completed|closed|archived/i.test(event.status)));
+      case "archived":
+        return clientRecords.filter((client) => client.events.length > 0 && client.events.every((event) => event.archived));
+      default:
+        return clientRecords;
+    }
+  }, [clientListView, clientRecords]);
+  const eventListView = routeState.view ?? "all";
+  const eventsForView = useMemo(() => {
+    switch (eventListView) {
+      case "upcoming":
+        return events.filter((event) => new Date(event.eventDate).getTime() >= Date.now());
+      case "ongoing":
+        return events.filter((event) => /planning|active|ongoing|in_progress|confirmed/i.test(event.status));
+      case "completed":
+        return events.filter((event) => /completed|closed/i.test(event.status));
+      case "cancelled":
+        return events.filter((event) => /cancel/i.test(event.status));
+      case "draft":
+        return events.filter((event) => /draft/i.test(event.status));
+      default:
+        return events;
+    }
+  }, [eventListView, events]);
 
   useEffect(() => {
     if (!session || screen.name !== "portal") return;
@@ -2306,6 +2632,7 @@ export default function EventDashboard({
   function navigateSection(nextSection: DashboardSection, options: { preserveSidebarActive?: boolean } = {}) {
     if (!options.preserveSidebarActive) setSidebarActiveOverride(null);
     setSection(nextSection);
+    if (nextSection === "dashboard") { router.push("/dashboard"); return; }
     if (nextSection === "clients") { setSelectedClientId(null); router.push("/dashboard/clients"); return; }
     if (nextSection === "calendar") { router.push("/dashboard/calendar"); return; }
     if (nextSection === "tasks") { router.push("/dashboard/tasks"); return; }
@@ -2323,8 +2650,39 @@ export default function EventDashboard({
 
   function handleSidebarNav(id: string) {
     setSidebarActiveOverride(id);
+    const staticRoute = SIDEBAR_STATIC_ROUTES[id];
+    if (staticRoute) {
+      const nextRouteState = routeStateFromPath(staticRoute);
+      setSection(nextRouteState.section);
+      setTab(nextRouteState.tab);
+      if (nextRouteState.section === "clients") setSelectedClientId(null);
+      router.push(staticRoute);
+      return;
+    }
+
+    const clientRoute = CLIENT_DETAIL_ROUTES[id];
+    if (clientRoute && selectedClient) {
+      setSection("clients");
+      setSelectedClientId(selectedClient.id);
+      router.push(`/dashboard/clients/${encodeURIComponent(selectedClient.id)}${clientRoute === "overview" ? "" : `/${clientRoute}`}`);
+      return;
+    }
+
+    const eventRouteSegment = EVENT_DETAIL_ROUTES[id];
+    if (eventRouteSegment) {
+      const targetId = selectedEvent?.id ?? selectedEventId;
+      if (!targetId) {
+        navigateSection("events-list", { preserveSidebarActive: true });
+        return;
+      }
+      setSection("events");
+      setTab(EVENT_WORKSPACE_ROUTE_TABS[eventRouteSegment] ?? "overview");
+      router.push(`/dashboard/events/${encodeURIComponent(targetId)}${eventRouteSegment === "overview" ? "/overview" : `/${eventRouteSegment}`}`);
+      return;
+    }
+
     switch (id) {
-      case "dashboard-overview": router.push("/dashboard"); setSection("events"); return;
+      case "dashboard-overview": router.push("/dashboard"); setSection("dashboard"); return;
       case "dashboard-upcoming": navigateSection("events-list", { preserveSidebarActive: true }); return;
       case "dashboard-pending": navigateSection("tasks", { preserveSidebarActive: true }); return;
       case "dashboard-messages": navigateSection("messages", { preserveSidebarActive: true }); return;
@@ -2651,32 +3009,7 @@ export default function EventDashboard({
   const openActionCount = defenseReadiness?.nextActions.length ?? pendingApprovals.length + unreviewedInquiries;
   const eventWorkspaceDisabled = !selectedEvent;
 
-  const activeSidebarItemId =
-    section === "suppliers" ? "suppliers-all"
-    : section === "audit" ? "settings-system-logs"
-    : section === "clients" ? (selectedClient ? "client-overview" : "clients-all")
-    : section === "calendar" ? "calendar-all"
-    : section === "tasks" ? "tasks-my"
-    : section === "team" ? "team-all"
-    : section === "files" ? "files-all"
-    : section === "messages" ? "messages-inbox"
-    : section === "finance" ? "finance-overview"
-    : section === "settings" ? "settings-organization"
-    : section === "inquiries" ? "clients-prospects"
-    : section === "events-list" ? "events-all"
-    : routeState.eventId
-      ? ({
-          overview: "event-overview",
-          floorplans: "event-files",
-          briefing: "event-planning",
-          suppliers: "event-suppliers",
-          coordinators: "event-staff",
-          "live-ops": "event-timeline",
-          billing: "event-budget",
-          closure: "event-report",
-          activity: "event-messages",
-        } satisfies Record<DetailTab, string>)[tab]
-      : "dashboard-overview";
+  const activeSidebarItemId = activeSidebarItemFromRoute(routeState);
 
   const baseShellNavItems = loadingShellNavItems(!eventWorkspaceDisabled);
   const clientDetailNavItems: PrismNavItem[] | null = selectedClient ? [
@@ -2708,6 +3041,7 @@ export default function EventDashboard({
     .filter((item) => !(eventDetailNavItems && item.groupId === "main-events"))
     .concat(clientDetailNavItems ?? [])
     .concat(eventDetailNavItems ?? []);
+  const activeNavItem = shellNavItems.find((item) => item.id === activeSidebarItemId);
   const activePrimaryItemId =
     section === "clients" || section === "inquiries" ? "main-clients"
     : section === "events-list" || routeState.eventId ? "main-events"
@@ -2746,7 +3080,7 @@ export default function EventDashboard({
     : "Navigation";
 
   /* Section routing flags */
-  const isHome = section === "events" && !routeState.eventId;
+  const isHome = section === "dashboard";
   const isEventsList = section === "events-list";
   const isInquiries = section === "inquiries";
   const isClients = section === "clients";
@@ -2781,16 +3115,18 @@ export default function EventDashboard({
       title={
         section === "suppliers" ? "Supplier Directory"
         : section === "audit" ? "Audit Trail"
-        : isClients ? "Client Desk"
-        : isCalendar ? "Calendar"
-        : isTasks ? "Task Queue"
+        : selectedClient && activePrimaryItemId === "main-clients" ? activeNavItem?.label ?? "Client Desk"
+        : isClients ? activeNavItem?.label ?? "Client Desk"
+        : isCalendar ? activeNavItem?.label ?? "Calendar"
+        : isTasks ? activeNavItem?.label ?? "Task Queue"
         : isTeam ? "Team & Coordinators"
-        : isFiles ? "Event File Hub"
-        : isMessages ? "Event Messages"
-        : isFinance ? "Finance Desk"
-        : isSettings ? "Settings"
+        : isFiles ? activeNavItem?.label ?? "Event File Hub"
+        : isMessages ? activeNavItem?.label ?? "Event Messages"
+        : isFinance ? activeNavItem?.label ?? "Finance Desk"
+        : isSettings ? activeNavItem?.label ?? "Settings"
         : isInquiries ? "Inquiry Intake"
-        : isEventsList ? "All Events"
+        : isEventsList ? activeNavItem?.label ?? "All Events"
+        : isHome ? activeNavItem?.label ?? "Event Manager"
         : selectedEvent?.eventName ?? "Event Manager"
       }
       description={
@@ -2887,11 +3223,11 @@ export default function EventDashboard({
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <CircleUserRound className="size-4 text-(--prism-signal)" />
-                    <h2 className="text-sm font-bold text-foreground">All clients</h2>
+                    <h2 className="text-sm font-bold text-foreground">{activeNavItem?.label ?? "All clients"}</h2>
                   </div>
                 </CardHeader>
                 <div className="divide-y divide-border">
-                  {clientRecords.map((client) => (
+                  {clientRecordsForView.map((client) => (
                     <button key={client.id} type="button" onClick={() => navigateClient(client.id)} className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition hover:bg-muted/30">
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-black text-foreground">{client.name}</span>
@@ -2900,9 +3236,57 @@ export default function EventDashboard({
                       <StatusBadge status={client.events.length ? "active" : "prospect"} />
                     </button>
                   ))}
+                  {clientRecordsForView.length === 0 ? (
+                    <div className="px-6 py-8">
+                      <EmptyState icon={CircleUserRound} title="No clients in this view" description="Client records will appear here once their inquiry and event state matches this filter." />
+                    </div>
+                  ) : null}
                 </div>
               </Card>
             )}
+            {selectedClient && (routeState.view ?? "overview") !== "overview" ? (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <FileText className="size-4 text-(--prism-signal)" />
+                    <h2 className="text-sm font-bold text-foreground">{activeNavItem?.label ?? "Client detail"}</h2>
+                  </div>
+                </CardHeader>
+                <CardBody>
+                  {routeState.view === "events" ? (
+                    <div className="divide-y divide-border overflow-hidden rounded-md border border-border">
+                      {selectedClient.events.map((event) => (
+                        <button key={event.id} type="button" onClick={() => navigateEvent(event.id, "overview")} className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-muted/30">
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-black text-foreground">{event.eventName}</span>
+                            <span className="mt-1 block text-xs text-muted-foreground">{event.eventDate}</span>
+                          </span>
+                          <StatusBadge status={event.status} />
+                        </button>
+                      ))}
+                      {selectedClient.events.length === 0 ? (
+                        <div className="px-4 py-6">
+                          <EmptyState icon={CalendarDays} title="No events yet" description="Accepted inquiries with signed conforme will create client event workspaces here." />
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-3">
+                      {[
+                        { label: "Contact Person", value: selectedClient.contact ?? "Pending" },
+                        { label: "Company", value: selectedClient.company ?? selectedClient.name },
+                        { label: "Record Scope", value: `${selectedClient.events.length} events / ${selectedClient.inquiries.length} inquiries` },
+                      ].map((item) => (
+                        <div key={item.label} className="rounded-md border border-border bg-muted/20 px-4 py-3">
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                          <p className="mt-1 text-sm font-black text-foreground">{item.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+            ) : null}
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -3049,7 +3433,7 @@ export default function EventDashboard({
           </>
         ) : isEventsList ? (
           <EventQueueCard
-            events={events}
+            events={eventsForView}
             selectedEventId={selectedEvent?.id}
             onSelectEvent={(id) => navigateEvent(id)}
             onReset={() => run("reset", mvpApi.reset)}

@@ -7,6 +7,7 @@ import {
   ArrowRight,
   BadgeCheck,
   CalendarDays,
+  ChevronRight,
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
@@ -46,10 +47,25 @@ import { Label } from "../ui/label";
 import { StatusBadge } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
 import {
+  PrismBrandLogo,
   PrismDashboardShell,
   PrismNoticeBanner,
   RolePageHeader,
 } from "@prism/ui";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+} from "../ui/sidebar";
+import { cn } from "../ui/utils";
 import { PRESETS, type Preset } from "../editor/presets";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
 import {
@@ -83,14 +99,76 @@ export type ClientDashboardRoute =
   | "home"
   | "request"
   | "events"
+  | "calendar"
+  | "approvals"
+  | "files"
   | "overview"
   | "actions"
+  | "details"
+  | "progress"
+  | "schedule"
+  | "guests"
+  | "preferences"
   | "briefing"
   | "proposal"
   | "floorplan"
   | "documents"
   | "billing"
-  | "messages";
+  | "payments"
+  | "messages"
+  | "changes"
+  | "summary";
+
+export type ClientPortalView =
+  | "dashboard-overview"
+  | "dashboard-upcoming-events"
+  | "dashboard-pending-approvals"
+  | "dashboard-recent-messages"
+  | "dashboard-payment-reminders"
+  | "events-all"
+  | "events-upcoming"
+  | "events-in-planning"
+  | "events-completed"
+  | "events-cancelled"
+  | "events-draft-requests"
+  | "calendar-event-dates"
+  | "calendar-meetings"
+  | "calendar-deadlines"
+  | "calendar-payment-due-dates"
+  | "calendar-approval-deadlines"
+  | "approvals-pending"
+  | "approvals-approved"
+  | "approvals-needs-revision"
+  | "approvals-contracts"
+  | "approvals-quotations"
+  | "approvals-final-confirmation"
+  | "messages-inbox"
+  | "messages-event-conversations"
+  | "messages-organizer-updates"
+  | "messages-announcements"
+  | "messages-archived"
+  | "files-all"
+  | "files-contracts"
+  | "files-quotations"
+  | "files-invoices-receipts"
+  | "files-event-layouts"
+  | "files-uploaded"
+  | "files-shared"
+  | "billing-overview"
+  | "billing-quotations"
+  | "billing-invoices"
+  | "billing-payment-schedule"
+  | "billing-payment-reminders"
+  | "billing-receipts"
+  | "billing-balance";
+
+type ClientSidebarSubItem = {
+  id: string;
+  label: string;
+  route: ClientDashboardRoute;
+  requiresEvent?: boolean;
+  eventScoped?: boolean;
+};
 
 type ClientSidebarNavItem = {
   id: string;
@@ -99,6 +177,8 @@ type ClientSidebarNavItem = {
   section: string;
   route: ClientDashboardRoute;
   requiresEvent?: boolean;
+  eventScoped?: boolean;
+  subItems?: ClientSidebarSubItem[];
 };
 
 type Screen =
@@ -126,42 +206,189 @@ const initialPreference: PreferenceForm = {
 };
 
 const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
-  { id: "client-home", label: "Home", icon: Home, section: "Client", route: "home" },
-  { id: "new-event-request", label: "New Event Request", icon: Send, section: "Client", route: "request" },
-  { id: "my-events", label: "My Events", icon: CalendarDays, section: "Client", route: "events" },
-  { id: "event-overview", label: "Overview", icon: Home, section: "Event Workspace", route: "overview", requiresEvent: true },
-  { id: "action-items", label: "Action Items", icon: ClipboardCheck, section: "Event Workspace", route: "actions", requiresEvent: true },
-  { id: "briefing", label: "Briefing", icon: FileCheck2, section: "Event Workspace", route: "briefing", requiresEvent: true },
-  { id: "proposal", label: "Proposal", icon: Presentation, section: "Event Workspace", route: "proposal", requiresEvent: true },
-  { id: "floorplan", label: "Floor Plan", icon: MapPinned, section: "Event Workspace", route: "floorplan", requiresEvent: true },
-  { id: "documents", label: "Documents", icon: FileText, section: "Event Workspace", route: "documents", requiresEvent: true },
-  { id: "billing", label: "Billing", icon: WalletCards, section: "Event Workspace", route: "billing", requiresEvent: true },
-  { id: "messages", label: "Messages", icon: MessageSquareText, section: "Event Workspace", route: "messages", requiresEvent: true },
+  { id: "event-request", label: "+ Event Request", icon: Send, section: "Client Portal", route: "request" },
+  {
+    id: "client-dashboard",
+    label: "Dashboard",
+    icon: Home,
+    section: "Client Portal",
+    route: "home",
+    subItems: [
+      { id: "dashboard-overview", label: "Overview", route: "home" },
+      { id: "dashboard-upcoming-events", label: "Upcoming Events", route: "events" },
+      { id: "dashboard-pending-approvals", label: "Pending Approvals", route: "approvals" },
+      { id: "dashboard-recent-messages", label: "Recent Messages", route: "messages" },
+      { id: "dashboard-payment-reminders", label: "Payment Reminders", route: "billing" },
+    ],
+  },
+  {
+    id: "my-events",
+    label: "My Events",
+    icon: CalendarDays,
+    section: "Client Portal",
+    route: "events",
+    subItems: [
+      { id: "events-all", label: "All Events", route: "events" },
+      { id: "events-upcoming", label: "Upcoming Events", route: "events" },
+      { id: "events-in-planning", label: "In Planning", route: "events" },
+      { id: "events-completed", label: "Completed Events", route: "events" },
+      { id: "events-cancelled", label: "Cancelled Events", route: "events" },
+      { id: "events-draft-requests", label: "Draft Requests", route: "request" },
+    ],
+  },
+  {
+    id: "calendar",
+    label: "Calendar",
+    icon: CalendarDays,
+    section: "Client Portal",
+    route: "calendar",
+    subItems: [
+      { id: "calendar-event-dates", label: "Event Dates", route: "calendar" },
+      { id: "calendar-meetings", label: "Meetings", route: "calendar" },
+      { id: "calendar-deadlines", label: "Deadlines", route: "calendar" },
+      { id: "calendar-payment-due-dates", label: "Payment Due Dates", route: "calendar" },
+      { id: "calendar-approval-deadlines", label: "Approval Deadlines", route: "calendar" },
+    ],
+  },
+  {
+    id: "approvals",
+    label: "Approvals",
+    icon: BadgeCheck,
+    section: "Client Portal",
+    route: "approvals",
+    subItems: [
+      { id: "approvals-pending", label: "Pending Approval", route: "approvals" },
+      { id: "approvals-approved", label: "Approved", route: "approvals" },
+      { id: "approvals-needs-revision", label: "Needs Revision", route: "approvals" },
+      { id: "approvals-contracts", label: "Contracts", route: "files" },
+      { id: "approvals-quotations", label: "Quotations", route: "billing" },
+      { id: "approvals-layouts", label: "Layouts / Designs", route: "floorplan", requiresEvent: true, eventScoped: true },
+      { id: "approvals-final-confirmation", label: "Final Confirmation", route: "approvals" },
+    ],
+  },
+  {
+    id: "messages",
+    label: "Messages",
+    icon: MessageSquareText,
+    section: "Client Portal",
+    route: "messages",
+    subItems: [
+      { id: "messages-inbox", label: "Inbox", route: "messages" },
+      { id: "messages-event-conversations", label: "Event Conversations", route: "messages" },
+      { id: "messages-organizer-updates", label: "Organizer Updates", route: "messages" },
+      { id: "messages-announcements", label: "Announcements", route: "messages" },
+      { id: "messages-archived", label: "Archived Messages", route: "messages" },
+    ],
+  },
+  {
+    id: "files",
+    label: "Files",
+    icon: FileText,
+    section: "Client Portal",
+    route: "files",
+    subItems: [
+      { id: "files-all", label: "All Files", route: "files" },
+      { id: "files-contracts", label: "Contracts", route: "files" },
+      { id: "files-quotations", label: "Quotations", route: "files" },
+      { id: "files-invoices-receipts", label: "Invoices / Receipts", route: "files" },
+      { id: "files-event-layouts", label: "Event Layouts", route: "files" },
+      { id: "files-uploaded", label: "Uploaded Files", route: "files" },
+      { id: "files-shared", label: "Shared Files", route: "files" },
+    ],
+  },
+  {
+    id: "billing-payments",
+    label: "Billing & Payments",
+    icon: WalletCards,
+    section: "Client Portal",
+    route: "billing",
+    subItems: [
+      { id: "billing-overview", label: "Overview", route: "billing" },
+      { id: "billing-quotations", label: "Quotations", route: "billing" },
+      { id: "billing-invoices", label: "Invoices", route: "billing" },
+      { id: "billing-payment-schedule", label: "Payment Schedule", route: "billing" },
+      { id: "billing-receipts", label: "Receipts", route: "billing" },
+      { id: "billing-balance", label: "Balance", route: "billing" },
+    ],
+  },
+  {
+    id: "selected-event",
+    label: "Selected Event",
+    icon: ClipboardCheck,
+    section: "When Event Is Selected",
+    route: "overview",
+    requiresEvent: true,
+    eventScoped: true,
+    subItems: [
+      { id: "event-overview", label: "Event Overview", route: "overview", requiresEvent: true, eventScoped: true },
+      { id: "event-details", label: "Event Details", route: "details", requiresEvent: true, eventScoped: true },
+      { id: "event-progress", label: "Planning Progress", route: "progress", requiresEvent: true, eventScoped: true },
+      { id: "event-schedule", label: "Schedule / Program", route: "schedule", requiresEvent: true, eventScoped: true },
+      { id: "event-guests", label: "Guests / Attendees", route: "guests", requiresEvent: true, eventScoped: true },
+      { id: "event-preferences", label: "Preferences / Requirements", route: "preferences", requiresEvent: true, eventScoped: true },
+      { id: "event-files", label: "Files", route: "documents", requiresEvent: true, eventScoped: true },
+      { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
+      { id: "event-approvals", label: "Approvals", route: "approvals", requiresEvent: true, eventScoped: true },
+      { id: "event-payments", label: "Payments", route: "billing", requiresEvent: true, eventScoped: true },
+      { id: "event-change-requests", label: "Change Requests", route: "changes", requiresEvent: true, eventScoped: true },
+      { id: "event-final-summary", label: "Final Summary", route: "summary", requiresEvent: true, eventScoped: true },
+    ],
+  },
 ];
 
-const ROUTE_TO_NAV_ITEM: Record<ClientDashboardRoute, string> = {
-  home: "client-home",
-  request: "new-event-request",
+type ClientSidebarLink = ClientSidebarNavItem | ClientSidebarSubItem;
+
+const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
+  home: "client-dashboard",
+  request: "event-request",
   events: "my-events",
-  overview: "event-overview",
-  actions: "action-items",
-  briefing: "briefing",
-  proposal: "proposal",
-  floorplan: "floorplan",
-  documents: "documents",
-  billing: "billing",
+  calendar: "calendar",
+  approvals: "approvals",
+  files: "files",
+  billing: "billing-payments",
   messages: "messages",
+};
+
+const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
+  overview: "event-overview",
+  actions: "event-progress",
+  details: "event-details",
+  progress: "event-progress",
+  schedule: "event-schedule",
+  guests: "event-guests",
+  preferences: "event-preferences",
+  briefing: "event-preferences",
+  proposal: "event-approvals",
+  floorplan: "event-preferences",
+  documents: "event-files",
+  billing: "event-payments",
+  payments: "event-payments",
+  messages: "event-messages",
+  approvals: "event-approvals",
+  files: "event-files",
+  changes: "event-change-requests",
+  summary: "event-final-summary",
 };
 
 const ROUTE_TO_DETAIL_TAB: Partial<Record<ClientDashboardRoute, DetailTab>> = {
   overview: "overview",
   actions: "overview",
+  details: "overview",
+  progress: "overview",
+  schedule: "overview",
+  guests: "briefing",
+  preferences: "briefing",
   briefing: "briefing",
   proposal: "proposal",
   floorplan: "floorplan",
   documents: "documents",
   billing: "billing",
+  payments: "billing",
   messages: "activity",
+  approvals: "proposal",
+  files: "documents",
+  changes: "activity",
+  summary: "overview",
 };
 
 const DETAIL_TAB_TO_ROUTE: Record<DetailTab, ClientDashboardRoute> = {
@@ -174,12 +401,108 @@ const DETAIL_TAB_TO_ROUTE: Record<DetailTab, ClientDashboardRoute> = {
   billing: "billing",
 };
 
-function dashboardHref(route: ClientDashboardRoute, eventId?: string) {
+const CLIENT_PORTAL_VIEW_HREFS: Record<ClientPortalView, string> = {
+  "dashboard-overview": "/dashboard",
+  "dashboard-upcoming-events": "/dashboard/events/upcoming",
+  "dashboard-pending-approvals": "/dashboard/approvals/pending",
+  "dashboard-recent-messages": "/dashboard/messages/recent",
+  "dashboard-payment-reminders": "/dashboard/billing/payment-reminders",
+  "events-all": "/dashboard/events",
+  "events-upcoming": "/dashboard/events/upcoming",
+  "events-in-planning": "/dashboard/events/in-planning",
+  "events-completed": "/dashboard/events/completed",
+  "events-cancelled": "/dashboard/events/cancelled",
+  "events-draft-requests": "/dashboard/events/draft-requests",
+  "calendar-event-dates": "/dashboard/calendar/event-dates",
+  "calendar-meetings": "/dashboard/calendar/meetings",
+  "calendar-deadlines": "/dashboard/calendar/deadlines",
+  "calendar-payment-due-dates": "/dashboard/calendar/payment-due-dates",
+  "calendar-approval-deadlines": "/dashboard/calendar/approval-deadlines",
+  "approvals-pending": "/dashboard/approvals/pending",
+  "approvals-approved": "/dashboard/approvals/approved",
+  "approvals-needs-revision": "/dashboard/approvals/needs-revision",
+  "approvals-contracts": "/dashboard/approvals/contracts",
+  "approvals-quotations": "/dashboard/approvals/quotations",
+  "approvals-final-confirmation": "/dashboard/approvals/final-confirmation",
+  "messages-inbox": "/dashboard/messages/inbox",
+  "messages-event-conversations": "/dashboard/messages/event-conversations",
+  "messages-organizer-updates": "/dashboard/messages/organizer-updates",
+  "messages-announcements": "/dashboard/messages/announcements",
+  "messages-archived": "/dashboard/messages/archived",
+  "files-all": "/dashboard/files",
+  "files-contracts": "/dashboard/files/contracts",
+  "files-quotations": "/dashboard/files/quotations",
+  "files-invoices-receipts": "/dashboard/files/invoices-receipts",
+  "files-event-layouts": "/dashboard/files/event-layouts",
+  "files-uploaded": "/dashboard/files/uploaded",
+  "files-shared": "/dashboard/files/shared",
+  "billing-overview": "/dashboard/billing",
+  "billing-quotations": "/dashboard/billing/quotations",
+  "billing-invoices": "/dashboard/billing/invoices",
+  "billing-payment-schedule": "/dashboard/billing/payment-schedule",
+  "billing-payment-reminders": "/dashboard/billing/payment-reminders",
+  "billing-receipts": "/dashboard/billing/receipts",
+  "billing-balance": "/dashboard/billing/balance",
+};
+
+const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; description: string }> = {
+  "dashboard-overview": { title: "Dashboard", description: "Client account overview, active events, and PMCM updates." },
+  "dashboard-upcoming-events": { title: "Upcoming events", description: "Confirmed PMCM events that still need planning attention." },
+  "dashboard-pending-approvals": { title: "Pending approvals", description: "Client-visible items waiting for approval or review." },
+  "dashboard-recent-messages": { title: "Recent messages", description: "Recent PMCM updates and client-visible activity." },
+  "dashboard-payment-reminders": { title: "Payment reminders", description: "Open payment milestones and upcoming due dates." },
+  "events-all": { title: "All events", description: "Your confirmed PMCM event workspaces." },
+  "events-upcoming": { title: "Upcoming events", description: "Events that are still ahead on the calendar." },
+  "events-in-planning": { title: "In planning", description: "Events currently moving through PMCM planning." },
+  "events-completed": { title: "Completed events", description: "Finished PMCM events in your client history." },
+  "events-cancelled": { title: "Cancelled events", description: "Cancelled or stopped event workspaces." },
+  "events-draft-requests": { title: "Draft requests", description: "Start or review event requests before PMCM activates a workspace." },
+  "calendar-event-dates": { title: "Event dates", description: "Confirmed event dates across your client portal." },
+  "calendar-meetings": { title: "Meetings", description: "PMCM meeting placeholders and follow-up timing." },
+  "calendar-deadlines": { title: "Deadlines", description: "Planning deadlines and PMCM follow-up windows." },
+  "calendar-payment-due-dates": { title: "Payment due dates", description: "Payment milestones across active events." },
+  "calendar-approval-deadlines": { title: "Approval deadlines", description: "Client review windows for proposals, layouts, and documents." },
+  "approvals-pending": { title: "Pending approval", description: "Contracts, layouts, quotations, and final checks still awaiting action." },
+  "approvals-approved": { title: "Approved", description: "Client-visible approvals already accepted for the selected event." },
+  "approvals-needs-revision": { title: "Needs revision", description: "Items that need PMCM changes before approval." },
+  "approvals-contracts": { title: "Contracts", description: "Conforme, MOA, NDA, and related contract files." },
+  "approvals-quotations": { title: "Quotations", description: "Client-facing quotation and billing approval references." },
+  "approvals-final-confirmation": { title: "Final confirmation", description: "Final client-facing readiness and confirmation status." },
+  "messages-inbox": { title: "Inbox", description: "PMCM messages and client-visible notifications." },
+  "messages-event-conversations": { title: "Event conversations", description: "Event-scoped PMCM updates and activity." },
+  "messages-organizer-updates": { title: "Organizer updates", description: "Updates from the PMCM event team." },
+  "messages-announcements": { title: "Announcements", description: "Broadcast-style notices for client review." },
+  "messages-archived": { title: "Archived messages", description: "Older client-visible updates and audit notes." },
+  "files-all": { title: "All files", description: "All client-visible files across active PMCM events." },
+  "files-contracts": { title: "Contracts", description: "Conforme, MOA, NDA, and other contract files." },
+  "files-quotations": { title: "Quotations", description: "Client-facing quotation files and references." },
+  "files-invoices-receipts": { title: "Invoices / Receipts", description: "Invoices, billing statements, receipts, and payment proof." },
+  "files-event-layouts": { title: "Event layouts", description: "Official layouts and client-safe floor plan files." },
+  "files-uploaded": { title: "Uploaded files", description: "Client-submitted assets and requirements." },
+  "files-shared": { title: "Shared files", description: "Files shared by PMCM for client reference." },
+  "billing-overview": { title: "Billing & Payments", description: "Quotations, invoices, payment schedule, receipts, and balance." },
+  "billing-quotations": { title: "Quotations", description: "Client-facing quotation and proposal billing references." },
+  "billing-invoices": { title: "Invoices", description: "Billing statement and invoice records for the active event." },
+  "billing-payment-schedule": { title: "Payment schedule", description: "Milestone due dates, payment status, and balances." },
+  "billing-payment-reminders": { title: "Payment reminders", description: "Open payment milestones and upcoming reminders." },
+  "billing-receipts": { title: "Receipts", description: "Recorded payment receipts and proof history." },
+  "billing-balance": { title: "Balance", description: "Remaining balance and current payment status." },
+};
+
+function dashboardHref(route: ClientDashboardRoute, eventId?: string, portalView?: ClientPortalView) {
+  if (!eventId && portalView) return CLIENT_PORTAL_VIEW_HREFS[portalView];
   if (route === "home") return "/dashboard";
   if (route === "request") return "/dashboard/request";
   if (route === "events") return "/dashboard/events";
+  if (!eventId && ["calendar", "approvals", "messages", "files", "billing"].includes(route)) {
+    return `/dashboard/${route}`;
+  }
   if (!eventId) return "/dashboard/events";
-  const section = route === "floorplan" ? "floor-plan" : route;
+  const section =
+    route === "floorplan" ? "floor-plan"
+    : route === "payments" ? "billing"
+    : route === "files" ? "documents"
+    : route;
   return `/dashboard/events/${eventId}/${section}`;
 }
 
@@ -188,6 +511,177 @@ function dashboardLoadingVariant(route: ClientDashboardRoute) {
     return route;
   }
   return "event";
+}
+
+function findClientSidebarLink(id: string): ClientSidebarLink | undefined {
+  for (const item of CLIENT_SIDEBAR_ITEMS) {
+    if (item.id === id) return item;
+    const subItem = item.subItems?.find((candidate) => candidate.id === id);
+    if (subItem) return subItem;
+  }
+  return undefined;
+}
+
+function portalViewFromLink(item: ClientSidebarLink): ClientPortalView | undefined {
+  return "icon" in item || item.eventScoped ? undefined : (item.id as ClientPortalView);
+}
+
+function activeNavItemId(route: ClientDashboardRoute, eventScoped: boolean) {
+  return (eventScoped ? EVENT_ROUTE_TO_NAV_ITEM[route] : PORTAL_ROUTE_TO_NAV_ITEM[route])
+    ?? EVENT_ROUTE_TO_NAV_ITEM[route]
+    ?? PORTAL_ROUTE_TO_NAV_ITEM[route]
+    ?? "client-dashboard";
+}
+
+const prismSidebarButtonClass =
+  "!h-9 !min-w-0 !text-muted-foreground hover:!bg-secondary hover:!text-foreground active:!bg-secondary active:!text-foreground data-[active=true]:!bg-primary/10 data-[active=true]:!font-bold data-[active=true]:!text-primary";
+const prismSidebarButtonLabelClass = "min-w-0 flex-1 truncate";
+const prismSidebarSubListClass =
+  "!ml-3.5 !mr-0 !w-[calc(100%-0.875rem)] !max-w-none !translate-x-0 !border-border !pl-2.5 !pr-0";
+const prismSidebarSubButtonClass =
+  "!w-full !min-w-0 !justify-start !text-muted-foreground hover:!bg-secondary hover:!text-foreground active:!bg-secondary active:!text-foreground data-[active=true]:!bg-primary/10 data-[active=true]:!font-bold data-[active=true]:!text-primary";
+
+type ClientSidebarRenderSubItem = ClientSidebarSubItem & { disabled?: boolean };
+type ClientSidebarRenderItem = Omit<ClientSidebarNavItem, "subItems"> & {
+  disabled?: boolean;
+  subItems?: ClientSidebarRenderSubItem[];
+};
+
+function ClientPortalSidebar({
+  navItems,
+  activeItemId,
+  onSelect,
+  collapsed,
+  user,
+}: {
+  navItems: ClientSidebarRenderItem[];
+  activeItemId: string;
+  onSelect: (id: string) => void;
+  collapsed: boolean;
+  user: Pick<ClientSession, "name" | "organization">;
+}) {
+  const navGroups = navItems.reduce<Array<{ section: string; items: ClientSidebarRenderItem[] }>>((groups, item) => {
+    const existing = groups.find((group) => group.section === item.section);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      groups.push({ section: item.section, items: [item] });
+    }
+    return groups;
+  }, []);
+
+  return (
+    <SidebarProvider open={!collapsed} className="h-full min-h-0 w-full bg-card text-foreground">
+      <div
+        data-collapsible={collapsed ? "icon" : undefined}
+        className={cn("group flex h-full w-full min-w-0 flex-col bg-card text-foreground", collapsed && "items-center")}
+      >
+        <PrismBrandLogo
+          href="/"
+          title="P.R.I.S.M."
+          detail="Client Portal"
+          compact={collapsed}
+          className={cn("min-h-16 px-3", collapsed && "justify-center px-2")}
+          markClassName="size-8 bg-transparent ring-0"
+        />
+
+        <div className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden px-2 pb-4">
+          {navGroups.map((group, groupIndex) => (
+            <SidebarGroup key={group.section} className={cn("min-w-0", groupIndex > 0 && "mt-4")}>
+              <SidebarGroupLabel className="text-muted-foreground">{group.section}</SidebarGroupLabel>
+              <SidebarGroupContent className="min-w-0">
+                <SidebarMenu className="min-w-0">
+                  {group.items.map((item) => {
+                    const hasSubItems = Boolean(item.subItems?.length);
+                    const subItemActive = item.subItems?.some((subItem) => subItem.id === activeItemId) ?? false;
+                    const itemActive = item.id === activeItemId || subItemActive;
+                    const Icon = item.icon;
+                    const defaultOpen = !collapsed && (itemActive || item.id === "client-dashboard" || item.id === "selected-event");
+
+                    if (!hasSubItems) {
+                      return (
+                        <SidebarMenuItem key={item.id}>
+                          <SidebarMenuButton
+                            type="button"
+                            isActive={itemActive}
+                            disabled={item.disabled}
+                            tooltip={collapsed ? item.label : undefined}
+                            className={prismSidebarButtonClass}
+                            onClick={() => onSelect(item.id)}
+                          >
+                            <Icon />
+                            <span className={prismSidebarButtonLabelClass}>{item.label}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    }
+
+                    return (
+                      <Collapsible
+                        key={`${item.id}-${itemActive ? "active" : "idle"}`}
+                        asChild
+                        defaultOpen={defaultOpen}
+                        className="group/collapsible"
+                      >
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton
+                              type="button"
+                              isActive={itemActive}
+                              disabled={item.disabled}
+                              tooltip={collapsed ? item.label : undefined}
+                              className={prismSidebarButtonClass}
+                              onClick={() => onSelect(item.id)}
+                            >
+                              <Icon />
+                              <span className={prismSidebarButtonLabelClass}>{item.label}</span>
+                              {!collapsed ? (
+                                <ChevronRight className="size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                              ) : null}
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="max-h-56 overflow-y-auto overflow-x-hidden">
+                            <SidebarMenuSub className={prismSidebarSubListClass}>
+                              {item.subItems?.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.id} className="min-w-0">
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    size="sm"
+                                    isActive={subItem.id === activeItemId}
+                                    className={prismSidebarSubButtonClass}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="flex w-full min-w-0 items-center text-left"
+                                      disabled={item.disabled || subItem.disabled}
+                                      onClick={() => onSelect(subItem.id)}
+                                    >
+                                      <span className={prismSidebarButtonLabelClass}>{subItem.label}</span>
+                                    </button>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      </Collapsible>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
+        </div>
+
+        {!collapsed ? (
+          <div className="w-full border-t border-border px-3 py-3">
+            <p className="truncate text-sm font-bold text-foreground">{user.name}</p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.organization}</p>
+          </div>
+        ) : null}
+      </div>
+    </SidebarProvider>
+  );
 }
 
 function draftIsOfficial(draft: MvpFloorPlanDraft) {
@@ -478,9 +972,11 @@ function floorPlanPreviewCacheKey(eventId: string, draft: MvpFloorPlanDraft) {
 export function Dashboard({
   route = "home",
   eventId,
+  portalView,
 }: {
   route?: ClientDashboardRoute;
   eventId?: string;
+  portalView?: ClientPortalView;
 }) {
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
@@ -499,7 +995,7 @@ export function Dashboard({
     let cancelled = false;
     const current = readSession();
     if (!current) {
-      router.replace(`/sign-in?next=${encodeURIComponent(dashboardHref(route, eventId))}`);
+      router.replace(`/sign-in?next=${encodeURIComponent(dashboardHref(route, eventId, portalView))}`);
       return;
     }
     setSession(current);
@@ -534,7 +1030,7 @@ export function Dashboard({
     return () => {
       cancelled = true;
     };
-  }, [eventId, router]);
+  }, [eventId, portalView, route, router]);
 
   const events = useMemo(() => {
     if (!state || !session) return [];
@@ -831,12 +1327,27 @@ export function Dashboard({
   }
 
   if (!state) {
+    const loadingNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
+      ...item,
+      disabled: item.requiresEvent,
+      subItems: item.subItems?.map((subItem) => ({
+        ...subItem,
+        disabled: subItem.requiresEvent,
+      })),
+    }));
+    const loadingPortalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
+    const loadingActiveItemId = portalView ?? activeNavItemId(route, Boolean(eventId) || !PORTAL_ROUTE_TO_NAV_ITEM[route]);
+    const handleLoadingNavSelect = (id: string) => {
+      const item = findClientSidebarLink(id);
+      if (item && !item.requiresEvent) router.push(dashboardHref(item.route, undefined, portalViewFromLink(item)));
+    };
     const loadingTitle =
-      route === "request"
+      loadingPortalViewMeta?.title
+      ?? (route === "request"
         ? "New event request"
         : route === "events"
           ? "My events"
-          : "Client portal";
+          : "Client portal");
     const loadingEyebrow =
       route === "home"
         ? "Client home"
@@ -846,11 +1357,12 @@ export function Dashboard({
             ? "Event portfolio"
             : "Event workspace";
     const loadingDescription =
-      route === "request"
+      loadingPortalViewMeta?.description
+      ?? (route === "request"
         ? "Loading your saved client details for the guided event request."
         : route === "events"
           ? "Loading your confirmed PMCM event workspaces."
-          : "Loading your client event workspace, actions, files, billing, and PMCM updates.";
+          : "Loading your client event workspace, actions, files, billing, and PMCM updates.");
 
     return (
       <PrismDashboardShell
@@ -859,15 +1371,9 @@ export function Dashboard({
         eyebrow={loadingEyebrow}
         title={loadingTitle}
         description={loadingDescription}
-        activeItemId={ROUTE_TO_NAV_ITEM[route]}
-        navItems={CLIENT_SIDEBAR_ITEMS.map((item) => ({
-          ...item,
-          disabled: item.requiresEvent,
-        }))}
-        onNavSelect={(id) => {
-          const item = CLIENT_SIDEBAR_ITEMS.find((candidate) => candidate.id === id);
-          if (item && !item.requiresEvent) router.push(dashboardHref(item.route));
-        }}
+        activeItemId={loadingActiveItemId}
+        navItems={loadingNavItems}
+        onNavSelect={handleLoadingNavSelect}
         user={{
           name: session.name,
           detail: session.organization,
@@ -876,6 +1382,16 @@ export function Dashboard({
         searchPlaceholder="Search proposal, billing, documents..."
         rightRail={<DashboardRightRailSkeleton />}
         mobileActions={[]}
+        sidebarMode="single"
+        sidebarContent={({ collapsed }) => (
+          <ClientPortalSidebar
+            navItems={loadingNavItems}
+            activeItemId={loadingActiveItemId}
+            onSelect={handleLoadingNavSelect}
+            collapsed={collapsed}
+            user={session}
+          />
+        )}
         onSignOut={signOut}
       >
         {error ? (
@@ -920,14 +1436,22 @@ export function Dashboard({
 
   const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
     ...item,
+    label: item.id === "selected-event" && selectedEvent ? selectedEvent.eventName : item.label,
     disabled: item.requiresEvent && !selectedEvent,
+    subItems: item.subItems?.map((subItem) => ({
+      ...subItem,
+      disabled: subItem.requiresEvent && !selectedEvent,
+    })),
   }));
-  const activeShellItemId = ROUTE_TO_NAV_ITEM[route];
+  const isEventScopedView = Boolean(eventId) || !PORTAL_ROUTE_TO_NAV_ITEM[route];
+  const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
+  const activeShellItemId = !isEventScopedView && portalView ? portalView : activeNavItemId(route, isEventScopedView);
 
   const handleShellNavSelect = (id: string) => {
-    const item = CLIENT_SIDEBAR_ITEMS.find((candidate) => candidate.id === id);
+    const item = findClientSidebarLink(id);
     if (!item) return;
-    router.push(dashboardHref(item.route, selectedEvent?.id));
+    if (item.requiresEvent && !selectedEvent) return;
+    router.push(dashboardHref(item.route, item.eventScoped ? selectedEvent?.id : undefined, portalViewFromLink(item)));
   };
 
   const shellMobileActions = [
@@ -938,29 +1462,55 @@ export function Dashboard({
   ];
 
   const shellTitle =
-    route === "request"
-      ? "New event request"
-      : route === "events"
-        ? "My events"
-        : selectedEvent?.eventName ?? "Client portal";
+    isEventScopedView
+      ? selectedEvent?.eventName ?? "Client portal"
+      : portalViewMeta?.title
+        ?? (route === "request"
+        ? "New event request"
+        : route === "events"
+          ? "My events"
+          : route === "calendar"
+            ? "Calendar"
+            : route === "approvals"
+              ? "Approvals"
+              : route === "messages"
+                ? "Messages"
+                : route === "files"
+                  ? "Files"
+                  : route === "billing"
+                    ? "Billing & Payments"
+                    : "Dashboard");
 
   const shellEyebrow =
-    route === "home"
-      ? "Client home"
-      : route === "request"
-        ? "Signed-in request"
-        : route === "events"
-          ? "Event portfolio"
-          : "Event workspace";
+    isEventScopedView
+      ? "Event workspace"
+      : route === "home"
+        ? "Client home"
+        : route === "request"
+          ? "Signed-in request"
+          : route === "events"
+            ? "Event portfolio"
+            : "Client portal";
 
   const shellDescription =
-    route === "request"
+    portalViewMeta?.description
+    ?? (route === "request"
       ? "Start another event request using your client account details."
       : route === "events"
         ? "Your confirmed PMCM events."
-        : selectedEvent
+        : route === "calendar"
+          ? "Event dates, meetings, deadlines, payments, and approval timing."
+          : route === "approvals"
+            ? "Client approvals grouped by status and document type."
+            : route === "messages"
+              ? "PMCM updates, event conversations, announcements, and archived notes."
+              : route === "files"
+                ? "Contracts, quotations, receipts, layouts, and shared event files."
+                : route === "billing"
+                  ? "Quotations, invoices, payment schedule, receipts, and current balance."
+                  : selectedEvent
           ? `${selectedEvent.clientName} — ${selectedEvent.eventDate}`
-          : "Portal opens after inquiry is accepted and conforme is signed.";
+          : "Portal opens after inquiry is accepted and conforme is signed.");
 
   const eventHeader = selectedEvent ? (
     <RolePageHeader
@@ -1172,8 +1722,24 @@ export function Dashboard({
   /* ── Events list page ──────────────────────────────────────── */
 
   const renderEventsPage = () => {
+    const matchesEventView = (ev: MvpEvent) => {
+      if (portalView === "events-upcoming" || portalView === "dashboard-upcoming-events") {
+        return ev.status !== "completed" && ev.status !== "cancelled";
+      }
+      if (portalView === "events-in-planning") {
+        return /planning|confirmed|active|pending/i.test(ev.status);
+      }
+      if (portalView === "events-completed") {
+        return /completed|closed|archived/i.test(ev.status);
+      }
+      if (portalView === "events-cancelled") {
+        return /cancelled|canceled/i.test(ev.status);
+      }
+      return true;
+    };
     const visibleEvents = events.filter((ev) => {
       const query = eventSearch.trim().toLowerCase();
+      if (!matchesEventView(ev)) return false;
       if (!query) return true;
       return `${ev.eventName} ${ev.eventDate} ${ev.status}`.toLowerCase().includes(query);
     });
@@ -1182,9 +1748,9 @@ export function Dashboard({
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-foreground">My events</h1>
+            <h1 className="text-2xl font-black text-foreground">{portalViewMeta?.title ?? "My events"}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {events.length} confirmed event{events.length === 1 ? "" : "s"} with PMCM
+              {portalViewMeta?.description ?? `${events.length} confirmed event${events.length === 1 ? "" : "s"} with PMCM`}
             </p>
           </div>
           <Button className="rounded-lg font-bold" onClick={() => router.push("/dashboard/request")}>
@@ -1256,9 +1822,9 @@ export function Dashboard({
   const renderRequestPage = () => (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-foreground">New event request</h1>
+        <h1 className="text-2xl font-black text-foreground">{portalViewMeta?.title ?? "New event request"}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tell PMCM about your next event. Your account details are pre-filled. PMCM reviews all requests before activating the workspace.
+          {portalViewMeta?.description ?? "Tell PMCM about your next event. Your account details are pre-filled. PMCM reviews all requests before activating the workspace."}
         </p>
       </div>
 
@@ -1341,6 +1907,288 @@ export function Dashboard({
           </Button>
         </form>
       </div>
+    </div>
+  );
+
+  const renderCalendarPage = () => {
+    const eventIds = new Set(events.map((ev) => ev.id));
+    const allPayments = state.paymentMilestones.filter((payment) => eventIds.has(payment.eventId));
+    const timelineItems = [
+      ...events.map((ev) => ({
+        id: `event-${ev.id}`,
+        date: ev.eventDate,
+        title: ev.eventName,
+        detail: "Event date",
+        status: ev.status,
+      })),
+      ...allPayments.map((payment) => {
+        const ev = events.find((candidate) => candidate.id === payment.eventId);
+        return {
+          id: `payment-${payment.id}`,
+          date: payment.dueDate,
+          title: payment.label,
+          detail: ev ? `${ev.eventName} payment due` : "Payment due",
+          status: payment.status,
+        };
+      }),
+    ]
+      .filter((item) => {
+        if (portalView === "calendar-event-dates") return item.detail === "Event date";
+        if (portalView === "calendar-payment-due-dates") return item.detail.includes("payment due");
+        if (portalView === "calendar-meetings") return false;
+        return true;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return (
+      <div className="space-y-5">
+        <RolePageHeader
+          eyebrow="Client calendar"
+          title={portalViewMeta?.title ?? "Event dates, deadlines, and payment timing"}
+          description={portalViewMeta?.description ?? "A client-safe timeline for event dates, payment due dates, approval windows, and PMCM follow-ups."}
+        />
+        <div className="grid gap-3">
+          {timelineItems.length ? timelineItems.map((item) => (
+            <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground">{item.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-foreground">{item.date}</span>
+                <StatusBadge status={item.status} label={formatStatusLabel(item.status)} />
+              </div>
+            </div>
+          )) : (
+            <EmptyState icon={CalendarDays} title="No calendar items yet" description="Event dates and PMCM deadlines will appear after portal activation." />
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderApprovalsPage = () => {
+    const approvalItems = selectedEvent ? [
+      {
+        title: "Contracts",
+        detail: documents.filter((document) => /contract|conforme|moa|nda/i.test(document.type)).length
+          ? "Contract files are available for this event."
+          : "Contracts will appear after PMCM uploads them.",
+        status: documents.some((document) => /contract|conforme|moa|nda/i.test(document.type)) ? "approved" : "pending",
+      },
+      {
+        title: "Quotations",
+        detail: billing ? `${billing.number} is linked to the approved proposal package.` : "Quotation and billing details are being prepared.",
+        status: billing?.status ?? "pending",
+      },
+      {
+        title: "Layouts / Designs",
+        detail: officialDraft ? `Official layout is ${formatStatusLabel(officialDraft.status)}.` : "PMCM has not published an official layout yet.",
+        status: officialDraft?.status ?? "pending",
+      },
+      {
+        title: "Final Confirmation",
+        detail: selectedEvent.readiness ? `Readiness is ${formatStatusLabel(selectedEvent.readiness)}.` : "Final confirmation is pending.",
+        status: selectedEvent.readiness ?? selectedEvent.status,
+      },
+    ] : [];
+    const visibleApprovalItems = approvalItems.filter((item) => {
+      if (portalView === "approvals-pending" || portalView === "dashboard-pending-approvals") return item.status !== "approved";
+      if (portalView === "approvals-approved") return item.status === "approved";
+      if (portalView === "approvals-needs-revision") return /revision|changes/i.test(item.status);
+      if (portalView === "approvals-contracts") return item.title === "Contracts";
+      if (portalView === "approvals-quotations") return item.title === "Quotations";
+      if (portalView === "approvals-final-confirmation") return item.title === "Final Confirmation";
+      return true;
+    });
+
+    return (
+      <div className="space-y-5">
+        {!eventId && !portalViewMeta && eventHeader}
+        {!eventId && portalViewMeta ? (
+          <RolePageHeader eyebrow="Client approvals" title={portalViewMeta.title} description={portalViewMeta.description} />
+        ) : null}
+        <div className="grid gap-3">
+          {visibleApprovalItems.length ? visibleApprovalItems.map((item) => (
+            <div key={item.title} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground">{item.title}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+              </div>
+              <StatusBadge status={item.status} label={formatStatusLabel(item.status)} />
+            </div>
+          )) : (
+            <EmptyState icon={BadgeCheck} title="No approvals yet" description="Approvals unlock after inquiry acceptance and conforme signing." />
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderFilesPage = () => {
+    const eventIds = new Set(events.map((ev) => ev.id));
+    const files = state.documents.filter((document) => {
+      if (!eventIds.has(document.eventId)) return false;
+      const searchable = `${document.type} ${document.fileName}`.toLowerCase();
+      if (portalView === "files-contracts") return /contract|conforme|moa|nda/.test(searchable);
+      if (portalView === "files-quotations") return /quotation|quote/.test(searchable);
+      if (portalView === "files-invoices-receipts") return /invoice|receipt|billing|payment/.test(searchable);
+      if (portalView === "files-event-layouts") return /layout|floor|plan/.test(searchable);
+      if (portalView === "files-uploaded") return /upload|client|asset|speaker|logo|visual|permit/.test(searchable);
+      return true;
+    });
+
+    return (
+      <div className="space-y-5">
+        <RolePageHeader
+          eyebrow="Client files"
+          title={portalViewMeta?.title ?? "Contracts, quotations, receipts, layouts, and shared files"}
+          description={portalViewMeta?.description ?? "All client-visible files across your active PMCM event workspaces."}
+        />
+        <div className="rounded-2xl border border-border bg-card shadow-sm">
+          <div className="divide-y divide-border">
+            {files.length ? files.map((file) => {
+              const ev = events.find((candidate) => candidate.id === file.eventId);
+              return (
+                <div key={file.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-foreground">{file.fileName}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{ev?.eventName ?? "Event file"} - {formatStatusLabel(file.type)}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">{file.uploadedAt}</span>
+                    <StatusBadge status={file.status} label={formatStatusLabel(file.status)} />
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="px-6 py-8">
+                <EmptyState icon={FileText} title="No files yet" description="Contracts, quotations, invoices, receipts, and layout files will appear here." />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPortalBillingPage = () => {
+    if (!selectedEvent) {
+      return <EmptyState icon={WalletCards} title="No billing workspace yet" description="Billing opens after your event workspace is activated." />;
+    }
+
+    return (
+      <div className="space-y-5">
+        <RolePageHeader
+          eyebrow="Billing & payments"
+          title={portalViewMeta?.title ?? selectedEvent.eventName}
+          description={portalViewMeta?.description ?? "Quotations, invoices, payment schedule, receipts, and balance for the selected event."}
+        />
+        <ClientBillingTab payments={payments} billing={billing} />
+      </div>
+    );
+  };
+
+  const renderEventDetailsPage = () => (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm font-bold text-foreground">Event details</p>
+        <div className="mt-4 grid gap-3 text-sm">
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Event name</span><span className="font-semibold text-foreground">{selectedEvent?.eventName}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Client</span><span className="font-semibold text-foreground">{selectedEvent?.clientName}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Date</span><span className="font-semibold text-foreground">{selectedEvent?.eventDate}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Status</span><StatusBadge status={selectedEvent?.status ?? "pending"} label={formatStatusLabel(selectedEvent?.status)} /></div>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm font-bold text-foreground">Briefing basis</p>
+        <div className="mt-4 grid gap-3 text-sm">
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Venue</span><span className="font-semibold text-foreground">{briefing?.venue ?? "To be confirmed"}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Guests</span><span className="font-semibold text-foreground">{briefing?.guestCount ? `${briefing.guestCount} guests` : "Pending"}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Budget</span><span className="font-semibold text-foreground">{briefing?.budgetRange ?? "Pending"}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Submitted</span><span className="font-semibold text-foreground">{briefing?.submittedAt ?? "Pending"}</span></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderProgressPage = () => {
+    const dots = selectedEvent && state ? eventProgressDots(selectedEvent, state) : [];
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {dots.map((dot) => (
+            <div key={dot.label} className="rounded-xl border border-border bg-card px-4 py-4 shadow-sm">
+              <div className={`mb-3 size-2.5 rounded-full ${dot.done ? "bg-(--prism-success)" : "bg-muted-foreground/30"}`} />
+              <p className="text-sm font-bold text-foreground">{dot.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{dot.done ? "Complete" : "Pending"}</p>
+            </div>
+          ))}
+        </div>
+        <div className="grid gap-4 xl:grid-cols-3">
+          {renderActionGroup("Needs your action", "Client decisions that can move planning forward.", clientActions.filter((a) => a.tone === "primary" || a.tone === "warning"))}
+          {renderActionGroup("Waiting on PMCM", "Being prepared or reviewed by the event team.", clientActions.filter((a) => a.tone === "neutral"))}
+          {renderActionGroup("Completed", "Finished client-visible workflow items.", clientActions.filter((a) => a.tone === "success"))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSchedulePage = () => (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
+        <p className="text-sm font-bold text-foreground">Event date</p>
+        <p className="mt-1 text-sm text-muted-foreground">{selectedEvent?.eventDate ?? "Pending"}</p>
+      </div>
+      {payments.map((payment) => (
+        <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
+          <div>
+            <p className="text-sm font-bold text-foreground">{payment.label}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Payment due date</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-foreground">{payment.dueDate}</span>
+            <StatusBadge status={payment.status} label={formatStatusLabel(payment.status)} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderGuestsPage = () => (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Guests / attendees</p>
+      <h2 className="mt-1 text-xl font-black text-foreground">{briefing?.guestCount ? `${briefing.guestCount} expected guests` : "Guest count pending"}</h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        Guest registration details remain PMCM-managed. Client-visible attendee summaries will appear here once the event team publishes them.
+      </p>
+      {selectedEvent?.guestAccessCode ? (
+        <Badge className="mt-4 rounded-full">Guest access code: {selectedEvent.guestAccessCode}</Badge>
+      ) : null}
+    </div>
+  );
+
+  const renderPreferencesPage = () => (
+    <div className="space-y-5">
+      <ClientBriefingTab briefing={briefing} />
+      {renderFloorPlanPage()}
+    </div>
+  );
+
+  const renderFinalSummaryPage = () => (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {[
+        { label: "Event", value: formatStatusLabel(selectedEvent?.status), status: selectedEvent?.status ?? "pending" },
+        { label: "Layout", value: officialDraft ? formatStatusLabel(officialDraft.status) : "Pending", status: officialDraft?.status ?? "pending" },
+        { label: "Billing", value: billing ? formatStatusLabel(billing.status) : "Pending", status: billing?.status ?? "pending" },
+        { label: "Files", value: `${documents.length} file${documents.length === 1 ? "" : "s"}`, status: documents.length ? "approved" : "pending" },
+      ].map((item) => (
+        <div key={item.label} className="rounded-xl border border-border bg-card px-4 py-4 shadow-sm">
+          <p className="text-xs font-semibold text-muted-foreground">{item.label}</p>
+          <p className="mt-2 text-lg font-black text-foreground">{item.value}</p>
+          <div className="mt-3"><StatusBadge status={item.status} label={formatStatusLabel(item.status)} /></div>
+        </div>
+      ))}
     </div>
   );
 
@@ -1483,7 +2331,8 @@ export function Dashboard({
       <div className="rounded-2xl border border-border bg-card shadow-sm">
         <header className="border-b border-border px-6 py-5">
           <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Messages</p>
-          <h2 className="mt-1 text-xl font-black text-foreground">PMCM updates and activity</h2>
+          <h2 className="mt-1 text-xl font-black text-foreground">{portalViewMeta?.title ?? "PMCM updates and activity"}</h2>
+          {portalViewMeta ? <p className="mt-1 text-sm text-muted-foreground">{portalViewMeta.description}</p> : null}
         </header>
         <div className="divide-y divide-border">
           {messageItems.length ? messageItems.map((item) => (
@@ -1586,6 +2435,11 @@ export function Dashboard({
             setTab={(next) => navigateToEventRoute(next)}
           />
         )}
+        {route === "details" && renderEventDetailsPage()}
+        {route === "progress" && renderProgressPage()}
+        {route === "schedule" && renderSchedulePage()}
+        {route === "guests" && renderGuestsPage()}
+        {route === "preferences" && renderPreferencesPage()}
         {route === "actions" && (
           <div className="grid gap-4 xl:grid-cols-3">
             {renderActionGroup("Needs your action", "Client decisions that can move planning forward.", needsAction)}
@@ -1604,10 +2458,13 @@ export function Dashboard({
             setTab={(next) => navigateToEventRoute(next)}
           />
         )}
+        {route === "approvals" && renderApprovalsPage()}
         {route === "floorplan" && renderFloorPlanPage()}
         {route === "documents" && <ClientDocumentsTab documents={documents} />}
         {route === "billing" && <ClientBillingTab payments={payments} billing={billing} />}
         {route === "messages" && renderMessagesPage()}
+        {route === "changes" && renderActionGroup("Change requests", "Client-visible revision and change items for this event.", clientActions)}
+        {route === "summary" && renderFinalSummaryPage()}
       </div>
     );
   };
@@ -1619,7 +2476,12 @@ export function Dashboard({
       {route === "home" && renderHomePage()}
       {route === "request" && renderRequestPage()}
       {route === "events" && renderEventsPage()}
-      {route !== "home" && route !== "request" && route !== "events" && renderEventPage()}
+      {route === "calendar" && renderCalendarPage()}
+      {route === "approvals" && !isEventScopedView && renderApprovalsPage()}
+      {route === "messages" && !isEventScopedView && renderMessagesPage()}
+      {route === "files" && renderFilesPage()}
+      {route === "billing" && !isEventScopedView && renderPortalBillingPage()}
+      {isEventScopedView && renderEventPage()}
     </div>
   );
 
@@ -1640,6 +2502,16 @@ export function Dashboard({
       }}
       searchPlaceholder="Search events, documents, billing..."
       mobileActions={shellMobileActions}
+      sidebarMode="single"
+      sidebarContent={({ collapsed }) => (
+        <ClientPortalSidebar
+          navItems={shellNavItems}
+          activeItemId={activeShellItemId}
+          onSelect={handleShellNavSelect}
+          collapsed={collapsed}
+          user={session}
+        />
+      )}
       onSignOut={signOut}
     >
       {pageContent}

@@ -1,0 +1,185 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e401]:
+    - complementary [ref=e402]:
+      - generic [ref=e404]:
+        - link "P.R.I.S.M. Client Portal" [ref=e405] [cursor=pointer]:
+          - /url: /
+          - img [ref=e407]
+          - generic [ref=e408]:
+            - generic [ref=e409]: P.R.I.S.M.
+            - generic [ref=e410]: Client Portal
+        - generic [ref=e411]:
+          - generic [ref=e412]:
+            - generic [ref=e413]: Client Portal
+            - list [ref=e415]:
+              - listitem [ref=e416]:
+                - button "+ Event Request" [ref=e417] [cursor=pointer]:
+                  - img [ref=e418]
+                  - generic [ref=e421]: + Event Request
+              - listitem [ref=e422]:
+                - button "Dashboard" [expanded] [ref=e423] [cursor=pointer]:
+                  - img [ref=e424]
+                  - generic [ref=e427]: Dashboard
+                  - img [ref=e428]
+                - list [ref=e431]:
+                  - listitem [ref=e432]:
+                    - button "Overview" [ref=e433] [cursor=pointer]:
+                      - generic [ref=e434]: Overview
+                  - listitem [ref=e435]:
+                    - button "Upcoming Events" [ref=e436] [cursor=pointer]:
+                      - generic [ref=e437]: Upcoming Events
+                  - listitem [ref=e438]:
+                    - button "Pending Approvals" [ref=e439] [cursor=pointer]:
+                      - generic [ref=e440]: Pending Approvals
+                  - listitem [ref=e441]:
+                    - button "Recent Messages" [ref=e442] [cursor=pointer]:
+                      - generic [ref=e443]: Recent Messages
+                  - listitem [ref=e444]:
+                    - button "Payment Reminders" [ref=e445] [cursor=pointer]:
+                      - generic [ref=e446]: Payment Reminders
+              - listitem [ref=e447]:
+                - button "My Events" [expanded] [ref=e448] [cursor=pointer]:
+                  - img [ref=e449]
+                  - generic [ref=e451]: My Events
+                  - img [ref=e452]
+                - list [ref=e455]:
+                  - listitem [ref=e456]:
+                    - button "All Events" [ref=e457] [cursor=pointer]:
+                      - generic [ref=e458]: All Events
+                  - listitem [ref=e459]:
+                    - button "Upcoming Events" [ref=e460] [cursor=pointer]:
+                      - generic [ref=e461]: Upcoming Events
+                  - listitem [ref=e462]:
+                    - button "In Planning" [ref=e463] [cursor=pointer]:
+                      - generic [ref=e464]: In Planning
+                  - listitem [ref=e465]:
+                    - button "Completed Events" [ref=e466] [cursor=pointer]:
+                      - generic [ref=e467]: Completed Events
+                  - listitem [ref=e468]:
+                    - button "Cancelled Events" [ref=e469] [cursor=pointer]:
+                      - generic [ref=e470]: Cancelled Events
+                  - listitem [ref=e471]:
+                    - button "Draft Requests" [ref=e472] [cursor=pointer]:
+                      - generic [ref=e473]: Draft Requests
+              - listitem [ref=e474]:
+                - button "Calendar" [ref=e475] [cursor=pointer]:
+                  - img [ref=e476]
+                  - generic [ref=e478]: Calendar
+                  - img [ref=e479]
+              - listitem [ref=e481]:
+                - button "Approvals" [ref=e482] [cursor=pointer]:
+                  - img [ref=e483]
+                  - generic [ref=e486]: Approvals
+                  - img [ref=e487]
+              - listitem [ref=e489]:
+                - button "Messages" [ref=e490] [cursor=pointer]:
+                  - img [ref=e491]
+                  - generic [ref=e493]: Messages
+                  - img [ref=e494]
+              - listitem [ref=e496]:
+                - button "Files" [ref=e497] [cursor=pointer]:
+                  - img [ref=e498]
+                  - generic [ref=e501]: Files
+                  - img [ref=e502]
+              - listitem [ref=e504]:
+                - button "Billing & Payments" [ref=e505] [cursor=pointer]:
+                  - img [ref=e506]
+                  - generic [ref=e510]: Billing & Payments
+                  - img [ref=e511]
+          - generic [ref=e513]:
+            - generic [ref=e514]: When Event Is Selected
+            - list [ref=e516]:
+              - listitem [ref=e517]:
+                - button "Ayala Tech Summit 2026" [expanded] [ref=e518] [cursor=pointer]:
+                  - img [ref=e519]
+                  - generic [ref=e523]: Ayala Tech Summit 2026
+                  - img [ref=e524]
+                - list [ref=e527]:
+                  - listitem [ref=e528]:
+                    - button "Event Overview" [ref=e529] [cursor=pointer]:
+                      - generic [ref=e530]: Event Overview
+                  - listitem [ref=e531]:
+                    - button "Event Details" [ref=e532] [cursor=pointer]:
+                      - generic [ref=e533]: Event Details
+                  - listitem [ref=e534]:
+                    - button "Planning Progress" [ref=e535] [cursor=pointer]:
+                      - generic [ref=e536]: Planning Progress
+                  - listitem [ref=e537]:
+                    - button "Schedule / Program" [ref=e538] [cursor=pointer]:
+                      - generic [ref=e539]: Schedule / Program
+                  - listitem [ref=e540]:
+                    - button "Guests / Attendees" [ref=e541] [cursor=pointer]:
+                      - generic [ref=e542]: Guests / Attendees
+                  - listitem [ref=e543]:
+                    - button "Preferences / Requirements" [ref=e544] [cursor=pointer]:
+                      - generic [ref=e545]: Preferences / Requirements
+                  - listitem [ref=e546]:
+                    - button "Files" [ref=e547] [cursor=pointer]:
+                      - generic [ref=e548]: Files
+                  - listitem [ref=e549]:
+                    - button "Messages" [ref=e550] [cursor=pointer]:
+                      - generic [ref=e551]: Messages
+                  - listitem [ref=e552]:
+                    - button "Approvals" [ref=e553] [cursor=pointer]:
+                      - generic [ref=e554]: Approvals
+                  - listitem [ref=e555]:
+                    - button "Payments" [ref=e556] [cursor=pointer]:
+                      - generic [ref=e557]: Payments
+                  - listitem [ref=e558]:
+                    - button "Change Requests" [ref=e559] [cursor=pointer]:
+                      - generic [ref=e560]: Change Requests
+                  - listitem [ref=e561]:
+                    - button "Final Summary" [ref=e562] [cursor=pointer]:
+                      - generic [ref=e563]: Final Summary
+        - generic [ref=e564]:
+          - paragraph [ref=e565]: Ana Reyes
+          - paragraph [ref=e566]: Ayala Corp
+    - main [ref=e567]:
+      - 'generic "Event portfolio: My events" [ref=e568]':
+        - generic [ref=e569]:
+          - generic [ref=e570]:
+            - button "Collapse navigation" [ref=e571] [cursor=pointer]:
+              - img
+            - generic [ref=e573]:
+              - img
+              - textbox "My events. Your confirmed PMCM events." [ref=e574]:
+                - /placeholder: Search events, documents, billing...
+              - generic [ref=e575]: My events. Your confirmed PMCM events.
+          - button "Notifications" [ref=e576] [cursor=pointer]:
+            - img [ref=e577]
+          - button "Open account menu" [ref=e582] [cursor=pointer]:
+            - generic [ref=e583]: AN
+      - generic [ref=e588]:
+        - generic [ref=e589]:
+          - generic [ref=e590]:
+            - heading "My events" [level=1] [ref=e591]
+            - paragraph [ref=e592]: 1 confirmed event with PMCM
+          - button "New request" [ref=e593] [cursor=pointer]:
+            - img
+            - text: New request
+        - textbox "Search by name, date, or status..." [ref=e594]
+        - generic [ref=e597]:
+          - generic [ref=e598]:
+            - generic [ref=e599]:
+              - heading "Ayala Tech Summit 2026" [level=3] [ref=e600]
+              - generic [ref=e601]: planning
+            - generic [ref=e602]:
+              - generic [ref=e603]:
+                - img [ref=e604]
+                - text: 2026-06-18
+              - generic [ref=e606]:
+                - img [ref=e607]
+                - text: issued
+          - generic [ref=e611]:
+            - generic [ref=e612]:
+              - generic [ref=e615]: Briefing
+              - generic [ref=e618]: Floor plan
+              - generic [ref=e621]: Billing
+              - generic [ref=e624]: Documents
+            - button "Open" [ref=e625] [cursor=pointer]:
+              - text: Open
+              - img
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e62] [cursor=pointer]:
+    - img [ref=e63]
+  - alert [ref=e66]

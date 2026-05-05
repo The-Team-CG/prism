@@ -74,6 +74,11 @@ export interface PrismMobileAction {
   disabled?: boolean;
 }
 
+export interface PrismSidebarRenderProps {
+  collapsed: boolean;
+  mobile: boolean;
+}
+
 export interface PrismAccountMenuItem {
   id: string;
   label: string;
@@ -106,6 +111,7 @@ export interface PrismAppShellProps {
   rightRail?: React.ReactNode;
   mobileActions?: PrismMobileAction[];
   sidebarMode?: "auto" | "single";
+  sidebarContent?: React.ReactNode | ((props: PrismSidebarRenderProps) => React.ReactNode);
   onSignOut?: () => void;
   children: React.ReactNode;
   className?: string;
@@ -860,6 +866,7 @@ export function PrismAppShell({
   rightRail,
   mobileActions = [],
   sidebarMode = "auto",
+  sidebarContent,
   children,
   className,
   contentClassName,
@@ -913,6 +920,13 @@ export function PrismAppShell({
     />
   );
 
+  const renderSidebarContent = (collapsed = false, mobile = false) => {
+    if (!sidebarContent) return renderSidebar(collapsed);
+    return typeof sidebarContent === "function"
+      ? sidebarContent({ collapsed, mobile })
+      : sidebarContent;
+  };
+
   return (
     <div className={cn("min-h-screen bg-background text-foreground", className)}>
       <aside
@@ -944,7 +958,7 @@ export function PrismAppShell({
           />
         )}
         {useSingleSidebar ? (
-          renderSidebar(!desktopOpen)
+          renderSidebarContent(!desktopOpen)
         ) : desktopOpen ? (
           <div className="min-w-0 flex-1 bg-card">
             {renderSidebar(false, true)}
@@ -981,7 +995,7 @@ export function PrismAppShell({
                 </div>
               </div>
             ) : (
-              renderSidebar(false)
+              renderSidebarContent(false, true)
             )}
             <PrismButton
               variant="ghost"
