@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BadgeCheck,
-  Bell,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
@@ -20,8 +19,9 @@ import {
   ReceiptText,
   Send,
   ShieldCheck,
+  Sparkles,
   Timer,
-  UserRoundCheck,
+  TrendingUp,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
@@ -47,7 +47,6 @@ import { Skeleton } from "../ui/skeleton";
 import { StatusBadge } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
 import {
-  PrismCompactRecordList,
   PrismDashboardShell,
   PrismNoticeBanner,
   RolePageHeader,
@@ -91,6 +90,7 @@ export type ClientDashboardRoute =
   | "documents"
   | "billing"
   | "messages";
+
 type ClientSidebarNavItem = {
   id: string;
   label: string;
@@ -99,6 +99,7 @@ type ClientSidebarNavItem = {
   route: ClientDashboardRoute;
   requiresEvent?: boolean;
 };
+
 type Screen =
   | { name: "dashboard" }
   | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project; readOnly: boolean };
@@ -205,13 +206,13 @@ function objectBox(object: VenueObject, project: Project) {
 function LayoutPreview({ project }: { project: Project | null }) {
   if (!project) {
     return (
-      <div className="rounded-lg border border-dashed border-border bg-card px-8 py-10 text-center text-sm text-muted-foreground">
+      <div className="rounded-xl border border-dashed border-border bg-muted/30 px-8 py-10 text-center text-sm text-muted-foreground">
         Official layout preview will appear here after your event team publishes it.
       </div>
     );
   }
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-[#FFF4EC]">
+    <div className="overflow-hidden rounded-xl border border-border bg-[#FFF4EC]">
       <div className="relative aspect-16/10 min-h-60 bg-[linear-gradient(#EAD5CE_1px,transparent_1px),linear-gradient(90deg,#EAD5CE_1px,transparent_1px)] bg-size-[28px_28px]">
         {project.objects.length === 0 ? (
           <div className="absolute inset-0 grid place-items-center px-8 text-center text-sm text-muted-foreground">
@@ -305,7 +306,7 @@ function getClientDashboardActions({
       description: officialNeedsReview
         ? "PMCM has published the official layout. Open the floor plan before planning moves forward."
         : officialDraft
-          ? "The official layout is approved for this event. Use this space for the client copy and history."
+          ? "The official layout is approved for this event."
           : "Share seating, stage, guest-flow, and constraint notes before PMCM prepares the official plan.",
       detail: officialNeedsReview ? "Client review needed" : officialDraft ? formatStatusLabel(officialDraft.status) : "Preference draft",
       ctaLabel: officialDraft ? "Review layout" : "Open layout preferences",
@@ -318,7 +319,7 @@ function getClientDashboardActions({
       id: "proposal-package",
       title: billing && briefing ? "Review proposal package" : "Proposal package in preparation",
       description: billing && briefing
-        ? "Briefing, package basis, billing statement, and review path are ready without exposing PMCM internal costing."
+        ? "Briefing, package basis, billing statement, and review path are ready."
         : "The proposal view will populate after PMCM posts the client-safe planning package.",
       detail: billing ? billing.number : selectedEvent.status,
       ctaLabel: "Open proposal",
@@ -362,194 +363,38 @@ function selectNextAction(actions: ClientDashboardAction[]) {
     ?? actions[0];
 }
 
-function actionToneClass(tone: ClientDashboardAction["tone"]) {
-  if (tone === "primary") return "border-primary/20 bg-(--prism-signal-soft) text-primary";
-  if (tone === "success") return "border-(--prism-success)/20 bg-(--prism-success)/10 text-(--prism-success)";
-  if (tone === "warning") return "border-(--prism-amber)/25 bg-(--prism-amber-soft) text-(--prism-amber)";
-  return "border-border bg-secondary text-muted-foreground";
+function greetingByTime(name: string) {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const firstName = name.split(" ")[0];
+  return `${greeting}, ${firstName}.`;
 }
 
-function LifecycleStrip({
-  selectedEvent,
-  briefing,
-  billing,
-  officialDraft,
-}: {
-  selectedEvent: MvpEvent;
-  briefing?: MvpBriefing;
-  billing?: MvpBillingStatement;
-  officialDraft?: MvpFloorPlanDraft;
-}) {
-  const steps = [
-    { label: "Inquiry accepted", state: "done", icon: BadgeCheck },
-    { label: "Conforme signed", state: selectedEvent.clientPortalStatus === "unlocked" ? "done" : "pending", icon: ShieldCheck },
-    { label: "Briefing / proposal", state: briefing && billing ? "done" : "current", icon: Presentation },
-    { label: "Planning", state: officialDraft?.status === "approved" ? "done" : "current", icon: MapPinned },
-    { label: "Event day", state: "pending", icon: CalendarDays },
-    { label: "Closure", state: "pending", icon: CheckCircle2 },
+function eventProgressDots(ev: MvpEvent, state: MvpDemoState) {
+  const drafts = state.floorPlanDrafts.filter((d) => d.eventId === ev.id);
+  const billing = state.billingStatements.find((b) => b.eventId === ev.id);
+  const docs = state.documents.filter((d) => d.eventId === ev.id);
+  const briefing = state.briefings.find((b) => b.eventId === ev.id);
+
+  return [
+    { label: "Briefing", done: Boolean(briefing) },
+    { label: "Floor plan", done: drafts.some((d) => d.status === "approved") },
+    { label: "Billing", done: billing?.status === "approved" || billing?.status === "paid" },
+    { label: "Documents", done: docs.length > 0 && !docs.some((d) => /needs|pending|requested/i.test(d.status)) },
   ];
-
-  return (
-    <section className="rounded-lg border border-border bg-card px-4 py-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Lifecycle</p>
-          <h2 className="mt-1 text-lg font-black text-foreground">Guided from inquiry to closure</h2>
-        </div>
-        <StatusBadge status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />
-      </div>
-      <ol className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
-        {steps.map((step, index) => {
-          const Icon = step.icon;
-          const isDone = step.state === "done";
-          const isCurrent = step.state === "current";
-          return (
-            <li
-              key={step.label}
-              className={
-                isDone
-                  ? "border-l-2 border-l-(--prism-success) bg-(--prism-success)/8 px-3 py-2.5"
-                  : isCurrent
-                    ? "border-l-2 border-l-(--prism-signal) bg-(--prism-signal-soft) px-3 py-2.5"
-                    : "border-l-2 border-l-border px-3 py-2.5"
-              }
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-                  Step {index + 1}
-                </span>
-                <Icon className={isDone ? "size-4 text-(--prism-success)" : isCurrent ? "size-4 text-primary" : "size-4 text-muted-foreground"} />
-              </div>
-              <p className="mt-2 text-sm font-black leading-tight text-foreground">{step.label}</p>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
 }
 
-function NextActionHero({
-  event,
-  action,
-  onSelect,
-}: {
-  event: MvpEvent;
-  action: ClientDashboardAction;
-  onSelect: () => void;
-}) {
-  const Icon = action.icon;
-
-  return (
-    <section className="rounded-lg border border-border border-l-4 border-l-(--prism-signal) bg-card p-5 shadow-sm sm:p-6">
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-end">
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-primary">Next action</p>
-          <h2 className="mt-2 max-w-3xl text-2xl font-black leading-tight text-foreground sm:text-3xl">
-            {action.title}
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-            {action.description}
-          </p>
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Button onClick={onSelect} className="min-h-12 rounded-md px-5 font-black">
-              {action.ctaLabel} <ArrowRight className="size-4" />
-            </Button>
-            <span className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-              <Timer className="size-4 text-(--prism-amber)" />
-              {action.detail} - {event.eventDate} - {formatStatusLabel(event.readiness)}
-            </span>
-          </div>
-        </div>
-
-        <div className="border-l border-border pl-4">
-          <div className="flex items-start gap-3">
-            <span className={`grid size-11 shrink-0 place-items-center rounded-md border ${actionToneClass(action.tone)}`}>
-              <Icon className="size-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-black text-foreground">{event.eventName}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Confirmed client workspace. PMCM keeps internal planning details private while client-visible approvals stay here.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ClientActionQueue({
-  actions,
-  onSelect,
-}: {
-  actions: ClientDashboardAction[];
-  onSelect: (action: ClientDashboardAction) => void;
-}) {
-  return (
-    <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Action queue</p>
-          <h3 className="mt-1 text-lg font-black text-foreground">Client-visible blockers</h3>
-        </div>
-        <Badge variant="outline" className="rounded-md border-primary/20 bg-secondary text-primary">
-          {actions.length} workflows
-        </Badge>
-      </div>
-      <div className="mt-4 divide-y divide-border">
-        {actions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <button
-              key={action.id}
-              type="button"
-              onClick={() => onSelect(action)}
-              className="group flex min-h-20 w-full items-start gap-3 border-l-2 border-l-transparent px-3 py-3 text-left transition hover:border-l-(--prism-signal) hover:bg-muted/50"
-            >
-              <span className={`grid size-9 shrink-0 place-items-center rounded-md border ${actionToneClass(action.tone)}`}>
-                <Icon className="size-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-black text-foreground">{action.title}</span>
-                  <StatusBadge status={action.status} />
-                </span>
-                <span className="mt-1 line-clamp-2 block text-xs leading-5 text-muted-foreground">{action.description}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function projectFromDraft(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {
-  const widthM = 30;
-  const heightM = 20;
-  const pax = draft.clientPreference?.guestCount ?? 120;
-  const now = Date.now();
-  return {
-    id: draft.floorPlanId,
-    name: draft.name,
-    venue: event.eventName,
-    widthM,
-    heightM,
-    pax,
-    objects: preset ? preset.build(widthM, heightM, pax) : [],
-    guests: [],
-    suppliers: [],
-    createdAt: now,
-    updatedAt: now,
-  };
+function statusAccentClass(status: string) {
+  if (/approved|confirmed|complete|paid/i.test(status)) return "border-l-(--prism-success)";
+  if (/planning|in_progress|active|draft/i.test(status)) return "border-l-(--prism-signal)";
+  if (/pending|review/i.test(status)) return "border-l-(--prism-amber)";
+  return "border-l-border";
 }
 
 function FieldGroup({ label: labelText, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label className="text-xs font-bold uppercase tracking-wide text-(--prism-amber)">
+      <Label className="text-xs font-bold text-muted-foreground">
         {labelText}
       </Label>
       {children}
@@ -816,7 +661,7 @@ export function Dashboard({
   if (!session) {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-6">
-        <Skeleton className="h-24 w-full max-w-sm rounded-lg" />
+        <Skeleton className="h-24 w-full max-w-sm rounded-xl" />
       </main>
     );
   }
@@ -824,11 +669,11 @@ export function Dashboard({
   if (session.role !== "client") {
     return (
       <main className="grid min-h-screen place-items-center bg-background px-6">
-        <section className="w-full max-w-md rounded-lg border border-border bg-card p-7 shadow-sm">
-          <span className="grid size-11 place-items-center rounded-lg bg-amber-50 text-amber-600">
+        <section className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <span className="grid size-12 place-items-center rounded-xl bg-amber-50 text-amber-600">
             <ShieldCheck className="size-5" />
           </span>
-          <h1 className="mt-5 text-xl font-black text-foreground">Wrong portal for this account.</h1>
+          <h1 className="mt-5 text-xl font-bold text-foreground">Wrong portal for this account.</h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {session.role === "pmcm-admin" || session.role === "coordinator"
               ? "Event team and coordinator accounts belong in the event operations portal."
@@ -871,7 +716,7 @@ export function Dashboard({
         <aside className="border-r border-primary/20 bg-sidebar p-5" />
         <div className="p-8">
           {error ? (
-            <Alert variant="destructive" className="rounded-lg">
+            <Alert variant="destructive" className="rounded-xl">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : (
@@ -892,9 +737,7 @@ export function Dashboard({
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
           readOnly={screen.readOnly}
-          onBack={() => {
-            setScreen({ name: "dashboard" });
-          }}
+          onBack={() => setScreen({ name: "dashboard" })}
           onSave={editable ? (project) => mvpApi.savePlan(project, session ?? undefined) : undefined}
           onSubmit={
             editable
@@ -937,128 +780,13 @@ export function Dashboard({
     { id: "billing", label: "Pay", icon: WalletCards, active: route === "billing", disabled: !selectedEvent, onSelect: () => navigateToEventRoute("billing") },
   ];
 
-  const shellRightRail = (
-    <div className="space-y-4">
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Switch event</p>
-            <p className="mt-1 text-xs text-muted-foreground">{events.length} confirmed event{events.length === 1 ? "" : "s"}</p>
-          </div>
-          <StatusBadge
-            status={portalBadgeStatus(selectedEvent?.clientPortalStatus)}
-            label={portalBadgeLabel(selectedEvent?.clientPortalStatus)}
-          />
-        </div>
-        <PrismCompactRecordList
-          className="mt-3"
-          emptyText="No signed-conforme events are open yet."
-          items={events.map((ev) => {
-            const draftsForEvent = state.floorPlanDrafts.filter((draft) => draft.eventId === ev.id);
-            const activeForEvent = draftsForEvent.find((draft) => draft.isActive) ?? draftsForEvent[0];
-            return {
-              id: ev.id,
-              title: ev.eventName,
-              description: ev.clientName,
-              meta: ev.eventDate,
-              status: activeForEvent?.status ?? ev.status,
-              icon: CalendarDays,
-              active: ev.id === selectedEvent?.id,
-              onSelect: () => {
-                setSelectedEventId(ev.id);
-                router.push(dashboardHref(route === "home" || route === "request" || route === "events" ? "overview" : route, ev.id));
-              },
-            };
-          })}
-        />
-      </section>
-
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <div className="flex items-start gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-md bg-(--prism-signal-soft) text-primary">
-            <UserRoundCheck className="size-4" />
-          </span>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">PMCM contact</p>
-            <h3 className="mt-1 text-sm font-black text-foreground">Planning desk</h3>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              PMCM keeps supplier, coordinator, and internal cost decisions private. Client actions stay focused on approvals, files, billing visibility, and event preferences.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Key deadlines</p>
-        <div className="mt-3 space-y-2">
-          {[
-            {
-              label: "Event day",
-              value: selectedEvent?.eventDate ?? "Pending",
-              icon: CalendarDays,
-            },
-            {
-              label: "Layout review",
-              value: officialDraft ? formatStatusLabel(officialDraft.status) : "Not published",
-              icon: MapPinned,
-            },
-            {
-              label: "Next payment",
-              value: payments.find((payment) => payment.status !== "paid")?.dueDate ?? "No open milestone",
-              icon: ReceiptText,
-            },
-            {
-              label: "Documents",
-              value: documents.some((document) => /needs|pending|requested/i.test(document.status)) ? "Needs attention" : `${documents.length} received`,
-              icon: ClipboardCheck,
-            },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.label} className="flex items-center gap-3 border-t border-border px-1 py-2.5 first:border-t-0">
-                <Icon className="size-4 shrink-0 text-(--prism-amber)" />
-                <div className="min-w-0">
-                  <p className="text-xs font-black text-foreground">{item.label}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.value}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Notifications</p>
-          <Bell className="size-4 text-(--prism-amber)" />
-        </div>
-        {notifications.length ? (
-          <div className="mt-3 space-y-2">
-            {notifications.map((notification) => (
-              <div key={notification.id} className="border-l border-border px-3 py-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-black text-foreground">{notification.channel.toUpperCase()}</p>
-                  <StatusBadge status={notification.status} />
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{notification.message}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Email and Viber notifications will appear here when PMCM posts client-visible updates.
-          </p>
-        )}
-      </section>
-    </div>
-  );
-
   const shellTitle =
     route === "request"
       ? "New event request"
       : route === "events"
         ? "My events"
         : selectedEvent?.eventName ?? "Client portal";
+
   const shellEyebrow =
     route === "home"
       ? "Client home"
@@ -1067,356 +795,512 @@ export function Dashboard({
         : route === "events"
           ? "Event portfolio"
           : "Event workspace";
+
   const shellDescription =
     route === "request"
-      ? "Start another event request using your client account details. PMCM still reviews and gates access through conforme."
+      ? "Start another event request using your client account details."
       : route === "events"
-        ? "Review your confirmed PMCM events and open the workspace for each event."
+        ? "Your confirmed PMCM events."
         : selectedEvent
-          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Client-visible approvals, floorplans, documents, billing, and PMCM updates stay here.`
-          : "The portal opens after your inquiry is accepted and the signed conforme is recorded.";
+          ? `${selectedEvent.clientName} — ${selectedEvent.eventDate}`
+          : "Portal opens after inquiry is accepted and conforme is signed.";
 
   const eventHeader = selectedEvent ? (
     <RolePageHeader
-      eyebrow="Event context"
+      eyebrow="Event workspace"
       title={selectedEvent.eventName}
-      description={`${selectedEvent.clientName} - ${selectedEvent.eventDate}. Floorplans stay editable until PMCM approval locks the final plan.`}
+      description={`${selectedEvent.clientName} — ${selectedEvent.eventDate}`}
       meta={[
         <StatusBadge key="stage" status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />,
         <StatusBadge key="portal" status={portalBadgeStatus(selectedEvent.clientPortalStatus)} label={portalBadgeLabel(selectedEvent.clientPortalStatus)} />,
-        selectedEvent.readiness ? `Readiness ${formatStatusLabel(selectedEvent.readiness)}` : "Readiness pending",
+        selectedEvent.readiness ? `Readiness: ${formatStatusLabel(selectedEvent.readiness)}` : "Readiness pending",
       ]}
       action={
-        <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => navigateToEventRoute("messages")}>
+        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => navigateToEventRoute("messages")}>
           Messages
         </Button>
       }
     />
   ) : null;
 
-  const renderActionGroup = (title: string, description: string, actions: ClientDashboardAction[]) => (
-    <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">{title}</p>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+  /* ── Home page ────────────────────────────────────────────── */
+
+  const renderHomePage = () => {
+    const daysToEvent = (() => {
+      if (!selectedEvent?.eventDate) return null;
+      try {
+        const diff = Math.ceil(
+          (new Date(selectedEvent.eventDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+        );
+        return diff > 0 ? diff : 0;
+      } catch {
+        return null;
+      }
+    })();
+
+    return (
+      <div className="space-y-6">
+        {/* Greeting banner */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--prism-signal)] to-[#8b0f48] px-6 py-7 text-white shadow-lg sm:px-8 sm:py-8">
+          <div className="relative z-10">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-white/70">P.R.I.S.M Client Portal</p>
+                <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">
+                  {greetingByTime(session.name)}
+                </h1>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">
+                  {events.length > 0
+                    ? `You have ${events.length} active event${events.length === 1 ? "" : "s"} with PMCM. Select an event to review approvals, documents, billing, and planning updates.`
+                    : "Your portal opens once PMCM accepts your inquiry and records the signed conforme."}
+                </p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Button
+                    className="rounded-lg bg-white font-bold text-[var(--prism-signal)] hover:bg-white/90"
+                    onClick={() => router.push("/dashboard/request")}
+                  >
+                    <Send className="size-4" /> New event request
+                  </Button>
+                  {events.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      className="rounded-lg font-semibold text-white hover:bg-white/15 hover:text-white"
+                      onClick={() => router.push("/dashboard/events")}
+                    >
+                      My events <ArrowRight className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {daysToEvent !== null && (
+                <div className="hidden shrink-0 flex-col items-center rounded-xl bg-white/15 px-5 py-4 text-center backdrop-blur-sm sm:flex">
+                  <span className="text-4xl font-black leading-none">{daysToEvent}</span>
+                  <span className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/70">days to event</span>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* decorative circles */}
+          <span className="pointer-events-none absolute -right-12 -top-12 size-48 rounded-full bg-white/6" />
+          <span className="pointer-events-none absolute -bottom-16 -right-8 size-64 rounded-full bg-white/4" />
         </div>
-        <Badge variant="outline" className="rounded-md bg-secondary text-primary">{actions.length}</Badge>
-      </div>
-      <div className="mt-4 divide-y divide-border">
-        {actions.length ? actions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <button
-              key={action.id}
-              type="button"
-              onClick={() => runClientAction(action)}
-              className="flex min-h-20 w-full items-start gap-3 px-2 py-3 text-left transition hover:bg-secondary"
-            >
-              <span className={`grid size-9 shrink-0 place-items-center rounded-md border ${actionToneClass(action.tone)}`}>
-                <Icon className="size-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-black text-foreground">{action.title}</span>
-                  <StatusBadge status={action.status} />
+
+        {/* Active event quick-stats */}
+        {selectedEvent && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              {
+                label: "Event status",
+                value: formatStatusLabel(selectedEvent.status),
+                icon: TrendingUp,
+                accent: "text-(--prism-signal)",
+              },
+              {
+                label: "Floor plan",
+                value: officialDraft ? formatStatusLabel(officialDraft.status) : "Not started",
+                icon: MapPinned,
+                accent: "text-(--prism-amber)",
+              },
+              {
+                label: "Next payment",
+                value: payments.find((p) => p.status !== "paid")?.dueDate ?? "No open milestone",
+                icon: ReceiptText,
+                accent: "text-(--prism-success)",
+              },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 shadow-sm"
+              >
+                <span className={`grid size-10 shrink-0 place-items-center rounded-full bg-muted ${stat.accent}`}>
+                  <stat.icon className="size-4" />
                 </span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{action.description}</span>
-              </span>
-            </button>
-          );
-        }) : (
-          <p className="py-4 text-sm text-muted-foreground">No items in this lane.</p>
+                <div className="min-w-0">
+                  <p className="text-base font-bold leading-tight text-foreground truncate">{stat.value}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Event card grid */}
+        {events.length > 0 ? (
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-bold text-foreground">Your events</h2>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/events")}
+                className="text-xs font-semibold text-(--prism-signal) hover:underline"
+              >
+                View all
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {events.slice(0, 4).map((ev) => {
+                const dots = eventProgressDots(ev, state);
+                const accentClass = statusAccentClass(ev.status);
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedEventId(ev.id);
+                      router.push(dashboardHref("overview", ev.id));
+                    }}
+                    className={`group rounded-xl border border-border border-l-4 ${accentClass} bg-card p-4 text-left shadow-sm transition hover:shadow-md hover:border-primary/25`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-foreground">{ev.eventName}</p>
+                        <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <CalendarDays className="size-3 shrink-0" />
+                          <span>{ev.eventDate ?? "Date pending"}</span>
+                        </div>
+                      </div>
+                      <StatusBadge status={ev.status} label={formatStatusLabel(ev.status)} />
+                    </div>
+                    <div className="mt-3 flex items-center gap-3">
+                      {dots.map((dot) => (
+                        <div key={dot.label} className="flex flex-col items-center gap-1">
+                          <span className={`size-2 rounded-full ${dot.done ? "bg-(--prism-success)" : "bg-muted-foreground/30"}`} />
+                          <span className="text-[9px] font-semibold text-muted-foreground">{dot.label}</span>
+                        </div>
+                      ))}
+                      <ArrowRight className="ml-auto size-3.5 text-muted-foreground/50 transition group-hover:text-(--prism-signal)" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <EmptyState
+            icon={LockKeyhole}
+            title="No active event portal"
+            description="The client portal opens after PMCM accepts your inquiry and records the signed conforme."
+          />
+        )}
+
+        {/* Recent updates */}
+        {notifications.length > 0 && (
+          <div className="rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-4 text-(--prism-signal)" />
+                <p className="text-sm font-bold text-foreground">Recent updates from PMCM</p>
+              </div>
+            </div>
+            <div className="divide-y divide-border">
+              {notifications.map((n) => (
+                <div key={n.id} className="flex items-start gap-3 px-5 py-3.5">
+                  <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-black text-primary">
+                    PM
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">{n.channel.toUpperCase()} update</p>
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground line-clamp-2">{n.message}</p>
+                  </div>
+                  <StatusBadge status={n.status} />
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
-    </section>
-  );
+    );
+  };
 
-  const visibleEvents = events.filter((ev) => {
-    const query = eventSearch.trim().toLowerCase();
-    if (!query) return true;
-    return `${ev.eventName} ${ev.eventDate} ${ev.status} ${ev.readiness}`.toLowerCase().includes(query);
-  });
+  /* ── Events list page ──────────────────────────────────────── */
 
-  const renderEventsPage = () => (
-    <div className="space-y-5">
-      <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+  const renderEventsPage = () => {
+    const visibleEvents = events.filter((ev) => {
+      const query = eventSearch.trim().toLowerCase();
+      if (!query) return true;
+      return `${ev.eventName} ${ev.eventDate} ${ev.status}`.toLowerCase().includes(query);
+    });
+
+    return (
+      <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">My events</p>
-            <h2 className="mt-1 text-2xl font-black text-foreground">Confirmed PMCM event workspaces</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Only events with accepted inquiry and signed conforme appear here.
+            <h1 className="text-2xl font-black text-foreground">My events</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {events.length} confirmed event{events.length === 1 ? "" : "s"} with PMCM
             </p>
           </div>
-          <Button className="rounded-md font-black" onClick={() => router.push("/dashboard/request")}>
-            New request <Send className="size-4" />
+          <Button className="rounded-lg font-bold" onClick={() => router.push("/dashboard/request")}>
+            <Send className="size-4" /> New request
           </Button>
         </div>
+
         <Input
           value={eventSearch}
-          onChange={(event) => setEventSearch(event.target.value)}
-          placeholder="Search event name, date, or status..."
-          className="mt-5 max-w-md"
+          onChange={(ev) => setEventSearch(ev.target.value)}
+          placeholder="Search by name, date, or status..."
+          className="max-w-sm rounded-lg"
         />
-      </section>
 
-      <div className="grid gap-3">
-        {visibleEvents.length ? visibleEvents.map((ev) => {
-          const draftsForEvent = state.floorPlanDrafts.filter((draft) => draft.eventId === ev.id);
-          const activeForEvent = draftsForEvent.find((draft) => draft.isActive) ?? draftsForEvent[0];
-          const statement = state.billingStatements.find((item) => item.eventId === ev.id);
-          return (
-            <section key={ev.id} className="rounded-lg border border-border bg-card p-4 shadow-sm transition hover:border-primary/25 sm:p-5">
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-lg font-black text-foreground">{ev.eventName}</h3>
-                    <StatusBadge status={ev.status} label={formatStatusLabel(ev.status)} />
+        <div className="grid gap-3">
+          {visibleEvents.length ? visibleEvents.map((ev) => {
+            const dots = eventProgressDots(ev, state);
+            const accentClass = statusAccentClass(ev.status);
+            const statement = state.billingStatements.find((b) => b.eventId === ev.id);
+            return (
+              <div
+                key={ev.id}
+                className={`rounded-xl border border-border border-l-4 ${accentClass} bg-card shadow-sm`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-bold text-foreground">{ev.eventName}</h3>
+                      <StatusBadge status={ev.status} label={formatStatusLabel(ev.status)} />
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><CalendarDays className="size-3" />{ev.eventDate ?? "Date pending"}</span>
+                      {statement && <span className="flex items-center gap-1"><WalletCards className="size-3" />{formatStatusLabel(statement.status)}</span>}
+                    </div>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{ev.eventDate} - {ev.readiness}</p>
-                  <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-                    <span className="rounded-md bg-secondary px-3 py-2 font-bold text-muted-foreground">Floor plan: {activeForEvent ? formatStatusLabel(activeForEvent.status) : "Not started"}</span>
-                    <span className="rounded-md bg-secondary px-3 py-2 font-bold text-muted-foreground">Billing: {statement ? formatStatusLabel(statement.status) : "Pending"}</span>
-                    <span className="rounded-md bg-secondary px-3 py-2 font-bold text-muted-foreground">Portal: {portalBadgeLabel(ev.clientPortalStatus)}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="hidden items-center gap-4 sm:flex">
+                      {dots.map((dot) => (
+                        <div key={dot.label} className="flex flex-col items-center gap-1">
+                          <span className={`size-2.5 rounded-full ${dot.done ? "bg-(--prism-success)" : "bg-muted-foreground/25"}`} />
+                          <span className="text-[9px] font-semibold text-muted-foreground">{dot.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="rounded-lg font-bold"
+                      onClick={() => {
+                        setSelectedEventId(ev.id);
+                        router.push(dashboardHref("overview", ev.id));
+                      }}
+                    >
+                      Open <ArrowRight className="size-3.5" />
+                    </Button>
                   </div>
                 </div>
-                <Button className="rounded-md font-black" onClick={() => router.push(dashboardHref("overview", ev.id))}>
-                  Open workspace <ArrowRight className="size-4" />
-                </Button>
               </div>
-            </section>
-          );
-        }) : (
-          <EmptyState icon={CalendarDays} title="No matching events" description="Try another search, or start a new event request." />
-        )}
+            );
+          }) : (
+            <EmptyState icon={CalendarDays} title="No matching events" description="Try a different search, or start a new event request." />
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  /* ── Request page ──────────────────────────────────────────── */
 
   const renderRequestPage = () => (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-      <section className="rounded-lg border border-border bg-card shadow-sm">
-        <header className="border-b border-border px-5 py-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">New event request</p>
-          <h2 className="mt-1 text-2xl font-black text-foreground">Tell PMCM about the next event</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            This creates a new inquiry from your signed-in client account. It does not bypass PMCM review, acceptance, or signed conforme.
-          </p>
-        </header>
-        <form className="space-y-5 p-5" onSubmit={submitNewEventRequest}>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-black text-foreground">New event request</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Tell PMCM about your next event. Your account details are pre-filled. PMCM reviews all requests before activating the workspace.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card shadow-sm">
+        <form className="space-y-5 p-6" onSubmit={submitNewEventRequest}>
           <div className="grid gap-4 sm:grid-cols-2">
             <FieldGroup label="Client name">
-              <Input value={session.name} readOnly />
+              <Input value={session.name} readOnly className="rounded-lg bg-muted/40" />
             </FieldGroup>
             <FieldGroup label="Company">
-              <Input value={session.organization} readOnly />
+              <Input value={session.organization} readOnly className="rounded-lg bg-muted/40" />
             </FieldGroup>
           </div>
           <FieldGroup label="Event name">
-            <Input required value={requestForm.eventName} onChange={(event) => setRequestForm({ ...requestForm, eventName: event.target.value })} placeholder="e.g. Leadership Summit 2026" />
+            <Input
+              required
+              value={requestForm.eventName}
+              onChange={(ev) => setRequestForm({ ...requestForm, eventName: ev.target.value })}
+              placeholder="e.g. Leadership Summit 2026"
+              className="rounded-lg"
+            />
           </FieldGroup>
           <div className="grid gap-4 sm:grid-cols-2">
             <FieldGroup label="Event date">
-              <Input required type="date" value={requestForm.eventDate} onChange={(event) => setRequestForm({ ...requestForm, eventDate: event.target.value })} />
+              <Input
+                required
+                type="date"
+                value={requestForm.eventDate}
+                onChange={(ev) => setRequestForm({ ...requestForm, eventDate: ev.target.value })}
+                className="rounded-lg"
+              />
             </FieldGroup>
             <FieldGroup label="Event type">
-              <Input value={requestForm.eventType} onChange={(event) => setRequestForm({ ...requestForm, eventType: event.target.value })} />
+              <Input
+                value={requestForm.eventType}
+                onChange={(ev) => setRequestForm({ ...requestForm, eventType: ev.target.value })}
+                className="rounded-lg"
+              />
             </FieldGroup>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <FieldGroup label="Venue or city">
-              <Input value={requestForm.venueCity} onChange={(event) => setRequestForm({ ...requestForm, venueCity: event.target.value })} placeholder="Venue, city, or TBD" />
+              <Input
+                value={requestForm.venueCity}
+                onChange={(ev) => setRequestForm({ ...requestForm, venueCity: ev.target.value })}
+                placeholder="Venue, city, or TBD"
+                className="rounded-lg"
+              />
             </FieldGroup>
             <FieldGroup label="Budget range">
-              <Input value={requestForm.budgetRange} onChange={(event) => setRequestForm({ ...requestForm, budgetRange: event.target.value })} />
+              <Input
+                value={requestForm.budgetRange}
+                onChange={(ev) => setRequestForm({ ...requestForm, budgetRange: ev.target.value })}
+                className="rounded-lg"
+              />
             </FieldGroup>
           </div>
           <FieldGroup label="Planning notes">
             <textarea
               required
               value={requestForm.message}
-              onChange={(event) => setRequestForm({ ...requestForm, message: event.target.value })}
+              onChange={(ev) => setRequestForm({ ...requestForm, message: ev.target.value })}
               rows={5}
-              className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
               placeholder="Share goals, estimated guests, event format, program notes, or early constraints."
             />
           </FieldGroup>
-          <Button type="submit" disabled={busy === "event-request"} className="min-h-11 rounded-md font-black">
+
+          <div className="rounded-xl border border-primary/15 bg-(--prism-signal-soft) p-4 text-sm">
+            <p className="font-bold text-foreground">What happens next</p>
+            <ol className="mt-2 space-y-1 text-muted-foreground">
+              <li>1. PMCM reviews fit and scope.</li>
+              <li>2. PMCM accepts, pends, or declines.</li>
+              <li>3. Signed conforme unlocks the event workspace.</li>
+            </ol>
+          </div>
+
+          <Button type="submit" disabled={busy === "event-request"} className="w-full rounded-lg font-bold">
             Submit request <Send className="size-4" />
           </Button>
         </form>
-      </section>
-
-      <aside className="space-y-4">
-        <section className="rounded-lg border border-primary/15 bg-(--prism-signal-soft) p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">What happens next</p>
-          <div className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
-            <p><strong className="text-foreground">1. PMCM reviews fit and scope.</strong></p>
-            <p><strong className="text-foreground">2. PMCM accepts, pends, or declines.</strong></p>
-            <p><strong className="text-foreground">3. Signed conforme unlocks the workspace.</strong></p>
-          </div>
-        </section>
-        <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <p className="text-sm font-black text-foreground">Your account details</p>
-          <div className="mt-3 divide-y divide-border text-sm">
-            <div className="flex justify-between gap-3 py-2"><span className="text-muted-foreground">Name</span><span className="font-bold">{session.name}</span></div>
-            <div className="flex justify-between gap-3 py-2"><span className="text-muted-foreground">Email</span><span className="font-bold">{session.email}</span></div>
-            <div className="flex justify-between gap-3 py-2"><span className="text-muted-foreground">Company</span><span className="font-bold">{session.organization}</span></div>
-          </div>
-        </section>
-      </aside>
-    </div>
-  );
-
-  const renderHomePage = () => (
-    <div className="space-y-5">
-      <section className="rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Client portal</p>
-            <h1 className="mt-2 text-3xl font-black leading-tight text-foreground">Welcome back, {session.name}.</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Track confirmed event workspaces, client action items, editable floorplans before approval, billing milestones, and PMCM updates.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button className="rounded-md font-black" onClick={() => router.push("/dashboard/request")}>New request</Button>
-            <Button variant="outline" className="rounded-md font-bold" onClick={() => router.push("/dashboard/events")}>My events</Button>
-          </div>
-        </div>
-      </section>
-
-      {selectedEvent && nextAction ? (
-        <>
-          <NextActionHero event={selectedEvent} action={nextAction} onSelect={() => runClientAction(nextAction)} />
-          <LifecycleStrip selectedEvent={selectedEvent} briefing={briefing} billing={billing} officialDraft={officialDraft} />
-        </>
-      ) : (
-        <EmptyState icon={LockKeyhole} title="No active event portal" description="The client portal opens after PMCM accepts the inquiry and records the signed conforme." />
-      )}
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <ClientActionQueue actions={clientActions} onSelect={runClientAction} />
-        <section className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Recent PMCM updates</p>
-          {notifications.length ? (
-            <div className="mt-3 divide-y divide-border">
-              {notifications.map((notification) => (
-                <div key={notification.id} className="py-3">
-                  <p className="text-sm font-black text-foreground">{notification.channel.toUpperCase()}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{notification.message}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">PMCM updates will appear here once planning activity starts.</p>
-          )}
-        </section>
       </div>
     </div>
   );
+
+  /* ── Floor plan page ───────────────────────────────────────── */
 
   const renderFloorPlanPage = () => {
     const activeDraft = officialDraft ?? preferenceDrafts[0];
     const approved = activeDraft?.status === "approved";
     return (
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
-        <section className="rounded-lg border border-border bg-card shadow-sm">
-          <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+      <div className="space-y-5">
+        <div className="rounded-2xl border border-border bg-card shadow-sm">
+          <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Floor plan workspace</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Floor plan workspace</p>
               <h2 className="mt-1 text-xl font-black text-foreground">
-                {approved ? "Approved floor plan is locked" : "Editable floor plan"}
+                {approved ? "Approved floor plan" : "Editable floor plan"}
               </h2>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Clients can edit the floor plan until PMCM approves it. After approval, this page becomes a read-only record.
+              <p className="mt-1 text-sm text-muted-foreground">
+                {approved
+                  ? "This plan is locked after PMCM approval. It's now the official event record."
+                  : "Edit and submit your layout before PMCM approval locks it."}
               </p>
             </div>
             {activeDraft ? <StatusBadge status={activeDraft.status} label={formatStatusLabel(activeDraft.status)} /> : null}
           </header>
-          <div className="space-y-5 p-5">
+
+          <div className="p-6">
             {activeDraft ? (
-              <>
-                <div className="rounded-lg border border-primary/12 bg-secondary/50 p-4">
-                  <p className="text-sm font-black text-foreground">{activeDraft.name}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {approved
-                      ? "This approved version is frozen for event reference."
-                      : "Open the editor to adjust seating, flow, stage placement, and notes before approval."}
-                  </p>
-                  <Button className="mt-4 rounded-md font-black" onClick={() => openFloorplanEditor(activeDraft, approved)}>
-                    {approved ? "Open floor plan" : "Edit floor plan"} <ArrowRight className="size-4" />
+              <div className="space-y-5">
+                <div className="flex items-start justify-between gap-4 rounded-xl bg-muted/40 p-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground">{activeDraft.name}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {approved ? "Frozen for event reference." : "Open the editor to adjust seating, flow, stage placement, and notes."}
+                    </p>
+                  </div>
+                  <Button className="shrink-0 rounded-lg font-bold" onClick={() => openFloorplanEditor(activeDraft, approved)}>
+                    {approved ? "View floor plan" : "Edit floor plan"} <ArrowRight className="size-4" />
                   </Button>
                 </div>
                 <LayoutPreview project={approved ? officialProject : null} />
-              </>
+              </div>
             ) : (
-              <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start with a guided preference draft or choose a layout preset." />
+              <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start with a layout preset below to open the editor." />
             )}
 
-            {!approved ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {PRESETS.slice(0, 4).map((preset) => (
-                  <button
-                    key={preset.id}
-                    disabled={busy === `editor-${preset.id}`}
-                    onClick={() => createEditorDraft(preset)}
-                    className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/35 disabled:opacity-60"
-                  >
-                    <p className="text-sm font-bold text-foreground">{preset.name}</p>
-                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{preset.description}</p>
-                  </button>
-                ))}
+            {!approved && (
+              <div className="mt-5">
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">Quick-start presets</p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {PRESETS.slice(0, 4).map((preset) => (
+                    <button
+                      key={preset.id}
+                      disabled={busy === `editor-${preset.id}`}
+                      onClick={() => createEditorDraft(preset)}
+                      className="rounded-xl border border-border bg-background p-3.5 text-left transition hover:border-(--prism-signal)/40 hover:bg-(--prism-signal-soft) disabled:opacity-60"
+                    >
+                      <p className="text-sm font-bold text-foreground">{preset.name}</p>
+                      <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{preset.description}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : null}
+            )}
           </div>
-        </section>
+        </div>
 
-        <section className="rounded-lg border border-border bg-card shadow-sm">
-          <header className="border-b border-border px-5 py-4">
-            <p className="text-sm font-black text-foreground">Guided floor plan notes</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">Use this form to send PMCM structured layout context.</p>
-          </header>
-          <form onSubmit={submitPreference} className="space-y-4 p-5">
-            <FieldGroup label="Preference title">
-              <Input disabled={approved} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </FieldGroup>
-            <FieldGroup label="Seating style">
-              <Input disabled={approved} value={form.seatingStyle} onChange={(e) => setForm({ ...form, seatingStyle: e.target.value })} />
-            </FieldGroup>
-            <FieldGroup label="Stage preference">
-              <Input disabled={approved} value={form.stagePreference} onChange={(e) => setForm({ ...form, stagePreference: e.target.value })} />
-            </FieldGroup>
-            <FieldGroup label="Guest flow notes">
-              <textarea
-                disabled={approved}
-                value={form.flowNotes}
-                onChange={(e) => setForm({ ...form, flowNotes: e.target.value })}
-                rows={3}
-                className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:opacity-60"
-              />
-            </FieldGroup>
-            <FieldGroup label="Guests">
-              <Input disabled={approved} type="number" min={1} value={form.guestCount} onChange={(e) => setForm({ ...form, guestCount: Number(e.target.value) })} />
-            </FieldGroup>
-            <FieldGroup label="Constraints">
-              <textarea
-                disabled={approved}
-                value={form.constraints}
-                onChange={(e) => setForm({ ...form, constraints: e.target.value })}
-                rows={3}
-                className="w-full rounded-lg border border-border bg-input-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:opacity-60"
-              />
-            </FieldGroup>
-            <Button disabled={approved || busy === "layout-preference"} className="min-h-11 w-full gap-2 rounded-lg font-bold" type="submit">
-              <Send className="size-4" /> Save floor plan notes
-            </Button>
-          </form>
-        </section>
+        {!approved && (
+          <div className="rounded-2xl border border-border bg-card shadow-sm">
+            <header className="border-b border-border px-6 py-4">
+              <p className="text-sm font-bold text-foreground">Guided layout notes</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Send PMCM structured layout context for the official plan.</p>
+            </header>
+            <form onSubmit={submitPreference} className="space-y-4 p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FieldGroup label="Preference title">
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="rounded-lg" />
+                </FieldGroup>
+                <FieldGroup label="Guest count">
+                  <Input type="number" min={1} value={form.guestCount} onChange={(e) => setForm({ ...form, guestCount: Number(e.target.value) })} className="rounded-lg" />
+                </FieldGroup>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FieldGroup label="Seating style">
+                  <Input value={form.seatingStyle} onChange={(e) => setForm({ ...form, seatingStyle: e.target.value })} className="rounded-lg" />
+                </FieldGroup>
+                <FieldGroup label="Stage preference">
+                  <Input value={form.stagePreference} onChange={(e) => setForm({ ...form, stagePreference: e.target.value })} className="rounded-lg" />
+                </FieldGroup>
+              </div>
+              <FieldGroup label="Guest flow notes">
+                <textarea
+                  value={form.flowNotes}
+                  onChange={(e) => setForm({ ...form, flowNotes: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                />
+              </FieldGroup>
+              <FieldGroup label="Constraints">
+                <textarea
+                  value={form.constraints}
+                  onChange={(e) => setForm({ ...form, constraints: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                />
+              </FieldGroup>
+              <Button disabled={busy === "layout-preference"} className="w-full rounded-lg font-bold" type="submit">
+                <Send className="size-4" /> Save layout notes
+              </Button>
+            </form>
+          </div>
+        )}
       </div>
     );
   };
+
+  /* ── Messages page ─────────────────────────────────────────── */
 
   const renderMessagesPage = () => {
     const messageItems = [
@@ -1426,6 +1310,7 @@ export function Dashboard({
         detail: item.message,
         meta: item.createdAt,
         status: item.status,
+        initials: "PM",
       })),
       ...audit.map((item) => ({
         id: item.id,
@@ -1433,66 +1318,140 @@ export function Dashboard({
         detail: `Updated by ${clientActivityActor(item.actor)}`,
         meta: item.createdAt,
         status: "logged",
+        initials: item.actor.slice(0, 2).toUpperCase(),
       })),
     ];
 
     return (
-      <section className="rounded-lg border border-border bg-card shadow-sm">
-        <header className="border-b border-border px-5 py-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Messages</p>
-          <h2 className="mt-1 text-xl font-black text-foreground">PMCM updates and client-visible activity</h2>
+      <div className="rounded-2xl border border-border bg-card shadow-sm">
+        <header className="border-b border-border px-6 py-5">
+          <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Messages</p>
+          <h2 className="mt-1 text-xl font-black text-foreground">PMCM updates and activity</h2>
         </header>
-        <div className="divide-y divide-border p-5">
+        <div className="divide-y divide-border">
           {messageItems.length ? messageItems.map((item) => (
-            <div key={item.id} className="flex items-start gap-3 py-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-black text-primary">PM</span>
+            <div key={item.id} className="flex items-start gap-4 px-6 py-4">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-black text-primary">
+                {item.initials}
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-black text-foreground">{item.title}</p>
+                  <p className="text-sm font-bold text-foreground">{item.title}</p>
                   <StatusBadge status={item.status} />
                 </div>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.detail}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{item.meta}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{item.meta}</p>
               </div>
             </div>
           )) : (
-            <EmptyState icon={MessageSquareText} title="No messages yet" description="PMCM messages and client-visible updates will appear here." />
+            <div className="px-6 py-8">
+              <EmptyState icon={MessageSquareText} title="No messages yet" description="PMCM messages and client-visible updates will appear here." />
+            </div>
           )}
         </div>
-      </section>
+      </div>
     );
   };
 
+  /* ── Actions page ──────────────────────────────────────────── */
+
+  const renderActionGroup = (title: string, description: string, actions: ClientDashboardAction[]) => (
+    <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <header className="border-b border-border px-5 py-4">
+        <p className="text-sm font-bold text-foreground">{title}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </header>
+      <div className="divide-y divide-border">
+        {actions.length ? actions.map((action) => {
+          const Icon = action.icon;
+          const toneStyle =
+            action.tone === "primary" ? "bg-(--prism-signal-soft) text-(--prism-signal)"
+            : action.tone === "success" ? "bg-(--prism-success)/10 text-(--prism-success)"
+            : action.tone === "warning" ? "bg-(--prism-amber-soft) text-(--prism-amber)"
+            : "bg-muted text-muted-foreground";
+          return (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => runClientAction(action)}
+              className="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-muted/40"
+            >
+              <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneStyle}`}>
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-bold text-foreground">{action.title}</span>
+                  <StatusBadge status={action.status} />
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground line-clamp-2">{action.description}</span>
+              </span>
+            </button>
+          );
+        }) : (
+          <p className="px-5 py-6 text-sm text-muted-foreground">Nothing here right now.</p>
+        )}
+      </div>
+    </div>
+  );
+
+  /* ── Event pages router ────────────────────────────────────── */
+
   const renderEventPage = () => {
     if (!selectedEvent) {
-      return <EmptyState icon={LockKeyhole} title="No active event portal" description="The client portal opens after your inquiry is accepted and the signed conforme is uploaded." className="mt-8" />;
+      return (
+        <EmptyState
+          icon={LockKeyhole}
+          title="No active event portal"
+          description="The client portal opens after your inquiry is accepted and the signed conforme is uploaded."
+          className="mt-8"
+        />
+      );
     }
-    const needsAction = clientActions.filter((action) => action.tone === "primary" || action.tone === "warning");
-    const waiting = clientActions.filter((action) => action.tone === "neutral");
-    const completed = clientActions.filter((action) => action.tone === "success");
+    const needsAction = clientActions.filter((a) => a.tone === "primary" || a.tone === "warning");
+    const waiting = clientActions.filter((a) => a.tone === "neutral");
+    const completed = clientActions.filter((a) => a.tone === "success");
+
     return (
-      <>
+      <div className="space-y-5">
         {eventHeader}
         {route === "overview" && (
-          <>
-            <LifecycleStrip selectedEvent={selectedEvent} briefing={briefing} billing={billing} officialDraft={officialDraft} />
-            <ClientOverviewTab selectedEvent={selectedEvent} briefing={briefing} payments={payments} billing={billing} documents={documents} audit={audit} officialDraft={officialDraft} preferenceDraftCount={preferenceDrafts.length} onOpenOfficialFloorplan={officialDraft ? () => openFloorplanEditor(officialDraft, officialDraft.status === "approved") : undefined} setTab={(next) => navigateToEventRoute(next)} />
-          </>
+          <ClientOverviewTab
+            selectedEvent={selectedEvent}
+            briefing={briefing}
+            payments={payments}
+            billing={billing}
+            documents={documents}
+            audit={audit}
+            officialDraft={officialDraft}
+            preferenceDraftCount={preferenceDrafts.length}
+            onOpenOfficialFloorplan={officialDraft ? () => openFloorplanEditor(officialDraft, officialDraft.status === "approved") : undefined}
+            setTab={(next) => navigateToEventRoute(next)}
+          />
         )}
         {route === "actions" && (
-          <div className="grid gap-5 xl:grid-cols-3">
-            {renderActionGroup("Needs your action", "Client decisions or updates that can move planning forward.", needsAction)}
-            {renderActionGroup("Waiting on PMCM", "Items being prepared or reviewed by the PMCM event team.", waiting)}
+          <div className="grid gap-4 xl:grid-cols-3">
+            {renderActionGroup("Needs your action", "Client decisions that can move planning forward.", needsAction)}
+            {renderActionGroup("Waiting on PMCM", "Being prepared or reviewed by the event team.", waiting)}
             {renderActionGroup("Completed", "Finished client-visible workflow items.", completed)}
           </div>
         )}
         {route === "briefing" && <ClientBriefingTab briefing={briefing} />}
-        {route === "proposal" && <ClientProposalTab selectedEvent={selectedEvent} briefing={briefing} billing={billing} payments={payments} officialDraft={officialDraft} setTab={(next) => navigateToEventRoute(next)} />}
+        {route === "proposal" && (
+          <ClientProposalTab
+            selectedEvent={selectedEvent}
+            briefing={briefing}
+            billing={billing}
+            payments={payments}
+            officialDraft={officialDraft}
+            setTab={(next) => navigateToEventRoute(next)}
+          />
+        )}
         {route === "floorplan" && renderFloorPlanPage()}
         {route === "documents" && <ClientDocumentsTab documents={documents} />}
         {route === "billing" && <ClientBillingTab payments={payments} billing={billing} />}
         {route === "messages" && renderMessagesPage()}
-      </>
+      </div>
     );
   };
 
@@ -1522,12 +1481,31 @@ export function Dashboard({
         detail: session.organization,
         initials: session.name.slice(0, 2).toUpperCase(),
       }}
-      searchPlaceholder="Search proposal, billing, documents..."
-      rightRail={shellRightRail}
+      searchPlaceholder="Search events, documents, billing..."
       mobileActions={shellMobileActions}
       onSignOut={signOut}
     >
       {pageContent}
     </PrismDashboardShell>
   );
+}
+
+function projectFromDraft(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {
+  const widthM = 30;
+  const heightM = 20;
+  const pax = draft.clientPreference?.guestCount ?? 120;
+  const now = Date.now();
+  return {
+    id: draft.floorPlanId,
+    name: draft.name,
+    venue: event.eventName,
+    widthM,
+    heightM,
+    pax,
+    objects: preset ? preset.build(widthM, heightM, pax) : [],
+    guests: [],
+    suppliers: [],
+    createdAt: now,
+    updatedAt: now,
+  };
 }
