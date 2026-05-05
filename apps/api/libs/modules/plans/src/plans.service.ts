@@ -2,14 +2,17 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/database';
 import { asArray } from '@prism/shared';
-import type { CanvasObject, FloorPlan, Seat, SeatCategory } from '@prism/shared';
-import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
+import type { CanvasObject, FloorPlan, JsonValue, Seat, SeatCategory } from '@prism/shared';
 
 type UpdatePlanChanges = {
+  venue?: string;
   width?: number;
   height?: number;
   gridSize?: number;
+  pax?: number;
   objects?: CanvasObject[];
+  guests?: unknown[];
+  suppliers?: unknown[];
   seats?: Seat[];
   seatCategories?: SeatCategory[];
 };
@@ -38,13 +41,17 @@ export class PlansService {
     return {
       id: row.id,
       name: row.name,
+      venue: row.venue,
       width: row.width,
       height: row.height,
       gridSize: row.gridSize,
+      pax: row.pax,
       ownerId: row.ownerId,
       templateId: row.templateId,
       eventId: row.eventId,
       objects,
+      guests: asArray<JsonValue>(row.guests),
+      suppliers: asArray<JsonValue>(row.suppliers),
       seats: asArray<Seat>(row.seats),
       seatCategories: asArray<SeatCategory>(row.seatCategories),
       updatedAt: row.updatedAt.toISOString(),
@@ -52,19 +59,14 @@ export class PlansService {
   }
 
   async getPlan(planId: string, _actor: PlanActor = {}): Promise<FloorPlan> {
-    const row = await this.prisma.floorPlan.upsert({
+    const row = await this.prisma.floorPlan.findUnique({
       where: { id: planId },
-      create: {
-        id: planId,
-        name: 'New Floor Plan',
-        ownerId: DEFAULT_OWNER_ID,
-        seatCategories: toPrismaJson(defaultSeatCategories()),
-      },
-      update: {},
       include: {
         objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
       },
     });
+
+    if (!row) throw new NotFoundException('Plan not found');
 
     return this.mapPlan(row);
   }
@@ -86,6 +88,10 @@ export class PlansService {
             ...(scalarChanges.width !== undefined && { width: scalarChanges.width }),
             ...(scalarChanges.height !== undefined && { height: scalarChanges.height }),
             ...(scalarChanges.gridSize !== undefined && { gridSize: scalarChanges.gridSize }),
+            ...(scalarChanges.venue !== undefined && { venue: scalarChanges.venue }),
+            ...(scalarChanges.pax !== undefined && { pax: scalarChanges.pax }),
+            ...(scalarChanges.guests !== undefined && { guests: toPrismaJson(scalarChanges.guests) }),
+            ...(scalarChanges.suppliers !== undefined && { suppliers: toPrismaJson(scalarChanges.suppliers) }),
             ...(scalarChanges.seats !== undefined && { seats: toPrismaJson(scalarChanges.seats) }),
             ...(scalarChanges.seatCategories !== undefined && {
               seatCategories: toPrismaJson(scalarChanges.seatCategories),
@@ -112,6 +118,10 @@ export class PlansService {
             ...(scalarChanges.width !== undefined && { width: scalarChanges.width }),
             ...(scalarChanges.height !== undefined && { height: scalarChanges.height }),
             ...(scalarChanges.gridSize !== undefined && { gridSize: scalarChanges.gridSize }),
+            ...(scalarChanges.venue !== undefined && { venue: scalarChanges.venue }),
+            ...(scalarChanges.pax !== undefined && { pax: scalarChanges.pax }),
+            ...(scalarChanges.guests !== undefined && { guests: toPrismaJson(scalarChanges.guests) }),
+            ...(scalarChanges.suppliers !== undefined && { suppliers: toPrismaJson(scalarChanges.suppliers) }),
             ...(scalarChanges.seats !== undefined && { seats: toPrismaJson(scalarChanges.seats) }),
             ...(scalarChanges.seatCategories !== undefined && {
               seatCategories: toPrismaJson(scalarChanges.seatCategories),

@@ -1,9 +1,8 @@
 import { useState } from "react";
 import {
-  Armchair, Theater, ClipboardList, Shield, Columns, Layers, Sparkles, Search, Users, Truck, BookmarkPlus, Shapes,
+  Armchair, Theater, ClipboardList, Shield, Columns, Layers, Search, Users, Truck, BookmarkPlus, Shapes,
 } from "lucide-react";
 import { LayersPanel } from "./LayersPanel";
-import { PresetsPanel } from "./PresetsPanel";
 import { GuestsPanel } from "./GuestsPanel";
 import { SuppliersPanel } from "./SuppliersPanel";
 import { TemplatesPanel } from "./TemplatesPanel";
@@ -11,7 +10,7 @@ import { ASSETS, CATEGORY_LABELS, assetToObject, type AssetDef } from "./assetLi
 import type { ElementCategory } from "./types";
 import { useEditor } from "./store";
 
-type TabId = "components" | "guests" | "suppliers" | "layers" | "templates" | "presets";
+type TabId = "components" | "guests" | "suppliers" | "layers" | "templates";
 
 interface Tab {
   id: TabId;
@@ -26,7 +25,6 @@ const TABS: Tab[] = [
   { id: "guests", label: "Guests", icon: Users, group: "event" },
   { id: "suppliers", label: "Suppliers", icon: Truck, group: "event" },
   { id: "templates", label: "Templates", icon: BookmarkPlus, group: "library" },
-  { id: "presets", label: "Presets", icon: Sparkles, group: "library" },
 ];
 
 const CATEGORY_TABS: { id: ElementCategory; icon: React.ComponentType<{ size?: number | string }> }[] = [
@@ -173,18 +171,7 @@ export function LeftPanel() {
     );
   } else if (active === "guests") content = <GuestsPanel />;
   else if (active === "suppliers") content = <SuppliersPanel />;
-  else if (active === "templates") content = <TemplatesPanel />;
-  else {
-    content = (
-      <div>
-        <div className="px-3 pb-2 pt-3">
-          <div className="text-[10px] uppercase tracking-wider text-neutral-400">Templates</div>
-          <div className="mt-0.5 text-sm text-neutral-900" style={{ fontWeight: 500 }}>Quick setup</div>
-        </div>
-        <PresetsPanel />
-      </div>
-    );
-  }
+  else content = <TemplatesPanel />;
 
   return (
     <div className="flex shrink-0 border-r border-neutral-200 bg-white">

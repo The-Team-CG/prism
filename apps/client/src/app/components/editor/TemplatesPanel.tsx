@@ -76,33 +76,53 @@ export function TemplatesPanel() {
   const [templates, setTemplates] = useState<FloorPlanTemplate[]>([]);
   const [q, setQ] = useState("");
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState(state.project.name || "New template");
   const [includeGuests, setIncludeGuests] = useState(false);
   const [includeSuppliers, setIncludeSuppliers] = useState(true);
   const [justSavedId, setJustSavedId] = useState<string | null>(null);
 
   useEffect(() => {
-    setTemplates(loadTemplates());
+    let cancelled = false;
+    loadTemplates()
+      .then((next) => {
+        if (!cancelled) setTemplates(next);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load templates");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  function save() {
+  async function save() {
     const p = state.project;
-    const t = addTemplate({
-      name: name.trim() || "Untitled template",
-      venue: p.venue,
-      widthM: p.widthM,
-      heightM: p.heightM,
-      pax: p.pax,
-      objects: p.objects.map((o) => ({ ...o, assignedGuestIds: [], assignedSupplierIds: [] })),
-      includeGuests,
-      includeSuppliers,
-      guests: includeGuests ? p.guests : [],
-      suppliers: includeSuppliers ? p.suppliers : [],
-    });
-    setTemplates(loadTemplates());
-    setSaving(false);
-    setJustSavedId(t.id);
-    setTimeout(() => setJustSavedId(null), 1500);
+    setBusy(true);
+    setError(null);
+    try {
+      const t = await addTemplate({
+        name: name.trim() || "Untitled template",
+        venue: p.venue,
+        widthM: p.widthM,
+        heightM: p.heightM,
+        pax: p.pax,
+        objects: p.objects.map((o) => ({ ...o, assignedGuestIds: [], assignedSupplierIds: [] })),
+        includeGuests,
+        includeSuppliers,
+        guests: includeGuests ? p.guests : [],
+        suppliers: includeSuppliers ? p.suppliers : [],
+      });
+      setTemplates(await loadTemplates());
+      setSaving(false);
+      setJustSavedId(t.id);
+      setTimeout(() => setJustSavedId(null), 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save template");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function apply(t: FloorPlanTemplate) {
@@ -118,9 +138,18 @@ export function TemplatesPanel() {
     });
   }
 
-  function remove(id: string) {
+  async function remove(id: string) {
     if (!confirm("Delete this template?")) return;
-    setTemplates(removeTemplate(id));
+    setBusy(true);
+    setError(null);
+    try {
+      await removeTemplate(id);
+      setTemplates(await loadTemplates());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete template");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const filtered = templates.filter(
@@ -137,6 +166,11 @@ export function TemplatesPanel() {
       </div>
 
       <div className="px-2 pb-2">
+        {error && (
+          <div className="mb-2 rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5 text-[10px] text-rose-700">
+            {error}
+          </div>
+        )}
         {saving ? (
           <div className="flex flex-col gap-1.5 rounded-md bg-muted p-2">
             <input
@@ -156,6 +190,7 @@ export function TemplatesPanel() {
             <div className="flex gap-1">
               <button
                 onClick={save}
+                disabled={busy}
                 className="flex flex-1 items-center justify-center gap-1 rounded-md bg-[var(--prism-ink)] py-1 text-[11px] text-white hover:bg-[#C01867]"
               >
                 <Check size={11} /> Save
@@ -174,6 +209,7 @@ export function TemplatesPanel() {
               setName(state.project.name || "New template");
               setSaving(true);
             }}
+            disabled={busy}
             className="flex w-full items-center justify-center gap-1 rounded-md bg-[var(--prism-ink)] py-1.5 text-[11px] text-white hover:bg-[#C01867]"
           >
             <Save size={11} /> Save current as template
@@ -237,6 +273,7 @@ export function TemplatesPanel() {
                 </button>
                 <button
                   onClick={() => remove(t.id)}
+                  disabled={busy}
                   className="flex size-5 items-center justify-center rounded text-neutral-400 hover:bg-rose-50 hover:text-rose-600"
                   title="Delete"
                 >

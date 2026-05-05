@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { FloorPlan as PrismaFloorPlan } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/database';
 import { asArray } from '@prism/shared';
-import type { CanvasObject, FloorPlan, PublishedSnapshot, Seat, SeatCategory } from '@prism/shared';
+import type { CanvasObject, FloorPlan, JsonValue, PublishedSnapshot, Seat, SeatCategory } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
@@ -13,13 +13,17 @@ export class PublishService {
     return {
       id: row.id,
       name: row.name,
+      venue: row.venue,
       width: row.width,
       height: row.height,
       gridSize: row.gridSize,
+      pax: row.pax,
       ownerId: row.ownerId,
       templateId: row.templateId,
       eventId: row.eventId,
       objects: asArray<CanvasObject>(row.objects),
+      guests: asArray<JsonValue>(row.guests),
+      suppliers: asArray<JsonValue>(row.suppliers),
       seats: asArray<Seat>(row.seats),
       seatCategories: asArray<SeatCategory>(row.seatCategories),
       updatedAt: row.updatedAt.toISOString(),

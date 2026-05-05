@@ -81,7 +81,7 @@ import {
   EventOverviewPanels,
   type PmcmDetailTab,
 } from "@/app/components/pmcm/event-command-cockpit";
-import { PRESETS, type Preset } from "@/app/components/editor/presets";
+import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/app/components/editor/templates";
 import type { Project } from "@/app/components/editor/types";
 import { clearEventSession, readStoredEventSession, type EventSession } from "@/app/lib/session";
 
@@ -474,26 +474,6 @@ function shortDate(value?: string | null) {
 
 function clientKey(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "client";
-}
-
-function buildProject(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {
-  const widthM = 30;
-  const heightM = 20;
-  const pax = draft.clientPreference?.guestCount ?? 160;
-  const now = Date.now();
-  return {
-    id: draft.floorPlanId,
-    name: draft.name,
-    venue: event.eventName,
-    widthM,
-    heightM,
-    pax,
-    objects: preset ? preset.build(widthM, heightM, pax) : [],
-    guests: [],
-    suppliers: [],
-    createdAt: now,
-    updatedAt: now,
-  };
 }
 
 type TimedCache<T> = { value: T; loadedAt: number };
@@ -2274,6 +2254,7 @@ export default function EventDashboard({
   const [statusFeed, setStatusFeed] = useState<MvpEventDayStatusFeed | null>(null);
   const [defenseReadiness, setDefenseReadiness] = useState<MvpDefenseReadiness | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
 
   async function refresh(current = session) {
     if (!current) return;
@@ -2376,6 +2357,21 @@ export default function EventDashboard({
       cancelled = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadTemplates()
+      .then((templates) => {
+        if (!cancelled) setFloorPlanTemplates(templates);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load floor plan templates");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setSection(routeState.section);
@@ -2585,20 +2581,25 @@ export default function EventDashboard({
     }
   }
 
-  async function createPreset(preset: Preset) {
+  async function createTemplateDraft(template: FloorPlanTemplate) {
     if (!selectedEvent) return;
     const draft = await mvpApi.createFloorPlanDraft(selectedEvent.id, {
-      name: `${preset.name} PMCM draft`,
-      sourceType: preset.id === "blank" ? "blank" : "preset",
-      width: 30, height: 20, gridSize: 1,
+      name: `${template.name} PMCM draft`,
+      sourceType: "template",
+      venue: template.venue || selectedEvent.eventName,
+      width: template.widthM,
+      height: template.heightM,
+      gridSize: 1,
+      pax: template.pax,
+      objects: cloneTemplateObjects(template),
+      guests: template.includeGuests ? template.guests : [],
+      suppliers: template.includeSuppliers ? template.suppliers : [],
     });
-    await openEditor(selectedEvent, draft, preset);
+    await openEditor(selectedEvent, draft);
   }
 
-  async function openEditor(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset) {
-    const fallback = buildProject(event, draft, preset);
-    const project = preset ? fallback : await mvpApi.loadPlan(draft.floorPlanId, fallback);
-    if (preset) await mvpApi.savePlan(project);
+  async function openEditor(event: MvpEvent, draft: MvpFloorPlanDraft) {
+    const project = await mvpApi.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
 
@@ -3567,18 +3568,24 @@ export default function EventDashboard({
                       </div>
                     </CardHeader>
                     <CardBody>
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        {PRESETS.slice(0, 4).map((preset) => (
-                          <button
-                            key={preset.id}
-                            onClick={() => run("create floorplan", () => createPreset(preset))}
-                            className="rounded-xl border border-border bg-muted/30 p-4 text-left transition hover:border-(--prism-signal)/40 hover:bg-(--prism-signal-soft)"
-                          >
-                            <p className="text-sm font-bold text-foreground">{preset.name}</p>
-                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{preset.description}</p>
-                          </button>
-                        ))}
-                      </div>
+                      {floorPlanTemplates.length ? (
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          {floorPlanTemplates.slice(0, 4).map((template) => (
+                            <button
+                              key={template.id}
+                              onClick={() => run("create floorplan", () => createTemplateDraft(template))}
+                              className="rounded-xl border border-border bg-muted/30 p-4 text-left transition hover:border-(--prism-signal)/40 hover:bg-(--prism-signal-soft)"
+                            >
+                              <p className="text-sm font-bold text-foreground">{template.name}</p>
+                              <p className="mt-1 text-xs leading-5 text-muted-foreground">{template.description || template.venue || "Saved PMCM template"}</p>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-xs text-muted-foreground">
+                          No saved templates yet. Save reusable layouts from the editor before starting a template-based draft.
+                        </p>
+                      )}
                     </CardBody>
                   </Card>
                   <Card>
@@ -3590,7 +3597,7 @@ export default function EventDashboard({
                     </CardHeader>
                     <CardBody>
                       {drafts.length === 0 ? (
-                        <EmptyState icon={LayoutGrid} title="No floorplan drafts yet" description="Pick a preset above to create the first PMCM draft for this event." />
+                        <EmptyState icon={LayoutGrid} title="No floorplan drafts yet" description="Pick a saved template above to create the first PMCM draft for this event." />
                       ) : (
                         <div className="space-y-4">
                           {drafts.map((draft) => (

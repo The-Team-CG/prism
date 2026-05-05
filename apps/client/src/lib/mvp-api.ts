@@ -61,7 +61,7 @@ export interface MvpFloorPlanDraft {
   name: string;
   status: "client_submitted" | "pmcm_draft" | "in_review" | "approved" | string;
   isActive: boolean;
-  sourceType: "client_preference" | "blank" | "preset" | "template" | string;
+  sourceType: "client_preference" | "blank" | "template" | string;
   createdByRole?: DemoRole | string;
   clientPreference?: MvpFloorPlanPreference;
   submittedSnapshot?: MvpFloorPlanSnapshot;
@@ -221,10 +221,14 @@ export interface MvpFloorPlanPreference {
 export interface MvpFloorPlanSnapshot {
   id: string;
   name: string;
+  venue: string;
   width: number;
   height: number;
   gridSize: number;
+  pax: number;
   objects?: Project["objects"];
+  guests?: Project["guests"];
+  suppliers?: Project["suppliers"];
   seats?: unknown[];
   seatCategories?: unknown[];
   updatedAt?: string;
@@ -327,24 +331,29 @@ function firstInquiry(state: MvpDemoState) {
 interface ApiFloorPlan {
   id: string;
   name: string;
+  venue: string;
   width: number;
   height: number;
   gridSize: number;
+  pax: number;
   objects?: Project["objects"];
+  guests?: Project["guests"];
+  suppliers?: Project["suppliers"];
   updatedAt?: string;
 }
 
 type CreateFloorPlanDraftInput = {
   name: string;
-  sourceType: "blank" | "preset" | "template" | "client_preference";
+  sourceType: "blank" | "template" | "client_preference";
+  venue?: string;
   width?: number;
   height?: number;
   gridSize?: number;
+  pax?: number;
+  objects?: Project["objects"];
+  guests?: Project["guests"];
+  suppliers?: Project["suppliers"];
 };
-
-function floorPlanStorageKey(planId: string) {
-  return `prism:floor-plan:${planId}`;
-}
 
 function defaultProjectFromDraft(draft: MvpFloorPlanDraft, event?: MvpEvent): Project {
   const nowTs = Date.now();
@@ -363,20 +372,20 @@ function defaultProjectFromDraft(draft: MvpFloorPlanDraft, event?: MvpEvent): Pr
   };
 }
 
-function apiPlanToProject(plan: ApiFloorPlan, fallback?: Partial<Project>): Project {
-  const nowTs = Date.now();
+function apiPlanToProject(plan: ApiFloorPlan): Project {
+  const updatedAt = plan.updatedAt ? new Date(plan.updatedAt).getTime() : Date.now();
   return {
     id: plan.id,
-    name: plan.name || fallback?.name || "Untitled floorplan",
-    venue: fallback?.venue ?? "Event venue",
-    widthM: plan.width && plan.width <= 200 ? plan.width : fallback?.widthM ?? 30,
-    heightM: plan.height && plan.height <= 200 ? plan.height : fallback?.heightM ?? 20,
-    pax: fallback?.pax ?? 120,
-    objects: Array.isArray(plan.objects) ? plan.objects : fallback?.objects ?? [],
-    guests: fallback?.guests ?? [],
-    suppliers: fallback?.suppliers ?? [],
-    createdAt: fallback?.createdAt ?? nowTs,
-    updatedAt: plan.updatedAt ? new Date(plan.updatedAt).getTime() : fallback?.updatedAt ?? nowTs,
+    name: plan.name,
+    venue: plan.venue,
+    widthM: plan.width,
+    heightM: plan.height,
+    pax: plan.pax,
+    objects: Array.isArray(plan.objects) ? plan.objects : [],
+    guests: Array.isArray(plan.guests) ? plan.guests : [],
+    suppliers: Array.isArray(plan.suppliers) ? plan.suppliers : [],
+    createdAt: updatedAt,
+    updatedAt,
   };
 }
 
@@ -615,7 +624,11 @@ export const mvpApi = {
           activeFloorPlanDraftId: drafts.find((draft) => draft.isActive)?.id,
         };
       })),
-  createFloorPlanPreference: (eventId: string, input: { name: string } & MvpFloorPlanPreference, session?: Pick<MvpUser, "name" | "email">) =>
+  createFloorPlanPreference: (
+    eventId: string,
+    input: { name: string; venue?: string; width?: number; height?: number; gridSize?: number; objects?: Project["objects"] } & MvpFloorPlanPreference,
+    session?: Pick<MvpUser, "name" | "email">,
+  ) =>
     USE_REMOTE_API
       ? request<MvpFloorPlanDraft>(withClientActor(`/api/events/${eventId}/floorplan-preferences`, session), {
           method: "POST",
@@ -716,38 +729,32 @@ export const mvpApi = {
         addAudit(state, eventId, "PMCM Admin", `Approved floorplan draft: ${draft.name}`);
         return draft;
       })),
-  loadFloorPlanSnapshot: (eventId: string, draftId: string, type: "submitted" | "approved" = "approved", fallback?: Partial<Project>, session?: Pick<MvpUser, "name" | "email">) =>
+  loadFloorPlanSnapshot: (eventId: string, draftId: string, type: "submitted" | "approved" = "approved", session?: Pick<MvpUser, "name" | "email">) =>
     USE_REMOTE_API
-      ? request<ApiFloorPlan>(withClientActor(`/api/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`, session)).then((plan) => apiPlanToProject(plan, fallback))
-      : Promise.resolve(apiPlanToProject({ id: fallback?.id ?? draftId, name: fallback?.name ?? "Official floorplan", width: 30, height: 20, gridSize: 1, objects: fallback?.objects ?? [] }, fallback)),
-  loadPlan: (planId: string, fallback?: Partial<Project>, session?: Pick<MvpUser, "name" | "email">) =>
+      ? request<ApiFloorPlan>(withClientActor(`/api/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`, session)).then((plan) => apiPlanToProject(plan))
+      : Promise.reject(new Error(API_OFFLINE_MESSAGE)),
+  loadPlan: (planId: string, session?: Pick<MvpUser, "name" | "email">) =>
     USE_REMOTE_API
-      ? request<ApiFloorPlan>(withClientActor(`/api/plans/${planId}`, session)).then((plan) => apiPlanToProject(plan, fallback))
-      : Promise.resolve((() => {
-          if (typeof window === "undefined") return apiPlanToProject({ id: planId, name: fallback?.name ?? "Floorplan", width: 30, height: 20, gridSize: 1 }, fallback);
-          const stored = window.localStorage.getItem(floorPlanStorageKey(planId));
-          if (stored) return JSON.parse(stored) as Project;
-          return apiPlanToProject({ id: planId, name: fallback?.name ?? "Floorplan", width: 30, height: 20, gridSize: 1 }, fallback);
-        })()),
+      ? request<ApiFloorPlan>(withClientActor(`/api/plans/${planId}`, session)).then((plan) => apiPlanToProject(plan))
+      : Promise.reject(new Error(API_OFFLINE_MESSAGE)),
   savePlan: (project: Project, session?: Pick<MvpUser, "name" | "email">) =>
     USE_REMOTE_API
       ? request<ApiFloorPlan>(withClientActor(`/api/plans/${project.id}`, session), {
           method: "PUT",
           body: JSON.stringify({
+            venue: project.venue,
             width: Math.max(1, Math.round(project.widthM)),
             height: Math.max(1, Math.round(project.heightM)),
             gridSize: 1,
+            pax: Math.max(0, Math.round(project.pax)),
             objects: project.objects,
+            guests: project.guests,
+            suppliers: project.suppliers,
             seats: [],
             seatCategories: [],
           }),
-        }).then((plan) => apiPlanToProject(plan, project))
-      : Promise.resolve((() => {
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(floorPlanStorageKey(project.id), JSON.stringify(project));
-          }
-          return project;
-        })()),
+        }).then((plan) => apiPlanToProject(plan))
+      : Promise.reject(new Error(API_OFFLINE_MESSAGE)),
   submitBriefing: (eventId: string) =>
     USE_REMOTE_API
       ? request<MvpBriefing>(`/api/events/${eventId}/briefing`, {

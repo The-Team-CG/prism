@@ -13,7 +13,6 @@ import type {
   EditorState,
   Guest,
   Project,
-  RSVP,
   Supplier,
   Tool,
   Viewport,
@@ -59,76 +58,12 @@ type Action =
     }
   | { type: "LOAD"; state: EditorState };
 
-function newProject(): Project {
-  return {
-    id: uid("proj"),
-    name: "Untitled Floor Plan",
-    venue: "Venue A — Ballroom",
-    widthM: 30,
-    heightM: 20,
-    pax: 120,
-    objects: [],
-    guests: seedGuests(),
-    suppliers: seedSuppliers(),
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
+export function initialState(project: Project): EditorState {
+  const p = {
+    ...project,
+    guests: project.guests ?? [],
+    suppliers: project.suppliers ?? [],
   };
-}
-
-function seedGuests(): Guest[] {
-  const raw: [string, RSVP, string, string?][] = [
-    ["Amelia Chen", "confirmed", "Keynote", "Vegan"],
-    ["Marcus Patel", "confirmed", "Keynote"],
-    ["Joy Ramirez", "confirmed", "Stylist team"],
-    ["Kent Park", "confirmed", "Client — PMCM"],
-    ["Sofia Alvarez", "pending", "Sponsor · Atrium"],
-    ["Diego Santos", "confirmed", "Sponsor · Atrium", "Gluten-free"],
-    ["Priya Kulkarni", "confirmed", "Press"],
-    ["Rohan Mehta", "pending", "Press"],
-    ["Claire Dubois", "confirmed", "VIP"],
-    ["Olu Adeyemi", "declined", "VIP"],
-    ["Hana Watanabe", "confirmed", "Crew"],
-    ["Liam O'Connor", "confirmed", "Crew"],
-    ["Nora Haugen", "pending", "Plus-ones"],
-    ["Theo Bianchi", "confirmed", "Plus-ones"],
-  ];
-  return raw.map(([name, rsvp, group, dietary], i) => ({
-    id: `g_seed_${i}`,
-    name,
-    rsvp,
-    group,
-    dietary,
-  }));
-}
-
-function seedSuppliers(): Supplier[] {
-  const raw: [string, Supplier["kind"], Supplier["status"], string][] = [
-    ["Chef Margarita Catering", "catering", "confirmed", "margarita@cmc.ph"],
-    ["Sound Republic AV", "av", "booked", "ops@soundrepublic.co"],
-    ["Bloom Atelier", "floral", "confirmed", "hello@bloomatelier.ph"],
-    ["Summit Stages", "staging", "proposed", "bookings@summitstages.com"],
-    ["Perimeter Security Co.", "security", "booked", "dispatch@perimeter.ph"],
-    ["Lumière Rentals", "rental", "confirmed", "rent@lumiere.ph"],
-    ["Frame & Field Photography", "photography", "proposed", "studio@frameandfield.co"],
-  ];
-  return raw.map(([name, kind, status, contact], i) => ({
-    id: `s_seed_${i}`,
-    name,
-    kind,
-    status,
-    contact,
-  }));
-}
-
-
-export function initialState(project?: Project): EditorState {
-  const p = project
-    ? {
-        ...project,
-        guests: project.guests ?? seedGuests(),
-        suppliers: project.suppliers ?? seedSuppliers(),
-      }
-    : newProject();
   return {
     project: p as Project,
     viewport: { tx: 0, ty: 0, zoom: 30 },
@@ -472,34 +407,8 @@ interface Ctx {
 
 const EditorCtx = createContext<Ctx | null>(null);
 
-const STORAGE_KEY = "prism.editor.v1";
-
-export function EditorProvider({ project, children }: { project?: Project; children: ReactNode }) {
+export function EditorProvider({ project, children }: { project: Project; children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState(project));
-  const loadedRef = useRef(false);
-
-  // Load on mount
-  useEffect(() => {
-    if (loadedRef.current) return;
-    loadedRef.current = true;
-    if (project) return;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const p = JSON.parse(raw) as Project;
-        if (!p.guests) p.guests = seedGuests();
-        if (!p.suppliers) p.suppliers = seedSuppliers();
-        dispatch({ type: "LOAD", state: initialState(p) });
-      }
-    } catch {}
-  }, [project]);
-
-  // Persist
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.project));
-    } catch {}
-  }, [state.project]);
 
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return <EditorCtx.Provider value={value}>{children}</EditorCtx.Provider>;

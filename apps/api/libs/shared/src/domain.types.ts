@@ -68,13 +68,17 @@ export interface Seat {
 export interface FloorPlan {
   id: ID;
   name: string;
+  venue: string;
   width: number;
   height: number;
   gridSize: number;
+  pax: number;
   ownerId: ID;
   templateId: ID | null;
   eventId: ID | null;
   objects: CanvasObject[];
+  guests: JsonValue[];
+  suppliers: JsonValue[];
   seats: Seat[];
   seatCategories: SeatCategory[];
   updatedAt: string;
@@ -85,10 +89,22 @@ export interface VenueTemplate {
   ownerId: ID;
   name: string;
   description: string;
+  venue: string;
   venueRules: string;
   permanentFeatures: CanvasObject[];
   floorPlanId: ID;
+  width: number;
+  height: number;
+  gridSize: number;
+  pax: number;
+  objects: CanvasObject[];
+  includeGuests: boolean;
+  includeSuppliers: boolean;
+  guests: JsonValue[];
+  suppliers: JsonValue[];
+  sourceType: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface EventInstance {

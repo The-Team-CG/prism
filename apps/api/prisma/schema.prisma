@@ -9,13 +9,17 @@ datasource db {
 model FloorPlan {
   id             String            @id
   name           String
+  venue          String            @default("")
   width          Int               @default(1400)
   height         Int               @default(900)
   gridSize       Int               @default(20) @map("grid_size")
+  pax            Int               @default(0)
   ownerId        String            @map("owner_id")
   templateId     String?           @map("template_id")
   eventId        String?           @map("event_id")
   objects        Json              @default("[]")
+  guests         Json              @default("[]")
+  suppliers      Json              @default("[]")
   seats          Json              @default("[]")
   seatCategories Json              @default("[]") @map("seat_categories")
   updatedAt      DateTime          @default(now()) @updatedAt @map("updated_at")
@@ -49,10 +53,18 @@ model VenueTemplate {
   ownerId            String          @map("owner_id")
   name               String
   description        String          @default("")
+  venue              String          @default("")
   venueRules         String          @default("") @map("venue_rules")
   permanentFeatures  Json            @default("[]") @map("permanent_features")
   floorPlanId        String          @unique @map("floor_plan_id")
+  pax                Int             @default(0)
+  includeGuests      Boolean         @default(false) @map("include_guests")
+  includeSuppliers   Boolean         @default(false) @map("include_suppliers")
+  guests             Json            @default("[]")
+  suppliers          Json            @default("[]")
+  sourceType         String          @default("custom") @map("source_type")
   createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at")
 
   floorPlan          FloorPlan       @relation("TemplateBaseLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
   events             EventInstance[]

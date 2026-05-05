@@ -45,7 +45,7 @@ export function createInitialMvpDemoState(createdAt = new Date().toISOString()):
         name: "Ayala Tech Summit official layout",
         status: "in_review",
         isActive: true,
-        sourceType: "preset",
+        sourceType: "template",
         createdByRole: "pmcm-admin",
         submittedAt: createdAt,
         createdAt,

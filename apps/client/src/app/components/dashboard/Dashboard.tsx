@@ -66,7 +66,7 @@ import {
   SidebarProvider,
 } from "../ui/sidebar";
 import { cn } from "../ui/utils";
-import { PRESETS, type Preset } from "../editor/presets";
+import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "../editor/templates";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
 import {
   ClientBillingTab,
@@ -505,7 +505,6 @@ function dashboardHref(route: ClientDashboardRoute, eventId?: string, portalView
     : route;
   return `/dashboard/events/${eventId}/${section}`;
 }
-
 function dashboardLoadingVariant(route: ClientDashboardRoute) {
   if (route === "request" || route === "events" || route === "floorplan" || route === "messages" || route === "home") {
     return route;
@@ -990,6 +989,7 @@ export function Dashboard({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1031,6 +1031,21 @@ export function Dashboard({
       cancelled = true;
     };
   }, [eventId, portalView, route, router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadTemplates()
+      .then((templates) => {
+        if (!cancelled) setFloorPlanTemplates(templates);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load floor plan templates");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const events = useMemo(() => {
     if (!state || !session) return [];
@@ -1080,7 +1095,6 @@ export function Dashboard({
         selectedEvent.id,
         officialDraft.id,
         officialDraft.status === "approved" ? "approved" : "submitted",
-        { id: officialDraft.floorPlanId, name: officialDraft.name, venue: selectedEvent.eventName },
         session ?? undefined,
       )
       .then((project) => {
@@ -1132,46 +1146,47 @@ export function Dashboard({
     setState(next);
   }
 
-  async function openFloorplanEditor(draft: MvpFloorPlanDraft, readOnly = false, preset?: Preset) {
+  async function openFloorplanEditor(draft: MvpFloorPlanDraft, readOnly = false) {
     if (!selectedEvent) return;
     const locked = readOnly || draft.status === "approved";
-    const fallback = projectFromDraft(selectedEvent, draft, preset);
-    const project = preset
-      ? fallback
-      : locked && draftIsOfficial(draft)
+    const project = locked && draftIsOfficial(draft)
         ? await mvpApi.loadFloorPlanSnapshot(
             selectedEvent.id,
             draft.id,
             draft.status === "approved" ? "approved" : "submitted",
-            fallback,
             session ?? undefined,
           )
-        : await mvpApi.loadPlan(draft.floorPlanId, fallback, session ?? undefined);
-    if (preset) await mvpApi.savePlan(project, session ?? undefined);
+        : await mvpApi.loadPlan(draft.floorPlanId, session ?? undefined);
     setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
   }
 
-  async function createEditorDraft(preset: Preset) {
+  async function createEditorDraft(template: FloorPlanTemplate) {
     if (!selectedEvent) return;
-    setBusy(`editor-${preset.id}`);
+    setBusy(`editor-${template.id}`);
     setError(null);
     setNotice(null);
     try {
+      const objects = cloneTemplateObjects(template);
       const draft = await mvpApi.createFloorPlanPreference(
         selectedEvent.id,
         {
-          name: `${preset.name} preference draft`,
+          name: `${template.name} preference draft`,
+          venue: template.venue || selectedEvent.eventName,
           seatingStyle: form.seatingStyle,
           stagePreference: form.stagePreference,
           flowNotes: form.flowNotes,
           guestCount: form.guestCount,
           constraints: form.constraints.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
           notes: form.notes,
+          width: template.widthM,
+          height: template.heightM,
+          gridSize: 1,
+          objects,
         },
         session ?? undefined,
       );
       await refresh();
-      await openFloorplanEditor(draft, false, preset);
+      await openFloorplanEditor(draft);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to open layout view");
     } finally {
@@ -1190,6 +1205,7 @@ export function Dashboard({
         selectedEvent.id,
         {
           name: form.name,
+          venue: selectedEvent.eventName,
           seatingStyle: form.seatingStyle,
           stagePreference: form.stagePreference,
           flowNotes: form.flowNotes,
@@ -2232,25 +2248,31 @@ export function Dashboard({
                 <LayoutPreview project={approved ? officialProject : null} />
               </div>
             ) : (
-              <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start with a layout preset below to open the editor." />
+              <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start from a saved layout template or send guided notes below." />
             )}
 
             {!approved && (
               <div className="mt-5">
-                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">Quick-start presets</p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  {PRESETS.slice(0, 4).map((preset) => (
-                    <button
-                      key={preset.id}
-                      disabled={busy === `editor-${preset.id}`}
-                      onClick={() => createEditorDraft(preset)}
-                      className="rounded-xl border border-border bg-background p-3.5 text-left transition hover:border-(--prism-signal)/40 hover:bg-(--prism-signal-soft) disabled:opacity-60"
-                    >
-                      <p className="text-sm font-bold text-foreground">{preset.name}</p>
-                      <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{preset.description}</p>
-                    </button>
-                  ))}
-                </div>
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">Saved layout templates</p>
+                {floorPlanTemplates.length ? (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {floorPlanTemplates.slice(0, 4).map((template) => (
+                      <button
+                        key={template.id}
+                        disabled={busy === `editor-${template.id}`}
+                        onClick={() => createEditorDraft(template)}
+                        className="rounded-xl border border-border bg-background p-3.5 text-left transition hover:border-(--prism-signal)/40 hover:bg-(--prism-signal-soft) disabled:opacity-60"
+                      >
+                        <p className="text-sm font-bold text-foreground">{template.name}</p>
+                        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{template.description || template.venue || "Saved PMCM floor plan template"}</p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-border bg-background p-3.5 text-xs text-muted-foreground">
+                    No saved templates yet. Send guided layout notes and PMCM can save reusable templates from confirmed plans.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -2517,24 +2539,4 @@ export function Dashboard({
       {pageContent}
     </PrismDashboardShell>
   );
-}
-
-function projectFromDraft(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {
-  const widthM = 30;
-  const heightM = 20;
-  const pax = draft.clientPreference?.guestCount ?? 120;
-  const now = Date.now();
-  return {
-    id: draft.floorPlanId,
-    name: draft.name,
-    venue: event.eventName,
-    widthM,
-    heightM,
-    pax,
-    objects: preset ? preset.build(widthM, heightM, pax) : [],
-    guests: [],
-    suppliers: [],
-    createdAt: now,
-    updatedAt: now,
-  };
 }

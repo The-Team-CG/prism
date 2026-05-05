@@ -874,8 +874,12 @@ export class CreateFloorPlanDraftDto {
   @IsString()
   name!: string;
 
-  @IsIn(['blank', 'preset', 'template', 'client_preference'])
+  @IsIn(['blank', 'template', 'client_preference'])
   sourceType!: string;
+
+  @IsOptional()
+  @IsString()
+  venue?: string;
 
   @IsOptional()
   @IsInt()
@@ -891,6 +895,23 @@ export class CreateFloorPlanDraftDto {
   @IsInt()
   @Min(1)
   gridSize?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  pax?: number;
+
+  @IsOptional()
+  @IsArray()
+  objects?: unknown[];
+
+  @IsOptional()
+  @IsArray()
+  guests?: unknown[];
+
+  @IsOptional()
+  @IsArray()
+  suppliers?: unknown[];
 }
 
 export class CreateFloorPlanPreferenceDto {
@@ -917,4 +938,27 @@ export class CreateFloorPlanPreferenceDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  venue?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  width?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  height?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  gridSize?: number;
+
+  @IsOptional()
+  @IsArray()
+  objects?: unknown[];
 }

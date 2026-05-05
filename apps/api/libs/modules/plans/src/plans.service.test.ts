@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { PlansService } from './plans.service';
 
@@ -6,13 +6,17 @@ function floorPlanRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'plan_event_1',
     name: 'Client editable plan',
+    venue: 'Client venue',
     width: 30,
     height: 20,
     gridSize: 1,
+    pax: 120,
     ownerId: 'owner_demo',
     templateId: null,
     eventId: 'evt_1',
     objects: [],
+    guests: [],
+    suppliers: [],
     seats: [],
     seatCategories: [],
     updatedAt: new Date('2026-05-05T00:00:00.000Z'),
@@ -43,6 +47,7 @@ function createService(opsDraft: unknown) {
   };
   prisma.floorPlan = {
     findUnique: vi.fn().mockResolvedValue({ ...floorPlanRow(), opsDraft }),
+    upsert: vi.fn().mockResolvedValue(floorPlanRow()),
     update,
   };
   prisma.$transaction = vi.fn(async (callback) =>
@@ -56,6 +61,14 @@ function createService(opsDraft: unknown) {
 }
 
 describe('PlansService client floorplan permissions', () => {
+  it('does not create a fallback floorplan when a plan id is missing', async () => {
+    const { service, prisma } = createService(null);
+    prisma.floorPlan.findUnique.mockResolvedValue(null);
+
+    await expect(service.getPlan('missing_plan')).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.floorPlan.upsert).not.toHaveBeenCalled();
+  });
+
   it('allows a client to update their own unlocked event floorplan before approval', async () => {
     const { service, prisma } = createService(draft('in_review', 'Ana Reyes'));
 

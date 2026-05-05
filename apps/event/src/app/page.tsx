@@ -82,7 +82,7 @@ import {
   buildEventWorkflowTabs,
   type PmcmDetailTab,
 } from "./components/pmcm/event-command-cockpit";
-import { PRESETS, type Preset } from "./components/editor/presets";
+import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "./components/editor/templates";
 import type { Project } from "./components/editor/types";
 
 const EditorShell = dynamic(
@@ -369,27 +369,6 @@ function EventCommandMock() {
       </div>
     </section>
   );
-}
-
-function buildProject(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {
-  const widthM = 30;
-  const heightM = 20;
-  const pax = draft.clientPreference?.guestCount ?? 160;
-  const now = Date.now();
-
-  return {
-    id: draft.floorPlanId,
-    name: draft.name,
-    venue: event.eventName,
-    widthM,
-    heightM,
-    pax,
-    objects: preset ? preset.build(widthM, heightM, pax) : [],
-    guests: [],
-    suppliers: [],
-    createdAt: now,
-    updatedAt: now,
-  };
 }
 
 function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void }) {
@@ -716,7 +695,7 @@ function PmcmPortal({
   session: EventSession;
   state: MvpDemoState;
   onRefresh: () => Promise<void>;
-  onOpenEditor: (event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset) => Promise<void>;
+  onOpenEditor: (event: MvpEvent, draft: MvpFloorPlanDraft) => Promise<void>;
   onSignOut: () => void;
 }) {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(state.events[0]?.id ?? null);
@@ -728,6 +707,7 @@ function PmcmPortal({
   const [defenseReadiness, setDefenseReadiness] = useState<MvpDefenseReadiness | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
 
   const events = state.events.filter((event) => !event.archived);
   const supplierCategories = state.supplierCategories ?? [];
@@ -761,6 +741,21 @@ function PmcmPortal({
 
   useEffect(() => {
     refreshApprovals().catch((err) => setError(err instanceof Error ? err.message : "Unable to load approval requests"));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadTemplates()
+      .then((templates) => {
+        if (!cancelled) setFloorPlanTemplates(templates);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load floor plan templates");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function loadLiveOps() {
@@ -828,16 +823,21 @@ function PmcmPortal({
     }
   }
 
-  async function createPreset(preset: Preset) {
+  async function createTemplateDraft(template: FloorPlanTemplate) {
     if (!selectedEvent) return;
     const draft = await mvpApi.createFloorPlanDraft(selectedEvent.id, {
-      name: `${preset.name} PMCM draft`,
-      sourceType: preset.id === "blank" ? "blank" : "preset",
-      width: 30,
-      height: 20,
+      name: `${template.name} PMCM draft`,
+      sourceType: "template",
+      venue: template.venue || selectedEvent.eventName,
+      width: template.widthM,
+      height: template.heightM,
       gridSize: 1,
+      pax: template.pax,
+      objects: cloneTemplateObjects(template),
+      guests: template.includeGuests ? template.guests : [],
+      suppliers: template.includeSuppliers ? template.suppliers : [],
     });
-    await onOpenEditor(selectedEvent, draft, preset);
+    await onOpenEditor(selectedEvent, draft);
   }
 
   async function acceptInquiry(inquiry: MvpInquiry) {
@@ -1314,22 +1314,28 @@ function PmcmPortal({
             {tab === "floorplans" && (
               <div className="space-y-4">
                 <Panel title="Start PMCM draft" icon={MapPinned}>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    {PRESETS.slice(0, 4).map((preset) => (
-                      <button
-                        key={preset.id}
-                        onClick={() => run("create floorplan", () => createPreset(preset))}
-                        className="rounded-xl border border-border bg-secondary/60 p-4 text-left transition hover:border-primary/35 hover:bg-secondary"
-                      >
-                        <p className="text-sm font-bold text-foreground">{preset.name}</p>
-                        <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{preset.description}</p>
-                      </button>
-                    ))}
-                  </div>
+                  {floorPlanTemplates.length ? (
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      {floorPlanTemplates.slice(0, 4).map((template) => (
+                        <button
+                          key={template.id}
+                          onClick={() => run("create floorplan", () => createTemplateDraft(template))}
+                          className="rounded-xl border border-border bg-secondary/60 p-4 text-left transition hover:border-primary/35 hover:bg-secondary"
+                        >
+                          <p className="text-sm font-bold text-foreground">{template.name}</p>
+                          <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{template.description || template.venue || "Saved PMCM template"}</p>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-xl border border-dashed border-border bg-secondary/40 p-4 text-xs text-muted-foreground">
+                      No saved templates yet. Save reusable layouts from the editor before starting a template-based draft.
+                    </p>
+                  )}
                 </Panel>
                 <Panel title="Floorplan drafts and client preferences" icon={LayoutGrid}>
                   {drafts.length === 0 ? (
-                    <EmptyState icon={LayoutGrid} title="No floorplan drafts yet" description="Pick a preset above to create the first PMCM draft for this event." />
+                    <EmptyState icon={LayoutGrid} title="No floorplan drafts yet" description="Pick a saved template above to create the first PMCM draft for this event." />
                   ) : (
                     <div className="grid gap-3 xl:grid-cols-3">
                       {drafts.map((draft) => (
@@ -1585,10 +1591,8 @@ export default function EventCommandHome() {
     return () => window.clearInterval(intervalId);
   }, [session, screen.name]);
 
-  async function openEditor(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset) {
-    const fallback = buildProject(event, draft, preset);
-    const project = preset ? fallback : await mvpApi.loadPlan(draft.floorPlanId, fallback);
-    if (preset) await mvpApi.savePlan(project);
+  async function openEditor(event: MvpEvent, draft: MvpFloorPlanDraft) {
+    const project = await mvpApi.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
 

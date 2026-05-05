@@ -65,10 +65,14 @@ export interface MvpFloorPlanPreference {
 export interface MvpFloorPlanSnapshot {
   id: string;
   name: string;
+  venue: string;
   width: number;
   height: number;
   gridSize: number;
+  pax: number;
   objects?: Project["objects"];
+  guests?: Project["guests"];
+  suppliers?: Project["suppliers"];
   seats?: unknown[];
   seatCategories?: unknown[];
   updatedAt?: string;
@@ -81,7 +85,7 @@ export interface MvpFloorPlanDraft {
   name: string;
   status: "client_submitted" | "pmcm_draft" | "in_review" | "approved" | string;
   isActive: boolean;
-  sourceType: "client_preference" | "blank" | "preset" | "template" | string;
+  sourceType: "client_preference" | "blank" | "template" | string;
   createdByRole?: DemoRole | string;
   clientPreference?: MvpFloorPlanPreference;
   submittedSnapshot?: MvpFloorPlanSnapshot;
@@ -742,10 +746,15 @@ export interface MvpDemoState {
 
 type CreateFloorPlanDraftInput = {
   name: string;
-  sourceType: "blank" | "preset" | "template" | "client_preference";
+  sourceType: "blank" | "template" | "client_preference";
+  venue?: string;
   width?: number;
   height?: number;
   gridSize?: number;
+  pax?: number;
+  objects?: Project["objects"];
+  guests?: Project["guests"];
+  suppliers?: Project["suppliers"];
 };
 
 type AddSupplierQuoteInput = {
@@ -931,10 +940,14 @@ type AuditLogFilters = {
 interface ApiFloorPlan {
   id: string;
   name: string;
+  venue: string;
   width: number;
   height: number;
   gridSize: number;
+  pax: number;
   objects?: Project["objects"];
+  guests?: Project["guests"];
+  suppliers?: Project["suppliers"];
   updatedAt?: string;
 }
 
@@ -978,20 +991,20 @@ async function request<T>(path: string, init: RequestInit = {}) {
   return payload?.data as T;
 }
 
-function apiPlanToProject(plan: ApiFloorPlan, fallback?: Partial<Project>): Project {
-  const now = Date.now();
+function apiPlanToProject(plan: ApiFloorPlan): Project {
+  const updatedAt = plan.updatedAt ? new Date(plan.updatedAt).getTime() : Date.now();
   return {
     id: plan.id,
-    name: plan.name || fallback?.name || "Untitled floorplan",
-    venue: fallback?.venue ?? "Event venue",
-    widthM: plan.width && plan.width <= 200 ? plan.width : fallback?.widthM ?? 30,
-    heightM: plan.height && plan.height <= 200 ? plan.height : fallback?.heightM ?? 20,
-    pax: fallback?.pax ?? 120,
-    objects: Array.isArray(plan.objects) ? plan.objects : fallback?.objects ?? [],
-    guests: fallback?.guests ?? [],
-    suppliers: fallback?.suppliers ?? [],
-    createdAt: fallback?.createdAt ?? now,
-    updatedAt: plan.updatedAt ? new Date(plan.updatedAt).getTime() : fallback?.updatedAt ?? now,
+    name: plan.name,
+    venue: plan.venue,
+    widthM: plan.width,
+    heightM: plan.height,
+    pax: plan.pax,
+    objects: Array.isArray(plan.objects) ? plan.objects : [],
+    guests: Array.isArray(plan.guests) ? plan.guests : [],
+    suppliers: Array.isArray(plan.suppliers) ? plan.suppliers : [],
+    createdAt: updatedAt,
+    updatedAt,
   };
 }
 
@@ -1138,24 +1151,28 @@ export const mvpApi = {
     request<MvpFloorPlanDraft>(withPmcmActor(`/api/events/${eventId}/floorplans/${draftId}/submit`), { method: "POST" }),
   approveFloorPlanDraft: (eventId: string, draftId: string) =>
     request<MvpFloorPlanDraft>(withPmcmActor(`/api/events/${eventId}/floorplans/${draftId}/approve`), { method: "POST" }),
-  loadFloorPlanSnapshot: (eventId: string, draftId: string, type: "submitted" | "approved" = "approved", fallback?: Partial<Project>) =>
+  loadFloorPlanSnapshot: (eventId: string, draftId: string, type: "submitted" | "approved" = "approved") =>
     request<ApiFloorPlan>(withPmcmActor(`/api/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`)).then((plan) =>
-      apiPlanToProject(plan, fallback),
+      apiPlanToProject(plan),
     ),
-  loadPlan: (planId: string, fallback?: Partial<Project>) =>
-    request<ApiFloorPlan>(withPmcmActor(`/api/plans/${planId}`)).then((plan) => apiPlanToProject(plan, fallback)),
+  loadPlan: (planId: string) =>
+    request<ApiFloorPlan>(withPmcmActor(`/api/plans/${planId}`)).then((plan) => apiPlanToProject(plan)),
   savePlan: (project: Project) =>
     request<ApiFloorPlan>(withPmcmActor(`/api/plans/${project.id}`), {
       method: "PUT",
       body: JSON.stringify({
+        venue: project.venue,
         width: Math.max(1, Math.round(project.widthM)),
         height: Math.max(1, Math.round(project.heightM)),
         gridSize: 1,
+        pax: Math.max(0, Math.round(project.pax)),
         objects: project.objects,
+        guests: project.guests,
+        suppliers: project.suppliers,
         seats: [],
         seatCategories: [],
       }),
-    }).then((plan) => apiPlanToProject(plan, project)),
+    }).then((plan) => apiPlanToProject(plan)),
   submitBriefing: (eventId: string) =>
     request<MvpBriefing>(`/api/events/${eventId}/briefing`, {
       method: "POST",

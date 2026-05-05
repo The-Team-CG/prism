@@ -1,7 +1,11 @@
-import { IsArray, IsNumber, IsOptional, IsPositive } from 'class-validator';
+import { IsArray, IsInt, IsNumber, IsOptional, IsPositive, IsString, Min } from 'class-validator';
 import type { CanvasObject, Seat, SeatCategory } from '@prism/shared';
 
 export class UpdatePlanDto {
+  @IsString()
+  @IsOptional()
+  venue?: string;
+
   @IsNumber()
   @IsPositive()
   @IsOptional()
@@ -17,9 +21,22 @@ export class UpdatePlanDto {
   @IsOptional()
   gridSize?: number;
 
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  pax?: number;
+
   @IsArray()
   @IsOptional()
   objects?: CanvasObject[];
+
+  @IsArray()
+  @IsOptional()
+  guests?: unknown[];
+
+  @IsArray()
+  @IsOptional()
+  suppliers?: unknown[];
 
   @IsArray()
   @IsOptional()

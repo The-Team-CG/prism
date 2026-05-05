@@ -322,9 +322,14 @@ type AiGovernanceInput = {
 type CreateFloorPlanDraftInput = {
   name: string;
   sourceType: string;
+  venue?: string;
   width?: number;
   height?: number;
   gridSize?: number;
+  pax?: number;
+  objects?: unknown[];
+  guests?: unknown[];
+  suppliers?: unknown[];
 };
 
 type CreateFloorPlanPreferenceInput = {
@@ -335,6 +340,11 @@ type CreateFloorPlanPreferenceInput = {
   guestCount: number;
   constraints: string[];
   notes?: string;
+  venue?: string;
+  width?: number;
+  height?: number;
+  gridSize?: number;
+  objects?: unknown[];
 };
 
 type AuditLogFilters = {
@@ -2531,23 +2541,44 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     const event = await this.requireEvent(eventId);
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
+    const objects = input.objects ?? [];
 
     const draft = await this.prisma.$transaction(async (tx) => {
       await tx.floorPlan.create({
         data: {
           id: floorPlanId,
           name: input.name,
+          venue: input.venue ?? event.eventName,
           ownerId: DEFAULT_OWNER_ID,
           eventId,
           width: input.width ?? 1200,
           height: input.height ?? 800,
           gridSize: input.gridSize ?? 20,
-          objects: toPrismaJson([]),
+          pax: input.pax ?? 0,
+          objects: toPrismaJson(objects),
+          guests: toPrismaJson(input.guests ?? []),
+          suppliers: toPrismaJson(input.suppliers ?? []),
           seats: toPrismaJson([]),
           seatCategories: toPrismaJson(defaultSeatCategories()),
           updatedAt: now,
         },
       });
+
+      if (objects.length > 0) {
+        await tx.floorPlanObject.createMany({
+          data: objects.map((object, index) => {
+            const row = object as { id?: string; kind?: string; zIndex?: number; svgMarkup?: string };
+            return {
+              floorPlanId,
+              objectId: row.id ?? `obj_${randomUUID()}`,
+              kind: row.kind ?? 'custom-image',
+              zIndex: row.zIndex ?? index,
+              objectData: toPrismaJson(object),
+              svgMarkup: row.svgMarkup ?? null,
+            };
+          }),
+        });
+      }
 
       const saved = await tx.opsFloorPlanDraft.create({
         data: {
@@ -2609,6 +2640,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     }
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
+    const objects = input.objects ?? [];
     const preference = {
       seatingStyle: input.seatingStyle,
       stagePreference: input.stagePreference,
@@ -2623,17 +2655,37 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         data: {
           id: floorPlanId,
           name: input.name,
+          venue: input.venue ?? event.eventName,
           ownerId: DEFAULT_OWNER_ID,
           eventId,
-          width: 1200,
-          height: 800,
-          gridSize: 20,
-          objects: toPrismaJson([]),
+          width: input.width ?? 30,
+          height: input.height ?? 20,
+          gridSize: input.gridSize ?? 1,
+          pax: input.guestCount,
+          objects: toPrismaJson(objects),
+          guests: toPrismaJson([]),
+          suppliers: toPrismaJson([]),
           seats: toPrismaJson([]),
           seatCategories: toPrismaJson(defaultSeatCategories()),
           updatedAt: now,
         },
       });
+
+      if (objects.length > 0) {
+        await tx.floorPlanObject.createMany({
+          data: objects.map((object, index) => {
+            const row = object as { id?: string; kind?: string; zIndex?: number; svgMarkup?: string };
+            return {
+              floorPlanId,
+              objectId: row.id ?? `obj_${randomUUID()}`,
+              kind: row.kind ?? 'custom-image',
+              zIndex: row.zIndex ?? index,
+              objectData: toPrismaJson(object),
+              svgMarkup: row.svgMarkup ?? null,
+            };
+          }),
+        });
+      }
 
       const saved = await tx.opsFloorPlanDraft.create({
         data: {
@@ -4806,7 +4858,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
             name: 'Approved ballroom layout',
             status: 'approved',
             isActive: true,
-            sourceType: 'preset',
+            sourceType: 'template',
             createdByRole: 'pmcm-admin',
             submittedAt: createdAt,
             reviewedAt: createdAt,
@@ -5261,10 +5313,14 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return {
       id: plan.id,
       name: plan.name,
+      venue: plan.venue,
       width: plan.width,
       height: plan.height,
       gridSize: plan.gridSize,
+      pax: plan.pax,
       objects: Array.isArray(plan.objects) ? plan.objects : [],
+      guests: Array.isArray(plan.guests) ? plan.guests : [],
+      suppliers: Array.isArray(plan.suppliers) ? plan.suppliers : [],
       seats: Array.isArray(plan.seats) ? plan.seats : [],
       seatCategories: Array.isArray(plan.seatCategories) ? plan.seatCategories : [],
       updatedAt: plan.updatedAt ? timestamp(plan.updatedAt) : timestamp(new Date()),

@@ -19,7 +19,7 @@ interface ShellUI {
 }
 
 interface EditorShellProps {
-  project?: Project;
+  project: Project;
   onBack: () => void;
   eventName?: string;
   draftName?: string;
