@@ -1,6 +1,3 @@
-import EventDashboardClient from "../../../EventDashboardClient";
-
-export default async function EventFloorplansPage({ params }: { params: Promise<{ eventId: string }> }) {
-  const { eventId } = await params;
-  return <EventDashboardClient section="events" eventId={eventId} tab="floorplans" />;
+export default function EventFloorplansPage() {
+  return null;
 }

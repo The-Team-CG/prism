@@ -445,9 +445,11 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
               ))}
             </nav>
 
-            <Button onClick={() => setAccessOpen(true)} className="h-11 rounded-md px-5 font-black shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
-              <Radio className="size-4" />
-              Open command
+            <Button asChild className="h-11 rounded-md px-5 font-black shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
+              <a href="/sign-in">
+                <Radio className="size-4" />
+                Sign in
+              </a>
             </Button>
           </header>
 
@@ -464,9 +466,11 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
                 Track inquiries, conforme, floorplans, suppliers, coordinators, billing, live operations, and closure from one focused workspace.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button onClick={() => setAccessOpen(true)} className="h-12 rounded-md px-6 text-base font-black shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
-                  <LayoutGrid className="size-5" />
-                  Open command
+                <Button asChild className="h-12 rounded-md px-6 text-base font-black shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
+                  <a href="/sign-in">
+                    <LayoutGrid className="size-5" />
+                    Sign in
+                  </a>
                 </Button>
                 <Button asChild variant="outline" className="h-12 rounded-md px-6 text-base font-black">
                   <a href="#floorplans">See how it works</a>
@@ -609,7 +613,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
             <div>
               <SectionTitle className="text-3xl sm:text-4xl">Real-time visibility. Calm operational control.</SectionTitle>
               <p className="mt-4 text-base leading-7 text-muted-foreground">One workspace to see what matters, act faster, and deliver every event with confidence.</p>
-              <Button onClick={() => setAccessOpen(true)} className="mt-6 h-11 rounded-md font-black">Open command</Button>
+              <Button asChild className="mt-6 h-11 rounded-md font-black"><a href="/sign-in">Sign in</a></Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-4">
               {[
@@ -644,7 +648,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
             <p className="mt-3 max-w-2xl text-muted-foreground">Bring plans, people, and progress together in one workspace that keeps every event on track.</p>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
-            <Button onClick={() => setAccessOpen(true)} className="h-12 rounded-md px-6 font-black">Open command <ArrowRight className="size-4" /></Button>
+            <Button asChild className="h-12 rounded-md px-6 font-black"><a href="/sign-in">Sign in <ArrowRight className="size-4" /></a></Button>
             <Button asChild variant="outline" className="h-12 rounded-md px-6 font-black"><a href="#command">Learn how it works</a></Button>
           </div>
         </div>
@@ -663,7 +667,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
               <div className="mt-3 grid gap-2 text-sm text-muted-foreground">{items.map((item) => <span key={item}>{item}</span>)}</div>
             </div>
           ))}
-          <Button onClick={() => setAccessOpen(true)} className="h-11 rounded-md font-black">Open command</Button>
+          <Button asChild className="h-11 rounded-md font-black"><a href="/sign-in">Sign in</a></Button>
         </div>
       </footer>
 
@@ -677,7 +681,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
                 </span>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setAccessOpen(false)} className="rounded-md font-black">Close</Button>
               </div>
-              <h2 className="mt-4 text-2xl font-black text-foreground">Command access</h2>
+              <h2 className="mt-4 text-2xl font-black text-foreground">Sign in</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">Use an approved PMCM or coordinator account.</p>
               <div className="mt-5 flex flex-col gap-3">
                 <Input value={email} onChange={(ev) => setEmail(ev.target.value)} className="h-11" placeholder="Email" />
@@ -688,7 +692,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
                   </Alert>
                 )}
                 <Button disabled={busy} className="h-11 w-full rounded-md font-black">
-                  {busy ? "Opening command..." : "Enter command"} <ArrowRight className="size-4" />
+                  {busy ? "Signing in..." : "Sign in"} <ArrowRight className="size-4" />
                 </Button>
               </div>
             </form>
@@ -1293,11 +1297,20 @@ function PmcmPortal({
             {tab === "overview" && (
               <EventOverviewPanels
                 event={selectedEvent}
+                defenseReadiness={defenseReadiness}
+                drafts={drafts}
+                activeDraft={activeDraft}
+                quoteRequestCount={quoteRequests.length}
+                quoteCount={quotes.length}
+                openCheckCount={openCheckCount}
                 onSubmitBriefing={() => run("briefing", () => mvpApi.submitBriefing(selectedEvent.id))}
                 onOpenSupplierDesk={() => setTab("suppliers")}
                 onRunCompliance={() => run("compliance", () => mvpApi.runCompliance(selectedEvent.id, "planning"))}
                 onOpenCoordinatorDesk={() => setTab("coordinators")}
                 onOpenLiveOps={() => setTab("live-ops")}
+                onOpenFloorplans={() => setTab("floorplans")}
+                onOpenBilling={() => setTab("billing")}
+                onOpenClosure={() => setTab("closure")}
               />
             )}
 

@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BadgeCheck, Eye, EyeOff, Handshake, Send, Shield } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Eye, EyeOff, Handshake, Send, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { PrismBrandLogo } from "@prism/ui";
 import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
@@ -102,6 +102,14 @@ export function SignInPage() {
   return (
     <main className="min-h-screen bg-[#f6f6f6]">
       <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+        <a
+          href="/"
+          aria-label="Back to P.R.I.S.M. home"
+          className="inline-flex size-10 items-center justify-center rounded-full text-[#444] transition hover:bg-white hover:text-[#c01867] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c01867]/40"
+        >
+          <ArrowLeft className="size-5" />
+        </a>
+
         <section className="mx-auto mt-6 w-full max-w-lg sm:mt-8">
           <div className="flex justify-center">
             <PrismBrandLogo

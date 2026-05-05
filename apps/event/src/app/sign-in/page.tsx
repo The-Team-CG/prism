@@ -2,10 +2,9 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarDays, Eye, EyeOff, KeyRound, Shield, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Eye, EyeOff, Handshake, Shield } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 import { mvpApi } from "@/lib/mvp-api";
-import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { saveEventSession, type EventSession } from "@/app/lib/session";
 
@@ -50,6 +49,14 @@ export default function EventSignIn() {
   return (
     <main className="min-h-screen bg-[#f6f6f6]">
       <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
+        <a
+          href="/"
+          aria-label="Back to P.R.I.S.M. home"
+          className="inline-flex size-10 items-center justify-center rounded-full text-[#444] transition hover:bg-white hover:text-[#c01867] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c01867]/40"
+        >
+          <ArrowLeft className="size-5" />
+        </a>
+
         <section className="mx-auto mt-6 w-full max-w-lg sm:mt-8">
           <div className="flex justify-center">
             <PrismBrandLogo
@@ -64,10 +71,10 @@ export default function EventSignIn() {
             {/* Header band */}
             <div className="flex items-center gap-3 bg-[#c01867] px-5 py-5 sm:px-6 sm:py-6">
               <div className="inline-flex size-10 items-center justify-center rounded-lg border border-white/20 bg-white/10">
-                <KeyRound className="size-5 text-white" />
+                <Handshake className="size-5 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-semibold text-white sm:text-[24px]">Command Access</h2>
+                <h2 className="text-2xl font-semibold text-white sm:text-[24px]">Welcome Back</h2>
                 <p className="text-base text-white/90 sm:text-sm">Sign in to continue</p>
               </div>
             </div>
@@ -137,14 +144,9 @@ export default function EventSignIn() {
                       key={demo.email}
                       type="button"
                       onClick={() => { setEmail(demo.email); setPassword(demo.password); }}
-                      className="flex items-center gap-3 rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-left transition hover:border-[#c01867]/40 hover:bg-white/80"
+                      className="flex items-center justify-between rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-left transition hover:border-[#c01867]/40 hover:bg-white/80"
                     >
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#f6f6f6] text-[#888888]">
-                        {demo.email === "mys@pmcm.test"
-                          ? <CalendarDays className="size-4" />
-                          : <Users className="size-4" />}
-                      </span>
-                      <div className="flex-1">
+                      <div>
                         <p className="text-sm font-semibold text-[#171216]">{demo.name}</p>
                         <p className="text-xs text-[#888888]">{demo.role}</p>
                       </div>

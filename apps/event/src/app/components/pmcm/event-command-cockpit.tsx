@@ -25,7 +25,6 @@ import type * as React from "react";
 
 import {
   PrismCompactRecordList,
-  PrismSectionPanel,
   PrismStatusSummary,
   PrismWorkflowTabs,
   RolePageHeader,
@@ -367,59 +366,172 @@ export function EventWorkflowTabs({
   return <PrismWorkflowTabs items={items} activeId={activeTab} onSelect={(item) => onSelectTab(item as PmcmDetailTab)} />;
 }
 
+function OverviewCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>
+  );
+}
+
+function OverviewCardHeader({ children }: { children: React.ReactNode }) {
+  return <div className="border-b border-border px-5 py-4">{children}</div>;
+}
+
+function OverviewCardBody({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`px-5 py-4 ${className}`}>{children}</div>;
+}
+
+function OverviewAccent({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>;
+}
+
+function StatCell({ label: lbl, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-xl bg-muted/40 p-3.5">
+      <p className="text-xs font-semibold text-muted-foreground">{lbl}</p>
+      <div className="mt-1.5 text-sm font-bold text-foreground">{value}</div>
+    </div>
+  );
+}
+
 export function EventOverviewPanels({
   event,
+  defenseReadiness,
+  drafts,
+  activeDraft,
+  quoteRequestCount,
+  quoteCount,
+  openCheckCount,
   onSubmitBriefing,
   onOpenSupplierDesk,
   onRunCompliance,
   onOpenCoordinatorDesk,
   onOpenLiveOps,
+  onOpenFloorplans,
+  onOpenBilling,
+  onOpenClosure,
 }: {
   event: MvpEvent;
+  defenseReadiness: MvpDefenseReadiness | null;
+  drafts: MvpFloorPlanDraft[];
+  activeDraft?: MvpFloorPlanDraft;
+  quoteRequestCount: number;
+  quoteCount: number;
+  openCheckCount: number;
   onSubmitBriefing: () => void;
   onOpenSupplierDesk: () => void;
   onRunCompliance: () => void;
   onOpenCoordinatorDesk: () => void;
   onOpenLiveOps: () => void;
+  onOpenFloorplans: () => void;
+  onOpenBilling: () => void;
+  onOpenClosure: () => void;
 }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <PrismSectionPanel title="Event record" icon={ClipboardList}>
-        <div className="grid gap-3 md:grid-cols-2">
-          {[
-            { label: "Client", value: event.clientName },
-            { label: "Event date", value: event.eventDate },
-            { label: "Readiness", value: event.readiness ?? "-" },
-            { label: "Client portal", value: <StatusBadge status={event.clientPortalStatus} /> },
-            { label: "Floor plan", value: <StatusBadge status={event.floorPlanStatus} /> },
-            { label: "Guest code", value: event.guestAccessCode ?? "Generated after event" },
-          ].map(({ label: itemLabel, value }) => (
-            <div key={itemLabel} className="border-l border-border bg-background/60 px-3 py-2.5">
-              <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{itemLabel}</p>
-              <div className="mt-1 text-sm font-black text-foreground">{value}</div>
+    <div className="space-y-4">
+      {/* Top stat strip */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            label: "Floorplan drafts",
+            value: drafts.length,
+            accent: activeDraft ? "text-(--prism-success)" : "text-(--prism-amber)",
+            detail: activeDraft ? "Official layout approved" : "No approved layout yet",
+            onClick: onOpenFloorplans,
+          },
+          {
+            label: "Supplier quotes",
+            value: quoteCount,
+            accent: "text-(--prism-signal)",
+            detail: `${quoteRequestCount} request batch${quoteRequestCount === 1 ? "" : "es"}`,
+            onClick: onOpenSupplierDesk,
+          },
+          {
+            label: "Defense score",
+            value: defenseReadiness ? `${defenseReadiness.score}%` : "—",
+            accent: defenseReadiness && defenseReadiness.score >= 80 ? "text-(--prism-success)" : "text-(--prism-amber)",
+            detail: defenseReadiness ? label(defenseReadiness.overallStatus) : "Loading readiness",
+            onClick: undefined,
+          },
+          {
+            label: "Closure checks",
+            value: openCheckCount,
+            accent: openCheckCount > 0 ? "text-(--prism-amber)" : "text-(--prism-success)",
+            detail: openCheckCount > 0 ? "Open items need resolution" : "All gates clear",
+            onClick: onOpenClosure,
+          },
+        ].map((stat) => {
+          const inner = (
+            <div className="flex items-start gap-4 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm transition hover:shadow-md">
+              <div className="min-w-0 flex-1">
+                <p className={`text-2xl font-black leading-none ${stat.accent}`}>{stat.value}</p>
+                <p className="mt-1.5 text-xs font-bold text-foreground">{stat.label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{stat.detail}</p>
+              </div>
             </div>
-          ))}
-        </div>
-      </PrismSectionPanel>
-      <PrismSectionPanel title="Next operator actions" icon={Radio}>
-        <div className="flex flex-col gap-2">
-          <Button size="sm" className="w-full justify-start rounded-lg font-bold" onClick={onSubmitBriefing}>
-            Submit client briefing
-          </Button>
-          <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenSupplierDesk}>
-            Open quote request builder
-          </Button>
-          <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onRunCompliance}>
-            Run compliance
-          </Button>
-          <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenCoordinatorDesk}>
-            Open coordinator desk
-          </Button>
-          <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenLiveOps}>
-            Open live ops
-          </Button>
-        </div>
-      </PrismSectionPanel>
+          );
+          if (stat.onClick) {
+            return (
+              <button key={stat.label} type="button" onClick={stat.onClick} className="w-full text-left">
+                {inner}
+              </button>
+            );
+          }
+          return <div key={stat.label}>{inner}</div>;
+        })}
+      </div>
+
+      {/* Event record + quick actions */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <OverviewCard>
+          <OverviewCardHeader>
+            <OverviewAccent>Event record</OverviewAccent>
+            <h3 className="mt-1 text-base font-bold text-foreground">{event.eventName}</h3>
+          </OverviewCardHeader>
+          <OverviewCardBody>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <StatCell label="Client" value={event.clientName} />
+              <StatCell label="Event date" value={event.eventDate ?? "Date pending"} />
+              <StatCell label="Readiness" value={event.readiness ?? "—"} />
+              <StatCell label="Client portal" value={<StatusBadge status={event.clientPortalStatus} />} />
+              <StatCell label="Floor plan" value={<StatusBadge status={event.floorPlanStatus} />} />
+              <StatCell label="Guest code" value={event.guestAccessCode ?? "Generated after event setup"} />
+            </div>
+          </OverviewCardBody>
+        </OverviewCard>
+
+        <OverviewCard>
+          <OverviewCardHeader>
+            <OverviewAccent>Operator actions</OverviewAccent>
+            <h3 className="mt-1 text-base font-bold text-foreground">Quick actions</h3>
+          </OverviewCardHeader>
+          <OverviewCardBody className="space-y-2">
+            <Button size="sm" className="w-full justify-start rounded-lg font-bold" onClick={onSubmitBriefing}>
+              Submit client briefing
+            </Button>
+            <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenFloorplans}>
+              Manage floorplans
+            </Button>
+            <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenSupplierDesk}>
+              Open supplier desk
+            </Button>
+            <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onRunCompliance}>
+              Run compliance
+            </Button>
+            <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenCoordinatorDesk}>
+              Coordinator desk
+            </Button>
+            <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenLiveOps}>
+              Open live ops
+            </Button>
+            <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenBilling}>
+              Billing &amp; finance
+            </Button>
+            <Button size="sm" variant="outline" className="w-full justify-start rounded-lg font-bold" onClick={onOpenClosure}>
+              Closure &amp; archive
+            </Button>
+          </OverviewCardBody>
+        </OverviewCard>
+      </div>
     </div>
   );
 }

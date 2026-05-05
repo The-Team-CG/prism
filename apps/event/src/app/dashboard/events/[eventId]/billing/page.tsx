@@ -1,6 +1,3 @@
-import EventDashboardClient from "../../../EventDashboardClient";
-
-export default async function EventBillingPage({ params }: { params: Promise<{ eventId: string }> }) {
-  const { eventId } = await params;
-  return <EventDashboardClient section="events" eventId={eventId} tab="billing" />;
+export default function EventBillingPage() {
+  return null;
 }

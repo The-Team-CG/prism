@@ -43,7 +43,6 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Skeleton } from "../ui/skeleton";
 import { StatusBadge } from "../ui/status-badge";
 import { EmptyState } from "../ui/empty-state";
 import {
@@ -59,7 +58,9 @@ import {
   ClientDocumentsTab,
   ClientOverviewTab,
   ClientProposalTab,
+  DashboardRightRailSkeleton,
   DashboardSkeleton,
+  DashboardSessionSkeleton,
   clientActivityActor,
   clientActivityTitle,
 } from "./dashboard-tabs";
@@ -180,6 +181,13 @@ function dashboardHref(route: ClientDashboardRoute, eventId?: string) {
   if (!eventId) return "/dashboard/events";
   const section = route === "floorplan" ? "floor-plan" : route;
   return `/dashboard/events/${eventId}/${section}`;
+}
+
+function dashboardLoadingVariant(route: ClientDashboardRoute) {
+  if (route === "request" || route === "events" || route === "floorplan" || route === "messages" || route === "home") {
+    return route;
+  }
+  return "event";
 }
 
 function draftIsOfficial(draft: MvpFloorPlanDraft) {
@@ -422,6 +430,51 @@ const initialRequestForm: ClientRequestForm = {
   message: "",
 };
 
+const CLIENT_STATE_CACHE_MS = 30_000;
+const FLOOR_PLAN_PREVIEW_CACHE_MS = 60_000;
+const clientStateCache = new Map<string, { state: MvpDemoState; loadedAt: number }>();
+const clientStateRequests = new Map<string, Promise<MvpDemoState>>();
+const floorPlanPreviewCache = new Map<string, { project: Project; loadedAt: number }>();
+
+function clientStateCacheKey(session: Pick<MvpUser, "email">) {
+  return session.email.trim().toLowerCase();
+}
+
+function getCachedClientState(session: Pick<MvpUser, "email">) {
+  return clientStateCache.get(clientStateCacheKey(session));
+}
+
+function isFresh(loadedAt: number, ttl: number) {
+  return Date.now() - loadedAt < ttl;
+}
+
+async function loadClientState(session: Pick<MvpUser, "email" | "name">, force = false) {
+  const key = clientStateCacheKey(session);
+
+  if (!force) {
+    const cached = clientStateCache.get(key);
+    if (cached && isFresh(cached.loadedAt, CLIENT_STATE_CACHE_MS)) return cached.state;
+
+    const existing = clientStateRequests.get(key);
+    if (existing) return existing;
+  }
+
+  const request = mvpApi
+    .clientState(session)
+    .then((next) => {
+      clientStateCache.set(key, { state: next, loadedAt: Date.now() });
+      return next;
+    })
+    .finally(() => clientStateRequests.delete(key));
+
+  clientStateRequests.set(key, request);
+  return request;
+}
+
+function floorPlanPreviewCacheKey(eventId: string, draft: MvpFloorPlanDraft) {
+  return `${eventId}:${draft.id}:${draft.status}`;
+}
+
 export function Dashboard({
   route = "home",
   eventId,
@@ -443,6 +496,7 @@ export function Dashboard({
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const current = readSession();
     if (!current) {
       router.replace(`/sign-in?next=${encodeURIComponent(dashboardHref(route, eventId))}`);
@@ -450,17 +504,37 @@ export function Dashboard({
     }
     setSession(current);
     if (current.role !== "client") return;
-    mvpApi
-      .clientState(current)
-      .then((next) => {
-        setState(next);
-        const firstClientEvent = next.events.find(
-          (ev) => ev.clientName === current.name && ev.clientPortalStatus === "unlocked",
-        );
-        setSelectedEventId(eventId ?? firstClientEvent?.id ?? null);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load client portal"));
-  }, [eventId, route, router]);
+
+    const applyState = (next: MvpDemoState) => {
+      if (cancelled) return;
+      setState(next);
+      setError(null);
+      const firstClientEvent = next.events.find(
+        (ev) => ev.clientName === current.name && ev.clientPortalStatus === "unlocked",
+      );
+      setSelectedEventId(eventId ?? firstClientEvent?.id ?? null);
+    };
+
+    const cached = getCachedClientState(current);
+    if (cached) {
+      applyState(cached.state);
+      if (isFresh(cached.loadedAt, CLIENT_STATE_CACHE_MS)) {
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+
+    loadClientState(current, !cached)
+      .then(applyState)
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load client portal");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, router]);
 
   const events = useMemo(() => {
     if (!state || !session) return [];
@@ -488,10 +562,23 @@ export function Dashboard({
   const notifications = state?.notificationLogs.filter((item) => item.eventId === selectedEvent?.id).slice(0, 4) ?? [];
 
   useEffect(() => {
-    if (!officialDraft || !selectedEvent) {
+    if (route !== "floorplan" || !officialDraft || !selectedEvent) {
       setOfficialProject(null);
       return;
     }
+
+    let cancelled = false;
+    const cacheKey = floorPlanPreviewCacheKey(selectedEvent.id, officialDraft);
+    const cached = floorPlanPreviewCache.get(cacheKey);
+    if (cached) {
+      setOfficialProject(cached.project);
+      if (isFresh(cached.loadedAt, FLOOR_PLAN_PREVIEW_CACHE_MS)) {
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+
     mvpApi
       .loadFloorPlanSnapshot(
         selectedEvent.id,
@@ -500,20 +587,52 @@ export function Dashboard({
         { id: officialDraft.floorPlanId, name: officialDraft.name, venue: selectedEvent.eventName },
         session ?? undefined,
       )
-      .then(setOfficialProject)
-      .catch(() => setOfficialProject(null));
+      .then((project) => {
+        floorPlanPreviewCache.set(cacheKey, { project, loadedAt: Date.now() });
+        if (!cancelled) setOfficialProject(project);
+      })
+      .catch(() => {
+        if (!cancelled) setOfficialProject(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     officialDraft?.id,
     officialDraft?.floorPlanId,
     officialDraft?.name,
     officialDraft?.status,
-    selectedEvent,
-    session,
+    route,
+    selectedEvent?.id,
+    selectedEvent?.eventName,
+    session?.email,
+    session?.name,
   ]);
+
+  useEffect(() => {
+    if (!selectedEvent) return;
+
+    router.prefetch("/dashboard");
+    router.prefetch("/dashboard/request");
+    router.prefetch("/dashboard/events");
+    ([
+      "overview",
+      "actions",
+      "briefing",
+      "proposal",
+      "floorplan",
+      "documents",
+      "billing",
+      "messages",
+    ] satisfies ClientDashboardRoute[]).forEach((nextRoute) => {
+      router.prefetch(dashboardHref(nextRoute, selectedEvent.id));
+    });
+  }, [router, selectedEvent?.id]);
 
   async function refresh() {
     if (!session) return;
-    const next = await mvpApi.clientState(session);
+    const next = await loadClientState(session, true);
     setState(next);
   }
 
@@ -656,14 +775,15 @@ export function Dashboard({
     }
   }
 
+  const signOut = () => {
+    window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
+    router.replace("/sign-in");
+  };
+
   /* Loading and auth redirects */
 
   if (!session) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-background px-6">
-        <Skeleton className="h-24 w-full max-w-sm rounded-xl" />
-      </main>
-    );
+    return <DashboardSessionSkeleton />;
   }
 
   if (session.role !== "client") {
@@ -711,19 +831,61 @@ export function Dashboard({
   }
 
   if (!state) {
+    const loadingTitle =
+      route === "request"
+        ? "New event request"
+        : route === "events"
+          ? "My events"
+          : "Client portal";
+    const loadingEyebrow =
+      route === "home"
+        ? "Client home"
+        : route === "request"
+          ? "Signed-in request"
+          : route === "events"
+            ? "Event portfolio"
+            : "Event workspace";
+    const loadingDescription =
+      route === "request"
+        ? "Loading your saved client details for the guided event request."
+        : route === "events"
+          ? "Loading your confirmed PMCM event workspaces."
+          : "Loading your client event workspace, actions, files, billing, and PMCM updates.";
+
     return (
-      <main className="grid min-h-screen grid-cols-[280px_minmax(0,1fr)] bg-background">
-        <aside className="border-r border-primary/20 bg-sidebar p-5" />
-        <div className="p-8">
-          {error ? (
-            <Alert variant="destructive" className="rounded-xl">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          ) : (
-            <DashboardSkeleton />
-          )}
-        </div>
-      </main>
+      <PrismDashboardShell
+        productLabel="P.R.I.S.M"
+        roleLabel="Client Portal"
+        eyebrow={loadingEyebrow}
+        title={loadingTitle}
+        description={loadingDescription}
+        activeItemId={ROUTE_TO_NAV_ITEM[route]}
+        navItems={CLIENT_SIDEBAR_ITEMS.map((item) => ({
+          ...item,
+          disabled: item.requiresEvent,
+        }))}
+        onNavSelect={(id) => {
+          const item = CLIENT_SIDEBAR_ITEMS.find((candidate) => candidate.id === id);
+          if (item && !item.requiresEvent) router.push(dashboardHref(item.route));
+        }}
+        user={{
+          name: session.name,
+          detail: session.organization,
+          initials: session.name.slice(0, 2).toUpperCase(),
+        }}
+        searchPlaceholder="Search proposal, billing, documents..."
+        rightRail={<DashboardRightRailSkeleton />}
+        mobileActions={[]}
+        onSignOut={signOut}
+      >
+        {error ? (
+          <Alert variant="destructive" className="rounded-lg">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <DashboardSkeleton variant={dashboardLoadingVariant(route)} />
+        )}
+      </PrismDashboardShell>
     );
   }
 
@@ -761,11 +923,6 @@ export function Dashboard({
     disabled: item.requiresEvent && !selectedEvent,
   }));
   const activeShellItemId = ROUTE_TO_NAV_ITEM[route];
-
-  const signOut = () => {
-    window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
-    router.replace("/sign-in");
-  };
 
   const handleShellNavSelect = (id: string) => {
     const item = CLIENT_SIDEBAR_ITEMS.find((candidate) => candidate.id === id);
