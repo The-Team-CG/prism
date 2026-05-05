@@ -3,13 +3,19 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
+  CalendarClock,
   CalendarDays,
   CircleUserRound,
+  ClipboardCheck,
   FileText,
+  Home,
   LogOut,
+  MessageSquareText,
   PanelLeft,
   Search,
   Settings,
+  ShieldCheck,
+  UsersRound,
   X,
 } from "lucide-react";
 import * as React from "react";
@@ -109,6 +115,125 @@ function PrismUserAvatar({ user, className }: { user: PrismUserSummary; classNam
       <span className="absolute bottom-0.5 right-0.5 size-2.5 rounded-full border-2 border-card bg-(--prism-success)" />
     </span>
   );
+}
+
+type PrismRailItem = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  targetId: string;
+  badge?: string | number;
+  active: boolean;
+};
+
+function navSearchText(item: PrismNavItem) {
+  return `${item.id} ${item.label} ${item.section ?? ""}`.toLowerCase();
+}
+
+function findRailTarget(
+  navItems: PrismNavItem[],
+  matcher: (item: PrismNavItem, searchText: string) => boolean,
+) {
+  const enabled = navItems.find((item) => !item.disabled && matcher(item, navSearchText(item)));
+  return enabled ?? navItems.find((item) => matcher(item, navSearchText(item)));
+}
+
+function buildPrimaryRail(navItems: PrismNavItem[], activeItemId: string) {
+  const dashboardTarget =
+    findRailTarget(
+      navItems,
+      (item, text) =>
+        item.id === "command-home" ||
+        item.id === "client-home" ||
+        item.id === "dashboard" ||
+        item.id === "home" ||
+        item.id === "events" ||
+        /\bhome\b|\bdashboard\b/.test(text),
+    ) ?? navItems[0];
+  const clientsTarget = findRailTarget(navItems, (item, text) =>
+    item.id === "client-desk" || item.id === "clients" || /\bclients?\b|\bonboarding\b|\bconforme\b/.test(text),
+  );
+  const eventsTarget = findRailTarget(navItems, (item, text) =>
+    item.id === "command-events" || item.id === "events" || /\bevents?\b|\bworkspaces?\b/.test(text),
+  );
+  const calendarTarget = findRailTarget(navItems, (item, text) =>
+    item.id === "calendar-desk" || item.id === "calendar" || /\bcalendar\b|\bschedule\b/.test(text),
+  );
+  const tasksTarget = findRailTarget(navItems, (item, text) =>
+    item.id === "task-desk" || item.id === "tasks" || /\btasks?\b|\bactions?\b|\bapprovals?\b|\binbox\b/.test(text),
+  );
+  const filesTarget = findRailTarget(navItems, (item, text) =>
+    item.id === "file-hub" || /\bdocuments?\b|\bfiles?\b|\bfloor[- ]?plans?\b/.test(text),
+  );
+  const teamTarget = findRailTarget(navItems, (item, text) =>
+    item.id === "team-desk" || item.id === "employees" || /\bteam\b|\bemployees?\b|\bstaff\b|\bcoordinators?\b/.test(text),
+  );
+  const messagesTarget = findRailTarget(navItems, (item, text) =>
+    item.id === "command-messages" || /message|messages|chat|conversation|feedback|activity/.test(text),
+  );
+  const reportsTarget = findRailTarget(navItems, (item, text) =>
+    item.id === "audit-log" || item.id === "reports" || /\breports?\b|\baudit\b|\binsights?\b|\bprivacy\b|\bsecurity\b/.test(text),
+  );
+  const settingsTarget = findRailTarget(navItems, (_item, text) => /setting|settings|profile|account/.test(text));
+
+  const candidates = [
+    dashboardTarget
+      ? { id: "dashboard", label: "Dashboard", icon: Home, target: dashboardTarget }
+      : null,
+    clientsTarget
+      ? { id: "clients", label: "Clients", icon: CircleUserRound, target: clientsTarget }
+      : null,
+    eventsTarget
+      ? { id: "events", label: "Events", icon: CalendarDays, target: eventsTarget }
+      : null,
+    calendarTarget
+      ? { id: "calendar", label: "Calendar", icon: CalendarClock, target: calendarTarget }
+      : null,
+    tasksTarget
+      ? { id: "tasks", label: "Tasks", icon: ClipboardCheck, target: tasksTarget }
+      : null,
+    filesTarget
+      ? { id: "files", label: "Files", icon: FileText, target: filesTarget }
+      : null,
+    teamTarget
+      ? { id: "team", label: "Team", icon: UsersRound, target: teamTarget }
+      : null,
+    messagesTarget
+      ? { id: "messages", label: "Message", icon: MessageSquareText, target: messagesTarget }
+      : null,
+    reportsTarget
+      ? { id: "reports", label: "Reports", icon: ShieldCheck, target: reportsTarget }
+      : null,
+    settingsTarget
+      ? { id: "settings", label: "Settings", icon: Settings, target: settingsTarget, bottom: true }
+      : null,
+  ].filter(Boolean) as Array<{
+    id: string;
+    label: string;
+    icon: LucideIcon;
+    target: PrismNavItem;
+    bottom?: boolean;
+  }>;
+
+  const seenTargets = new Set<string>();
+  const items = candidates.reduce<PrismRailItem[]>((resolved, item) => {
+    if (seenTargets.has(item.target.id)) return resolved;
+    seenTargets.add(item.target.id);
+    resolved.push({
+      id: item.id,
+      label: item.label,
+      icon: item.icon,
+      targetId: item.target.id,
+      badge: item.target.badge,
+      active: item.target.id === activeItemId,
+    });
+    return resolved;
+  }, []);
+
+  return {
+    items,
+    targetIds: seenTargets,
+  };
 }
 
 function PrismAccountMenu({
@@ -252,6 +377,7 @@ export function PrismSidebar({
   commandSectionLabel = "Workflows",
   homeHref = "/",
   collapsed = false,
+  hiddenItemIds,
 }: Pick<
   PrismAppShellProps,
   | "productLabel"
@@ -264,8 +390,10 @@ export function PrismSidebar({
   | "homeHref"
 > & {
   collapsed?: boolean;
+  hiddenItemIds?: ReadonlySet<string>;
 }) {
-  const navGroups = navItems.reduce<Array<{ section: string; items: PrismNavItem[] }>>((groups, item) => {
+  const visibleNavItems = hiddenItemIds?.size ? navItems.filter((item) => !hiddenItemIds.has(item.id)) : navItems;
+  const navGroups = visibleNavItems.reduce<Array<{ section: string; items: PrismNavItem[] }>>((groups, item) => {
     const section = item.section ?? "Dashboards";
     const existing = groups.find((group) => group.section === section);
     if (existing) {
@@ -283,14 +411,24 @@ export function PrismSidebar({
         title={productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
         detail={roleLabel}
         compact={collapsed}
-        className={cn("min-h-16 px-4", collapsed && "justify-center px-2")}
-        markClassName="size-9 bg-transparent ring-0"
+        className={cn("min-h-16 px-3", collapsed && "justify-center px-2")}
+        markClassName="size-8 bg-transparent ring-0"
       />
 
-      <nav className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pb-4 pt-1">
+      {!collapsed ? (
+        <div className="px-3 pb-3">
+          <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-background/80 px-2.5 text-xs font-semibold text-muted-foreground shadow-sm">
+            <Search aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">Command</span>
+            <span className="text-[11px] font-black text-muted-foreground/70">/</span>
+          </div>
+        </div>
+      ) : null}
+
+      <nav className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-3 pb-4 pt-1">
         {navGroups.map((group, groupIndex) => (
           <div key={group.section} className={cn("flex flex-col gap-1.5", groupIndex > 0 && "mt-6")}>
-            <p className={cn("px-1.5 pb-1 text-[11px] font-black uppercase text-primary", collapsed && "sr-only")}>
+            <p className={cn("px-2 pb-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground", collapsed && "sr-only")}>
               {group.section}
             </p>
             {group.items.map((item) => (
@@ -303,14 +441,14 @@ export function PrismSidebar({
                 onClick={() => onNavSelect?.(item.id)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:font-bold data-[active=true]:text-primary-foreground",
+                  "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground active:bg-secondary disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:font-bold data-[active=true]:text-primary",
                   collapsed && "justify-center px-0",
                 )}
               >
                 <item.icon aria-hidden="true" className="size-3.5 shrink-0" />
                 <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{item.label}</span>
                 {item.badge && !collapsed ? (
-                  <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-foreground ring-1 ring-border">
+                  <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-muted-foreground ring-1 ring-border">
                     {item.badge}
                   </span>
                 ) : null}
@@ -329,13 +467,13 @@ export function PrismSidebar({
                 key={action.id}
                 type="button"
                 onClick={action.onSelect}
-                className="group flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground"
+                className="group flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground active:bg-secondary"
               >
                 {action.icon ? <action.icon aria-hidden="true" className="size-3.5 shrink-0" /> : null}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{action.label}</span>
                   {action.description ? (
-                    <span className="block truncate text-[11px] font-medium text-muted-foreground group-hover:text-primary-foreground/75">
+                    <span className="block truncate text-[11px] font-medium text-muted-foreground">
                       {action.description}
                     </span>
                   ) : null}
@@ -350,6 +488,78 @@ export function PrismSidebar({
           </div>
         ) : null}
       </nav>
+    </div>
+  );
+}
+
+function PrismIconRail({
+  productLabel = "P.R.I.S.M",
+  activeItemId,
+  navItems,
+  onNavSelect,
+  homeHref = "/",
+  user,
+  railItems,
+}: Pick<
+  PrismAppShellProps,
+  "productLabel" | "activeItemId" | "navItems" | "onNavSelect" | "homeHref" | "user"
+> & {
+  railItems?: PrismRailItem[];
+}) {
+  const resolvedRailItems = railItems ?? buildPrimaryRail(navItems, activeItemId).items;
+  const settingsItem = resolvedRailItems.find((item) => item.id === "settings");
+  const topItems = resolvedRailItems.filter((item) => item.id !== "settings");
+
+  return (
+    <div className="flex h-full w-[3.75rem] shrink-0 flex-col items-center border-r border-border bg-background px-2 py-3 text-foreground">
+      <PrismBrandLogo
+        href={homeHref}
+        title={productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
+        compact
+        className="grid size-10 place-items-center justify-center"
+        markClassName="size-8 rounded-lg bg-transparent ring-0"
+      />
+
+      <nav className="mt-5 flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto" aria-label="Primary navigation">
+        {topItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-current={item.active ? "page" : undefined}
+            data-active={item.active}
+            title={item.label}
+            onClick={() => onNavSelect?.(item.targetId)}
+            className="relative grid size-9 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground focus-visible:outline-none active:bg-secondary data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+          >
+            <item.icon aria-hidden="true" className="size-4" />
+            {item.badge ? (
+              <span className="absolute right-1 top-1 size-1.5 rounded-full bg-(--prism-amber) ring-2 ring-background" aria-hidden="true" />
+            ) : null}
+            <span className="sr-only">{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="mt-3 flex w-full flex-col items-center gap-1 border-t border-border pt-3">
+        {settingsItem ? (
+          <button
+            type="button"
+            data-active={settingsItem.active}
+            className="grid size-9 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground focus-visible:outline-none data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+            title={settingsItem.label}
+            aria-label={settingsItem.label}
+            aria-current={settingsItem.active ? "page" : undefined}
+            onClick={() => onNavSelect?.(settingsItem.targetId)}
+          >
+            <Settings aria-hidden="true" className="size-4" />
+          </button>
+        ) : null}
+        {user ? (
+          <span title={user.name} className="grid size-9 place-items-center rounded-full border border-border bg-card text-[11px] font-black text-foreground">
+            {user.initials ?? initialsFor(user.name)}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -529,21 +739,42 @@ export function PrismAppShell({
 }: PrismAppShellProps) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [desktopOpen, setDesktopOpen] = React.useState(true);
+  const primaryRail = React.useMemo(() => buildPrimaryRail(navItems, activeItemId), [navItems, activeItemId]);
+  const desktopHiddenItemIds = React.useMemo(
+    () =>
+      navItems.length > 6
+        ? new Set(
+            Array.from(primaryRail.targetIds).filter(
+              (id) =>
+                id.startsWith("command-") ||
+                id.endsWith("-desk") ||
+                id === "supplier-directory" ||
+                id === "file-hub" ||
+                id === "audit-log" ||
+                id === "settings",
+            ),
+          )
+        : new Set<string>(),
+    [navItems.length, primaryRail.targetIds],
+  );
 
-  const renderSidebar = (collapsed = false) => (
+  const handleNavSelect = React.useCallback((id: string) => {
+    onNavSelect?.(id);
+    setMobileOpen(false);
+  }, [onNavSelect]);
+
+  const renderSidebar = (collapsed = false, hidePrimaryRailItems = false) => (
     <PrismSidebar
       productLabel={productLabel}
       roleLabel={roleLabel}
       activeItemId={activeItemId}
       navItems={navItems}
-      onNavSelect={(id) => {
-        onNavSelect?.(id);
-        setMobileOpen(false);
-      }}
+      onNavSelect={handleNavSelect}
       commandActions={commandActions}
       commandSectionLabel={commandSectionLabel}
       homeHref={homeHref}
       collapsed={collapsed}
+      hiddenItemIds={collapsed || !hidePrimaryRailItems ? undefined : desktopHiddenItemIds}
     />
   );
 
@@ -551,11 +782,24 @@ export function PrismAppShell({
     <div className={cn("min-h-screen bg-background text-foreground", className)}>
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden border-r border-primary/15 bg-card transition-[width] duration-200 ease-linear md:flex",
-          desktopOpen ? "w-64" : "w-16",
+          "fixed inset-y-0 left-0 z-30 hidden overflow-hidden border-r border-border bg-card transition-[width] duration-200 ease-linear md:flex",
+          desktopOpen ? "w-[18rem]" : "w-[3.75rem]",
         )}
       >
-        {renderSidebar(!desktopOpen)}
+        <PrismIconRail
+          productLabel={productLabel}
+          activeItemId={activeItemId}
+          navItems={navItems}
+          onNavSelect={handleNavSelect}
+          homeHref={homeHref}
+          user={user}
+          railItems={primaryRail.items}
+        />
+        {desktopOpen ? (
+          <div className="min-w-0 flex-1 bg-card">
+            {renderSidebar(false, true)}
+          </div>
+        ) : null}
       </aside>
 
       {mobileOpen ? (
@@ -584,7 +828,7 @@ export function PrismAppShell({
       <main
         className={cn(
           "min-h-screen transition-[padding-left] duration-200 ease-linear",
-          desktopOpen ? "md:pl-64" : "md:pl-16",
+          desktopOpen ? "md:pl-[18rem]" : "md:pl-[3.75rem]",
         )}
       >
         <PrismTopBar

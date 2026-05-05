@@ -6,39 +6,58 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Archive,
+  CalendarClock,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
+  CircleUserRound,
+  Download,
+  Eye,
   FileCheck2,
+  FileSignature,
   FileText,
+  Grid2X2,
   Home,
   LayoutGrid,
+  List,
   MapPinned,
   MessageSquareText,
+  MoreHorizontal,
+  Pencil,
   Radio,
   ReceiptText,
   RotateCcw,
   Search,
   Send,
+  Settings,
   ShieldCheck,
   Sparkles,
+  Share2,
   Tags,
   Truck,
+  Upload,
   UserCheck,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import {
   mvpApi,
   type MvpAuditLog,
   type MvpApprovalRequest,
+  type MvpBillingStatement,
+  type MvpBriefing,
+  type MvpComplianceCheck,
   type MvpCoordinatorWorkspace,
   type MvpDefenseReadiness,
   type MvpDemoState,
+  type MvpDocument,
   type MvpEvent,
   type MvpEventDayStatusFeed,
   type MvpFloorPlanDraft,
   type MvpLiveOps,
   type MvpNotificationLog,
+  type MvpPostEventDocument,
+  type MvpSupplierQuoteRequest,
 } from "@/lib/mvp-api";
 import { PrismDashboardShell } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
@@ -82,7 +101,20 @@ type Screen =
   | { name: "portal" }
   | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project };
 type DetailTab = PmcmDetailTab;
-type DashboardSection = "events" | "inquiries" | "events-list" | "suppliers" | "audit";
+type DashboardSection =
+  | "events"
+  | "inquiries"
+  | "events-list"
+  | "clients"
+  | "calendar"
+  | "tasks"
+  | "team"
+  | "suppliers"
+  | "files"
+  | "messages"
+  | "finance"
+  | "audit"
+  | "settings";
 type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: string };
 
 export type EventDashboardClientProps = Partial<RouteState>;
@@ -106,8 +138,18 @@ const EVENT_TAB_BY_ROUTE = Object.fromEntries(
 function routeStateFromPath(pathname: string): RouteState {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] !== "dashboard") return { section: "events", tab: "overview" };
+  if (parts.length === 1) return { section: "events", tab: "overview" };
+  if (parts[1] === "inquiries") return { section: "inquiries", tab: "overview" };
+  if (parts[1] === "clients") return { section: "clients", tab: "overview" };
+  if (parts[1] === "calendar") return { section: "calendar", tab: "overview" };
+  if (parts[1] === "tasks") return { section: "tasks", tab: "overview" };
+  if (parts[1] === "team") return { section: "team", tab: "coordinators" };
   if (parts[1] === "suppliers") return { section: "suppliers", tab: "overview" };
+  if (parts[1] === "files") return { section: "files", tab: "floorplans" };
+  if (parts[1] === "messages") return { section: "messages", tab: "activity" };
+  if (parts[1] === "finance") return { section: "finance", tab: "billing" };
   if (parts[1] === "audit") return { section: "audit", tab: "overview" };
+  if (parts[1] === "settings") return { section: "settings", tab: "overview" };
   if (parts[1] === "events" && parts[2]) {
     return {
       section: "events",
@@ -115,11 +157,21 @@ function routeStateFromPath(pathname: string): RouteState {
       tab: EVENT_TAB_BY_ROUTE[parts[3] ?? "overview"] ?? "overview",
     };
   }
+  if (parts[1] === "events") return { section: "events-list", tab: "overview" };
   return { section: "events", tab: "overview" };
 }
 
 function lbl(value: string) {
   return value.replaceAll("_", " ");
+}
+
+const phpMoney = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
+
+function shortDate(value?: string | null) {
+  if (!value) return "No date";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
 function buildProject(event: MvpEvent, draft: MvpFloorPlanDraft, preset?: Preset): Project {
@@ -513,6 +565,16 @@ function eventDashboardSkeletonVariant(routeState: RouteState): EventDashboardSk
 function activeSidebarItemFromRoute(routeState: RouteState) {
   if (routeState.section === "suppliers") return "supplier-directory";
   if (routeState.section === "audit") return "audit-log";
+  if (routeState.section === "clients") return "client-desk";
+  if (routeState.section === "calendar") return "calendar-desk";
+  if (routeState.section === "tasks") return "task-desk";
+  if (routeState.section === "team") return "team-desk";
+  if (routeState.section === "files") return "file-hub";
+  if (routeState.section === "messages") return "command-messages";
+  if (routeState.section === "finance") return "finance-desk";
+  if (routeState.section === "settings") return "settings";
+  if (routeState.section === "inquiries") return "command-inquiries";
+  if (routeState.section === "events-list") return "command-events";
   if (!routeState.eventId) return "command-home";
 
   return ({
@@ -530,9 +592,17 @@ function activeSidebarItemFromRoute(routeState: RouteState) {
 
 function loadingShellNavItems(hasEvent: boolean) {
   return [
-    { id: "command-home", icon: Home, label: "Home", section: "Command" },
+    { id: "command-home", icon: Home, label: "Dashboard", section: "Command" },
     { id: "command-inquiries", icon: FileCheck2, label: "Inquiries", section: "Command" },
     { id: "command-events", icon: CalendarDays, label: "Events", section: "Command" },
+    { id: "client-desk", icon: CircleUserRound, label: "Clients", section: "Directories" },
+    { id: "calendar-desk", icon: CalendarClock, label: "Calendar", section: "Command" },
+    { id: "task-desk", icon: ClipboardCheck, label: "Tasks", section: "Command" },
+    { id: "team-desk", icon: UsersRound, label: "Team", section: "Directories" },
+    { id: "supplier-directory", icon: Tags, label: "Suppliers", section: "Directories" },
+    { id: "file-hub", icon: FileText, label: "Files", section: "Operations", disabled: !hasEvent },
+    { id: "command-messages", icon: MessageSquareText, label: "Message", section: "Operations", disabled: !hasEvent },
+    { id: "finance-desk", icon: ReceiptText, label: "Finance", section: "Operations", disabled: !hasEvent },
     { id: "event-overview", icon: LayoutGrid, label: "Overview", section: "Event Workspace", disabled: !hasEvent },
     { id: "event-briefing", icon: FileCheck2, label: "Briefing", section: "Event Workspace", disabled: !hasEvent },
     { id: "event-floorplans", icon: MapPinned, label: "Floor Plans", section: "Event Workspace", disabled: !hasEvent },
@@ -542,8 +612,8 @@ function loadingShellNavItems(hasEvent: boolean) {
     { id: "event-billing", icon: ReceiptText, label: "Billing", section: "Event Workspace", disabled: !hasEvent },
     { id: "event-messages", icon: MessageSquareText, label: "Messages", section: "Event Workspace", disabled: !hasEvent },
     { id: "event-closure", icon: Archive, label: "Closure", section: "Event Workspace", disabled: !hasEvent },
-    { id: "supplier-directory", icon: Tags, label: "Supplier Directory", section: "Operations" },
-    { id: "audit-log", icon: ShieldCheck, label: "Audit Log", section: "Admin" },
+    { id: "audit-log", icon: ShieldCheck, label: "Reports", section: "Admin" },
+    { id: "settings", icon: Settings, label: "Settings", section: "Admin" },
   ];
 }
 
@@ -897,6 +967,617 @@ function EventMessagesWorkspace({
 
 /* ── Home page stat card ───────────────────────────────────── */
 
+type EventFileHubItem = {
+  id: string;
+  title: string;
+  subtitle: string;
+  category: string;
+  status: string;
+  date: string;
+  owner: string;
+  extension: string;
+  kind: "invoice" | "floorplan" | "briefing" | "contract" | "document" | "closeout";
+  meta: string;
+  amount?: number;
+  accent: string;
+};
+
+function EventFileThumbnail({ item, active }: { item: EventFileHubItem; active: boolean }) {
+  if (item.kind === "floorplan") {
+    return (
+      <div className="relative h-28 overflow-hidden rounded-md border border-border bg-[#fff8f2]">
+        <div className="absolute inset-0 bg-[linear-gradient(#eadbd3_1px,transparent_1px),linear-gradient(90deg,#eadbd3_1px,transparent_1px)] bg-size-[18px_18px]" />
+        <div className="absolute left-4 top-4 h-14 w-24 rounded-sm border border-primary/30 bg-primary/10" />
+        <div className="absolute bottom-4 right-4 grid grid-cols-3 gap-1">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <span key={index} className="size-3 rounded-full bg-(--prism-success)/55" />
+          ))}
+        </div>
+        <div className="absolute bottom-3 left-4 h-2 w-20 rounded-full bg-(--prism-amber)/70" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-28 overflow-hidden rounded-md border border-border bg-white p-4 shadow-xs">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className={`h-2 w-14 rounded-full ${item.accent}`} />
+          <div className="mt-3 h-2 w-24 rounded-full bg-muted" />
+          <div className="mt-2 h-2 w-16 rounded-full bg-muted" />
+        </div>
+        <div className="h-9 w-12 rounded-sm border border-border bg-muted/40" />
+      </div>
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        <div className="h-2 rounded-full bg-muted" />
+        <div className="h-2 rounded-full bg-muted" />
+        <div className="h-2 rounded-full bg-muted" />
+      </div>
+      <div className={active ? "mt-4 h-1 rounded-full bg-primary" : "mt-4 h-1 rounded-full bg-muted"} />
+    </div>
+  );
+}
+
+function EventFilePreview({ event, item }: { event: MvpEvent; item: EventFileHubItem }) {
+  return (
+    <div className="min-h-[30rem] bg-[#f8fbf8] p-5">
+      <div className="mx-auto max-w-3xl rounded-md border border-border bg-white p-7 shadow-sm">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <p className="text-2xl font-black text-foreground">
+              {item.kind === "invoice" ? "Invoice" : item.kind === "floorplan" ? "Floor Plan" : item.category}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">{item.meta}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-black text-primary">P.R.I.S.M.</p>
+            <p className="mt-1 text-xs text-muted-foreground">PMCM Event Operations</p>
+            <p className="text-xs text-muted-foreground">{event.eventDate}</p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-5 border-y border-border py-5 sm:grid-cols-2">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Event</p>
+            <p className="mt-2 text-sm font-black text-foreground">{event.eventName}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{event.clientName}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">File owner</p>
+            <p className="mt-2 text-sm font-black text-foreground">{item.owner}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{item.date}</p>
+          </div>
+        </div>
+
+        {item.kind === "floorplan" ? (
+          <div className="mt-7 overflow-hidden rounded-md border border-border bg-[#fff6ee]">
+            <div className="relative aspect-16/9 bg-[linear-gradient(#eadbd3_1px,transparent_1px),linear-gradient(90deg,#eadbd3_1px,transparent_1px)] bg-size-[24px_24px]">
+              <div className="absolute left-[12%] top-[18%] h-[24%] w-[28%] rounded-sm border border-primary/35 bg-primary/10" />
+              <div className="absolute right-[14%] top-[16%] h-[18%] w-[22%] rounded-sm border border-(--prism-amber)/45 bg-(--prism-amber)/15" />
+              <div className="absolute bottom-[18%] left-[18%] grid grid-cols-6 gap-2">
+                {Array.from({ length: 24 }).map((_, index) => (
+                  <span key={index} className="size-3 rounded-full bg-(--prism-success)/60" />
+                ))}
+              </div>
+              <div className="absolute bottom-[14%] right-[14%] h-3 w-32 rounded-full bg-primary/70" />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-7 overflow-hidden rounded-md border border-border">
+            <div className="grid grid-cols-[1fr_6rem_7rem] bg-muted/45 px-4 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">
+              <span>Item</span>
+              <span>Qty</span>
+              <span className="text-right">Amount</span>
+            </div>
+            {[
+              ["Event planning document", "1", item.amount ? phpMoney.format(item.amount) : "Attached"],
+              ["Client and operations reference", "1", item.status],
+              ["PMCM audit-safe copy", "1", item.extension],
+            ].map(([labelText, qty, amount]) => (
+              <div key={labelText} className="grid grid-cols-[1fr_6rem_7rem] border-t border-border px-4 py-3 text-xs">
+                <span className="font-semibold text-foreground">{labelText}</span>
+                <span className="text-muted-foreground">{qty}</span>
+                <span className="text-right font-bold text-foreground">{amount}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-7 grid gap-3 sm:grid-cols-3">
+          {["Status", "Category", "Source"].map((labelText) => (
+            <div key={labelText} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{labelText}</p>
+              <p className="mt-1 truncate text-xs font-black text-foreground">
+                {labelText === "Status" ? item.status : labelText === "Category" ? item.category : item.subtitle}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventFileHub({
+  event,
+  documents,
+  drafts,
+  billingStatements,
+  quoteRequests,
+  briefing,
+  checks,
+  postEventDocuments,
+  onOpenFloorplans,
+  onOpenBriefing,
+  onOpenSuppliers,
+  onOpenBilling,
+  onOpenClosure,
+}: {
+  event: MvpEvent;
+  documents: MvpDocument[];
+  drafts: MvpFloorPlanDraft[];
+  billingStatements: MvpBillingStatement[];
+  quoteRequests: MvpSupplierQuoteRequest[];
+  briefing?: MvpBriefing;
+  checks: MvpComplianceCheck[];
+  postEventDocuments: MvpPostEventDocument[];
+  onOpenFloorplans: () => void;
+  onOpenBriefing: () => void;
+  onOpenSuppliers: () => void;
+  onOpenBilling: () => void;
+  onOpenClosure: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<"grid" | "list">("grid");
+
+  const items = useMemo<EventFileHubItem[]>(() => {
+    const uploaded = documents.map((document) => ({
+      id: `document-${document.id}`,
+      title: document.fileName,
+      subtitle: "Uploaded file",
+      category: lbl(document.type),
+      status: lbl(document.status),
+      date: shortDate(document.uploadedAt),
+      owner: event.clientName,
+      extension: document.fileName.split(".").pop()?.toUpperCase() || "FILE",
+      kind: "document" as const,
+      meta: `Document ${document.id}`,
+      accent: "bg-primary",
+    }));
+
+    const floorplans = drafts.map((draft) => ({
+      id: `floorplan-${draft.id}`,
+      title: `${draft.name}.floorplan`,
+      subtitle: "Official layout",
+      category: "Floorplans",
+      status: lbl(draft.status),
+      date: shortDate(draft.approvedAt ?? draft.submittedAt ?? draft.updatedAt),
+      owner: draft.createdByRole ? lbl(draft.createdByRole) : "PMCM",
+      extension: "PLAN",
+      kind: "floorplan" as const,
+      meta: `Floor plan ${draft.floorPlanId}`,
+      accent: "bg-(--prism-success)",
+    }));
+
+    const invoices = billingStatements.map((statement) => ({
+      id: `billing-${statement.id}`,
+      title: `Billing Statement ${statement.number}.pdf`,
+      subtitle: "Invoice PDF",
+      category: "Billing",
+      status: lbl(statement.status),
+      date: shortDate(statement.sentAt ?? statement.generatedAt),
+      owner: statement.clientName || event.clientName,
+      extension: "PDF",
+      kind: "invoice" as const,
+      meta: statement.number,
+      amount: statement.totalAmount,
+      accent: "bg-(--prism-amber)",
+    }));
+
+    const contracts = quoteRequests
+      .filter((request) => request.contractDocumentId || request.assignmentStatus)
+      .map((request) => ({
+        id: `contract-${request.id}`,
+        title: `${request.supplierName} Contract.pdf`,
+        subtitle: request.category,
+        category: "Supplier Contracts",
+        status: lbl(request.assignmentStatus ?? request.status),
+        date: shortDate(request.createdAt),
+        owner: request.supplierName,
+        extension: "PDF",
+        kind: "contract" as const,
+        meta: request.contractDocumentId ?? request.id,
+        accent: "bg-[#13a8a0]",
+      }));
+
+    const generated = [
+      briefing
+        ? {
+            id: "briefing-file",
+            title: `${event.eventName} Briefing.pdf`,
+            subtitle: "Event dossier",
+            category: "Briefing",
+            status: "Submitted",
+            date: shortDate(briefing.submittedAt),
+            owner: event.clientName,
+            extension: "PDF",
+            kind: "briefing" as const,
+            meta: briefing.venue,
+            accent: "bg-primary",
+          }
+        : null,
+      checks.length
+        ? {
+            id: "closeout-checks",
+            title: `${event.eventName} Closeout Checks.pdf`,
+            subtitle: "Compliance report",
+            category: "Closeout",
+            status: `${checks.filter((check) => check.status === "open").length} open`,
+            date: shortDate(checks[0]?.resolvedAt),
+            owner: "PMCM",
+            extension: "PDF",
+            kind: "closeout" as const,
+            meta: `${checks.length} checks`,
+            accent: "bg-[#64748b]",
+          }
+        : null,
+      ...postEventDocuments.map((document) => ({
+        id: `post-event-${document.id}`,
+        title: `${document.title}.pdf`,
+        subtitle: "Post-event document",
+        category: "Closeout",
+        status: lbl(document.status),
+        date: event.eventDate,
+        owner: "PMCM",
+        extension: "PDF",
+        kind: "closeout" as const,
+        meta: document.id,
+        accent: "bg-[#64748b]",
+      })),
+    ].filter(Boolean) as EventFileHubItem[];
+
+    return [...invoices, ...floorplans, ...uploaded, ...contracts, ...generated];
+  }, [billingStatements, briefing, checks, documents, drafts, event, postEventDocuments, quoteRequests]);
+
+  const filteredItems = items.filter((item) => {
+    const haystack = `${item.title} ${item.category} ${item.owner} ${item.status}`.toLowerCase();
+    return haystack.includes(query.trim().toLowerCase());
+  });
+  const selected = filteredItems.find((item) => item.id === selectedId) ?? filteredItems[0] ?? items[0];
+
+  useEffect(() => {
+    if (!selected && selectedId) setSelectedId(null);
+    if (selected && selected.id !== selectedId && !filteredItems.some((item) => item.id === selectedId)) {
+      setSelectedId(selected.id);
+    }
+  }, [filteredItems, selected, selectedId]);
+
+  function openSelected() {
+    if (!selected) return;
+    if (selected.kind === "floorplan") onOpenFloorplans();
+    else if (selected.kind === "briefing") onOpenBriefing();
+    else if (selected.kind === "contract") onOpenSuppliers();
+    else if (selected.kind === "invoice") onOpenBilling();
+    else if (selected.kind === "closeout") onOpenClosure();
+  }
+
+  if (!items.length) {
+    return <EmptyState icon={FileText} title="No files yet" description="Documents will appear after briefing, floorplan, supplier, billing, or closeout records are created." />;
+  }
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      <div className="grid min-h-[760px] lg:grid-cols-[25rem_minmax(0,1fr)]">
+        <aside className="min-w-0 border-b border-border bg-card lg:border-b-0 lg:border-r">
+          <div className="border-b border-border px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-black text-foreground">{filteredItems.length} results</p>
+              <div className="flex rounded-md border border-border bg-background p-0.5">
+                <button type="button" data-active={view === "grid"} onClick={() => setView("grid")} className="grid size-7 place-items-center rounded-sm text-muted-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary" aria-label="Grid view">
+                  <Grid2X2 className="size-3.5" />
+                </button>
+                <button type="button" data-active={view === "list"} onClick={() => setView("list")} className="grid size-7 place-items-center rounded-sm text-muted-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary" aria-label="List view">
+                  <List className="size-3.5" />
+                </button>
+              </div>
+            </div>
+            <label className="relative mt-3 block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary" placeholder="Search event files..." />
+            </label>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-black text-background"><Share2 className="size-3.5" /> Share Selected</button>
+              <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Download className="size-3.5" /> Download</button>
+              <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Eye className="size-3.5" /> Open</button>
+              <button type="button" className="grid size-8 place-items-center rounded-md border border-border bg-background text-muted-foreground" aria-label="More file actions"><MoreHorizontal className="size-3.5" /></button>
+            </div>
+          </div>
+
+          <div className="px-4 py-4">
+            <p className="mb-3 text-xs font-black text-foreground">Relevance</p>
+            <div className={view === "grid" ? "grid grid-cols-2 gap-3" : "space-y-2"}>
+              {filteredItems.map((item) => {
+                const active = item.id === selected?.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    data-active={active}
+                    onClick={() => setSelectedId(item.id)}
+                    className={view === "grid" ? "group min-w-0 rounded-lg border border-transparent bg-background p-2 text-left transition hover:border-primary/20 data-[active=true]:border-primary data-[active=true]:bg-primary/5" : "group flex w-full min-w-0 items-center gap-3 rounded-lg border border-transparent bg-background p-2 text-left transition hover:border-primary/20 data-[active=true]:border-primary data-[active=true]:bg-primary/5"}
+                  >
+                    {view === "grid" ? (
+                      <EventFileThumbnail item={item} active={active} />
+                    ) : (
+                      <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-white text-[10px] font-black text-primary">{item.extension}</span>
+                    )}
+                    <span className={view === "grid" ? "mt-2 block min-w-0" : "block min-w-0 flex-1"}>
+                      <span className="block truncate text-sm font-black text-foreground">{item.title}</span>
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">{item.extension} - {item.owner}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+
+        {selected ? (
+          <div className="min-w-0 bg-background">
+            <div className="border-b border-border bg-card">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div className="min-w-0">
+                  <p className="truncate text-base font-black text-foreground">{selected.title}</p>
+                  <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{selected.extension} - {selected.category} - {selected.date}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground">Share</button>
+                  <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground">Open</button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 border-t border-border px-5 py-3">
+                <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Pencil className="size-3.5" /> Edit PDF</button>
+                <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Download className="size-3.5" /> Download</button>
+                <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><FileSignature className="size-3.5" /> Self-Sign</button>
+                <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><MessageSquareText className="size-3.5" /> Comment</button>
+                <button type="button" className="grid size-8 place-items-center rounded-md border border-border bg-background text-muted-foreground" aria-label="More preview actions"><MoreHorizontal className="size-3.5" /></button>
+                <button type="button" className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-3 text-xs font-black text-primary"><Upload className="size-3.5" /> Upload new version</button>
+              </div>
+            </div>
+            <EventFilePreview event={event} item={selected} />
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function EventCalendarWorkspace({
+  events,
+  selectedEventId,
+  onOpenEvent,
+}: {
+  events: MvpEvent[];
+  selectedEventId?: string | null;
+  onOpenEvent: (id: string) => void;
+}) {
+  const sortedEvents = [...events].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  const upcoming = sortedEvents.filter((event) => new Date(event.eventDate).getTime() >= Date.now()).slice(0, 6);
+  const monthLabel = new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const calendarDays = Array.from({ length: 35 }, (_, index) => index + 1);
+  const eventDaySet = new Set(
+    events
+      .map((event) => new Date(event.eventDate))
+      .filter((date) => !Number.isNaN(date.getTime()))
+      .map((date) => date.getDate()),
+  );
+
+  return (
+    <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <SectionAccent>PMCM calendar</SectionAccent>
+              <h2 className="mt-1 text-base font-black text-foreground">{monthLabel}</h2>
+            </div>
+            <StatusBadge status={`${events.length} events`} />
+          </div>
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-7 gap-2 text-center text-xs font-black text-muted-foreground">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}
+          </div>
+          <div className="mt-3 grid grid-cols-7 gap-2">
+            {calendarDays.map((day) => (
+              <div
+                key={day}
+                className="flex aspect-square min-h-16 flex-col justify-between rounded-md border border-border bg-background p-2 text-left"
+              >
+                <span className="text-xs font-black text-foreground">{day}</span>
+                {eventDaySet.has(day) ? <span className="h-1.5 w-8 rounded-full bg-primary" /> : null}
+              </div>
+            ))}
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-sm font-black text-foreground">Upcoming schedule</h2>
+        </CardHeader>
+        <div className="divide-y divide-border">
+          {(upcoming.length ? upcoming : sortedEvents).slice(0, 6).map((event) => (
+            <button
+              key={event.id}
+              type="button"
+              onClick={() => onOpenEvent(event.id)}
+              data-active={event.id === selectedEventId}
+              className="flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-muted/30 data-[active=true]:bg-primary/5"
+            >
+              <span className="grid size-11 shrink-0 place-items-center rounded-md bg-primary/10 text-xs font-black text-primary">
+                {shortDate(event.eventDate).split(" ").slice(0, 2).join(" ")}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-black text-foreground">{event.eventName}</span>
+                <span className="mt-1 block truncate text-xs text-muted-foreground">{event.clientName}</span>
+                <span className="mt-2 inline-flex"><StatusBadge status={event.status} /></span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+function EventTasksWorkspace({
+  unreviewedInquiries,
+  pendingApprovals,
+  selectedEvent,
+  defenseReadiness,
+  draftsCount,
+  quoteCount,
+  paymentCount,
+  openCheckCount,
+  onNavigateSection,
+  onNavigateEventTab,
+}: {
+  unreviewedInquiries: number;
+  pendingApprovals: MvpApprovalRequest[];
+  selectedEvent?: MvpEvent;
+  defenseReadiness: MvpDefenseReadiness | null;
+  draftsCount: number;
+  quoteCount: number;
+  paymentCount: number;
+  openCheckCount: number;
+  onNavigateSection: (section: DashboardSection) => void;
+  onNavigateEventTab: (tab: DetailTab) => void;
+}) {
+  const tasks = [
+    {
+      id: "inquiries",
+      label: "Review client inquiries",
+      detail: `${unreviewedInquiries} inquiry item(s) need PMCM review.`,
+      count: unreviewedInquiries,
+      action: () => onNavigateSection("inquiries"),
+    },
+    {
+      id: "approvals",
+      label: "Approve portal accounts",
+      detail: `${pendingApprovals.length} pending access request(s).`,
+      count: pendingApprovals.length,
+      action: () => onNavigateSection("clients"),
+    },
+    {
+      id: "floorplans",
+      label: "Check floorplan drafts",
+      detail: selectedEvent ? `${draftsCount} draft(s) for ${selectedEvent.eventName}.` : "Select an event workspace.",
+      count: draftsCount,
+      action: () => onNavigateEventTab("floorplans"),
+    },
+    {
+      id: "suppliers",
+      label: "Review supplier coverage",
+      detail: selectedEvent ? `${quoteCount} supplier quote(s) linked to the event.` : "Select an event workspace.",
+      count: quoteCount,
+      action: () => onNavigateEventTab("suppliers"),
+    },
+    {
+      id: "billing",
+      label: "Check billing milestones",
+      detail: selectedEvent ? `${paymentCount} payment milestone(s) to monitor.` : "Select an event workspace.",
+      count: paymentCount,
+      action: () => onNavigateEventTab("billing"),
+    },
+    {
+      id: "closure",
+      label: "Resolve closeout gates",
+      detail: selectedEvent ? `${openCheckCount} open closeout check(s).` : "Select an event workspace.",
+      count: openCheckCount,
+      action: () => onNavigateEventTab("closure"),
+    },
+  ];
+  const nextActions = defenseReadiness?.nextActions ?? [];
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="size-4 text-(--prism-signal)" />
+            <h2 className="text-sm font-black text-foreground">Task queue</h2>
+          </div>
+        </CardHeader>
+        <div className="divide-y divide-border">
+          {tasks.map((task) => (
+            <button key={task.id} type="button" onClick={task.action} className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition hover:bg-muted/30">
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-foreground">{task.label}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{task.detail}</span>
+              </span>
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-black text-primary">{task.count}</span>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-sm font-black text-foreground">Defense next actions</h2>
+        </CardHeader>
+        <CardBody className="space-y-3">
+          {nextActions.length ? nextActions.slice(0, 5).map((action) => (
+            <div key={action.key} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+              <p className="text-xs font-black text-foreground">{action.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>
+            </div>
+          )) : (
+            <EmptyState icon={CheckCircle2} title="No defense blockers" description="The selected event has no current defense-readiness action items." />
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+function EventSettingsWorkspace({ session, selectedEvent }: { session: EventSession; selectedEvent?: MvpEvent }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      {[
+        { label: "Signed in as", value: session.name, detail: lbl(session.role) },
+        { label: "Default workspace", value: selectedEvent?.eventName ?? "No event selected", detail: selectedEvent?.clientName ?? "Pick an event from Events." },
+        { label: "Notifications", value: "Email + Viber", detail: "Production adapters are still gated by notification infrastructure." },
+      ].map((item) => (
+        <Card key={item.label}>
+          <CardBody>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{item.label}</p>
+            <p className="mt-2 text-lg font-black text-foreground">{item.value}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
+          </CardBody>
+        </Card>
+      ))}
+      <Card className="lg:col-span-3">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Settings className="size-4 text-(--prism-signal)" />
+            <h2 className="text-sm font-black text-foreground">Workspace controls</h2>
+          </div>
+        </CardHeader>
+        <CardBody className="grid gap-3 md:grid-cols-3">
+          {["Role-safe access", "Audit logging", "Client portal gating"].map((item) => (
+            <div key={item} className="rounded-md border border-border bg-muted/20 px-4 py-3">
+              <p className="text-sm font-black text-foreground">{item}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Managed by PMCM event command policy.</p>
+            </div>
+          ))}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
 function CommandStat({
   label,
   value,
@@ -1068,7 +1749,7 @@ function CommandHomePage({
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button
                   className="rounded-lg bg-white font-bold text-(--prism-signal) hover:bg-white/90"
-                  onClick={() => onNavigateSection("events")}
+                  onClick={() => onNavigateSection("events-list")}
                 >
                   <CalendarDays className="size-4" /> View events
                 </Button>
@@ -1076,7 +1757,7 @@ function CommandHomePage({
                   <Button
                     variant="ghost"
                     className="rounded-lg font-semibold text-white hover:bg-white/15 hover:text-white"
-                    onClick={() => onNavigateSection("events")}
+                    onClick={() => onNavigateSection("inquiries")}
                   >
                     Review {unreviewedInquiries} inquiry{unreviewedInquiries === 1 ? "" : "s"}
                   </Button>
@@ -1105,14 +1786,14 @@ function CommandHomePage({
           value={events.length}
           icon={CalendarDays}
           accent="text-(--prism-signal)"
-          onClick={() => onNavigateSection("events")}
+          onClick={() => onNavigateSection("events-list")}
         />
         <CommandStat
           label="Pending inquiries"
           value={unreviewedInquiries}
           icon={FileCheck2}
           accent="text-(--prism-amber)"
-          onClick={() => onNavigateSection("events")}
+          onClick={() => onNavigateSection("inquiries")}
         />
         <CommandStat
           label="Pending approvals"
@@ -1366,6 +2047,8 @@ export default function EventDashboard({
   const payments = (state?.paymentMilestones ?? []).filter((item) => item.eventId === selectedEvent?.id);
   const billingSources = (state?.billingSources ?? []).filter((item) => item.eventId === selectedEvent?.id);
   const billingStatements = (state?.billingStatements ?? []).filter((item) => item.eventId === selectedEvent?.id);
+  const documents = (state?.documents ?? []).filter((item) => item.eventId === selectedEvent?.id);
+  const postEventDocuments = (state?.postEventDocuments ?? []).filter((item) => item.eventId === selectedEvent?.id);
   const eventInsights = (state?.eventInsights ?? []).filter((item) => item.eventId === selectedEvent?.id);
   const notificationLogs = (state?.notificationLogs ?? [])
     .filter((item) => !item.eventId || item.eventId === selectedEvent?.id)
@@ -1379,9 +2062,19 @@ export default function EventDashboard({
   useEffect(() => {
     if (!session || screen.name !== "portal") return;
 
+    router.prefetch("/dashboard");
+    router.prefetch("/dashboard/inquiries");
     router.prefetch("/dashboard/events");
+    router.prefetch("/dashboard/clients");
+    router.prefetch("/dashboard/calendar");
+    router.prefetch("/dashboard/tasks");
+    router.prefetch("/dashboard/team");
     router.prefetch("/dashboard/suppliers");
+    router.prefetch("/dashboard/files");
+    router.prefetch("/dashboard/messages");
+    router.prefetch("/dashboard/finance");
     router.prefetch("/dashboard/audit");
+    router.prefetch("/dashboard/settings");
 
     const eventId = routeState.eventId ?? selectedEvent?.id ?? selectedEventId;
     if (!eventId) return;
@@ -1515,20 +2208,34 @@ export default function EventDashboard({
   function navigateSection(nextSection: DashboardSection, options: { preserveSidebarActive?: boolean } = {}) {
     if (!options.preserveSidebarActive) setSidebarActiveOverride(null);
     setSection(nextSection);
+    if (nextSection === "clients") { router.push("/dashboard/clients"); return; }
+    if (nextSection === "calendar") { router.push("/dashboard/calendar"); return; }
+    if (nextSection === "tasks") { router.push("/dashboard/tasks"); return; }
+    if (nextSection === "team") { router.push("/dashboard/team"); return; }
     if (nextSection === "suppliers") { router.push("/dashboard/suppliers"); return; }
+    if (nextSection === "files") { router.push("/dashboard/files"); return; }
+    if (nextSection === "messages") { router.push("/dashboard/messages"); return; }
+    if (nextSection === "finance") { router.push("/dashboard/finance"); return; }
     if (nextSection === "audit") { router.push("/dashboard/audit"); return; }
-    if (nextSection === "inquiries") { router.push("/dashboard/events"); return; }
+    if (nextSection === "settings") { router.push("/dashboard/settings"); return; }
+    if (nextSection === "inquiries") { router.push("/dashboard/inquiries"); return; }
     if (nextSection === "events-list") { router.push("/dashboard/events"); return; }
-    const targetId = selectedEvent?.id ?? selectedEventId;
-    router.push(targetId ? eventRoute(targetId, tab) : "/dashboard/events");
+    router.push("/dashboard");
   }
 
   function handleSidebarNav(id: string) {
     setSidebarActiveOverride(id);
     switch (id) {
-      case "command-home": router.push("/dashboard/events"); setSection("events"); return;
+      case "command-home": router.push("/dashboard"); setSection("events"); return;
       case "command-inquiries": navigateSection("inquiries", { preserveSidebarActive: true }); return;
       case "command-events": navigateSection("events-list", { preserveSidebarActive: true }); return;
+      case "client-desk": navigateSection("clients", { preserveSidebarActive: true }); return;
+      case "calendar-desk": navigateSection("calendar", { preserveSidebarActive: true }); return;
+      case "task-desk": navigateSection("tasks", { preserveSidebarActive: true }); return;
+      case "team-desk": navigateSection("team", { preserveSidebarActive: true }); return;
+      case "file-hub": navigateSection("files", { preserveSidebarActive: true }); return;
+      case "command-messages": navigateSection("messages", { preserveSidebarActive: true }); return;
+      case "finance-desk": navigateSection("finance", { preserveSidebarActive: true }); return;
       case "event-overview": navigateEventTab("overview", { preserveSidebarActive: true }); return;
       case "event-briefing": navigateEventTab("briefing", { preserveSidebarActive: true }); return;
       case "event-floorplans": navigateEventTab("floorplans", { preserveSidebarActive: true }); return;
@@ -1540,6 +2247,7 @@ export default function EventDashboard({
       case "event-closure": navigateEventTab("closure", { preserveSidebarActive: true }); return;
       case "supplier-directory": navigateSection("suppliers", { preserveSidebarActive: true }); return;
       case "audit-log": navigateSection("audit", { preserveSidebarActive: true }); return;
+      case "settings": navigateSection("settings", { preserveSidebarActive: true }); return;
     }
   }
 
@@ -1634,6 +2342,26 @@ export default function EventDashboard({
         ? "Supplier Directory"
         : routeState.section === "audit"
           ? "Audit Trail"
+          : routeState.section === "clients"
+            ? "Client Desk"
+          : routeState.section === "calendar"
+            ? "Calendar"
+          : routeState.section === "tasks"
+            ? "Tasks"
+          : routeState.section === "team"
+            ? "Team & Coordinators"
+          : routeState.section === "files"
+            ? "Event File Hub"
+          : routeState.section === "messages"
+            ? "Event Messages"
+          : routeState.section === "finance"
+            ? "Finance Desk"
+          : routeState.section === "inquiries"
+            ? "Inquiry Intake"
+          : routeState.section === "events-list"
+            ? "All Events"
+          : routeState.section === "settings"
+            ? "Settings"
           : routeState.eventId
             ? "Event workspace"
             : "Event Manager";
@@ -1642,6 +2370,26 @@ export default function EventDashboard({
         ? "Supplier directory"
         : routeState.section === "audit"
           ? "Audit log"
+          : routeState.section === "clients"
+            ? "Clients"
+          : routeState.section === "calendar"
+            ? "Calendar"
+          : routeState.section === "tasks"
+            ? "Tasks"
+          : routeState.section === "team"
+            ? "Team"
+          : routeState.section === "files"
+            ? "Files"
+          : routeState.section === "messages"
+            ? "Messages"
+          : routeState.section === "finance"
+            ? "Finance"
+          : routeState.section === "inquiries"
+            ? "Inquiries"
+          : routeState.section === "events-list"
+            ? "Events"
+          : routeState.section === "settings"
+            ? "Settings"
           : routeState.eventId
             ? "Event workspace"
             : "Command home";
@@ -1677,6 +2425,14 @@ export default function EventDashboard({
   const activeSidebarItemId =
     section === "suppliers" ? "supplier-directory"
     : section === "audit" ? "audit-log"
+    : section === "clients" ? "client-desk"
+    : section === "calendar" ? "calendar-desk"
+    : section === "tasks" ? "task-desk"
+    : section === "team" ? "team-desk"
+    : section === "files" ? "file-hub"
+    : section === "messages" ? "command-messages"
+    : section === "finance" ? "finance-desk"
+    : section === "settings" ? "settings"
     : section === "inquiries" ? "command-inquiries"
     : section === "events-list" ? "command-events"
     : routeState.eventId
@@ -1694,9 +2450,19 @@ export default function EventDashboard({
       : "command-home";
 
   const shellNavItems = [
-    { id: "command-home", icon: Home, label: "Home", section: "Command" },
-    { id: "command-inquiries", icon: FileCheck2, label: "Inquiries", section: "Command", badge: unreviewedInquiries || undefined },
+    { id: "command-home", icon: Home, label: "Dashboard", section: "Command" },
+    { id: "client-desk", icon: CircleUserRound, label: "Clients", section: "Directories", badge: state.inquiries.length || undefined },
     { id: "command-events", icon: CalendarDays, label: "Events", section: "Command" },
+    { id: "calendar-desk", icon: CalendarClock, label: "Calendar", section: "Command" },
+    { id: "task-desk", icon: ClipboardCheck, label: "Tasks", section: "Command", badge: openActionCount || undefined },
+    { id: "file-hub", icon: FileText, label: "Files", section: "Operations", disabled: eventWorkspaceDisabled },
+    { id: "team-desk", icon: UsersRound, label: "Team", section: "Directories", badge: coordinators.length || undefined },
+    { id: "command-messages", icon: MessageSquareText, label: "Message", section: "Operations", disabled: eventWorkspaceDisabled },
+    { id: "audit-log", icon: ShieldCheck, label: "Reports", section: "Admin" },
+    { id: "settings", icon: Settings, label: "Settings", section: "Admin" },
+    { id: "command-inquiries", icon: FileCheck2, label: "Inquiries", section: "Command", badge: unreviewedInquiries || undefined },
+    { id: "supplier-directory", icon: Tags, label: "Suppliers", section: "Directories" },
+    { id: "finance-desk", icon: ReceiptText, label: "Finance", section: "Operations", badge: payments.length || undefined, disabled: eventWorkspaceDisabled },
     { id: "event-overview", icon: LayoutGrid, label: "Overview", section: "Event Workspace", disabled: eventWorkspaceDisabled },
     { id: "event-briefing", icon: FileCheck2, label: "Briefing", section: "Event Workspace", disabled: eventWorkspaceDisabled },
     { id: "event-floorplans", icon: MapPinned, label: "Floor Plans", section: "Event Workspace", badge: drafts.length || undefined, disabled: eventWorkspaceDisabled },
@@ -1706,14 +2472,20 @@ export default function EventDashboard({
     { id: "event-billing", icon: ReceiptText, label: "Billing", section: "Event Workspace", badge: payments.length || undefined, disabled: eventWorkspaceDisabled },
     { id: "event-messages", icon: MessageSquareText, label: "Messages", section: "Event Workspace", disabled: eventWorkspaceDisabled },
     { id: "event-closure", icon: Archive, label: "Closure", section: "Event Workspace", badge: openCheckCount || undefined, disabled: eventWorkspaceDisabled },
-    { id: "supplier-directory", icon: Tags, label: "Supplier Directory", section: "Operations" },
-    { id: "audit-log", icon: ShieldCheck, label: "Audit Log", section: "Admin" },
   ];
 
   /* Section routing flags */
   const isHome = section === "events" && !routeState.eventId;
   const isEventsList = section === "events-list";
   const isInquiries = section === "inquiries";
+  const isClients = section === "clients";
+  const isCalendar = section === "calendar";
+  const isTasks = section === "tasks";
+  const isTeam = section === "team";
+  const isFiles = section === "files";
+  const isMessages = section === "messages";
+  const isFinance = section === "finance";
+  const isSettings = section === "settings";
 
   return (
     <PrismDashboardShell
@@ -1722,6 +2494,14 @@ export default function EventDashboard({
       eyebrow={
         section === "suppliers" ? "Supplier directory"
         : section === "audit" ? "Audit log"
+        : isClients ? "Clients"
+        : isCalendar ? "Calendar"
+        : isTasks ? "Tasks"
+        : isTeam ? "Team"
+        : isFiles ? "Files"
+        : isMessages ? "Messages"
+        : isFinance ? "Finance"
+        : isSettings ? "Settings"
         : isInquiries ? "Inquiries"
         : isEventsList ? "Events"
         : isHome ? "Command home"
@@ -1730,6 +2510,14 @@ export default function EventDashboard({
       title={
         section === "suppliers" ? "Supplier Directory"
         : section === "audit" ? "Audit Trail"
+        : isClients ? "Client Desk"
+        : isCalendar ? "Calendar"
+        : isTasks ? "Task Queue"
+        : isTeam ? "Team & Coordinators"
+        : isFiles ? "Event File Hub"
+        : isMessages ? "Event Messages"
+        : isFinance ? "Finance Desk"
+        : isSettings ? "Settings"
         : isInquiries ? "Inquiry Intake"
         : isEventsList ? "All Events"
         : selectedEvent?.eventName ?? "Event Manager"
@@ -1737,6 +2525,14 @@ export default function EventDashboard({
       description={
         section === "suppliers" ? "Master supplier directory with category tagging, tiering, and performance reviews."
         : section === "audit" ? "Complete audit trail of all actions, approvals, and system events."
+        : isClients ? "Client intake, conforme status, approval requests, and portal readiness."
+        : isCalendar ? "Event dates, planning windows, supplier deadlines, and onsite schedule checkpoints."
+        : isTasks ? "PMCM actions across inquiries, approvals, planning, finance, live operations, and closure."
+        : isTeam ? "Coordinator roster, assignment coverage, availability, and event-day staffing."
+        : isFiles ? "Operational documents, official floorplans, billing statements, contracts, and closeout records."
+        : isMessages ? "Client, supplier, coordinator, and internal PMCM communication threads."
+        : isFinance ? "Billing statements, payment milestones, balances, and statement delivery."
+        : isSettings ? "Workspace preferences, account context, notification defaults, and role-safe system controls."
         : isInquiries ? "Review, accept, pend, or decline incoming event inquiries."
         : isEventsList ? "Confirmed event workspaces ready for planning and operations."
         : isHome ? "Active event workspaces, inquiry intake, and client onboarding."
@@ -1757,7 +2553,143 @@ export default function EventDashboard({
           </Alert>
         )}
 
-        {section === "suppliers" ? (
+        {isCalendar ? (
+          <EventCalendarWorkspace
+            events={events}
+            selectedEventId={selectedEvent?.id}
+            onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
+          />
+        ) : isTasks ? (
+          <EventTasksWorkspace
+            unreviewedInquiries={unreviewedInquiries}
+            pendingApprovals={pendingApprovals}
+            selectedEvent={selectedEvent}
+            defenseReadiness={defenseReadiness}
+            draftsCount={drafts.length}
+            quoteCount={quotes.length}
+            paymentCount={payments.length}
+            openCheckCount={openCheckCount}
+            onNavigateSection={navigateSection}
+            onNavigateEventTab={(nextTab) => navigateEventTab(nextTab)}
+          />
+        ) : isSettings ? (
+          <EventSettingsWorkspace session={session} selectedEvent={selectedEvent} />
+        ) : isClients ? (
+          <>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CircleUserRound className="size-4 text-(--prism-signal)" />
+                  <h2 className="text-sm font-bold text-foreground">Client pipeline</h2>
+                </div>
+              </CardHeader>
+              <CardBody className="grid gap-3 sm:grid-cols-3">
+                {[
+                  { label: "Total inquiries", value: state.inquiries.length, tone: "text-(--prism-signal)" },
+                  { label: "Need review", value: unreviewedInquiries, tone: "text-(--prism-amber)" },
+                  { label: "Pending accounts", value: pendingApprovals.length, tone: "text-(--prism-success)" },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+                    <p className={`text-2xl font-black ${item.tone}`}>{item.value}</p>
+                    <p className="mt-1 text-xs font-bold text-muted-foreground">{item.label}</p>
+                  </div>
+                ))}
+              </CardBody>
+            </Card>
+            <InquiryIntakeLog
+              inquiries={state.inquiries}
+              onAccept={(inq) => run("accept inquiry", () => mvpApi.acceptInquiry(inq.id))}
+              onPend={(inq) => run("pend inquiry", () => mvpApi.pendInquiry(inq.id))}
+              onDecline={(inq, reason) => run("decline inquiry", () => mvpApi.declineInquiry(inq.id, reason))}
+              busy={Boolean(busy)}
+            />
+            <ClientOnboardingTracker
+              inquiries={state.inquiries}
+              onUploadConforme={(inq) => run("upload conforme", () => mvpApi.uploadConforme(inq.id))}
+              onSendReminder={(inq) => run("conforme reminder", () => mvpApi.sendConformeReminder(inq.id))}
+              busy={Boolean(busy)}
+            />
+          </>
+        ) : isTeam ? (
+          selectedEvent ? (
+            <CoordinatorAssignmentDesk
+              event={selectedEvent}
+              coordinators={coordinators}
+              assignments={state.coordinatorAssignments}
+              roleRequirements={coordinatorRoleRequirements}
+              busy={Boolean(busy)}
+              onAssign={(coordinator, role, override) => run("coordinator assignment", () =>
+                mvpApi.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
+              )}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <UsersRound className="size-4 text-(--prism-signal)" />
+                  <h2 className="text-sm font-bold text-foreground">Coordinator roster</h2>
+                </div>
+              </CardHeader>
+              <div className="divide-y divide-border">
+                {coordinators.map((coordinator) => (
+                  <div key={coordinator.id} className="flex items-start justify-between gap-4 px-6 py-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-foreground">{coordinator.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{coordinator.roleTags.join(", ") || "General coordinator"}</p>
+                    </div>
+                    <StatusBadge status={coordinator.active ? "active" : "inactive"} />
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )
+        ) : isFiles ? (
+          selectedEvent ? (
+            <EventFileHub
+              event={selectedEvent}
+              documents={documents}
+              drafts={drafts}
+              billingStatements={billingStatements}
+              quoteRequests={quoteRequests}
+              briefing={briefing}
+              checks={checks}
+              postEventDocuments={postEventDocuments}
+              onOpenFloorplans={() => navigateEventTab("floorplans")}
+              onOpenBriefing={() => navigateEventTab("briefing")}
+              onOpenSuppliers={() => navigateEventTab("suppliers")}
+              onOpenBilling={() => navigateEventTab("billing")}
+              onOpenClosure={() => navigateEventTab("closure")}
+            />
+          ) : (
+            <EmptyState icon={FileText} title="Select an event" description="Files are organized by event workspace after conforme activation." />
+          )
+        ) : isMessages ? (
+          selectedEvent ? (
+            <EventMessagesWorkspace
+              event={selectedEvent}
+              session={session}
+              audit={audit}
+              notificationLogs={notificationLogs}
+            />
+          ) : (
+            <EmptyState icon={MessageSquareText} title="Select an event" description="Client, supplier, coordinator, and internal threads are event-scoped." />
+          )
+        ) : isFinance ? (
+          selectedEvent ? (
+            <FinancialWorkspace
+              event={selectedEvent}
+              inquiry={selectedInquiry}
+              billingStatements={billingStatements}
+              payments={payments}
+              notificationLogs={notificationLogs}
+              busy={Boolean(busy)}
+              onRecordPayment={(milestoneId, input) => run("record payment", () => mvpApi.recordPayment(selectedEvent.id, milestoneId, input))}
+              onSendBilling={(billingId) => run("send billing", () => mvpApi.sendBillingStatement(selectedEvent.id, billingId))}
+            />
+          ) : (
+            <EmptyState icon={ReceiptText} title="Select an event" description="Finance opens inside a confirmed event so billing can stay tied to proposal and conforme records." />
+          )
+        ) : section === "suppliers" ? (
           <SupplierDirectory
             categories={supplierCategories}
             suppliers={suppliers}

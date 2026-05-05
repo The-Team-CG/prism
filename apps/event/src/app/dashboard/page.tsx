@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
-export default function EventDashboardIndex() {
-  redirect("/dashboard/events");
+export default function EventCommandHomePage() {
+  return null;
 }
