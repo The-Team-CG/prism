@@ -15,7 +15,6 @@ import {
   FileText,
   Home,
   LockKeyhole,
-  LogOut,
   MapPinned,
   MessageSquareText,
   Presentation,
@@ -80,14 +79,13 @@ const EditorShell = dynamic(
 
 type ClientSession = MvpUser & { signedInAt: string };
 type DetailTab = "overview" | "briefing" | "proposal" | "floorplan" | "billing" | "documents" | "activity";
-type ClientSidebarAction = "sign-out";
 type ClientSidebarNavItem = {
   id: string;
   label: string;
   icon: LucideIcon;
   section: string;
   targetTab?: DetailTab;
-  action?: ClientSidebarAction;
+  href?: string;
   requiresEvent?: boolean;
 };
 type Screen =
@@ -125,22 +123,17 @@ const DETAIL_TABS: Array<{ id: DetailTab; label: string; icon: LucideIcon; secti
 ];
 
 const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
-  { id: "overview", label: "Overview", icon: Home, section: "Dashboard", targetTab: "overview" },
-  { id: "action-items", label: "Action Items", icon: ClipboardCheck, section: "Dashboard", targetTab: "overview", requiresEvent: true },
-  { id: "activity", label: "Timeline", icon: Activity, section: "Dashboard", targetTab: "activity", requiresEvent: true },
-  { id: "event-details", label: "Event Details", icon: CalendarDays, section: "Event", targetTab: "overview", requiresEvent: true },
-  { id: "briefing", label: "Briefing", icon: FileCheck2, section: "Event", targetTab: "briefing", requiresEvent: true },
-  { id: "floorplan", label: "Layout Preferences", icon: MapPinned, section: "Event", targetTab: "floorplan", requiresEvent: true },
-  { id: "conforme", label: "Conforme", icon: ShieldCheck, section: "Documents", targetTab: "documents", requiresEvent: true },
-  { id: "proposal", label: "Proposal", icon: Presentation, section: "Documents", targetTab: "proposal", requiresEvent: true },
-  { id: "documents", label: "Files", icon: FileText, section: "Documents", targetTab: "documents", requiresEvent: true },
-  { id: "approvals", label: "Approvals", icon: CheckCircle2, section: "Documents", targetTab: "documents", requiresEvent: true },
-  { id: "billing", label: "Billing", icon: WalletCards, section: "Finance", targetTab: "billing", requiresEvent: true },
-  { id: "payment-status", label: "Payment Status", icon: ReceiptText, section: "Finance", targetTab: "billing", requiresEvent: true },
-  { id: "messages", label: "PMCM Messages", icon: MessageSquareText, section: "Messages", targetTab: "activity", requiresEvent: true },
-  { id: "notifications", label: "Notifications", icon: Bell, section: "Messages", targetTab: "activity", requiresEvent: true },
-  { id: "client-profile", label: "Client Profile", icon: UserRoundCheck, section: "Account", targetTab: "overview" },
-  { id: "sign-out", label: "Sign Out", icon: LogOut, section: "Account", action: "sign-out" },
+  { id: "client-home", label: "Home", icon: Home, section: "Client", targetTab: "overview" },
+  { id: "new-event-request", label: "New Event Request", icon: Send, section: "Client", href: "/inquiry" },
+  { id: "my-events", label: "My Events", icon: CalendarDays, section: "Client", targetTab: "overview" },
+  { id: "event-overview", label: "Overview", icon: Home, section: "Event Workspace", targetTab: "overview", requiresEvent: true },
+  { id: "action-items", label: "Action Items", icon: ClipboardCheck, section: "Event Workspace", targetTab: "overview", requiresEvent: true },
+  { id: "briefing", label: "Briefing", icon: FileCheck2, section: "Event Workspace", targetTab: "briefing", requiresEvent: true },
+  { id: "proposal", label: "Proposal", icon: Presentation, section: "Event Workspace", targetTab: "proposal", requiresEvent: true },
+  { id: "floorplan", label: "Floor Plan", icon: MapPinned, section: "Event Workspace", targetTab: "floorplan", requiresEvent: true },
+  { id: "documents", label: "Documents", icon: FileText, section: "Event Workspace", targetTab: "documents", requiresEvent: true },
+  { id: "billing", label: "Billing", icon: WalletCards, section: "Event Workspace", targetTab: "billing", requiresEvent: true },
+  { id: "messages", label: "Messages", icon: MessageSquareText, section: "Event Workspace", targetTab: "activity", requiresEvent: true },
 ];
 
 function draftIsOfficial(draft: MvpFloorPlanDraft) {
@@ -808,6 +801,7 @@ export function Dashboard() {
     ...item,
     disabled: item.requiresEvent && !selectedEvent,
   }));
+  const activeShellItemId = tab === "overview" ? "event-overview" : tab === "activity" ? "messages" : tab;
 
   const signOut = () => {
     window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
@@ -817,25 +811,14 @@ export function Dashboard() {
   const handleShellNavSelect = (id: string) => {
     const item = CLIENT_SIDEBAR_ITEMS.find((candidate) => candidate.id === id);
     if (!item) return;
-    if (item.action === "sign-out") {
-      signOut();
+    if (item.href) {
+      router.push(item.href);
       return;
     }
     if (item.targetTab) {
       setTab(item.targetTab);
     }
   };
-
-  const shellCommandActions = selectedEvent
-    ? clientActions.slice(0, 4).map((action) => ({
-        id: action.id,
-        label: action.title,
-        description: action.description,
-        icon: action.icon,
-        status: action.status,
-        onSelect: () => runClientAction(action),
-      }))
-    : [];
 
   const shellMobileActions = [
     { id: "overview", label: "Overview", icon: Home, active: tab === "overview", onSelect: () => setTab("overview") },
@@ -970,7 +953,7 @@ export function Dashboard() {
           ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}. Next actions, proposal review, documents, billing, and official layout review stay in this signed-in portal.`
           : "The portal opens after your inquiry is accepted and the signed conforme is recorded."
       }
-      activeItemId={tab}
+      activeItemId={activeShellItemId}
       navItems={shellNavItems}
       onNavSelect={handleShellNavSelect}
       user={{
@@ -979,8 +962,6 @@ export function Dashboard() {
         initials: session.name.slice(0, 2).toUpperCase(),
       }}
       searchPlaceholder="Search proposal, billing, documents..."
-      commandActions={shellCommandActions}
-      commandSectionLabel="Action items"
       headerActions={
         <Button size="sm" variant="outline" className="rounded-md font-bold" onClick={() => void refresh()}>
           Refresh
@@ -988,6 +969,7 @@ export function Dashboard() {
       }
       rightRail={shellRightRail}
       mobileActions={shellMobileActions}
+      onSignOut={signOut}
     >
       <div className="space-y-5">
 
