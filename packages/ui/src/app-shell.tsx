@@ -110,7 +110,7 @@ export function PrismSidebar({
   }, []);
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-card text-foreground">
+    <div className="flex h-full w-full min-w-0 flex-col bg-card text-foreground">
       <PrismBrandLogo
         href={homeHref}
         title={productLabel.endsWith(".") ? productLabel : `${productLabel}.`}
@@ -120,7 +120,7 @@ export function PrismSidebar({
         markClassName="size-9 bg-transparent ring-0"
       />
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-1">
+      <nav className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4 pb-4 pt-1">
         {navGroups.map((group, groupIndex) => (
           <div key={group.section} className={cn("flex flex-col gap-1.5", groupIndex > 0 && "mt-6")}>
             <p className={cn("px-1.5 pb-1 text-[11px] font-black uppercase text-primary", collapsed && "sr-only")}>
@@ -136,7 +136,7 @@ export function PrismSidebar({
                 onClick={() => onNavSelect?.(item.id)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-primary/8 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:font-bold data-[active=true]:text-primary-foreground",
+                  "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:font-bold data-[active=true]:text-primary-foreground",
                   collapsed && "justify-center px-0",
                 )}
               >
@@ -162,13 +162,13 @@ export function PrismSidebar({
                 key={action.id}
                 type="button"
                 onClick={action.onSelect}
-                className="group flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-primary/8 hover:text-primary"
+                className="group flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-semibold text-muted-foreground transition hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground"
               >
                 {action.icon ? <action.icon aria-hidden="true" className="size-3.5 shrink-0" /> : null}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{action.label}</span>
                   {action.description ? (
-                    <span className="block truncate text-[11px] font-medium text-muted-foreground group-hover:text-foreground/75">
+                    <span className="block truncate text-[11px] font-medium text-muted-foreground group-hover:text-primary-foreground/75">
                       {action.description}
                     </span>
                   ) : null}
@@ -280,7 +280,7 @@ export function MobileActionDock({ actions }: { actions: PrismMobileAction[] }) 
             disabled={action.disabled}
             data-active={action.active}
             onClick={action.onSelect}
-            className="flex h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-bold text-muted-foreground transition hover:bg-primary/8 hover:text-primary disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
+            className="flex h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] font-bold text-muted-foreground transition hover:bg-primary hover:text-primary-foreground focus-visible:bg-primary focus-visible:text-primary-foreground active:bg-primary active:text-primary-foreground disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
           >
             <action.icon aria-hidden="true" className="size-5" />
             <span>{action.label}</span>
