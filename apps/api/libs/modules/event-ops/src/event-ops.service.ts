@@ -67,6 +67,7 @@ import {
 } from './ops.constants';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PrivacyOperationsService } from './services/privacy-operations.service';
+import { PAREService } from './services/pare/pare.service';
 
 type CreateInquiryInput = {
   clientName: string;
@@ -707,6 +708,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly suppliersService: SuppliersService;
   private readonly coordinatorsService: CoordinatorsService;
   private readonly liveOperationsService: LiveOperationsService;
+  private readonly pareService: PAREService;
 
   constructor(private readonly prisma: PrismaService) {
     this.auditService = new AuditService(prisma);
@@ -716,6 +718,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.suppliersService = new SuppliersService(prisma);
     this.coordinatorsService = new CoordinatorsService(prisma);
     this.liveOperationsService = new LiveOperationsService();
+    this.pareService = new PAREService(prisma);
   }
 
   private resolveActor(input: DemoActorInput = {}): ResolvedDemoActor {
@@ -3089,6 +3092,40 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       affectedLabel: request.supplierName,
     });
     return this.mapSupplierQuoteRequest(updated);
+  }
+
+  async withdrawSupplier(requestId: string, reason: string, actorInput: DemoActorInput = {}) {
+    const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
+    const updated = await this.prisma.opsSupplierQuoteRequest.update({
+      where: { id: request.id },
+      data: { assignmentStatus: 'withdrawn' },
+    });
+    await this.audit(request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
+      actorRole: actor.role,
+      actorEmail: actor.email,
+      actionType: AuditActionType.Update,
+      category: AuditCategory.Suppliers,
+      affectedType: 'supplier_quote_request',
+      affectedId: request.id,
+      affectedLabel: request.supplierName,
+    });
+    // Fire PARE — non-blocking, errors are logged not thrown
+    this.pareService.handleEmergencyTrigger(request.id).catch((err) => {
+      this.logger.error(`PARE trigger failed for request ${request.id}: ${err?.message}`);
+    });
+    return this.mapSupplierQuoteRequest(updated);
+  }
+
+  async pareGetPendingApprovals(eventId?: string) {
+    return this.pareService.getPendingApprovals(eventId);
+  }
+
+  async pareApprove(approvalRecordId: string, approvedBy: string) {
+    return this.pareService.approveRecommendation(approvalRecordId, approvedBy);
+  }
+
+  async pareReject(approvalRecordId: string, rejectedBy: string) {
+    return this.pareService.rejectRecommendation(approvalRecordId, rejectedBy);
   }
 
   async confirmSupplierReadiness(

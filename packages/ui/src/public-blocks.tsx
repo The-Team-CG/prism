@@ -93,7 +93,7 @@ export function PrismLifecycleStrip({ steps }: { steps: PrismLifecycleStep[] }) 
 }
 
 export function PrismPublicFeatureBand({
-  eyebrow,
+  eyebrow: _eyebrow,
   title,
   description,
   features,
@@ -109,8 +109,7 @@ export function PrismPublicFeatureBand({
     <section className={cn("rounded-lg border p-5 sm:p-6", dark ? "border-white/10 bg-white/8" : "border-primary/12 bg-card/78")}>
       <div className="grid gap-6 lg:grid-cols-[0.72fr_1fr] lg:items-start">
         <div>
-          <p className={cn("text-[10px] font-black uppercase tracking-[0.18em]", dark ? "text-(--prism-amber)" : "text-primary")}>{eyebrow}</p>
-          <h2 className={cn("mt-3 text-3xl font-black leading-tight sm:text-4xl", dark ? "text-sidebar-foreground" : "text-foreground")}>{title}</h2>
+          <h2 className={cn("text-3xl font-black leading-tight sm:text-4xl", dark ? "text-sidebar-foreground" : "text-foreground")}>{title}</h2>
           <p className={cn("mt-3 text-sm leading-6", dark ? "text-sidebar-foreground/70" : "text-muted-foreground")}>{description}</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">

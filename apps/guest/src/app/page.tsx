@@ -8,7 +8,6 @@ import {
   HelpCircle,
   LockKeyhole,
   MessageCircleHeart,
-  PartyPopper,
   QrCode,
   ScanLine,
   ShieldCheck,
@@ -111,7 +110,7 @@ export default function GuestHome() {
                 ["Feedback", "#feedback"],
                 ["Help", "#help"],
               ].map(([label, href]) => (
-                <a key={label} href={href} className={label === "Access" ? "rounded-md border-b-2 border-primary px-2 py-2 text-foreground transition hover:text-primary" : "rounded-md px-2 py-2 transition hover:text-primary"}>{label}</a>
+                <a key={label} href={href} className="rounded-md px-2 py-2 transition hover:text-primary">{label}</a>
               ))}
             </nav>
             <a href="/open" className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-black text-primary-foreground shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
@@ -122,11 +121,7 @@ export default function GuestHome() {
 
           <div className="grid min-h-[calc(100vh-5.5rem)] items-start gap-10 py-14 lg:grid-cols-[0.78fr_1.22fr] xl:py-20">
             <div className="max-w-3xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/8 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-primary">
-                <PartyPopper className="size-4" />
-                Event access made for you
-              </span>
-              <h1 className="mt-7 max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.65rem]">
+              <h1 className="max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.65rem]">
                 Fast event access for check-in, consent, and <span className="text-primary">feedback</span>
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">

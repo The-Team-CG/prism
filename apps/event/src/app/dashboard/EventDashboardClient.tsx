@@ -31,12 +31,10 @@ import {
   Send,
   Settings,
   ShieldCheck,
-  Sparkles,
   Share2,
   Tags,
   Truck,
   Upload,
-  UserCheck,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -59,7 +57,7 @@ import {
   type MvpPostEventDocument,
   type MvpSupplierQuoteRequest,
 } from "@/lib/mvp-api";
-import { PrismDashboardShell, type PrismNavItem, type PrismPrimaryNavItem } from "@prism/ui";
+import { PrismDashboardShell, type PrismNavItem } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -200,8 +198,8 @@ const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
   overview: "event-overview",
   "planning-checklist": "event-planning",
   briefing: "event-planning",
-  schedule: "event-schedule",
-  attendees: "event-attendees",
+  schedule: "event-timeline",
+  attendees: "event-timeline",
   staff: "event-staff",
   coordinators: "event-staff",
   suppliers: "event-suppliers",
@@ -304,6 +302,19 @@ const SECTION_ROUTE_ITEMS: Record<string, Record<string, string>> = {
 };
 
 const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
+  dashboard: "/dashboard",
+  inquiries: "/dashboard/inquiries",
+  clients: "/dashboard/clients",
+  "events-list": "/dashboard/events",
+  calendar: "/dashboard/calendar",
+  tasks: "/dashboard/tasks",
+  messages: "/dashboard/messages",
+  files: "/dashboard/files",
+  team: "/dashboard/team",
+  suppliers: "/dashboard/suppliers",
+  finance: "/dashboard/finance",
+  audit: "/dashboard/audit",
+  settings: "/dashboard/settings",
   "dashboard-overview": "/dashboard",
   "dashboard-upcoming": "/dashboard/upcoming-events",
   "dashboard-pending": "/dashboard/pending-tasks",
@@ -405,16 +416,16 @@ const CLIENT_DETAIL_ROUTES: Record<string, string> = {
 
 const EVENT_DETAIL_ROUTES: Record<string, string> = {
   "event-overview": "overview",
-  "event-planning": "planning-checklist",
-  "event-schedule": "schedule",
-  "event-attendees": "attendees",
-  "event-staff": "staff",
+  "event-planning": "briefing",
+  "event-schedule": "live-ops",
+  "event-attendees": "live-ops",
+  "event-staff": "coordinators",
   "event-suppliers": "suppliers",
-  "event-budget": "budget",
-  "event-files": "files",
-  "event-messages": "messages",
-  "event-timeline": "timeline",
-  "event-report": "post-event-report",
+  "event-budget": "billing",
+  "event-files": "floorplans",
+  "event-messages": "activity",
+  "event-timeline": "live-ops",
+  "event-report": "closure",
 };
 
 function routeStateFromPath(pathname: string): RouteState {
@@ -845,115 +856,72 @@ function eventDashboardSkeletonVariant(routeState: RouteState): EventDashboardSk
 }
 
 function activeSidebarItemFromRoute(routeState: RouteState) {
-  if (routeState.section === "dashboard") return DASHBOARD_ROUTE_ITEMS[routeState.view ?? "overview"] ?? "dashboard-overview";
-  if (routeState.section === "suppliers") return SECTION_ROUTE_ITEMS.suppliers[routeState.view ?? "all"] ?? "suppliers-all";
-  if (routeState.section === "audit") return "settings-system-logs";
-  if (routeState.section === "clients") {
-    return routeState.clientId
-      ? CLIENT_DETAIL_ROUTE_ITEMS[routeState.view ?? "overview"] ?? "client-overview"
-      : CLIENT_LIST_ROUTE_ITEMS[routeState.view ?? "all"] ?? "clients-all";
-  }
-  if (routeState.section === "calendar") return SECTION_ROUTE_ITEMS.calendar[routeState.view ?? "all"] ?? "calendar-all";
-  if (routeState.section === "tasks") return SECTION_ROUTE_ITEMS.tasks[routeState.view ?? "mine"] ?? "tasks-my";
-  if (routeState.section === "team") return SECTION_ROUTE_ITEMS.team[routeState.view ?? "all"] ?? "team-all";
-  if (routeState.section === "files") return SECTION_ROUTE_ITEMS.files[routeState.view ?? "all"] ?? "files-all";
-  if (routeState.section === "messages") return SECTION_ROUTE_ITEMS.messages[routeState.view ?? "inbox"] ?? "messages-inbox";
-  if (routeState.section === "finance") return SECTION_ROUTE_ITEMS.finance[routeState.view ?? "overview"] ?? "finance-overview";
-  if (routeState.section === "settings") return SECTION_ROUTE_ITEMS.settings[routeState.view ?? "organization-profile"] ?? "settings-organization";
-  if (routeState.section === "inquiries") return "clients-prospects";
-  if (routeState.section === "events-list") return EVENT_LIST_ROUTE_ITEMS[routeState.view ?? "all"] ?? "events-all";
-  if (!routeState.eventId) return "dashboard-overview";
+  if (routeState.section === "dashboard") return "dashboard";
+  if (routeState.section === "suppliers") return "suppliers";
+  if (routeState.section === "audit") return "settings";
+  if (routeState.section === "clients") return "clients";
+  if (routeState.section === "calendar") return "calendar";
+  if (routeState.section === "tasks") return "tasks";
+  if (routeState.section === "team") return routeState.eventId ? "event-staff" : "dashboard";
+  if (routeState.section === "files") return routeState.eventId ? "event-files" : "dashboard";
+  if (routeState.section === "messages") return routeState.eventId ? "event-messages" : "dashboard";
+  if (routeState.section === "finance") return routeState.eventId ? "event-budget" : "dashboard";
+  if (routeState.section === "settings") return "settings";
+  if (routeState.section === "inquiries") return "inquiries";
+  if (routeState.section === "events-list") return "events-list";
+  if (!routeState.eventId) return "dashboard";
 
   return EVENT_WORKSPACE_ROUTE_ITEMS[routeState.view ?? "overview"] ?? EVENT_WORKSPACE_ROUTE_ITEMS[EVENT_TAB_ROUTES[routeState.tab]] ?? "event-overview";
 }
 
 function loadingShellNavItems(hasEvent: boolean): PrismNavItem[] {
+  return eventPortalNavItems({ hasEvent });
+}
+
+function eventPortalNavItems({
+  hasEvent,
+  eventName,
+  inquiryCount,
+  taskCount,
+  assignmentCount,
+  quoteCount,
+  draftCount,
+  paymentCount,
+  closeoutCount,
+}: {
+  hasEvent: boolean;
+  eventName?: string;
+  inquiryCount?: number;
+  taskCount?: number;
+  assignmentCount?: number;
+  quoteCount?: number;
+  draftCount?: number;
+  paymentCount?: number;
+  closeoutCount?: number;
+}): PrismNavItem[] {
+  const eventSection = eventName ? "Current event" : "Event workspace";
   return [
-    { id: "dashboard-overview", icon: Home, label: "Overview", section: "Dashboard", groupId: "main-dashboard" },
-    { id: "dashboard-upcoming", icon: CalendarDays, label: "Upcoming Events", section: "Dashboard", groupId: "main-dashboard" },
-    { id: "dashboard-pending", icon: ClipboardCheck, label: "Pending Tasks", section: "Dashboard", groupId: "main-dashboard" },
-    { id: "dashboard-messages", icon: MessageSquareText, label: "Recent Messages", section: "Dashboard", groupId: "main-dashboard" },
-    { id: "dashboard-finance", icon: ReceiptText, label: "Financial Summary", section: "Dashboard", groupId: "main-dashboard" },
-    { id: "clients-all", icon: CircleUserRound, label: "All Clients", section: "Clients", groupId: "main-clients" },
-    { id: "clients-active", icon: CheckCircle2, label: "Active Clients", section: "Clients", groupId: "main-clients" },
-    { id: "clients-prospects", icon: FileCheck2, label: "Prospects / Leads", section: "Clients", groupId: "main-clients" },
-    { id: "clients-past", icon: Archive, label: "Past Clients", section: "Clients", groupId: "main-clients" },
-    { id: "clients-archived", icon: Archive, label: "Archived Clients", section: "Clients", groupId: "main-clients" },
-    { id: "events-all", icon: CalendarDays, label: "All Events", section: "Events", groupId: "main-events" },
-    { id: "events-upcoming", icon: CalendarDays, label: "Upcoming Events", section: "Events", groupId: "main-events" },
-    { id: "events-ongoing", icon: Radio, label: "Ongoing Events", section: "Events", groupId: "main-events" },
-    { id: "events-completed", icon: CheckCircle2, label: "Completed Events", section: "Events", groupId: "main-events" },
-    { id: "events-cancelled", icon: AlertTriangle, label: "Cancelled Events", section: "Events", groupId: "main-events" },
-    { id: "events-draft", icon: FileText, label: "Draft Events", section: "Events", groupId: "main-events" },
-    { id: "events-by-client", icon: CircleUserRound, label: "By Client", section: "Events", groupId: "main-events" },
-    { id: "events-by-type", icon: Tags, label: "By Event Type", section: "Events", groupId: "main-events" },
-    { id: "calendar-all", icon: CalendarClock, label: "All Calendar", section: "Calendar", groupId: "main-calendar" },
-    { id: "calendar-events", icon: CalendarDays, label: "Events", section: "Calendar", groupId: "main-calendar" },
-    { id: "calendar-tasks", icon: ClipboardCheck, label: "Task Deadlines", section: "Calendar", groupId: "main-calendar" },
-    { id: "calendar-clients", icon: CircleUserRound, label: "Client Meetings", section: "Calendar", groupId: "main-calendar" },
-    { id: "calendar-team", icon: UsersRound, label: "Staff Availability", section: "Calendar", groupId: "main-calendar" },
-    { id: "calendar-suppliers", icon: Truck, label: "Supplier Bookings", section: "Calendar", groupId: "main-calendar" },
-    { id: "calendar-payments", icon: ReceiptText, label: "Payment Due Dates", section: "Calendar", groupId: "main-calendar" },
-    { id: "tasks-my", icon: ClipboardCheck, label: "My Tasks", section: "Tasks", groupId: "main-tasks" },
-    { id: "tasks-all", icon: ClipboardCheck, label: "All Tasks", section: "Tasks", groupId: "main-tasks" },
-    { id: "tasks-overdue", icon: AlertTriangle, label: "Overdue", section: "Tasks", groupId: "main-tasks" },
-    { id: "tasks-today", icon: CalendarClock, label: "Due Today", section: "Tasks", groupId: "main-tasks" },
-    { id: "tasks-week", icon: CalendarDays, label: "Due This Week", section: "Tasks", groupId: "main-tasks" },
-    { id: "tasks-assigned", icon: UserCheck, label: "Assigned to Me", section: "Tasks", groupId: "main-tasks" },
-    { id: "tasks-by-client", icon: CircleUserRound, label: "By Client", section: "Tasks", groupId: "main-tasks" },
-    { id: "tasks-by-event", icon: CalendarDays, label: "By Event", section: "Tasks", groupId: "main-tasks" },
-    { id: "tasks-templates", icon: FileText, label: "Task Templates", section: "Tasks", groupId: "main-tasks" },
-    { id: "messages-inbox", icon: MessageSquareText, label: "Inbox", section: "Messages", groupId: "main-messages", disabled: !hasEvent },
-    { id: "messages-client", icon: CircleUserRound, label: "Client Messages", section: "Messages", groupId: "main-messages", disabled: !hasEvent },
-    { id: "messages-event", icon: CalendarDays, label: "Event Messages", section: "Messages", groupId: "main-messages", disabled: !hasEvent },
-    { id: "messages-team", icon: UsersRound, label: "Team Messages", section: "Messages", groupId: "main-messages", disabled: !hasEvent },
-    { id: "messages-approvals", icon: CheckCircle2, label: "Approval Requests", section: "Messages", groupId: "main-messages" },
-    { id: "messages-announcements", icon: MessageSquareText, label: "Announcements", section: "Messages", groupId: "main-messages" },
-    { id: "messages-archived", icon: Archive, label: "Archived Messages", section: "Messages", groupId: "main-messages" },
-    { id: "files-all", icon: FileText, label: "All Files", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-client", icon: CircleUserRound, label: "Client Files", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-event", icon: CalendarDays, label: "Event Files", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-contracts", icon: FileCheck2, label: "Contracts", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-quotations", icon: ReceiptText, label: "Quotations", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-invoices", icon: ReceiptText, label: "Invoices", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-floorplans", icon: MapPinned, label: "Floor Plans", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-permits", icon: ShieldCheck, label: "Permits", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-media", icon: FileText, label: "Media", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "files-archived", icon: Archive, label: "Archived Files", section: "Files", groupId: "main-files", disabled: !hasEvent },
-    { id: "team-all", icon: UsersRound, label: "All Team Members", section: "Team", groupId: "main-team" },
-    { id: "team-roles", icon: UserCheck, label: "Roles", section: "Team", groupId: "main-team" },
-    { id: "team-availability", icon: CalendarClock, label: "Availability", section: "Team", groupId: "main-team" },
-    { id: "team-assignments", icon: ClipboardCheck, label: "Assignments", section: "Team", groupId: "main-team" },
-    { id: "team-workload", icon: Radio, label: "Workload", section: "Team", groupId: "main-team" },
-    { id: "team-departments", icon: Tags, label: "Departments", section: "Team", groupId: "main-team" },
-    { id: "team-archived", icon: Archive, label: "Archived Members", section: "Team", groupId: "main-team" },
-    { id: "suppliers-all", icon: Tags, label: "All Suppliers", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-preferred", icon: CheckCircle2, label: "Preferred Suppliers", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-venues", icon: MapPinned, label: "Venues", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-catering", icon: Truck, label: "Catering", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-media", icon: FileText, label: "Photography / Videography", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-lights", icon: Sparkles, label: "Lights & Sounds", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-decor", icon: Sparkles, label: "Decorations", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-transport", icon: Truck, label: "Transportation", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-contracts", icon: FileCheck2, label: "Supplier Contracts", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "suppliers-payments", icon: ReceiptText, label: "Supplier Payments", section: "Suppliers", groupId: "main-suppliers" },
-    { id: "finance-overview", icon: ReceiptText, label: "Overview", section: "Finance", groupId: "main-finance", disabled: !hasEvent },
-    { id: "finance-quotations", icon: ReceiptText, label: "Quotations", section: "Finance", groupId: "main-finance", disabled: !hasEvent },
-    { id: "finance-invoices", icon: ReceiptText, label: "Invoices", section: "Finance", groupId: "main-finance", disabled: !hasEvent },
-    { id: "finance-payments", icon: ReceiptText, label: "Payments", section: "Finance", groupId: "main-finance", disabled: !hasEvent },
-    { id: "finance-expenses", icon: ReceiptText, label: "Expenses", section: "Finance", groupId: "main-finance", disabled: !hasEvent },
-    { id: "finance-balances", icon: CircleUserRound, label: "Client Balances", section: "Finance", groupId: "main-finance", disabled: !hasEvent },
-    { id: "finance-profit", icon: Radio, label: "Event Profit / Loss", section: "Finance", groupId: "main-finance", disabled: !hasEvent },
-    { id: "finance-reports", icon: ShieldCheck, label: "Reports", section: "Finance", groupId: "main-finance" },
-    { id: "settings-organization", icon: Settings, label: "Organization Profile", section: "Settings", groupId: "main-settings" },
-    { id: "settings-users", icon: UsersRound, label: "Users & Permissions", section: "Settings", groupId: "main-settings" },
-    { id: "settings-roles", icon: UserCheck, label: "Roles", section: "Settings", groupId: "main-settings" },
-    { id: "settings-event-types", icon: CalendarDays, label: "Event Types", section: "Settings", groupId: "main-settings" },
-    { id: "settings-task-templates", icon: ClipboardCheck, label: "Task Templates", section: "Settings", groupId: "main-settings" },
-    { id: "settings-message-templates", icon: MessageSquareText, label: "Message Templates", section: "Settings", groupId: "main-settings" },
-    { id: "settings-file-categories", icon: FileText, label: "File Categories", section: "Settings", groupId: "main-settings" },
-    { id: "settings-notifications", icon: MessageSquareText, label: "Notification Settings", section: "Settings", groupId: "main-settings" },
-    { id: "settings-system-logs", icon: ShieldCheck, label: "System Logs", section: "Settings", groupId: "main-settings" },
+    { id: "dashboard", icon: Home, label: "Dashboard", section: "PMCM" },
+    { id: "inquiries", icon: FileSignature, label: "Inquiries", section: "PMCM", badge: inquiryCount || undefined },
+    { id: "clients", icon: CircleUserRound, label: "Clients", section: "PMCM" },
+    { id: "events-list", icon: CalendarDays, label: "Events", section: "PMCM" },
+    { id: "calendar", icon: CalendarClock, label: "Calendar", section: "PMCM" },
+    { id: "tasks", icon: ClipboardCheck, label: "Tasks", section: "PMCM", badge: taskCount || undefined },
+    ...(hasEvent
+      ? [
+          { id: "event-overview", icon: LayoutGrid, label: "Overview", section: eventSection },
+          { id: "event-planning", icon: FileCheck2, label: "Briefing", section: eventSection },
+          { id: "event-files", icon: MapPinned, label: "Floorplans", section: eventSection, badge: draftCount || undefined },
+          { id: "event-suppliers", icon: Truck, label: "Suppliers", section: eventSection, badge: quoteCount || undefined },
+          { id: "event-staff", icon: UsersRound, label: "Coordinators", section: eventSection, badge: assignmentCount || undefined },
+          { id: "event-timeline", icon: Radio, label: "Live Ops", section: eventSection },
+          { id: "event-budget", icon: ReceiptText, label: "Billing", section: eventSection, badge: paymentCount || undefined },
+          { id: "event-report", icon: Archive, label: "Closure", section: eventSection, badge: closeoutCount || undefined },
+          { id: "event-messages", icon: MessageSquareText, label: "Activity", section: eventSection },
+        ]
+      : []),
+    { id: "suppliers", icon: Tags, label: "Supplier Directory", section: "Management" },
+    { id: "settings", icon: Settings, label: "Settings", section: "System" },
   ];
 }
 
@@ -2907,33 +2875,6 @@ export default function EventDashboard({
           : routeState.eventId
             ? "Event workspace"
             : "Command home";
-    const loadingActivePrimaryItemId =
-      routeState.section === "clients" || routeState.section === "inquiries" ? "main-clients"
-      : routeState.section === "events-list" || routeState.eventId ? "main-events"
-      : routeState.section === "calendar" ? "main-calendar"
-      : routeState.section === "tasks" ? "main-tasks"
-      : routeState.section === "messages" ? "main-messages"
-      : routeState.section === "files" ? "main-files"
-      : routeState.section === "team" ? "main-team"
-      : routeState.section === "suppliers" ? "main-suppliers"
-      : routeState.section === "finance" ? "main-finance"
-      : routeState.section === "settings" || routeState.section === "audit" ? "main-settings"
-      : "main-dashboard";
-    const loadingPrimaryNavItems: PrismPrimaryNavItem[] = [
-      { id: "main-dashboard", label: "Dashboard", icon: Home, targetId: "dashboard-overview" },
-      { id: "main-clients", label: "Clients", icon: CircleUserRound, targetId: routeState.clientId ? "client-overview" : "clients-all" },
-      { id: "main-events", label: "Events", icon: CalendarDays, targetId: routeState.eventId ? "event-overview" : "events-all" },
-      { id: "main-calendar", label: "Calendar", icon: CalendarClock, targetId: "calendar-all" },
-      { id: "main-tasks", label: "Tasks", icon: ClipboardCheck, targetId: "tasks-my" },
-      { id: "main-messages", label: "Messages", icon: MessageSquareText, targetId: "messages-inbox", disabled: !routeState.eventId },
-      { id: "main-files", label: "Files", icon: FileText, targetId: "files-all", disabled: !routeState.eventId },
-      { id: "main-team", label: "Team", icon: UsersRound, targetId: "team-all" },
-      { id: "main-suppliers", label: "Suppliers", icon: Tags, targetId: "suppliers-all" },
-      { id: "main-finance", label: "Finance", icon: ReceiptText, targetId: "finance-overview", disabled: !routeState.eventId },
-      { id: "main-settings", label: "Settings", icon: Settings, targetId: "settings-organization" },
-    ];
-    const loadingActivePrimaryItem = loadingPrimaryNavItems.find((item) => item.id === loadingActivePrimaryItemId);
-
     return (
       <PrismDashboardShell
         productLabel="P.R.I.S.M"
@@ -2943,17 +2884,11 @@ export default function EventDashboard({
         description="Loading the PMCM event command data, route context, and workspace queue."
         activeItemId={activeSidebarItemFromRoute(routeState)}
         navItems={loadingShellNavItems(Boolean(routeState.eventId))}
-        primaryNavItems={loadingPrimaryNavItems}
-        activePrimaryItemId={loadingActivePrimaryItemId}
-        nestedSidebarTitle={
-          routeState.clientId ? "Client workspace"
-          : routeState.eventId ? "Event workspace"
-          : loadingActivePrimaryItem?.label ?? "Workspace"
-        }
-        nestedSidebarDetail="Loading navigation"
+        sidebarMode="single"
         onNavSelect={handleSidebarNav}
         user={{ name: session.name, detail: lbl(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
         searchPlaceholder="Search events, suppliers, inquiries..."
+        showTopBarSearch={false}
         onSignOut={signOut}
       >
         {error ? (
@@ -2972,73 +2907,18 @@ export default function EventDashboard({
 
   const activeSidebarItemId = activeSidebarItemFromRoute(routeState);
 
-  const baseShellNavItems = loadingShellNavItems(!eventWorkspaceDisabled);
-  const clientDetailNavItems: PrismNavItem[] | null = selectedClient ? [
-    { id: "client-overview", icon: LayoutGrid, label: "Client Overview", section: selectedClient.name, groupId: "main-clients" },
-    { id: "client-events", icon: CalendarDays, label: "Events", section: selectedClient.name, groupId: "main-clients", badge: selectedClient.events.length || undefined },
-    { id: "client-contacts", icon: CircleUserRound, label: "Contacts", section: selectedClient.name, groupId: "main-clients" },
-    { id: "client-files", icon: FileText, label: "Files", section: selectedClient.name, groupId: "main-clients" },
-    { id: "client-messages", icon: MessageSquareText, label: "Messages", section: selectedClient.name, groupId: "main-clients" },
-    { id: "client-contracts", icon: FileCheck2, label: "Contracts", section: selectedClient.name, groupId: "main-clients" },
-    { id: "client-invoices", icon: ReceiptText, label: "Invoices", section: selectedClient.name, groupId: "main-clients" },
-    { id: "client-notes", icon: FileText, label: "Notes", section: selectedClient.name, groupId: "main-clients" },
-    { id: "client-activity", icon: ShieldCheck, label: "Activity Log", section: selectedClient.name, groupId: "main-clients" },
-  ] : null;
-  const eventDetailNavItems: PrismNavItem[] | null = selectedEvent ? [
-    { id: "event-overview", icon: LayoutGrid, label: "Event Overview", section: selectedEvent.eventName, groupId: "main-events" },
-    { id: "event-planning", icon: ClipboardCheck, label: "Planning Checklist", section: selectedEvent.eventName, groupId: "main-events" },
-    { id: "event-schedule", icon: CalendarClock, label: "Schedule / Program", section: selectedEvent.eventName, groupId: "main-events" },
-    { id: "event-attendees", icon: CircleUserRound, label: "Attendees", section: selectedEvent.eventName, groupId: "main-events" },
-    { id: "event-staff", icon: UsersRound, label: "Staff Assignments", section: selectedEvent.eventName, groupId: "main-events", badge: assignments.length || undefined },
-    { id: "event-suppliers", icon: Truck, label: "Suppliers", section: selectedEvent.eventName, groupId: "main-events", badge: quotes.length || undefined },
-    { id: "event-budget", icon: ReceiptText, label: "Budget", section: selectedEvent.eventName, groupId: "main-events", badge: payments.length || undefined },
-    { id: "event-files", icon: FileText, label: "Files", section: selectedEvent.eventName, groupId: "main-events", badge: drafts.length || undefined },
-    { id: "event-messages", icon: MessageSquareText, label: "Messages", section: selectedEvent.eventName, groupId: "main-events" },
-    { id: "event-timeline", icon: Radio, label: "Timeline / Run Sheet", section: selectedEvent.eventName, groupId: "main-events" },
-    { id: "event-report", icon: Archive, label: "Post-Event Report", section: selectedEvent.eventName, groupId: "main-events", badge: openCheckCount || undefined },
-  ] : null;
-  const shellNavItems = baseShellNavItems
-    .filter((item) => !(clientDetailNavItems && item.groupId === "main-clients"))
-    .filter((item) => !(eventDetailNavItems && item.groupId === "main-events"))
-    .concat(clientDetailNavItems ?? [])
-    .concat(eventDetailNavItems ?? []);
+  const shellNavItems = eventPortalNavItems({
+    hasEvent: !eventWorkspaceDisabled,
+    eventName: selectedEvent?.eventName,
+    inquiryCount: unreviewedInquiries + pendingApprovals.length,
+    taskCount: openActionCount,
+    assignmentCount: assignments.length,
+    quoteCount: quotes.length,
+    draftCount: drafts.length,
+    paymentCount: payments.length,
+    closeoutCount: openCheckCount,
+  });
   const activeNavItem = shellNavItems.find((item) => item.id === activeSidebarItemId);
-  const activePrimaryItemId =
-    section === "clients" || section === "inquiries" ? "main-clients"
-    : section === "events-list" || routeState.eventId ? "main-events"
-    : section === "calendar" ? "main-calendar"
-    : section === "tasks" ? "main-tasks"
-    : section === "messages" ? "main-messages"
-    : section === "files" ? "main-files"
-    : section === "team" ? "main-team"
-    : section === "suppliers" ? "main-suppliers"
-    : section === "finance" ? "main-finance"
-    : section === "settings" || section === "audit" ? "main-settings"
-    : "main-dashboard";
-  const primaryNavItems: PrismPrimaryNavItem[] = [
-    { id: "main-dashboard", label: "Dashboard", icon: Home, targetId: "dashboard-overview" },
-    { id: "main-clients", label: "Clients", icon: CircleUserRound, targetId: selectedClient ? "client-overview" : "clients-all", badge: state.inquiries.length || undefined },
-    { id: "main-events", label: "Events", icon: CalendarDays, targetId: selectedEvent ? "event-overview" : "events-all" },
-    { id: "main-calendar", label: "Calendar", icon: CalendarClock, targetId: "calendar-all" },
-    { id: "main-tasks", label: "Tasks", icon: ClipboardCheck, targetId: "tasks-my", badge: openActionCount || undefined },
-    { id: "main-messages", label: "Messages", icon: MessageSquareText, targetId: "messages-inbox", disabled: eventWorkspaceDisabled },
-    { id: "main-files", label: "Files", icon: FileText, targetId: "files-all", disabled: eventWorkspaceDisabled },
-    { id: "main-team", label: "Team", icon: UsersRound, targetId: "team-all", badge: coordinators.length || undefined },
-    { id: "main-suppliers", label: "Suppliers", icon: Tags, targetId: "suppliers-all" },
-    { id: "main-finance", label: "Finance", icon: ReceiptText, targetId: "finance-overview", disabled: eventWorkspaceDisabled },
-    { id: "main-settings", label: "Settings", icon: Settings, targetId: "settings-organization" },
-  ];
-  const activePrimaryItem = primaryNavItems.find((item) => item.id === activePrimaryItemId);
-  const nestedSidebarTitle =
-    activePrimaryItemId === "main-clients" && selectedClient ? selectedClient.name
-    : activePrimaryItemId === "main-events" && selectedEvent ? selectedEvent.eventName
-    : activePrimaryItem?.label ?? "Workspace";
-  const nestedSidebarDetail =
-    activePrimaryItemId === "main-clients" && selectedClient
-      ? `${selectedClient.events.length} active event${selectedClient.events.length === 1 ? "" : "s"}`
-    : activePrimaryItemId === "main-events" && selectedEvent
-      ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}`
-    : "Navigation";
 
   /* Section routing flags */
   const isHome = section === "dashboard";
@@ -3076,7 +2956,6 @@ export default function EventDashboard({
       title={
         section === "suppliers" ? "Supplier Directory"
         : section === "audit" ? "Audit Trail"
-        : selectedClient && activePrimaryItemId === "main-clients" ? activeNavItem?.label ?? "Client Desk"
         : isClients ? activeNavItem?.label ?? "Client Desk"
         : isCalendar ? activeNavItem?.label ?? "Calendar"
         : isTasks ? activeNavItem?.label ?? "Task Queue"
@@ -3109,13 +2988,11 @@ export default function EventDashboard({
       }
       activeItemId={sidebarActiveOverride ?? activeSidebarItemId}
       navItems={shellNavItems}
-      primaryNavItems={primaryNavItems}
-      activePrimaryItemId={activePrimaryItemId}
-      nestedSidebarTitle={nestedSidebarTitle}
-      nestedSidebarDetail={nestedSidebarDetail}
+      sidebarMode="single"
       onNavSelect={handleSidebarNav}
       user={{ name: session.name, detail: lbl(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Search events, suppliers, inquiries..."
+      showTopBarSearch={false}
       onSignOut={signOut}
     >
       <div className="space-y-5">

@@ -15,7 +15,6 @@ import {
   PartyPopper,
   ReceiptText,
   ShieldCheck,
-  Sparkles,
   UserCheck,
   Warehouse,
 } from "lucide-react";
@@ -265,12 +264,9 @@ function ProductPanel() {
   );
 }
 
-function SectionHeading({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
+function SectionHeading({ title, text }: { eyebrow: string; title: string; text: string }) {
   return (
     <div className="mx-auto max-w-3xl text-center">
-      <Badge variant="outline" className="mb-5 rounded-full border-[#F06030]/30 bg-accent/75 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">
-        {eyebrow}
-      </Badge>
       <h2 className="text-4xl font-black leading-[0.98] text-foreground sm:text-5xl lg:text-6xl">{title}</h2>
       <p className="mt-5 text-lg leading-8 text-muted-foreground">{text}</p>
     </div>
@@ -322,7 +318,7 @@ export function MainLandingPage() {
                     ["Support", "#faq"],
                   ].map(([label, href]) => (
                     <NavigationMenuItem key={label}>
-                      <NavigationMenuLink href={href} className={label === "Services" ? "rounded-md border-b-2 border-primary px-4 py-2 text-sm font-black text-foreground transition hover:text-primary" : "rounded-md px-4 py-2 text-sm font-black text-foreground transition hover:text-primary"}>
+                      <NavigationMenuLink href={href} className="rounded-md px-4 py-2 text-sm font-black text-foreground transition hover:text-primary">
                         {label}
                       </NavigationMenuLink>
                     </NavigationMenuItem>
@@ -348,10 +344,6 @@ export function MainLandingPage() {
 
           <div className="grid min-h-[calc(100vh-5.5rem)] items-start gap-12 py-14 lg:grid-cols-[minmax(0,0.92fr)_minmax(520px,0.78fr)] xl:py-20">
             <div className="max-w-5xl">
-              <Badge variant="outline" className="mb-7 rounded-full border-[#F06030]/30 bg-accent/75 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-(--prism-amber)">
-                <Sparkles className="size-4" />
-                PMCM-led client planning
-              </Badge>
               <h1 className="max-w-4xl prism-serif text-4xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-5xl lg:text-[3.75rem] xl:text-[4.55rem]">
                 Your event plan, floorplan, and approvals in one <span className="text-primary">guided workspace</span>
               </h1>

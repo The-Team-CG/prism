@@ -145,12 +145,8 @@ export default function SupplierHome() {
 
           <div className="grid min-h-[calc(100vh-5.5rem)] items-start gap-10 py-14 lg:grid-cols-[0.78fr_1.22fr] xl:py-20">
             <div className="max-w-3xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#F06030]/30 bg-[#F06030]/8 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#F06030]">
-                <Target className="size-4" />
-                Assigned suppliers only
-              </span>
               <h1
-                className="mt-7 max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.6rem]"
+                className="max-w-4xl prism-serif text-5xl font-black leading-[0.93] tracking-normal text-(--prism-ink) sm:text-6xl xl:text-[4.6rem]"
               >
                 Know what is due, what is locked, and what PMCM needs next
               </h1>

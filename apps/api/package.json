@@ -30,6 +30,7 @@
         "seed": "npx ts-node --project tsconfig.json prisma/seed-pare.ts"
     },
     "dependencies": {
+        "@anthropic-ai/sdk": "^0.95.0",
         "@nestjs/common": "^11.1.19",
         "@nestjs/config": "^4.0.4",
         "@nestjs/core": "^11.1.19",

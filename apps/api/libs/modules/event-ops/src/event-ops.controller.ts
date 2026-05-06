@@ -416,6 +416,16 @@ export class OpsEventsController {
     return this.eventOpsService.selectSupplierQuote(eventId, quoteId);
   }
 
+  @Patch(':eventId/quote-requests/:requestId/withdraw')
+  withdrawSupplier(
+    @Param('eventId') _eventId: string,
+    @Param('requestId') requestId: string,
+    @Body() dto: { reason?: string } = {},
+    @Query() actor: DemoActorDto,
+  ) {
+    return this.eventOpsService.withdrawSupplier(requestId, dto.reason ?? 'Withdrawn by PMCM Admin', actor);
+  }
+
   @Post(':eventId/compliance')
   @HttpCode(HttpStatus.CREATED)
   runCompliance(@Param('eventId') eventId: string, @Body() dto: { phase?: string } = {}) {
@@ -750,5 +760,35 @@ export class OpsAiController {
   @HttpCode(HttpStatus.CREATED)
   dryRun(@Body() dto: AiGovernanceDryRunDto) {
     return this.eventOpsService.runAiGovernanceDryRun(dto);
+  }
+
+  @Post('pare/trigger/:requestId')
+  @HttpCode(HttpStatus.CREATED)
+  pareManualTrigger(@Param('requestId') requestId: string) {
+    return this.eventOpsService.withdrawSupplier(requestId, 'Manual PARE trigger via API', {
+      actorRole: 'pmcm_admin',
+      actorName: 'PMCM Admin',
+    });
+  }
+
+  @Get('pare/pending')
+  pareGetPending(@Query('eventId') eventId?: string) {
+    return this.eventOpsService.pareGetPendingApprovals(eventId);
+  }
+
+  @Patch('pare/:approvalRecordId/approve')
+  pareApprove(
+    @Param('approvalRecordId') approvalRecordId: string,
+    @Query('approvedBy') approvedBy = 'PMCM Admin',
+  ) {
+    return this.eventOpsService.pareApprove(approvalRecordId, approvedBy);
+  }
+
+  @Patch('pare/:approvalRecordId/reject')
+  pareReject(
+    @Param('approvalRecordId') approvalRecordId: string,
+    @Query('rejectedBy') rejectedBy = 'PMCM Admin',
+  ) {
+    return this.eventOpsService.pareReject(approvalRecordId, rejectedBy);
   }
 }

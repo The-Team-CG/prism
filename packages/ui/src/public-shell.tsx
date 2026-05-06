@@ -3,7 +3,6 @@
 import type * as React from "react";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import { PrismBrandLogo } from "./brand";
-import { PrismBadge } from "./primitives";
 import { cn } from "./utils";
 
 export interface PrismPublicShellProps {
@@ -19,11 +18,8 @@ export interface PrismPublicShellProps {
 }
 
 export function PrismPublicShell({
-  eyebrow,
   title,
   description,
-  badgeIcon: BadgeIcon,
-  badgeText,
   productDetail = "Event operating system",
   aside,
   children,
@@ -38,14 +34,7 @@ export function PrismPublicShell({
           <div className="max-w-3xl">
             <PrismBrandLogo href="/" detail={productDetail} className="mb-10" markClassName="size-12 bg-transparent ring-0" />
 
-            {badgeText ? (
-              <PrismBadge variant="warning" className="mb-6 px-4 py-2 uppercase tracking-[0.16em]">
-                {BadgeIcon ? <BadgeIcon aria-hidden="true" /> : null}
-                {badgeText}
-              </PrismBadge>
-            ) : null}
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary">{eyebrow}</p>
-            <h1 className="mt-4 text-5xl font-black leading-[0.96] text-foreground sm:text-6xl lg:text-7xl">{title}</h1>
+            <h1 className="text-5xl font-black leading-[0.96] text-foreground sm:text-6xl lg:text-7xl">{title}</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">{description}</p>
             {children ? <div className="mt-8">{children}</div> : null}
           </div>
@@ -93,12 +82,9 @@ export interface PrismMarketingShellProps {
 }
 
 export function PrismMarketingShell({
-  eyebrow,
   title,
   description,
   productDetail,
-  badgeIcon: BadgeIcon,
-  badgeText,
   navItems = [],
   actions,
   stats = [],
@@ -187,14 +173,7 @@ export function PrismMarketingShell({
             heroAlign === "start" ? "items-start" : "items-center",
           )}>
             <div className="max-w-4xl">
-              {badgeText ? (
-                <PrismBadge tone={dark ? "warning" : "info"} className="mb-6 px-4 py-2 uppercase tracking-[0.16em]">
-                  {BadgeIcon ? <BadgeIcon aria-hidden="true" /> : null}
-                  {badgeText}
-                </PrismBadge>
-              ) : null}
-              <p className={cn("text-[11px] font-black uppercase tracking-[0.2em]", dark ? "text-(--prism-amber)" : "text-primary")}>{eyebrow}</p>
-              <h1 className={cn("mt-4 text-5xl font-black leading-[0.92] sm:text-6xl xl:text-[5.8rem]", dark ? "text-sidebar-foreground" : "text-foreground")}>{title}</h1>
+              <h1 className={cn("text-5xl font-black leading-[0.92] sm:text-6xl xl:text-[5.8rem]", dark ? "text-sidebar-foreground" : "text-foreground")}>{title}</h1>
               <p className={cn("mt-6 max-w-2xl text-lg leading-8", dark ? "text-sidebar-foreground/76" : "text-muted-foreground")}>{description}</p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">

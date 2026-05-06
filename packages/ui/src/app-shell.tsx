@@ -104,6 +104,7 @@ export interface PrismAppShellProps {
   nestedSidebarDetail?: string;
   user?: PrismUserSummary;
   searchPlaceholder?: string;
+  showTopBarSearch?: boolean;
   commandActions?: PrismPageAction[];
   commandSectionLabel?: string;
   headerActions?: React.ReactNode;
@@ -430,11 +431,16 @@ export function PrismSidebar({
   panelTitle?: string;
   panelDetail?: string;
 }) {
+  const [navQuery, setNavQuery] = React.useState("");
   const groupFilteredNavItems = visibleGroupId ? navItems.filter((item) => item.groupId === visibleGroupId) : navItems;
   const visibleNavItems = hiddenItemIds?.size
     ? groupFilteredNavItems.filter((item) => !hiddenItemIds.has(item.id))
     : groupFilteredNavItems;
-  const navGroups = visibleNavItems.reduce<Array<{ section: string; items: PrismNavItem[] }>>((groups, item) => {
+  const normalizedNavQuery = navQuery.trim().toLowerCase();
+  const searchedNavItems = normalizedNavQuery
+    ? visibleNavItems.filter((item) => navSearchText(item).includes(normalizedNavQuery))
+    : visibleNavItems;
+  const navGroups = searchedNavItems.reduce<Array<{ section: string; items: PrismNavItem[] }>>((groups, item) => {
     const section = item.section ?? "Dashboards";
     const existing = groups.find((group) => group.section === section);
     if (existing) {
@@ -465,18 +471,23 @@ export function PrismSidebar({
 
       {!collapsed && showBrand ? (
         <div className="px-3 pb-3">
-          <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-background/80 px-2.5 text-xs font-semibold text-muted-foreground shadow-sm">
-            <Search aria-hidden="true" className="size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">Command</span>
-            <span className="text-[11px] font-black text-muted-foreground/70">/</span>
-          </div>
+          <label className="relative block">
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={navQuery}
+              onChange={(event) => setNavQuery(event.target.value)}
+              className="h-9 w-full rounded-md border border-border bg-background pl-8 pr-3 text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+              placeholder="Find page"
+              aria-label="Search navigation"
+            />
+          </label>
         </div>
       ) : null}
 
       <nav className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-3 pb-4 pt-1">
-        {navGroups.map((group, groupIndex) => (
-          <div key={group.section} className={cn("flex flex-col gap-1.5", groupIndex > 0 && "mt-6")}>
-            <p className={cn("px-2 pb-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground", collapsed && "sr-only")}>
+        {navGroups.length ? navGroups.map((group, groupIndex) => (
+          <div key={group.section} className={cn("flex flex-col gap-1", groupIndex > 0 && "mt-5")}>
+            <p className={cn("px-2 pb-1 text-[11px] font-semibold uppercase text-muted-foreground", collapsed && "sr-only")}>
               {group.section}
             </p>
             {group.items.map((item) => {
@@ -493,11 +504,11 @@ export function PrismSidebar({
                     onClick={() => onNavSelect?.(item.id)}
                     title={collapsed ? item.label : undefined}
                     className={cn(
-                      "flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground active:bg-secondary disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:font-bold data-[active=true]:text-primary",
+                      "flex h-9 w-full items-center gap-2.5 overflow-hidden rounded-md px-2.5 text-left text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground active:bg-secondary disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:font-semibold data-[active=true]:text-primary",
                       collapsed && "justify-center px-0",
                     )}
                   >
-                    <item.icon aria-hidden="true" className="size-3.5 shrink-0" />
+                    <item.icon aria-hidden="true" className="size-4 shrink-0" />
                     <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{item.label}</span>
                     {item.badge && !collapsed ? (
                       <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-black leading-none text-muted-foreground ring-1 ring-border">
@@ -533,7 +544,11 @@ export function PrismSidebar({
               );
             })}
           </div>
-        ))}
+        )) : (
+          <p className={cn("px-2 py-3 text-sm font-medium text-muted-foreground", collapsed && "sr-only")}>
+            No matching pages
+          </p>
+        )}
 
         {commandActions.length && !collapsed ? (
           <div className="mt-6 flex flex-col gap-1.5">
@@ -699,6 +714,7 @@ export function PrismTopBar({
   title,
   description,
   searchPlaceholder,
+  showSearch = true,
   headerActions,
   accountMenuItems,
   user,
@@ -710,6 +726,7 @@ export function PrismTopBar({
   PrismAppShellProps,
   "eyebrow" | "title" | "description" | "searchPlaceholder" | "headerActions" | "accountMenuItems" | "user" | "onSignOut"
 > & {
+  showSearch?: boolean;
   onOpenMobileNav?: () => void;
   onToggleDesktopNav?: () => void;
   sidebarCollapsed?: boolean;
@@ -746,16 +763,25 @@ export function PrismTopBar({
             </PrismButton>
           ) : null}
           <span className="hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
-          <label className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              className="h-10 w-full rounded-md border-0 bg-transparent pl-8 pr-3 text-sm font-medium outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-              placeholder={placeholder}
-            />
-            <span className="sr-only">
-              {description ? `${title}. ${description}` : title}
-            </span>
-          </label>
+          {showSearch ? (
+            <label className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                className="h-10 w-full rounded-md border-0 bg-transparent pl-8 pr-3 text-sm font-medium outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+                placeholder={placeholder}
+              />
+              <span className="sr-only">
+                {description ? `${title}. ${description}` : title}
+              </span>
+            </label>
+          ) : (
+            <div className="min-w-0 flex-1 py-0.5">
+              <p className="truncate text-sm font-semibold leading-5 text-foreground">{title}</p>
+              {description ? (
+                <p className="truncate text-xs leading-4 text-muted-foreground">{description}</p>
+              ) : null}
+            </div>
+          )}
         </div>
         {headerActions ? <div className="hidden shrink-0 items-center gap-2 md:flex">{headerActions}</div> : null}
         <button
@@ -859,6 +885,7 @@ export function PrismAppShell({
   nestedSidebarDetail,
   user,
   searchPlaceholder,
+  showTopBarSearch = true,
   commandActions,
   commandSectionLabel,
   headerActions,
@@ -1023,6 +1050,7 @@ export function PrismAppShell({
           title={title}
           description={description}
           searchPlaceholder={searchPlaceholder}
+          showSearch={showTopBarSearch}
           headerActions={headerActions}
           accountMenuItems={accountMenuItems}
           user={user}

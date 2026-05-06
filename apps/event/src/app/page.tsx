@@ -417,7 +417,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
                 ["Live Ops", "#live-ops"],
                 ["Closure", "#closure"],
               ].map(([labelText, href]) => (
-                <a key={labelText} href={href} className={cx("rounded-md px-2 py-2 transition hover:text-primary", labelText === "Command" && "border-b-2 border-primary text-foreground")}>
+                <a key={labelText} href={href} className="rounded-md px-2 py-2 transition hover:text-primary">
                   {labelText}
                 </a>
               ))}
@@ -433,11 +433,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
 
           <div id="command" className="grid min-h-[calc(100vh-6.75rem)] items-start gap-10 py-10 lg:grid-cols-[0.4fr_0.6fr]">
             <div className="max-w-3xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-5 py-2 text-xs font-black uppercase tracking-[0.18em] text-primary">
-                <Radio className="size-4" />
-                PMCM event command
-              </span>
-              <DisplayTitle className="mt-7 max-w-3xl xl:text-[4.4rem]">
+              <DisplayTitle className="max-w-3xl xl:text-[4.4rem]">
                 One command center for every <span className="text-primary">PMCM</span> event handoff
               </DisplayTitle>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">

@@ -36,3 +36,9 @@ These notes preserve the product boundaries established by the project docs and 
 - Keep the existing canvas/editor internals intact when moving workflow ownership.
 - Use API-backed demo auth/RBAC for now; no external auth provider in this pass.
 - Preserve existing uncommitted user work. Do not revert unrelated changes.
+
+## Visual Rules
+
+- Do not use active underline treatments in public or app header navigation.
+- Do not add decorative eyebrow pills, rounded outline labels, or uppercase badge labels like `PMCM-led client planning`.
+- Do not add that badge/eyebrow-pill treatment to event status cards, dashboard cards, landing pages, or mockup panels.
