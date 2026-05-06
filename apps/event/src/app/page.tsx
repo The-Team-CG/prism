@@ -184,28 +184,6 @@ function saveSession(session: EventSession) {
   window.localStorage.setItem(EVENT_SESSION_KEY, JSON.stringify(session));
 }
 
-function Brand({ session, onSignOut }: { session?: EventSession | null; onSignOut?: () => void }) {
-  return (
-    <header className="border-b border-border bg-card/92 px-5 py-3.5 backdrop-blur sm:px-8">
-      <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
-        <PrismBrandLogo href="http://localhost:3001" detail="Event Command" markClassName="bg-transparent ring-0" />
-        <div className="flex items-center gap-2">
-          {session && (
-            <span className="hidden rounded-lg border border-border bg-secondary px-3 py-2 text-sm font-bold text-foreground sm:inline-flex">
-              {session.name} · {label(session.role)}
-            </span>
-          )}
-          {onSignOut && (
-            <Button variant="outline" size="sm" onClick={onSignOut} className="rounded-lg font-bold">
-              Sign out
-            </Button>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
-
 function Panel({ title, icon: Icon, children, aside }: { title: string; icon: LucideIcon; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <PrismSectionPanel title={title} icon={Icon} action={aside}>
@@ -1637,7 +1615,6 @@ export default function EventCommandHome() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <Brand session={session} onSignOut={signOut} />
       <section className="mx-auto max-w-[1480px] px-5 py-6 sm:px-8">
         {error && (
           <Alert variant="destructive" className="mb-5 rounded-lg">
@@ -1668,7 +1645,7 @@ export default function EventCommandHome() {
             </div>
           </Card>
         ) : session.role === "coordinator" && coordinatorState ? (
-          <CoordinatorView session={session} state={coordinatorState} onRefresh={() => refresh(session)} />
+          <CoordinatorView session={session} state={coordinatorState} onRefresh={() => refresh(session)} onSignOut={signOut} />
         ) : (
           null
         )}

@@ -937,6 +937,60 @@ type AuditLogFilters = {
   limit?: string;
 };
 
+// ─── PARE types ───────────────────────────────────────────────────────────────
+
+export type PARECandidate = {
+  supplierId: string;
+  supplierName: string;
+  tier: string;
+  quotedAmount: number;
+  reliabilityScore: number;
+  halal: boolean;
+  priorPmcmEvents: number;
+  reason: string;
+};
+
+export type PAREBudgetAnalysis = {
+  feasible: boolean;
+  selectedCandidate: PARECandidate;
+  costDelta: number;
+  costDeltaLabel: string;
+  summary: string;
+};
+
+export type PARERisk = {
+  level: "LOW" | "MEDIUM" | "HIGH";
+  factors: string[];
+  recommendation: string;
+};
+
+export type PAREDrafts = {
+  supplierNotification: string;
+  clientReassurance: string;
+};
+
+export type PAREResult = {
+  eventId: string;
+  withdrawnSupplier: { id: string; name: string; category: string; tier: string; quotedAmount: number };
+  candidates: PARECandidate[];
+  budgetAnalysis: PAREBudgetAnalysis;
+  riskAssessment: PARERisk;
+  drafts: PAREDrafts;
+  mode: "mock" | "live";
+  triggeredAt: string;
+};
+
+export type PAREApprovalRecord = {
+  id: string;
+  eventId: string;
+  requestId: string;
+  status: "pending" | "approved" | "rejected";
+  pareResult: PAREResult;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+};
+
 interface ApiFloorPlan {
   id: string;
   name: string;
@@ -1344,4 +1398,14 @@ export const mvpApi = {
   eventInsights: (eventId: string) => request<MvpEventInsight[]>(withPmcmActor(`/api/events/${eventId}/insights`)),
   generateEventInsights: (eventId: string) =>
     request<MvpEventInsight>(`/api/events/${eventId}/insights/generate`, { method: "POST" }),
+
+  // ─── PARE ─────────────────────────────────────────────────────────────────
+  withdrawSupplier: (eventId: string, requestId: string) =>
+    request<{ ok: boolean }>(`/api/events/${eventId}/quote-requests/${requestId}/withdraw`, { method: "PATCH" }),
+  pareGetPending: () =>
+    request<PAREApprovalRecord[]>("/api/ai/pare/pending"),
+  pareApprove: (approvalRecordId: string) =>
+    request<PAREApprovalRecord>(`/api/ai/pare/${approvalRecordId}/approve`, { method: "PATCH" }),
+  pareReject: (approvalRecordId: string) =>
+    request<PAREApprovalRecord>(`/api/ai/pare/${approvalRecordId}/reject`, { method: "PATCH" }),
 };

@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ChevronRight,
   CheckCircle2,
+  Clock,
   FileCheck2,
   FileText,
   Home,
@@ -49,19 +50,6 @@ import {
   PrismBrandLogo,
   PrismDashboardShell,
 } from "@prism/ui";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
-import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarProvider,
-} from "../ui/sidebar";
 import { cn } from "../ui/utils";
 import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "../editor/templates";
 import type { CanvasObject as VenueObject, Project } from "../editor/types";
@@ -230,13 +218,9 @@ const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     section: "Client Portal",
     route: "approvals",
     subItems: [
-      { id: "approvals-pending", label: "Pending Approval", route: "approvals" },
+      { id: "approvals-pending", label: "Pending", route: "approvals" },
       { id: "approvals-approved", label: "Approved", route: "approvals" },
-      { id: "approvals-needs-revision", label: "Needs Revision", route: "approvals" },
       { id: "approvals-contracts", label: "Contracts", route: "files" },
-      { id: "approvals-quotations", label: "Quotations", route: "billing" },
-      { id: "approvals-layouts", label: "Layouts / Designs", route: "floorplan", requiresEvent: true, eventScoped: true },
-      { id: "approvals-final-confirmation", label: "Final Confirmation", route: "approvals" },
     ],
   },
   {
@@ -245,13 +229,6 @@ const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     icon: MessageSquareText,
     section: "Client Portal",
     route: "messages",
-    subItems: [
-      { id: "messages-inbox", label: "Inbox", route: "messages" },
-      { id: "messages-event-conversations", label: "Event Conversations", route: "messages" },
-      { id: "messages-organizer-updates", label: "Organizer Updates", route: "messages" },
-      { id: "messages-announcements", label: "Announcements", route: "messages" },
-      { id: "messages-archived", label: "Archived Messages", route: "messages" },
-    ],
   },
   {
     id: "files",
@@ -268,10 +245,7 @@ const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     route: "billing",
     subItems: [
       { id: "billing-overview", label: "Overview", route: "billing" },
-      { id: "billing-quotations", label: "Quotations", route: "billing" },
-      { id: "billing-invoices", label: "Invoices", route: "billing" },
       { id: "billing-payment-schedule", label: "Payment Schedule", route: "billing" },
-      { id: "billing-receipts", label: "Receipts", route: "billing" },
       { id: "billing-balance", label: "Balance", route: "billing" },
     ],
   },
@@ -281,18 +255,12 @@ type ClientSidebarLink = ClientSidebarNavItem | ClientSidebarSubItem;
 
 const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },
-  { id: "event-details", label: "Details", route: "details", requiresEvent: true, eventScoped: true },
   { id: "event-progress", label: "Planning", route: "progress", requiresEvent: true, eventScoped: true },
-  { id: "event-schedule", label: "Schedule", route: "schedule", requiresEvent: true, eventScoped: true },
-  { id: "event-guests", label: "Guests", route: "guests", requiresEvent: true, eventScoped: true },
-  { id: "event-preferences", label: "Preferences", route: "preferences", requiresEvent: true, eventScoped: true },
-  { id: "event-floorplan", label: "Floor plan", route: "floorplan", requiresEvent: true, eventScoped: true },
-  { id: "event-files", label: "Files", route: "documents", requiresEvent: true, eventScoped: true },
-  { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
+  { id: "event-floorplan", label: "Floor Plan", route: "floorplan", requiresEvent: true, eventScoped: true },
   { id: "event-approvals", label: "Approvals", route: "approvals", requiresEvent: true, eventScoped: true },
   { id: "event-billing", label: "Billing", route: "billing", requiresEvent: true, eventScoped: true },
-  { id: "event-change-requests", label: "Changes", route: "changes", requiresEvent: true, eventScoped: true },
-  { id: "event-final-summary", label: "Summary", route: "summary", requiresEvent: true, eventScoped: true },
+  { id: "event-files", label: "Documents", route: "documents", requiresEvent: true, eventScoped: true },
+  { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
 ];
 
 const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
@@ -503,13 +471,6 @@ function activeNavItemId(route: ClientDashboardRoute, eventScoped: boolean) {
     ?? "client-dashboard";
 }
 
-const prismSidebarButtonClass =
-  "!h-9 !min-w-0 !text-muted-foreground hover:!bg-secondary hover:!text-foreground active:!bg-secondary active:!text-foreground data-[active=true]:!bg-primary/10 data-[active=true]:!font-bold data-[active=true]:!text-primary";
-const prismSidebarButtonLabelClass = "min-w-0 flex-1 truncate";
-const prismSidebarSubListClass =
-  "!ml-3.5 !mr-0 !w-[calc(100%-0.875rem)] !max-w-none !translate-x-0 !border-border !pl-2.5 !pr-0";
-const prismSidebarSubButtonClass =
-  "!w-full !min-w-0 !justify-start !text-muted-foreground hover:!bg-secondary hover:!text-foreground active:!bg-secondary active:!text-foreground data-[active=true]:!bg-primary/10 data-[active=true]:!font-bold data-[active=true]:!text-primary";
 
 type ClientSidebarRenderSubItem = ClientSidebarSubItem & { disabled?: boolean };
 type ClientSidebarRenderItem = Omit<ClientSidebarNavItem, "subItems"> & {
@@ -528,121 +489,97 @@ function ClientPortalSidebar({
   onSelect: (id: string) => void;
   collapsed: boolean;
 }) {
-  const navGroups = navItems.reduce<Array<{ section: string; items: ClientSidebarRenderItem[] }>>((groups, item) => {
-    const existing = groups.find((group) => group.section === item.section);
-    if (existing) {
-      existing.items.push(item);
-    } else {
-      groups.push({ section: item.section, items: [item] });
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const open = new Set<string>();
+    for (const item of navItems) {
+      const subItemActive = item.subItems?.some((sub) => sub.id === activeItemId) ?? false;
+      if (subItemActive || item.id === activeItemId) open.add(item.id);
     }
-    return groups;
-  }, []);
+    return open;
+  });
+
+  const toggleGroup = (id: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
-    <SidebarProvider open={!collapsed} className="h-full min-h-0 w-full bg-card text-foreground">
-      <div
-        data-collapsible={collapsed ? "icon" : undefined}
-        className={cn("group flex h-full w-full min-w-0 flex-col bg-card text-foreground", collapsed && "items-center")}
-      >
-        <PrismBrandLogo
-          href="/"
-          title="P.R.I.S.M."
-          detail="Client Portal"
-          compact={collapsed}
-          className={cn("min-h-16 px-3", collapsed && "justify-center px-2")}
-          markClassName="size-8 bg-transparent ring-0"
-        />
+    <div className="flex h-full w-full min-w-0 flex-col bg-card text-foreground">
+      <PrismBrandLogo
+        href="/"
+        title="P.R.I.S.M."
+        detail="Client Portal"
+        compact={collapsed}
+        className={cn("min-h-16 shrink-0 px-3", collapsed && "justify-center px-2")}
+        markClassName="size-8 bg-transparent ring-0"
+      />
 
-        <div className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden px-2 pb-4">
-          {navGroups.map((group, groupIndex) => (
-            <SidebarGroup key={group.section} className={cn("min-w-0", groupIndex > 0 && "mt-4")}>
-              <SidebarGroupLabel className="text-muted-foreground">{group.section}</SidebarGroupLabel>
-              <SidebarGroupContent className="min-w-0">
-                <SidebarMenu className="min-w-0">
-                  {group.items.map((item) => {
-                    const hasSubItems = Boolean(item.subItems?.length);
-                    const subItemActive = item.subItems?.some((subItem) => subItem.id === activeItemId) ?? false;
-                    const itemActive = item.id === activeItemId || subItemActive;
-                    const Icon = item.icon;
-                    const defaultOpen = !collapsed && (itemActive || item.id === "client-dashboard");
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-4 pt-1">
+        <div className="flex flex-col gap-1">
+          {navItems.map((item) => {
+            const hasSubItems = Boolean(item.subItems?.length);
+            const subItemActive = item.subItems?.some((sub) => sub.id === activeItemId) ?? false;
+            const itemActive = item.id === activeItemId || subItemActive;
+            const isOpen = openGroups.has(item.id);
+            const Icon = item.icon;
 
-                    if (!hasSubItems) {
-                      return (
-                        <SidebarMenuItem key={item.id}>
-                          <SidebarMenuButton
-                            type="button"
-                            isActive={itemActive}
-                            disabled={item.disabled}
-                            tooltip={collapsed ? item.label : undefined}
-                            className={prismSidebarButtonClass}
-                            onClick={() => onSelect(item.id)}
-                          >
-                            <Icon />
-                            <span className={prismSidebarButtonLabelClass}>{item.label}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      );
-                    }
+            return (
+              <div key={item.id} className="min-w-0">
+                <button
+                  type="button"
+                  disabled={item.disabled}
+                  data-active={itemActive}
+                  onClick={() => {
+                    onSelect(item.id);
+                    if (hasSubItems) toggleGroup(item.id);
+                  }}
+                  title={collapsed ? item.label : undefined}
+                  className={cn(
+                    "flex h-9 w-full items-center gap-2.5 overflow-hidden rounded-md px-2.5 text-left text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:bg-secondary focus-visible:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:font-semibold data-[active=true]:text-primary",
+                    collapsed && "justify-center px-0",
+                  )}
+                >
+                  <Icon aria-hidden="true" className="size-4 shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {hasSubItems && (
+                        <ChevronRight
+                          className={cn("size-3.5 shrink-0 text-muted-foreground/60 transition-transform", isOpen && "rotate-90")}
+                          aria-hidden="true"
+                        />
+                      )}
+                    </>
+                  )}
+                </button>
 
-                    return (
-                      <Collapsible
-                        key={`${item.id}-${itemActive ? "active" : "idle"}`}
-                        asChild
-                        defaultOpen={defaultOpen}
-                        className="group/collapsible"
+                {hasSubItems && isOpen && !collapsed && (
+                  <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-border/60 pl-2">
+                    {item.subItems?.map((subItem) => (
+                      <button
+                        key={subItem.id}
+                        type="button"
+                        disabled={item.disabled || subItem.disabled}
+                        data-active={subItem.id === activeItemId}
+                        onClick={() => onSelect(subItem.id)}
+                        className="flex min-h-7 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary/10 data-[active=true]:font-bold data-[active=true]:text-primary"
                       >
-                        <SidebarMenuItem>
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuButton
-                              type="button"
-                              isActive={itemActive}
-                              disabled={item.disabled}
-                              tooltip={collapsed ? item.label : undefined}
-                              className={prismSidebarButtonClass}
-                              onClick={() => onSelect(item.id)}
-                            >
-                              <Icon />
-                              <span className={prismSidebarButtonLabelClass}>{item.label}</span>
-                              {!collapsed ? (
-                                <ChevronRight className="size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                              ) : null}
-                            </SidebarMenuButton>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="max-h-56 overflow-y-auto overflow-x-hidden">
-                            <SidebarMenuSub className={prismSidebarSubListClass}>
-                              {item.subItems?.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.id} className="min-w-0">
-                                  <SidebarMenuSubButton
-                                    asChild
-                                    size="sm"
-                                    isActive={subItem.id === activeItemId}
-                                    className={prismSidebarSubButtonClass}
-                                  >
-                                    <button
-                                      type="button"
-                                      className="flex w-full min-w-0 items-center text-left"
-                                      disabled={item.disabled || subItem.disabled}
-                                      onClick={() => onSelect(subItem.id)}
-                                    >
-                                      <span className={prismSidebarButtonLabelClass}>{subItem.label}</span>
-                                    </button>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          </CollapsibleContent>
-                        </SidebarMenuItem>
-                      </Collapsible>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
+                        <span className="size-1.5 shrink-0 rounded-full bg-current opacity-40" aria-hidden="true" />
+                        <span className="min-w-0 flex-1 truncate">{subItem.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-
-      </div>
-    </SidebarProvider>
+      </nav>
+    </div>
   );
 }
 
@@ -1657,24 +1594,23 @@ export function Dashboard({
           : "Portal opens after inquiry is accepted and conforme is signed.");
 
   const eventHeader = selectedEvent ? (
-    <section className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-        <div className="min-w-0">
-          <h2 className="text-lg font-black leading-tight text-foreground sm:text-xl">{selectedEvent.eventName}</h2>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span>{selectedEvent.clientName}</span>
-            <span>{selectedEvent.eventDate ?? "Date pending"}</span>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <StatusBadge status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />
-            <StatusBadge status={portalBadgeStatus(selectedEvent.clientPortalStatus)} label={portalBadgeLabel(selectedEvent.clientPortalStatus)} />
-            <span className="rounded-md border border-border bg-card px-2.5 py-0.5 text-xs font-semibold text-foreground">
-              {selectedEvent.readiness ? `Readiness: ${formatStatusLabel(selectedEvent.readiness)}` : "Readiness pending"}
-            </span>
+    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-muted/60 to-transparent px-5 py-4">
+        <div className="min-w-0 flex items-center gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--prism-signal)] text-white font-black text-base select-none">
+            {selectedEvent.eventName.slice(0, 1).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-base font-black leading-tight text-foreground truncate">{selectedEvent.eventName}</h2>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+              <span>{selectedEvent.eventDate ?? "Date TBD"}</span>
+              <span aria-hidden>·</span>
+              <StatusBadge status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />
+            </div>
           </div>
         </div>
-        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => router.push("/dashboard/events")}>
-          Change event
+        <Button size="sm" variant="ghost" className="rounded-lg text-xs font-semibold text-muted-foreground shrink-0" onClick={() => router.push("/dashboard/events")}>
+          Switch event
         </Button>
       </div>
       <EventWorkspaceNav
@@ -1800,17 +1736,17 @@ export function Dashboard({
         {events.length > 0 ? (
           <div>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-bold text-foreground">Your events</h2>
+              <h2 className="text-base font-black text-foreground">Your events</h2>
               <button
                 type="button"
                 onClick={() => router.push("/dashboard/events")}
-                className="text-xs font-semibold text-(--prism-signal) hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-(--prism-signal) hover:underline"
               >
-                View all
+                View all <ArrowRight className="size-3" />
               </button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {events.slice(0, 4).map((ev) => {
+              {events.slice(0, 3).map((ev) => {
                 const dots = eventProgressDots(ev, state);
                 const statement = state.billingStatements.find((b) => b.eventId === ev.id);
                 const eventBriefing = state.briefings.find((b) => b.eventId === ev.id);
@@ -1833,11 +1769,18 @@ export function Dashboard({
             </div>
           </div>
         ) : (
-          <EmptyState
-            icon={LockKeyhole}
-            title="No active event portal"
-            description="The client portal opens after PMCM accepts your inquiry and records the signed conforme."
-          />
+          <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-12 text-center">
+            <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--prism-signal-soft)]">
+              <CalendarDays className="size-6 text-[var(--prism-signal)]" />
+            </span>
+            <h3 className="mt-4 text-base font-black text-foreground">No events yet</h3>
+            <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
+              Your event workspace opens after PMCM accepts your inquiry and records the signed conforme. Submit a request to get started.
+            </p>
+            <Button className="mt-5 rounded-lg font-bold" onClick={() => router.push("/dashboard/request")}>
+              <Send className="size-4" /> Submit an event request
+            </Button>
+          </div>
         )}
 
         {/* Recent updates */}
@@ -1967,30 +1910,45 @@ export function Dashboard({
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {visibleEvents.length ? visibleEvents.map((ev) => {
-            const dots = eventProgressDots(ev, state);
-            const statement = state.billingStatements.find((b) => b.eventId === ev.id);
-            const eventBriefing = state.briefings.find((b) => b.eventId === ev.id);
-            const eventDocs = state.documents.filter((document) => document.eventId === ev.id);
-            return (
-              <EventSummaryCard
-                key={ev.id}
-                event={ev}
-                dots={dots}
-                billingStatement={statement}
-                briefing={eventBriefing}
-                documentCount={eventDocs.length}
-                onOpen={() => {
-                  setSelectedEventId(ev.id);
-                  router.push(dashboardHref("overview", ev.id));
-                }}
-              />
-            );
-          }) : (
-            <EmptyState icon={CalendarDays} title="No matching events" description="Try a different search, or start a new event request." />
-          )}
-        </div>
+        {visibleEvents.length ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {visibleEvents.map((ev) => {
+              const dots = eventProgressDots(ev, state);
+              const statement = state.billingStatements.find((b) => b.eventId === ev.id);
+              const eventBriefing = state.briefings.find((b) => b.eventId === ev.id);
+              const eventDocs = state.documents.filter((document) => document.eventId === ev.id);
+              return (
+                <EventSummaryCard
+                  key={ev.id}
+                  event={ev}
+                  dots={dots}
+                  billingStatement={statement}
+                  briefing={eventBriefing}
+                  documentCount={eventDocs.length}
+                  onOpen={() => {
+                    setSelectedEventId(ev.id);
+                    router.push(dashboardHref("overview", ev.id));
+                  }}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-16 text-center">
+            <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted">
+              <CalendarDays className="size-6 text-muted-foreground" />
+            </span>
+            <h3 className="mt-4 text-base font-black text-foreground">No events found</h3>
+            <p className="mt-2 max-w-sm mx-auto text-sm text-muted-foreground">
+              {eventSearch ? "Try a different search term." : "Submit a new event request to get started."}
+            </p>
+            {!eventSearch && (
+              <Button className="mt-5 rounded-lg font-bold" onClick={() => router.push("/dashboard/request")}>
+                <Send className="size-4" /> New event request
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -2333,25 +2291,54 @@ export function Dashboard({
       return true;
     });
 
+    const statusIcon = (status: string) => {
+      if (/approved|done|confirmed/i.test(status)) return <CheckCircle2 className="size-4 text-(--prism-success)" />;
+      if (/pending|waiting|preparation/i.test(status)) return <Clock className="size-4 text-(--prism-amber)" />;
+      return <BadgeCheck className="size-4 text-muted-foreground" />;
+    };
+
     return (
       <div className="space-y-5">
-        {!eventId && !portalViewMeta && eventHeader}
-        {!eventId && portalViewMeta ? (
+        {!isEventScopedView && portalViewMeta && (
           <PageHeader eyebrow="Client approvals" title={portalViewMeta.title} description={portalViewMeta.description} />
-        ) : null}
-        <div className="grid gap-3">
-          {visibleApprovalItems.length ? visibleApprovalItems.map((item) => (
-            <div key={item.title} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-foreground">{item.title}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+        )}
+        {!selectedEvent && !isEventScopedView ? (
+          <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-12 text-center">
+            <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted">
+              <BadgeCheck className="size-6 text-muted-foreground" />
+            </span>
+            <h3 className="mt-4 text-base font-black text-foreground">No active event</h3>
+            <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
+              Select an event from My Events to view approval items.
+            </p>
+            <Button variant="outline" className="mt-5 rounded-lg font-semibold" onClick={() => router.push("/dashboard/events")}>
+              Go to My Events
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {visibleApprovalItems.length ? visibleApprovalItems.map((item) => (
+              <div key={item.title} className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm hover:border-(--prism-signal)/20 transition-colors">
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="mt-0.5 shrink-0">{statusIcon(item.status)}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground">{item.title}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{item.detail}</p>
+                  </div>
+                </div>
+                <StatusBadge status={item.status} label={formatStatusLabel(item.status)} />
               </div>
-              <StatusBadge status={item.status} label={formatStatusLabel(item.status)} />
-            </div>
-          )) : (
-            <EmptyState icon={BadgeCheck} title="No approvals yet" description="Approvals unlock after inquiry acceptance and conforme signing." />
-          )}
-        </div>
+            )) : (
+              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-12 text-center">
+                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted">
+                  <BadgeCheck className="size-6 text-muted-foreground" />
+                </span>
+                <h3 className="mt-4 text-base font-black text-foreground">All clear</h3>
+                <p className="mt-2 text-sm text-muted-foreground">No approval items in this view.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -2428,8 +2415,18 @@ export function Dashboard({
 
     return (
       <div className="space-y-5">
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h1 className="text-2xl font-black text-foreground">{activeFolder.label}</h1>
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
+          <div>
+            <h1 className="text-2xl font-black text-foreground">{activeFolder.label}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{files.length} file{files.length === 1 ? "" : "s"} across all your PMCM events</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {folderRows.filter((f) => f.count > 0).length > 0 && (
+              <span className="text-xs text-muted-foreground font-semibold">
+                {allFiles.length} total · {activeFileSize}
+              </span>
+            )}
+          </div>
         </section>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
@@ -2812,52 +2809,104 @@ export function Dashboard({
   /* ── Messages page ─────────────────────────────────────────── */
 
   const renderMessagesPage = () => {
-    const messageItems = [
+    const chatMessages = [
       ...notifications.map((item) => ({
         id: item.id,
-        title: `${item.channel.toUpperCase()} update`,
-        detail: item.message,
-        meta: item.createdAt,
-        status: item.status,
+        text: item.message,
+        timestamp: item.createdAt,
+        sender: "PMCM",
         initials: "PM",
+        fromPmcm: true,
       })),
       ...audit.map((item) => ({
         id: item.id,
-        title: clientActivityTitle(item.action),
-        detail: `Updated by ${clientActivityActor(item.actor)}`,
-        meta: item.createdAt,
-        status: "logged",
+        text: clientActivityTitle(item.action),
+        timestamp: item.createdAt,
+        sender: clientActivityActor(item.actor),
         initials: item.actor.slice(0, 2).toUpperCase(),
+        fromPmcm: item.actor.toLowerCase().includes("pmcm") || item.actor.toLowerCase().includes("coordinator"),
       })),
-    ];
+    ].sort((a, b) => (a.timestamp ?? "").localeCompare(b.timestamp ?? ""));
+
+    const clientInitials = session.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
     return (
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <header className="border-b border-border px-6 py-5">
-          <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Messages</p>
-          <h2 className="mt-1 text-xl font-black text-foreground">{portalViewMeta?.title ?? "PMCM updates and activity"}</h2>
-          {portalViewMeta ? <p className="mt-1 text-sm text-muted-foreground">{portalViewMeta.description}</p> : null}
-        </header>
-        <div className="divide-y divide-border">
-          {messageItems.length ? messageItems.map((item) => (
-            <div key={item.id} className="flex items-start gap-4 px-6 py-4">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-black text-primary">
-                {item.initials}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-bold text-foreground">{item.title}</p>
-                  <StatusBadge status={item.status} />
+      <div className="space-y-4">
+        {/* Chat header — only shown when not inside the event workspace (which already shows the event header) */}
+        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--prism-signal)] text-white font-black text-sm">
+            PM
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-foreground">PMCM Events</p>
+            <p className="text-xs text-muted-foreground">
+              {selectedEvent ? `Chat for ${selectedEvent.eventName}` : "Your event coordination team"}
+            </p>
+          </div>
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="size-2 rounded-full bg-(--prism-success)" />
+            Active
+          </span>
+        </div>
+
+        {/* Chat thread */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex flex-col" style={{ minHeight: "420px" }}>
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+            {chatMessages.length ? chatMessages.map((msg) => (
+              <div key={msg.id} className={`flex items-end gap-3 ${msg.fromPmcm ? "" : "flex-row-reverse"}`}>
+                <span className={`grid size-8 shrink-0 place-items-center rounded-full text-[11px] font-black ${
+                  msg.fromPmcm
+                    ? "bg-[var(--prism-signal)]/10 text-[var(--prism-signal)]"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {msg.fromPmcm ? "PM" : clientInitials}
+                </span>
+                <div className={`max-w-[72%] ${msg.fromPmcm ? "" : "items-end"} flex flex-col gap-1`}>
+                  <div className={`rounded-2xl px-4 py-2.5 text-sm leading-5 ${
+                    msg.fromPmcm
+                      ? "rounded-bl-md bg-muted text-foreground"
+                      : "rounded-br-md bg-[var(--prism-signal)] text-white"
+                  }`}>
+                    {msg.text}
+                  </div>
+                  <span className={`text-[10px] text-muted-foreground/60 ${msg.fromPmcm ? "pl-1" : "pr-1 text-right"}`}>
+                    {msg.sender} · {msg.timestamp}
+                  </span>
                 </div>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.detail}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{item.meta}</p>
               </div>
+            )) : (
+              <div className="flex h-full flex-col items-center justify-center py-12 text-center">
+                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted">
+                  <MessageSquareText className="size-6 text-muted-foreground" />
+                </span>
+                <h3 className="mt-4 text-base font-black text-foreground">No messages yet</h3>
+                <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+                  PMCM will send updates and coordination notes here once your event workspace is active.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Message input */}
+          <div className="border-t border-border bg-muted/20 px-4 py-3">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+              <Input
+                placeholder="Message PMCM…"
+                className="flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 text-sm"
+                disabled
+              />
+              <button
+                type="button"
+                disabled
+                className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--prism-signal)]/20 text-[var(--prism-signal)] opacity-50 cursor-not-allowed"
+              >
+                <Send className="size-3.5" />
+              </button>
             </div>
-          )) : (
-            <div className="px-6 py-8">
-              <EmptyState icon={MessageSquareText} title="No messages yet" description="PMCM messages and client-visible updates will appear here." />
-            </div>
-          )}
+            <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+              Messaging available after portal activation · Contact PMCM directly for urgent matters
+            </p>
+          </div>
         </div>
       </div>
     );

@@ -6,5 +6,6 @@ export { FinancialWorkspace } from "./financial-workspace";
 export { InquiryIntakeLog } from "./inquiry-intake-log";
 export { LiveOperationsWorkspace } from "./live-operations-workspace";
 export { Phase4Workspace } from "./phase4-workspace";
+export { PAREPanel } from "./pare-panel";
 export { SupplierDirectory } from "./supplier-directory";
 export { SupplierQuotePlanner } from "./supplier-quote-planner";

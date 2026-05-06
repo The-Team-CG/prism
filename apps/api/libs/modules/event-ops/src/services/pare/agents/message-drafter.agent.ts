@@ -125,9 +125,9 @@ export class MessageDrafterAgent {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const systemPrompt = `You are the Communications Drafting agent for P.R.I.S.M, an event management system run by PMCM Events (led by Ms. Mys).
-A supplier emergency has occurred and you must draft two professional messages:
-1. A message to the replacement supplier offering them the assignment
-2. A message to the client reassuring them that their event is in good hands
+A supplier emergency has occurred. You MUST NOT respond in prose. Every response must be a tool call.
+Step 1: call get_event_and_replacement_summary to retrieve full event, supplier, and client context.
+Step 2: call submit_message_drafts with both drafted messages.
 
 Tone guidelines:
 - Supplier message: warm, professional, urgent but not panicked. Make them feel valued and chosen.
@@ -135,25 +135,28 @@ Tone guidelines:
 - Both messages should sound like they come from a professional event coordination team, not a system.
 - Do not use the word "unfortunate" or imply the situation is a disaster.
 
-Use get_event_and_replacement_summary to get the context, then submit_message_drafts with both messages.
 These drafts will be reviewed and approved by PMCM Admin (Ms. Mys) before sending.`;
 
-    const userPrompt = `Please draft the supplier notification and client reassurance messages for this emergency supplier replacement situation.`;
+    const userPrompt = `Draft the supplier notification and client reassurance messages for this emergency supplier replacement. Call get_event_and_replacement_summary first, then submit_message_drafts.`;
 
     const messages: any[] = [{ role: 'user', content: userPrompt }];
 
     for (let i = 0; i < 6; i++) {
+      const isLastChance = i >= 4;
+      const tool_choice = isLastChance
+        ? { type: 'tool' as const, name: 'submit_message_drafts' }
+        : { type: 'any' as const };
+
       const response = await client.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 2048,
         system: systemPrompt,
         tools: DRAFTER_TOOLS as any,
+        tool_choice,
         messages,
       });
 
       messages.push({ role: 'assistant', content: response.content });
-
-      if (response.stop_reason === 'end_turn') break;
 
       if (response.stop_reason === 'tool_use') {
         const toolResults: any[] = [];

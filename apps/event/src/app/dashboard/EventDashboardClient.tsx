@@ -71,6 +71,7 @@ import {
   FinancialWorkspace,
   InquiryIntakeLog,
   LiveOperationsWorkspace,
+  PAREPanel,
   Phase4Workspace,
   SupplierDirectory,
   SupplierQuotePlanner,
@@ -2812,7 +2813,7 @@ export default function EventDashboard({
       );
     }
     return (
-      <CoordinatorView session={session} state={coordinatorState} onRefresh={() => refresh(session)} />
+      <CoordinatorView session={session} state={coordinatorState} onRefresh={() => refresh(session)} onSignOut={signOut} />
     );
   }
 
@@ -3507,25 +3508,54 @@ export default function EventDashboard({
               )}
 
               {tab === "suppliers" && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Truck className="size-4 text-(--prism-signal)" />
-                      <h2 className="text-sm font-bold text-foreground">Supplier desk</h2>
-                    </div>
-                  </CardHeader>
-                  <CardBody>
-                    <SupplierQuotePlanner
-                      categories={supplierCategories}
-                      suppliers={suppliers}
-                      requests={quoteRequests}
-                      quotes={quotes}
-                      onRequestQuotes={(input) => run("request supplier quotes", () => mvpApi.requestSupplierQuotes(selectedEvent.id, input))}
-                      onSelectQuote={(quoteId) => run("select supplier quote", () => mvpApi.selectSupplierQuote(selectedEvent.id, quoteId))}
-                      busy={Boolean(busy)}
-                    />
-                  </CardBody>
-                </Card>
+                <div className="space-y-5">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Truck className="size-4 text-(--prism-signal)" />
+                        <h2 className="text-sm font-bold text-foreground">Supplier desk</h2>
+                      </div>
+                    </CardHeader>
+                    <CardBody>
+                      <SupplierQuotePlanner
+                        categories={supplierCategories}
+                        suppliers={suppliers}
+                        requests={quoteRequests}
+                        quotes={quotes}
+                        onRequestQuotes={(input) => run("request supplier quotes", () => mvpApi.requestSupplierQuotes(selectedEvent.id, input))}
+                        onSelectQuote={(quoteId) => run("select supplier quote", () => mvpApi.selectSupplierQuote(selectedEvent.id, quoteId))}
+                        busy={Boolean(busy)}
+                      />
+                    </CardBody>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="grid size-5 place-items-center rounded bg-[var(--prism-signal)] text-white">
+                            <svg viewBox="0 0 16 16" fill="none" className="size-3" aria-hidden="true">
+                              <path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5l3.5-.5L8 2z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                          <h2 className="text-sm font-bold text-foreground">PARE · Emergency Response Engine</h2>
+                        </div>
+                        <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+                          FR-AI-04
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardBody>
+                      <PAREPanel
+                        eventId={selectedEvent.id}
+                        assignedRequests={quoteRequests.filter((r) => r.assignmentStatus === "assigned")}
+                        suppliers={suppliers}
+                        onWithdraw={(requestId) => run("withdraw supplier", () => mvpApi.withdrawSupplier(selectedEvent.id, requestId))}
+                        busy={Boolean(busy)}
+                      />
+                    </CardBody>
+                  </Card>
+                </div>
               )}
 
               {tab === "coordinators" && (

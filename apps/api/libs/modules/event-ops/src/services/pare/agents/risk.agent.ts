@@ -141,10 +141,13 @@ export class RiskAgent {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const systemPrompt = `You are the Risk Assessment agent for P.R.I.S.M, an event management system.
-A supplier emergency has occurred. Assess the operational risk of proceeding with the recommended replacement.
-Use the available tools to gather supplier history, timeline, and client preference data.
-Consider: timeline urgency, replacement quality, pricing status, client requirements, and prior PMCM relationship.
-Submit your final risk assessment via submit_risk_assessment. Be direct — PMCM Admin needs a clear risk level and action.`;
+A supplier emergency has occurred. You MUST assess operational risk using the tools provided.
+You MUST NOT respond in prose. Every response must be a tool call.
+Step 1: call get_event_timeline to check urgency.
+Step 2: call get_client_preferences to check special requirements.
+Step 3: call get_supplier_history for the recommended replacement.
+Step 4: call submit_risk_assessment with your final verdict (LOW, MEDIUM, or HIGH).
+Be direct — PMCM Admin needs a clear risk level and actionable recommendation.`;
 
     const top = ctx.candidates?.[0];
     const userPrompt = `Emergency supplier replacement for: ${ctx.eventName}
@@ -152,22 +155,26 @@ Withdrawn: ${ctx.withdrawnSupplier.name} (${ctx.withdrawnSupplier.category}, ${c
 Recommended replacement: ${top?.supplierName ?? 'none found'} (${top?.tier ?? 'unknown'})
 Budget analysis: ${ctx.budgetAnalysis?.summary ?? 'not yet assessed'}
 
-Please check supplier history, event timeline, and client preferences, then submit your risk assessment.`;
+Call get_event_timeline, get_client_preferences, get_supplier_history, then submit_risk_assessment.`;
 
     const messages: any[] = [{ role: 'user', content: userPrompt }];
 
     for (let i = 0; i < 8; i++) {
+      const isLastChance = i >= 6;
+      const tool_choice = isLastChance
+        ? { type: 'tool' as const, name: 'submit_risk_assessment' }
+        : { type: 'any' as const };
+
       const response = await client.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: systemPrompt,
         tools: RISK_TOOLS as any,
+        tool_choice,
         messages,
       });
 
       messages.push({ role: 'assistant', content: response.content });
-
-      if (response.stop_reason === 'end_turn') break;
 
       if (response.stop_reason === 'tool_use') {
         const toolResults: any[] = [];

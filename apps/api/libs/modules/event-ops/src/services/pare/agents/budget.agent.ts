@@ -130,32 +130,41 @@ export class BudgetAgent {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const systemPrompt = `You are the Budget Analysis agent for P.R.I.S.M, an event management system.
-A supplier emergency has occurred and you must assess whether the recommended replacement supplier is financially feasible.
-Use the available tools to gather budget and quote data, then submit your analysis via submit_budget_analysis.
-Be concise and practical. You are advising PMCM Admin (Ms. Mys) who needs a fast, clear answer.`;
+A supplier emergency has occurred. You MUST assess budget feasibility using the tools provided.
+You MUST NOT respond in prose. Every response must be a tool call.
+Step 1: call get_event_budget_summary to get the remaining budget.
+Step 2: call get_quote_details for the top replacement candidate.
+Step 3: call submit_budget_analysis with your final feasibility verdict.
+You are advising PMCM Admin (Ms. Mys) who needs a fast, clear answer.`;
 
     const userPrompt = `Emergency supplier replacement needed for event: ${ctx.eventName} (${ctx.daysUntilEvent} days away).
 Withdrawn supplier: ${ctx.withdrawnSupplier.name} (${ctx.withdrawnSupplier.category}, ₱${ctx.withdrawnSupplier.quotedAmount.toLocaleString()})
 Top replacement candidate: ${top.supplierName} (${top.tier}, quoted ₱${top.quotedAmount.toLocaleString()})
-Other candidates available: ${(ctx.candidates ?? []).slice(1).map((c) => c.supplierName).join(', ') || 'none'}
+Other candidates: ${(ctx.candidates ?? []).slice(1).map((c) => c.supplierName).join(', ') || 'none'}
 
-Please check the event budget and quote details, then submit your budget feasibility analysis.`;
+Call get_event_budget_summary first, then get_quote_details, then submit_budget_analysis.`;
+
+    const ALL_TOOLS = BUDGET_TOOLS as any;
 
     const messages: any[] = [{ role: 'user', content: userPrompt }];
 
-    // Agentic tool-use loop — Claude calls tools until it submits final analysis
     for (let i = 0; i < 6; i++) {
+      const isLastChance = i >= 4;
+      // Force tool use every turn — on final turn force specifically the submit tool
+      const tool_choice = isLastChance
+        ? { type: 'tool' as const, name: 'submit_budget_analysis' }
+        : { type: 'any' as const };
+
       const response = await client.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         system: systemPrompt,
-        tools: BUDGET_TOOLS as any,
+        tools: ALL_TOOLS,
+        tool_choice,
         messages,
       });
 
       messages.push({ role: 'assistant', content: response.content });
-
-      if (response.stop_reason === 'end_turn') break;
 
       if (response.stop_reason === 'tool_use') {
         const toolResults: any[] = [];
@@ -182,7 +191,6 @@ Please check the event budget and quote details, then submit your budget feasibi
       }
     }
 
-    // Fallback if Claude never submitted
     return mockAnalysis(ctx, top);
   }
 }

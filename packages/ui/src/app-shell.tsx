@@ -591,11 +591,10 @@ function PrismIconRail({
   navItems,
   onNavSelect,
   homeHref = "/",
-  user,
   railItems,
 }: Pick<
   PrismAppShellProps,
-  "productLabel" | "activeItemId" | "navItems" | "onNavSelect" | "homeHref" | "user"
+  "productLabel" | "activeItemId" | "navItems" | "onNavSelect" | "homeHref"
 > & {
   railItems?: PrismRailItem[];
 }) {
@@ -646,11 +645,6 @@ function PrismIconRail({
           >
             <Settings aria-hidden="true" className="size-4" />
           </button>
-        ) : null}
-        {user ? (
-          <span title={user.name} className="grid size-9 place-items-center rounded-full border border-border bg-card text-[11px] font-black text-foreground">
-            {user.initials ?? initialsFor(user.name)}
-          </span>
         ) : null}
       </div>
     </div>
@@ -980,7 +974,6 @@ export function PrismAppShell({
             navItems={navItems}
             onNavSelect={handleNavSelect}
             homeHref={homeHref}
-            user={user}
             railItems={primaryRail.items}
           />
         )}

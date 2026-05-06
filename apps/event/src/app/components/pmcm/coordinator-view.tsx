@@ -202,10 +202,12 @@ export function CoordinatorView({
   session,
   state,
   onRefresh,
+  onSignOut,
 }: {
   session: PmcmEventSession;
   state: MvpCoordinatorWorkspace;
   onRefresh: () => Promise<void>;
+  onSignOut?: () => void;
 }) {
   const assignments = state.assignments.filter((item) => sameText(item.coordinatorName, session.name));
   const assignment = assignments.find((item) => item.attendanceStatus !== "replaced" && item.status !== "replaced") ?? assignments[0];
@@ -315,6 +317,7 @@ export function CoordinatorView({
         detail: label(session.role),
         initials: session.name.slice(0, 2).toUpperCase(),
       }}
+      onSignOut={onSignOut}
       searchPlaceholder="Search tasks and issues..."
     >
       <div className="space-y-5">

@@ -42,3 +42,4 @@ These notes preserve the product boundaries established by the project docs and 
 - Do not use active underline treatments in public or app header navigation.
 - Do not add decorative eyebrow pills, rounded outline labels, or uppercase badge labels like `PMCM-led client planning`.
 - Do not add that badge/eyebrow-pill treatment to event status cards, dashboard cards, landing pages, or mockup panels.
+- Do not render a profile/avatar block in sidebars when the top bar already has the account/profile menu.
