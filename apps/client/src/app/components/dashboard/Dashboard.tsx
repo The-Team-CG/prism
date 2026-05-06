@@ -15,6 +15,7 @@ import {
   LockKeyhole,
   MapPinned,
   MessageSquareText,
+  MoreVertical,
   Presentation,
   ReceiptText,
   Send,
@@ -221,13 +222,6 @@ const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     icon: CalendarDays,
     section: "Client Portal",
     route: "calendar",
-    subItems: [
-      { id: "calendar-event-dates", label: "Event Dates", route: "calendar" },
-      { id: "calendar-meetings", label: "Meetings", route: "calendar" },
-      { id: "calendar-deadlines", label: "Deadlines", route: "calendar" },
-      { id: "calendar-payment-due-dates", label: "Payment Due Dates", route: "calendar" },
-      { id: "calendar-approval-deadlines", label: "Approval Deadlines", route: "calendar" },
-    ],
   },
   {
     id: "approvals",
@@ -265,15 +259,6 @@ const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     icon: FileText,
     section: "Client Portal",
     route: "files",
-    subItems: [
-      { id: "files-all", label: "All Files", route: "files" },
-      { id: "files-contracts", label: "Contracts", route: "files" },
-      { id: "files-quotations", label: "Quotations", route: "files" },
-      { id: "files-invoices-receipts", label: "Invoices / Receipts", route: "files" },
-      { id: "files-event-layouts", label: "Event Layouts", route: "files" },
-      { id: "files-uploaded", label: "Uploaded Files", route: "files" },
-      { id: "files-shared", label: "Shared Files", route: "files" },
-    ],
   },
   {
     id: "billing-payments",
@@ -466,7 +451,9 @@ function sidebarActiveItemId(route: ClientDashboardRoute, eventScoped: boolean, 
   if (
     portalView &&
     !portalView.startsWith("events-") &&
-    !portalView.startsWith("dashboard-")
+    !portalView.startsWith("dashboard-") &&
+    !portalView.startsWith("files-") &&
+    !portalView.startsWith("calendar-")
   ) {
     return portalView;
   }
@@ -2102,17 +2089,49 @@ export function Dashboard({
   );
 
   const renderCalendarPage = () => {
+    type CalendarItemKind = "event" | "payment" | "deadline" | "approval" | "meeting";
+    type CalendarItem = {
+      id: string;
+      date: string;
+      title: string;
+      detail: string;
+      status: string;
+      kind: CalendarItemKind;
+    };
+
+    const toIsoDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+    const dateFromIso = (date: string) => new Date(`${date}T00:00:00`);
+    const addDays = (date: string, days: number) => {
+      const value = dateFromIso(date);
+      value.setDate(value.getDate() + days);
+      return toIsoDate(value);
+    };
+    const formatCalendarDate = (date: string) =>
+      dateFromIso(date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const calendarItemClass = (item: CalendarItem) => {
+      if (item.kind === "event") return "border-primary/20 bg-primary/10 text-primary";
+      if (item.kind === "payment" && item.status === "paid") return "border-(--prism-success)/25 bg-(--prism-success)/10 text-(--prism-success)";
+      if (item.kind === "payment") return "border-(--prism-warning)/25 bg-(--prism-warning)/10 text-(--prism-warning)";
+      if (item.kind === "approval") return "border-(--prism-signal)/25 bg-(--prism-signal-soft) text-foreground";
+      return "border-border bg-muted text-foreground";
+    };
+
     const eventIds = new Set(events.map((ev) => ev.id));
     const allPayments = state.paymentMilestones.filter((payment) => eventIds.has(payment.eventId));
-    const timelineItems = [
-      ...events.map((ev) => ({
+    const eventDates: CalendarItem[] = events.map((ev) => ({
         id: `event-${ev.id}`,
         date: ev.eventDate,
         title: ev.eventName,
         detail: "Event date",
         status: ev.status,
-      })),
-      ...allPayments.map((payment) => {
+        kind: "event",
+    }));
+    const paymentDates: CalendarItem[] = allPayments.map((payment) => {
         const ev = events.find((candidate) => candidate.id === payment.eventId);
         return {
           id: `payment-${payment.id}`,
@@ -2120,40 +2139,161 @@ export function Dashboard({
           title: payment.label,
           detail: ev ? `${ev.eventName} payment due` : "Payment due",
           status: payment.status,
+          kind: "payment",
         };
-      }),
-    ]
+    });
+    const planningDates: CalendarItem[] = events.flatMap((ev) => [
+      {
+        id: `approval-${ev.id}`,
+        date: addDays(ev.eventDate, -14),
+        title: "Layout approval",
+        detail: ev.eventName,
+        status: ev.floorPlanStatus || "pending",
+        kind: "approval" as const,
+      },
+      {
+        id: `deadline-${ev.id}`,
+        date: addDays(ev.eventDate, -7),
+        title: "Final planning deadline",
+        detail: ev.eventName,
+        status: ev.status,
+        kind: "deadline" as const,
+      },
+    ]);
+    const calendarItems = [...eventDates, ...paymentDates, ...planningDates]
       .filter((item) => {
-        if (portalView === "calendar-event-dates") return item.detail === "Event date";
-        if (portalView === "calendar-payment-due-dates") return item.detail.includes("payment due");
-        if (portalView === "calendar-meetings") return false;
+        if (portalView === "calendar-event-dates") return item.kind === "event";
+        if (portalView === "calendar-payment-due-dates") return item.kind === "payment";
+        if (portalView === "calendar-meetings") return item.kind === "meeting";
+        if (portalView === "calendar-deadlines") return item.kind === "deadline" || item.kind === "payment";
+        if (portalView === "calendar-approval-deadlines") return item.kind === "approval";
         return true;
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const monthSource = selectedEvent?.eventDate ?? calendarItems.find((item) => item.kind === "event")?.date ?? calendarItems[0]?.date ?? toIsoDate(new Date());
+    const monthDate = dateFromIso(monthSource);
+    const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const gridStart = new Date(monthStart);
+    gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+    const monthLabel = monthStart.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    const todayIso = toIsoDate(new Date());
+    const itemsByDate = calendarItems.reduce<Map<string, CalendarItem[]>>((map, item) => {
+      const group = map.get(item.date) ?? [];
+      group.push(item);
+      map.set(item.date, group);
+      return map;
+    }, new Map());
+    const monthCells = Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(gridStart);
+      date.setDate(gridStart.getDate() + index);
+      const iso = toIsoDate(date);
+      return {
+        date,
+        iso,
+        isCurrentMonth: date.getMonth() === monthStart.getMonth(),
+        isToday: iso === todayIso,
+        items: itemsByDate.get(iso) ?? [],
+      };
+    });
+    const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const legend: Array<{ label: string; className: string }> = [
+      { label: "Event", className: "bg-primary" },
+      { label: "Payment", className: "bg-(--prism-warning)" },
+      { label: "Approval", className: "bg-(--prism-signal)" },
+      { label: "Deadline", className: "bg-muted-foreground" },
+    ];
 
     return (
       <div className="space-y-5">
-        <PageHeader
-          eyebrow="Client calendar"
-          title={portalViewMeta?.title ?? "Event dates, deadlines, and payment timing"}
-          description={portalViewMeta?.description ?? "A client-safe timeline for event dates, payment due dates, approval windows, and PMCM follow-ups."}
-        />
-        <div className="grid gap-3">
-          {timelineItems.length ? timelineItems.map((item) => (
-            <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-foreground">{item.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+            <h1 className="text-2xl font-black text-foreground">{monthLabel}</h1>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              {legend.map((item) => (
+                <span key={item.label} className="inline-flex items-center gap-1.5">
+                  <span className={cn("size-2 rounded-full", item.className)} />
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[760px]">
+              <div className="grid grid-cols-7 border-b border-border bg-muted/30">
+                {weekdayLabels.map((day) => (
+                  <div key={day} className="border-r border-border px-3 py-2 text-xs font-bold text-muted-foreground last:border-r-0">
+                    {day}
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-foreground">{item.date}</span>
-                <StatusBadge status={item.status} label={formatStatusLabel(item.status)} />
+              <div className="grid grid-cols-7">
+                {monthCells.map((cell, index) => (
+                  <div
+                    key={cell.iso}
+                    className={cn(
+                      "min-h-[116px] border-b border-r border-border p-2",
+                      (index + 1) % 7 === 0 && "border-r-0",
+                      !cell.isCurrentMonth && "bg-muted/20 text-muted-foreground",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={cn(
+                          "grid size-7 place-items-center rounded-lg text-xs font-bold",
+                          cell.isToday ? "bg-primary text-primary-foreground" : "text-foreground",
+                          !cell.isCurrentMonth && !cell.isToday && "text-muted-foreground",
+                        )}
+                      >
+                        {cell.date.getDate()}
+                      </span>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {cell.items.slice(0, 3).map((item) => (
+                        <div
+                          key={item.id}
+                          className={cn("truncate rounded-md border px-2 py-1 text-[11px] font-semibold", calendarItemClass(item))}
+                          title={`${item.title} - ${item.detail}`}
+                        >
+                          {item.title}
+                        </div>
+                      ))}
+                      {cell.items.length > 3 ? (
+                        <p className="px-2 text-[11px] font-semibold text-muted-foreground">+{cell.items.length - 3} more</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          )) : (
-            <EmptyState icon={CalendarDays} title="No calendar items yet" description="Event dates and PMCM deadlines will appear after portal activation." />
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-black text-foreground">{portalViewMeta?.title ?? "Schedule"}</h2>
+            <span className="text-xs font-semibold text-muted-foreground">
+              {calendarItems.length} item{calendarItems.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          {calendarItems.length ? (
+            <div className="mt-4 divide-y divide-border">
+              {calendarItems.map((item) => (
+                <div key={item.id} className="grid gap-3 py-3 sm:grid-cols-[72px_minmax(0,1fr)_auto] sm:items-center">
+                  <span className="text-sm font-bold text-foreground">{formatCalendarDate(item.date)}</span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-foreground">{item.title}</p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{item.detail}</p>
+                  </div>
+                  <StatusBadge status={item.status} label={formatStatusLabel(item.status)} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-dashed border-border px-6 py-8">
+              <EmptyState icon={CalendarDays} title="No calendar items yet" description="Event dates and deadlines will appear after portal activation." />
+            </div>
           )}
-        </div>
+        </section>
       </div>
     );
   };
@@ -2217,48 +2357,215 @@ export function Dashboard({
   };
 
   const renderFilesPage = () => {
+    type FileFilterId =
+      | "files-all"
+      | "files-contracts"
+      | "files-quotations"
+      | "files-invoices-receipts"
+      | "files-event-layouts"
+      | "files-uploaded"
+      | "files-shared";
+
     const eventIds = new Set(events.map((ev) => ev.id));
-    const files = state.documents.filter((document) => {
-      if (!eventIds.has(document.eventId)) return false;
-      const searchable = `${document.type} ${document.fileName}`.toLowerCase();
-      if (portalView === "files-contracts") return /contract|conforme|moa|nda/.test(searchable);
-      if (portalView === "files-quotations") return /quotation|quote/.test(searchable);
-      if (portalView === "files-invoices-receipts") return /invoice|receipt|billing|payment/.test(searchable);
-      if (portalView === "files-event-layouts") return /layout|floor|plan/.test(searchable);
-      if (portalView === "files-uploaded") return /upload|client|asset|speaker|logo|visual|permit/.test(searchable);
-      return true;
-    });
+    const allFiles = state.documents.filter((document) => eventIds.has(document.eventId));
+    const textForFile = (document: MvpDocument) => `${document.type} ${document.fileName}`.toLowerCase();
+    const fileFilterOptions: Array<{
+      id: FileFilterId;
+      label: string;
+      href: string;
+      matches: (document: MvpDocument) => boolean;
+    }> = [
+      { id: "files-all", label: "All files", href: "/dashboard/files", matches: () => true },
+      {
+        id: "files-contracts",
+        label: "Contracts",
+        href: "/dashboard/files/contracts",
+        matches: (document) => /contract|conforme|moa|nda/.test(textForFile(document)),
+      },
+      {
+        id: "files-quotations",
+        label: "Quotations",
+        href: "/dashboard/files/quotations",
+        matches: (document) => /quotation|quote/.test(textForFile(document)),
+      },
+      {
+        id: "files-invoices-receipts",
+        label: "Invoices",
+        href: "/dashboard/files/invoices-receipts",
+        matches: (document) => /invoice|receipt|billing|payment/.test(textForFile(document)),
+      },
+      {
+        id: "files-event-layouts",
+        label: "Event layouts",
+        href: "/dashboard/files/event-layouts",
+        matches: (document) => /layout|floor|plan/.test(textForFile(document)),
+      },
+      {
+        id: "files-uploaded",
+        label: "Uploaded files",
+        href: "/dashboard/files/uploaded",
+        matches: (document) => /upload|client|asset|speaker|logo|visual|permit/.test(textForFile(document)),
+      },
+      {
+        id: "files-shared",
+        label: "Shared files",
+        href: "/dashboard/files/shared",
+        matches: (document) => document.status === "approved" || document.status === "issued",
+      },
+    ];
+    const activeFileFilterId = fileFilterOptions.some((option) => option.id === portalView)
+      ? portalView as FileFilterId
+      : "files-all";
+    const activeFolder = fileFilterOptions.find((option) => option.id === activeFileFilterId) ?? fileFilterOptions[0];
+    const files = allFiles.filter(activeFolder.matches);
+    const folderRows = fileFilterOptions.map((folder) => ({
+      ...folder,
+      count: allFiles.filter(folder.matches).length,
+    }));
+    const latestFile = files[0] ?? allFiles[0];
+    const latestFileEvent = latestFile ? events.find((candidate) => candidate.id === latestFile.eventId) : undefined;
+    const activeFileSize = files.length ? `${Math.max(files.length * 2.4, 1.2).toFixed(1)} Mb` : "0 Mb";
 
     return (
       <div className="space-y-5">
-        <PageHeader
-          eyebrow="Client files"
-          title={portalViewMeta?.title ?? "Contracts, quotations, receipts, layouts, and shared files"}
-          description={portalViewMeta?.description ?? "All client-visible files across your active PMCM event workspaces."}
-        />
-        <div className="rounded-2xl border border-border bg-card shadow-sm">
-          <div className="divide-y divide-border">
-            {files.length ? files.map((file) => {
-              const ev = events.find((candidate) => candidate.id === file.eventId);
-              return (
-                <div key={file.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-foreground">{file.fileName}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{ev?.eventName ?? "Event file"} - {formatStatusLabel(file.type)}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">{file.uploadedAt}</span>
-                    <StatusBadge status={file.status} label={formatStatusLabel(file.status)} />
-                  </div>
-                </div>
-              );
-            }) : (
-              <div className="px-6 py-8">
-                <EmptyState icon={FileText} title="No files yet" description="Contracts, quotations, invoices, receipts, and layout files will appear here." />
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h1 className="text-2xl font-black text-foreground">{activeFolder.label}</h1>
+        </section>
+
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="text-base font-black text-foreground">Folders</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {folderRows.map((folder) => {
+                const isActive = folder.id === activeFileFilterId;
+                return (
+                  <button
+                    key={folder.id}
+                    type="button"
+                    onClick={() => router.push(folder.href)}
+                    className={cn(
+                      "group min-w-0 rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm",
+                      isActive
+                        ? "border-(--prism-success)/40 bg-(--prism-success)/10"
+                        : "border-border bg-background hover:border-(--prism-success)/30",
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "relative h-20 rounded-lg",
+                        isActive ? "bg-(--prism-success)/30" : "bg-muted",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute -top-1 left-0 h-4 w-16 rounded-t-lg",
+                          isActive ? "bg-(--prism-success)/30" : "bg-muted",
+                        )}
+                      />
+                      <span className="absolute right-2 top-2 opacity-0 transition group-hover:opacity-100">
+                        <MoreVertical className="size-4 text-muted-foreground" />
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-foreground">{folder.label}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {folder.count} file{folder.count === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <MoreVertical className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <aside className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-black text-foreground">Details</h2>
+              <MoreVertical className="size-4 text-muted-foreground" />
+            </div>
+            <div className="mt-5">
+              <div className="relative h-24 rounded-xl bg-(--prism-success)/25">
+                <span className="absolute -top-1 left-0 h-5 w-20 rounded-t-xl bg-(--prism-success)/25" />
               </div>
-            )}
-          </div>
+              <div className="mt-5 space-y-3 text-xs">
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Name</span>
+                  <span className="truncate font-semibold text-foreground">{activeFolder.label}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="font-semibold text-foreground">File folder</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Files</span>
+                  <span className="font-semibold text-foreground">{files.length}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Size</span>
+                  <span className="font-semibold text-foreground">{activeFileSize}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Last edited</span>
+                  <span className="truncate font-semibold text-foreground">{latestFile?.uploadedAt ?? "No files"}</span>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
+
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-black text-foreground">Recently opened</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {latestFileEvent ? `${latestFileEvent.eventName} file activity` : "Client-visible file activity"}
+              </p>
+            </div>
+          </div>
+
+          {files.length ? (
+            <div className="mt-4 overflow-x-auto">
+              <div className="min-w-[620px]">
+                <div className="grid grid-cols-[minmax(220px,1.4fr)_140px_minmax(180px,1fr)_150px_120px] gap-3 border-b border-border px-2 pb-2 text-[11px] font-bold text-muted-foreground">
+                  <span>File name</span>
+                  <span>Folder</span>
+                  <span>Event</span>
+                  <span>Last modified</span>
+                  <span>Status</span>
+                </div>
+                <div className="divide-y divide-border">
+                  {files.map((file) => {
+                    const ev = events.find((candidate) => candidate.id === file.eventId);
+                    return (
+                      <div
+                        key={file.id}
+                        className="grid grid-cols-[minmax(220px,1.4fr)_140px_minmax(180px,1fr)_150px_120px] items-center gap-3 px-2 py-3 text-sm"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-(--prism-warning)/12 text-(--prism-warning)">
+                            <FileText className="size-4" />
+                          </span>
+                          <span className="truncate font-bold text-foreground">{file.fileName}</span>
+                        </div>
+                        <span className="truncate text-xs text-muted-foreground">{formatStatusLabel(file.type)}</span>
+                        <span className="truncate text-xs text-muted-foreground">{ev?.eventName ?? "Event file"}</span>
+                        <span className="truncate text-xs text-muted-foreground">{file.uploadedAt}</span>
+                        <StatusBadge status={file.status} label={formatStatusLabel(file.status)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl border border-dashed border-border px-6 py-8">
+              <EmptyState icon={FileText} title="No files yet" description="Contracts, quotations, invoices, receipts, and layout files will appear here." />
+            </div>
+          )}
+        </section>
       </div>
     );
   };

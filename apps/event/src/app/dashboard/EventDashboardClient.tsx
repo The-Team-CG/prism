@@ -2068,8 +2068,6 @@ function CommandHomePage({
     } catch { return null; }
   })();
 
-  const recentAudit = (state.auditLogs ?? []).slice(0, 5);
-
   return (
     <div className="space-y-6">
       {/* Greeting banner */}
@@ -2120,7 +2118,7 @@ function CommandHomePage({
       </div>
 
       {/* Command stats grid */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <CommandStat
           label="Active events"
           value={events.length}
@@ -2141,16 +2139,10 @@ function CommandHomePage({
           icon={ShieldCheck}
           accent="text-(--prism-success)"
         />
-        <CommandStat
-          label="Defense score"
-          value={defenseReadiness ? `${defenseReadiness.score}%` : "—"}
-          icon={CheckCircle2}
-          accent="text-(--prism-signal)"
-        />
       </div>
 
-      {/* Events + recent activity */}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      {/* Events + approvals */}
+      <div className={`grid gap-5 ${pendingApprovals.length > 0 ? "xl:grid-cols-[minmax(0,1fr)_340px]" : ""}`}>
         <EventQueueCard
           events={events}
           selectedEventId={selectedEvent?.id}
@@ -2159,59 +2151,27 @@ function CommandHomePage({
           onNavigateEvent={(id) => onNavigateEvent(id, "overview")}
         />
 
-        <div className="space-y-4">
-          {/* Pending approvals inline */}
-          {pendingApprovals.length > 0 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-(--prism-signal)" />
-                  <h3 className="text-sm font-bold text-foreground">Pending approvals</h3>
-                  <Badge className="ml-auto rounded-full bg-(--prism-amber-soft) px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">
-                    {pendingApprovals.length}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <div className="divide-y divide-border">
-                {pendingApprovals.slice(0, 3).map((req) => (
-                  <div key={req.id} className="px-6 py-3.5">
-                    <p className="truncate text-sm font-bold text-foreground">{req.name}</p>
-                    <p className="text-xs text-muted-foreground">{req.email} — {lbl(req.role)}</p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Recent activity */}
+        {pendingApprovals.length > 0 && (
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-(--prism-signal)" />
-                <h3 className="text-sm font-bold text-foreground">Recent activity</h3>
+                <ShieldCheck className="size-4 text-(--prism-signal)" />
+                <h3 className="text-sm font-bold text-foreground">Pending approvals</h3>
+                <Badge className="ml-auto rounded-full bg-(--prism-amber-soft) px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">
+                  {pendingApprovals.length}
+                </Badge>
               </div>
             </CardHeader>
-            {recentAudit.length > 0 ? (
-              <div className="divide-y divide-border">
-                {recentAudit.map((item) => (
-                  <div key={item.id} className="flex items-start gap-3 px-6 py-3.5">
-                    <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[10px] font-bold text-foreground">
-                      {item.actor.slice(0, 2).toUpperCase()}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground line-clamp-1">{item.action}</p>
-                      <p className="text-xs text-muted-foreground">{item.actor} — {item.createdAt}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <CardBody>
-                <p className="text-sm text-muted-foreground">Actions and system events will appear here.</p>
-              </CardBody>
-            )}
+            <div className="divide-y divide-border">
+              {pendingApprovals.slice(0, 3).map((req) => (
+                <div key={req.id} className="px-6 py-3.5">
+                  <p className="truncate text-sm font-bold text-foreground">{req.name}</p>
+                  <p className="text-xs text-muted-foreground">{req.email} - {lbl(req.role)}</p>
+                </div>
+              ))}
+            </div>
           </Card>
-        </div>
+        )}
       </div>
     </div>
   );
