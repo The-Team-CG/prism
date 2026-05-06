@@ -23,16 +23,165 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 
-import {
-  PrismCompactRecordList,
-  PrismStatusSummary,
-  PrismWorkflowTabs,
-  RolePageHeader,
-} from "@prism/ui";
 import type { MvpDefenseReadiness, MvpEvent, MvpFloorPlanDraft } from "@/lib/mvp-api";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "./helpers";
+
+/* ── Inline primitives (replacing @prism/ui blocks) ────────────── */
+
+type StatusSummaryItem = {
+  id: string;
+  label: string;
+  value: React.ReactNode;
+  icon?: LucideIcon;
+  status?: string;
+  detail?: string;
+};
+
+function StatusSummary({ items }: { items: StatusSummaryItem[] }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <div key={item.id} className="rounded-lg border border-border bg-background/80 p-3.5">
+            <div className="flex items-start gap-3">
+              {Icon ? (
+                <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                  <Icon className="size-4" />
+                </span>
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
+                  <span className="min-w-0 truncate">{item.value}</span>
+                  {item.status ? <StatusBadge status={item.status} /> : null}
+                </div>
+                {item.detail ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.detail}</p> : null}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+type CompactRecordItem = {
+  id: string;
+  title: string;
+  description?: string;
+  meta?: string;
+  status?: string;
+  icon?: LucideIcon;
+  active?: boolean;
+  onSelect?: () => void;
+};
+
+function CompactRecordList({ items, emptyText = "No records available.", className }: { items: CompactRecordItem[]; emptyText?: string; className?: string }) {
+  if (!items.length) {
+    return (
+      <p className={`rounded-md border border-dashed border-border bg-secondary/40 px-4 py-6 text-center text-sm text-muted-foreground ${className ?? ""}`}>
+        {emptyText}
+      </p>
+    );
+  }
+  return (
+    <div className={`flex flex-col divide-y divide-border ${className ?? ""}`}>
+      {items.map((item) => {
+        const Icon = item.icon;
+        const cls = `border-l-2 border-l-transparent px-3 py-3 transition ${item.active ? "border-l-(--prism-signal) bg-secondary/60" : "hover:bg-muted/50"}`;
+        const content = (
+          <span className="flex w-full items-start gap-3 text-left">
+            {Icon ? (
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                <Icon className="size-4" />
+              </span>
+            ) : null}
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="truncate text-sm font-black text-foreground">{item.title}</span>
+                {item.status ? <StatusBadge status={item.status} /> : null}
+              </span>
+              {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
+              {item.meta ? <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{item.meta}</span> : null}
+            </span>
+          </span>
+        );
+        return item.onSelect
+          ? <button key={item.id} type="button" onClick={item.onSelect} className={cls}>{content}</button>
+          : <div key={item.id} className={cls}>{content}</div>;
+      })}
+    </div>
+  );
+}
+
+type WorkflowTabItem = {
+  id: string;
+  label: string;
+  icon?: LucideIcon;
+  badge?: number;
+  disabled?: boolean;
+};
+
+function WorkflowTabs({ items, activeId, onSelect }: { items: WorkflowTabItem[]; activeId: string; onSelect: (id: string) => void }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-border bg-card p-1.5 shadow-sm">
+      <div className="flex min-w-max gap-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              disabled={item.disabled}
+              data-active={item.id === activeId}
+              onClick={() => onSelect(item.id)}
+              className="flex h-9 shrink-0 items-center gap-2 rounded-md px-3.5 text-sm font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:font-black data-[active=true]:text-primary-foreground"
+            >
+              {Icon ? <Icon className="size-4" /> : null}
+              <span>{item.label}</span>
+              {item.badge ? (
+                <span className="rounded-full bg-background/70 px-1.5 text-[10px] font-black text-current">{item.badge}</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PageHeader({ eyebrow, title, description, meta, action }: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  meta?: Array<string | React.ReactNode>;
+  action?: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-md border border-border bg-card px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          {eyebrow ? <p className="text-[10px] font-black uppercase text-muted-foreground">{eyebrow}</p> : null}
+          <h2 className="mt-0.5 text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h2>
+          {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p> : null}
+          {meta?.length ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {meta.map((item, i) =>
+                typeof item === "string"
+                  ? <span key={i} className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-semibold text-foreground">{item}</span>
+                  : <span key={i}>{item}</span>
+              )}
+            </div>
+          ) : null}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+    </section>
+  );
+}
 
 export type PmcmDetailTab =
   | "overview"
@@ -108,7 +257,7 @@ export function EventQueuePanel({
           <span className="sr-only">Reset demo data</span>
         </Button>
       </div>
-      <PrismCompactRecordList
+      <CompactRecordList
         className="mt-2"
         emptyText="No accepted inquiry with signed conforme yet."
         items={events.map((event) => ({
@@ -143,7 +292,7 @@ export function SelectedEventCockpit({
 
   return (
     <div className="space-y-3">
-      <RolePageHeader
+      <PageHeader
         eyebrow="PMCM selected-event cockpit"
         title={event.eventName}
         description={`Client, floorplan, suppliers, finance, live operations, and archive readiness for ${event.clientName}.`}
@@ -336,8 +485,7 @@ export function SelectedEventStatusSummary({
   openCheckCount: number;
 }) {
   return (
-    <PrismStatusSummary
-      columns="four"
+    <StatusSummary
       items={[
         { id: "drafts", label: "Floorplan drafts", value: drafts.length, icon: LayoutGrid, detail: "PMCM drafts plus client preferences." },
         { id: "active-layout", label: "Official layout", value: activeDraft ? "Ready" : "Pending", icon: BadgeCheck, status: activeDraft?.status ?? "pending" },
@@ -363,7 +511,7 @@ export function EventWorkflowTabs({
   activeTab: PmcmDetailTab;
   onSelectTab: (tab: PmcmDetailTab) => void;
 }) {
-  return <PrismWorkflowTabs items={items} activeId={activeTab} onSelect={(item) => onSelectTab(item as PmcmDetailTab)} />;
+  return <WorkflowTabs items={items} activeId={activeTab} onSelect={(item) => onSelectTab(item as PmcmDetailTab)} />;
 }
 
 function OverviewCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {

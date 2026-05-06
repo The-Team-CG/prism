@@ -8,6 +8,37 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$processEnvironment = [Environment]::GetEnvironmentVariables("Process")
+$processEnvironmentNames = @($processEnvironment.Keys)
+if (($processEnvironmentNames -contains "Path") -and ($processEnvironmentNames -contains "PATH")) {
+  $pathParts = @()
+  $seenPathParts = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($candidatePath in @($processEnvironment["Path"], $processEnvironment["PATH"])) {
+    foreach ($pathPart in ([string]$candidatePath -split ";")) {
+      if ([string]::IsNullOrWhiteSpace($pathPart)) {
+        continue
+      }
+
+      if ($seenPathParts.Add($pathPart)) {
+        $pathParts += $pathPart
+      }
+    }
+  }
+
+  $normalizedPath = $pathParts -join ";"
+  [Environment]::SetEnvironmentVariable("PATH", $null, "Process")
+  [Environment]::SetEnvironmentVariable("Path", $normalizedPath, "Process")
+}
+
+$nodeDirectory = Join-Path $env:ProgramFiles "nodejs"
+if (Test-Path -LiteralPath (Join-Path $nodeDirectory "node.exe")) {
+  $currentPath = [Environment]::GetEnvironmentVariable("Path", "Process")
+  $currentPathParts = @([string]$currentPath -split ";")
+  if (-not ($currentPathParts -contains $nodeDirectory)) {
+    [Environment]::SetEnvironmentVariable("Path", "$nodeDirectory;$currentPath", "Process")
+  }
+}
+
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $logRoot = Join-Path $root ".local-dev\logs"
 $pidFile = Join-Path $logRoot "pids.csv"

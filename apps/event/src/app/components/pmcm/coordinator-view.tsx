@@ -19,17 +19,146 @@ import {
 } from "lucide-react";
 
 import { mvpApi, type MvpCoordinatorRoleView, type MvpCoordinatorWorkspace } from "@/lib/mvp-api";
-import {
-  PrismCompactRecordList,
-  PrismDashboardShell,
-  PrismEventDayActionGroup,
-  PrismStatusSummary,
-} from "@prism/ui";
+import { PrismDashboardShell } from "@prism/ui";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
+import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "./helpers";
 import type { PmcmEventSession } from "./types";
+
+/* ── Inline primitives (replacing @prism/ui blocks) ────────────── */
+
+type StatusSummaryItem = {
+  id: string;
+  label: string;
+  value: React.ReactNode;
+  icon?: React.ElementType;
+  status?: string;
+  detail?: string;
+};
+
+function StatusSummary({ items }: { items: StatusSummaryItem[] }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <div key={item.id} className="rounded-lg border border-border bg-background/80 p-3.5">
+            <div className="flex items-start gap-3">
+              {Icon ? (
+                <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                  <Icon className="size-4" />
+                </span>
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
+                  <span className="min-w-0 truncate">{item.value}</span>
+                  {item.status ? <StatusBadge status={item.status} /> : null}
+                </div>
+                {item.detail ? <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.detail}</p> : null}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+type EventDayAction = {
+  id: string;
+  label: string;
+  description?: string;
+  icon: React.ElementType;
+  status?: string;
+  active?: boolean;
+  disabled?: boolean;
+  onSelect?: () => void;
+};
+
+function EventDayActionGroup({ actions }: { actions: EventDayAction[] }) {
+  if (!actions.length) return null;
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      {actions.map((action) => {
+        const Icon = action.icon;
+        return (
+          <button
+            key={action.id}
+            type="button"
+            disabled={action.disabled}
+            data-active={action.active}
+            onClick={action.onSelect}
+            className="min-h-24 rounded-lg border border-border bg-background/75 p-4 text-left transition hover:border-primary/30 hover:bg-secondary/35 disabled:cursor-not-allowed disabled:opacity-55 data-[active=true]:border-primary/45 data-[active=true]:bg-secondary"
+          >
+            <span className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                <Icon className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-black text-foreground">{action.label}</span>
+                  {action.status ? <StatusBadge status={action.status} /> : null}
+                </span>
+                {action.description ? <span className="mt-1 block text-xs leading-5 text-muted-foreground">{action.description}</span> : null}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+type CompactRecordItem = {
+  id: string;
+  title: string;
+  description?: string;
+  meta?: string;
+  status?: string;
+  icon?: React.ElementType;
+  onSelect?: () => void;
+};
+
+function CompactRecordList({ items, emptyText = "No records available." }: { items: CompactRecordItem[]; emptyText?: string }) {
+  if (!items.length) {
+    return (
+      <p className="rounded-md border border-dashed border-border bg-secondary/40 px-4 py-6 text-center text-sm text-muted-foreground">
+        {emptyText}
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col divide-y divide-border">
+      {items.map((item) => {
+        const Icon = item.icon;
+        const content = (
+          <span className="flex w-full items-start gap-3 text-left">
+            {Icon ? (
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                <Icon className="size-4" />
+              </span>
+            ) : null}
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="truncate text-sm font-black text-foreground">{item.title}</span>
+                {item.status ? <StatusBadge status={item.status} /> : null}
+              </span>
+              {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
+              {item.meta ? <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{item.meta}</span> : null}
+            </span>
+          </span>
+        );
+        const cls = "border-l-2 border-l-transparent px-3 py-3 transition hover:bg-muted/50";
+        return item.onSelect
+          ? <button key={item.id} type="button" onClick={item.onSelect} className={cls}>{content}</button>
+          : <div key={item.id} className={cls}>{content}</div>;
+      })}
+    </div>
+  );
+}
 
 function sameText(left?: string | null, right?: string | null) {
   return (left ?? "").trim().toLowerCase() === (right ?? "").trim().toLowerCase();
@@ -250,8 +379,7 @@ export function CoordinatorView({
         </CCard>
 
         {/* Status summary */}
-        <PrismStatusSummary
-          columns="four"
+        <StatusSummary
           items={[
             {
               id: "floorplan",
@@ -299,7 +427,7 @@ export function CoordinatorView({
             </p>
           </CCardHeader>
           <CCardBody>
-            <PrismEventDayActionGroup
+            <EventDayActionGroup
               actions={[
                 {
                   id: "acknowledge",
@@ -476,7 +604,7 @@ export function CoordinatorView({
                 </div>
               </CCardHeader>
               <CCardBody id="coordinator-role-queue" className="scroll-mt-24">
-                <PrismCompactRecordList
+                <CompactRecordList
                   emptyText="No event-day tasks assigned to this role yet."
                   items={roleView.tasks.map((task) => ({
                     id: task.id,
@@ -508,7 +636,7 @@ export function CoordinatorView({
                       : `${roleView.guestAttendanceCount} checked in. Guest-level records are hidden for this role.`}
                   </p>
                 </div>
-                <PrismCompactRecordList
+                <CompactRecordList
                   emptyText="No urgent issue assigned to this role."
                   items={roleView.urgentIssues.map((issue) => ({
                     id: issue.id,

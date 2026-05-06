@@ -9,7 +9,6 @@ import {
   CalendarDays,
   ChevronRight,
   CheckCircle2,
-  ClipboardCheck,
   FileCheck2,
   FileText,
   Home,
@@ -22,7 +21,6 @@ import {
   ShieldCheck,
   Sparkles,
   Timer,
-  TrendingUp,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
@@ -49,8 +47,6 @@ import { EmptyState } from "../ui/empty-state";
 import {
   PrismBrandLogo,
   PrismDashboardShell,
-  PrismNoticeBanner,
-  RolePageHeader,
 } from "@prism/ui";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import {
@@ -74,7 +70,6 @@ import {
   ClientDocumentsTab,
   ClientOverviewTab,
   ClientProposalTab,
-  DashboardRightRailSkeleton,
   DashboardSkeleton,
   DashboardSessionSkeleton,
   clientActivityActor,
@@ -206,20 +201,12 @@ const initialPreference: PreferenceForm = {
 };
 
 const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
-  { id: "event-request", label: "+ Event Request", icon: Send, section: "Client Portal", route: "request" },
   {
     id: "client-dashboard",
     label: "Dashboard",
     icon: Home,
     section: "Client Portal",
     route: "home",
-    subItems: [
-      { id: "dashboard-overview", label: "Overview", route: "home" },
-      { id: "dashboard-upcoming-events", label: "Upcoming Events", route: "events" },
-      { id: "dashboard-pending-approvals", label: "Pending Approvals", route: "approvals" },
-      { id: "dashboard-recent-messages", label: "Recent Messages", route: "messages" },
-      { id: "dashboard-payment-reminders", label: "Payment Reminders", route: "billing" },
-    ],
   },
   {
     id: "my-events",
@@ -227,14 +214,6 @@ const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     icon: CalendarDays,
     section: "Client Portal",
     route: "events",
-    subItems: [
-      { id: "events-all", label: "All Events", route: "events" },
-      { id: "events-upcoming", label: "Upcoming Events", route: "events" },
-      { id: "events-in-planning", label: "In Planning", route: "events" },
-      { id: "events-completed", label: "Completed Events", route: "events" },
-      { id: "events-cancelled", label: "Cancelled Events", route: "events" },
-      { id: "events-draft-requests", label: "Draft Requests", route: "request" },
-    ],
   },
   {
     id: "calendar",
@@ -311,36 +290,29 @@ const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
       { id: "billing-balance", label: "Balance", route: "billing" },
     ],
   },
-  {
-    id: "selected-event",
-    label: "Selected Event",
-    icon: ClipboardCheck,
-    section: "When Event Is Selected",
-    route: "overview",
-    requiresEvent: true,
-    eventScoped: true,
-    subItems: [
-      { id: "event-overview", label: "Event Overview", route: "overview", requiresEvent: true, eventScoped: true },
-      { id: "event-details", label: "Event Details", route: "details", requiresEvent: true, eventScoped: true },
-      { id: "event-progress", label: "Planning Progress", route: "progress", requiresEvent: true, eventScoped: true },
-      { id: "event-schedule", label: "Schedule / Program", route: "schedule", requiresEvent: true, eventScoped: true },
-      { id: "event-guests", label: "Guests / Attendees", route: "guests", requiresEvent: true, eventScoped: true },
-      { id: "event-preferences", label: "Preferences / Requirements", route: "preferences", requiresEvent: true, eventScoped: true },
-      { id: "event-files", label: "Files", route: "documents", requiresEvent: true, eventScoped: true },
-      { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
-      { id: "event-approvals", label: "Approvals", route: "approvals", requiresEvent: true, eventScoped: true },
-      { id: "event-payments", label: "Payments", route: "billing", requiresEvent: true, eventScoped: true },
-      { id: "event-change-requests", label: "Change Requests", route: "changes", requiresEvent: true, eventScoped: true },
-      { id: "event-final-summary", label: "Final Summary", route: "summary", requiresEvent: true, eventScoped: true },
-    ],
-  },
 ];
 
 type ClientSidebarLink = ClientSidebarNavItem | ClientSidebarSubItem;
 
+const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
+  { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },
+  { id: "event-details", label: "Details", route: "details", requiresEvent: true, eventScoped: true },
+  { id: "event-progress", label: "Planning", route: "progress", requiresEvent: true, eventScoped: true },
+  { id: "event-schedule", label: "Schedule", route: "schedule", requiresEvent: true, eventScoped: true },
+  { id: "event-guests", label: "Guests", route: "guests", requiresEvent: true, eventScoped: true },
+  { id: "event-preferences", label: "Preferences", route: "preferences", requiresEvent: true, eventScoped: true },
+  { id: "event-floorplan", label: "Floor plan", route: "floorplan", requiresEvent: true, eventScoped: true },
+  { id: "event-files", label: "Files", route: "documents", requiresEvent: true, eventScoped: true },
+  { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
+  { id: "event-approvals", label: "Approvals", route: "approvals", requiresEvent: true, eventScoped: true },
+  { id: "event-billing", label: "Billing", route: "billing", requiresEvent: true, eventScoped: true },
+  { id: "event-change-requests", label: "Changes", route: "changes", requiresEvent: true, eventScoped: true },
+  { id: "event-final-summary", label: "Summary", route: "summary", requiresEvent: true, eventScoped: true },
+];
+
 const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   home: "client-dashboard",
-  request: "event-request",
+  request: "client-dashboard",
   events: "my-events",
   calendar: "calendar",
   approvals: "approvals",
@@ -358,11 +330,11 @@ const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   guests: "event-guests",
   preferences: "event-preferences",
   briefing: "event-preferences",
+  floorplan: "event-floorplan",
   proposal: "event-approvals",
-  floorplan: "event-preferences",
   documents: "event-files",
-  billing: "event-payments",
-  payments: "event-payments",
+  billing: "event-billing",
+  payments: "event-billing",
   messages: "event-messages",
   approvals: "event-approvals",
   files: "event-files",
@@ -489,6 +461,18 @@ const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; descrip
   "billing-balance": { title: "Balance", description: "Remaining balance and current payment status." },
 };
 
+function sidebarActiveItemId(route: ClientDashboardRoute, eventScoped: boolean, portalView?: ClientPortalView) {
+  if (eventScoped) return "my-events";
+  if (
+    portalView &&
+    !portalView.startsWith("events-") &&
+    !portalView.startsWith("dashboard-")
+  ) {
+    return portalView;
+  }
+  return activeNavItemId(route, false);
+}
+
 function dashboardHref(route: ClientDashboardRoute, eventId?: string, portalView?: ClientPortalView) {
   if (!eventId && portalView) return CLIENT_PORTAL_VIEW_HREFS[portalView];
   if (route === "home") return "/dashboard";
@@ -551,13 +535,11 @@ function ClientPortalSidebar({
   activeItemId,
   onSelect,
   collapsed,
-  user,
 }: {
   navItems: ClientSidebarRenderItem[];
   activeItemId: string;
   onSelect: (id: string) => void;
   collapsed: boolean;
-  user: Pick<ClientSession, "name" | "organization">;
 }) {
   const navGroups = navItems.reduce<Array<{ section: string; items: ClientSidebarRenderItem[] }>>((groups, item) => {
     const existing = groups.find((group) => group.section === item.section);
@@ -595,7 +577,7 @@ function ClientPortalSidebar({
                     const subItemActive = item.subItems?.some((subItem) => subItem.id === activeItemId) ?? false;
                     const itemActive = item.id === activeItemId || subItemActive;
                     const Icon = item.icon;
-                    const defaultOpen = !collapsed && (itemActive || item.id === "client-dashboard" || item.id === "selected-event");
+                    const defaultOpen = !collapsed && (itemActive || item.id === "client-dashboard");
 
                     if (!hasSubItems) {
                       return (
@@ -672,12 +654,6 @@ function ClientPortalSidebar({
           ))}
         </div>
 
-        {!collapsed ? (
-          <div className="w-full border-t border-border px-3 py-3">
-            <p className="truncate text-sm font-bold text-foreground">{user.name}</p>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.organization}</p>
-          </div>
-        ) : null}
       </div>
     </SidebarProvider>
   );
@@ -741,6 +717,25 @@ function LayoutPreview({ project }: { project: Project | null }) {
 
 function formatStatusLabel(status?: string) {
   return status ? status.replaceAll("_", " ") : "Pending";
+}
+
+const EVENT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function eventDateParts(date?: string) {
+  if (!date) return { day: "--", month: "TBD", year: "" };
+  const [year, month, day] = date.split("-");
+  const monthIndex = Number(month) - 1;
+  return {
+    day: day?.padStart(2, "0") ?? "--",
+    month: EVENT_MONTHS[monthIndex]?.toUpperCase() ?? "TBD",
+    year: year ?? "",
+  };
+}
+
+function formatEventDate(date?: string) {
+  const parts = eventDateParts(date);
+  if (!date || parts.month === "TBD") return "Date pending";
+  return `${EVENT_MONTHS[EVENT_MONTHS.findIndex((month) => month.toUpperCase() === parts.month)]} ${Number(parts.day)}, ${parts.year}`;
 }
 
 function portalBadgeStatus(status?: MvpEvent["clientPortalStatus"]) {
@@ -885,11 +880,158 @@ function eventProgressDots(ev: MvpEvent, state: MvpDemoState) {
   ];
 }
 
-function statusAccentClass(status: string) {
-  if (/approved|confirmed|complete|paid/i.test(status)) return "border-l-(--prism-success)";
-  if (/planning|in_progress|active|draft/i.test(status)) return "border-l-(--prism-signal)";
-  if (/pending|review/i.test(status)) return "border-l-(--prism-amber)";
-  return "border-l-border";
+function NoticeBanner({ tone, children }: { tone: "danger" | "success"; children: React.ReactNode }) {
+  const cls = tone === "danger"
+    ? "border-(--prism-signal)/20 bg-(--prism-signal)/8 text-(--prism-signal) border-l-(--prism-signal)"
+    : "border-(--prism-success)/20 bg-(--prism-success)/8 text-(--prism-success) border-l-(--prism-success)";
+  return (
+    <div className={`rounded-lg border border-l-4 px-4 py-3 text-sm leading-6 ${cls}`}>{children}</div>
+  );
+}
+
+function PageHeader({ eyebrow, title, description, meta, action }: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  meta?: Array<string | React.ReactNode>;
+  action?: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-md border border-border bg-card px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          {eyebrow ? <p className="text-[10px] font-black uppercase text-muted-foreground">{eyebrow}</p> : null}
+          <h2 className="mt-0.5 text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h2>
+          {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p> : null}
+          {meta?.length ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {meta.map((item, i) =>
+                typeof item === "string"
+                  ? <span key={i} className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-semibold text-foreground">{item}</span>
+                  : <span key={i}>{item}</span>
+              )}
+            </div>
+          ) : null}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
+      </div>
+    </section>
+  );
+}
+
+function EventWorkspaceNav({
+  items,
+  activeItemId,
+  onSelect,
+}: {
+  items: ClientSidebarSubItem[];
+  activeItemId: string;
+  onSelect: (item: ClientSidebarSubItem) => void;
+}) {
+  return (
+    <nav aria-label="Selected event sections" className="border-t border-border">
+      <div className="overflow-x-auto">
+        <div className="flex min-w-max items-center px-2">
+          {items.map((item) => {
+            const active = item.id === activeItemId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelect(item)}
+                className={cn(
+                  "relative h-11 shrink-0 px-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground",
+                  active && "text-(--prism-signal)",
+                )}
+              >
+                {item.label}
+                {active ? (
+                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-(--prism-signal)" />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function EventSummaryCard({
+  event,
+  dots,
+  billingStatement,
+  briefing,
+  documentCount,
+  onOpen,
+  className,
+}: {
+  event: MvpEvent;
+  dots: Array<{ label: string; done: boolean }>;
+  billingStatement?: MvpBillingStatement;
+  briefing?: MvpBriefing;
+  documentCount: number;
+  onOpen: () => void;
+  className?: string;
+}) {
+  const dateParts = eventDateParts(event.eventDate);
+
+  return (
+    <article className={cn("overflow-hidden rounded-xl border border-border bg-card shadow-sm", className)}>
+      <div className="bg-(--prism-ink) px-4 py-4 text-white">
+        <div className="flex items-start justify-between gap-3">
+          <div className="rounded-md bg-white px-3 py-2 text-center text-(--prism-ink)">
+            <p className="text-lg font-black leading-none">{dateParts.day}</p>
+            <p className="mt-1 text-[10px] font-black uppercase leading-none">{dateParts.month}</p>
+          </div>
+          <StatusBadge status={event.status} label={formatStatusLabel(event.status)} />
+        </div>
+        <div className="mt-8">
+          <h3 className="line-clamp-2 text-lg font-black leading-tight">{event.eventName}</h3>
+          <p className="mt-1 text-xs font-semibold text-white/70">{event.clientName}</p>
+        </div>
+      </div>
+      <div className="space-y-4 p-4">
+        <div className="grid gap-2 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <CalendarDays className="size-4 shrink-0" />
+            <span className="truncate">{formatEventDate(event.eventDate)}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <MapPinned className="size-4 shrink-0" />
+            <span className="truncate">{briefing?.venue ?? "Venue pending"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <WalletCards className="size-4 shrink-0" />
+            <span className="truncate">{billingStatement ? formatStatusLabel(billingStatement.status) : "Billing pending"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <FileText className="size-4 shrink-0" />
+            <span className="truncate">{documentCount} document{documentCount === 1 ? "" : "s"} on file</span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {dots.map((dot) => (
+            <span
+              key={dot.label}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-semibold",
+                dot.done
+                  ? "border-(--prism-success)/20 bg-(--prism-success)/8 text-(--prism-success)"
+                  : "border-border bg-muted/40 text-muted-foreground",
+              )}
+            >
+              <span className={cn("size-1.5 rounded-full", dot.done ? "bg-(--prism-success)" : "bg-muted-foreground/35")} />
+              {dot.label}
+            </span>
+          ))}
+        </div>
+        <Button className="w-full rounded-lg font-bold" onClick={onOpen}>
+          Open workspace <ArrowRight className="size-3.5" />
+        </Button>
+      </div>
+    </article>
+  );
 }
 
 function FieldGroup({ label: labelText, children }: { label: string; children: React.ReactNode }) {
@@ -1352,7 +1494,8 @@ export function Dashboard({
       })),
     }));
     const loadingPortalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
-    const loadingActiveItemId = portalView ?? activeNavItemId(route, Boolean(eventId) || !PORTAL_ROUTE_TO_NAV_ITEM[route]);
+    const loadingIsEventScopedView = Boolean(eventId) || !PORTAL_ROUTE_TO_NAV_ITEM[route];
+    const loadingActiveItemId = sidebarActiveItemId(route, loadingIsEventScopedView, portalView);
     const handleLoadingNavSelect = (id: string) => {
       const item = findClientSidebarLink(id);
       if (item && !item.requiresEvent) router.push(dashboardHref(item.route, undefined, portalViewFromLink(item)));
@@ -1396,7 +1539,6 @@ export function Dashboard({
           initials: session.name.slice(0, 2).toUpperCase(),
         }}
         searchPlaceholder="Search proposal, billing, documents..."
-        rightRail={<DashboardRightRailSkeleton />}
         mobileActions={[]}
         sidebarMode="single"
         sidebarContent={({ collapsed }) => (
@@ -1405,7 +1547,6 @@ export function Dashboard({
             activeItemId={loadingActiveItemId}
             onSelect={handleLoadingNavSelect}
             collapsed={collapsed}
-            user={session}
           />
         )}
         onSignOut={signOut}
@@ -1452,7 +1593,6 @@ export function Dashboard({
 
   const shellNavItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
     ...item,
-    label: item.id === "selected-event" && selectedEvent ? selectedEvent.eventName : item.label,
     disabled: item.requiresEvent && !selectedEvent,
     subItems: item.subItems?.map((subItem) => ({
       ...subItem,
@@ -1461,7 +1601,8 @@ export function Dashboard({
   }));
   const isEventScopedView = Boolean(eventId) || !PORTAL_ROUTE_TO_NAV_ITEM[route];
   const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
-  const activeShellItemId = !isEventScopedView && portalView ? portalView : activeNavItemId(route, isEventScopedView);
+  const activeShellItemId = sidebarActiveItemId(route, isEventScopedView, portalView);
+  const activeEventNavItemId = EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview";
 
   const handleShellNavSelect = (id: string) => {
     const item = findClientSidebarLink(id);
@@ -1525,25 +1666,36 @@ export function Dashboard({
                 : route === "billing"
                   ? "Quotations, invoices, payment schedule, receipts, and current balance."
                   : selectedEvent
-          ? `${selectedEvent.clientName} — ${selectedEvent.eventDate}`
+          ? `${selectedEvent.clientName} - ${selectedEvent.eventDate}`
           : "Portal opens after inquiry is accepted and conforme is signed.");
 
   const eventHeader = selectedEvent ? (
-    <RolePageHeader
-      eyebrow="Event workspace"
-      title={selectedEvent.eventName}
-      description={`${selectedEvent.clientName} — ${selectedEvent.eventDate}`}
-      meta={[
-        <StatusBadge key="stage" status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />,
-        <StatusBadge key="portal" status={portalBadgeStatus(selectedEvent.clientPortalStatus)} label={portalBadgeLabel(selectedEvent.clientPortalStatus)} />,
-        selectedEvent.readiness ? `Readiness: ${formatStatusLabel(selectedEvent.readiness)}` : "Readiness pending",
-      ]}
-      action={
-        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => navigateToEventRoute("messages")}>
-          Messages
+    <section className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-black leading-tight text-foreground sm:text-xl">{selectedEvent.eventName}</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span>{selectedEvent.clientName}</span>
+            <span>{selectedEvent.eventDate ?? "Date pending"}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <StatusBadge status={selectedEvent.status} label={formatStatusLabel(selectedEvent.status)} />
+            <StatusBadge status={portalBadgeStatus(selectedEvent.clientPortalStatus)} label={portalBadgeLabel(selectedEvent.clientPortalStatus)} />
+            <span className="rounded-md border border-border bg-card px-2.5 py-0.5 text-xs font-semibold text-foreground">
+              {selectedEvent.readiness ? `Readiness: ${formatStatusLabel(selectedEvent.readiness)}` : "Readiness pending"}
+            </span>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => router.push("/dashboard/events")}>
+          Change event
         </Button>
-      }
-    />
+      </div>
+      <EventWorkspaceNav
+        items={EVENT_WORKSPACE_NAV_ITEMS}
+        activeItemId={activeEventNavItemId}
+        onSelect={(item) => navigateToEventRoute(item.route)}
+      />
+    </section>
   ) : null;
 
   /* ── Home page ────────────────────────────────────────────── */
@@ -1560,6 +1712,9 @@ export function Dashboard({
         return null;
       }
     })();
+    const nextOpenPayment = payments.find((p) => p.status !== "paid");
+    const documentsNeedingReview = documents.filter((document) => /needs|pending|requested/i.test(document.status));
+    const layoutStatus = officialDraft ? formatStatusLabel(officialDraft.status) : "Not started";
 
     return (
       <div className="space-y-6">
@@ -1608,42 +1763,49 @@ export function Dashboard({
           <span className="pointer-events-none absolute -bottom-16 -right-8 size-64 rounded-full bg-white/4" />
         </div>
 
-        {/* Active event quick-stats */}
         {selectedEvent && (
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               {
-                label: "Event status",
-                value: formatStatusLabel(selectedEvent.status),
-                icon: TrendingUp,
+                label: "Next action",
+                value: nextAction?.title ?? "No client action pending",
+                icon: FileCheck2,
                 accent: "text-(--prism-signal)",
+                onSelect: () => nextAction ? runClientAction(nextAction) : navigateToEventRoute("overview"),
               },
               {
-                label: "Floor plan",
-                value: officialDraft ? formatStatusLabel(officialDraft.status) : "Not started",
+                label: "Layout review",
+                value: layoutStatus,
                 icon: MapPinned,
                 accent: "text-(--prism-amber)",
+                onSelect: () => navigateToEventRoute("floorplan"),
               },
               {
-                label: "Next payment",
-                value: payments.find((p) => p.status !== "paid")?.dueDate ?? "No open milestone",
-                icon: ReceiptText,
+                label: nextOpenPayment ? "Next payment" : "Documents",
+                value: nextOpenPayment?.dueDate ?? `${documentsNeedingReview.length} needing review`,
+                icon: nextOpenPayment ? WalletCards : FileText,
                 accent: "text-(--prism-success)",
+                onSelect: () => nextOpenPayment ? navigateToEventRoute("billing") : navigateToEventRoute("documents"),
               },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 shadow-sm"
-              >
-                <span className={`grid size-10 shrink-0 place-items-center rounded-full bg-muted ${stat.accent}`}>
-                  <stat.icon className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-base font-bold leading-tight text-foreground truncate">{stat.value}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
-                </div>
-              </div>
-            ))}
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={item.onSelect}
+                  className="flex min-w-0 items-center gap-4 rounded-xl border border-border bg-card px-4 py-4 text-left shadow-sm transition-colors hover:border-(--prism-signal)/30 hover:bg-(--prism-signal-soft)"
+                >
+                  <span className={`grid size-10 shrink-0 place-items-center rounded-full bg-muted ${item.accent}`}>
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-bold leading-tight text-foreground">{item.value}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{item.label}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -1660,40 +1822,25 @@ export function Dashboard({
                 View all
               </button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {events.slice(0, 4).map((ev) => {
                 const dots = eventProgressDots(ev, state);
-                const accentClass = statusAccentClass(ev.status);
+                const statement = state.billingStatements.find((b) => b.eventId === ev.id);
+                const eventBriefing = state.briefings.find((b) => b.eventId === ev.id);
+                const eventDocs = state.documents.filter((document) => document.eventId === ev.id);
                 return (
-                  <button
+                  <EventSummaryCard
                     key={ev.id}
-                    type="button"
-                    onClick={() => {
+                    event={ev}
+                    dots={dots}
+                    billingStatement={statement}
+                    briefing={eventBriefing}
+                    documentCount={eventDocs.length}
+                    onOpen={() => {
                       setSelectedEventId(ev.id);
                       router.push(dashboardHref("overview", ev.id));
                     }}
-                    className={`group rounded-xl border border-border border-l-4 ${accentClass} bg-card p-4 text-left shadow-sm transition hover:shadow-md hover:border-primary/25`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-foreground">{ev.eventName}</p>
-                        <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <CalendarDays className="size-3 shrink-0" />
-                          <span>{ev.eventDate ?? "Date pending"}</span>
-                        </div>
-                      </div>
-                      <StatusBadge status={ev.status} label={formatStatusLabel(ev.status)} />
-                    </div>
-                    <div className="mt-3 flex items-center gap-3">
-                      {dots.map((dot) => (
-                        <div key={dot.label} className="flex flex-col items-center gap-1">
-                          <span className={`size-2 rounded-full ${dot.done ? "bg-(--prism-success)" : "bg-muted-foreground/30"}`} />
-                          <span className="text-[9px] font-semibold text-muted-foreground">{dot.label}</span>
-                        </div>
-                      ))}
-                      <ArrowRight className="ml-auto size-3.5 text-muted-foreground/50 transition group-hover:text-(--prism-signal)" />
-                    </div>
-                  </button>
+                  />
                 );
               })}
             </div>
@@ -1738,24 +1885,49 @@ export function Dashboard({
   /* ── Events list page ──────────────────────────────────────── */
 
   const renderEventsPage = () => {
-    const matchesEventView = (ev: MvpEvent) => {
-      if (portalView === "events-upcoming" || portalView === "dashboard-upcoming-events") {
-        return ev.status !== "completed" && ev.status !== "cancelled";
-      }
-      if (portalView === "events-in-planning") {
-        return /planning|confirmed|active|pending/i.test(ev.status);
-      }
-      if (portalView === "events-completed") {
-        return /completed|closed|archived/i.test(ev.status);
-      }
-      if (portalView === "events-cancelled") {
-        return /cancelled|canceled/i.test(ev.status);
-      }
-      return true;
-    };
+    type EventFilterId = "events-all" | "events-upcoming" | "events-in-planning" | "events-completed" | "events-cancelled";
+    const eventFilterOptions: Array<{
+      id: EventFilterId;
+      label: string;
+      href: string;
+      matches: (ev: MvpEvent) => boolean;
+    }> = [
+      { id: "events-all", label: "All", href: "/dashboard/events", matches: () => true },
+      {
+        id: "events-upcoming",
+        label: "Upcoming",
+        href: "/dashboard/events/upcoming",
+        matches: (ev) => ev.status !== "completed" && ev.status !== "cancelled",
+      },
+      {
+        id: "events-in-planning",
+        label: "In planning",
+        href: "/dashboard/events/in-planning",
+        matches: (ev) => /planning|confirmed|active|pending/i.test(ev.status),
+      },
+      {
+        id: "events-completed",
+        label: "Completed",
+        href: "/dashboard/events/completed",
+        matches: (ev) => /completed|closed|archived/i.test(ev.status),
+      },
+      {
+        id: "events-cancelled",
+        label: "Cancelled",
+        href: "/dashboard/events/cancelled",
+        matches: (ev) => /cancelled|canceled/i.test(ev.status),
+      },
+    ];
+    const activeEventFilterId =
+      portalView === "dashboard-upcoming-events"
+        ? "events-upcoming"
+        : eventFilterOptions.some((option) => option.id === portalView)
+          ? portalView as EventFilterId
+          : "events-all";
+    const activeEventFilter = eventFilterOptions.find((option) => option.id === activeEventFilterId) ?? eventFilterOptions[0];
     const visibleEvents = events.filter((ev) => {
       const query = eventSearch.trim().toLowerCase();
-      if (!matchesEventView(ev)) return false;
+      if (!activeEventFilter.matches(ev)) return false;
       if (!query) return true;
       return `${ev.eventName} ${ev.eventDate} ${ev.status}`.toLowerCase().includes(query);
     });
@@ -1774,56 +1946,59 @@ export function Dashboard({
           </Button>
         </div>
 
-        <Input
-          value={eventSearch}
-          onChange={(ev) => setEventSearch(ev.target.value)}
-          placeholder="Search by name, date, or status..."
-          className="max-w-sm rounded-lg"
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Event status filters">
+            {eventFilterOptions.map((filter) => {
+              const active = filter.id === activeEventFilterId;
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => router.push(filter.href)}
+                  className={cn(
+                    "inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition-colors",
+                    active
+                      ? "border-(--prism-signal) bg-(--prism-signal-soft) text-(--prism-signal)"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {filter.label}
+                  <span className={cn("text-xs", active ? "text-(--prism-signal)" : "text-muted-foreground")}>
+                    {events.filter(filter.matches).length}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <Input
+            value={eventSearch}
+            onChange={(ev) => setEventSearch(ev.target.value)}
+            placeholder="Search by name, date, or status..."
+            className="w-full rounded-lg sm:ml-auto sm:max-w-sm"
+          />
+        </div>
 
-        <div className="grid gap-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibleEvents.length ? visibleEvents.map((ev) => {
             const dots = eventProgressDots(ev, state);
-            const accentClass = statusAccentClass(ev.status);
             const statement = state.billingStatements.find((b) => b.eventId === ev.id);
+            const eventBriefing = state.briefings.find((b) => b.eventId === ev.id);
+            const eventDocs = state.documents.filter((document) => document.eventId === ev.id);
             return (
-              <div
+              <EventSummaryCard
                 key={ev.id}
-                className={`rounded-xl border border-border border-l-4 ${accentClass} bg-card shadow-sm`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-bold text-foreground">{ev.eventName}</h3>
-                      <StatusBadge status={ev.status} label={formatStatusLabel(ev.status)} />
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><CalendarDays className="size-3" />{ev.eventDate ?? "Date pending"}</span>
-                      {statement && <span className="flex items-center gap-1"><WalletCards className="size-3" />{formatStatusLabel(statement.status)}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="hidden items-center gap-4 sm:flex">
-                      {dots.map((dot) => (
-                        <div key={dot.label} className="flex flex-col items-center gap-1">
-                          <span className={`size-2.5 rounded-full ${dot.done ? "bg-(--prism-success)" : "bg-muted-foreground/25"}`} />
-                          <span className="text-[9px] font-semibold text-muted-foreground">{dot.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      size="sm"
-                      className="rounded-lg font-bold"
-                      onClick={() => {
-                        setSelectedEventId(ev.id);
-                        router.push(dashboardHref("overview", ev.id));
-                      }}
-                    >
-                      Open <ArrowRight className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                event={ev}
+                dots={dots}
+                billingStatement={statement}
+                briefing={eventBriefing}
+                documentCount={eventDocs.length}
+                onOpen={() => {
+                  setSelectedEventId(ev.id);
+                  router.push(dashboardHref("overview", ev.id));
+                }}
+              />
             );
           }) : (
             <EmptyState icon={CalendarDays} title="No matching events" description="Try a different search, or start a new event request." />
@@ -1958,7 +2133,7 @@ export function Dashboard({
 
     return (
       <div className="space-y-5">
-        <RolePageHeader
+        <PageHeader
           eyebrow="Client calendar"
           title={portalViewMeta?.title ?? "Event dates, deadlines, and payment timing"}
           description={portalViewMeta?.description ?? "A client-safe timeline for event dates, payment due dates, approval windows, and PMCM follow-ups."}
@@ -2022,7 +2197,7 @@ export function Dashboard({
       <div className="space-y-5">
         {!eventId && !portalViewMeta && eventHeader}
         {!eventId && portalViewMeta ? (
-          <RolePageHeader eyebrow="Client approvals" title={portalViewMeta.title} description={portalViewMeta.description} />
+          <PageHeader eyebrow="Client approvals" title={portalViewMeta.title} description={portalViewMeta.description} />
         ) : null}
         <div className="grid gap-3">
           {visibleApprovalItems.length ? visibleApprovalItems.map((item) => (
@@ -2056,7 +2231,7 @@ export function Dashboard({
 
     return (
       <div className="space-y-5">
-        <RolePageHeader
+        <PageHeader
           eyebrow="Client files"
           title={portalViewMeta?.title ?? "Contracts, quotations, receipts, layouts, and shared files"}
           description={portalViewMeta?.description ?? "All client-visible files across your active PMCM event workspaces."}
@@ -2095,7 +2270,7 @@ export function Dashboard({
 
     return (
       <div className="space-y-5">
-        <RolePageHeader
+        <PageHeader
           eyebrow="Billing & payments"
           title={portalViewMeta?.title ?? selectedEvent.eventName}
           description={portalViewMeta?.description ?? "Quotations, invoices, payment schedule, receipts, and balance for the selected event."}
@@ -2493,8 +2668,8 @@ export function Dashboard({
 
   const pageContent = (
     <div className="space-y-5">
-      {error && <PrismNoticeBanner tone="danger">{error}</PrismNoticeBanner>}
-      {notice && <PrismNoticeBanner tone="success">{notice}</PrismNoticeBanner>}
+      {error && <NoticeBanner tone="danger">{error}</NoticeBanner>}
+      {notice && <NoticeBanner tone="success">{notice}</NoticeBanner>}
       {route === "home" && renderHomePage()}
       {route === "request" && renderRequestPage()}
       {route === "events" && renderEventsPage()}
@@ -2531,7 +2706,6 @@ export function Dashboard({
           activeItemId={activeShellItemId}
           onSelect={handleShellNavSelect}
           collapsed={collapsed}
-          user={session}
         />
       )}
       onSignOut={signOut}
