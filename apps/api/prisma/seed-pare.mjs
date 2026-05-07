@@ -1,19 +1,14 @@
 /**
- * PARE Test Seed — seeds suppliers, events, quotes, and reviews
- * for testing the P.R.I.S.M Agentic Response Engine (FR-AI-04).
- *
- * Run from apps/api:
- *   node --env-file=.env prisma/seed-pare.mjs
+ * PARE Test Seed - idempotent, safe to run multiple times.
+ * Run from apps/api:  node --env-file=.env prisma/seed-pare.mjs
  */
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
-import { randomUUID } from 'crypto';
 
 const { Pool } = pg;
 
-// Prisma 7 requires a driver adapter (same pattern as PrismaService in the app).
 const connectionString =
   process.env.SUPABASE_DB_URL ??
   process.env.DATABASE_URL ??
@@ -32,23 +27,108 @@ const pool = new Pool({
 
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
-// ─── IDs ──────────────────────────────────────────────────────────────────────
+// ─── Stable IDs — never change these or the seed loses idempotency ────────────
 
-const CATEGORY_IDS = {
-  catering:       randomUUID(),
-  photography:    randomUUID(),
-  videoProduction:randomUUID(),
-  flowerDecor:    randomUUID(),
-  soundLighting:  randomUUID(),
-  hostEmcee:      randomUUID(),
-  hairMakeup:     randomUUID(),
-  transportation: randomUUID(),
+const IDS = {
+  // Categories (resolved from DB by slug after upsert)
+  cat: {},
+
+  // Suppliers
+  sup: {
+    goldleaf:    'pare-sup-goldleaf',
+    kusina:      'pare-sup-kusina',
+    palate:      'pare-sup-palate',
+    fiesta:      'pare-sup-fiesta',
+    sagesalt:    'pare-sup-sagesalt',
+    studiolumin: 'pare-sup-studiolumin',
+    brightframes:'pare-sup-brightframes',
+    captured:    'pare-sup-captured',
+    goldenhour:  'pare-sup-goldenhour',
+    reelstories: 'pare-sup-reelstories',
+    frameflow:   'pare-sup-frameflow',
+    motion:      'pare-sup-motion',
+    bloompetel:  'pare-sup-bloompetal',
+    gardengrace: 'pare-sup-gardengrace',
+    petaltwine:  'pare-sup-petaltwine',
+    resonance:   'pare-sup-resonance',
+    lumina:      'pare-sup-lumina',
+    pulsepro:    'pare-sup-pulsepro',
+    joana:       'pare-sup-joana',
+    rjevents:    'pare-sup-rjevents',
+    mikael:      'pare-sup-mikael',
+    glowstudio:  'pare-sup-glowstudio',
+    bloombeauty: 'pare-sup-bloombeauty',
+    premier:     'pare-sup-premier',
+    goevent:     'pare-sup-goevent',
+  },
+
+  // Users
+  admin: 'pare-usr-admin',
+
+  // Inquiries
+  inq: {
+    reyes:   'pare-inq-reyes',
+    santos:  'pare-inq-santos',
+    cruz:    'pare-inq-cruz',
+    lim:     'pare-inq-lim',
+    garcia:  'pare-inq-garcia',
+  },
+
+  // Events
+  evt: {
+    reyes:   'pare-evt-reyes',
+    santos:  'pare-evt-santos',
+    cruz:    'pare-evt-cruz',
+    lim:     'pare-evt-lim',
+    garcia:  'pare-evt-garcia',
+  },
+
+  // Quote requests (one per supplier-event assignment)
+  qr: {
+    reyes_goldleaf:    'pare-qr-reyes-goldleaf',
+    reyes_kusina:      'pare-qr-reyes-kusina',
+    reyes_lumin:       'pare-qr-reyes-lumin',
+    reyes_bloom:       'pare-qr-reyes-bloom',
+    reyes_resonance:   'pare-qr-reyes-resonance',
+    reyes_joana:       'pare-qr-reyes-joana',
+    santos_palate:     'pare-qr-santos-palate',
+    santos_bright:     'pare-qr-santos-bright',
+    santos_garden:     'pare-qr-santos-garden',
+    santos_rj:         'pare-qr-santos-rj',
+    cruz_sage:         'pare-qr-cruz-sage',
+    cruz_reel:         'pare-qr-cruz-reel',
+    cruz_resonance:    'pare-qr-cruz-resonance',
+    cruz_joana:        'pare-qr-cruz-joana',
+    lim_kusina:        'pare-qr-lim-kusina',
+    lim_captured:      'pare-qr-lim-captured',
+    lim_petal:         'pare-qr-lim-petal',
+    garcia_fiesta:     'pare-qr-garcia-fiesta',
+    garcia_golden:     'pare-qr-garcia-golden',
+  },
+
+  // Quotes
+  quote: {
+    reyes_goldleaf:    'pare-quote-reyes-goldleaf',
+    reyes_kusina:      'pare-quote-reyes-kusina',
+    reyes_lumin:       'pare-quote-reyes-lumin',
+    reyes_bloom:       'pare-quote-reyes-bloom',
+    reyes_resonance:   'pare-quote-reyes-resonance',
+    reyes_joana:       'pare-quote-reyes-joana',
+    santos_palate:     'pare-quote-santos-palate',
+    santos_bright:     'pare-quote-santos-bright',
+    santos_garden:     'pare-quote-santos-garden',
+    santos_rj:         'pare-quote-santos-rj',
+    cruz_sage:         'pare-quote-cruz-sage',
+    cruz_reel:         'pare-quote-cruz-reel',
+    cruz_resonance:    'pare-quote-cruz-resonance',
+    cruz_joana:        'pare-quote-cruz-joana',
+    lim_kusina:        'pare-quote-lim-kusina',
+    lim_captured:      'pare-quote-lim-captured',
+    lim_petal:         'pare-quote-lim-petal',
+    garcia_fiesta:     'pare-quote-garcia-fiesta',
+    garcia_golden:     'pare-quote-garcia-golden',
+  },
 };
-
-const PMCM_ADMIN_ID = randomUUID();
-const EVENT_IDS     = Array.from({ length: 5 }, () => randomUUID());
-const INQUIRY_IDS   = Array.from({ length: 5 }, () => randomUUID());
-const SUPPLIER_IDS  = Array.from({ length: 25 }, () => randomUUID());
 
 function futureDate(days) {
   const d = new Date();
@@ -56,52 +136,45 @@ function futureDate(days) {
   return d;
 }
 
-// ─── CATEGORIES ──────────────────────────────────────────────────────────────
+// ─── CATEGORIES ───────────────────────────────────────────────────────────────
 
 async function seedCategories() {
-  const categories = [
-    { id: CATEGORY_IDS.catering,        slug: 'catering',        name: 'Catering',        sortOrder: 10, acceptableMin: 40000,  acceptableMax: 120000 },
-    { id: CATEGORY_IDS.photography,     slug: 'photography',     name: 'Photography',     sortOrder: 11, acceptableMin: 15000,  acceptableMax: 60000  },
-    { id: CATEGORY_IDS.videoProduction, slug: 'video-production',name: 'Video Production',sortOrder: 12, acceptableMin: 12000,  acceptableMax: 55000  },
-    { id: CATEGORY_IDS.flowerDecor,     slug: 'flower-decor',    name: 'Flower & Decor',  sortOrder: 13, acceptableMin: 20000,  acceptableMax: 80000  },
-    { id: CATEGORY_IDS.soundLighting,   slug: 'sound-lighting',  name: 'Sound & Lighting',sortOrder: 14, acceptableMin: 18000,  acceptableMax: 70000  },
-    { id: CATEGORY_IDS.hostEmcee,       slug: 'host-emcee',      name: 'Host / Emcee',    sortOrder: 15, acceptableMin: 8000,   acceptableMax: 25000  },
-    { id: CATEGORY_IDS.hairMakeup,      slug: 'hair-makeup',     name: 'Hair & Makeup',   sortOrder: 16, acceptableMin: 6000,   acceptableMax: 20000  },
-    { id: CATEGORY_IDS.transportation,  slug: 'transportation',  name: 'Transportation',  sortOrder: 17, acceptableMin: 5000,   acceptableMax: 18000  },
+  const defs = [
+    { slug: 'catering',        name: 'Catering',        sortOrder: 10, acceptableMin: 40000,  acceptableMax: 120000 },
+    { slug: 'photography',     name: 'Photography',     sortOrder: 11, acceptableMin: 15000,  acceptableMax: 60000  },
+    { slug: 'video-production',name: 'Video Production',sortOrder: 12, acceptableMin: 12000,  acceptableMax: 55000  },
+    { slug: 'flower-decor',    name: 'Flower & Decor',  sortOrder: 13, acceptableMin: 20000,  acceptableMax: 80000  },
+    { slug: 'sound-lighting',  name: 'Sound & Lighting',sortOrder: 14, acceptableMin: 18000,  acceptableMax: 70000  },
+    { slug: 'host-emcee',      name: 'Host / Emcee',    sortOrder: 15, acceptableMin: 8000,   acceptableMax: 25000  },
+    { slug: 'hair-makeup',     name: 'Hair & Makeup',   sortOrder: 16, acceptableMin: 6000,   acceptableMax: 20000  },
+    { slug: 'transportation',  name: 'Transportation',  sortOrder: 17, acceptableMin: 5000,   acceptableMax: 18000  },
   ];
-  for (const cat of categories) {
+
+  for (const cat of defs) {
     await prisma.opsSupplierCategory.upsert({
       where: { slug: cat.slug },
       update: {},
-      create: cat,
+      create: { id: `pare-cat-${cat.slug}`, ...cat },
     });
   }
 
-  // Re-read actual IDs from DB (may differ if categories were already seeded by the app)
+  // Resolve actual IDs from DB (may differ from what we'd generate)
   const rows = await prisma.opsSupplierCategory.findMany({
-    where: { slug: { in: Object.values({ catering: 'catering', photography: 'photography', videoProduction: 'video-production', flowerDecor: 'flower-decor', soundLighting: 'sound-lighting', hostEmcee: 'host-emcee', hairMakeup: 'hair-makeup', transportation: 'transportation' }) } },
+    where: { slug: { in: defs.map(d => d.slug) } },
   });
-  const bySlug = Object.fromEntries(rows.map(r => [r.slug, r.id]));
-  CATEGORY_IDS.catering        = bySlug['catering']        ?? CATEGORY_IDS.catering;
-  CATEGORY_IDS.photography     = bySlug['photography']     ?? CATEGORY_IDS.photography;
-  CATEGORY_IDS.videoProduction = bySlug['video-production']?? CATEGORY_IDS.videoProduction;
-  CATEGORY_IDS.flowerDecor     = bySlug['flower-decor']    ?? CATEGORY_IDS.flowerDecor;
-  CATEGORY_IDS.soundLighting   = bySlug['sound-lighting']  ?? CATEGORY_IDS.soundLighting;
-  CATEGORY_IDS.hostEmcee       = bySlug['host-emcee']      ?? CATEGORY_IDS.hostEmcee;
-  CATEGORY_IDS.hairMakeup      = bySlug['hair-makeup']     ?? CATEGORY_IDS.hairMakeup;
-  CATEGORY_IDS.transportation  = bySlug['transportation']  ?? CATEGORY_IDS.transportation;
+  for (const row of rows) IDS.cat[row.slug] = row.id;
 
   console.log('✓ Categories seeded');
 }
 
-// ─── PMCM ADMIN USER ─────────────────────────────────────────────────────────
+// ─── USER ─────────────────────────────────────────────────────────────────────
 
 async function seedUser() {
   await prisma.opsUser.upsert({
     where: { email: 'admin@pmcm.ph' },
     update: {},
     create: {
-      id: PMCM_ADMIN_ID,
+      id: IDS.admin,
       name: 'Ms. Mys',
       email: 'admin@pmcm.ph',
       password: 'pmcm2024!',
@@ -110,329 +183,45 @@ async function seedUser() {
       approvalStatus: 'approved',
     },
   });
-  console.log('✓ PMCM Admin user seeded  →  admin@pmcm.ph / pmcm2024!');
+  console.log('✓ User seeded  →  admin@pmcm.ph / pmcm2024!');
 }
 
 // ─── SUPPLIERS ────────────────────────────────────────────────────────────────
 
 async function seedSuppliers() {
+  const s = IDS.sup;
+  const c = IDS.cat;
+
   const suppliers = [
-    // ── CATERING (5) ────────────────────────────────────────────────────────
-    {
-      id: SUPPLIER_IDS[0],
-      categoryId: CATEGORY_IDS.catering,
-      name: 'Goldleaf Catering Co.',
-      contactName: 'Marco Tan',
-      email: 'marco@goldleafcatering.ph',
-      phone: '09171234001',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Full-service buffet, Filipino and international cuisine, halal options, on-site chef',
-      performanceNotes: 'Consistent Tier 1 partner since 2022. Zero complaints. Halal-certified. PRIMARY — mark Unavailable to trigger PARE.',
-    },
-    {
-      id: SUPPLIER_IDS[1],
-      categoryId: CATEGORY_IDS.catering,
-      name: 'Kusina ni Lola Events',
-      contactName: 'Liza Domingo',
-      email: 'liza@kusinanilola.ph',
-      phone: '09181234002',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Filipino comfort food, lechon station, merienda spreads, halal menu available',
-      performanceNotes: 'Reliable Tier 2. 1 minor complaint resolved. Halal-certified. REPLACEMENT candidate for Reyes Wedding.',
-    },
-    {
-      id: SUPPLIER_IDS[2],
-      categoryId: CATEGORY_IDS.catering,
-      name: 'Palate Prime Catering',
-      contactName: 'Nathan Reyes',
-      email: 'nathan@palateprime.ph',
-      phone: '09191234003',
-      tier: 'tier_2',
-      bniMember: true,
-      serviceInclusions: 'Plated dinners, cocktail spreads, dietary accommodations',
-      performanceNotes: 'Good track record. No complaints. Worked with PMCM 3 times.',
-    },
-    {
-      id: SUPPLIER_IDS[3],
-      categoryId: CATEGORY_IDS.catering,
-      name: 'Fiesta Feast Catering',
-      contactName: 'Rosario Magtibay',
-      email: 'rosario@fiestafeast.ph',
-      phone: '09201234004',
-      tier: 'tier_3',
-      bniMember: false,
-      serviceInclusions: 'Budget-friendly buffet, standard Filipino menu',
-      performanceNotes: 'First event with PMCM. Pending reliability assessment.',
-    },
-    {
-      id: SUPPLIER_IDS[4],
-      categoryId: CATEGORY_IDS.catering,
-      name: 'Sage & Salt Catering',
-      contactName: 'Carlos Villanueva',
-      email: 'carlos@sageandsalt.ph',
-      phone: '09211234005',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Western and fusion cuisine, vegan options, dessert stations',
-      performanceNotes: 'Premium Tier 1. Preferred for corporate and high-end events.',
-    },
-    // ── PHOTOGRAPHY (4) ─────────────────────────────────────────────────────
-    {
-      id: SUPPLIER_IDS[5],
-      categoryId: CATEGORY_IDS.photography,
-      name: 'Studio Lumin PH',
-      contactName: 'Diane Ocampo',
-      email: 'diane@studiolumin.ph',
-      phone: '09221234006',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Full-day coverage, 2 shooters, same-day slideshow, online gallery',
-      performanceNotes: 'Top-rated photographer. Consistent 5-star reviews.',
-    },
-    {
-      id: SUPPLIER_IDS[6],
-      categoryId: CATEGORY_IDS.photography,
-      name: 'Bright Frames Photography',
-      contactName: 'Paolo Cruz',
-      email: 'paolo@brightframes.ph',
-      phone: '09231234007',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Coverage up to 10 hours, 1 shooter, edited photos in 2 weeks',
-      performanceNotes: 'Reliable. 1 late delivery incident, resolved.',
-    },
-    {
-      id: SUPPLIER_IDS[7],
-      categoryId: CATEGORY_IDS.photography,
-      name: 'Captured Moments PH',
-      contactName: 'Angela Santos',
-      email: 'angela@capturedmoments.ph',
-      phone: '09241234008',
-      tier: 'tier_2',
-      bniMember: true,
-      serviceInclusions: 'Wedding and event photography, prenup sessions available',
-      performanceNotes: 'Good portfolio. 2 successful PMCM events.',
-    },
-    {
-      id: SUPPLIER_IDS[8],
-      categoryId: CATEGORY_IDS.photography,
-      name: 'Golden Hour Shoots',
-      contactName: 'Mark Bautista',
-      email: 'mark@goldenhour.ph',
-      phone: '09251234009',
-      tier: 'tier_3',
-      bniMember: false,
-      serviceInclusions: 'Standard coverage, 1 shooter',
-      performanceNotes: 'New to PMCM. First booking pending.',
-    },
-    // ── VIDEO PRODUCTION (3) ─────────────────────────────────────────────────
-    {
-      id: SUPPLIER_IDS[9],
-      categoryId: CATEGORY_IDS.videoProduction,
-      name: 'Reel Stories PH',
-      contactName: 'Jerome Gutierrez',
-      email: 'jerome@reelstories.ph',
-      phone: '09261234010',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Cinematic SDE, full event film, drone footage, color grade',
-      performanceNotes: 'Award-winning videography team. Zero complaints.',
-    },
-    {
-      id: SUPPLIER_IDS[10],
-      categoryId: CATEGORY_IDS.videoProduction,
-      name: 'Frame & Flow Films',
-      contactName: 'Sheena Chua',
-      email: 'sheena@frameandflow.ph',
-      phone: '09271234011',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Event highlights, same-day edit, 2 videographers',
-      performanceNotes: '3 PMCM events. One SDE delay, rectified.',
-    },
-    {
-      id: SUPPLIER_IDS[11],
-      categoryId: CATEGORY_IDS.videoProduction,
-      name: 'Motion & Memories',
-      contactName: 'Victor Lim',
-      email: 'victor@motionmemories.ph',
-      phone: '09281234012',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Event film, teaser video, 1 videographer',
-      performanceNotes: 'Decent quality. Needs closer coordination on timelines.',
-    },
-    // ── FLOWER & DECOR (3) ──────────────────────────────────────────────────
-    {
-      id: SUPPLIER_IDS[12],
-      categoryId: CATEGORY_IDS.flowerDecor,
-      name: 'Bloom & Petal Events',
-      contactName: 'Patricia Flores',
-      email: 'patricia@bloomandpetal.ph',
-      phone: '09291234013',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Full venue styling, floral arrangements, centerpieces, arch design',
-      performanceNotes: 'Premium decorator. Preferred for luxury events.',
-    },
-    {
-      id: SUPPLIER_IDS[13],
-      categoryId: CATEGORY_IDS.flowerDecor,
-      name: 'Garden & Grace Decor',
-      contactName: 'Irene Pasqual',
-      email: 'irene@gardenandgrace.ph',
-      phone: '09301234014',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Table centerpieces, entrance decor, photo backdrop',
-      performanceNotes: 'Reliable Tier 2. 4 events with PMCM. Clean track record.',
-    },
-    {
-      id: SUPPLIER_IDS[14],
-      categoryId: CATEGORY_IDS.flowerDecor,
-      name: 'Petal & Twine Studio',
-      contactName: 'Mona Reyes',
-      email: 'mona@petalandtwine.ph',
-      phone: '09311234015',
-      tier: 'tier_2',
-      bniMember: true,
-      serviceInclusions: 'Rustic and garden themed styling, DIY florals',
-      performanceNotes: 'Good for themed events. 2 PMCM bookings.',
-    },
-    // ── SOUND & LIGHTING (3) ────────────────────────────────────────────────
-    {
-      id: SUPPLIER_IDS[15],
-      categoryId: CATEGORY_IDS.soundLighting,
-      name: 'Resonance AV Solutions',
-      contactName: 'Bobby Tan',
-      email: 'bobby@resonanceav.ph',
-      phone: '09321234016',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Full PA system, stage lighting, LED walls, technician on-site',
-      performanceNotes: 'Preferred AV partner. Handles large-scale events.',
-    },
-    {
-      id: SUPPLIER_IDS[16],
-      categoryId: CATEGORY_IDS.soundLighting,
-      name: 'Lumina Events AV',
-      contactName: 'Chester Uy',
-      email: 'chester@luminaav.ph',
-      phone: '09331234017',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Sound system, mood lighting, basic LED setup',
-      performanceNotes: '2 successful PMCM events. No issues.',
-    },
-    {
-      id: SUPPLIER_IDS[17],
-      categoryId: CATEGORY_IDS.soundLighting,
-      name: 'Pulse Pro Audio',
-      contactName: 'Roland Garcia',
-      email: 'roland@pulsepro.ph',
-      phone: '09341234018',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Mid-range PA, DJ booth optional, gobo lights',
-      performanceNotes: 'First PMCM event. Vetted by BNI referral.',
-    },
-    // ── HOST / EMCEE (3) ────────────────────────────────────────────────────
-    {
-      id: SUPPLIER_IDS[18],
-      categoryId: CATEGORY_IDS.hostEmcee,
-      name: 'Joana Mercado Events Host',
-      contactName: 'Joana Mercado',
-      email: 'joana@joanamercado.ph',
-      phone: '09351234019',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Bilingual hosting (English/Filipino), script preparation, rehearsal',
-      performanceNotes: 'Top-ranked emcee. 10+ PMCM events. Zero issues.',
-    },
-    {
-      id: SUPPLIER_IDS[19],
-      categoryId: CATEGORY_IDS.hostEmcee,
-      name: 'RJ Events Hosting',
-      contactName: 'RJ Pascual',
-      email: 'rj@rjevents.ph',
-      phone: '09361234020',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'English hosting, basic script coordination',
-      performanceNotes: '3 PMCM events. Positive client feedback.',
-    },
-    {
-      id: SUPPLIER_IDS[20],
-      categoryId: CATEGORY_IDS.hostEmcee,
-      name: 'Mikael Sy Hosting Services',
-      contactName: 'Mikael Sy',
-      email: 'mikael@mikaelsy.ph',
-      phone: '09371234021',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Trilingual hosting, comedian MC option',
-      performanceNotes: 'New partner. Vetted via referral.',
-    },
-    // ── HAIR & MAKEUP (2) ───────────────────────────────────────────────────
-    {
-      id: SUPPLIER_IDS[21],
-      categoryId: CATEGORY_IDS.hairMakeup,
-      name: 'Glow Studio by Carla',
-      contactName: 'Carla Mendoza',
-      email: 'carla@glowstudio.ph',
-      phone: '09381234022',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Bridal HMUA, touch-up kit, airbrush makeup, hair styling',
-      performanceNotes: 'Premium HMUA. Works well under pressure. No complaints.',
-    },
-    {
-      id: SUPPLIER_IDS[22],
-      categoryId: CATEGORY_IDS.hairMakeup,
-      name: 'Bloom Beauty Team',
-      contactName: 'Trina Aquino',
-      email: 'trina@bloombeauty.ph',
-      phone: '09391234023',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Makeup and hair for bride and entourage',
-      performanceNotes: '2 PMCM events. Consistent quality.',
-    },
-    // ── TRANSPORTATION (2) ──────────────────────────────────────────────────
-    {
-      id: SUPPLIER_IDS[23],
-      categoryId: CATEGORY_IDS.transportation,
-      name: 'Premier Wheels Events',
-      contactName: 'Arnel Dela Cruz',
-      email: 'arnel@premierwheels.ph',
-      phone: '09401234024',
-      tier: 'tier_1',
-      bniMember: true,
-      serviceInclusions: 'Bridal car, shuttle fleet, coordination with venue',
-      performanceNotes: 'Tier 1 transport partner. Always on-time. 8 PMCM events.',
-    },
-    {
-      id: SUPPLIER_IDS[24],
-      categoryId: CATEGORY_IDS.transportation,
-      name: 'Go Event Transport',
-      contactName: 'Dennis Uy',
-      email: 'dennis@goeventtransport.ph',
-      phone: '09411234025',
-      tier: 'tier_2',
-      bniMember: false,
-      serviceInclusions: 'Van and bus rentals, airport transfers',
-      performanceNotes: '1 PMCM event. On-time. No complaints.',
-    },
+    { id: s.goldleaf,    categoryId: c['catering'],        name: 'Goldleaf Catering Co.',      contactName: 'Marco Tan',       email: 'marco@goldleafcatering.ph', phone: '09171234001', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Full-service buffet, Filipino and international cuisine, halal options, on-site chef', performanceNotes: 'Consistent Tier 1 partner since 2022. Zero complaints. Halal-certified.' },
+    { id: s.kusina,      categoryId: c['catering'],        name: 'Kusina ni Lola Events',      contactName: 'Liza Domingo',    email: 'liza@kusinanilola.ph',      phone: '09181234002', tier: 'tier_2', bniMember: false, serviceInclusions: 'Filipino comfort food, lechon station, merienda spreads, halal menu available',      performanceNotes: 'Reliable Tier 2. 1 minor complaint resolved. Halal-certified.' },
+    { id: s.palate,      categoryId: c['catering'],        name: 'Palate Prime Catering',      contactName: 'Nathan Reyes',    email: 'nathan@palateprime.ph',     phone: '09191234003', tier: 'tier_2', bniMember: true,  serviceInclusions: 'Plated dinners, cocktail spreads, dietary accommodations',                              performanceNotes: 'Good track record. No complaints. Worked with PMCM 3 times.' },
+    { id: s.fiesta,      categoryId: c['catering'],        name: 'Fiesta Feast Catering',      contactName: 'Rosario Magtibay',email: 'rosario@fiestafeast.ph',    phone: '09201234004', tier: 'tier_3', bniMember: false, serviceInclusions: 'Budget-friendly buffet, standard Filipino menu',                                           performanceNotes: 'First event with PMCM. Pending reliability assessment.' },
+    { id: s.sagesalt,    categoryId: c['catering'],        name: 'Sage & Salt Catering',       contactName: 'Carlos Villanueva',email:'carlos@sageandsalt.ph',     phone: '09211234005', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Western and fusion cuisine, vegan options, dessert stations',                              performanceNotes: 'Premium Tier 1. Preferred for corporate and high-end events.' },
+    { id: s.studiolumin, categoryId: c['photography'],     name: 'Studio Lumin PH',            contactName: 'Diane Ocampo',    email: 'diane@studiolumin.ph',      phone: '09221234006', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Full-day coverage, 2 shooters, same-day slideshow, online gallery',                        performanceNotes: 'Top-rated photographer. Consistent 5-star reviews.' },
+    { id: s.brightframes,categoryId: c['photography'],     name: 'Bright Frames Photography',  contactName: 'Paolo Cruz',      email: 'paolo@brightframes.ph',     phone: '09231234007', tier: 'tier_2', bniMember: false, serviceInclusions: 'Coverage up to 10 hours, 1 shooter, edited photos in 2 weeks',                              performanceNotes: 'Reliable. 1 late delivery incident, resolved.' },
+    { id: s.captured,    categoryId: c['photography'],     name: 'Captured Moments PH',        contactName: 'Angela Santos',   email: 'angela@capturedmoments.ph', phone: '09241234008', tier: 'tier_2', bniMember: true,  serviceInclusions: 'Wedding and event photography, prenup sessions available',                                  performanceNotes: 'Good portfolio. 2 successful PMCM events.' },
+    { id: s.goldenhour,  categoryId: c['photography'],     name: 'Golden Hour Shoots',         contactName: 'Mark Bautista',   email: 'mark@goldenhour.ph',        phone: '09251234009', tier: 'tier_3', bniMember: false, serviceInclusions: 'Standard coverage, 1 shooter',                                                             performanceNotes: 'New to PMCM. First booking pending.' },
+    { id: s.reelstories, categoryId: c['video-production'],name: 'Reel Stories PH',            contactName: 'Jerome Gutierrez',email: 'jerome@reelstories.ph',     phone: '09261234010', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Cinematic SDE, full event film, drone footage, color grade',                                 performanceNotes: 'Award-winning videography team. Zero complaints.' },
+    { id: s.frameflow,   categoryId: c['video-production'],name: 'Frame & Flow Films',         contactName: 'Sheena Chua',     email: 'sheena@frameandflow.ph',    phone: '09271234011', tier: 'tier_2', bniMember: false, serviceInclusions: 'Event highlights, same-day edit, 2 videographers',                                         performanceNotes: '3 PMCM events. One SDE delay, rectified.' },
+    { id: s.motion,      categoryId: c['video-production'],name: 'Motion & Memories',          contactName: 'Victor Lim',      email: 'victor@motionmemories.ph',  phone: '09281234012', tier: 'tier_2', bniMember: false, serviceInclusions: 'Event film, teaser video, 1 videographer',                                                  performanceNotes: 'Decent quality. Needs closer coordination on timelines.' },
+    { id: s.bloompetel,  categoryId: c['flower-decor'],    name: 'Bloom & Petal Events',       contactName: 'Patricia Flores', email: 'patricia@bloomandpetal.ph', phone: '09291234013', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Full venue styling, floral arrangements, centerpieces, arch design',                         performanceNotes: 'Premium decorator. Preferred for luxury events.' },
+    { id: s.gardengrace, categoryId: c['flower-decor'],    name: 'Garden & Grace Decor',       contactName: 'Irene Pasqual',   email: 'irene@gardenandgrace.ph',   phone: '09301234014', tier: 'tier_2', bniMember: false, serviceInclusions: 'Table centerpieces, entrance decor, photo backdrop',                                        performanceNotes: 'Reliable Tier 2. 4 events with PMCM. Clean track record.' },
+    { id: s.petaltwine,  categoryId: c['flower-decor'],    name: 'Petal & Twine Studio',       contactName: 'Mona Reyes',      email: 'mona@petalandtwine.ph',     phone: '09311234015', tier: 'tier_2', bniMember: true,  serviceInclusions: 'Rustic and garden themed styling, DIY florals',                                             performanceNotes: 'Good for themed events. 2 PMCM bookings.' },
+    { id: s.resonance,   categoryId: c['sound-lighting'],  name: 'Resonance AV Solutions',     contactName: 'Bobby Tan',       email: 'bobby@resonanceav.ph',      phone: '09321234016', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Full PA system, stage lighting, LED walls, technician on-site',                              performanceNotes: 'Preferred AV partner. Handles large-scale events.' },
+    { id: s.lumina,      categoryId: c['sound-lighting'],  name: 'Lumina Events AV',           contactName: 'Chester Uy',      email: 'chester@luminaav.ph',       phone: '09331234017', tier: 'tier_2', bniMember: false, serviceInclusions: 'Sound system, mood lighting, basic LED setup',                                              performanceNotes: '2 successful PMCM events. No issues.' },
+    { id: s.pulsepro,    categoryId: c['sound-lighting'],  name: 'Pulse Pro Audio',            contactName: 'Roland Garcia',   email: 'roland@pulsepro.ph',        phone: '09341234018', tier: 'tier_2', bniMember: false, serviceInclusions: 'Mid-range PA, DJ booth optional, gobo lights',                                              performanceNotes: 'First PMCM event. Vetted by BNI referral.' },
+    { id: s.joana,       categoryId: c['host-emcee'],      name: 'Joana Mercado Events Host',  contactName: 'Joana Mercado',   email: 'joana@joanamercado.ph',     phone: '09351234019', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Bilingual hosting (English/Filipino), script preparation, rehearsal',                        performanceNotes: 'Top-ranked emcee. 10+ PMCM events. Zero issues.' },
+    { id: s.rjevents,    categoryId: c['host-emcee'],      name: 'RJ Events Hosting',          contactName: 'RJ Pascual',      email: 'rj@rjevents.ph',            phone: '09361234020', tier: 'tier_2', bniMember: false, serviceInclusions: 'English hosting, basic script coordination',                                                performanceNotes: '3 PMCM events. Positive client feedback.' },
+    { id: s.mikael,      categoryId: c['host-emcee'],      name: 'Mikael Sy Hosting Services', contactName: 'Mikael Sy',       email: 'mikael@mikaelsy.ph',        phone: '09371234021', tier: 'tier_2', bniMember: false, serviceInclusions: 'Trilingual hosting, comedian MC option',                                                    performanceNotes: 'New partner. Vetted via referral.' },
+    { id: s.glowstudio,  categoryId: c['hair-makeup'],     name: 'Glow Studio by Carla',       contactName: 'Carla Mendoza',   email: 'carla@glowstudio.ph',       phone: '09381234022', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Bridal HMUA, touch-up kit, airbrush makeup, hair styling',                                   performanceNotes: 'Premium HMUA. Works well under pressure. No complaints.' },
+    { id: s.bloombeauty, categoryId: c['hair-makeup'],     name: 'Bloom Beauty Team',          contactName: 'Trina Aquino',    email: 'trina@bloombeauty.ph',      phone: '09391234023', tier: 'tier_2', bniMember: false, serviceInclusions: 'Makeup and hair for bride and entourage',                                                   performanceNotes: '2 PMCM events. Consistent quality.' },
+    { id: s.premier,     categoryId: c['transportation'],  name: 'Premier Wheels Events',      contactName: 'Arnel Dela Cruz', email: 'arnel@premierwheels.ph',    phone: '09401234024', tier: 'tier_1', bniMember: true,  serviceInclusions: 'Bridal car, shuttle fleet, coordination with venue',                                         performanceNotes: 'Tier 1 transport partner. Always on-time. 8 PMCM events.' },
+    { id: s.goevent,     categoryId: c['transportation'],  name: 'Go Event Transport',         contactName: 'Dennis Uy',       email: 'dennis@goeventtransport.ph',phone: '09411234025', tier: 'tier_2', bniMember: false, serviceInclusions: 'Van and bus rentals, airport transfers',                                                    performanceNotes: '1 PMCM event. On-time. No complaints.' },
   ];
 
-  for (const s of suppliers) {
-    await prisma.opsSupplier.upsert({
-      where: { id: s.id },
-      update: {},
-      create: s,
-    });
+  for (const sup of suppliers) {
+    await prisma.opsSupplier.upsert({ where: { id: sup.id }, update: {}, create: sup });
   }
   console.log(`✓ ${suppliers.length} suppliers seeded`);
 }
@@ -440,48 +229,56 @@ async function seedSuppliers() {
 // ─── REVIEWS ─────────────────────────────────────────────────────────────────
 
 async function seedReviews() {
+  const s = IDS.sup;
   const reviews = [
-    { supplierId: SUPPLIER_IDS[0],  rating: 5, notes: 'Flawless service, arrived 2 hours early for setup.' },
-    { supplierId: SUPPLIER_IDS[0],  rating: 5, notes: 'Food quality excellent. All 200 pax served on time.' },
-    { supplierId: SUPPLIER_IDS[0],  rating: 4, notes: 'Minor delay on dessert station but handled gracefully.' },
-    { supplierId: SUPPLIER_IDS[1],  rating: 4, notes: 'Good food, setup was clean, client happy.' },
-    { supplierId: SUPPLIER_IDS[1],  rating: 4, notes: 'Halal menu well-executed. No complaints from guests.' },
-    { supplierId: SUPPLIER_IDS[1],  rating: 3, notes: 'One menu item substituted without prior notice.' },
-    { supplierId: SUPPLIER_IDS[2],  rating: 5, notes: 'Excellent plating and service.' },
-    { supplierId: SUPPLIER_IDS[2],  rating: 4, notes: 'Corporate client very satisfied.' },
-    { supplierId: SUPPLIER_IDS[5],  rating: 5, notes: 'Best photos we have seen. On time, professional.' },
-    { supplierId: SUPPLIER_IDS[5],  rating: 5, notes: 'Couple loved the gallery delivery.' },
-    { supplierId: SUPPLIER_IDS[9],  rating: 5, notes: 'Cinematic output. Client cried watching SDE.' },
-    { supplierId: SUPPLIER_IDS[12], rating: 5, notes: 'Venue looked breathtaking. Setup finished 1 hour early.' },
-    { supplierId: SUPPLIER_IDS[12], rating: 5, notes: 'Arch design exceeded client expectations.' },
-    { supplierId: SUPPLIER_IDS[15], rating: 5, notes: 'Perfect audio, zero feedback issues.' },
-    { supplierId: SUPPLIER_IDS[18], rating: 5, notes: 'Crowd loved her energy. Flawless transitions.' },
-    { supplierId: SUPPLIER_IDS[18], rating: 5, notes: 'Clients specifically requested her for next event.' },
-    { supplierId: SUPPLIER_IDS[23], rating: 5, notes: 'All vehicles arrived 30 min early. Spotless.' },
+    { id: 'pare-rev-goldleaf-1',    supplierId: s.goldleaf,    rating: 5, notes: 'Flawless service, arrived 2 hours early for setup.' },
+    { id: 'pare-rev-goldleaf-2',    supplierId: s.goldleaf,    rating: 5, notes: 'Food quality excellent. All 200 pax served on time.' },
+    { id: 'pare-rev-goldleaf-3',    supplierId: s.goldleaf,    rating: 4, notes: 'Minor delay on dessert station but handled gracefully.' },
+    { id: 'pare-rev-kusina-1',      supplierId: s.kusina,      rating: 4, notes: 'Good food, setup was clean, client happy.' },
+    { id: 'pare-rev-kusina-2',      supplierId: s.kusina,      rating: 4, notes: 'Halal menu well-executed. No complaints from guests.' },
+    { id: 'pare-rev-kusina-3',      supplierId: s.kusina,      rating: 3, notes: 'One menu item substituted without prior notice.' },
+    { id: 'pare-rev-palate-1',      supplierId: s.palate,      rating: 5, notes: 'Excellent plating and service.' },
+    { id: 'pare-rev-palate-2',      supplierId: s.palate,      rating: 4, notes: 'Corporate client very satisfied.' },
+    { id: 'pare-rev-lumin-1',       supplierId: s.studiolumin, rating: 5, notes: 'Best photos we have seen. On time, professional.' },
+    { id: 'pare-rev-lumin-2',       supplierId: s.studiolumin, rating: 5, notes: 'Couple loved the gallery delivery.' },
+    { id: 'pare-rev-reel-1',        supplierId: s.reelstories, rating: 5, notes: 'Cinematic output. Client cried watching SDE.' },
+    { id: 'pare-rev-bloom-1',       supplierId: s.bloompetel,  rating: 5, notes: 'Venue looked breathtaking. Setup finished 1 hour early.' },
+    { id: 'pare-rev-bloom-2',       supplierId: s.bloompetel,  rating: 5, notes: 'Arch design exceeded client expectations.' },
+    { id: 'pare-rev-resonance-1',   supplierId: s.resonance,   rating: 5, notes: 'Perfect audio, zero feedback issues.' },
+    { id: 'pare-rev-joana-1',       supplierId: s.joana,       rating: 5, notes: 'Crowd loved her energy. Flawless transitions.' },
+    { id: 'pare-rev-joana-2',       supplierId: s.joana,       rating: 5, notes: 'Clients specifically requested her for next event.' },
+    { id: 'pare-rev-premier-1',     supplierId: s.premier,     rating: 5, notes: 'All vehicles arrived 30 min early. Spotless.' },
   ];
+
   for (const r of reviews) {
-    await prisma.opsSupplierReview.create({
-      data: { id: randomUUID(), supplierId: r.supplierId, rating: r.rating, notes: r.notes, reviewedBy: 'PMCM Admin' },
+    await prisma.opsSupplierReview.upsert({
+      where: { id: r.id },
+      update: {},
+      create: { id: r.id, supplierId: r.supplierId, rating: r.rating, notes: r.notes, reviewedBy: 'PMCM Admin' },
     });
   }
-  console.log(`✓ ${reviews.length} supplier reviews seeded`);
+  console.log(`✓ ${reviews.length} reviews seeded`);
 }
 
 // ─── RELIABILITY NOTES ────────────────────────────────────────────────────────
 
 async function seedReliabilityNotes() {
+  const s = IDS.sup;
   const notes = [
-    { supplierId: SUPPLIER_IDS[0],  note: 'Consistently early for setup. Excellent communication.' },
-    { supplierId: SUPPLIER_IDS[0],  note: 'Client specifically requested them for next event.' },
-    { supplierId: SUPPLIER_IDS[1],  note: 'Substituted one menu item without notice — resolved with apology.' },
-    { supplierId: SUPPLIER_IDS[1],  note: 'Halal certification verified and up to date.' },
-    { supplierId: SUPPLIER_IDS[5],  note: 'Delivered gallery 2 days ahead of SLA.' },
-    { supplierId: SUPPLIER_IDS[9],  note: 'SDE played at reception — couple was emotional. Excellent execution.' },
-    { supplierId: SUPPLIER_IDS[18], note: 'Crowd management skills exceptional. Handled technical delay gracefully.' },
+    { id: 'pare-rel-goldleaf-1',  supplierId: s.goldleaf,    note: 'Consistently early for setup. Excellent communication.' },
+    { id: 'pare-rel-goldleaf-2',  supplierId: s.goldleaf,    note: 'Client specifically requested them for next event.' },
+    { id: 'pare-rel-kusina-1',    supplierId: s.kusina,      note: 'Substituted one menu item without notice — resolved with apology.' },
+    { id: 'pare-rel-kusina-2',    supplierId: s.kusina,      note: 'Halal certification verified and up to date.' },
+    { id: 'pare-rel-lumin-1',     supplierId: s.studiolumin, note: 'Delivered gallery 2 days ahead of SLA.' },
+    { id: 'pare-rel-reel-1',      supplierId: s.reelstories, note: 'SDE played at reception — couple was emotional. Excellent execution.' },
+    { id: 'pare-rel-joana-1',     supplierId: s.joana,       note: 'Crowd management skills exceptional. Handled technical delay gracefully.' },
   ];
+
   for (const n of notes) {
-    await prisma.opsSupplierReliabilityNote.create({
-      data: { id: randomUUID(), supplierId: n.supplierId, note: n.note },
+    await prisma.opsSupplierReliabilityNote.upsert({
+      where: { id: n.id },
+      update: {},
+      create: { id: n.id, supplierId: n.supplierId, note: n.note },
     });
   }
   console.log('✓ Reliability notes seeded');
@@ -489,26 +286,24 @@ async function seedReliabilityNotes() {
 
 // ─── INQUIRIES ────────────────────────────────────────────────────────────────
 
-const INQUIRY_DATA = [
-  { clientName: 'Reyes Family',       eventName: 'Reyes Grand Wedding',    eventDate: futureDate(45), clientType: 'returning', email: 'reyes@example.com' },
-  { clientName: 'Santos Family',      eventName: 'Santos 18th Debut',      eventDate: futureDate(60), clientType: 'new',       email: 'santos@example.com' },
-  { clientName: 'Cruz Corporation',   eventName: 'Cruz Corp Annual Gala',  eventDate: futureDate(30), clientType: 'corporate', email: 'events@cruzcorp.com' },
-  { clientName: 'Lim Family',         eventName: 'Lim Silver Anniversary', eventDate: futureDate(90), clientType: 'returning', email: 'lim@example.com' },
-  { clientName: 'Garcia Family',      eventName: 'Garcia Baby Christening',eventDate: futureDate(21), clientType: 'new',       email: 'garcia@example.com' },
-];
-
 async function seedInquiries() {
-  for (let i = 0; i < INQUIRY_DATA.length; i++) {
-    const d = INQUIRY_DATA[i];
+  const data = [
+    { id: IDS.inq.reyes,  clientName: 'Reyes Family',     eventName: 'Reyes Grand Wedding',    days: 45, clientType: 'returning', email: 'reyes@example.com' },
+    { id: IDS.inq.santos, clientName: 'Santos Family',    eventName: 'Santos 18th Debut',      days: 60, clientType: 'new',       email: 'santos@example.com' },
+    { id: IDS.inq.cruz,   clientName: 'Cruz Corporation', eventName: 'Cruz Corp Annual Gala',  days: 30, clientType: 'corporate', email: 'events@cruzcorp.com' },
+    { id: IDS.inq.lim,    clientName: 'Lim Family',       eventName: 'Lim Silver Anniversary', days: 90, clientType: 'returning', email: 'lim@example.com' },
+    { id: IDS.inq.garcia, clientName: 'Garcia Family',    eventName: 'Garcia Baby Christening',days: 21, clientType: 'new',       email: 'garcia@example.com' },
+  ];
+  for (const d of data) {
     await prisma.opsInquiry.upsert({
-      where: { id: INQUIRY_IDS[i] },
+      where: { id: d.id },
       update: {},
       create: {
-        id: INQUIRY_IDS[i],
+        id: d.id,
         clientName: d.clientName,
         email: d.email,
         eventName: d.eventName,
-        eventDate: d.eventDate,
+        eventDate: futureDate(d.days),
         clientType: d.clientType,
         status: 'accepted',
         conformeSentAt: new Date(),
@@ -525,24 +320,26 @@ async function seedInquiries() {
 // ─── EVENTS ──────────────────────────────────────────────────────────────────
 
 async function seedEvents() {
-  const events = [
-    { i: 0, clientName: 'Reyes Family',      status: 'planning', readiness: 'Suppliers being confirmed' },
-    { i: 1, clientName: 'Santos Family',     status: 'planning', readiness: 'Planning in progress' },
-    { i: 2, clientName: 'Cruz Corporation',  status: 'planning', readiness: 'Suppliers being confirmed' },
-    { i: 3, clientName: 'Lim Family',        status: 'planning', readiness: 'Planning in progress' },
-    { i: 4, clientName: 'Garcia Family',     status: 'planning', readiness: 'Suppliers being confirmed' },
+  const inq = IDS.inq;
+  const evt = IDS.evt;
+  const data = [
+    { id: evt.reyes,  inquiryId: inq.reyes,  clientName: 'Reyes Family',     eventName: 'Reyes Grand Wedding',    days: 45, readiness: 'Suppliers being confirmed' },
+    { id: evt.santos, inquiryId: inq.santos, clientName: 'Santos Family',    eventName: 'Santos 18th Debut',      days: 60, readiness: 'Planning in progress' },
+    { id: evt.cruz,   inquiryId: inq.cruz,   clientName: 'Cruz Corporation', eventName: 'Cruz Corp Annual Gala',  days: 30, readiness: 'Suppliers being confirmed' },
+    { id: evt.lim,    inquiryId: inq.lim,    clientName: 'Lim Family',       eventName: 'Lim Silver Anniversary', days: 90, readiness: 'Planning in progress' },
+    { id: evt.garcia, inquiryId: inq.garcia, clientName: 'Garcia Family',    eventName: 'Garcia Baby Christening',days: 21, readiness: 'Suppliers being confirmed' },
   ];
-  for (const e of events) {
+  for (const e of data) {
     await prisma.opsEvent.upsert({
-      where: { id: EVENT_IDS[e.i] },
+      where: { id: e.id },
       update: {},
       create: {
-        id: EVENT_IDS[e.i],
-        inquiryId: INQUIRY_IDS[e.i],
+        id: e.id,
+        inquiryId: e.inquiryId,
         clientName: e.clientName,
-        eventName: INQUIRY_DATA[e.i].eventName,
-        eventDate: INQUIRY_DATA[e.i].eventDate,
-        status: e.status,
+        eventName: e.eventName,
+        eventDate: futureDate(e.days),
+        status: 'planning',
         readiness: e.readiness,
         clientPortalStatus: 'active',
       },
@@ -555,111 +352,80 @@ async function seedEvents() {
 
 async function seedQuotes() {
   const now = new Date();
+  const s = IDS.sup;
+  const e = IDS.evt;
+  const c = IDS.cat;
+  const qr = IDS.qr;
+  const qt = IDS.quote;
 
-  async function makeAssignment(eventId, supplierId, catId, supplierName, category, message, amount, inclusions, status = 'selected') {
-    const reqId = randomUUID();
-    await prisma.opsSupplierQuoteRequest.create({
-      data: {
-        id: reqId,
-        eventId,
-        supplierId,
-        categoryId: catId,
-        supplierName,
-        category,
-        message,
+  const assignments = [
+    // ── REYES GRAND WEDDING ─────────────────────────────────────────────────
+    // Goldleaf = PRIMARY assigned (withdraw this to trigger PARE)
+    { qrId: qr.reyes_goldleaf,  qtId: qt.reyes_goldleaf,  eventId: e.reyes,  supplierId: s.goldleaf,    catId: c['catering'],        name: 'Goldleaf Catering Co.',     cat: 'Catering',        amount: 72000, assigned: true,  inclusions: ['Buffet setup','On-site chef','Halal menu','Dessert station','Waitstaff x6'] },
+    // Kusina = backup with submitted quote (PARE will find this as replacement)
+    { qrId: qr.reyes_kusina,    qtId: qt.reyes_kusina,    eventId: e.reyes,  supplierId: s.kusina,      catId: c['catering'],        name: 'Kusina ni Lola Events',     cat: 'Catering',        amount: 65000, assigned: false, inclusions: ['Buffet setup','Halal menu','Lechon station','Dessert spread','Waitstaff x5'] },
+    { qrId: qr.reyes_lumin,     qtId: qt.reyes_lumin,     eventId: e.reyes,  supplierId: s.studiolumin, catId: c['photography'],     name: 'Studio Lumin PH',           cat: 'Photography',     amount: 38000, assigned: true,  inclusions: ['Full-day coverage','2 photographers','Same-day slideshow','Online gallery'] },
+    { qrId: qr.reyes_bloom,     qtId: qt.reyes_bloom,     eventId: e.reyes,  supplierId: s.bloompetel,  catId: c['flower-decor'],    name: 'Bloom & Petal Events',      cat: 'Flower & Decor',  amount: 55000, assigned: true,  inclusions: ['Full venue styling','Floral arch','Centerpieces x20','Entrance decor'] },
+    { qrId: qr.reyes_resonance, qtId: qt.reyes_resonance, eventId: e.reyes,  supplierId: s.resonance,   catId: c['sound-lighting'],  name: 'Resonance AV Solutions',    cat: 'Sound & Lighting',amount: 32000, assigned: true,  inclusions: ['Full PA system','Stage lighting','LED uplights','Wireless mics x4'] },
+    { qrId: qr.reyes_joana,     qtId: qt.reyes_joana,     eventId: e.reyes,  supplierId: s.joana,       catId: c['host-emcee'],      name: 'Joana Mercado Events Host', cat: 'Host / Emcee',    amount: 18000, assigned: true,  inclusions: ['Bilingual hosting','Script prep','Rehearsal session'] },
+    // ── SANTOS DEBUT ────────────────────────────────────────────────────────
+    { qrId: qr.santos_palate,   qtId: qt.santos_palate,   eventId: e.santos, supplierId: s.palate,      catId: c['catering'],        name: 'Palate Prime Catering',     cat: 'Catering',        amount: 42000, assigned: true,  inclusions: ['Buffet setup','Waitstaff x4'] },
+    { qrId: qr.santos_bright,   qtId: qt.santos_bright,   eventId: e.santos, supplierId: s.brightframes,catId: c['photography'],     name: 'Bright Frames Photography', cat: 'Photography',     amount: 22000, assigned: true,  inclusions: ['Full-day coverage','1 photographer'] },
+    { qrId: qr.santos_garden,   qtId: qt.santos_garden,   eventId: e.santos, supplierId: s.gardengrace, catId: c['flower-decor'],    name: 'Garden & Grace Decor',      cat: 'Flower & Decor',  amount: 28000, assigned: true,  inclusions: ['Centerpieces x15','Entrance decor'] },
+    { qrId: qr.santos_rj,       qtId: qt.santos_rj,       eventId: e.santos, supplierId: s.rjevents,    catId: c['host-emcee'],      name: 'RJ Events Hosting',         cat: 'Host / Emcee',    amount: 12000, assigned: true,  inclusions: ['English hosting','Script coordination'] },
+    // ── CRUZ CORPORATE GALA ─────────────────────────────────────────────────
+    { qrId: qr.cruz_sage,       qtId: qt.cruz_sage,       eventId: e.cruz,   supplierId: s.sagesalt,    catId: c['catering'],        name: 'Sage & Salt Catering',      cat: 'Catering',        amount: 110000,assigned: true,  inclusions: ['Plated dinner x300','Waitstaff x10','Vegan options'] },
+    { qrId: qr.cruz_reel,       qtId: qt.cruz_reel,       eventId: e.cruz,   supplierId: s.reelstories, catId: c['video-production'],name: 'Reel Stories PH',           cat: 'Video Production',amount: 45000, assigned: true,  inclusions: ['Event film','Highlights reel','Drone footage'] },
+    { qrId: qr.cruz_resonance,  qtId: qt.cruz_resonance,  eventId: e.cruz,   supplierId: s.resonance,   catId: c['sound-lighting'],  name: 'Resonance AV Solutions',    cat: 'Sound & Lighting',amount: 55000, assigned: true,  inclusions: ['Full PA system','LED wall','Stage lighting','AV tech x3'] },
+    { qrId: qr.cruz_joana,      qtId: qt.cruz_joana,      eventId: e.cruz,   supplierId: s.joana,       catId: c['host-emcee'],      name: 'Joana Mercado Events Host', cat: 'Host / Emcee',    amount: 20000, assigned: true,  inclusions: ['Corporate hosting','Script prep'] },
+    // ── LIM ANNIVERSARY ─────────────────────────────────────────────────────
+    { qrId: qr.lim_kusina,      qtId: qt.lim_kusina,      eventId: e.lim,    supplierId: s.kusina,      catId: c['catering'],        name: 'Kusina ni Lola Events',     cat: 'Catering',        amount: 48000, assigned: true,  inclusions: ['Buffet setup','Lechon station','Waitstaff x4'] },
+    { qrId: qr.lim_captured,    qtId: qt.lim_captured,    eventId: e.lim,    supplierId: s.captured,    catId: c['photography'],     name: 'Captured Moments PH',       cat: 'Photography',     amount: 25000, assigned: true,  inclusions: ['Full-day coverage','1 photographer','Edited photos'] },
+    { qrId: qr.lim_petal,       qtId: qt.lim_petal,       eventId: e.lim,    supplierId: s.petaltwine,  catId: c['flower-decor'],    name: 'Petal & Twine Studio',      cat: 'Flower & Decor',  amount: 22000, assigned: true,  inclusions: ['Rustic centerpieces x10','Entrance decor'] },
+    // ── GARCIA CHRISTENING ──────────────────────────────────────────────────
+    { qrId: qr.garcia_fiesta,   qtId: qt.garcia_fiesta,   eventId: e.garcia, supplierId: s.fiesta,      catId: c['catering'],        name: 'Fiesta Feast Catering',     cat: 'Catering',        amount: 28000, assigned: true,  inclusions: ['Buffet setup','Standard Filipino menu'] },
+    { qrId: qr.garcia_golden,   qtId: qt.garcia_golden,   eventId: e.garcia, supplierId: s.goldenhour,  catId: c['photography'],     name: 'Golden Hour Shoots',        cat: 'Photography',     amount: 15000, assigned: true,  inclusions: ['4-hour coverage','1 photographer'] },
+  ];
+
+  for (const a of assignments) {
+    await prisma.opsSupplierQuoteRequest.upsert({
+      where: { id: a.qrId },
+      update: {},
+      create: {
+        id: a.qrId,
+        eventId: a.eventId,
+        supplierId: a.supplierId,
+        categoryId: a.catId,
+        supplierName: a.name,
+        category: a.cat,
+        message: `Quote request for ${a.cat}.`,
         dueDate: futureDate(14),
-        accessToken: randomUUID(),
+        accessToken: `pare-token-${a.qrId}`,
         status: 'open',
-        assignmentStatus: status === 'selected' ? 'confirmed' : 'pending_confirmation',
-        assignmentConfirmedAt: status === 'selected' ? now : null,
-        readinessStatus: status === 'selected' ? 'confirmed' : 'not_requested',
+        assignmentStatus: a.assigned ? 'confirmed' : 'pending_confirmation',
+        assignmentConfirmedAt: a.assigned ? now : null,
+        readinessStatus: a.assigned ? 'confirmed' : 'not_requested',
       },
     });
-    await prisma.opsSupplierQuote.create({
-      data: {
-        id: randomUUID(),
-        eventId,
-        requestId: reqId,
-        supplierId,
-        categoryId: catId,
-        supplierName,
-        category,
-        amount,
-        inclusions,
+    await prisma.opsSupplierQuote.upsert({
+      where: { id: a.qtId },
+      update: {},
+      create: {
+        id: a.qtId,
+        eventId: a.eventId,
+        requestId: a.qrId,
+        supplierId: a.supplierId,
+        categoryId: a.catId,
+        supplierName: a.name,
+        category: a.cat,
+        amount: a.amount,
+        inclusions: a.inclusions,
         paymentTerms: '50% upon booking, 50% on event day',
-        status,
-        selectedAt: status === 'selected' ? now : null,
+        status: a.assigned ? 'selected' : 'submitted',
+        selectedAt: a.assigned ? now : null,
       },
     });
   }
-
-  // ── REYES GRAND WEDDING (EVENT_IDS[0]) ──────────────────────────────────
-  // Goldleaf = primary (ASSIGNED, will be marked Unavailable to trigger PARE)
-  await makeAssignment(EVENT_IDS[0], SUPPLIER_IDS[0], CATEGORY_IDS.catering,
-    'Goldleaf Catering Co.', 'Catering',
-    'Full buffet for 200 pax. Halal menu required. Dessert station included.',
-    72000, ['Buffet setup', 'On-site chef', 'Halal menu', 'Dessert station', 'Waitstaff x6']);
-
-  // Kusina ni Lola = backup (quote submitted, available — PARE Agent 2 finds this)
-  await makeAssignment(EVENT_IDS[0], SUPPLIER_IDS[1], CATEGORY_IDS.catering,
-    'Kusina ni Lola Events', 'Catering',
-    'Backup quote. Full buffet for 200 pax. Halal required.',
-    65000, ['Buffet setup', 'Halal menu', 'Lechon station', 'Dessert spread', 'Waitstaff x5'], 'submitted');
-
-  await makeAssignment(EVENT_IDS[0], SUPPLIER_IDS[5], CATEGORY_IDS.photography,
-    'Studio Lumin PH', 'Photography',
-    'Full day coverage, 2 shooters, same-day slideshow.',
-    38000, ['Full-day coverage', '2 photographers', 'Same-day slideshow', 'Online gallery']);
-
-  await makeAssignment(EVENT_IDS[0], SUPPLIER_IDS[12], CATEGORY_IDS.flowerDecor,
-    'Bloom & Petal Events', 'Flower & Decor',
-    'Full venue styling. White and gold theme.',
-    55000, ['Full venue styling', 'Floral arch', 'Centerpieces x20', 'Entrance decor']);
-
-  await makeAssignment(EVENT_IDS[0], SUPPLIER_IDS[15], CATEGORY_IDS.soundLighting,
-    'Resonance AV Solutions', 'Sound & Lighting',
-    'Full PA and stage lighting. Reception hall capacity 200.',
-    32000, ['Full PA system', 'Stage lighting', 'LED uplights', 'Wireless mics x4']);
-
-  await makeAssignment(EVENT_IDS[0], SUPPLIER_IDS[18], CATEGORY_IDS.hostEmcee,
-    'Joana Mercado Events Host', 'Host / Emcee',
-    'Bilingual hosting for 6-hour reception.',
-    18000, ['Bilingual hosting', 'Script prep', 'Rehearsal session']);
-
-  // ── SANTOS DEBUT (EVENT_IDS[1]) ─────────────────────────────────────────
-  await makeAssignment(EVENT_IDS[1], SUPPLIER_IDS[2], CATEGORY_IDS.catering,
-    'Palate Prime Catering', 'Catering', 'Buffet for 120 pax.', 42000, ['Buffet setup', 'Waitstaff x4']);
-  await makeAssignment(EVENT_IDS[1], SUPPLIER_IDS[6], CATEGORY_IDS.photography,
-    'Bright Frames Photography', 'Photography', '10 hours coverage.', 22000, ['Full-day coverage', '1 photographer']);
-  await makeAssignment(EVENT_IDS[1], SUPPLIER_IDS[13], CATEGORY_IDS.flowerDecor,
-    'Garden & Grace Decor', 'Flower & Decor', 'Pastel theme decor.', 28000, ['Centerpieces x15', 'Entrance decor']);
-  await makeAssignment(EVENT_IDS[1], SUPPLIER_IDS[19], CATEGORY_IDS.hostEmcee,
-    'RJ Events Hosting', 'Host / Emcee', 'English hosting.', 12000, ['English hosting', 'Script coordination']);
-
-  // ── CRUZ CORPORATE GALA (EVENT_IDS[2]) ─────────────────────────────────
-  await makeAssignment(EVENT_IDS[2], SUPPLIER_IDS[4], CATEGORY_IDS.catering,
-    'Sage & Salt Catering', 'Catering', 'Western plated dinner for 300 pax.', 110000, ['Plated dinner x300', 'Waitstaff x10', 'Vegan options']);
-  await makeAssignment(EVENT_IDS[2], SUPPLIER_IDS[9], CATEGORY_IDS.videoProduction,
-    'Reel Stories PH', 'Video Production', 'Corporate event film + highlights.', 45000, ['Event film', 'Highlights reel', 'Drone footage']);
-  await makeAssignment(EVENT_IDS[2], SUPPLIER_IDS[15], CATEGORY_IDS.soundLighting,
-    'Resonance AV Solutions', 'Sound & Lighting', 'Full stage AV for 300 pax ballroom.', 55000, ['Full PA system', 'LED wall', 'Stage lighting', 'AV tech x3']);
-  await makeAssignment(EVENT_IDS[2], SUPPLIER_IDS[18], CATEGORY_IDS.hostEmcee,
-    'Joana Mercado Events Host', 'Host / Emcee', 'Corporate emcee, English only.', 20000, ['Corporate hosting', 'Script prep']);
-
-  // ── LIM ANNIVERSARY (EVENT_IDS[3]) ─────────────────────────────────────
-  await makeAssignment(EVENT_IDS[3], SUPPLIER_IDS[1], CATEGORY_IDS.catering,
-    'Kusina ni Lola Events', 'Catering', 'Filipino buffet for 80 pax.', 48000, ['Buffet setup', 'Lechon station', 'Waitstaff x4']);
-  await makeAssignment(EVENT_IDS[3], SUPPLIER_IDS[7], CATEGORY_IDS.photography,
-    'Captured Moments PH', 'Photography', 'Full day coverage.', 25000, ['Full-day coverage', '1 photographer', 'Edited photos']);
-  await makeAssignment(EVENT_IDS[3], SUPPLIER_IDS[14], CATEGORY_IDS.flowerDecor,
-    'Petal & Twine Studio', 'Flower & Decor', 'Rustic garden theme.', 22000, ['Rustic centerpieces x10', 'Entrance decor']);
-
-  // ── GARCIA CHRISTENING (EVENT_IDS[4]) ───────────────────────────────────
-  await makeAssignment(EVENT_IDS[4], SUPPLIER_IDS[3], CATEGORY_IDS.catering,
-    'Fiesta Feast Catering', 'Catering', 'Budget buffet for 60 pax.', 28000, ['Buffet setup', 'Standard Filipino menu']);
-  await makeAssignment(EVENT_IDS[4], SUPPLIER_IDS[8], CATEGORY_IDS.photography,
-    'Golden Hour Shoots', 'Photography', '4 hours coverage.', 15000, ['4-hour coverage', '1 photographer']);
-
   console.log('✓ Quote requests and quotes seeded');
 }
 
@@ -691,14 +457,12 @@ async function main() {
     • Lim Silver Anniversary    (90 days)
     • Garcia Baby Christening   (21 days)
 
-  25 suppliers seeded across 8 categories.
-
   TO TRIGGER PARE:
-    1. Open Reyes Grand Wedding in apps/event
-    2. Find Goldleaf Catering Co. (Tier 1, assigned, ₱72,000)
-    3. Mark them as Unavailable or Withdrawn
-    4. PARE activates → finds Kusina ni Lola (₱65,000, halal, available)
-    5. Recommendation package appears for PMCM Admin approval
+    1. Log in as admin@pmcm.ph / pmcm2024!
+    2. Open Reyes Grand Wedding → Suppliers tab
+    3. Click "Withdraw · Trigger PARE" on Goldleaf Catering Co.
+    4. PARE runs → Kusina ni Lola recommended (₱65,000, halal, Tier 2)
+    5. Approve or Reject in the panel below
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
 }

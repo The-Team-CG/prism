@@ -19,6 +19,7 @@ export class SupplierFinderAgent {
         where: {
           categoryId: category.id,
           id: { not: withdrawnSupplier.id },
+          NOT: { name: withdrawnSupplier.name },
         },
         include: {
           reviews: true,
@@ -33,8 +34,13 @@ export class SupplierFinderAgent {
     }
 
     const candidates: PARECandidate[] = [];
+    const seenNames = new Set<string>();
 
     for (const supplier of suppliers) {
+      // Deduplicate by name (multiple seed runs can create duplicate supplier records)
+      if (seenNames.has(supplier.name)) continue;
+      seenNames.add(supplier.name);
+
       // Skip if already assigned to this event in another role (same category block)
       const alreadyOnEvent = supplier.quoteRequests.some(
         (qr: any) => qr.assignmentStatus === 'confirmed',

@@ -228,6 +228,19 @@ if (-not $SkipPrismaGenerate) {
   Invoke-External -Label "Generating Prisma client in apps\api" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "db:generate")
 }
 
+Write-Host "Seeding PARE demo data in apps\api"
+Push-Location (Join-Path $root "apps\api")
+try {
+  & node.exe --env-file=.env prisma/seed-pare.mjs
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "PARE seed exited with code $LASTEXITCODE - continuing startup."
+  }
+} catch {
+  Write-Warning "PARE seed failed - continuing startup."
+} finally {
+  Pop-Location
+}
+
 "name,pid,port,directory" | Set-Content -LiteralPath $pidFile
 
 foreach ($app in $apps) {
