@@ -6,30 +6,31 @@ export class SupplierFinderAgent {
   async run(ctx: PAREContext): Promise<PARECandidate[]> {
     const { withdrawnSupplier, eventId } = ctx;
 
-    // Find the category by name
-    const category = await this.prisma.opsSupplierCategory.findFirst({
-      where: { name: withdrawnSupplier.category },
-    });
-    if (!category) return [];
+    let category: any;
+    let suppliers: any[] = [];
 
-    // Get all suppliers in same category, excluding the withdrawn one
-    const suppliers = await this.prisma.opsSupplier.findMany({
-      where: {
-        categoryId: category.id,
-        id: { not: withdrawnSupplier.id },
-      },
-      include: {
-        reviews: true,
-        reliabilityNotes: true,
-        certifications: true,
-        quoteRequests: {
-          where: { eventId },
+    try {
+      category = await this.prisma.opsSupplierCategory.findFirst({
+        where: { name: withdrawnSupplier.category },
+      });
+      if (!category) return [];
+
+      suppliers = await this.prisma.opsSupplier.findMany({
+        where: {
+          categoryId: category.id,
+          id: { not: withdrawnSupplier.id },
         },
-        quotes: {
-          where: { eventId },
+        include: {
+          reviews: true,
+          reliabilityNotes: true,
+          certifications: true,
+          quoteRequests: { where: { eventId } },
+          quotes: { where: { eventId } },
         },
-      },
-    });
+      });
+    } catch {
+      return [];
+    }
 
     const candidates: PARECandidate[] = [];
 

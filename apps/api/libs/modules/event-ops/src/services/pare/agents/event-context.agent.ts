@@ -3,40 +3,53 @@ import type { PAREContext } from '../pare.types';
 export class EventContextAgent {
   constructor(private readonly prisma: any) {}
 
-  async run(triggerId: string): Promise<PAREContext> {
-    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({
-      where: { id: triggerId },
-      include: { event: true, supplier: true, categoryRef: true },
-    });
-    if (!request) throw new Error(`PARE: quote request ${triggerId} not found`);
+  async run(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREContext> {
+    let request: any;
+    let event: any;
 
-    const event = request.event;
+    if (prefetched) {
+      request = prefetched.request;
+      event = prefetched.event;
+    } else {
+      const fetched = await this.prisma.opsSupplierQuoteRequest.findUnique({
+        where: { id: triggerId },
+        include: { event: true, supplier: true, categoryRef: true },
+      });
+      if (!fetched) throw new Error(`PARE: quote request ${triggerId} not found`);
+      request = fetched;
+      event = fetched.event;
+    }
+
     const eventDate = new Date(event.eventDate);
     const now = new Date();
     const daysUntilEvent = Math.ceil((eventDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-    // Sum all confirmed supplier quotes for this event to get spent budget
-    const allQuotes = await this.prisma.opsSupplierQuote.findMany({
-      where: { eventId: event.id, status: 'selected' },
-    });
-    const spentBudget = allQuotes.reduce((sum: number, q: any) => sum + (q.amount ?? 0), 0);
+    let allQuotes: any[] = [];
+    let clientPreferences: string[] = [];
 
-    // Pull client preferences from briefings if any
-    const briefings = await this.prisma.opsBriefing.findMany({
-      where: { eventId: event.id },
-      orderBy: { createdAt: 'desc' },
-      take: 1,
-    });
-    const clientPreferences: string[] = [];
-    if (briefings.length > 0 && briefings[0].preferences) {
-      const prefs = briefings[0].preferences;
-      if (typeof prefs === 'object' && prefs !== null) {
-        Object.entries(prefs as Record<string, unknown>).forEach(([k, v]) => {
-          if (v) clientPreferences.push(`${k}: ${v}`);
-        });
+    try {
+      allQuotes = await this.prisma.opsSupplierQuote.findMany({
+        where: { eventId: event.id, status: 'selected' },
+      });
+    } catch { /* DB unavailable — proceed with empty quotes */ }
+
+    try {
+      const briefings = await this.prisma.opsBriefing.findMany({
+        where: { eventId: event.id },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      });
+      if (briefings.length > 0 && briefings[0].preferences) {
+        const prefs = briefings[0].preferences;
+        if (typeof prefs === 'object' && prefs !== null) {
+          Object.entries(prefs as Record<string, unknown>).forEach(([k, v]) => {
+            if (v && typeof v !== 'object') clientPreferences.push(`${k}: ${v}`);
+          });
+        }
       }
-    }
+    } catch { /* DB unavailable — no preferences */ }
 
+    const spentBudget = allQuotes.reduce((sum: number, q: any) => sum + (q.amount ?? 0), 0);
     const withdrawnQuote = allQuotes.find((q: any) => q.requestId === triggerId);
     const quotedAmount = withdrawnQuote?.amount ?? 0;
 
@@ -47,9 +60,9 @@ export class EventContextAgent {
       eventDate: eventDate.toISOString().slice(0, 10),
       daysUntilEvent,
       clientName: event.clientName,
-      totalBudget: 0, // Budget not stored on OpsEvent — use remaining logic
+      totalBudget: 0,
       spentBudget,
-      remainingBudget: 9999999, // Conservative: unknown budget means we don't block
+      remainingBudget: 9999999,
       withdrawnSupplier: {
         id: request.supplierId ?? '',
         name: request.supplierName,

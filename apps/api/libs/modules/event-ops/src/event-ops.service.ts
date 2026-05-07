@@ -3101,13 +3101,17 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     if (!request) throw new NotFoundException('Supplier quote request not found');
 
     let updated: typeof request;
+    let event: any = null;
     try {
-      updated = await this.prisma.opsSupplierQuoteRequest.update({
-        where: { id: request.id },
-        data: { assignmentStatus: 'withdrawn' },
-      });
+      [updated, event] = await Promise.all([
+        this.prisma.opsSupplierQuoteRequest.update({
+          where: { id: request.id },
+          data: { assignmentStatus: 'withdrawn' },
+          include: { supplier: true },
+        }),
+        this.prisma.opsEvent.findUnique({ where: { id: request.eventId } }),
+      ]);
     } catch {
-      // DB unavailable — apply in-memory so PARE can read the updated state
       updated = { ...request, assignmentStatus: 'withdrawn' };
     }
 
@@ -3123,8 +3127,9 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       });
     } catch { /* audit failure is non-fatal */ }
 
-    // Fire PARE — non-blocking, errors are logged not thrown
-    this.pareService.handleEmergencyTrigger(request.id).catch((err) => {
+    // Fire PARE — pass prefetched data so agents don't need DB
+    const prefetched = event ? { request: updated, event } : undefined;
+    this.pareService.handleEmergencyTrigger(request.id, prefetched).catch((err) => {
       this.logger.error(`PARE trigger failed for request ${request.id}: ${err?.message}`);
     });
     return this.mapSupplierQuoteRequest(updated);

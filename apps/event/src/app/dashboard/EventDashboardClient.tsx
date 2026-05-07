@@ -3554,7 +3554,7 @@ export default function EventDashboard({
                     <CardBody>
                       <PAREPanel
                         eventId={selectedEvent.id}
-                        assignedRequests={quoteRequests.filter((r) => r.assignmentStatus === "assigned")}
+                        assignedRequests={quoteRequests.filter((r) => r.assignmentStatus === "confirmed")}
                         suppliers={suppliers}
                         onWithdraw={(requestId) => run("withdraw supplier", () => mvpApi.withdrawSupplier(selectedEvent.id, requestId))}
                         busy={Boolean(busy)}

@@ -78,11 +78,11 @@ export class PAREService {
     }
   }
 
-  async handleEmergencyTrigger(triggerId: string): Promise<PAREApprovalRecord> {
+  async handleEmergencyTrigger(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREApprovalRecord> {
     const triggeredAt = new Date();
 
     // Agent 1 — event context
-    const ctx: PAREContext = await this.eventContextAgent.run(triggerId);
+    const ctx: PAREContext = await this.eventContextAgent.run(triggerId, prefetched);
 
     // Agent 2 — find replacement candidates
     ctx.candidates = await this.supplierFinderAgent.run(ctx);
