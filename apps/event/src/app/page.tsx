@@ -674,7 +674,7 @@ function PmcmPortal({
   onSignOut: () => void;
 }) {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(state.events[0]?.id ?? null);
-  const [section, setSection] = useState<"events" | "suppliers" | "audit">("events");
+  const [section, setSection] = useState<"events" | "suppliers" | "audit-log">("events");
   const [tab, setTab] = useState<DetailTab>("overview");
   const [approvalRequests, setApprovalRequests] = useState<MvpApprovalRequest[]>([]);
   const [liveOps, setLiveOps] = useState<MvpLiveOps | null>(null);
@@ -1089,7 +1089,7 @@ function PmcmPortal({
   const shellNavItems = [
     { id: "events", icon: Radio, label: "Events", badge: unreviewedInquiries },
     { id: "suppliers", icon: Tags, label: "Suppliers" },
-    { id: "audit", icon: ShieldCheck, label: "Audit trail" },
+    { id: "audit-log", icon: ShieldCheck, label: "Audit trail" },
   ];
 
   const commandActions = defenseReadiness?.nextActions.map((action) => ({
@@ -1158,7 +1158,7 @@ function PmcmPortal({
       description="Conforme gates, floorplans, suppliers, billing, compliance, live operations, and closure in one command surface."
       activeItemId={section}
       navItems={shellNavItems}
-      onNavSelect={(id) => setSection(id as "events" | "suppliers" | "audit")}
+      onNavSelect={(id) => setSection(id as "events" | "suppliers" | "audit-log")}
       user={{ name: session.name, detail: label(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Search events, approval requests, suppliers..."
       commandActions={commandActions}
@@ -1185,7 +1185,7 @@ function PmcmPortal({
             onOpenEvent={openSupplierEvent}
             busy={Boolean(busy)}
           />
-        ) : section === "audit" ? (
+        ) : section === "audit-log" ? (
           <AuditTrailPanel events={events} users={state.users} session={session} />
         ) : (
           <>

@@ -871,7 +871,7 @@ function eventDashboardSkeletonVariant(routeState: RouteState): EventDashboardSk
 function activeSidebarItemFromRoute(routeState: RouteState) {
   if (routeState.section === "dashboard") return "dashboard";
   if (routeState.section === "suppliers") return "suppliers";
-  if (routeState.section === "audit") return "settings";
+  if (routeState.section === "audit") return "audit";
   if (routeState.section === "clients") return "clients";
   if (routeState.section === "calendar") return "calendar";
   if (routeState.section === "tasks") return "tasks";
@@ -934,6 +934,7 @@ function eventPortalNavItems({
         ]
       : []),
     { id: "suppliers", icon: Tags, label: "Supplier Directory", section: "Management" },
+    { id: "audit", icon: ShieldCheck, label: "Audit Trail", section: "System" },
     { id: "settings", icon: Settings, label: "Settings", section: "System" },
   ];
 }

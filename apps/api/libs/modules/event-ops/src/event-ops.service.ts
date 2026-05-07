@@ -3129,9 +3129,23 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
     // Fire PARE — pass prefetched data so agents don't need DB
     const prefetched = event ? { request: updated, event } : undefined;
-    this.pareService.handleEmergencyTrigger(request.id, prefetched).catch((err) => {
-      this.logger.error(`PARE trigger failed for request ${request.id}: ${err?.message}`);
-    });
+    this.pareService.handleEmergencyTrigger(request.id, prefetched)
+      .then((approval) => {
+        const candidate = approval.pareResult?.budgetAnalysis?.selectedCandidate;
+        const label = candidate?.supplierName ? `Recommended: ${candidate.supplierName} (${approval.pareResult?.mode ?? 'mock'} mode)` : 'PARE engine completed';
+        return this.audit(request.eventId, 'PARE Engine', `PARE triggered for ${request.supplierName} — ${label}`, {
+          actorRole: OpsUserRole.System,
+          actionType: 'pare_triggered',
+          category: AuditCategory.Suppliers,
+          affectedType: 'supplier_quote_request',
+          affectedId: request.id,
+          affectedLabel: request.supplierName,
+          metadata: { approvalRecordId: approval.id, mode: approval.pareResult?.mode },
+        });
+      })
+      .catch((err) => {
+        this.logger.error(`PARE trigger failed for request ${request.id}: ${err?.message}`);
+      });
     return this.mapSupplierQuoteRequest(updated);
   }
 
@@ -3140,11 +3154,37 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async pareApprove(approvalRecordId: string, approvedBy: string) {
-    return this.pareService.approveRecommendation(approvalRecordId, approvedBy);
+    const result = await this.pareService.approveRecommendation(approvalRecordId, approvedBy);
+    try {
+      const candidate = result.pareResult?.budgetAnalysis?.selectedCandidate;
+      await this.audit(result.eventId, approvedBy, `PARE recommendation approved: ${candidate?.supplierName ?? 'unknown supplier'}`, {
+        actorRole: OpsUserRole.PmcmAdmin,
+        actionType: 'pare_approved',
+        category: AuditCategory.Suppliers,
+        affectedType: 'pare_approval',
+        affectedId: approvalRecordId,
+        affectedLabel: candidate?.supplierName,
+        metadata: { approvalRecordId, candidate },
+      });
+    } catch { /* non-fatal */ }
+    return result;
   }
 
   async pareReject(approvalRecordId: string, rejectedBy: string) {
-    return this.pareService.rejectRecommendation(approvalRecordId, rejectedBy);
+    const result = await this.pareService.rejectRecommendation(approvalRecordId, rejectedBy);
+    try {
+      const candidate = result.pareResult?.budgetAnalysis?.selectedCandidate;
+      await this.audit(result.eventId, rejectedBy, `PARE recommendation rejected: ${candidate?.supplierName ?? 'unknown supplier'}`, {
+        actorRole: OpsUserRole.PmcmAdmin,
+        actionType: 'pare_rejected',
+        category: AuditCategory.Suppliers,
+        affectedType: 'pare_approval',
+        affectedId: approvalRecordId,
+        affectedLabel: candidate?.supplierName,
+        metadata: { approvalRecordId, candidate },
+      });
+    } catch { /* non-fatal */ }
+    return result;
   }
 
   async confirmSupplierReadiness(
