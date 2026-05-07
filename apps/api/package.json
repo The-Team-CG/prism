@@ -24,7 +24,7 @@
         "db:reset": "node scripts/require-ack.mjs db:reset PRISM_API_DB_RESET_I_UNDERSTAND && npm run db:doctor && prisma migrate reset --force --skip-generate",
         "postinstall": "prisma generate",
         "db:seed": "ts-node --project tsconfig.json -e esm prisma/seed.ts",
-        "db:seed:pare": "ts-node --project tsconfig.json prisma/seed-pare.ts"
+        "db:seed:pare": "node --env-file=.env prisma/seed-pare.mjs"
     },
     "prisma": {
         "seed": "npx ts-node --project tsconfig.json prisma/seed-pare.ts"

@@ -60,14 +60,14 @@ function futureDate(days) {
 
 async function seedCategories() {
   const categories = [
-    { id: CATEGORY_IDS.catering,        slug: 'catering',        name: 'Catering',        sortOrder: 1, acceptableMin: 40000,  acceptableMax: 120000 },
-    { id: CATEGORY_IDS.photography,     slug: 'photography',     name: 'Photography',     sortOrder: 2, acceptableMin: 15000,  acceptableMax: 60000  },
-    { id: CATEGORY_IDS.videoProduction, slug: 'video-production',name: 'Video Production',sortOrder: 3, acceptableMin: 12000,  acceptableMax: 55000  },
-    { id: CATEGORY_IDS.flowerDecor,     slug: 'flower-decor',    name: 'Flower & Decor',  sortOrder: 4, acceptableMin: 20000,  acceptableMax: 80000  },
-    { id: CATEGORY_IDS.soundLighting,   slug: 'sound-lighting',  name: 'Sound & Lighting',sortOrder: 5, acceptableMin: 18000,  acceptableMax: 70000  },
-    { id: CATEGORY_IDS.hostEmcee,       slug: 'host-emcee',      name: 'Host / Emcee',    sortOrder: 6, acceptableMin: 8000,   acceptableMax: 25000  },
-    { id: CATEGORY_IDS.hairMakeup,      slug: 'hair-makeup',     name: 'Hair & Makeup',   sortOrder: 7, acceptableMin: 6000,   acceptableMax: 20000  },
-    { id: CATEGORY_IDS.transportation,  slug: 'transportation',  name: 'Transportation',  sortOrder: 8, acceptableMin: 5000,   acceptableMax: 18000  },
+    { id: CATEGORY_IDS.catering,        slug: 'catering',        name: 'Catering',        sortOrder: 10, acceptableMin: 40000,  acceptableMax: 120000 },
+    { id: CATEGORY_IDS.photography,     slug: 'photography',     name: 'Photography',     sortOrder: 11, acceptableMin: 15000,  acceptableMax: 60000  },
+    { id: CATEGORY_IDS.videoProduction, slug: 'video-production',name: 'Video Production',sortOrder: 12, acceptableMin: 12000,  acceptableMax: 55000  },
+    { id: CATEGORY_IDS.flowerDecor,     slug: 'flower-decor',    name: 'Flower & Decor',  sortOrder: 13, acceptableMin: 20000,  acceptableMax: 80000  },
+    { id: CATEGORY_IDS.soundLighting,   slug: 'sound-lighting',  name: 'Sound & Lighting',sortOrder: 14, acceptableMin: 18000,  acceptableMax: 70000  },
+    { id: CATEGORY_IDS.hostEmcee,       slug: 'host-emcee',      name: 'Host / Emcee',    sortOrder: 15, acceptableMin: 8000,   acceptableMax: 25000  },
+    { id: CATEGORY_IDS.hairMakeup,      slug: 'hair-makeup',     name: 'Hair & Makeup',   sortOrder: 16, acceptableMin: 6000,   acceptableMax: 20000  },
+    { id: CATEGORY_IDS.transportation,  slug: 'transportation',  name: 'Transportation',  sortOrder: 17, acceptableMin: 5000,   acceptableMax: 18000  },
   ];
   for (const cat of categories) {
     await prisma.opsSupplierCategory.upsert({
@@ -76,6 +76,21 @@ async function seedCategories() {
       create: cat,
     });
   }
+
+  // Re-read actual IDs from DB (may differ if categories were already seeded by the app)
+  const rows = await prisma.opsSupplierCategory.findMany({
+    where: { slug: { in: Object.values({ catering: 'catering', photography: 'photography', videoProduction: 'video-production', flowerDecor: 'flower-decor', soundLighting: 'sound-lighting', hostEmcee: 'host-emcee', hairMakeup: 'hair-makeup', transportation: 'transportation' }) } },
+  });
+  const bySlug = Object.fromEntries(rows.map(r => [r.slug, r.id]));
+  CATEGORY_IDS.catering        = bySlug['catering']        ?? CATEGORY_IDS.catering;
+  CATEGORY_IDS.photography     = bySlug['photography']     ?? CATEGORY_IDS.photography;
+  CATEGORY_IDS.videoProduction = bySlug['video-production']?? CATEGORY_IDS.videoProduction;
+  CATEGORY_IDS.flowerDecor     = bySlug['flower-decor']    ?? CATEGORY_IDS.flowerDecor;
+  CATEGORY_IDS.soundLighting   = bySlug['sound-lighting']  ?? CATEGORY_IDS.soundLighting;
+  CATEGORY_IDS.hostEmcee       = bySlug['host-emcee']      ?? CATEGORY_IDS.hostEmcee;
+  CATEGORY_IDS.hairMakeup      = bySlug['hair-makeup']     ?? CATEGORY_IDS.hairMakeup;
+  CATEGORY_IDS.transportation  = bySlug['transportation']  ?? CATEGORY_IDS.transportation;
+
   console.log('✓ Categories seeded');
 }
 

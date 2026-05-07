@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['libs/**/*.test.ts'],
+    include: ['libs/**/*.test.ts', 'apps/**/*.test.ts'],
     clearMocks: true,
     restoreMocks: true,
   },
