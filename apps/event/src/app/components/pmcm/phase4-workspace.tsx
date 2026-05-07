@@ -238,7 +238,7 @@ export function Phase4Workspace({
           <div className="grid gap-3">
             {checks.length === 0 && (
               <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
-                No compliance checks generated yet. Pick the phase and run checks for the defense record.
+                No compliance checks generated yet. Pick the phase and run checks for the event record.
               </div>
             )}
             {checks.map((check) => (
@@ -359,7 +359,7 @@ export function Phase4Workspace({
             <div className="mt-4">
               <div className="mb-2 flex items-start gap-2 text-xs leading-5 text-amber-800">
                 <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                <span>Override is only for local defense rehearsal or PMCM-approved operational risk.</span>
+                <span>Override is only for PMCM-approved operational risk.</span>
               </div>
               <textarea value={overrideReason} onChange={(event) => setOverrideReason(event.target.value)} placeholder="Required PMCM override reason if gates are not complete" className="min-h-20 w-full rounded-md border border-border bg-white p-3 text-sm" />
             </div>

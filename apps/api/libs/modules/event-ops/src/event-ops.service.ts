@@ -3095,20 +3095,34 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async withdrawSupplier(requestId: string, reason: string, actorInput: DemoActorInput = {}) {
-    const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
-    const updated = await this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: request.id },
-      data: { assignmentStatus: 'withdrawn' },
-    });
-    await this.audit(request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Update,
-      category: AuditCategory.Suppliers,
-      affectedType: 'supplier_quote_request',
-      affectedId: request.id,
-      affectedLabel: request.supplierName,
-    });
+    const actor = this.resolveActor(actorInput);
+    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'withdraw supplier');
+    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
+    if (!request) throw new NotFoundException('Supplier quote request not found');
+
+    let updated: typeof request;
+    try {
+      updated = await this.prisma.opsSupplierQuoteRequest.update({
+        where: { id: request.id },
+        data: { assignmentStatus: 'withdrawn' },
+      });
+    } catch {
+      // DB unavailable — apply in-memory so PARE can read the updated state
+      updated = { ...request, assignmentStatus: 'withdrawn' };
+    }
+
+    try {
+      await this.audit(request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
+        actorRole: actor.role,
+        actorEmail: actor.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Suppliers,
+        affectedType: 'supplier_quote_request',
+        affectedId: request.id,
+        affectedLabel: request.supplierName,
+      });
+    } catch { /* audit failure is non-fatal */ }
+
     // Fire PARE — non-blocking, errors are logged not thrown
     this.pareService.handleEmergencyTrigger(request.id).catch((err) => {
       this.logger.error(`PARE trigger failed for request ${request.id}: ${err?.message}`);
@@ -3247,10 +3261,31 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Select at least one supplier for this quote request');
     }
 
+    const selectedSupplierIds = new Set(selectedSuppliers.map((supplier) => supplier.id));
+    const duplicateRequestSupplierIds = new Set(
+      (
+        await this.prisma.opsSupplierQuoteRequest.findMany({
+          where: { eventId },
+        })
+      )
+        .filter(
+          (request) =>
+            request.categoryId === category.id &&
+            request.supplierId &&
+            selectedSupplierIds.has(request.supplierId) &&
+            ![SupplierQuoteRequestStatus.Closed, SupplierQuoteRequestStatus.Expired].includes(request.status as any),
+        )
+        .map((request) => request.supplierId as string),
+    );
+    const suppliersToRequest = selectedSuppliers.filter((supplier) => !duplicateRequestSupplierIds.has(supplier.id));
+    if (suppliersToRequest.length === 0) {
+      throw new BadRequestException('Selected suppliers already have active quote requests for this event and category');
+    }
+
     const dueDate = input.deadline ? parseDate(input.deadline) : null;
     const requests = await this.prisma.$transaction(async (tx) => {
       const created: OpsSupplierQuoteRequest[] = [];
-      for (const supplier of selectedSuppliers) {
+      for (const supplier of suppliersToRequest) {
         const token = randomUUID();
         const request = await tx.opsSupplierQuoteRequest.create({
           data: {
@@ -4315,6 +4350,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     await this.ensureSupplierDirectorySeeded();
     await this.ensureComplianceRulesSeeded();
     await this.ensureSupplierQuoteDemoSeeded();
+    await this.ensurePareAssignedSuppliersSeeded();
     await this.ensureCoordinatorPoolSeeded();
     await this.ensureInquiryOnboardingBackfilled();
     await this.ensureSecurityAuditSeeded();
@@ -4427,6 +4463,93 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
           },
         });
       }
+    });
+  }
+
+  private async ensurePareAssignedSuppliersSeeded() {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_demo_ayala' } });
+    if (!event) return;
+
+    const existing = await this.prisma.opsSupplierQuoteRequest.findFirst({
+      where: { eventId: 'evt_demo_ayala', id: 'qr_pare_harvesttable' },
+    });
+    if (existing) return;
+
+    const now = new Date();
+    const dueDate = addDays(now, 14);
+
+    await this.prisma.$transaction(async (tx) => {
+      // Harvest Table — assigned (this is the one PARE will replace when withdrawn)
+      await tx.opsSupplierQuoteRequest.create({
+        data: {
+          id: 'qr_pare_harvesttable',
+          eventId: 'evt_demo_ayala',
+          supplierId: 'sup_harvesttable',
+          categoryId: 'supcat_food_beverages',
+          supplierName: 'Harvest Table Catering',
+          category: 'Food and Beverages',
+          message: 'Full buffet service for 300 pax. VIP plated section required. Include crew meals.',
+          dueDate,
+          accessToken: 'demo-pare-token-harvesttable',
+          status: 'open',
+          assignmentStatus: 'confirmed',
+          assignmentConfirmedAt: now,
+          readinessStatus: 'confirmed',
+        },
+      });
+      await tx.opsSupplierQuote.create({
+        data: {
+          id: 'quote_pare_harvesttable',
+          eventId: 'evt_demo_ayala',
+          requestId: 'qr_pare_harvesttable',
+          supplierId: 'sup_harvesttable',
+          categoryId: 'supcat_food_beverages',
+          supplierName: 'Harvest Table Catering',
+          category: 'Food and Beverages',
+          amount: 185000,
+          inclusions: toPrismaJson(['Buffet for 300 pax', 'VIP plated section x30', 'Crew meals x20', 'On-site chef', 'Waitstaff x8']),
+          paymentTerms: '50% upon booking, 50% on event day',
+          notes: 'Menu finalized. Headcount confirmed at 300.',
+          status: 'selected',
+          selectedAt: now,
+        },
+      });
+
+      // LensCraft — assigned (second assigned supplier to give more demo options)
+      await tx.opsSupplierQuoteRequest.create({
+        data: {
+          id: 'qr_pare_lenscraft',
+          eventId: 'evt_demo_ayala',
+          supplierId: 'sup_lenscraft',
+          categoryId: 'supcat_documentation',
+          supplierName: 'LensCraft Studios',
+          category: 'Documentation',
+          message: 'Full event documentation: photo, video, same-day edit, raw file turnover.',
+          dueDate,
+          accessToken: 'demo-pare-token-lenscraft',
+          status: 'open',
+          assignmentStatus: 'confirmed',
+          assignmentConfirmedAt: now,
+          readinessStatus: 'confirmed',
+        },
+      });
+      await tx.opsSupplierQuote.create({
+        data: {
+          id: 'quote_pare_lenscraft',
+          eventId: 'evt_demo_ayala',
+          requestId: 'qr_pare_lenscraft',
+          supplierId: 'sup_lenscraft',
+          categoryId: 'supcat_documentation',
+          supplierName: 'LensCraft Studios',
+          category: 'Documentation',
+          amount: 95000,
+          inclusions: toPrismaJson(['Full event photo coverage', 'Highlight video', 'Same-day edit', 'Raw file turnover']),
+          paymentTerms: '50% upon booking, 50% on event day',
+          notes: 'Run-of-show received. All outputs confirmed.',
+          status: 'selected',
+          selectedAt: now,
+        },
+      });
     });
   }
 

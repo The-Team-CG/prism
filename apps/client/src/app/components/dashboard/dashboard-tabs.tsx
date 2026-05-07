@@ -818,7 +818,10 @@ function SkeletonLine({ className }: { className?: string }) {
 
 function SkeletonCard({ children, className }: { children?: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-border bg-card p-4 shadow-sm sm:p-5 ${className ?? ""}`}>
+    <div
+      className={`relative overflow-hidden rounded-xl border border-border/80 bg-card/95 p-4 shadow-sm ring-1 ring-black/5 sm:p-5 ${className ?? ""}`}
+    >
+      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-(--prism-signal)/60 via-transparent to-transparent" />
       {children}
     </div>
   );
@@ -947,6 +950,11 @@ function EventsSkeleton() {
           <SkeletonLine className="h-10 w-36 rounded-md" />
         </div>
         <SkeletonLine className="mt-5 h-10 w-full max-w-md rounded-lg" />
+        <div className="mt-4 flex flex-wrap gap-2">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <SkeletonLine key={index} className="h-8 w-28 rounded-full" />
+          ))}
+        </div>
       </SkeletonCard>
       <div className="grid gap-3">
         {Array.from({ length: 3 }).map((_, index) => (
@@ -1066,7 +1074,7 @@ export function DashboardRightRailSkeleton() {
 export function DashboardSessionSkeleton() {
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
-      <section className="w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-sm">
+      <section className="w-full max-w-sm rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm ring-1 ring-black/5">
         <div className="flex items-center gap-3">
           <SkeletonLine className="size-11 rounded-md" />
           <div className="min-w-0 flex-1">

@@ -55,17 +55,33 @@ export type PAREDrafts = {
 };
 
 export type PAREResult = {
-  approvalRecordId: string;
+  requestId: string;
   eventId: string;
   eventName: string;
-  withdrawnSupplier: string;
-  recommendedReplacement: string;
-  recommendedAmount: number;
-  costDelta: number;
-  riskLevel: PARERiskLevel;
-  riskFactors: string[];
-  supplierNotificationDraft: string;
-  clientReassuranceDraft: string;
-  status: string;
+  withdrawnSupplier: {
+    id: string;
+    name: string;
+    category: string;
+    tier: string;
+    quotedAmount: number;
+  };
+  candidates: PARECandidate[];
+  budgetAnalysis: PAREBudgetAnalysis;
+  riskAssessment: PARERisk;
+  drafts: PAREDrafts;
+  mode: 'mock' | 'live';
   triggeredAt: string;
+};
+
+export type PAREApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+export type PAREApprovalRecord = {
+  id: string;
+  eventId: string;
+  requestId: string;
+  status: PAREApprovalStatus;
+  pareResult: PAREResult;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
 };

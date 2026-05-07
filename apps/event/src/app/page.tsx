@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
@@ -1530,6 +1531,7 @@ function PmcmPortal({
 }
 
 export default function EventCommandHome() {
+  const router = useRouter();
   const [session, setSession] = useState<EventSession | null>(null);
   const [state, setState] = useState<MvpDemoState | null>(null);
   const [coordinatorState, setCoordinatorState] = useState<MvpCoordinatorWorkspace | null>(null);
@@ -1552,9 +1554,12 @@ export default function EventCommandHome() {
   useEffect(() => {
     const current = readSession();
     if (!current) return;
-    setSession(current);
-    refresh(current).catch((err) => setError(err instanceof Error ? err.message : "Unable to load event portal"));
-  }, []);
+    router.replace("/dashboard");
+  }, [router]);
+
+  useEffect(() => {
+    if (session) router.replace("/dashboard");
+  }, [router, session]);
 
   useEffect(() => {
     if (!session || screen.name !== "portal") return;
@@ -1570,7 +1575,7 @@ export default function EventCommandHome() {
     setScreen({ name: "editor", event, draft, project });
   }
 
-  if (!session) return <SignIn onSignedIn={(next) => { setSession(next); refresh(next).catch((err) => setError(err instanceof Error ? err.message : "Unable to load event portal")); }} />;
+  if (!session) return <SignIn onSignedIn={() => router.replace("/dashboard")} />;
 
   if (screen.name === "editor") {
     return (

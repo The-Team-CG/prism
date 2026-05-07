@@ -645,12 +645,19 @@ function SectionAccent({ children }: { children: React.ReactNode }) {
 type EventDashboardSkeletonVariant = "command" | "event" | "suppliers" | "audit" | "coordinator";
 
 function SkeletonLine({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-md bg-muted ${className}`} />;
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-gradient-to-r from-muted/80 via-muted/50 to-muted/80 ring-1 ring-border/30 ${className}`}
+    />
+  );
 }
 
 function SkeletonCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-lg border border-border bg-card p-4 shadow-sm ${className}`}>
+    <section
+      className={`relative overflow-hidden rounded-xl border border-border/80 bg-card/95 p-4 shadow-sm ring-1 ring-black/5 sm:p-5 ${className}`}
+    >
+      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-(--prism-signal)/60 via-transparent to-transparent" />
       {children}
     </section>
   );
@@ -677,7 +684,7 @@ function MetricSkeletonGrid() {
 function EventDashboardSessionSkeleton() {
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
-      <section className="w-full max-w-sm rounded-lg border border-border bg-card p-5 shadow-sm">
+      <section className="w-full max-w-sm rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm ring-1 ring-black/5">
         <div className="flex items-center gap-3">
           <SkeletonLine className="size-11 rounded-md" />
           <div className="min-w-0 flex-1">
@@ -763,6 +770,11 @@ function EventDashboardSkeleton({ variant = "event" }: { variant?: EventDashboar
             </div>
             <SkeletonLine className="h-10 w-32 rounded-md" />
           </div>
+          <div className="mt-5 grid gap-2 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <SkeletonLine key={index} className="h-9 rounded-full" />
+            ))}
+          </div>
         </SkeletonCard>
         <MetricSkeletonGrid />
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
@@ -828,7 +840,7 @@ function EventDashboardSkeleton({ variant = "event" }: { variant?: EventDashboar
       <SkeletonCard>
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: 7 }).map((_, index) => (
-            <SkeletonLine key={index} className="h-10 w-28 rounded-md" />
+            <SkeletonLine key={index} className="h-9 w-28 rounded-full" />
           ))}
         </div>
       </SkeletonCard>
@@ -1834,7 +1846,7 @@ function EventTasksWorkspace({
 
       <Card>
         <CardHeader>
-          <h2 className="text-sm font-black text-foreground">Defense next actions</h2>
+          <h2 className="text-sm font-black text-foreground">Event next actions</h2>
         </CardHeader>
         <CardBody className="space-y-3">
           {nextActions.length ? nextActions.slice(0, 5).map((action) => (
@@ -1843,7 +1855,7 @@ function EventTasksWorkspace({
               <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>
             </div>
           )) : (
-            <EmptyState icon={CheckCircle2} title="No defense blockers" description="The selected event has no current defense-readiness action items." />
+            <EmptyState icon={CheckCircle2} title="No open blockers" description="The selected event has no current readiness action items." />
           )}
         </CardBody>
       </Card>
@@ -3355,12 +3367,6 @@ export default function EventDashboard({
                   <div className="mt-2 flex flex-wrap gap-2">
                     <StatusBadge status={selectedEvent.status} />
                     <StatusBadge status={selectedEvent.floorPlanStatus} label={`Floorplan ${lbl(selectedEvent.floorPlanStatus)}`} />
-                    {defenseReadiness && (
-                      <StatusBadge
-                        status={defenseReadiness.overallStatus === "ready" ? "completed" : defenseReadiness.overallStatus === "blocked" ? "open" : "pending"}
-                        label={`Defense ${defenseReadiness.score}%`}
-                      />
-                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">

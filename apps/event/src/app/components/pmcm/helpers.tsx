@@ -51,8 +51,10 @@ export function SupplierTierBadge({ tier }: { tier: string }) {
   );
 }
 
-export function RatingStars({ rating }: { rating: number | null }) {
-  if (rating === null) return <span className="text-xs font-semibold text-muted-foreground">Unrated</span>;
+export function RatingStars({ rating }: { rating?: number | null }) {
+  if (typeof rating !== "number" || !Number.isFinite(rating)) {
+    return <span className="text-xs font-semibold text-muted-foreground">Unrated</span>;
+  }
   const rounded = Math.round(rating);
 
   return (

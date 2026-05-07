@@ -26,6 +26,13 @@ function SectionAccent({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>;
 }
 
+function coordinatorRoleTags(coordinator: MvpCoordinator) {
+  const legacy = coordinator as MvpCoordinator & { roles?: string[] };
+  if (Array.isArray(coordinator.roleTags)) return coordinator.roleTags;
+  if (Array.isArray(legacy.roles)) return legacy.roles;
+  return [];
+}
+
 export function CoordinatorAssignmentDesk({
   event,
   coordinators,
@@ -42,7 +49,6 @@ export function CoordinatorAssignmentDesk({
   onAssign: (coordinator: MvpCoordinator, role: string, overrideConflict?: boolean) => Promise<void>;
 }) {
   const [roleFilter, setRoleFilter] = useState("all");
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [pendingConflict, setPendingConflict] = useState<{
     coordinator: MvpCoordinator;
@@ -58,18 +64,10 @@ export function CoordinatorAssignmentDesk({
       Array.from(
         new Set([
           ...roleRequirements.map((r) => r.role),
-          ...coordinators.flatMap((c) => c.roleTags),
+          ...coordinators.flatMap(coordinatorRoleTags),
         ]),
       ).sort((a, b) => a.localeCompare(b)),
     [coordinators, roleRequirements],
-  );
-
-  const skillOptions = useMemo(
-    () =>
-      Array.from(new Set(coordinators.flatMap((c) => c.skillsTags))).sort((a, b) =>
-        a.localeCompare(b),
-      ),
-    [coordinators],
   );
 
   const assignmentCounts = useMemo(() => {
@@ -89,16 +87,9 @@ export function CoordinatorAssignmentDesk({
     );
   }
 
-  function toggleSkill(skill: string) {
-    setSelectedSkills((prev) =>
-      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
-    );
-  }
-
   const filteredCoordinators = coordinators.filter((c) => {
     if (!c.active) return false;
-    if (roleFilter !== "all" && !c.roleTags.includes(roleFilter)) return false;
-    if (!selectedSkills.every((s) => c.skillsTags.includes(s))) return false;
+    if (roleFilter !== "all" && !coordinatorRoleTags(c).includes(roleFilter)) return false;
     if (onlyAvailable && conflictFor(c)) return false;
     return true;
   });
@@ -183,34 +174,15 @@ export function CoordinatorAssignmentDesk({
                 />
                 Available only
               </label>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Skills</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {skillOptions.map((skill) => (
-                    <button
-                      key={skill}
-                      type="button"
-                      onClick={() => toggleSkill(skill)}
-                      className={`rounded-full px-2.5 py-1 text-xs font-bold transition ${
-                        selectedSkills.includes(skill)
-                          ? "bg-(--prism-signal) text-white"
-                          : "border border-border bg-background text-muted-foreground hover:border-(--prism-signal)/40"
-                      }`}
-                    >
-                      {skill}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
             {/* Coordinator list */}
             <div className="space-y-5">
               {filteredCoordinators.length === 0 ? (
-                <EmptyState icon={UserCheck} title="No coordinators match" description="Adjust role, skill, and availability filters to see more coordinators." />
+                <EmptyState icon={UserCheck} title="No coordinators match" description="Adjust role or availability filters to see more coordinators." />
               ) : (
                 groupedRoles.map((role) => {
-                  const roleCoords = filteredCoordinators.filter((c) => c.roleTags.includes(role));
+                  const roleCoords = filteredCoordinators.filter((c) => coordinatorRoleTags(c).includes(role));
                   if (roleCoords.length === 0) return null;
                   return (
                     <div key={role}>
@@ -244,13 +216,8 @@ export function CoordinatorAssignmentDesk({
                                   </div>
                                   <p className="mt-0.5 text-xs text-muted-foreground">{coord.email}</p>
                                   <div className="mt-2 flex flex-wrap gap-1.5">
-                                    {coord.roleTags.map((tag) => (
+                                    {coordinatorRoleTags(coord).map((tag) => (
                                       <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-foreground">{tag}</span>
-                                    ))}
-                                  </div>
-                                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                    {coord.skillsTags.map((tag) => (
-                                      <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{tag}</span>
                                     ))}
                                   </div>
                                   {conflict && (

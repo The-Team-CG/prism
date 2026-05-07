@@ -133,7 +133,7 @@ export function FinancialWorkspace({
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Local in-app queue only — SendGrid/Viber delivery deferred for defense.
+              Local in-app queue only. SendGrid/Viber delivery is deferred until external adapters are enabled.
             </p>
           </CardHeader>
           <CardBody>

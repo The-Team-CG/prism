@@ -1401,7 +1401,7 @@ export const mvpApi = {
 
   // ─── PARE ─────────────────────────────────────────────────────────────────
   withdrawSupplier: (eventId: string, requestId: string) =>
-    request<{ ok: boolean }>(`/api/events/${eventId}/quote-requests/${requestId}/withdraw`, { method: "PATCH" }),
+    request<{ ok: boolean }>(withPmcmActor(`/api/events/${eventId}/quote-requests/${requestId}/withdraw`), { method: "PATCH" }),
   pareGetPending: () =>
     request<PAREApprovalRecord[]>("/api/ai/pare/pending"),
   pareApprove: (approvalRecordId: string) =>

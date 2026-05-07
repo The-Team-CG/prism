@@ -46,9 +46,19 @@ export function SupplierQuotePlanner({
   const pending = categorySuppliers.filter((supplier) => supplier.tier === "pending_first_event");
   const categoryRequests = requests.filter((request) => request.categoryId === categoryId || request.category === category?.name);
   const categoryQuotes = quotes.filter((quote) => quote.categoryId === categoryId || quote.category === category?.name);
+  const activeRequestSupplierIds = new Set(
+    categoryRequests
+      .filter((request) => request.supplierId && !["closed", "expired"].includes(request.status))
+      .map((request) => request.supplierId as string),
+  );
+  const availableTierOne = tierOne.filter((supplier) => !activeRequestSupplierIds.has(supplier.id));
+  const availableTierTwo = tierTwo.filter((supplier) => !activeRequestSupplierIds.has(supplier.id));
+  const availablePending = pending.filter((supplier) => !activeRequestSupplierIds.has(supplier.id));
+  const availableRequestSuppliers = [...availableTierOne, ...availableTierTwo, ...availablePending];
+  const selectedAvailableSupplierIds = selectedSupplierIds.filter((supplierId) => !activeRequestSupplierIds.has(supplierId));
 
   function openRequestModal() {
-    setSelectedSupplierIds(tierOne.map((supplier) => supplier.id));
+    setSelectedSupplierIds((availableTierOne.length ? availableTierOne : availableTierTwo).map((supplier) => supplier.id));
     setConfidentialBid(false);
     setModalOpen(true);
   }
@@ -62,7 +72,7 @@ export function SupplierQuotePlanner({
   async function submitQuoteRequest() {
     await onRequestQuotes({
       categoryId,
-      supplierIds: selectedSupplierIds,
+      supplierIds: selectedAvailableSupplierIds,
       confidentialBid,
       deadline,
     });
@@ -88,7 +98,7 @@ export function SupplierQuotePlanner({
               ))}
             </select>
             <button
-              disabled={busy || tierOne.length === 0}
+              disabled={busy || availableRequestSuppliers.length === 0}
               onClick={openRequestModal}
               className="inline-flex h-10 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60"
             >
@@ -97,6 +107,115 @@ export function SupplierQuotePlanner({
           </div>
         </div>
       </div>
+
+      <section className="rounded-xl border border-primary/15 bg-card p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-primary">Quote comparison</p>
+            <h3 className="mt-1 text-lg font-black text-foreground">{category?.name ?? "Selected category"}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {categoryQuotes.length
+                ? `${categoryQuotes.length} submitted bid${categoryQuotes.length === 1 ? "" : "s"} ready for PMCM review.`
+                : "Submitted supplier bids will appear here for side-by-side review."}
+            </p>
+          </div>
+          <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs font-black text-muted-foreground">
+            {category?.acceptableMin && category?.acceptableMax
+              ? `${money.format(category.acceptableMin)} - ${money.format(category.acceptableMax)}`
+              : "No budget band"}
+          </span>
+        </div>
+
+        {categoryQuotes.length === 0 ? (
+          <div className="mt-4 rounded-lg border border-dashed border-border bg-background p-5">
+            <p className="font-black text-foreground">No submitted quotes yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Send quote requests to available suppliers, then compare returned bids here.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 xl:grid-cols-3">
+            {categoryQuotes.map((quote) => {
+              const expanded = expandedQuoteId === quote.id;
+              const quoteClosed = ["selected", "locked", "not_selected"].includes(quote.status);
+              return (
+                <article
+                  key={quote.id}
+                  className={cx(
+                    "rounded-lg border bg-background p-4 shadow-sm",
+                    quote.status === "selected" || quote.status === "locked"
+                      ? "border-emerald-300 bg-emerald-50/70"
+                      : quote.outsideAcceptableRange
+                        ? "border-rose-200 bg-rose-50/70"
+                        : "border-border",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {quote.outsideAcceptableRange && <Flag className="size-4 shrink-0 fill-rose-500 text-rose-500" />}
+                        <h4 className="truncate text-base font-black text-foreground">{quote.supplierName}</h4>
+                      </div>
+                      <p className="mt-1 text-xs font-black uppercase tracking-wide text-muted-foreground">{label(quote.status)}</p>
+                    </div>
+                    <p className="shrink-0 text-lg font-black text-foreground">{money.format(quote.amount)}</p>
+                  </div>
+
+                  {quote.outsideAcceptableRange && (
+                    <div className="mt-3 rounded-md border border-rose-200 bg-white px-2.5 py-2 text-xs font-black text-rose-700">
+                      Outside budget range
+                    </div>
+                  )}
+
+                  <div className="mt-4 grid gap-3 text-sm">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Inclusions</p>
+                      <button
+                        onClick={() => setExpandedQuoteId(expanded ? null : quote.id)}
+                        className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-white px-2 py-1 text-xs font-black"
+                      >
+                        {quote.inclusions.length} item{quote.inclusions.length === 1 ? "" : "s"}
+                        <ChevronDown className={cx("size-3.5 transition", expanded && "rotate-180")} />
+                      </button>
+                      {expanded && (
+                        <ul className="mt-2 space-y-1 text-xs leading-5 text-muted-foreground">
+                          {quote.inclusions.map((item) => <li key={item}>{item}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Payment terms</p>
+                      <p className="mt-1 text-sm text-foreground">{quote.paymentTerms || "Not provided"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground">Notes</p>
+                      <p className="mt-1 line-clamp-3 text-sm text-foreground">{quote.notes || "No notes"}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    disabled={busy || quoteClosed}
+                    onClick={() => onSelectQuote(quote.id)}
+                    className={cx(
+                      "mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md px-3 text-sm font-black disabled:opacity-60",
+                      quote.status === "selected" || quote.status === "locked"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-(--prism-ink) text-sidebar-foreground",
+                    )}
+                  >
+                    <Check className="size-4" />
+                    {quote.status === "selected" || quote.status === "locked"
+                      ? "Selected"
+                      : quote.status === "not_selected"
+                        ? "Closed"
+                        : "Select supplier"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <section className="rounded-lg border border-border bg-card p-4">
@@ -139,109 +258,6 @@ export function SupplierQuotePlanner({
         </section>
       </div>
 
-      <section className="rounded-lg border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">Request Log</p>
-            <p className="mt-1 text-sm text-muted-foreground">{categoryRequests.length} open or submitted request{categoryRequests.length === 1 ? "" : "s"}</p>
-          </div>
-          {categoryRequests.some((request) => request.confidentialBid) && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-800">
-              <ShieldOff className="size-3.5" /> Confidential bid active
-            </span>
-          )}
-        </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
-          {categoryRequests.length === 0 && <p className="text-sm text-muted-foreground">No quote requests for this category yet.</p>}
-          {categoryRequests.map((request) => (
-            <div key={request.id} className="rounded-md bg-background p-3 text-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-black">{request.supplierName}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{label(request.status)} {request.dueDate ? `- due ${request.dueDate}` : ""}</p>
-                </div>
-                <span className="rounded-full bg-secondary px-2 py-1 text-[11px] font-black text-foreground">{request.accessToken.slice(0, 8)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">Quote Comparison View</p>
-        <div className="mt-3 overflow-x-auto">
-          {categoryQuotes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No submitted quotes for this category yet.</p>
-          ) : (
-            <table className="w-full min-w-215 border-separate border-spacing-0 text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="border-b border-border px-3 py-2">Supplier Name</th>
-                  <th className="border-b border-border px-3 py-2">Price</th>
-                  <th className="border-b border-border px-3 py-2">Inclusions</th>
-                  <th className="border-b border-border px-3 py-2">Payment Terms</th>
-                  <th className="border-b border-border px-3 py-2">Notes</th>
-                  <th className="border-b border-border px-3 py-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {categoryQuotes.map((quote) => {
-                  const expanded = expandedQuoteId === quote.id;
-                  const quoteClosed = ["selected", "locked", "not_selected"].includes(quote.status);
-                  return (
-                    <tr key={quote.id} className={cx("align-top", quote.outsideAcceptableRange && "bg-rose-50/70")}>
-                      <td className="border-b border-border px-3 py-3">
-                        <div className="flex items-center gap-2">
-                          {quote.outsideAcceptableRange && <Flag className="size-4 fill-rose-500 text-rose-500" />}
-                          <div>
-                            <p className="font-black">{quote.supplierName}</p>
-                            <p className="text-xs text-muted-foreground">{label(quote.status)}</p>
-                          </div>
-                        </div>
-                        {quote.outsideAcceptableRange && (
-                          <div className="mt-2 rounded-md border border-rose-200 bg-white px-2 py-1 text-xs font-black text-rose-700">
-                            Outside Budget Range
-                          </div>
-                        )}
-                      </td>
-                      <td className="border-b border-border px-3 py-3 font-black">{money.format(quote.amount)}</td>
-                      <td className="border-b border-border px-3 py-3">
-                        <button
-                          onClick={() => setExpandedQuoteId(expanded ? null : quote.id)}
-                          className="inline-flex items-center gap-1 rounded-md border border-border bg-white px-2 py-1 text-xs font-black"
-                        >
-                          {quote.inclusions.length} item{quote.inclusions.length === 1 ? "" : "s"}
-                          <ChevronDown className={cx("size-3.5 transition", expanded && "rotate-180")} />
-                        </button>
-                        {expanded && (
-                          <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                            {quote.inclusions.map((item) => <li key={item}>{item}</li>)}
-                          </ul>
-                        )}
-                      </td>
-                      <td className="border-b border-border px-3 py-3 text-muted-foreground">{quote.paymentTerms || "Not provided"}</td>
-                      <td className="border-b border-border px-3 py-3 text-muted-foreground">{quote.notes || "No notes"}</td>
-                      <td className="border-b border-border px-3 py-3">
-                        <button
-                          disabled={busy || quoteClosed}
-                          onClick={() => onSelectQuote(quote.id)}
-                          className={cx(
-                            "inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-xs font-black disabled:opacity-60",
-                            quote.status === "selected" || quote.status === "locked" ? "bg-emerald-100 text-emerald-700" : "bg-(--prism-ink) text-sidebar-foreground",
-                          )}
-                        >
-                          <Check className="size-3.5" /> {quote.status === "selected" || quote.status === "locked" ? "Selected" : quote.status === "not_selected" ? "Closed" : "Select"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </section>
-
       {modalOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
           <div className="w-full max-w-2xl rounded-lg border border-border bg-card shadow-xl">
@@ -256,21 +272,36 @@ export function SupplierQuotePlanner({
             </div>
             <div className="space-y-5 p-5">
               <div className="space-y-2">
-                {tierOne.map((supplier) => (
-                  <label key={supplier.id} className="flex items-start gap-3 rounded-md border border-border bg-background p-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedSupplierIds.includes(supplier.id)}
-                      onChange={() => toggleSupplier(supplier.id)}
-                      className="mt-1 size-4"
-                    />
-                    <span className="min-w-0">
-                      <span className="block font-black">{supplier.name}</span>
-                      <span className="text-xs text-muted-foreground">{tierLabel(supplier.tier)} - {supplier.email || supplier.phone || "No contact saved"}</span>
-                    </span>
-                  </label>
+                {[
+                  { title: "Tier 1", suppliers: tierOne },
+                  { title: "Backup", suppliers: tierTwo },
+                  { title: "First event", suppliers: pending },
+                ].map((group) => (
+                  <div key={group.title} className="space-y-2">
+                    <p className="text-xs font-black text-muted-foreground">{group.title}</p>
+                    {group.suppliers.map((supplier) => {
+                      const alreadyRequested = activeRequestSupplierIds.has(supplier.id);
+                      return (
+                        <label key={supplier.id} className={cx("flex items-start gap-3 rounded-md border border-border bg-background p-3", alreadyRequested && "opacity-60")}>
+                          <input
+                            type="checkbox"
+                            checked={selectedSupplierIds.includes(supplier.id)}
+                            disabled={alreadyRequested}
+                            onChange={() => toggleSupplier(supplier.id)}
+                            className="mt-1 size-4"
+                          />
+                          <span className="min-w-0">
+                            <span className="block font-black">{supplier.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {alreadyRequested ? "Active request already sent" : `${tierLabel(supplier.tier)} - ${supplier.email || supplier.phone || "No contact saved"}`}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                    {group.suppliers.length === 0 && <p className="text-sm text-muted-foreground">No suppliers in this group.</p>}
+                  </div>
                 ))}
-                {tierOne.length === 0 && <p className="text-sm text-muted-foreground">No Tier 1 suppliers are available for this category.</p>}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="rounded-md border border-border bg-background p-3 text-sm">
@@ -289,7 +320,7 @@ export function SupplierQuotePlanner({
             <div className="flex flex-wrap justify-end gap-2 border-t border-border p-5">
               <button onClick={() => setModalOpen(false)} className="h-10 rounded-md border border-border bg-white px-3 text-sm font-black">Cancel</button>
               <button
-                disabled={busy || selectedSupplierIds.length === 0}
+                disabled={busy || selectedAvailableSupplierIds.length === 0}
                 onClick={submitQuoteRequest}
                 className="inline-flex h-10 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60"
               >

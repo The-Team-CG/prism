@@ -1049,6 +1049,7 @@ export default function SupplierDashboard() {
       description={meta.description}
       activeItemId={section}
       navItems={navItems}
+      sidebarMode="single"
       onNavSelect={(id) => setSection(id as Section)}
       user={{ name: session.name, detail: session.organization, initials: session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Search quotes, requests…"

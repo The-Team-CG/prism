@@ -1120,6 +1120,51 @@ describe('EventOpsService', () => {
     expect(fake.state.notifications.filter((item) => item.channel === 'viber')).toHaveLength(2);
   });
 
+  it('does not create duplicate active quote requests for the same event supplier and category', async () => {
+    const fake = createPrisma();
+    fake.state.events.push({
+      id: 'evt_demo',
+      inquiryId: 'inq_demo',
+      clientName: 'Ana Reyes',
+      eventName: 'Ayala Summit',
+      eventDate: new Date('2026-06-18T00:00:00.000Z'),
+      status: 'planning',
+      clientPortalStatus: 'unlocked',
+      readiness: 'Supplier quotes pending',
+      archived: false,
+      floorPlanStatus: 'not_started',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    fake.state.quoteRequests.push({
+      id: 'qr_existing',
+      eventId: 'evt_demo',
+      supplierId: 'sup_sonicline',
+      categoryId: 'supcat_technicals',
+      supplierName: 'SonicLine Technicals',
+      category: 'Technicals',
+      dueDate: new Date('2026-05-05T00:00:00.000Z'),
+      accessToken: 'token-existing',
+      confidentialBid: false,
+      message: 'Existing active request',
+      status: 'open',
+      createdAt: new Date(),
+    });
+    const service = new EventOpsService(fake.prisma as any);
+
+    const requests = await (service as any).requestSupplierQuotes('evt_demo', {
+      categoryId: 'supcat_technicals',
+      supplierIds: ['sup_sonicline', 'sup_avbackup'],
+      confidentialBid: false,
+      deadline: '2026-05-05',
+    });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].supplierId).toBe('sup_avbackup');
+    expect(fake.state.quoteRequests.filter((request) => request.supplierId === 'sup_sonicline')).toHaveLength(1);
+    expect(fake.state.notifications.filter((item) => item.message.includes('token-existing'))).toHaveLength(0);
+  });
+
   it('creates and edits supplier profiles with private review, certification metadata, and tier-change audit', async () => {
     const fake = createPrisma();
     fake.state.events.push({

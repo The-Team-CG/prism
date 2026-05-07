@@ -301,9 +301,9 @@ export function SelectedEventCockpit({
           <StatusBadge key="floorplan-status" status={event.floorPlanStatus} label={`Floorplan ${label(event.floorPlanStatus)}`} />,
           defenseReadiness ? (
             <StatusBadge
-              key="defense-status"
+              key="readiness-status"
               status={defenseReadiness.overallStatus === "ready" ? "completed" : defenseReadiness.overallStatus === "blocked" ? "open" : "pending"}
-              label={`Defense ${label(defenseReadiness.overallStatus)}`}
+              label={`Readiness ${label(defenseReadiness.overallStatus)}`}
             />
           ) : (
             `${openActionCount} open actions`
@@ -315,7 +315,7 @@ export function SelectedEventCockpit({
         {[
           { label: "Client", value: event.clientName, detail: event.clientPortalStatus === "unlocked" ? "Client portal unlocked" : "Client portal locked" },
           { label: "Event date", value: event.eventDate, detail: event.readiness ?? "Readiness pending" },
-          { label: "Defense score", value: readinessLabel, detail: defenseReadiness ? `Stage: ${label(defenseReadiness.lifecycleStage)}` : "Loading readiness check" },
+          { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${label(defenseReadiness.lifecycleStage)}` : "Loading readiness check" },
           { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal demo" : "Generated after event setup" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
@@ -385,10 +385,10 @@ export function DefenseControlPanel({
     <section className="rounded-lg border border-primary/15 bg-card px-4 py-4 shadow-sm sm:px-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">Defense control</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-(--prism-amber)">Readiness control</p>
           <h3 className="mt-1 text-lg font-black text-foreground">{defenseReadiness.score}% lifecycle ready</h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Current stage: {label(defenseReadiness.lifecycleStage)}. The checklist keeps the selected event on the May 9 local defense path.
+            Current stage: {label(defenseReadiness.lifecycleStage)}. The checklist keeps the selected event ready across briefing, floorplans, suppliers, finance, and closure.
           </p>
         </div>
         <div className="grid min-w-[220px] grid-cols-2 gap-4 border-l border-border bg-background/60 px-3 py-2.5">
@@ -406,7 +406,7 @@ export function DefenseControlPanel({
         <div className="mt-4 flex flex-wrap items-start gap-3 border-l border-(--prism-amber) bg-(--prism-amber)/8 px-3 py-2.5 text-sm">
           <WifiOff className="mt-0.5 size-4 shrink-0 text-(--prism-amber)" />
           <div className="min-w-0">
-            <p className="font-black text-foreground">Local-only defense mode</p>
+            <p className="font-black text-foreground">Local-only operations mode</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               Live AI, QR scanning, SendGrid/Viber, OAuth, external auth, and production adapters remain blocked for this pass.
               {defenseReadiness.deferredScope.length > 0 ? ` Deferred scope: ${defenseReadiness.deferredScope.map(label).join(", ")}.` : null}
@@ -463,7 +463,7 @@ export function DefenseControlPanel({
         ))}
         {defenseReadiness.nextActions.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-secondary/35 p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-4">
-            No open defense actions. Keep this event selected and rehearse the briefing, floorplan, finance, and closure tabs.
+            No open readiness actions. Keep this event selected and review the briefing, floorplan, finance, and closure tabs.
           </div>
         )}
       </div>
@@ -594,7 +594,7 @@ export function EventOverviewPanels({
             onClick: onOpenSupplierDesk,
           },
           {
-            label: "Defense score",
+            label: "Event readiness",
             value: defenseReadiness ? `${defenseReadiness.score}%` : "—",
             accent: defenseReadiness && defenseReadiness.score >= 80 ? "text-(--prism-success)" : "text-(--prism-amber)",
             detail: defenseReadiness ? label(defenseReadiness.overallStatus) : "Loading readiness",
