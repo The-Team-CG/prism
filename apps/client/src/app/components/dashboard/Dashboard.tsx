@@ -78,6 +78,12 @@ import {
   portalViewFromLink,
   sidebarActiveItemId,
 } from "@/features/client-dashboard/client-dashboard.navigation";
+import {
+  selectClientEvents,
+  selectEventDrafts,
+  selectEventWorkspaceResources,
+  selectSelectedClientEvent,
+} from "@/features/client-dashboard/client-dashboard.selectors";
 import type {
   ClientDashboardRoute,
   ClientPortalView,
@@ -761,30 +767,15 @@ export function Dashboard({
     };
   }, []);
 
-  const events = useMemo(() => {
-    if (!state || !session) return [];
-    return state.events.filter(
-      (ev) => ev.clientName === session.name && !ev.archived && ev.clientPortalStatus === "unlocked",
-    );
-  }, [session, state]);
-
-  const selectedEvent = eventId
-    ? events.find((ev) => ev.id === eventId)
-    : events.find((ev) => ev.id === selectedEventId) ?? events[0];
-  const eventDrafts = selectedEvent
-    ? state?.floorPlanDrafts.filter((d) => d.eventId === selectedEvent.id) ?? []
-    : [];
+  const events = useMemo(() => selectClientEvents(state, session), [session, state]);
+  const selectedEvent = selectSelectedClientEvent(events, eventId, selectedEventId);
+  const eventDrafts = selectEventDrafts(state, selectedEvent);
   const officialDraft =
     eventDrafts.find((d) => d.isActive && draftIsOfficial(d)) ?? eventDrafts.find(draftIsOfficial);
   const preferenceDrafts = eventDrafts.filter(
     (d) => d.createdByRole === "client" || d.sourceType === "client_preference",
   );
-  const briefing = state?.briefings.find((b) => b.eventId === selectedEvent?.id);
-  const payments = state?.paymentMilestones.filter((p) => p.eventId === selectedEvent?.id) ?? [];
-  const billing = state?.billingStatements.find((b) => b.eventId === selectedEvent?.id);
-  const documents = state?.documents.filter((d) => d.eventId === selectedEvent?.id) ?? [];
-  const audit = state?.auditLogs.filter((a) => a.eventId === selectedEvent?.id).slice(0, 10) ?? [];
-  const notifications = state?.notificationLogs.filter((item) => item.eventId === selectedEvent?.id).slice(0, 4) ?? [];
+  const { audit, billing, briefing, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
 
   useEffect(() => {
     if (route !== "floorplan" || !officialDraft || !selectedEvent) {
