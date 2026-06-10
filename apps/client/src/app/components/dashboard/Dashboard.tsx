@@ -37,7 +37,6 @@ import {
   type PrismEvent,
   type PrismFloorPlanDraft,
   type PrismPaymentMilestone,
-  type PrismUser,
 } from "@/lib/prism-api";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
@@ -84,6 +83,7 @@ import {
   selectEventWorkspaceResources,
   selectSelectedClientEvent,
 } from "@/features/client-dashboard/client-dashboard.selectors";
+import { useClientDashboardState } from "@/features/client-dashboard/use-client-dashboard-state";
 import type {
   ClientDashboardRoute,
   ClientPortalView,
@@ -105,8 +105,6 @@ const EditorShell = dynamic(
     ),
   },
 );
-
-type ClientSession = PrismUser & { signedInAt: string };
 
 type Screen =
   | { name: "dashboard" }
@@ -341,18 +339,6 @@ const money = new Intl.NumberFormat("en-PH", {
   currency: "PHP",
   maximumFractionDigits: 0,
 });
-
-function readSession(): ClientSession | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(MOCK_AUTH_SESSION_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as ClientSession;
-  } catch {
-    window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
-    return null;
-  }
-}
 
 function getClientDashboardActions({
   selectedEvent,
@@ -643,45 +629,11 @@ const initialRequestForm: ClientRequestForm = {
   message: "",
 };
 
-const CLIENT_STATE_CACHE_MS = 30_000;
 const FLOOR_PLAN_PREVIEW_CACHE_MS = 60_000;
-const clientStateCache = new Map<string, { state: PrismDemoState; loadedAt: number }>();
-const clientStateRequests = new Map<string, Promise<PrismDemoState>>();
 const floorPlanPreviewCache = new Map<string, { project: Project; loadedAt: number }>();
-
-function clientStateCacheKey(session: Pick<PrismUser, "email">) {
-  return session.email.trim().toLowerCase();
-}
-
-function getCachedClientState(session: Pick<PrismUser, "email">) {
-  return clientStateCache.get(clientStateCacheKey(session));
-}
 
 function isFresh(loadedAt: number, ttl: number) {
   return Date.now() - loadedAt < ttl;
-}
-
-async function loadClientState(session: Pick<PrismUser, "email" | "name">, force = false) {
-  const key = clientStateCacheKey(session);
-
-  if (!force) {
-    const cached = clientStateCache.get(key);
-    if (cached && isFresh(cached.loadedAt, CLIENT_STATE_CACHE_MS)) return cached.state;
-
-    const existing = clientStateRequests.get(key);
-    if (existing) return existing;
-  }
-
-  const request = prismApi
-    .clientState(session)
-    .then((next) => {
-      clientStateCache.set(key, { state: next, loadedAt: Date.now() });
-      return next;
-    })
-    .finally(() => clientStateRequests.delete(key));
-
-  clientStateRequests.set(key, request);
-  return request;
 }
 
 function floorPlanPreviewCacheKey(eventId: string, draft: PrismFloorPlanDraft) {
@@ -698,59 +650,19 @@ export function Dashboard({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
-  const [session, setSession] = useState<ClientSession | null>(null);
-  const [state, setState] = useState<PrismDemoState | null>(null);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const { error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardState({
+    route,
+    eventId,
+    portalView,
+  });
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
   const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
   const [eventSearch, setEventSearch] = useState("");
   const [officialProject, setOfficialProject] = useState<Project | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const current = readSession();
-    if (!current) {
-      router.replace(`/sign-in?next=${encodeURIComponent(dashboardHref(route, eventId, portalView))}`);
-      return;
-    }
-    setSession(current);
-    if (current.role !== "client") return;
-
-    const applyState = (next: PrismDemoState) => {
-      if (cancelled) return;
-      setState(next);
-      setError(null);
-      const firstClientEvent = next.events.find(
-        (ev) => ev.clientName === current.name && ev.clientPortalStatus === "unlocked",
-      );
-      setSelectedEventId(eventId ?? firstClientEvent?.id ?? null);
-    };
-
-    const cached = getCachedClientState(current);
-    if (cached) {
-      applyState(cached.state);
-      if (isFresh(cached.loadedAt, CLIENT_STATE_CACHE_MS)) {
-        return () => {
-          cancelled = true;
-        };
-      }
-    }
-
-    loadClientState(current, !cached)
-      .then(applyState)
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load client portal");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [eventId, portalView, route, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -844,12 +756,6 @@ export function Dashboard({
       router.prefetch(dashboardHref(nextRoute, selectedEvent.id));
     });
   }, [router, selectedEvent?.id]);
-
-  async function refresh() {
-    if (!session) return;
-    const next = await loadClientState(session, true);
-    setState(next);
-  }
 
   async function openFloorplanEditor(draft: PrismFloorPlanDraft, readOnly = false) {
     if (!selectedEvent) return;
