@@ -67,6 +67,7 @@ import {
 } from './ops.constants';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PrivacyOperationsService } from './services/privacy-operations.service';
+import { DemoStateService } from './services/demo-state.service';
 import { PAREService } from './services/pare/pare.service';
 
 type CreateInquiryInput = {
@@ -710,7 +711,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly liveOperationsService: LiveOperationsService;
   private readonly pareService: PAREService;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly demoStateService = new DemoStateService(prisma),
+  ) {
     this.auditService = new AuditService(prisma);
     this.inquiriesService = new InquiriesService(prisma, this.auditService);
     this.authOperationsService = new AuthOperationsService(prisma, this.auditService, this.inquiriesService);
@@ -831,150 +835,52 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async state() {
-    await this.runConformeReminderSweep();
-    await this.runPaymentRiskSweep();
-
-    const [
-      users,
-      inquiries,
-      events,
-      documents,
-      briefings,
-      supplierQuoteRequests,
-      supplierQuotes,
-      coordinators,
-      coordinatorAssignments,
-      complianceRules,
-      complianceChecks,
-      billingSources,
-      billingStatements,
-      paymentMilestones,
-      paymentRecords,
-      postEventDocuments,
-      eventInsights,
-      floorPlanDrafts,
-      supplierCategories,
-      suppliers,
-      auditLogs,
-      notificationLogs,
-    ] = await Promise.all([
-      this.prisma.opsUser.findMany({ orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsInquiry.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsEvent.findMany({
-        include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.opsDocument.findMany({ orderBy: { uploadedAt: 'desc' } }),
-      this.prisma.opsBriefing.findMany({ orderBy: { submittedAt: 'desc' } }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsSupplierQuote.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsCoordinator.findMany({ where: { active: true }, orderBy: { name: 'asc' } }),
-      this.prisma.opsCoordinatorAssignment.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsComplianceRule.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsComplianceCheck.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsBillingSource.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsBillingStatement.findMany({ orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsPaymentMilestone.findMany({ orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsPaymentRecord.findMany({ orderBy: { recordedAt: 'desc' } }),
-      this.prisma.opsPostEventDocument.findMany({ orderBy: { title: 'asc' } }),
-      this.prisma.opsEventInsight.findMany({ orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsFloorPlanDraft.findMany({ orderBy: { updatedAt: 'desc' } }),
-      this.suppliersService.listSupplierCategories(),
-      this.suppliersService.listSuppliers(),
-      this.prisma.opsAuditLog.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsNotificationLog.findMany({ orderBy: { createdAt: 'desc' } }),
-    ]);
-
-    return {
-      users: users.map((user) => this.mapUser(user)),
-      inquiries: inquiries.map((inquiry) => this.mapInquiry(inquiry)),
-      events: events.map((event) => this.mapEvent(event)),
-      documents: documents.map((document) => this.mapDocument(document)),
-      briefings: briefings.map((briefing) => this.mapBriefing(briefing)),
-      supplierQuoteRequests: supplierQuoteRequests.map((request) => this.mapSupplierQuoteRequest(request)),
-      supplierQuotes: supplierQuotes.map((quote) => this.mapSupplierQuote(quote)),
-      coordinators: coordinators.map((coordinator) => this.coordinatorsService.mapCoordinator(coordinator)),
+    return this.demoStateService.state({
+      runConformeReminderSweep: () => this.runConformeReminderSweep(),
+      runPaymentRiskSweep: () => this.runPaymentRiskSweep(),
+      listSupplierCategories: () => this.suppliersService.listSupplierCategories(),
+      listSuppliers: () => this.suppliersService.listSuppliers(),
       coordinatorRoleRequirements: COORDINATOR_ROLE_REQUIREMENTS,
-      coordinatorAssignments: coordinatorAssignments.map((assignment) =>
-        this.coordinatorsService.mapCoordinatorAssignment(assignment),
-      ),
-      complianceRules: complianceRules.map((rule) => this.mapComplianceRule(rule)),
-      complianceChecks: complianceChecks.map((check) => this.mapComplianceCheck(check)),
-      billingSources: billingSources.map((source) => this.mapBillingSource(source)),
-      billingStatements: billingStatements.map((statement) => this.mapBillingStatement(statement)),
-      paymentMilestones: paymentMilestones.map((payment) =>
-        this.mapPaymentMilestone(
-          payment,
-          paymentRecords.filter((record) => record.milestoneId === payment.id),
+      mapUser: (user) => this.mapUser(user as Parameters<typeof this.mapUser>[0]),
+      mapInquiry: (inquiry) => this.mapInquiry(inquiry as Parameters<typeof this.mapInquiry>[0]),
+      mapEvent: (event) => this.mapEvent(event as Parameters<typeof this.mapEvent>[0]),
+      mapDocument: (document) => this.mapDocument(document as Parameters<typeof this.mapDocument>[0]),
+      mapBriefing: (briefing) => this.mapBriefing(briefing as Parameters<typeof this.mapBriefing>[0]),
+      mapSupplierQuoteRequest: (request) =>
+        this.mapSupplierQuoteRequest(request as Parameters<typeof this.mapSupplierQuoteRequest>[0]),
+      mapSupplierQuote: (quote) => this.mapSupplierQuote(quote as Parameters<typeof this.mapSupplierQuote>[0]),
+      mapCoordinator: (coordinator) =>
+        this.coordinatorsService.mapCoordinator(coordinator as Parameters<typeof this.coordinatorsService.mapCoordinator>[0]),
+      mapCoordinatorAssignment: (assignment) =>
+        this.coordinatorsService.mapCoordinatorAssignment(
+          assignment as Parameters<typeof this.coordinatorsService.mapCoordinatorAssignment>[0],
         ),
-      ),
-      paymentRecords: paymentRecords.map((record) => this.mapPaymentRecord(record)),
-      postEventDocuments: postEventDocuments.map((document) => this.mapPostEventDocument(document)),
-      eventInsights: eventInsights.map((insight) => this.mapEventInsight(insight)),
-      floorPlanDrafts: floorPlanDrafts.map((draft) => this.mapFloorPlanDraft(draft)),
-      supplierCategories,
-      suppliers,
-      auditLogs: auditLogs.map((log) => this.auditService.mapAuditLog(log)),
-      notificationLogs: notificationLogs.map((log) => this.mapNotificationLog(log)),
-    };
+      mapComplianceRule: (rule) => this.mapComplianceRule(rule as Parameters<typeof this.mapComplianceRule>[0]),
+      mapComplianceCheck: (check) => this.mapComplianceCheck(check as Parameters<typeof this.mapComplianceCheck>[0]),
+      mapBillingSource: (source) => this.mapBillingSource(source as Parameters<typeof this.mapBillingSource>[0]),
+      mapBillingStatement: (statement) =>
+        this.mapBillingStatement(statement as Parameters<typeof this.mapBillingStatement>[0]),
+      mapPaymentMilestone: (payment, history) =>
+        this.mapPaymentMilestone(
+          payment as Parameters<typeof this.mapPaymentMilestone>[0],
+          history as Parameters<typeof this.mapPaymentMilestone>[1],
+        ),
+      mapPaymentRecord: (record) => this.mapPaymentRecord(record as Parameters<typeof this.mapPaymentRecord>[0]),
+      mapPostEventDocument: (document) =>
+        this.mapPostEventDocument(document as Parameters<typeof this.mapPostEventDocument>[0]),
+      mapEventInsight: (insight) => this.mapEventInsight(insight as Parameters<typeof this.mapEventInsight>[0]),
+      mapFloorPlanDraft: (draft) => this.mapFloorPlanDraft(draft as Parameters<typeof this.mapFloorPlanDraft>[0]),
+      mapAuditLog: (log) => this.auditService.mapAuditLog(log as Parameters<typeof this.auditService.mapAuditLog>[0]),
+      mapNotificationLog: (log) => this.mapNotificationLog(log as Parameters<typeof this.mapNotificationLog>[0]),
+    });
   }
 
   async resetDemo() {
-    if (process.env.NODE_ENV === 'production' && process.env.PRISM_ALLOW_DEMO_RESET !== '1') {
-      throw new ForbiddenException('Demo reset is disabled in production');
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      const draftFloorPlanIds = (
-        await tx.opsFloorPlanDraft.findMany({ select: { floorPlanId: true } })
-      ).map((draft) => draft.floorPlanId);
-
-      await tx.opsNotificationLog.deleteMany();
-      await tx.opsAuditLog.deleteMany();
-      await tx.opsEventInsight.deleteMany();
-      await tx.opsEventDayLog.deleteMany();
-      await tx.opsUrgentIssue.deleteMany();
-      await tx.opsEventDayTask.deleteMany();
-      await tx.opsCoordinatorReliabilityNote.deleteMany();
-      await tx.opsPostEventDocument.deleteMany();
-      await tx.opsPaymentRecord.deleteMany();
-      await tx.opsPaymentMilestone.deleteMany();
-      await tx.opsBillingStatement.deleteMany();
-      await tx.opsBillingSource.deleteMany();
-      await tx.opsComplianceCheck.deleteMany();
-      await tx.opsComplianceRule.deleteMany();
-      await tx.opsCoordinatorAssignment.deleteMany();
-      await tx.opsCoordinator.deleteMany();
-      await tx.opsSupplierQuote.deleteMany();
-      await tx.opsSupplierQuoteRequest.deleteMany();
-      await tx.opsSupplierCertification.deleteMany();
-      await tx.opsSupplierReliabilityNote.deleteMany();
-      await tx.opsSupplierReview.deleteMany();
-      await tx.opsSupplier.deleteMany();
-      await tx.opsSupplierCategory.deleteMany();
-      await tx.opsBriefing.deleteMany();
-      await tx.opsDocument.deleteMany();
-      await tx.opsFloorPlanDraft.deleteMany();
-      await tx.opsEvent.deleteMany();
-      await tx.opsInquiry.deleteMany();
-      await tx.opsApprovalRequest.deleteMany();
-      await tx.opsUser.deleteMany();
-
-      if (draftFloorPlanIds.length > 0) {
-        await tx.floorPlanObject.deleteMany({
-          where: { floorPlanId: { in: draftFloorPlanIds } },
-        });
-        await tx.floorPlan.deleteMany({ where: { id: { in: draftFloorPlanIds } } });
-      }
-    });
-
-    await this.seedDemo();
-    return this.state();
+    return this.demoStateService.resetDemo(() => this.seedDemo(), () => this.state());
   }
 
   async seedDemoState() {
-    await this.ensureSeeded();
-    return this.state();
+    return this.demoStateService.seedDemoState(() => this.ensureSeeded(), () => this.state());
   }
 
   async login(email: string, password: string) {
