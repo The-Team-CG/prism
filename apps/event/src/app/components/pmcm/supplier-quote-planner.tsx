@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CalendarDays, Check, ChevronDown, Flag, Send, ShieldOff, X } from "lucide-react";
 
-import type { MvpSupplier, MvpSupplierCategory } from "@/lib/mvp-api";
+import type { PrismSupplier, PrismSupplierCategory } from "@/lib/prism-api";
 import { cx, label, money, RatingStars, tierLabel } from "./helpers";
 import type { SupplierQuoteRequestRow, SupplierQuoteRow, SupplierQuoteSelectHandler, SupplierRequestHandler } from "./types";
 
@@ -14,8 +14,8 @@ export function SupplierQuotePlanner({
   onSelectQuote,
   busy,
 }: {
-  categories: MvpSupplierCategory[];
-  suppliers: MvpSupplier[];
+  categories: PrismSupplierCategory[];
+  suppliers: PrismSupplier[];
   requests: SupplierQuoteRequestRow[];
   quotes: SupplierQuoteRow[];
   onRequestQuotes: SupplierRequestHandler;

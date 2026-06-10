@@ -18,18 +18,18 @@ import {
 } from "lucide-react";
 
 import {
-  mvpApi,
-  type MvpApprovalRequest,
-  type MvpAuditIntegrity,
-  type MvpAuditLog,
-  type MvpEvent,
-  type MvpLoginHistory,
-  type MvpPrivacyInventory,
-  type MvpPrivacyRequest,
-  type MvpPrivacyRetentionPolicy,
-  type MvpSecurityAlert,
-  type MvpUser,
-} from "@/lib/mvp-api";
+  prismApi,
+  type PrismApprovalRequest,
+  type PrismAuditIntegrity,
+  type PrismAuditLog,
+  type PrismEvent,
+  type PrismLoginHistory,
+  type PrismPrivacyInventory,
+  type PrismPrivacyRequest,
+  type PrismPrivacyRetentionPolicy,
+  type PrismSecurityAlert,
+  type PrismUser,
+} from "@/lib/prism-api";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -61,18 +61,18 @@ export function AuditTrailPanel({
   users,
   session,
 }: {
-  events: MvpEvent[];
-  users: MvpUser[];
+  events: PrismEvent[];
+  users: PrismUser[];
   session: PmcmEventSession;
 }) {
-  const [logs, setLogs] = useState<MvpAuditLog[]>([]);
-  const [alerts, setAlerts] = useState<MvpSecurityAlert[]>([]);
-  const [auditIntegrity, setAuditIntegrity] = useState<MvpAuditIntegrity | null>(null);
-  const [privacyInventory, setPrivacyInventory] = useState<MvpPrivacyInventory | null>(null);
-  const [privacyPolicies, setPrivacyPolicies] = useState<MvpPrivacyRetentionPolicy[]>([]);
-  const [privacyRequests, setPrivacyRequests] = useState<MvpPrivacyRequest[]>([]);
-  const [approvalRequests, setApprovalRequests] = useState<MvpApprovalRequest[]>([]);
-  const [loginHistory, setLoginHistory] = useState<MvpLoginHistory[]>([]);
+  const [logs, setLogs] = useState<PrismAuditLog[]>([]);
+  const [alerts, setAlerts] = useState<PrismSecurityAlert[]>([]);
+  const [auditIntegrity, setAuditIntegrity] = useState<PrismAuditIntegrity | null>(null);
+  const [privacyInventory, setPrivacyInventory] = useState<PrismPrivacyInventory | null>(null);
+  const [privacyPolicies, setPrivacyPolicies] = useState<PrismPrivacyRetentionPolicy[]>([]);
+  const [privacyRequests, setPrivacyRequests] = useState<PrismPrivacyRequest[]>([]);
+  const [approvalRequests, setApprovalRequests] = useState<PrismApprovalRequest[]>([]);
+  const [loginHistory, setLoginHistory] = useState<PrismLoginHistory[]>([]);
   const [privacyForm, setPrivacyForm] = useState({
     subjectType: "guest",
     requestType: "deletion" as "access" | "correction" | "deletion" | "export",
@@ -107,14 +107,14 @@ export function AuditTrailPanel({
     setError(null);
     try {
       const [nextLogs, nextAlerts, nextHistory, nextIntegrity, nextInventory, nextApprovals, nextPolicies, nextPrivacyRequests] = await Promise.all([
-        mvpApi.auditLogs(filters),
-        mvpApi.securityAlerts(),
-        mvpApi.loginHistory(session.id),
-        mvpApi.auditIntegrity(),
-        mvpApi.privacyInventory(eventId),
-        mvpApi.approvalRequests(),
-        mvpApi.privacyRetentionPolicies(),
-        mvpApi.privacyRequests(eventId),
+        prismApi.auditLogs(filters),
+        prismApi.securityAlerts(),
+        prismApi.loginHistory(session.id),
+        prismApi.auditIntegrity(),
+        prismApi.privacyInventory(eventId),
+        prismApi.approvalRequests(),
+        prismApi.privacyRetentionPolicies(),
+        prismApi.privacyRequests(eventId),
       ]);
       setLogs(nextLogs);
       setAlerts(nextAlerts);
@@ -139,7 +139,7 @@ export function AuditTrailPanel({
     setBusy(true);
     setError(null);
     try {
-      const exported = await mvpApi.exportAuditLogs(filters);
+      const exported = await prismApi.exportAuditLogs(filters);
       const header = ["Log ID", "Timestamp", "Actor", "Role", "Category", "Action Type", "Action", "Affected", "IP", "Device", "Hash"];
       const rows = exported.rows.map((log) => [
         log.id,
@@ -176,7 +176,7 @@ export function AuditTrailPanel({
     setBusy(true);
     setError(null);
     try {
-      await mvpApi.createPrivacyRequest({
+      await prismApi.createPrivacyRequest({
         subjectType: privacyForm.subjectType,
         requestType: privacyForm.requestType,
         subjectEmail: privacyForm.subjectEmail,
@@ -197,7 +197,7 @@ export function AuditTrailPanel({
     setBusy(true);
     setError(null);
     try {
-      await mvpApi.reviewPrivacyRequest(requestId, {
+      await prismApi.reviewPrivacyRequest(requestId, {
         status,
         reviewReason: status === "approved" ? "Validated by PMCM privacy review." : "Rejected by PMCM privacy review.",
       });
@@ -213,7 +213,7 @@ export function AuditTrailPanel({
     setBusy(true);
     setError(null);
     try {
-      await mvpApi.executePrivacyRequest(requestId, "Executed from PMCM privacy operations panel.");
+      await prismApi.executePrivacyRequest(requestId, "Executed from PMCM privacy operations panel.");
       await refreshAudit();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to execute privacy request");

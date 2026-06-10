@@ -18,7 +18,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
-import { mvpApi, type DemoRole, type MvpDemoState } from "@/lib/mvp-api";
+import { prismApi, type DemoRole, type PrismDemoState } from "@/lib/prism-api";
 
 const roleLabels: Record<DemoRole, string> = {
   "pmcm-admin": "PMCM",
@@ -111,14 +111,14 @@ function ActionButton({
   );
 }
 
-export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => void }) {
-  const [state, setState] = useState<MvpDemoState | null>(null);
+export function PrismWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => void }) {
+  const [state, setState] = useState<PrismDemoState | null>(null);
   const [role, setRole] = useState<DemoRole>("pmcm-admin");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function refresh() {
-    setState(await mvpApi.state());
+    setState(await prismApi.state());
   }
 
   async function run(label: string, action: () => Promise<unknown>) {
@@ -135,7 +135,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
   }
 
   useEffect(() => {
-    refresh().catch((err) => setError(err instanceof Error ? err.message : "Unable to load MVP state"));
+    refresh().catch((err) => setError(err instanceof Error ? err.message : "Unable to load Prism state"));
   }, []);
 
   const event = state?.events[0];
@@ -160,7 +160,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
         <div className="rounded-lg border border-neutral-200 bg-white p-6 text-sm text-neutral-600">
-          {error ? `Unable to load MVP workspace: ${error}` : "Loading MVP workspace..."}
+          {error ? `Unable to load Prism workspace: ${error}` : "Loading Prism workspace..."}
         </div>
       </div>
     );
@@ -178,7 +178,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between px-6 py-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">P.R.I.S.M Defense MVP</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground">P.R.I.S.M Defense Prism</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-normal">{event.eventName}</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -203,7 +203,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
               <LayoutGrid size={14} /> Floor plans
             </button>
             <button
-              onClick={() => run("reset", mvpApi.reset)}
+              onClick={() => run("reset", prismApi.reset)}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-700 hover:border-primary/40"
             >
               <RotateCcw size={14} /> Reset demo
@@ -255,10 +255,10 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
               title="1. Inquiry and Conforme Gate"
               action={
                 <div className="flex gap-2">
-                  <ActionButton onClick={() => run("create inquiry", mvpApi.createInquiry)} disabled={!!busy}>
+                  <ActionButton onClick={() => run("create inquiry", prismApi.createInquiry)} disabled={!!busy}>
                     New inquiry
                   </ActionButton>
-                  <ActionButton onClick={() => run("accept inquiry", () => mvpApi.acceptInquiry(inquiry.id))} disabled={!!busy}>
+                  <ActionButton onClick={() => run("accept inquiry", () => prismApi.acceptInquiry(inquiry.id))} disabled={!!busy}>
                     Accept
                   </ActionButton>
                 </div>
@@ -269,7 +269,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
                   <div className="font-medium">{inquiry.eventName}</div>
                   <div className="mt-1 text-neutral-500">{inquiry.clientType} inquiry from {inquiry.clientName}</div>
                 </div>
-                <ActionButton onClick={() => run("conforme", () => mvpApi.uploadConforme(inquiry.id))} disabled={event.clientPortalStatus === "unlocked" || !!busy}>
+                <ActionButton onClick={() => run("conforme", () => prismApi.uploadConforme(inquiry.id))} disabled={event.clientPortalStatus === "unlocked" || !!busy}>
                   <FileCheck2 className="mr-1.5" size={14} /> Upload signed conforme
                 </ActionButton>
               </div>
@@ -278,7 +278,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
             <Panel
               title="2. Client Briefing"
               action={
-                <ActionButton onClick={() => run("briefing", () => mvpApi.submitBriefing(event.id))} disabled={event.clientPortalStatus === "locked" || !!busy}>
+                <ActionButton onClick={() => run("briefing", () => prismApi.submitBriefing(event.id))} disabled={event.clientPortalStatus === "locked" || !!busy}>
                   Submit briefing
                 </ActionButton>
               }
@@ -305,7 +305,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
             <Panel
               title="3. CE Builder and Supplier Quotes"
               action={
-                <ActionButton onClick={() => run("quote", () => mvpApi.addSupplierQuote(event.id))} disabled={!!busy}>
+                <ActionButton onClick={() => run("quote", () => prismApi.addSupplierQuote(event.id))} disabled={!!busy}>
                   Add quote
                 </ActionButton>
               }
@@ -326,7 +326,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
             <Panel
               title="4. Compliance Engine"
               action={
-                <ActionButton onClick={() => run("compliance", () => mvpApi.runCompliance(event.id))} disabled={!!busy}>
+                <ActionButton onClick={() => run("compliance", () => prismApi.runCompliance(event.id))} disabled={!!busy}>
                   Run checks
                 </ActionButton>
               }
@@ -341,7 +341,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
                         <div className="font-medium">{check.title}</div>
                       </div>
                       {check.status === "open" ? (
-                        <ActionButton onClick={() => run("resolve compliance", () => mvpApi.resolveCompliance(event.id, check.id))} disabled={!!busy}>
+                        <ActionButton onClick={() => run("resolve compliance", () => prismApi.resolveCompliance(event.id, check.id))} disabled={!!busy}>
                           Resolve
                         </ActionButton>
                       ) : (
@@ -357,7 +357,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
             <Panel
               title="5. Coordinator Assignment"
               action={
-                <ActionButton onClick={() => run("assign coordinator", () => mvpApi.assignCoordinator(event.id))} disabled={!!busy}>
+                <ActionButton onClick={() => run("assign coordinator", () => prismApi.assignCoordinator(event.id))} disabled={!!busy}>
                   Assign
                 </ActionButton>
               }
@@ -371,7 +371,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
                       <div className="text-xs text-neutral-500">{assignment.role} - {statusLabel(assignment.status)}</div>
                     </div>
                     {assignment.status !== "acknowledged" ? (
-                      <ActionButton onClick={() => run("ack coordinator", () => mvpApi.acknowledgeCoordinator(event.id, assignment.id))} disabled={!!busy}>
+                      <ActionButton onClick={() => run("ack coordinator", () => prismApi.acknowledgeCoordinator(event.id, assignment.id))} disabled={!!busy}>
                         Ack
                       </ActionButton>
                     ) : (
@@ -400,7 +400,7 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
                       <div className="text-xs text-neutral-500">{money.format(payment.amount)} - {statusLabel(payment.status)}</div>
                     </div>
                     {payment.status !== "paid" && (
-                      <ActionButton onClick={() => run("payment", () => mvpApi.markPaymentReceived(event.id, payment.id))} disabled={!!busy}>
+                      <ActionButton onClick={() => run("payment", () => prismApi.markPaymentReceived(event.id, payment.id))} disabled={!!busy}>
                         Paid
                       </ActionButton>
                     )}
@@ -418,13 +418,13 @@ export function MvpWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => voi
                       <div className="text-xs text-neutral-500">{document.status}</div>
                     </div>
                     {document.status !== "submitted" && (
-                      <ActionButton onClick={() => run("post doc", () => mvpApi.completePostEventDocument(event.id, document.id))} disabled={!!busy}>
+                      <ActionButton onClick={() => run("post doc", () => prismApi.completePostEventDocument(event.id, document.id))} disabled={!!busy}>
                         Complete
                       </ActionButton>
                     )}
                   </div>
                 ))}
-                <ActionButton onClick={() => run("archive", () => mvpApi.archiveEvent(event.id))} disabled={event.archived || !!busy}>
+                <ActionButton onClick={() => run("archive", () => prismApi.archiveEvent(event.id))} disabled={event.archived || !!busy}>
                   <Archive className="mr-1.5" size={14} /> Archive event
                 </ActionButton>
               </div>

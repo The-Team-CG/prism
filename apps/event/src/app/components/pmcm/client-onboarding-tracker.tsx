@@ -1,6 +1,6 @@
 import { CheckCircle2, Circle, FileCheck2 } from "lucide-react";
 
-import type { MvpInquiry } from "@/lib/mvp-api";
+import type { PrismInquiry } from "@/lib/prism-api";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -26,9 +26,9 @@ export function ClientOnboardingTracker({
   onSendReminder,
   busy,
 }: {
-  inquiries: MvpInquiry[];
-  onUploadConforme: (inquiry: MvpInquiry) => Promise<void>;
-  onSendReminder: (inquiry: MvpInquiry) => Promise<void>;
+  inquiries: PrismInquiry[];
+  onUploadConforme: (inquiry: PrismInquiry) => Promise<void>;
+  onSendReminder: (inquiry: PrismInquiry) => Promise<void>;
   busy: boolean;
 }) {
   const tracked = inquiries

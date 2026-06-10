@@ -7,7 +7,7 @@ export type SupplierSession = {
   signedInAt: string;
 };
 
-export type MvpSupplierCertification = {
+export type PrismSupplierCertification = {
   id: string;
   fileName: string;
   documentType?: string;
@@ -18,7 +18,7 @@ export type MvpSupplierCertification = {
   uploadedAt: string;
 };
 
-export type MvpSupplier = {
+export type PrismSupplier = {
   id: string;
   name: string;
   categoryId: string;
@@ -32,10 +32,10 @@ export type MvpSupplier = {
   phone: string;
   serviceInclusions: string;
   applicationDate: string;
-  certifications: MvpSupplierCertification[];
+  certifications: PrismSupplierCertification[];
 };
 
-export type MvpSupplierQuoteRequest = {
+export type PrismSupplierQuoteRequest = {
   id: string;
   eventId: string;
   supplierId?: string;
@@ -60,7 +60,7 @@ export type MvpSupplierQuoteRequest = {
   createdAt: string;
 };
 
-export type MvpSupplierQuote = {
+export type PrismSupplierQuote = {
   id: string;
   eventId: string;
   requestId?: string;
@@ -81,14 +81,14 @@ export type MvpSupplierQuote = {
 };
 
 export type SupplierWorkspace = {
-  supplier: MvpSupplier;
-  quoteRequests: MvpSupplierQuoteRequest[];
-  supplierQuotes: MvpSupplierQuote[];
+  supplier: PrismSupplier;
+  quoteRequests: PrismSupplierQuoteRequest[];
+  supplierQuotes: PrismSupplierQuote[];
 };
 
 export type QuoteRequestDetail = {
-  request: MvpSupplierQuoteRequest;
-  quote: MvpSupplierQuote | null;
+  request: PrismSupplierQuoteRequest;
+  quote: PrismSupplierQuote | null;
   eventId: string;
   eventName: string;
   clientName: string | null;
@@ -140,31 +140,31 @@ function supplierRequestPath(session: SupplierSession, requestId: string, suffix
   return `/api/supplier/quote-requests/${requestId}/${suffix}?${supplierActorQuery(session)}`;
 }
 
-export const mvpApi = {
+export const prismApi = {
   supplierWorkspace: (session: SupplierSession) =>
     request<SupplierWorkspace>(`/api/supplier/workspace?${supplierActorQuery(session)}`),
   quoteRequest: (token: string) => request<QuoteRequestDetail>(`/api/quote-requests/${token}`),
   submitQuote: (token: string, input: SubmitQuoteInput) =>
-    request<MvpSupplierQuote>(`/api/quote-requests/${token}/quote`, {
+    request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
   reviseQuote: (token: string, input: SubmitQuoteInput) =>
-    request<MvpSupplierQuote>(`/api/quote-requests/${token}/quote`, {
+    request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
   confirmAssignment: (session: SupplierSession, requestId: string) =>
-    request<MvpSupplierQuoteRequest>(supplierRequestPath(session, requestId, "assignment/confirm"), {
+    request<PrismSupplierQuoteRequest>(supplierRequestPath(session, requestId, "assignment/confirm"), {
       method: "PATCH",
     }),
   confirmReadiness: (session: SupplierSession, requestId: string, notes: string) =>
-    request<MvpSupplierQuoteRequest>(supplierRequestPath(session, requestId, "readiness/confirm"), {
+    request<PrismSupplierQuoteRequest>(supplierRequestPath(session, requestId, "readiness/confirm"), {
       method: "PATCH",
       body: JSON.stringify({ notes }),
     }),
   uploadContract: (session: SupplierSession, requestId: string, fileName: string) =>
-    request<MvpSupplierQuoteRequest>(supplierRequestPath(session, requestId, "contract"), {
+    request<PrismSupplierQuoteRequest>(supplierRequestPath(session, requestId, "contract"), {
       method: "POST",
       body: JSON.stringify({
         fileName,
@@ -173,7 +173,7 @@ export const mvpApi = {
       }),
     }),
   updateEventStatus: (session: SupplierSession, requestId: string, status: string, notes: string) =>
-    request<MvpSupplierQuoteRequest>(supplierRequestPath(session, requestId, "event-status"), {
+    request<PrismSupplierQuoteRequest>(supplierRequestPath(session, requestId, "event-status"), {
       method: "PATCH",
       body: JSON.stringify({ status, notes }),
     }),

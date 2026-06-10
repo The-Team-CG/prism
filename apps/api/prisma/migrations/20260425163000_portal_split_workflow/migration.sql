@@ -1,4 +1,4 @@
-ALTER TABLE "mvp_events"
+ALTER TABLE "prism_events"
 ADD COLUMN IF NOT EXISTS "floor_plan_status" TEXT NOT NULL DEFAULT 'not_started',
 ADD COLUMN IF NOT EXISTS "floor_plan_id" TEXT,
 ADD COLUMN IF NOT EXISTS "floor_plan_submitted_at" TIMESTAMP(3),

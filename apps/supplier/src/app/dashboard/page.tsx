@@ -34,14 +34,14 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { PrismDashboardShell } from "@prism/ui";
 import {
-  mvpApi,
-  type MvpSupplier,
-  type MvpSupplierCertification,
-  type MvpSupplierQuote,
-  type MvpSupplierQuoteRequest,
+  prismApi,
+  type PrismSupplier,
+  type PrismSupplierCertification,
+  type PrismSupplierQuote,
+  type PrismSupplierQuoteRequest,
   type SupplierSession,
   type SupplierWorkspace,
-} from "@/lib/mvp-api";
+} from "@/lib/prism-api";
 
 const SESSION_KEY = "prism:supplier-session";
 
@@ -117,7 +117,7 @@ function isPastDate(value?: string | null) {
   return !Number.isNaN(p.getTime()) && p.getTime() < Date.now();
 }
 
-function initialForm(quote?: MvpSupplierQuote): QuoteFormState {
+function initialForm(quote?: PrismSupplierQuote): QuoteFormState {
   return {
     amount: quote ? String(quote.amount) : "",
     inclusions: quote?.inclusions.join("\n") ?? "",
@@ -167,10 +167,10 @@ function DashboardPage({
 }: {
   session: SupplierSession;
   workspace: SupplierWorkspace;
-  quoteByRequest: Map<string, MvpSupplierQuote>;
-  openRequests: MvpSupplierQuoteRequest[];
-  selectedRequests: MvpSupplierQuoteRequest[];
-  selectedQuotes: MvpSupplierQuote[];
+  quoteByRequest: Map<string, PrismSupplierQuote>;
+  openRequests: PrismSupplierQuoteRequest[];
+  selectedRequests: PrismSupplierQuoteRequest[];
+  selectedQuotes: PrismSupplierQuote[];
   quoteNeedingSubmission: number;
   handoffPending: number;
   needsActionCount: number;
@@ -261,11 +261,11 @@ function RequestsPage({
   onUpdateForm, onSubmitQuote,
 }: {
   workspace: SupplierWorkspace;
-  quoteByRequest: Map<string, MvpSupplierQuote>;
+  quoteByRequest: Map<string, PrismSupplierQuote>;
   forms: Record<string, QuoteFormState>;
   busy: string | null;
   onUpdateForm: (id: string, patch: Partial<QuoteFormState>) => void;
-  onSubmitQuote: (ev: FormEvent<HTMLFormElement>, req: MvpSupplierQuoteRequest) => void;
+  onSubmitQuote: (ev: FormEvent<HTMLFormElement>, req: PrismSupplierQuoteRequest) => void;
 }) {
   if (!workspace.quoteRequests.length) {
     return (
@@ -378,7 +378,7 @@ function BookingsPage({
   onReadinessNoteChange, onContractFileChange, onStatusNoteChange,
   onConfirmAssignment, onConfirmReadiness, onSaveContract, onUpdateStatus,
 }: {
-  selectedRequests: MvpSupplierQuoteRequest[];
+  selectedRequests: PrismSupplierQuoteRequest[];
   session: SupplierSession;
   readinessNotes: Record<string, string>;
   contractFiles: Record<string, string>;
@@ -387,10 +387,10 @@ function BookingsPage({
   onReadinessNoteChange: (id: string, v: string) => void;
   onContractFileChange: (id: string, v: string) => void;
   onStatusNoteChange: (id: string, v: string) => void;
-  onConfirmAssignment: (req: MvpSupplierQuoteRequest) => void;
-  onConfirmReadiness: (req: MvpSupplierQuoteRequest) => void;
-  onSaveContract: (req: MvpSupplierQuoteRequest) => void;
-  onUpdateStatus: (req: MvpSupplierQuoteRequest, status: string) => void;
+  onConfirmAssignment: (req: PrismSupplierQuoteRequest) => void;
+  onConfirmReadiness: (req: PrismSupplierQuoteRequest) => void;
+  onSaveContract: (req: PrismSupplierQuoteRequest) => void;
+  onUpdateStatus: (req: PrismSupplierQuoteRequest, status: string) => void;
 }) {
   if (!selectedRequests.length) {
     return (
@@ -508,7 +508,7 @@ function BookingsPage({
 
 /* ── Page: Calendar ──────────────────────────────────────────── */
 
-function CalendarPage({ workspace, quoteByRequest }: { workspace: SupplierWorkspace; quoteByRequest: Map<string, MvpSupplierQuote> }) {
+function CalendarPage({ workspace, quoteByRequest }: { workspace: SupplierWorkspace; quoteByRequest: Map<string, PrismSupplierQuote> }) {
   const events = useMemo(() => {
     const items: { date: string; label: string; type: "deadline" | "event" | "booking" }[] = [];
     workspace.quoteRequests.forEach((req) => {
@@ -562,7 +562,7 @@ function CalendarPage({ workspace, quoteByRequest }: { workspace: SupplierWorksp
 
 /* ── Page: Quotations ────────────────────────────────────────── */
 
-function QuotationsPage({ workspace, quoteByRequest }: { workspace: SupplierWorkspace; quoteByRequest: Map<string, MvpSupplierQuote> }) {
+function QuotationsPage({ workspace, quoteByRequest }: { workspace: SupplierWorkspace; quoteByRequest: Map<string, PrismSupplierQuote> }) {
   if (!workspace.supplierQuotes.length) {
     return (
       <Card><CardBody>
@@ -774,7 +774,7 @@ function PaymentsPage({ workspace }: { workspace: SupplierWorkspace }) {
 
 /* ── Page: Profile ───────────────────────────────────────────── */
 
-function ProfilePage({ supplier, session }: { supplier: MvpSupplier; session: SupplierSession }) {
+function ProfilePage({ supplier, session }: { supplier: PrismSupplier; session: SupplierSession }) {
   return (
     <div className="space-y-4">
       {/* Identity */}
@@ -906,7 +906,7 @@ export default function SupplierDashboard() {
     if (!current) return;
     setError(null);
     try {
-      const next = await mvpApi.supplierWorkspace(current);
+      const next = await prismApi.supplierWorkspace(current);
       setWorkspace(next);
       setForms((existing) => {
         const qbr = new Map(next.supplierQuotes.map((q) => [q.requestId, q]));
@@ -959,7 +959,7 @@ export default function SupplierDashboard() {
     setForms((cur) => ({ ...cur, [requestId]: { ...(cur[requestId] ?? initialForm()), ...patch } }));
   }
 
-  async function submitQuote(ev: FormEvent<HTMLFormElement>, req: MvpSupplierQuoteRequest) {
+  async function submitQuote(ev: FormEvent<HTMLFormElement>, req: PrismSupplierQuoteRequest) {
     ev.preventDefault();
     const form = forms[req.id] ?? initialForm();
     const amount = Number(form.amount);
@@ -973,15 +973,15 @@ export default function SupplierDashboard() {
     };
     setBusy(req.id); setError(null); setNotice(null);
     try {
-      if (quote) { await mvpApi.reviseQuote(req.accessToken, input); setNotice("Quote revision saved."); }
-      else { await mvpApi.submitQuote(req.accessToken, input); setNotice("Quote submitted."); }
+      if (quote) { await prismApi.reviseQuote(req.accessToken, input); setNotice("Quote revision saved."); }
+      else { await prismApi.submitQuote(req.accessToken, input); setNotice("Quote submitted."); }
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit quote");
     } finally { setBusy(null); }
   }
 
-  async function runAction(req: MvpSupplierQuoteRequest, action: string, task: () => Promise<unknown>, success: string) {
+  async function runAction(req: PrismSupplierQuoteRequest, action: string, task: () => Promise<unknown>, success: string) {
     setBusy(`${req.id}:${action}`); setError(null); setNotice(null);
     try { await task(); setNotice(success); await refresh(); }
     catch (err) { setError(err instanceof Error ? err.message : "Action failed"); }
@@ -1109,10 +1109,10 @@ export default function SupplierDashboard() {
             onReadinessNoteChange={(id, v) => setReadinessNotes((c) => ({ ...c, [id]: v }))}
             onContractFileChange={(id, v) => setContractFiles((c) => ({ ...c, [id]: v }))}
             onStatusNoteChange={(id, v) => setStatusNotes((c) => ({ ...c, [id]: v }))}
-            onConfirmAssignment={(req) => runAction(req, "assignment", () => mvpApi.confirmAssignment(session, req.id), "Assignment confirmed.")}
-            onConfirmReadiness={(req) => runAction(req, "readiness", () => mvpApi.confirmReadiness(session, req.id, readinessNotes[req.id] ?? req.readinessNotes ?? ""), "Readiness confirmed.")}
-            onSaveContract={(req) => runAction(req, "contract", () => mvpApi.uploadContract(session, req.id, contractFiles[req.id] ?? "supplier-contract.pdf"), "Contract metadata saved.")}
-            onUpdateStatus={(req, status) => runAction(req, status, () => mvpApi.updateEventStatus(session, req.id, status, statusNotes[req.id] ?? req.eventDayNotes ?? ""), `Status updated: ${fmt(status)}.`)}
+            onConfirmAssignment={(req) => runAction(req, "assignment", () => prismApi.confirmAssignment(session, req.id), "Assignment confirmed.")}
+            onConfirmReadiness={(req) => runAction(req, "readiness", () => prismApi.confirmReadiness(session, req.id, readinessNotes[req.id] ?? req.readinessNotes ?? ""), "Readiness confirmed.")}
+            onSaveContract={(req) => runAction(req, "contract", () => prismApi.uploadContract(session, req.id, contractFiles[req.id] ?? "supplier-contract.pdf"), "Contract metadata saved.")}
+            onUpdateStatus={(req, status) => runAction(req, status, () => prismApi.updateEventStatus(session, req.id, status, statusNotes[req.id] ?? req.eventDayNotes ?? ""), `Status updated: ${fmt(status)}.`)}
           />
         )}
 

@@ -1,6 +1,6 @@
-import type { MvpDemoState } from "@/lib/mvp-api";
+import type { PrismDemoState } from "@/lib/prism-api";
 
-export function createInitialMvpDemoState(createdAt = new Date().toISOString()): MvpDemoState {
+export function createInitialPrismDemoState(createdAt = new Date().toISOString()): PrismDemoState {
   return {
     users: [
       { id: "usr_pmcm", name: "Ms. Mys", role: "pmcm-admin", email: "mys@pmcm.test", organization: "PMCM Events", approvalStatus: "approved" },

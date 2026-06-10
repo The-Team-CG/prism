@@ -21,14 +21,14 @@ import {
 import type { ReactNode } from "react";
 
 import type {
-  MvpAuditLog,
-  MvpBillingStatement,
-  MvpBriefing,
-  MvpDocument,
-  MvpEvent,
-  MvpFloorPlanDraft,
-  MvpPaymentMilestone,
-} from "@/lib/mvp-api";
+  PrismAuditLog,
+  PrismBillingStatement,
+  PrismBriefing,
+  PrismDocument,
+  PrismEvent,
+  PrismFloorPlanDraft,
+  PrismPaymentMilestone,
+} from "@/lib/prism-api";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { StatusBadge } from "../ui/status-badge";
@@ -50,11 +50,11 @@ function formatLabel(value?: string) {
     .replace(/\bPmcm\b/g, "Event Team");
 }
 
-function portalStatusLabel(status: MvpEvent["clientPortalStatus"]) {
+function portalStatusLabel(status: PrismEvent["clientPortalStatus"]) {
   return status === "unlocked" ? "Conforme signed" : "Portal locked";
 }
 
-function portalBadgeStatus(status: MvpEvent["clientPortalStatus"]) {
+function portalBadgeStatus(status: PrismEvent["clientPortalStatus"]) {
   return status === "unlocked" ? "approved" : "locked";
 }
 
@@ -80,8 +80,8 @@ function actorInitials(actor: string) {
     .join("");
 }
 
-function groupByDay(items: MvpAuditLog[]) {
-  const groups: Map<string, MvpAuditLog[]> = new Map();
+function groupByDay(items: PrismAuditLog[]) {
+  const groups: Map<string, PrismAuditLog[]> = new Map();
   for (const item of items) {
     const day = item.createdAt?.split("T")[0] ?? item.createdAt ?? "Unknown";
     if (!groups.has(day)) groups.set(day, []);
@@ -160,13 +160,13 @@ export function ClientOverviewTab({
   onOpenOfficialFloorplan,
   setTab,
 }: {
-  selectedEvent: MvpEvent;
-  briefing?: MvpBriefing;
-  payments: MvpPaymentMilestone[];
-  billing?: MvpBillingStatement;
-  documents: MvpDocument[];
-  audit: MvpAuditLog[];
-  officialDraft?: MvpFloorPlanDraft;
+  selectedEvent: PrismEvent;
+  briefing?: PrismBriefing;
+  payments: PrismPaymentMilestone[];
+  billing?: PrismBillingStatement;
+  documents: PrismDocument[];
+  audit: PrismAuditLog[];
+  officialDraft?: PrismFloorPlanDraft;
   preferenceDraftCount: number;
   onOpenOfficialFloorplan?: () => void;
   setTab: (tab: DetailTab) => void;
@@ -368,7 +368,7 @@ export function ClientOverviewTab({
 
 /* ── Briefing tab ──────────────────────────────────────────── */
 
-export function ClientBriefingTab({ briefing }: { briefing?: MvpBriefing }) {
+export function ClientBriefingTab({ briefing }: { briefing?: PrismBriefing }) {
   const isComplete = Boolean(
     briefing?.venue && briefing?.guestCount && briefing?.serviceRequirements?.length,
   );
@@ -429,11 +429,11 @@ export function ClientProposalTab({
   officialDraft,
   setTab,
 }: {
-  selectedEvent: MvpEvent;
-  briefing?: MvpBriefing;
-  billing?: MvpBillingStatement;
-  payments: MvpPaymentMilestone[];
-  officialDraft?: MvpFloorPlanDraft;
+  selectedEvent: PrismEvent;
+  briefing?: PrismBriefing;
+  billing?: PrismBillingStatement;
+  payments: PrismPaymentMilestone[];
+  officialDraft?: PrismFloorPlanDraft;
   setTab: (tab: DetailTab) => void;
 }) {
   const nextPayment = payments.find((p) => p.status !== "paid");
@@ -570,8 +570,8 @@ export function ClientBillingTab({
   payments,
   billing,
 }: {
-  payments: MvpPaymentMilestone[];
-  billing?: MvpBillingStatement;
+  payments: PrismPaymentMilestone[];
+  billing?: PrismBillingStatement;
 }) {
   const totalPaid = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
   const totalAmount = billing?.totalAmount ?? payments.reduce((s, p) => s + p.amount, 0);
@@ -668,7 +668,7 @@ const docCategories: Record<string, string[]> = {
   Floorplans: ["floorplan", "layout", "floor_plan"],
 };
 
-function categorizeDoc(doc: MvpDocument) {
+function categorizeDoc(doc: PrismDocument) {
   const key = `${doc.fileName} ${doc.type}`.toLowerCase();
   for (const [cat, keywords] of Object.entries(docCategories)) {
     if (keywords.some((kw) => key.includes(kw))) return cat;
@@ -676,7 +676,7 @@ function categorizeDoc(doc: MvpDocument) {
   return "Other";
 }
 
-export function ClientDocumentsTab({ documents }: { documents: MvpDocument[] }) {
+export function ClientDocumentsTab({ documents }: { documents: PrismDocument[] }) {
   if (documents.length === 0) {
     return (
       <Card>
@@ -691,7 +691,7 @@ export function ClientDocumentsTab({ documents }: { documents: MvpDocument[] }) 
     );
   }
 
-  const groups = new Map<string, MvpDocument[]>();
+  const groups = new Map<string, PrismDocument[]>();
   for (const doc of documents) {
     const cat = categorizeDoc(doc);
     if (!groups.has(cat)) groups.set(cat, []);
@@ -747,7 +747,7 @@ export function ClientDocumentsTab({ documents }: { documents: MvpDocument[] }) 
 
 /* ── Activity tab ──────────────────────────────────────────── */
 
-export function ClientActivityTab({ audit }: { audit: MvpAuditLog[] }) {
+export function ClientActivityTab({ audit }: { audit: PrismAuditLog[] }) {
   if (audit.length === 0) {
     return (
       <Card>

@@ -1,4 +1,4 @@
-# P.R.I.S.M MVP Defense Demo Guide
+# P.R.I.S.M Prism Defense Demo Guide
 
 Use one seeded event story from first inquiry to post-event archive. The goal is to prove the operating system flow, then use the catalog and implementation plan for deeper questions.
 
@@ -44,32 +44,32 @@ For current live/partial/prototype status, use `07-implemented-feature-revisions
 ## Feature Demo Matrix
 | FR # | Feature | Persona | Scope | How to demo | Fallback evidence |
 | --- | --- | --- | --- | --- | --- |
-| FR-01 | Inquiry Intake Log | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-02 | Client Onboarding Tracker | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-03 | Conforme and MOA Document Storage | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-01 | Inquiry Intake Log | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-02 | Client Onboarding Tracker | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-03 | Conforme and MOA Document Storage | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-44 | Organization Merge Tool | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-45 | Referral Details Field | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-52 | Send Inquiry Link and Log on Behalf Tool | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-52 | Send Inquiry Link and Log on Behalf Tool | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-53 | Pre-Conforme Context Notes Log | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-54 | Pre-Conforme Document Attachment | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-AI-01 | Intelligent Inquiry Triage Agent | PMCM Admin | Agentic | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
-| FR-04 | Per-Event File Hub | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-05 | Live Operations Dashboard | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-06 | Event Proposal Compliance Engine | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-04 | Per-Event File Hub | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-05 | Live Operations Dashboard | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-06 | Event Proposal Compliance Engine | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-07 | Risk Management Assessment | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-08 | Floor Plan Upload and Client Approval Workflow | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-08 | Floor Plan Upload and Client Approval Workflow | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-09 | Venue Styling Moodboard Upload and Client Approval Workflow | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-10 | Venue Scouting Module | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-11 | AI Theme and Moodboard Suggestion Engine | PMCM Admin | AI | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
 | FR-12 | EOD Report Inbox Per Event | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-13 | Coordinator Assignment with Role Tagging and Skills Tags | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-13 | Coordinator Assignment with Role Tagging and Skills Tags | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-43 | Bid Workspace | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-AI-05 | P.R.I.S.M Operations Assistant (POA) — Caged Claude Chatbot | PMCM Admin | AI | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
 | FR-AI-07 | Real-Time Event Day Copilot | PMCM Admin | Agentic | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
-| FR-19 | Cost Estimation Builder | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-58 | Event Briefing Form | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-19 | Cost Estimation Builder | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-58 | Event Briefing Form | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-59 | Canva and PowerPoint Proposal Integration | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-60 | Proposal Submission and Review Workflow | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-60 | Proposal Submission and Review Workflow | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-61 | Presentation Meeting Scheduler with Zoom Integration | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-62 | Tiered Package Options in CE Builder | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-AI-03 | AI Proposal Drafting Assistant | PMCM Admin | AI | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
@@ -78,110 +78,110 @@ For current live/partial/prototype status, use `07-implemented-feature-revisions
 | FR-68 | Dual Signing Path | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-69 | Flexible Payment Terms Configuration | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-70 | Accreditation Document Tracker | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-96 | Event Cancellation Workflow | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-97 | Event Postponement Workflow | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-14 | Supplier Directory with Category Tagging | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-15 | Tier 1 and Tier 2 Supplier Designation | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-96 | Event Cancellation Workflow | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-97 | Event Postponement Workflow | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-14 | Supplier Directory with Category Tagging | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-15 | Tier 1 and Tier 2 Supplier Designation | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-16 | Supplier Selection Policy Layer | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-17 | Supplier Quote Request and Comparison | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-17 | Supplier Quote Request and Comparison | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-18 | Supplier Competitive Bidding Module | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-49 | Confidential Bid Quote Request | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-63 | Supplier Gap Warning | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-63 | Supplier Gap Warning | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-64 | Supplier Communication Thread | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-75 | Supplier Formal Assignment Notification | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-76 | Supplier Unresponsive Escalation with Viber Deep Link | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-75 | Supplier Formal Assignment Notification | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-76 | Supplier Unresponsive Escalation with Viber Deep Link | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-77 | Supplier Contract Mismatch Warning | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-78 | Ingress and Egress Schedule View | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-78 | Ingress and Egress Schedule View | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-79 | Supplier Reliability Notes | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-87 | Outsourced Creative Designer Sub-Ticket | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-S1 | Supplier Registration Page | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-S2 | Supplier Applications Inbox | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-S3 | Pending First Event Status | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-S4 | Supplier Performance Assessment | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| New-S5 | PMCM Internal Supplier Review | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-S5 | PMCM Internal Supplier Review | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-AI-06 | Probabilistic Supplier Reliability Scoring Model | PMCM Admin | AI | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
 | FR-AI-04 | P.R.I.S.M Agentic Response Engine (PARE) — Multi-Agent Emergency Response | PMCM Admin | Agentic | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
-| FR-20 | Billing Statement Generation | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-21 | Post-Event Additional Billing Statement | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-92 | Payment Milestone Tracker | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-20 | Billing Statement Generation | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-21 | Post-Event Additional Billing Statement | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-92 | Payment Milestone Tracker | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-93 | Partial Payment Recording | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-94 | Billing Statement to Proposal Link | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-80 | Floor Plan Builder with Draggable Element Library | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-80 | Floor Plan Builder with Draggable Element Library | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-81 | Venue Library | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-82 | Quick Setup Presets | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-83 | Client Floor Plan Annotation and Approval | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-83 | Client Floor Plan Annotation and Approval | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-84 | Table Assignment List | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-88 | Coordinator Double Booking Detection | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-89 | Coordinator Withdrawal and Replacement | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-90 | Coordinator Assignment Acknowledgment | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-88 | Coordinator Double Booking Detection | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-89 | Coordinator Withdrawal and Replacement | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-90 | Coordinator Assignment Acknowledgment | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-91 | Coordinator Availability and Staffing View | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| New-C1 | Coordinator Role-Specific Portal Views | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-C2 | Event Day System Operator Role Tag | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-C3 | Coordinator Late Arrival and No Show Flag | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-C4 | Task Reassignment with Ms. Mys Notification | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-22 | Post-Event Documentation Submission Tracker | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-23 | Event Archive with Search | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-C1 | Coordinator Role-Specific Portal Views | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-C2 | Event Day System Operator Role Tag | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-C3 | Coordinator Late Arrival and No Show Flag | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-C4 | Task Reassignment with Ms. Mys Notification | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-22 | Post-Event Documentation Submission Tracker | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-23 | Event Archive with Search | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | New-P1 | Event Comparison View | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| New-P2 | Event Insights Card | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-P2 | Event Insights Card | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | New-P3 | Client Testimonial Feature | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-P4 | Logistics Booking Record | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| New-P5 | Additional Billing Waiver | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-P5 | Additional Billing Waiver | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-AI-08 | Post-Event Intelligence Layer (PEIL) | PMCM Admin | AI | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
 | FR-24 | Toggle System | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-25 | Dual Notification System | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-25 | Dual Notification System | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-55 | Bilingual Notification Email Templates | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-56 | Data Anonymization Tool | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-SY1 | Post-Event Wrap-Up Screen | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-SY2 | One-Screen Close | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-SY3 | Change Freeze Deadline | PMCM Admin | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-56 | Data Anonymization Tool | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-SY1 | Post-Event Wrap-Up Screen | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-SY2 | One-Screen Close | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-SY3 | Change Freeze Deadline | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | New-SY4 | Addendum Conforme Workflow | PMCM Admin | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-SEC1 | Role-Based Authentication and Session Management | Security | Security | Show configuration, validation failure, and audit/log evidence. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-SEC2 | Data Privacy Compliance Module | Security | Security | Show configuration, validation failure, and audit/log evidence. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-SEC3 | Secure File Upload Validation | Security | Security | Show configuration, validation failure, and audit/log evidence. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-SEC4 | Comprehensive Audit Trail and Activity Log | Security | Security | Show configuration, validation failure, and audit/log evidence. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-AI-ZDR | Zero Data Retention AI Governance Layer | Security | Security | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
-| FR-26 | Client Portal Access Gated by Signed Conforme | Client | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-27 | Event Progress Visibility | Client | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-26 | Client Portal Access Gated by Signed Conforme | Client | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-27 | Event Progress Visibility | Client | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-28 | Client Draft Floor Plan Submission | Client | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-29 | Official Floor Plan Viewing and Formal Approval | Client | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-29 | Official Floor Plan Viewing and Formal Approval | Client | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-30 | Venue Styling Moodboard Viewing and Formal Approval | Client | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-31 | Budget Confirmation Module for Venue Styling | Client | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-32 | Document Submission Portal | Client | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-33 | Per-Event File Hub Access | Client | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-34 | Notification of Task and Milestone Updates | Client | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-32 | Document Submission Portal | Client | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-33 | Per-Event File Hub Access | Client | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-34 | Notification of Task and Milestone Updates | Client | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-65 | Client-Owned Supplier Sub-Ticket | Client | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-66 | Venue Ocular Task Trigger | Client | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| New-CL1 | Walk-In Policy Setting | Client | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-CL1 | Walk-In Policy Setting | Client | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | New-CL2 | Event Day Limited View | Client | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-35 | Supplier Profile with Category Tagging and Tier Designation | Supplier | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-36 | Quote Submission | Supplier | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-37 | Event Assignment Confirmation | Supplier | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-35 | Supplier Profile with Category Tagging and Tier Designation | Supplier | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-36 | Quote Submission | Supplier | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-37 | Event Assignment Confirmation | Supplier | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-38 | Contract and Terms of Service Upload | Supplier | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-49 | Confidential Bid Quote Request | Supplier | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-64 | Supplier Communication Thread Access | Supplier | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| New-SUP1 | Supplier Event Day Status Updates | Supplier | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-SUP2 | Pre-Event Readiness Confirmation | Supplier | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-SUP1 | Supplier Event Day Status Updates | Supplier | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-SUP2 | Pre-Event Readiness Confirmation | Supplier | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | New-SUP3 | Supplier Registration Page | Supplier | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-SUP4 | Supplier Application Status Tracking | Supplier | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-AI-04b | PARE — Supplier Replacement Recommendation (Supplier-Facing Output) | Supplier | Agentic | Show sanitized sample input, AI output draft, AIAuditLog row, and explicit PMCM approval gate. | Sanitized prompt sample, generated draft, blocked/approved audit row. |
-| New-CO1 | Coordinator Portal Homepage | Coordinator | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-CO2 | Floor Director and Stage Director View | Coordinator | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-CO3 | Registration Staff View | Coordinator | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-CO4 | Ingress and Egress Assistant View | Coordinator | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-CO5 | Event Day System Operator View | Coordinator | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| New-CO6 | Usher and General Coordinator View | Coordinator | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-90 | Coordinator Assignment Acknowledgment | Coordinator | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
-| FR-39 | Digital Registration and Masterlist | Guest | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-CO1 | Coordinator Portal Homepage | Coordinator | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-CO2 | Floor Director and Stage Director View | Coordinator | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-CO3 | Registration Staff View | Coordinator | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-CO4 | Ingress and Egress Assistant View | Coordinator | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-CO5 | Event Day System Operator View | Coordinator | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| New-CO6 | Usher and General Coordinator View | Coordinator | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-90 | Coordinator Assignment Acknowledgment | Coordinator | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-39 | Digital Registration and Masterlist | Guest | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-40 | In-Event Engagement Feature with Game Builder | Guest | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-41 | Post-Event Experience Upload with Moderation | Guest | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-95 | Lightweight Digital Registration Module | Guest | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-95 | Lightweight Digital Registration Module | Guest | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | New-GU1 | Ticket-Based Event Registration Coordination | Guest | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-42 | Guest Pass Promotional Demo | External/Public | External | Open public page or static demo with safe sample data. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-46 | P.R.I.S.M Public Inquiry Page | External/Public | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-46 | P.R.I.S.M Public Inquiry Page | External/Public | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-47 | Lightweight Spatial Preference Form | External/Public | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-48 | Referral Source Dropdown | External/Public | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-48 | Referral Source Dropdown | External/Public | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-50 | Abandoned Inquiry Draft Save with Edit Window | External/Public | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-51 | Client Type Field | External/Public | MVP | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
+| FR-51 | Client Type Field | External/Public | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | New-EX1 | Supplier Registration Page (Public-Facing) | External/Public | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-EX2 | Post-Event Guest Feedback Page | External/Public | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 

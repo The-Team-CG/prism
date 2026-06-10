@@ -15,15 +15,15 @@ import {
 } from "lucide-react";
 
 import {
-  type MvpCoordinator,
-  type MvpCoordinatorAssignment,
-  type MvpEvent,
-  type MvpEventDayStatusFeed,
-  type MvpEventDayTask,
-  type MvpLiveOps,
-  type MvpSupplierQuoteRequest,
-  type MvpUrgentIssue,
-} from "@/lib/mvp-api";
+  type PrismCoordinator,
+  type PrismCoordinatorAssignment,
+  type PrismEvent,
+  type PrismEventDayStatusFeed,
+  type PrismEventDayTask,
+  type PrismLiveOps,
+  type PrismSupplierQuoteRequest,
+  type PrismUrgentIssue,
+} from "@/lib/prism-api";
 import { cx, label } from "./helpers";
 
 function tone(value: string) {
@@ -66,10 +66,10 @@ export function LiveOperationsWorkspace({
   onReplaceCoordinator,
   onVerifySupplierStatus,
 }: {
-  event: MvpEvent;
-  liveOps: MvpLiveOps | null;
-  statusFeed: MvpEventDayStatusFeed | null;
-  coordinators: MvpCoordinator[];
+  event: PrismEvent;
+  liveOps: PrismLiveOps | null;
+  statusFeed: PrismEventDayStatusFeed | null;
+  coordinators: PrismCoordinator[];
   busy: boolean;
   onReload: () => Promise<void>;
   onCreateTask: (input: { title: string; assignedRole?: string; ownerName?: string; priority?: string; notes?: string; slaDueAt?: string }) => Promise<void>;
@@ -399,7 +399,7 @@ function Empty({ label: emptyLabel }: { label: string }) {
   return <div className="rounded-md border border-dashed border-border bg-muted p-4 text-sm text-muted-foreground">{emptyLabel}</div>;
 }
 
-function SupplierRow({ request, busy, onVerify, onDispute }: { request: MvpSupplierQuoteRequest; busy: boolean; onVerify: () => Promise<void>; onDispute: () => Promise<void> }) {
+function SupplierRow({ request, busy, onVerify, onDispute }: { request: PrismSupplierQuoteRequest; busy: boolean; onVerify: () => Promise<void>; onDispute: () => Promise<void> }) {
   const verification = request.eventDayVerificationStatus ?? request.verificationStatus ?? "self_reported";
   return (
     <div className="rounded-md border border-border bg-background p-3">
@@ -429,8 +429,8 @@ function CoordinatorRow({
   onStatus,
   onReplace,
 }: {
-  assignment: MvpCoordinatorAssignment;
-  coordinators: MvpCoordinator[];
+  assignment: PrismCoordinatorAssignment;
+  coordinators: PrismCoordinator[];
   busy: boolean;
   onStatus: (status: "present" | "late" | "absent" | "replaced") => Promise<void>;
   onReplace: (input: { replacementCoordinatorId: string; role: string; reason: string }) => Promise<void>;
@@ -518,7 +518,7 @@ function IssueRow({
   onResolve,
   onEscalate,
 }: {
-  issue: MvpUrgentIssue;
+  issue: PrismUrgentIssue;
   busy: boolean;
   onResolve: () => Promise<void>;
   onEscalate: () => Promise<void>;
@@ -557,7 +557,7 @@ function TaskRow({
   onDone,
   onEscalate,
 }: {
-  task: MvpEventDayTask;
+  task: PrismEventDayTask;
   busy: boolean;
   onProgress: () => Promise<void>;
   onDone: () => Promise<void>;

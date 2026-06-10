@@ -28,17 +28,17 @@ import {
 } from "lucide-react";
 import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
 import {
-  mvpApi,
-  type CreateMvpInquiryInput,
-  type MvpBillingStatement,
-  type MvpBriefing,
-  type MvpDemoState,
-  type MvpDocument,
-  type MvpEvent,
-  type MvpFloorPlanDraft,
-  type MvpPaymentMilestone,
-  type MvpUser,
-} from "@/lib/mvp-api";
+  prismApi,
+  type CreatePrismInquiryInput,
+  type PrismBillingStatement,
+  type PrismBriefing,
+  type PrismDemoState,
+  type PrismDocument,
+  type PrismEvent,
+  type PrismFloorPlanDraft,
+  type PrismPaymentMilestone,
+  type PrismUser,
+} from "@/lib/prism-api";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -100,11 +100,11 @@ const EditorShell = dynamic(
   },
 );
 
-type ClientSession = MvpUser & { signedInAt: string };
+type ClientSession = PrismUser & { signedInAt: string };
 
 type Screen =
   | { name: "dashboard" }
-  | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project; readOnly: boolean };
+  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project; readOnly: boolean };
 
 type PreferenceForm = {
   name: string;
@@ -231,7 +231,7 @@ function ClientPortalSidebar({
   );
 }
 
-function draftIsOfficial(draft: MvpFloorPlanDraft) {
+function draftIsOfficial(draft: PrismFloorPlanDraft) {
   return draft.status === "in_review" || draft.status === "approved";
 }
 
@@ -310,11 +310,11 @@ function formatEventDate(date?: string) {
   return `${EVENT_MONTHS[EVENT_MONTHS.findIndex((month) => month.toUpperCase() === parts.month)]} ${Number(parts.day)}, ${parts.year}`;
 }
 
-function portalBadgeStatus(status?: MvpEvent["clientPortalStatus"]) {
+function portalBadgeStatus(status?: PrismEvent["clientPortalStatus"]) {
   return status === "unlocked" ? "approved" : "locked";
 }
 
-function portalBadgeLabel(status?: MvpEvent["clientPortalStatus"]) {
+function portalBadgeLabel(status?: PrismEvent["clientPortalStatus"]) {
   return status === "unlocked" ? "Conforme signed" : "Portal locked";
 }
 
@@ -356,12 +356,12 @@ function getClientDashboardActions({
   documents,
   officialDraft,
 }: {
-  selectedEvent: MvpEvent;
-  briefing?: MvpBriefing;
-  billing?: MvpBillingStatement;
-  payments: MvpPaymentMilestone[];
-  documents: MvpDocument[];
-  officialDraft?: MvpFloorPlanDraft;
+  selectedEvent: PrismEvent;
+  briefing?: PrismBriefing;
+  billing?: PrismBillingStatement;
+  payments: PrismPaymentMilestone[];
+  documents: PrismDocument[];
+  officialDraft?: PrismFloorPlanDraft;
 }): ClientDashboardAction[] {
   const nextPayment = payments.find((payment) => payment.status !== "paid");
   const documentNeedsAttention = documents.some((document) => /needs|pending|requested/i.test(document.status));
@@ -438,7 +438,7 @@ function greetingByTime(name: string) {
   return `${greeting}, ${firstName}.`;
 }
 
-function eventProgressDots(ev: MvpEvent, state: MvpDemoState) {
+function eventProgressDots(ev: PrismEvent, state: PrismDemoState) {
   const drafts = state.floorPlanDrafts.filter((d) => d.eventId === ev.id);
   const billing = state.billingStatements.find((b) => b.eventId === ev.id);
   const docs = state.documents.filter((d) => d.eventId === ev.id);
@@ -538,10 +538,10 @@ function EventSummaryCard({
   onOpen,
   className,
 }: {
-  event: MvpEvent;
+  event: PrismEvent;
   dots: Array<{ label: string; done: boolean }>;
-  billingStatement?: MvpBillingStatement;
-  briefing?: MvpBriefing;
+  billingStatement?: PrismBillingStatement;
+  briefing?: PrismBriefing;
   documentCount: number;
   onOpen: () => void;
   className?: string;
@@ -639,15 +639,15 @@ const initialRequestForm: ClientRequestForm = {
 
 const CLIENT_STATE_CACHE_MS = 30_000;
 const FLOOR_PLAN_PREVIEW_CACHE_MS = 60_000;
-const clientStateCache = new Map<string, { state: MvpDemoState; loadedAt: number }>();
-const clientStateRequests = new Map<string, Promise<MvpDemoState>>();
+const clientStateCache = new Map<string, { state: PrismDemoState; loadedAt: number }>();
+const clientStateRequests = new Map<string, Promise<PrismDemoState>>();
 const floorPlanPreviewCache = new Map<string, { project: Project; loadedAt: number }>();
 
-function clientStateCacheKey(session: Pick<MvpUser, "email">) {
+function clientStateCacheKey(session: Pick<PrismUser, "email">) {
   return session.email.trim().toLowerCase();
 }
 
-function getCachedClientState(session: Pick<MvpUser, "email">) {
+function getCachedClientState(session: Pick<PrismUser, "email">) {
   return clientStateCache.get(clientStateCacheKey(session));
 }
 
@@ -655,7 +655,7 @@ function isFresh(loadedAt: number, ttl: number) {
   return Date.now() - loadedAt < ttl;
 }
 
-async function loadClientState(session: Pick<MvpUser, "email" | "name">, force = false) {
+async function loadClientState(session: Pick<PrismUser, "email" | "name">, force = false) {
   const key = clientStateCacheKey(session);
 
   if (!force) {
@@ -666,7 +666,7 @@ async function loadClientState(session: Pick<MvpUser, "email" | "name">, force =
     if (existing) return existing;
   }
 
-  const request = mvpApi
+  const request = prismApi
     .clientState(session)
     .then((next) => {
       clientStateCache.set(key, { state: next, loadedAt: Date.now() });
@@ -678,7 +678,7 @@ async function loadClientState(session: Pick<MvpUser, "email" | "name">, force =
   return request;
 }
 
-function floorPlanPreviewCacheKey(eventId: string, draft: MvpFloorPlanDraft) {
+function floorPlanPreviewCacheKey(eventId: string, draft: PrismFloorPlanDraft) {
   return `${eventId}:${draft.id}:${draft.status}`;
 }
 
@@ -693,7 +693,7 @@ export function Dashboard({
 }) {
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
-  const [state, setState] = useState<MvpDemoState | null>(null);
+  const [state, setState] = useState<PrismDemoState | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
@@ -715,7 +715,7 @@ export function Dashboard({
     setSession(current);
     if (current.role !== "client") return;
 
-    const applyState = (next: MvpDemoState) => {
+    const applyState = (next: PrismDemoState) => {
       if (cancelled) return;
       setState(next);
       setError(null);
@@ -804,7 +804,7 @@ export function Dashboard({
       }
     }
 
-    mvpApi
+    prismApi
       .loadFloorPlanSnapshot(
         selectedEvent.id,
         officialDraft.id,
@@ -860,17 +860,17 @@ export function Dashboard({
     setState(next);
   }
 
-  async function openFloorplanEditor(draft: MvpFloorPlanDraft, readOnly = false) {
+  async function openFloorplanEditor(draft: PrismFloorPlanDraft, readOnly = false) {
     if (!selectedEvent) return;
     const locked = readOnly || draft.status === "approved";
     const project = locked && draftIsOfficial(draft)
-        ? await mvpApi.loadFloorPlanSnapshot(
+        ? await prismApi.loadFloorPlanSnapshot(
             selectedEvent.id,
             draft.id,
             draft.status === "approved" ? "approved" : "submitted",
             session ?? undefined,
           )
-        : await mvpApi.loadPlan(draft.floorPlanId, session ?? undefined);
+        : await prismApi.loadPlan(draft.floorPlanId, session ?? undefined);
     setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
   }
 
@@ -881,7 +881,7 @@ export function Dashboard({
     setNotice(null);
     try {
       const objects = cloneTemplateObjects(template);
-      const draft = await mvpApi.createFloorPlanPreference(
+      const draft = await prismApi.createFloorPlanPreference(
         selectedEvent.id,
         {
           name: `${template.name} preference draft`,
@@ -915,7 +915,7 @@ export function Dashboard({
     setError(null);
     setNotice(null);
     try {
-      await mvpApi.createFloorPlanPreference(
+      await prismApi.createFloorPlanPreference(
         selectedEvent.id,
         {
           name: form.name,
@@ -972,7 +972,7 @@ export function Dashboard({
     setError(null);
     setNotice(null);
     try {
-      const payload: CreateMvpInquiryInput = {
+      const payload: CreatePrismInquiryInput = {
         clientName: session.name,
         companyName: session.organization,
         email: session.email,
@@ -991,7 +991,7 @@ export function Dashboard({
         privacyNoticeVersion: "2026-05-01",
         marketingConsentAccepted: false,
       };
-      await mvpApi.createInquiry(payload);
+      await prismApi.createInquiry(payload);
       setRequestForm(initialRequestForm);
       setNotice("New event request submitted. PMCM will review it before conforme and portal activation.");
     } catch (err) {
@@ -1145,11 +1145,11 @@ export function Dashboard({
           draftStatus={screen.draft.status}
           readOnly={screen.readOnly}
           onBack={() => setScreen({ name: "dashboard" })}
-          onSave={editable ? (project) => mvpApi.savePlan(project, session ?? undefined) : undefined}
+          onSave={editable ? (project) => prismApi.savePlan(project, session ?? undefined) : undefined}
           onSubmit={
             editable
               ? async (project) => {
-                  await mvpApi.savePlan(project, session ?? undefined);
+                  await prismApi.savePlan(project, session ?? undefined);
                   await refresh();
                   setNotice("Floor plan saved. PMCM approval will lock this plan for review.");
                   setScreen({ name: "dashboard" });
@@ -1468,7 +1468,7 @@ export function Dashboard({
       id: EventFilterId;
       label: string;
       href: string;
-      matches: (ev: MvpEvent) => boolean;
+      matches: (ev: PrismEvent) => boolean;
     }> = [
       { id: "events-all", label: "All", href: "/dashboard/events", matches: () => true },
       {
@@ -2003,12 +2003,12 @@ export function Dashboard({
 
     const eventIds = new Set(events.map((ev) => ev.id));
     const allFiles = state.documents.filter((document) => eventIds.has(document.eventId));
-    const textForFile = (document: MvpDocument) => `${document.type} ${document.fileName}`.toLowerCase();
+    const textForFile = (document: PrismDocument) => `${document.type} ${document.fileName}`.toLowerCase();
     const fileFilterOptions: Array<{
       id: FileFilterId;
       label: string;
       href: string;
-      matches: (document: MvpDocument) => boolean;
+      matches: (document: PrismDocument) => boolean;
     }> = [
       { id: "files-all", label: "All files", href: "/dashboard/files", matches: () => true },
       {

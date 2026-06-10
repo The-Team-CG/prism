@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 
-import type { MvpDefenseReadiness, MvpEvent, MvpFloorPlanDraft } from "@/lib/mvp-api";
+import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft } from "@/lib/prism-api";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "./helpers";
@@ -233,7 +233,7 @@ export function EventQueuePanel({
   onSelectEvent,
   onReset,
 }: {
-  events: MvpEvent[];
+  events: PrismEvent[];
   selectedEventId?: string;
   onSelectEvent: (eventId: string) => void;
   onReset: () => void;
@@ -281,8 +281,8 @@ export function SelectedEventCockpit({
   openActionCount,
   action,
 }: {
-  event: MvpEvent;
-  defenseReadiness: MvpDefenseReadiness | null;
+  event: PrismEvent;
+  defenseReadiness: PrismDefenseReadiness | null;
   openActionCount: number;
   action?: React.ReactNode;
 }) {
@@ -333,7 +333,7 @@ export function DefenseControlPanel({
   defenseReadiness,
   onSelectTab,
 }: {
-  defenseReadiness: MvpDefenseReadiness;
+  defenseReadiness: PrismDefenseReadiness;
   onSelectTab: (tab: PmcmDetailTab) => void;
 }) {
   const checklist = [
@@ -478,8 +478,8 @@ export function SelectedEventStatusSummary({
   quoteCount,
   openCheckCount,
 }: {
-  drafts: MvpFloorPlanDraft[];
-  activeDraft?: MvpFloorPlanDraft;
+  drafts: PrismFloorPlanDraft[];
+  activeDraft?: PrismFloorPlanDraft;
   quoteRequestCount: number;
   quoteCount: number;
   openCheckCount: number;
@@ -558,10 +558,10 @@ export function EventOverviewPanels({
   onOpenBilling,
   onOpenClosure,
 }: {
-  event: MvpEvent;
-  defenseReadiness: MvpDefenseReadiness | null;
-  drafts: MvpFloorPlanDraft[];
-  activeDraft?: MvpFloorPlanDraft;
+  event: PrismEvent;
+  defenseReadiness: PrismDefenseReadiness | null;
+  drafts: PrismFloorPlanDraft[];
+  activeDraft?: PrismFloorPlanDraft;
   quoteRequestCount: number;
   quoteCount: number;
   openCheckCount: number;

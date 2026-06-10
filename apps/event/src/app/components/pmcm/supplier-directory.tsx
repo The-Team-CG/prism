@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Check, FilePlus2, Plus, Search, Star } from "lucide-react";
 
-import type { MvpSupplier, MvpSupplierCategory } from "@/lib/mvp-api";
+import type { PrismSupplier, PrismSupplierCategory } from "@/lib/prism-api";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
 import { cx, RatingStars, SupplierTierBadge } from "./helpers";
@@ -18,9 +18,9 @@ export function SupplierDirectory({
   onOpenEvent,
   busy,
 }: {
-  categories: MvpSupplierCategory[];
-  suppliers: MvpSupplier[];
-  onToggleBni: (supplier: MvpSupplier, nextValue: boolean) => Promise<void>;
+  categories: PrismSupplierCategory[];
+  suppliers: PrismSupplier[];
+  onToggleBni: (supplier: PrismSupplier, nextValue: boolean) => Promise<void>;
   onCreateSupplier: (input: {
     categoryId: string;
     name: string;

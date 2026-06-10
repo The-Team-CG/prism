@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import { UserCheck, UsersRound } from "lucide-react";
 
 import type {
-  MvpCoordinator,
-  MvpCoordinatorAssignment,
-  MvpCoordinatorRoleRequirement,
-  MvpEvent,
-} from "@/lib/mvp-api";
+  PrismCoordinator,
+  PrismCoordinatorAssignment,
+  PrismCoordinatorRoleRequirement,
+  PrismEvent,
+} from "@/lib/prism-api";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -26,8 +26,8 @@ function SectionAccent({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>;
 }
 
-function coordinatorRoleTags(coordinator: MvpCoordinator) {
-  const legacy = coordinator as MvpCoordinator & { roles?: string[] };
+function coordinatorRoleTags(coordinator: PrismCoordinator) {
+  const legacy = coordinator as PrismCoordinator & { roles?: string[] };
   if (Array.isArray(coordinator.roleTags)) return coordinator.roleTags;
   if (Array.isArray(legacy.roles)) return legacy.roles;
   return [];
@@ -41,19 +41,19 @@ export function CoordinatorAssignmentDesk({
   busy,
   onAssign,
 }: {
-  event: MvpEvent;
-  coordinators: MvpCoordinator[];
-  assignments: MvpCoordinatorAssignment[];
-  roleRequirements: MvpCoordinatorRoleRequirement[];
+  event: PrismEvent;
+  coordinators: PrismCoordinator[];
+  assignments: PrismCoordinatorAssignment[];
+  roleRequirements: PrismCoordinatorRoleRequirement[];
   busy: boolean;
-  onAssign: (coordinator: MvpCoordinator, role: string, overrideConflict?: boolean) => Promise<void>;
+  onAssign: (coordinator: PrismCoordinator, role: string, overrideConflict?: boolean) => Promise<void>;
 }) {
   const [roleFilter, setRoleFilter] = useState("all");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [pendingConflict, setPendingConflict] = useState<{
-    coordinator: MvpCoordinator;
+    coordinator: PrismCoordinator;
     role: string;
-    conflict: MvpCoordinatorAssignment;
+    conflict: PrismCoordinatorAssignment;
   } | null>(null);
 
   const eventDate = dateKey(event.eventDate);
@@ -78,7 +78,7 @@ export function CoordinatorAssignmentDesk({
     return counts;
   }, [eventAssignments]);
 
-  function conflictFor(coordinator: MvpCoordinator) {
+  function conflictFor(coordinator: PrismCoordinator) {
     return assignments.find(
       (a) =>
         a.coordinatorId === coordinator.id &&
@@ -96,7 +96,7 @@ export function CoordinatorAssignmentDesk({
 
   const groupedRoles = roleFilter === "all" ? roleOptions : [roleFilter];
 
-  async function assign(coordinator: MvpCoordinator, role: string) {
+  async function assign(coordinator: PrismCoordinator, role: string) {
     const conflict = conflictFor(coordinator);
     if (conflict) {
       setPendingConflict({ coordinator, role, conflict });

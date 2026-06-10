@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, Plus, ReceiptText, ShieldCheck, XCircle } from "lucide-react";
 
 import {
-  type MvpBillingSource,
-  type MvpBillingStatement,
-  type MvpCloseGates,
-  type MvpComplianceCheck,
-  type MvpComplianceRule,
-  type MvpEvent,
-  type MvpEventInsight,
-} from "@/lib/mvp-api";
+  type PrismBillingSource,
+  type PrismBillingStatement,
+  type PrismCloseGates,
+  type PrismComplianceCheck,
+  type PrismComplianceRule,
+  type PrismEvent,
+  type PrismEventInsight,
+} from "@/lib/prism-api";
 import { cx, label } from "./helpers";
 
 const money = new Intl.NumberFormat("en-PH", {
@@ -46,12 +46,12 @@ export function Phase4Workspace({
   onLoadInsights,
   onGenerateInsights,
 }: {
-  event: MvpEvent;
-  rules: MvpComplianceRule[];
-  checks: MvpComplianceCheck[];
-  billingSources: MvpBillingSource[];
-  billingStatements: MvpBillingStatement[];
-  insights: MvpEventInsight[];
+  event: PrismEvent;
+  rules: PrismComplianceRule[];
+  checks: PrismComplianceCheck[];
+  billingSources: PrismBillingSource[];
+  billingStatements: PrismBillingStatement[];
+  insights: PrismEventInsight[];
   busy: boolean;
   onCreateRule: (input: {
     title: string;
@@ -71,9 +71,9 @@ export function Phase4Workspace({
   }) => Promise<void>;
   onApproveBillingSource: (sourceId: string) => Promise<void>;
   onGenerateBillingStatement: (sourceId: string) => Promise<void>;
-  onLoadCloseGates: () => Promise<MvpCloseGates>;
+  onLoadCloseGates: () => Promise<PrismCloseGates>;
   onArchive: (overrideReason?: string) => Promise<void>;
-  onLoadInsights: () => Promise<MvpEventInsight[]>;
+  onLoadInsights: () => Promise<PrismEventInsight[]>;
   onGenerateInsights: () => Promise<void>;
 }) {
   const [phase, setPhase] = useState("planning");
@@ -84,9 +84,9 @@ export function Phase4Workspace({
   const [billingLabel, setBillingLabel] = useState(`${event.eventName} approved CE`);
   const [lineLabel, setLineLabel] = useState("Approved event package");
   const [lineAmount, setLineAmount] = useState("520000");
-  const [closeGates, setCloseGates] = useState<MvpCloseGates | null>(null);
+  const [closeGates, setCloseGates] = useState<PrismCloseGates | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
-  const [localInsights, setLocalInsights] = useState<MvpEventInsight[]>(insights);
+  const [localInsights, setLocalInsights] = useState<PrismEventInsight[]>(insights);
 
   useEffect(() => {
     setBillingLabel(`${event.eventName} approved CE`);

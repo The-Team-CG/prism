@@ -27,7 +27,7 @@ The complete catalog is the scope source of truth. It is not a claim that every 
 | System behaviors | ./02-system-behaviors.md | All automatic rules and logic, including AI behavior rules. |
 | AI and security | ./03-ai-features-and-security.md | Claude ZDR, DataSanitizer, AIAuditLog, and all AI features. |
 | Implementation plan | ./04-implementation-plan.md | Frontend, backend, database, dependencies, acceptance criteria, and priority. |
-| Defense demo guide | ./05-mvp-defense-demo-guide.md | Live demo script, persona flows, and fallback evidence. |
+| Defense demo guide | ./05-prism-defense-demo-guide.md | Live demo script, persona flows, and fallback evidence. |
 | Chapter 3 cross-reference | ./06-chapter-3-cross-reference.md | Feature references mapped to manuscript functional requirement groups. |
 | Implemented feature revisions | ./07-implemented-feature-revisions.md | Current implemented/partial features, revision gaps, and how to revise them safely. |
 | Revision phase plan | ./08-revision-phase-plan.md | Durable phase roadmap for revision-first implementation and docs cleanup. |
@@ -42,7 +42,7 @@ The complete catalog is the scope source of truth. It is not a claim that every 
 | AI feature summary | ./features/ai.md | AI feature matrix and governance notes. |
 
 ## Recommended Defense Reading Order
-1. Read `05-mvp-defense-demo-guide.md` for the live story.
+1. Read `05-prism-defense-demo-guide.md` for the live story.
 2. Use `01-complete-feature-catalog.md` to answer scope questions.
 3. Use `04-implementation-plan.md` when the panel asks how a feature is built.
 4. Use `07-implemented-feature-revisions.md` when deciding what to fix before adding more features.

@@ -1,6 +1,6 @@
-import type { MvpSupplier, MvpSupplierQuoteRequest, MvpUser } from "@/lib/mvp-api";
+import type { PrismSupplier, PrismSupplierQuoteRequest, PrismUser } from "@/lib/prism-api";
 
-export type PmcmEventSession = MvpUser & { signedInAt: string };
+export type PmcmEventSession = PrismUser & { signedInAt: string };
 
 export type SupplierQuoteRow = {
   id: string;
@@ -21,7 +21,7 @@ export type SupplierQuoteRow = {
   createdAt: string;
 };
 
-export type SupplierQuoteRequestRow = MvpSupplierQuoteRequest;
+export type SupplierQuoteRequestRow = PrismSupplierQuoteRequest;
 
 export type SupplierRequestHandler = (input: {
   categoryId: string;

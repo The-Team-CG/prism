@@ -59,7 +59,7 @@ flowchart TD
 | Backend hotspot | `prism-api/libs/modules/event-ops/src/event-ops.service.ts` is now 2,350 lines after extracting `AuditService`, `SuppliersService`, and `CoordinatorsService`. | Better than before, but the facade still owns inquiry, onboarding, billing, closure, compliance, floorplan workflow, seed/demo setup, and broad state aggregation. |
 | PMCM frontend hotspot | `prism-event/src/app/page.tsx` is now 1,088 lines after extracting PMCM panels into `src/app/components/pmcm/`. | Better than before, but the page still owns admin approvals, inquiry intake, event tabs, floorplan tab rendering, billing/activity sections, and shell state. |
 | Client frontend hotspot | `prism-client/src/app/components/dashboard/Dashboard.tsx` is 953 lines. | Client dashboard changes can accidentally affect unrelated dashboard behavior. |
-| API client hotspot | `prism-client/src/lib/mvp-api.ts` is 810 lines; `prism-event/src/lib/mvp-api.ts` is 488 lines. | Frontend/backend contracts are duplicated manually. |
+| API client hotspot | `prism-client/src/lib/prism-api.ts` is 810 lines; `prism-event/src/lib/prism-api.ts` is 488 lines. | Frontend/backend contracts are duplicated manually. |
 | Editor duplication | `Canvas.tsx`, `store.tsx`, and `RightPanel.tsx` are byte-identical between `prism-client` and `prism-event`. | Fixes to the editor must be remembered twice. |
 | UI duplication | `button.tsx`, `card.tsx`, `sidebar.tsx`, `table.tsx`, `tabs.tsx`, `utils.ts`, and other UI files exist in all four frontend apps. | Styling drift is guaranteed unless these are shared or generated. |
 | Dependency imbalance | `prism-client` has 58 runtime dependencies; each smaller portal has 7. | The original client shell still carries broad dependencies from earlier all-role work. |
@@ -69,7 +69,7 @@ flowchart TD
 | Demo state endpoint | `/api/demo/state` still returns broad app state, but normal state reads no longer call `ensureSeeded()`. | Side effects are reduced; payload and coupling risk remain until scoped reads replace the aggregator. |
 | Runtime jobs | `EventOpsService` starts a `setInterval` reminder loop in-process. | Background behavior depends on API process lifetime and is hard to observe. |
 | Styling debt | Raw hex values still appear in page/components after theme work. | Legacy colors will keep leaking into new components. |
-| Security debt | Sessions are stored in `localStorage` and demo users have plain seeded passwords. | Acceptable for MVP demo only; not a safe production baseline. |
+| Security debt | Sessions are stored in `localStorage` and demo users have plain seeded passwords. | Acceptable for Prism demo only; not a safe production baseline. |
 
 ## Sprint Progress Update
 
@@ -204,12 +204,12 @@ Goal: remove duplicated code that causes maintenance drift.
 | --- | --- | --- |
 | Extract shared UI package. | Frontends | Four portals import `Button`, `Card`, `Badge`, `Table`, `Sidebar`, and token CSS from one place. |
 | Extract floorplan editor package. | `prism-client`, `prism-event` | Editor internals live once; `prism-event` has edit mode and `prism-client` has read-only preference/review mode. |
-| Extract API contract package. | API plus frontends | DTOs and enums are imported or generated; `mvp-api.ts` files shrink to request wrappers and feature methods. |
+| Extract API contract package. | API plus frontends | DTOs and enums are imported or generated; `prism-api.ts` files shrink to request wrappers and feature methods. |
 | Reduce `prism-client` dependencies. | `prism-client` | Remove unused libraries from the old all-role shell after feature ownership moves out. |
 
 ### Phase 3: Production Hardening
 
-Goal: make the MVP architecture survivable after demo.
+Goal: make the Prism architecture survivable after demo.
 
 | Task | Owner Surface | Definition of Done |
 | --- | --- | --- |
@@ -217,7 +217,7 @@ Goal: make the MVP architecture survivable after demo.
 | Make audit tamper-resistant at DB level. | `prism-api` | Audit table has no app route for update/delete; DB trigger/RLS or policy blocks mutation outside append. |
 | Replace in-process reminders. | `prism-api` | Reminder worker is a job runner with retry/log records, not `setInterval` inside the API service. |
 | Add CI-style validation. | Root scripts plus app repos | One command runs API typecheck/build and frontend builds sequentially on Windows. |
-| Add docs ownership. | Root docs | README, AGENTS, CLAUDE, MVP checklist, and feature review no longer contradict app boundaries. |
+| Add docs ownership. | Root docs | README, AGENTS, CLAUDE, Prism checklist, and feature review no longer contradict app boundaries. |
 
 ## Specific File-Level Findings
 
@@ -450,7 +450,7 @@ Do not do these yet:
 
 | Avoid | Reason |
 | --- | --- |
-| Full backend rewrite | The current code works enough for MVP; incremental extraction is safer. |
+| Full backend rewrite | The current code works enough for Prism; incremental extraction is safer. |
 | Moving all apps into one shell | The current product truth is role-specific portals. |
 | Replacing Prisma | The problem is module ownership and contracts, not the ORM. |
 | Adding a heavy design system library | The existing shadcn-style components are enough; they need central ownership. |

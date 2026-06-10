@@ -9,7 +9,7 @@ Generated from the official PRISM V4 DOCX feature catalog, then updated with rep
 | .\\docs\\prism-v4\\02-system-behaviors.md | 10513 |
 | .\\docs\\prism-v4\\03-ai-features-and-security.md | 7176 |
 | .\\docs\\prism-v4\\04-implementation-plan.md | 85485 |
-| .\\docs\\prism-v4\\05-mvp-defense-demo-guide.md | 33203 |
+| .\\docs\\prism-v4\\05-prism-defense-demo-guide.md | 33203 |
 | .\\docs\\prism-v4\\06-chapter-3-cross-reference.md | 2021 |
 | .\\docs\\prism-v4\\07-implemented-feature-revisions.md | 18813 |
 | .\\docs\\prism-v4\\08-revision-phase-plan.md | 15607 |

@@ -1,8 +1,8 @@
 "use client";
 
-import type { MvpUser } from "@/lib/mvp-api";
+import type { PrismUser } from "@/lib/prism-api";
 
-export type EventSession = MvpUser & { signedInAt: string };
+export type EventSession = PrismUser & { signedInAt: string };
 
 export const EVENT_SESSION_KEY = "prism:event-command-session";
 

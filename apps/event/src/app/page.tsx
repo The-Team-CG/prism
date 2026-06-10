@@ -29,27 +29,27 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  mvpApi,
+  prismApi,
   type DemoRole,
-  type MvpAuditLog,
-  type MvpApprovalRequest,
-  type MvpCoordinator,
-  type MvpCoordinatorAssignment,
-  type MvpCoordinatorRoleRequirement,
-  type MvpCoordinatorWorkspace,
-  type MvpDemoState,
-  type MvpDefenseReadiness,
-  type MvpEvent,
-  type MvpEventDayStatusFeed,
-  type MvpFloorPlanDraft,
-  type MvpInquiry,
-  type MvpLiveOps,
-  type MvpLoginHistory,
-  type MvpSecurityAlert,
-  type MvpSupplier,
-  type MvpSupplierCategory,
-  type MvpUser,
-} from "@/lib/mvp-api";
+  type PrismAuditLog,
+  type PrismApprovalRequest,
+  type PrismCoordinator,
+  type PrismCoordinatorAssignment,
+  type PrismCoordinatorRoleRequirement,
+  type PrismCoordinatorWorkspace,
+  type PrismDemoState,
+  type PrismDefenseReadiness,
+  type PrismEvent,
+  type PrismEventDayStatusFeed,
+  type PrismFloorPlanDraft,
+  type PrismInquiry,
+  type PrismLiveOps,
+  type PrismLoginHistory,
+  type PrismSecurityAlert,
+  type PrismSupplier,
+  type PrismSupplierCategory,
+  type PrismUser,
+} from "@/lib/prism-api";
 import {
   PrismBrandLogo,
   PrismDashboardShell,
@@ -98,10 +98,10 @@ const EditorShell = dynamic(
   },
 );
 
-type EventSession = MvpUser & { signedInAt: string };
+type EventSession = PrismUser & { signedInAt: string };
 type Screen =
   | { name: "portal" }
-  | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project };
+  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project };
 type DetailTab = PmcmDetailTab;
 
 const EVENT_SESSION_KEY = "prism:event-command-session";
@@ -362,7 +362,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (session: EventSession) => void })
     setBusy(true);
     setError(null);
     try {
-      const session = await mvpApi.login({ email, password });
+      const session = await prismApi.login({ email, password });
       if (session.role !== "pmcm-admin" && session.role !== "coordinator") {
         setError(session.role === "client" ? "Client accounts belong in prism-client at http://localhost:3001." : "Supplier accounts belong in prism-supplier at http://localhost:3002.");
         return;
@@ -668,18 +668,18 @@ function PmcmPortal({
   onSignOut,
 }: {
   session: EventSession;
-  state: MvpDemoState;
+  state: PrismDemoState;
   onRefresh: () => Promise<void>;
-  onOpenEditor: (event: MvpEvent, draft: MvpFloorPlanDraft) => Promise<void>;
+  onOpenEditor: (event: PrismEvent, draft: PrismFloorPlanDraft) => Promise<void>;
   onSignOut: () => void;
 }) {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(state.events[0]?.id ?? null);
   const [section, setSection] = useState<"events" | "suppliers" | "audit-log">("events");
   const [tab, setTab] = useState<DetailTab>("overview");
-  const [approvalRequests, setApprovalRequests] = useState<MvpApprovalRequest[]>([]);
-  const [liveOps, setLiveOps] = useState<MvpLiveOps | null>(null);
-  const [statusFeed, setStatusFeed] = useState<MvpEventDayStatusFeed | null>(null);
-  const [defenseReadiness, setDefenseReadiness] = useState<MvpDefenseReadiness | null>(null);
+  const [approvalRequests, setApprovalRequests] = useState<PrismApprovalRequest[]>([]);
+  const [liveOps, setLiveOps] = useState<PrismLiveOps | null>(null);
+  const [statusFeed, setStatusFeed] = useState<PrismEventDayStatusFeed | null>(null);
+  const [defenseReadiness, setDefenseReadiness] = useState<PrismDefenseReadiness | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
@@ -711,7 +711,7 @@ function PmcmPortal({
   const pendingApprovals = approvalRequests.filter((request) => request.status === "pending");
 
   async function refreshApprovals() {
-    setApprovalRequests(await mvpApi.approvalRequests());
+    setApprovalRequests(await prismApi.approvalRequests());
   }
 
   useEffect(() => {
@@ -741,9 +741,9 @@ function PmcmPortal({
       return;
     }
     const [nextLiveOps, nextStatusFeed, nextDefenseReadiness] = await Promise.all([
-      mvpApi.liveOps(selectedEvent.id),
-      mvpApi.eventDayStatusFeed(selectedEvent.id),
-      mvpApi.defenseReadiness(selectedEvent.id),
+      prismApi.liveOps(selectedEvent.id),
+      prismApi.eventDayStatusFeed(selectedEvent.id),
+      prismApi.defenseReadiness(selectedEvent.id),
     ]);
     setLiveOps(nextLiveOps);
     setStatusFeed(nextStatusFeed);
@@ -757,7 +757,7 @@ function PmcmPortal({
       setDefenseReadiness(null);
       return;
     }
-    Promise.all([mvpApi.liveOps(selectedEvent.id), mvpApi.eventDayStatusFeed(selectedEvent.id), mvpApi.defenseReadiness(selectedEvent.id)])
+    Promise.all([prismApi.liveOps(selectedEvent.id), prismApi.eventDayStatusFeed(selectedEvent.id), prismApi.defenseReadiness(selectedEvent.id)])
       .then(([nextLiveOps, nextStatusFeed, nextDefenseReadiness]) => {
         setLiveOps(nextLiveOps);
         setStatusFeed(nextStatusFeed);
@@ -774,7 +774,7 @@ function PmcmPortal({
       await onRefresh();
       await refreshApprovals();
       if (selectedEvent?.id) {
-        void mvpApi.defenseReadiness(selectedEvent.id).then(setDefenseReadiness).catch(() => undefined);
+        void prismApi.defenseReadiness(selectedEvent.id).then(setDefenseReadiness).catch(() => undefined);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
@@ -800,7 +800,7 @@ function PmcmPortal({
 
   async function createTemplateDraft(template: FloorPlanTemplate) {
     if (!selectedEvent) return;
-    const draft = await mvpApi.createFloorPlanDraft(selectedEvent.id, {
+    const draft = await prismApi.createFloorPlanDraft(selectedEvent.id, {
       name: `${template.name} PMCM draft`,
       sourceType: "template",
       venue: template.venue || selectedEvent.eventName,
@@ -815,28 +815,28 @@ function PmcmPortal({
     await onOpenEditor(selectedEvent, draft);
   }
 
-  async function acceptInquiry(inquiry: MvpInquiry) {
-    await run("accept inquiry", () => mvpApi.acceptInquiry(inquiry.id));
+  async function acceptInquiry(inquiry: PrismInquiry) {
+    await run("accept inquiry", () => prismApi.acceptInquiry(inquiry.id));
   }
 
-  async function pendInquiry(inquiry: MvpInquiry) {
-    await run("pend inquiry", () => mvpApi.pendInquiry(inquiry.id));
+  async function pendInquiry(inquiry: PrismInquiry) {
+    await run("pend inquiry", () => prismApi.pendInquiry(inquiry.id));
   }
 
-  async function declineInquiry(inquiry: MvpInquiry, reason: string) {
-    await run("decline inquiry", () => mvpApi.declineInquiry(inquiry.id, reason));
+  async function declineInquiry(inquiry: PrismInquiry, reason: string) {
+    await run("decline inquiry", () => prismApi.declineInquiry(inquiry.id, reason));
   }
 
-  async function uploadConformeForInquiry(inquiry: MvpInquiry) {
-    await run("upload conforme", () => mvpApi.uploadConforme(inquiry.id));
+  async function uploadConformeForInquiry(inquiry: PrismInquiry) {
+    await run("upload conforme", () => prismApi.uploadConforme(inquiry.id));
   }
 
-  async function sendConformeReminder(inquiry: MvpInquiry) {
-    await run("conforme reminder", () => mvpApi.sendConformeReminder(inquiry.id));
+  async function sendConformeReminder(inquiry: PrismInquiry) {
+    await run("conforme reminder", () => prismApi.sendConformeReminder(inquiry.id));
   }
 
-  async function toggleSupplierBni(supplier: MvpSupplier, nextValue: boolean) {
-    await run("supplier BNI flag", () => mvpApi.updateSupplier(supplier.id, { bniMember: nextValue }));
+  async function toggleSupplierBni(supplier: PrismSupplier, nextValue: boolean) {
+    await run("supplier BNI flag", () => prismApi.updateSupplier(supplier.id, { bniMember: nextValue }));
   }
 
   async function createSupplier(input: {
@@ -849,7 +849,7 @@ function PmcmPortal({
     serviceInclusions?: string;
     performanceNotes?: string;
   }) {
-    await run("create supplier", () => mvpApi.createSupplier(input));
+    await run("create supplier", () => prismApi.createSupplier(input));
   }
 
   async function updateSupplierProfile(supplierId: string, input: {
@@ -860,15 +860,15 @@ function PmcmPortal({
     serviceInclusions?: string;
     performanceNotes?: string;
   }) {
-    await run("update supplier", () => mvpApi.updateSupplier(supplierId, input));
+    await run("update supplier", () => prismApi.updateSupplier(supplierId, input));
   }
 
   async function changeSupplierTier(supplierId: string, tier: "tier_1" | "tier_2" | "pending_first_event", reason: string) {
-    await run("supplier tier change", () => mvpApi.changeSupplierTier(supplierId, { tier, reason }));
+    await run("supplier tier change", () => prismApi.changeSupplierTier(supplierId, { tier, reason }));
   }
 
   async function addSupplierReview(supplierId: string, input: { rating: number; notes: string; reviewedBy?: string }) {
-    await run("supplier private review", () => mvpApi.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }));
+    await run("supplier private review", () => prismApi.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }));
   }
 
   async function addSupplierCertification(supplierId: string, input: {
@@ -879,7 +879,7 @@ function PmcmPortal({
     status?: "submitted" | "verified" | "expired" | "rejected";
     notes?: string;
   }) {
-    await run("supplier certification", () => mvpApi.addSupplierCertification(supplierId, input));
+    await run("supplier certification", () => prismApi.addSupplierCertification(supplierId, input));
   }
 
   async function requestSupplierQuotes(input: {
@@ -889,12 +889,12 @@ function PmcmPortal({
     deadline?: string;
   }) {
     if (!selectedEvent) return;
-    await run("request supplier quotes", () => mvpApi.requestSupplierQuotes(selectedEvent.id, input));
+    await run("request supplier quotes", () => prismApi.requestSupplierQuotes(selectedEvent.id, input));
   }
 
   async function selectSupplierQuote(quoteId: string) {
     if (!selectedEvent) return;
-    await run("select supplier quote", () => mvpApi.selectSupplierQuote(selectedEvent.id, quoteId));
+    await run("select supplier quote", () => prismApi.selectSupplierQuote(selectedEvent.id, quoteId));
   }
 
   async function recordPayment(
@@ -907,12 +907,12 @@ function PmcmPortal({
     },
   ) {
     if (!selectedEvent) return;
-    await run("record payment", () => mvpApi.recordPayment(selectedEvent.id, milestoneId, input));
+    await run("record payment", () => prismApi.recordPayment(selectedEvent.id, milestoneId, input));
   }
 
   async function sendBillingStatement(billingId: string) {
     if (!selectedEvent) return;
-    await run("send billing statement", () => mvpApi.sendBillingStatement(selectedEvent.id, billingId));
+    await run("send billing statement", () => prismApi.sendBillingStatement(selectedEvent.id, billingId));
   }
 
   async function createComplianceRule(input: {
@@ -923,18 +923,18 @@ function PmcmPortal({
     layer: string;
     note: string;
   }) {
-    await run("create compliance rule", () => mvpApi.createComplianceRule(input));
+    await run("create compliance rule", () => prismApi.createComplianceRule(input));
   }
 
   async function runComplianceChecks(phase: string) {
     if (!selectedEvent) return;
-    await run("run compliance", () => mvpApi.runCompliance(selectedEvent.id, phase));
+    await run("run compliance", () => prismApi.runCompliance(selectedEvent.id, phase));
   }
 
   async function resolveComplianceCheck(checkId: string) {
     if (!selectedEvent) return;
     await run("resolve compliance", () =>
-      mvpApi.resolveCompliance(selectedEvent.id, checkId, {
+      prismApi.resolveCompliance(selectedEvent.id, checkId, {
         action: "resolve",
         note: "Resolved during PMCM review.",
         actorName: "Ms. Mys",
@@ -945,7 +945,7 @@ function PmcmPortal({
   async function overrideComplianceCheck(checkId: string, reason: string) {
     if (!selectedEvent) return;
     await run("override compliance", () =>
-      mvpApi.resolveCompliance(selectedEvent.id, checkId, {
+      prismApi.resolveCompliance(selectedEvent.id, checkId, {
         action: "override",
         overrideReason: reason,
         actorName: "Ms. Mys",
@@ -959,43 +959,43 @@ function PmcmPortal({
     paymentSchedule: Array<{ label: string; percentage: number }>;
   }) {
     if (!selectedEvent) return;
-    await run("create billing source", () => mvpApi.createBillingSource(selectedEvent.id, input));
+    await run("create billing source", () => prismApi.createBillingSource(selectedEvent.id, input));
   }
 
   async function approveBillingSource(sourceId: string) {
     if (!selectedEvent) return;
-    await run("approve billing source", () => mvpApi.approveBillingSource(selectedEvent.id, sourceId, "Approved by PMCM for billing generation."));
+    await run("approve billing source", () => prismApi.approveBillingSource(selectedEvent.id, sourceId, "Approved by PMCM for billing generation."));
   }
 
   async function generateBillingStatement(sourceId: string) {
     if (!selectedEvent) return;
-    await run("generate billing statement", () => mvpApi.generateBillingStatement(selectedEvent.id, sourceId));
+    await run("generate billing statement", () => prismApi.generateBillingStatement(selectedEvent.id, sourceId));
   }
 
   async function loadCloseGates() {
     if (!selectedEvent) throw new Error("No event selected");
-    return mvpApi.closeGates(selectedEvent.id);
+    return prismApi.closeGates(selectedEvent.id);
   }
 
   async function archiveSelectedEvent(overrideReason?: string) {
     if (!selectedEvent) return;
-    await run("archive event", () => mvpApi.archiveEvent(selectedEvent.id, overrideReason));
+    await run("archive event", () => prismApi.archiveEvent(selectedEvent.id, overrideReason));
   }
 
   async function loadEventInsights() {
     if (!selectedEvent) throw new Error("No event selected");
-    return mvpApi.eventInsights(selectedEvent.id);
+    return prismApi.eventInsights(selectedEvent.id);
   }
 
   async function generateEventInsights() {
     if (!selectedEvent) return;
-    await run("generate insights", () => mvpApi.generateEventInsights(selectedEvent.id));
+    await run("generate insights", () => prismApi.generateEventInsights(selectedEvent.id));
   }
 
-  async function assignCoordinator(coordinator: MvpCoordinator, role: string, overrideConflict = false) {
+  async function assignCoordinator(coordinator: PrismCoordinator, role: string, overrideConflict = false) {
     if (!selectedEvent) return;
     await run("coordinator assignment", () =>
-      mvpApi.assignCoordinator(selectedEvent.id, {
+      prismApi.assignCoordinator(selectedEvent.id, {
         coordinatorId: coordinator.id,
         role,
         overrideConflict,
@@ -1012,12 +1012,12 @@ function PmcmPortal({
     slaDueAt?: string;
   }) {
     if (!selectedEvent) return;
-    await runLiveOps("create event-day task", () => mvpApi.createEventDayTask(selectedEvent.id, input));
+    await runLiveOps("create event-day task", () => prismApi.createEventDayTask(selectedEvent.id, input));
   }
 
   async function updateEventDayTask(taskId: string, input: { status?: "open" | "in_progress" | "done" | "blocked"; notes?: string }) {
     if (!selectedEvent) return;
-    await runLiveOps("update event-day task", () => mvpApi.updateEventDayTask(selectedEvent.id, taskId, input));
+    await runLiveOps("update event-day task", () => prismApi.updateEventDayTask(selectedEvent.id, taskId, input));
   }
 
   async function escalateEventDayTask(
@@ -1025,7 +1025,7 @@ function PmcmPortal({
     input: { escalationLevel: "role_lead" | "pmcm" | "critical"; notes: string; ownerRole?: string; ownerName?: string },
   ) {
     if (!selectedEvent) return;
-    await runLiveOps("escalate event-day task", () => mvpApi.escalateEventDayTask(selectedEvent.id, taskId, input));
+    await runLiveOps("escalate event-day task", () => prismApi.escalateEventDayTask(selectedEvent.id, taskId, input));
   }
 
   async function createUrgentIssue(input: {
@@ -1036,12 +1036,12 @@ function PmcmPortal({
     slaDueAt?: string;
   }) {
     if (!selectedEvent) return;
-    await runLiveOps("create urgent issue", () => mvpApi.createUrgentIssue(selectedEvent.id, input));
+    await runLiveOps("create urgent issue", () => prismApi.createUrgentIssue(selectedEvent.id, input));
   }
 
   async function updateUrgentIssue(issueId: string, input: { status?: "open" | "assigned" | "resolved" | "cancelled"; resolution?: string }) {
     if (!selectedEvent) return;
-    await runLiveOps("update urgent issue", () => mvpApi.updateUrgentIssue(selectedEvent.id, issueId, input));
+    await runLiveOps("update urgent issue", () => prismApi.updateUrgentIssue(selectedEvent.id, issueId, input));
   }
 
   async function escalateUrgentIssue(
@@ -1049,7 +1049,7 @@ function PmcmPortal({
     input: { escalationLevel: "role_lead" | "pmcm" | "critical"; notes: string; ownerRole?: string; ownerName?: string },
   ) {
     if (!selectedEvent) return;
-    await runLiveOps("escalate urgent issue", () => mvpApi.escalateUrgentIssue(selectedEvent.id, issueId, input));
+    await runLiveOps("escalate urgent issue", () => prismApi.escalateUrgentIssue(selectedEvent.id, issueId, input));
   }
 
   async function updateCoordinatorAttendance(
@@ -1058,7 +1058,7 @@ function PmcmPortal({
   ) {
     if (!selectedEvent) return;
     await runLiveOps("update coordinator attendance", () =>
-      mvpApi.updateCoordinatorAttendance(selectedEvent.id, assignmentId, { ...input, markedBy: session.name }),
+      prismApi.updateCoordinatorAttendance(selectedEvent.id, assignmentId, { ...input, markedBy: session.name }),
     );
   }
 
@@ -1067,7 +1067,7 @@ function PmcmPortal({
     input: { replacementCoordinatorId: string; role: string; reason: string },
   ) {
     if (!selectedEvent) return;
-    await runLiveOps("replace coordinator", () => mvpApi.replaceCoordinator(selectedEvent.id, assignmentId, input));
+    await runLiveOps("replace coordinator", () => prismApi.replaceCoordinator(selectedEvent.id, assignmentId, input));
   }
 
   async function verifySupplierStatus(
@@ -1076,7 +1076,7 @@ function PmcmPortal({
   ) {
     if (!selectedEvent) return;
     await runLiveOps("verify supplier setup", () =>
-      mvpApi.verifySupplierStatus(selectedEvent.id, requestId, { ...input, verifiedBy: session.name }),
+      prismApi.verifySupplierStatus(selectedEvent.id, requestId, { ...input, verifiedBy: session.name }),
     );
   }
 
@@ -1115,7 +1115,7 @@ function PmcmPortal({
   const openActionCount = defenseReadiness?.nextActions.length ?? pendingApprovals.length + unreviewedInquiries;
   const selectedEventActions = selectedEvent ? (
     <div className="flex flex-wrap gap-2">
-      <Button size="sm" className="rounded-lg font-bold" onClick={() => run("briefing", () => mvpApi.submitBriefing(selectedEvent.id))}>
+      <Button size="sm" className="rounded-lg font-bold" onClick={() => run("briefing", () => prismApi.submitBriefing(selectedEvent.id))}>
         Submit briefing
       </Button>
       <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => setTab("suppliers")}>
@@ -1140,7 +1140,7 @@ function PmcmPortal({
     <EventQueuePanel
       events={events}
       selectedEventId={selectedEvent?.id}
-      onReset={() => run("reset", mvpApi.reset)}
+      onReset={() => run("reset", prismApi.reset)}
       onSelectEvent={(eventId) => {
         setSection("events");
         setSelectedEventId(eventId);
@@ -1211,7 +1211,7 @@ function PmcmPortal({
                     <Button
                       size="sm"
                       disabled={!!busy}
-                      onClick={() => run("approve account", () => mvpApi.approveApprovalRequest(request.id))}
+                      onClick={() => run("approve account", () => prismApi.approveApprovalRequest(request.id))}
                       className="rounded-lg font-bold"
                     >
                       Approve
@@ -1220,7 +1220,7 @@ function PmcmPortal({
                       size="sm"
                       variant="outline"
                       disabled={!!busy}
-                      onClick={() => run("decline account", () => mvpApi.declineApprovalRequest(request.id))}
+                      onClick={() => run("decline account", () => prismApi.declineApprovalRequest(request.id))}
                       className="rounded-lg font-bold"
                     >
                       Decline
@@ -1275,9 +1275,9 @@ function PmcmPortal({
                 quoteRequestCount={quoteRequests.length}
                 quoteCount={quotes.length}
                 openCheckCount={openCheckCount}
-                onSubmitBriefing={() => run("briefing", () => mvpApi.submitBriefing(selectedEvent.id))}
+                onSubmitBriefing={() => run("briefing", () => prismApi.submitBriefing(selectedEvent.id))}
                 onOpenSupplierDesk={() => setTab("suppliers")}
-                onRunCompliance={() => run("compliance", () => mvpApi.runCompliance(selectedEvent.id, "planning"))}
+                onRunCompliance={() => run("compliance", () => prismApi.runCompliance(selectedEvent.id, "planning"))}
                 onOpenCoordinatorDesk={() => setTab("coordinators")}
                 onOpenLiveOps={() => setTab("live-ops")}
                 onOpenFloorplans={() => setTab("floorplans")}
@@ -1331,10 +1331,10 @@ function PmcmPortal({
                           <div className="mt-4 flex flex-wrap gap-2">
                             <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => run("open draft", () => onOpenEditor(selectedEvent, draft))}>Open/Edit</Button>
                             {draft.status !== "in_review" && draft.status !== "approved" && (
-                              <Button size="sm" className="rounded-lg font-bold" onClick={() => run("submit draft", () => mvpApi.submitFloorPlanDraft(selectedEvent.id, draft.id))}>Submit</Button>
+                              <Button size="sm" className="rounded-lg font-bold" onClick={() => run("submit draft", () => prismApi.submitFloorPlanDraft(selectedEvent.id, draft.id))}>Submit</Button>
                             )}
                             {draft.status !== "approved" && (
-                              <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/12" onClick={() => run("approve draft", () => mvpApi.approveFloorPlanDraft(selectedEvent.id, draft.id))}>Approve</Button>
+                              <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/12" onClick={() => run("approve draft", () => prismApi.approveFloorPlanDraft(selectedEvent.id, draft.id))}>Approve</Button>
                             )}
                           </div>
                         </div>
@@ -1488,7 +1488,7 @@ function PmcmPortal({
                           </div>
                         </div>
                       ))}
-                      {assignments.map((assignment: MvpCoordinatorAssignment) => (
+                      {assignments.map((assignment: PrismCoordinatorAssignment) => (
                         <div key={assignment.id} className="flex justify-start">
                           <div className="max-w-[min(40rem,84%)]">
                             <div className="rounded-2xl rounded-bl-md bg-card px-4 py-3 text-sm font-medium leading-6 text-foreground ring-1 ring-border">
@@ -1533,20 +1533,20 @@ function PmcmPortal({
 export default function EventCommandHome() {
   const router = useRouter();
   const [session, setSession] = useState<EventSession | null>(null);
-  const [state, setState] = useState<MvpDemoState | null>(null);
-  const [coordinatorState, setCoordinatorState] = useState<MvpCoordinatorWorkspace | null>(null);
+  const [state, setState] = useState<PrismDemoState | null>(null);
+  const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
   const [error, setError] = useState<string | null>(null);
 
   async function refresh(current = session) {
     if (!current) return;
     if (current.role === "coordinator") {
-      const next = await mvpApi.coordinatorWorkspace(current);
+      const next = await prismApi.coordinatorWorkspace(current);
       setCoordinatorState(next);
       setState(null);
       return;
     }
-    const next = await mvpApi.pmcmState();
+    const next = await prismApi.pmcmState();
     setState(next);
     setCoordinatorState(null);
   }
@@ -1570,8 +1570,8 @@ export default function EventCommandHome() {
     return () => window.clearInterval(intervalId);
   }, [session, screen.name]);
 
-  async function openEditor(event: MvpEvent, draft: MvpFloorPlanDraft) {
-    const project = await mvpApi.loadPlan(draft.floorPlanId);
+  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
+    const project = await prismApi.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
 
@@ -1585,10 +1585,10 @@ export default function EventCommandHome() {
           eventName={screen.event.eventName}
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
-          onSave={(project) => mvpApi.savePlan(project)}
+          onSave={(project) => prismApi.savePlan(project)}
           onSubmit={async (project) => {
-            await mvpApi.savePlan(project);
-            await mvpApi.submitFloorPlanDraft(screen.event.id, screen.draft.id);
+            await prismApi.savePlan(project);
+            await prismApi.submitFloorPlanDraft(screen.event.id, screen.draft.id);
             await refresh(session);
             setScreen({ name: "portal" });
           }}

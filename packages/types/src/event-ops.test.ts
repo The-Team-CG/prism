@@ -3,12 +3,12 @@ import {
   PRISM_LIFECYCLE_STAGES,
   canClientAccessPortal,
   canCreateEventWorkspace,
-  type MvpDemoState,
-  type MvpEvent,
-  type MvpFloorPlanDraft,
-  type MvpInquiry,
-  type MvpSupplier,
-  type MvpUser,
+  type PrismDemoState,
+  type PrismEvent,
+  type PrismFloorPlanDraft,
+  type PrismInquiry,
+  type PrismSupplier,
+  type PrismUser,
   type PrismLifecycleStage,
 } from "./index";
 
@@ -57,8 +57,8 @@ describe("P.R.I.S.M lifecycle contract", () => {
 });
 
 describe("event-ops shared read model types", () => {
-  it("allows role apps to import the same MVP demo state shape", () => {
-    const user: MvpUser = {
+  it("allows role apps to import the same Prism demo state shape", () => {
+    const user: PrismUser = {
       id: "user_pmcm",
       name: "Ms. Mys",
       email: "mys@pmcm.test",
@@ -67,7 +67,7 @@ describe("event-ops shared read model types", () => {
       approvalStatus: "approved",
     };
 
-    const inquiry: MvpInquiry = {
+    const inquiry: PrismInquiry = {
       id: "inq_1",
       clientName: "Acme Client",
       companyName: "Acme",
@@ -82,7 +82,7 @@ describe("event-ops shared read model types", () => {
       createdAt: "2026-06-10T00:00:00.000Z",
     };
 
-    const draft: MvpFloorPlanDraft = {
+    const draft: PrismFloorPlanDraft = {
       id: "draft_1",
       eventId: "evt_1",
       floorPlanId: "floor_1",
@@ -94,7 +94,7 @@ describe("event-ops shared read model types", () => {
       updatedAt: "2026-06-10T00:00:00.000Z",
     };
 
-    const event: MvpEvent = {
+    const event: PrismEvent = {
       id: "evt_1",
       inquiryId: inquiry.id,
       eventName: inquiry.eventName,
@@ -110,7 +110,7 @@ describe("event-ops shared read model types", () => {
       floorPlanDrafts: [draft],
     };
 
-    const supplier: MvpSupplier = {
+    const supplier: PrismSupplier = {
       id: "sup_1",
       name: "Prime Lights",
       categoryId: "cat_lights",
@@ -157,7 +157,7 @@ describe("event-ops shared read model types", () => {
       suppliers: [supplier],
       auditLogs: [],
       notificationLogs: [],
-    } satisfies MvpDemoState;
+    } satisfies PrismDemoState;
 
     expect(state.events[0]?.id).toBe("evt_1");
     expect(state.suppliers[0]?.tier).toBe("tier_1");

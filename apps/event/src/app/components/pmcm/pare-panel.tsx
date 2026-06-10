@@ -18,7 +18,7 @@ import {
   UserX,
   Zap,
 } from "lucide-react";
-import { mvpApi, type MvpSupplier, type PAREApprovalRecord, type PARERisk } from "@/lib/mvp-api";
+import { prismApi, type PrismSupplier, type PAREApprovalRecord, type PARERisk } from "@/lib/prism-api";
 import type { SupplierQuoteRequestRow } from "./types";
 import { money } from "./helpers";
 
@@ -257,7 +257,7 @@ export function PAREPanel({
 }: {
   eventId: string;
   assignedRequests: SupplierQuoteRequestRow[];
-  suppliers: MvpSupplier[];
+  suppliers: PrismSupplier[];
   onWithdraw: (requestId: string) => Promise<void>;
   busy: boolean;
 }) {
@@ -272,7 +272,7 @@ export function PAREPanel({
   const fetchApprovals = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await mvpApi.pareGetPending();
+      const data = await prismApi.pareGetPending();
       setApprovals(data);
     } catch {
       // non-fatal — PARE may not have run yet
@@ -303,7 +303,7 @@ export function PAREPanel({
   async function handleApprove(id: string) {
     setActionBusy(true);
     try {
-      const updated = await mvpApi.pareApprove(id);
+      const updated = await prismApi.pareApprove(id);
       setApprovals((prev) => prev.map((a) => (a.id === id ? updated : a)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Approve failed");
@@ -315,7 +315,7 @@ export function PAREPanel({
   async function handleReject(id: string) {
     setActionBusy(true);
     try {
-      const updated = await mvpApi.pareReject(id);
+      const updated = await prismApi.pareReject(id);
       setApprovals((prev) => prev.map((a) => (a.id === id ? updated : a)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reject failed");

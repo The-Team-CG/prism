@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Handshake, Shield } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
-import { mvpApi } from "@/lib/mvp-api";
+import { prismApi } from "@/lib/prism-api";
 import { Input } from "@/app/components/ui/input";
 import { saveEventSession, type EventSession } from "@/app/lib/session";
 
@@ -26,7 +26,7 @@ export default function EventSignIn() {
     setBusy(true);
     setError(null);
     try {
-      const session = await mvpApi.login({ email, password });
+      const session = await prismApi.login({ email, password });
       if (session.role !== "pmcm-admin" && session.role !== "coordinator") {
         setError(
           session.role === "client"

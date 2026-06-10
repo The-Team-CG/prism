@@ -1,6 +1,6 @@
 export {
   createEventOpsClient,
-  type CreateMvpInquiryInput,
+  type CreatePrismInquiryInput,
   type EventOpsActorQuery,
   type EventOpsClient,
   type EventOpsClientOptions,

@@ -7,7 +7,7 @@ import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import type { MvpInquiry } from "@/lib/mvp-api";
+import type { PrismInquiry } from "@/lib/prism-api";
 import { compactTimestamp, label } from "./helpers";
 
 const inquirySources = ["Facebook", "Website", "BNI", "Walk-In", "Log on Behalf"];
@@ -47,10 +47,10 @@ export function InquiryIntakeLog({
   onDecline,
   busy,
 }: {
-  inquiries: MvpInquiry[];
-  onAccept: (inquiry: MvpInquiry) => Promise<void>;
-  onPend: (inquiry: MvpInquiry) => Promise<void>;
-  onDecline: (inquiry: MvpInquiry, reason: string) => Promise<void>;
+  inquiries: PrismInquiry[];
+  onAccept: (inquiry: PrismInquiry) => Promise<void>;
+  onPend: (inquiry: PrismInquiry) => Promise<void>;
+  onDecline: (inquiry: PrismInquiry, reason: string) => Promise<void>;
   busy: boolean;
 }) {
   const [query, setQuery] = useState("");
@@ -58,8 +58,8 @@ export function InquiryIntakeLog({
   const [source, setSource] = useState("all");
   const [clientType, setClientType] = useState("all");
   const [dateRange, setDateRange] = useState("all");
-  const [opened, setOpened] = useState<MvpInquiry | null>(null);
-  const [declining, setDeclining] = useState<MvpInquiry | null>(null);
+  const [opened, setOpened] = useState<PrismInquiry | null>(null);
+  const [declining, setDeclining] = useState<PrismInquiry | null>(null);
   const [declineReason, setDeclineReason] = useState(declineReasons[0]);
 
   const unreviewedCount = inquiries.filter((inq) => inq.status === "new").length;

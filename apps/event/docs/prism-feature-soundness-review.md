@@ -7,7 +7,7 @@ Scope: `prism-api`, `prism-client`, `prism-event`, `prism-supplier`, `prism-gues
 
 P.R.I.S.M is directionally sound. The strongest product idea is not "an event app"; it is a gated PMCM operating system where every event passes through visible governance: inquiry, conforme, briefing, proposal, planning, event day, closure, and archive.
 
-The main risk is scope width. The feature list is strong, but it describes a large operations platform. The codebase is currently strongest when it proves one complete lifecycle slice. For defense and MVP credibility, prioritize one polished event journey over adding more disconnected modules.
+The main risk is scope width. The feature list is strong, but it describes a large operations platform. The codebase is currently strongest when it proves one complete lifecycle slice. For defense and Prism credibility, prioritize one polished event journey over adding more disconnected modules.
 
 ```mermaid
 flowchart LR
@@ -37,7 +37,7 @@ flowchart LR
 
 - Product docs: `../../AGENTS.md`, `../../README.md`, `../../docs/prism-v4/01-complete-feature-catalog.md`, `../../docs/prism-v4/07-implemented-feature-revisions.md`, `../../docs/prism-v4/08-revision-phase-plan.md`
 - API: `../../prism-api/prisma/schema.prisma`, `../../prism-api/libs/modules/event-ops/src/event-ops.controller.ts`, `../../prism-api/libs/modules/event-ops/src/event-ops.service.ts`
-- PMCM app: `../src/app/page.tsx`, `../src/lib/mvp-api.ts`
+- PMCM app: `../src/app/page.tsx`, `../src/lib/prism-api.ts`
 - Client app: `../../prism-client/src/app/components/dashboard/Dashboard.tsx`, `../../prism-client/src/app/components/public-inquiry/PublicInquiryPage.tsx`
 - Supplier app: `../../prism-supplier/src/app/page.tsx`, `../../prism-supplier/src/app/dashboard/page.tsx`
 - Guest app: `../../prism-guest/src/app/open/page.tsx`, `../../prism-guest/src/app/dashboard/page.tsx`
@@ -103,7 +103,7 @@ flowchart TB
 
 Do not collapse this back into a single all-role client app. It makes the product harder to explain and weakens the PMCM operating-system story.
 
-### 3. Supplier tiering is a strong MVP add-on
+### 3. Supplier tiering is a strong Prism add-on
 
 The supplier directory is a good feature because it directly supports quote requests, PMCM institutional memory, and faster event planning. The eight-category lookup table and BNI flag are the right foundation. Tier 1 auto-suggest plus Tier 2 backup is easy to explain in a defense.
 
@@ -113,7 +113,7 @@ The floor plan builder is still the strongest live visual feature. It should be 
 
 ### 5. Audit and notification logs are the right abstraction
 
-Even if real sending is deferred, logging the intent is useful for MVP defense. It supports the ITIL/accountability argument and can later become a real notification queue.
+Even if real sending is deferred, logging the intent is useful for Prism defense. It supports the ITIL/accountability argument and can later become a real notification queue.
 
 ## Main Product Risks
 
@@ -140,12 +140,12 @@ quadrantChart
 
 | Risk | Why it matters | Recommended fix |
 |---|---|---|
-| Too many features are presented as equally important | The feature list has platform-scale scope, but the MVP needs a defensible event journey. | Mark each feature as Defense, Phase 2, or Roadmap in one canonical table. |
+| Too many features are presented as equally important | The feature list has platform-scale scope, but the Prism needs a defensible event journey. | Mark each feature as Defense, Phase 2, or Roadmap in one canonical table. |
 | `event-ops.service.ts` owns too much behavior | Inquiry, onboarding, suppliers, compliance, billing, guest access, and seeding are in one large service. | Split into focused services: inquiry, onboarding, suppliers, event workspace, compliance, billing, notifications, demo seed. |
 | API auth is not enforcing real roles | Portals route users by UI, but the API endpoints are broadly callable. | Add a demo auth guard and role metadata before adding more workflows. |
 | Read endpoint mutates data | `state()` triggers seeding and reminder sweep. That is convenient, but it makes behavior surprising. | Move seeding to reset/setup and reminders to a dedicated job endpoint or task runner. |
 | Hard-coded business rules | Billing amounts, payment dates, compliance checks, quote defaults, and some statuses are fixed values. | Move rules into config tables or scenario seed data. |
-| Notifications are mock logs | Good for MVP, but not enough for real PMCM operations. | Keep mock logs for defense, then add notification job status: queued, sent, failed, acknowledged. |
+| Notifications are mock logs | Good for Prism, but not enough for real PMCM operations. | Keep mock logs for defense, then add notification job status: queued, sent, failed, acknowledged. |
 | Root docs are stale in places | Some docs still mention old `prism-web` and old ports. | Update root docs so the panel sees the same app boundaries as the code. |
 | Design tokens are not fully centralized | Components still contain raw colors and one-off palette choices. | Move all PMCM brand colors to tokens and replace hard-coded component colors. |
 
@@ -164,7 +164,7 @@ quadrantChart
 | Replace remaining hard-coded legacy colors | Medium | This finishes the design-system cleanup and removes visual inconsistency. |
 | Make sidebars fixed and main panes scroll | Medium | Sidebar scrolling feels broken in command apps; only the active work area should scroll. |
 
-### P1: Make the current MVP genuinely end-to-end
+### P1: Make the current Prism genuinely end-to-end
 
 | Change | Capability improved | Reason |
 |---|---|---|
@@ -182,7 +182,7 @@ quadrantChart
 |---|---|---|
 | Replace mock auth with real auth/session provider | Security | Required before real users or sensitive event data. |
 | Add file storage and MIME validation | Documents | Conforme, contracts, certifications, photos, and videos need actual upload handling. |
-| Add SendGrid and Viber adapters behind a notification queue | Notifications | Keeps MVP logs while allowing real delivery later. |
+| Add SendGrid and Viber adapters behind a notification queue | Notifications | Keeps Prism logs while allowing real delivery later. |
 | Add durable scheduled jobs | Reminders | In-process timers disappear on restart and do not scale. |
 | Add append-only audit guarantees | Governance | Required for the ITIL/accountability claim to be more than a normal log table. |
 | Add pagination, filters, and per-role data access | API | Needed once demo data becomes real operational data. |
@@ -237,7 +237,7 @@ flowchart TB
 
 ### Inquiry Management
 
-Sound: yes. This should stay in the MVP because every demo starts here. The new intake log, source filters, status actions, decline reason, and unreviewed badge match the requested workflow.
+Sound: yes. This should stay in the Prism because every demo starts here. The new intake log, source filters, status actions, decline reason, and unreviewed badge match the requested workflow.
 
 Improve next:
 - Add duplicate detection by email plus approximate event date.
@@ -348,7 +348,7 @@ Improve next:
 
 Sound: useful, but should remain extended scope unless the core event lifecycle is done.
 
-Improve next only after MVP:
+Improve next only after Prism:
 - Add guest masterlist and check-in writes.
 - Add QR scan support only if HTTPS/demo constraints are solved.
 - Add post-event feedback submission.
@@ -378,12 +378,12 @@ Improve next:
 
 ## What I Would Not Build Yet
 
-These are valuable, but they should not block the defense MVP:
+These are valuable, but they should not block the defense Prism:
 
 | Feature | Reason to defer |
 |---|---|
 | AI theme and moodboard suggestions | High complexity and not needed to prove the PMCM operating model. |
-| Full Canva OAuth and PowerPoint generation | External dependency risk. Manual PDF upload is enough for MVP. |
+| Full Canva OAuth and PowerPoint generation | External dependency risk. Manual PDF upload is enough for Prism. |
 | Full Zoom integration | Use a placeholder meeting link first. |
 | Full guest engagement/game builder | Real-time complexity; belongs after core lifecycle. |
 | Cancellation and postponement workflows | Important edge cases, but not required for the main demo. |

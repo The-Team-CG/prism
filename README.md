@@ -8,7 +8,7 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 | --- | --- |
 | `docs/prism-v4/01-complete-feature-catalog.md` | Complete Version 4 feature catalog and official feature counts. |
 | `docs/prism-v4/04-implementation-plan.md` | Build plan, app/API/database mapping, and acceptance criteria by feature. |
-| `docs/prism-v4/05-mvp-defense-demo-guide.md` | Seeded defense story and feature demo matrix. |
+| `docs/prism-v4/05-prism-defense-demo-guide.md` | Seeded defense story and feature demo matrix. |
 | `docs/prism-v4/07-implemented-feature-revisions.md` | Current implemented/partial features, revision gaps, and how to revise them. |
 | `docs/prism-v4/08-revision-phase-plan.md` | Durable phase roadmap for revision-first implementation and cleanup. |
 
@@ -69,7 +69,7 @@ npm run check:boundaries
 
 ## Backend Architecture
 
-`apps/api` remains one shared NestJS API for the MVP. Event operations live under `libs/modules/event-ops` with service seams for audit, suppliers, and coordinators, while controllers keep the public API shape stable.
+`apps/api` remains one shared NestJS API for the Prism. Event operations live under `libs/modules/event-ops` with service seams for audit, suppliers, and coordinators, while controllers keep the public API shape stable.
 
 Useful API commands:
 

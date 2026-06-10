@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
-import { apiUrl, type MvpBillingStatement, type MvpEvent, type MvpInquiry, type MvpNotificationLog, type MvpPaymentMilestone } from "@/lib/mvp-api";
+import { apiUrl, type PrismBillingStatement, type PrismEvent, type PrismInquiry, type PrismNotificationLog, type PrismPaymentMilestone } from "@/lib/prism-api";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -50,17 +50,17 @@ export function FinancialWorkspace({
   onRecordPayment,
   onSendBilling,
 }: {
-  event: MvpEvent;
-  inquiry?: MvpInquiry;
-  billingStatements: MvpBillingStatement[];
-  payments: MvpPaymentMilestone[];
-  notificationLogs?: MvpNotificationLog[];
+  event: PrismEvent;
+  inquiry?: PrismInquiry;
+  billingStatements: PrismBillingStatement[];
+  payments: PrismPaymentMilestone[];
+  notificationLogs?: PrismNotificationLog[];
   busy: boolean;
   onRecordPayment: (milestoneId: string, input: RecordPaymentInput) => Promise<void>;
   onSendBilling: (billingId: string) => Promise<void>;
 }) {
   const statement = billingStatements.find((b) => b.eventId === event.id);
-  const [activePayment, setActivePayment] = useState<MvpPaymentMilestone | null>(null);
+  const [activePayment, setActivePayment] = useState<PrismPaymentMilestone | null>(null);
   const [amountReceived, setAmountReceived] = useState("");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [paymentMethod, setPaymentMethod] = useState<RecordPaymentInput["paymentMethod"]>("Bank Transfer");
@@ -73,7 +73,7 @@ export function FinancialWorkspace({
   const balance = payments.find((p) => p.label.toLowerCase().includes("balance"));
   const paymentAtRisk = Boolean(balance && balance.status === "at_risk");
 
-  function openRecordModal(payment: MvpPaymentMilestone) {
+  function openRecordModal(payment: PrismPaymentMilestone) {
     setActivePayment(payment);
     setAmountReceived(String(payment.remainingBalance || payment.amount));
     setPaymentDate(new Date().toISOString().slice(0, 10));

@@ -4,11 +4,11 @@
 All 10 AI features in P.R.I.S.M use the Anthropic Claude API under a Zero Data Retention (ZDR) agreement. This means Anthropic does not store any inputs or outputs from P.R.I.S.M API calls. Before any data is sent to Claude, a DataSanitizer service replaces all personally identifiable information (client names, contact numbers, email addresses, financial specifics) with anonymized reference labels. Every AI API call is logged in the AIAuditLog database table. No AI feature can take any action without explicit PMCM Admin approval. This architecture complies with the Philippine Data Privacy Act of 2012 (RA 10173) and ITIL 4 Information Security Management practice (Axelos, 2019).
 
 ## AI Feature Matrix
-| FR | Feature | Phase | Model | Type | MVP | Summary |
+| FR | Feature | Phase | Model | Type | Prism | Summary |
 | --- | --- | --- | --- | --- | --- | --- |
 | FR-AI-01 | Intelligent Inquiry Triage Agent | Phase 1 | Haiku | Agentic | No | Auto-analyzes new inquiries before PMCM Admin opens them. Generates prospect score, event type prediction, date conflict check, and client fit assessment. |
 | FR-AI-03 | AI Proposal Drafting Assistant | Phase 2 | Sonnet | AI | No | Generates structured first draft of event proposal after CE Builder is populated. PMCM Admin reviews and finalizes before sending to client. |
-| FR-10+ | Compliance Engine AI Advisory Layer | Ph2+4 | Haiku | AI | MVP base | Adds natural language explanations and prioritized action list on top of existing field-presence compliance checks. |
+| FR-10+ | Compliance Engine AI Advisory Layer | Ph2+4 | Haiku | AI | Prism base | Adds natural language explanations and prioritized action list on top of existing field-presence compliance checks. |
 | FR-15 | AI Theme and Moodboard Suggestion Engine | Phase 2 | Sonnet | AI | No | Generates 2-3 theme concept suggestions with name, color palette, description, and reference terms based on event type and client preferences. |
 | FR-AI-05 | P.R.I.S.M Operations Assistant — POA Chatbot | All | Sonnet | AI | No | Caged Claude chatbot embedded in PMCM Admin dashboard. Answers operational questions. ZDR enforced. Cannot take any action without human confirmation. |
 | FR-AI-04 | Agentic Response Engine — PARE | Ph3-5 | Sonnet | AI+Agentic | No | 5-agent orchestrator for Emergency Change response. Handles supplier cancellation: reads event context, finds replacement, checks budget, assesses risk, drafts messages. Human approval required. |

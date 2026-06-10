@@ -1,9 +1,9 @@
-import { createInitialMvpDemoState } from "@/mock/mvp-demo-state";
+import { createInitialPrismDemoState } from "@/mock/prism-demo-state";
 import type { Project } from "@/app/components/editor/types";
 
 export type DemoRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
 
-export interface MvpUser {
+export interface PrismUser {
   id: string;
   name: string;
   role: DemoRole;
@@ -12,7 +12,7 @@ export interface MvpUser {
   approvalStatus: "approved" | "pending" | string;
 }
 
-export interface MvpInquiry {
+export interface PrismInquiry {
   id: string;
   clientName: string;
   companyName?: string;
@@ -37,7 +37,7 @@ export interface MvpInquiry {
   createdAt: string;
 }
 
-export interface MvpEvent {
+export interface PrismEvent {
   id: string;
   inquiryId: string;
   clientName: string;
@@ -51,10 +51,10 @@ export interface MvpEvent {
   floorPlanId?: string | null;
   guestAccessCode?: string;
   activeFloorPlanDraftId?: string;
-  floorPlanDrafts?: MvpFloorPlanDraft[];
+  floorPlanDrafts?: PrismFloorPlanDraft[];
 }
 
-export interface MvpFloorPlanDraft {
+export interface PrismFloorPlanDraft {
   id: string;
   eventId: string;
   floorPlanId: string;
@@ -63,9 +63,9 @@ export interface MvpFloorPlanDraft {
   isActive: boolean;
   sourceType: "client_preference" | "blank" | "template" | string;
   createdByRole?: DemoRole | string;
-  clientPreference?: MvpFloorPlanPreference;
-  submittedSnapshot?: MvpFloorPlanSnapshot;
-  approvedSnapshot?: MvpFloorPlanSnapshot;
+  clientPreference?: PrismFloorPlanPreference;
+  submittedSnapshot?: PrismFloorPlanSnapshot;
+  approvedSnapshot?: PrismFloorPlanSnapshot;
   submittedAt?: string;
   reviewedAt?: string;
   approvedAt?: string;
@@ -76,7 +76,7 @@ export interface MvpFloorPlanDraft {
   updatedAt: string;
 }
 
-export interface MvpDocument {
+export interface PrismDocument {
   id: string;
   eventId: string;
   type: string;
@@ -85,7 +85,7 @@ export interface MvpDocument {
   uploadedAt: string;
 }
 
-export interface MvpBriefing {
+export interface PrismBriefing {
   eventId: string;
   venue: string;
   guestCount: number;
@@ -95,7 +95,7 @@ export interface MvpBriefing {
   submittedAt: string;
 }
 
-export interface MvpSupplierQuote {
+export interface PrismSupplierQuote {
   id: string;
   eventId: string;
   supplierName: string;
@@ -104,7 +104,7 @@ export interface MvpSupplierQuote {
   status: string;
 }
 
-export interface MvpCoordinatorAssignment {
+export interface PrismCoordinatorAssignment {
   id: string;
   eventId: string;
   coordinatorName: string;
@@ -113,7 +113,7 @@ export interface MvpCoordinatorAssignment {
   doubleBookingWarning: boolean;
 }
 
-export interface MvpComplianceCheck {
+export interface PrismComplianceCheck {
   id: string;
   eventId: string;
   layer: "Must-Fix" | "Should-Fix" | "Advisory";
@@ -122,7 +122,7 @@ export interface MvpComplianceCheck {
   note: string;
 }
 
-export interface MvpBillingStatement {
+export interface PrismBillingStatement {
   id: string;
   eventId: string;
   number: string;
@@ -131,7 +131,7 @@ export interface MvpBillingStatement {
   generatedAt: string;
 }
 
-export interface MvpPaymentMilestone {
+export interface PrismPaymentMilestone {
   id: string;
   eventId: string;
   label: string;
@@ -140,14 +140,14 @@ export interface MvpPaymentMilestone {
   status: string;
 }
 
-export interface MvpPostEventDocument {
+export interface PrismPostEventDocument {
   id: string;
   eventId: string;
   title: string;
   status: string;
 }
 
-export interface MvpAuditLog {
+export interface PrismAuditLog {
   id: string;
   eventId?: string;
   actor: string;
@@ -155,7 +155,7 @@ export interface MvpAuditLog {
   createdAt: string;
 }
 
-export interface MvpNotificationLog {
+export interface PrismNotificationLog {
   id: string;
   eventId?: string;
   channel: "email" | "viber";
@@ -165,24 +165,24 @@ export interface MvpNotificationLog {
   createdAt: string;
 }
 
-export interface MvpDemoState {
-  users: MvpUser[];
-  inquiries: MvpInquiry[];
-  events: MvpEvent[];
-  documents: MvpDocument[];
-  briefings: MvpBriefing[];
-  supplierQuotes: MvpSupplierQuote[];
-  coordinatorAssignments: MvpCoordinatorAssignment[];
-  complianceChecks: MvpComplianceCheck[];
-  billingStatements: MvpBillingStatement[];
-  paymentMilestones: MvpPaymentMilestone[];
-  postEventDocuments: MvpPostEventDocument[];
-  floorPlanDrafts: MvpFloorPlanDraft[];
-  auditLogs: MvpAuditLog[];
-  notificationLogs: MvpNotificationLog[];
+export interface PrismDemoState {
+  users: PrismUser[];
+  inquiries: PrismInquiry[];
+  events: PrismEvent[];
+  documents: PrismDocument[];
+  briefings: PrismBriefing[];
+  supplierQuotes: PrismSupplierQuote[];
+  coordinatorAssignments: PrismCoordinatorAssignment[];
+  complianceChecks: PrismComplianceCheck[];
+  billingStatements: PrismBillingStatement[];
+  paymentMilestones: PrismPaymentMilestone[];
+  postEventDocuments: PrismPostEventDocument[];
+  floorPlanDrafts: PrismFloorPlanDraft[];
+  auditLogs: PrismAuditLog[];
+  notificationLogs: PrismNotificationLog[];
 }
 
-export interface MvpApprovalRequest {
+export interface PrismApprovalRequest {
   id: string;
   userId: string;
   name: string;
@@ -202,14 +202,14 @@ export type PrivacyConsentInput = {
   marketingConsentAccepted?: boolean;
 };
 
-export type CreateMvpInquiryInput = Pick<MvpInquiry, "clientName" | "email" | "eventName" | "eventDate" | "clientType" | "message"> & {
+export type CreatePrismInquiryInput = Pick<PrismInquiry, "clientName" | "email" | "eventName" | "eventDate" | "clientType" | "message"> & {
   companyName?: string;
   eventType?: string;
   source?: string;
   referralDetails?: string;
 } & PrivacyConsentInput;
 
-export interface MvpFloorPlanPreference {
+export interface PrismFloorPlanPreference {
   seatingStyle: string;
   stagePreference: string;
   flowNotes: string;
@@ -218,7 +218,7 @@ export interface MvpFloorPlanPreference {
   notes?: string;
 }
 
-export interface MvpFloorPlanSnapshot {
+export interface PrismFloorPlanSnapshot {
   id: string;
   name: string;
   venue: string;
@@ -235,9 +235,9 @@ export interface MvpFloorPlanSnapshot {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const USE_REMOTE_API = process.env.NEXT_PUBLIC_MVP_API_MODE !== "local";
-const STORAGE_KEY = "prism:mvp-demo-state";
-const defaultInquiryInput: CreateMvpInquiryInput = {
+const USE_REMOTE_API = process.env.NEXT_PUBLIC_Prism_API_MODE !== "local";
+const STORAGE_KEY = "prism:prism-demo-state";
+const defaultInquiryInput: CreatePrismInquiryInput = {
   clientName: "Maria Santos",
   companyName: "SampleCorp",
   email: "maria@samplecorp.test",
@@ -261,16 +261,16 @@ function clone<T>(value: T): T {
 }
 
 function readMockState() {
-  if (typeof window === "undefined") return createInitialMvpDemoState();
+  if (typeof window === "undefined") return createInitialPrismDemoState();
 
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (!stored) {
-    const initial = createInitialMvpDemoState();
+    const initial = createInitialPrismDemoState();
     writeMockState(initial);
     return initial;
   }
 
-  const parsed = JSON.parse(stored) as MvpDemoState;
+  const parsed = JSON.parse(stored) as PrismDemoState;
   parsed.floorPlanDrafts ??= [];
   parsed.events = parsed.events.map((event) => ({
     ...event,
@@ -280,14 +280,14 @@ function readMockState() {
   return parsed;
 }
 
-function writeMockState(state: MvpDemoState) {
+function writeMockState(state: PrismDemoState) {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
   return clone(state);
 }
 
-function addAudit(state: MvpDemoState, eventId: string | undefined, actor: string, action: string) {
+function addAudit(state: PrismDemoState, eventId: string | undefined, actor: string, action: string) {
   state.auditLogs.unshift({
     id: `aud_${crypto.randomUUID()}`,
     eventId,
@@ -297,7 +297,7 @@ function addAudit(state: MvpDemoState, eventId: string | undefined, actor: strin
   });
 }
 
-function addNotification(state: MvpDemoState, eventId: string | undefined, recipient: string, message: string, channel: "email" | "viber" = "email") {
+function addNotification(state: PrismDemoState, eventId: string | undefined, recipient: string, message: string, channel: "email" | "viber" = "email") {
   state.notificationLogs.unshift({
     id: `not_${crypto.randomUUID()}`,
     eventId,
@@ -309,20 +309,20 @@ function addNotification(state: MvpDemoState, eventId: string | undefined, recip
   });
 }
 
-function updateMockState<T>(mutate: (state: MvpDemoState) => T): T {
+function updateMockState<T>(mutate: (state: PrismDemoState) => T): T {
   const state = readMockState();
   const result = mutate(state);
   writeMockState(state);
   return clone(result);
 }
 
-function firstEvent(state: MvpDemoState) {
+function firstEvent(state: PrismDemoState) {
   const event = state.events[0];
   if (!event) throw new Error("No demo event found");
   return event;
 }
 
-function firstInquiry(state: MvpDemoState) {
+function firstInquiry(state: PrismDemoState) {
   const inquiry = state.inquiries[0];
   if (!inquiry) throw new Error("No demo inquiry found");
   return inquiry;
@@ -355,7 +355,7 @@ type CreateFloorPlanDraftInput = {
   suppliers?: Project["suppliers"];
 };
 
-function defaultProjectFromDraft(draft: MvpFloorPlanDraft, event?: MvpEvent): Project {
+function defaultProjectFromDraft(draft: PrismFloorPlanDraft, event?: PrismEvent): Project {
   const nowTs = Date.now();
   return {
     id: draft.floorPlanId,
@@ -389,12 +389,12 @@ function apiPlanToProject(plan: ApiFloorPlan): Project {
   };
 }
 
-function ensureLocalEventForConforme(state: MvpDemoState, inquiryId: string) {
+function ensureLocalEventForConforme(state: PrismDemoState, inquiryId: string) {
   const existing = state.events.find((item) => item.inquiryId === inquiryId);
   if (existing) return existing;
 
   const inquiry = state.inquiries.find((item) => item.id === inquiryId) ?? firstInquiry(state);
-  const event: MvpEvent = {
+  const event: PrismEvent = {
     id: `evt_${crypto.randomUUID()}`,
     inquiryId: inquiry.id,
     clientName: inquiry.clientName,
@@ -448,7 +448,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
-function clientActorQuery(session: Pick<MvpUser, "name" | "email">) {
+function clientActorQuery(session: Pick<PrismUser, "name" | "email">) {
   return new URLSearchParams({
     actorRole: "client",
     actorName: session.name,
@@ -457,36 +457,36 @@ function clientActorQuery(session: Pick<MvpUser, "name" | "email">) {
   }).toString();
 }
 
-function withClientActor(path: string, session?: Pick<MvpUser, "name" | "email">) {
+function withClientActor(path: string, session?: Pick<PrismUser, "name" | "email">) {
   const actor = clientActorQuery(session ?? { name: "Ana Reyes", email: "ana@ayala.test" });
   return `${path}${path.includes("?") ? "&" : "?"}${actor}`;
 }
 
-export const mvpApi = {
-  state: () => (USE_REMOTE_API ? request<MvpDemoState>("/api/demo/state") : Promise.resolve(readMockState())),
-  clientState: async (session: Pick<MvpUser, "name" | "email">) => {
+export const prismApi = {
+  state: () => (USE_REMOTE_API ? request<PrismDemoState>("/api/demo/state") : Promise.resolve(readMockState())),
+  clientState: async (session: Pick<PrismUser, "name" | "email">) => {
     if (!USE_REMOTE_API) return readMockState();
 
     const actor = clientActorQuery(session);
-    return request<MvpDemoState>(`/api/client/workspace?${actor}`);
+    return request<PrismDemoState>(`/api/client/workspace?${actor}`);
   },
   reset: () => {
-    if (USE_REMOTE_API) return request<MvpDemoState>("/api/demo/reset", { method: "POST" });
+    if (USE_REMOTE_API) return request<PrismDemoState>("/api/demo/reset", { method: "POST" });
 
-    const state = createInitialMvpDemoState();
+    const state = createInitialPrismDemoState();
     writeMockState(state);
     return Promise.resolve(state);
   },
   login: (input: { email: string; password: string }) =>
     USE_REMOTE_API
-      ? request<MvpUser & { signedInAt: string }>("/api/auth/login", {
+      ? request<PrismUser & { signedInAt: string }>("/api/auth/login", {
           method: "POST",
           body: JSON.stringify(input),
         })
       : Promise.resolve(updateMockState((state) => {
         const user = state.users.find(
           (candidate) => {
-            const candidateWithPassword = candidate as MvpUser & { password?: string };
+            const candidateWithPassword = candidate as PrismUser & { password?: string };
             return (
               candidate.email.toLowerCase() === input.email.trim().toLowerCase() &&
               (candidateWithPassword.password
@@ -501,7 +501,7 @@ export const mvpApi = {
       })),
   requestApproval: (email: string, consent: PrivacyConsentInput = { privacyConsentAccepted: true, privacyNoticeVersion: "2026-05-01" }) =>
     USE_REMOTE_API
-      ? request<MvpApprovalRequest>("/api/auth/approval-requests", {
+      ? request<PrismApprovalRequest>("/api/auth/approval-requests", {
           method: "POST",
           body: JSON.stringify({ email, ...consent }),
         })
@@ -523,15 +523,15 @@ export const mvpApi = {
             requestedAt: now(),
           };
         })),
-  createInquiry: (input: CreateMvpInquiryInput = defaultInquiryInput) =>
+  createInquiry: (input: CreatePrismInquiryInput = defaultInquiryInput) =>
     USE_REMOTE_API
-      ? request<MvpInquiry>("/api/inquiries", {
+      ? request<PrismInquiry>("/api/inquiries", {
           method: "POST",
           body: JSON.stringify(input),
         })
       : Promise.resolve(updateMockState((state) => {
         if (!input.privacyConsentAccepted) throw new Error("Privacy consent is required before submitting an inquiry");
-        const inquiry: MvpInquiry = {
+        const inquiry: PrismInquiry = {
           id: `inq_${crypto.randomUUID()}`,
           ...input,
           companyName: input.companyName ?? "",
@@ -547,7 +547,7 @@ export const mvpApi = {
       })),
   acceptInquiry: (inquiryId: string) =>
     USE_REMOTE_API
-      ? request<MvpInquiry>(`/api/inquiries/${inquiryId}/status`, {
+      ? request<PrismInquiry>(`/api/inquiries/${inquiryId}/status`, {
           method: "PATCH",
           body: JSON.stringify({ status: "accepted" }),
         })
@@ -562,7 +562,7 @@ export const mvpApi = {
       })),
   uploadConforme: (inquiryId: string) =>
     USE_REMOTE_API
-      ? request<MvpDocument>(`/api/inquiries/${inquiryId}/conforme`, {
+      ? request<PrismDocument>(`/api/inquiries/${inquiryId}/conforme`, {
           method: "POST",
           body: JSON.stringify({ type: "signed_conforme", fileName: "signed-conforme.pdf" }),
         })
@@ -577,7 +577,7 @@ export const mvpApi = {
           inquiry.portalActivatedAt = inquiry.conformeSignedAt;
           inquiry.portalInvitationStatus = "sent";
         }
-        const document: MvpDocument = {
+        const document: PrismDocument = {
           id: `doc_${crypto.randomUUID()}`,
           eventId: event.id,
           type: "signed_conforme",
@@ -604,7 +604,7 @@ export const mvpApi = {
       })),
   events: () =>
     USE_REMOTE_API
-      ? request<MvpEvent[]>("/api/events")
+      ? request<PrismEvent[]>("/api/events")
       : Promise.resolve(updateMockState((state) =>
         state.events.map((event) => ({
           ...event,
@@ -614,7 +614,7 @@ export const mvpApi = {
       )),
   eventDetail: (eventId: string) =>
     USE_REMOTE_API
-      ? request<MvpEvent>(`/api/events/${eventId}`)
+      ? request<PrismEvent>(`/api/events/${eventId}`)
       : Promise.resolve(updateMockState((state) => {
         const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
         const drafts = state.floorPlanDrafts.filter((draft) => draft.eventId === event.id);
@@ -626,17 +626,17 @@ export const mvpApi = {
       })),
   createFloorPlanPreference: (
     eventId: string,
-    input: { name: string; venue?: string; width?: number; height?: number; gridSize?: number; objects?: Project["objects"] } & MvpFloorPlanPreference,
-    session?: Pick<MvpUser, "name" | "email">,
+    input: { name: string; venue?: string; width?: number; height?: number; gridSize?: number; objects?: Project["objects"] } & PrismFloorPlanPreference,
+    session?: Pick<PrismUser, "name" | "email">,
   ) =>
     USE_REMOTE_API
-      ? request<MvpFloorPlanDraft>(withClientActor(`/api/events/${eventId}/floorplan-preferences`, session), {
+      ? request<PrismFloorPlanDraft>(withClientActor(`/api/events/${eventId}/floorplan-preferences`, session), {
           method: "POST",
           body: JSON.stringify(input),
         })
       : Promise.resolve(updateMockState((state) => {
         const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
-        const draft: MvpFloorPlanDraft = {
+        const draft: PrismFloorPlanDraft = {
           id: `fpd_${crypto.randomUUID()}`,
           eventId,
           floorPlanId: `plan_${crypto.randomUUID()}`,
@@ -666,13 +666,13 @@ export const mvpApi = {
       })),
   createFloorPlanDraft: (eventId: string, input: CreateFloorPlanDraftInput) =>
     USE_REMOTE_API
-      ? request<MvpFloorPlanDraft>(`/api/events/${eventId}/floorplans`, {
+      ? request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans`, {
           method: "POST",
           body: JSON.stringify(input),
         })
       : Promise.resolve(updateMockState((state) => {
         const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
-        const draft: MvpFloorPlanDraft = {
+        const draft: PrismFloorPlanDraft = {
           id: `fpd_${crypto.randomUUID()}`,
           eventId,
           floorPlanId: `plan_${crypto.randomUUID()}`,
@@ -692,7 +692,7 @@ export const mvpApi = {
       })),
   submitFloorPlanDraft: (eventId: string, draftId: string) =>
     USE_REMOTE_API
-      ? request<MvpFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/submit`, { method: "POST" })
+      ? request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/submit`, { method: "POST" })
       : Promise.resolve(updateMockState((state) => {
         const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
         const draft = state.floorPlanDrafts.find((item) => item.id === draftId && item.eventId === eventId);
@@ -708,7 +708,7 @@ export const mvpApi = {
       })),
   approveFloorPlanDraft: (eventId: string, draftId: string) =>
     USE_REMOTE_API
-      ? request<MvpFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/approve`, { method: "POST" })
+      ? request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/approve`, { method: "POST" })
       : Promise.resolve(updateMockState((state) => {
         const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
         const draft = state.floorPlanDrafts.find((item) => item.id === draftId && item.eventId === eventId);
@@ -729,15 +729,15 @@ export const mvpApi = {
         addAudit(state, eventId, "PMCM Admin", `Approved floorplan draft: ${draft.name}`);
         return draft;
       })),
-  loadFloorPlanSnapshot: (eventId: string, draftId: string, type: "submitted" | "approved" = "approved", session?: Pick<MvpUser, "name" | "email">) =>
+  loadFloorPlanSnapshot: (eventId: string, draftId: string, type: "submitted" | "approved" = "approved", session?: Pick<PrismUser, "name" | "email">) =>
     USE_REMOTE_API
       ? request<ApiFloorPlan>(withClientActor(`/api/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`, session)).then((plan) => apiPlanToProject(plan))
       : Promise.reject(new Error(API_OFFLINE_MESSAGE)),
-  loadPlan: (planId: string, session?: Pick<MvpUser, "name" | "email">) =>
+  loadPlan: (planId: string, session?: Pick<PrismUser, "name" | "email">) =>
     USE_REMOTE_API
       ? request<ApiFloorPlan>(withClientActor(`/api/plans/${planId}`, session)).then((plan) => apiPlanToProject(plan))
       : Promise.reject(new Error(API_OFFLINE_MESSAGE)),
-  savePlan: (project: Project, session?: Pick<MvpUser, "name" | "email">) =>
+  savePlan: (project: Project, session?: Pick<PrismUser, "name" | "email">) =>
     USE_REMOTE_API
       ? request<ApiFloorPlan>(withClientActor(`/api/plans/${project.id}`, session), {
           method: "PUT",
@@ -757,7 +757,7 @@ export const mvpApi = {
       : Promise.reject(new Error(API_OFFLINE_MESSAGE)),
   submitBriefing: (eventId: string) =>
     USE_REMOTE_API
-      ? request<MvpBriefing>(`/api/events/${eventId}/briefing`, {
+      ? request<PrismBriefing>(`/api/events/${eventId}/briefing`, {
           method: "POST",
           body: JSON.stringify({
             venue: "Shangri-La Grand Ballroom",
@@ -770,7 +770,7 @@ export const mvpApi = {
       : Promise.resolve(updateMockState((state) => {
         const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
         event.readiness = "Supplier quotes pending";
-        const briefing: MvpBriefing = {
+        const briefing: PrismBriefing = {
           eventId,
           venue: "Shangri-La Grand Ballroom",
           guestCount: 240,
@@ -787,7 +787,7 @@ export const mvpApi = {
       })),
   addSupplierQuote: (eventId: string) =>
     USE_REMOTE_API
-      ? request<MvpSupplierQuote>(`/api/events/${eventId}/supplier-quotes`, {
+      ? request<PrismSupplierQuote>(`/api/events/${eventId}/supplier-quotes`, {
           method: "POST",
           body: JSON.stringify({
             supplierName: "BrightStage Technicals",
@@ -797,7 +797,7 @@ export const mvpApi = {
           }),
         })
       : Promise.resolve(updateMockState((state) => {
-        const quote: MvpSupplierQuote = {
+        const quote: PrismSupplierQuote = {
           id: `quote_${crypto.randomUUID()}`,
           eventId,
           supplierName: "BrightStage Technicals",
@@ -812,10 +812,10 @@ export const mvpApi = {
       })),
   runCompliance: (eventId: string) =>
     USE_REMOTE_API
-      ? request<MvpComplianceCheck[]>(`/api/events/${eventId}/compliance`, { method: "POST" })
+      ? request<PrismComplianceCheck[]>(`/api/events/${eventId}/compliance`, { method: "POST" })
       : Promise.resolve(updateMockState((state) => {
         const existing = state.complianceChecks.filter((item) => item.eventId !== eventId);
-        const checks: MvpComplianceCheck[] = [
+        const checks: PrismComplianceCheck[] = [
           {
             id: `chk_${crypto.randomUUID()}`,
             eventId,
@@ -839,7 +839,7 @@ export const mvpApi = {
       })),
   resolveCompliance: (eventId: string, checkId: string) =>
     USE_REMOTE_API
-      ? request<MvpComplianceCheck>(`/api/events/${eventId}/compliance/${checkId}`, {
+      ? request<PrismComplianceCheck>(`/api/events/${eventId}/compliance/${checkId}`, {
           method: "PATCH",
           body: JSON.stringify({ resolved: true, note: "Supplier contract confirmation attached." }),
         })
@@ -853,12 +853,12 @@ export const mvpApi = {
       })),
   assignCoordinator: (eventId: string) =>
     USE_REMOTE_API
-      ? request<MvpCoordinatorAssignment>(`/api/events/${eventId}/coordinators`, {
+      ? request<PrismCoordinatorAssignment>(`/api/events/${eventId}/coordinators`, {
           method: "POST",
           body: JSON.stringify({ coordinatorName: "Marco Santos", role: "Floor Director" }),
         })
       : Promise.resolve(updateMockState((state) => {
-        const assignment: MvpCoordinatorAssignment = {
+        const assignment: PrismCoordinatorAssignment = {
           id: `coord_${crypto.randomUUID()}`,
           eventId,
           coordinatorName: "Marco Santos",
@@ -873,7 +873,7 @@ export const mvpApi = {
       })),
   acknowledgeCoordinator: (eventId: string, assignmentId: string) =>
     USE_REMOTE_API
-      ? request<MvpCoordinatorAssignment>(`/api/events/${eventId}/coordinators/${assignmentId}/acknowledge`, {
+      ? request<PrismCoordinatorAssignment>(`/api/events/${eventId}/coordinators/${assignmentId}/acknowledge`, {
           method: "PATCH",
         })
       : Promise.resolve(updateMockState((state) => {
@@ -885,7 +885,7 @@ export const mvpApi = {
       })),
   markPaymentReceived: (eventId: string, milestoneId: string) =>
     USE_REMOTE_API
-      ? request<MvpPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, {
+      ? request<PrismPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, {
           method: "PATCH",
           body: JSON.stringify({ status: "paid" }),
         })
@@ -899,7 +899,7 @@ export const mvpApi = {
       })),
   completePostEventDocument: (eventId: string, documentId: string) =>
     USE_REMOTE_API
-      ? request<MvpPostEventDocument>(`/api/events/${eventId}/post-event-documents/${documentId}/complete`, {
+      ? request<PrismPostEventDocument>(`/api/events/${eventId}/post-event-documents/${documentId}/complete`, {
           method: "PATCH",
         })
       : Promise.resolve(updateMockState((state) => {
@@ -911,7 +911,7 @@ export const mvpApi = {
       })),
   archiveEvent: (eventId: string) =>
     USE_REMOTE_API
-      ? request<MvpEvent>(`/api/events/${eventId}/archive`, { method: "POST" })
+      ? request<PrismEvent>(`/api/events/${eventId}/archive`, { method: "POST" })
       : Promise.resolve(updateMockState((state) => {
         const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
         event.archived = true;

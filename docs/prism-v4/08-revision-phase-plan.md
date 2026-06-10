@@ -30,12 +30,12 @@ Goal: make `docs/prism-v4` the active documentation home.
 | Canonical phase file | Keep this file as the look-back roadmap. |
 | V4 navigation | Link this file from `00-index.md` and `MANIFEST.md`. |
 | Root references | Keep `README.md`, `CLAUDE.md`, and `AGENTS.md` pointed at `docs/prism-v4`. |
-| Superseded files | Remove `MVP-CHECKLIST.md`, `mvp-strategy.md`, `prism-feature-list.md`, and `DESIGN.md` from the root workspace. |
+| Superseded files | Remove `Prism-CHECKLIST.md`, `prism-strategy.md`, `prism-feature-list.md`, and `DESIGN.md` from the root workspace. |
 | Kept root files | Keep `README.md`, `CLAUDE.md`, `AGENTS.md`, `.impeccable.md`, `.gitignore`, `skills-lock.json`, `start-prism.*`, and `stop-prism.*`. |
 
 Verification:
 
-- `rg -n "MVP-CHECKLIST|mvp-strategy|prism-feature-list|DESIGN.md" . -g "*.md"` returns no active references to removed files.
+- `rg -n "Prism-CHECKLIST|prism-strategy|prism-feature-list|DESIGN.md" . -g "*.md"` returns no active references to removed files.
 - `rg -n "07-implemented-feature-revisions|08-revision-phase-plan|01-complete-feature-catalog" docs README.md CLAUDE.md AGENTS.md` shows the active doc chain.
 - `git status -sb` is checked in all five child repos.
 

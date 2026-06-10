@@ -1,11 +1,11 @@
-export interface MvpProjectLike {
+export interface PrismProjectLike {
   objects: unknown[];
   guests: unknown[];
   suppliers: unknown[];
 }
 export type DemoRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
 
-export interface MvpUser {
+export interface PrismUser {
   id: string;
   name: string;
   role: DemoRole;
@@ -17,7 +17,7 @@ export interface MvpUser {
   permanentLockout?: boolean;
 }
 
-export interface MvpInquiry {
+export interface PrismInquiry {
   id: string;
   clientName: string;
   companyName: string;
@@ -56,7 +56,7 @@ export interface MvpInquiry {
   createdAt: string;
 }
 
-export interface MvpFloorPlanPreference {
+export interface PrismFloorPlanPreference {
   seatingStyle: string;
   stagePreference: string;
   flowNotes: string;
@@ -65,7 +65,7 @@ export interface MvpFloorPlanPreference {
   notes?: string;
 }
 
-export interface MvpFloorPlanSnapshot {
+export interface PrismFloorPlanSnapshot {
   id: string;
   name: string;
   venue: string;
@@ -73,15 +73,15 @@ export interface MvpFloorPlanSnapshot {
   height: number;
   gridSize: number;
   pax: number;
-  objects?: MvpProjectLike["objects"];
-  guests?: MvpProjectLike["guests"];
-  suppliers?: MvpProjectLike["suppliers"];
+  objects?: PrismProjectLike["objects"];
+  guests?: PrismProjectLike["guests"];
+  suppliers?: PrismProjectLike["suppliers"];
   seats?: unknown[];
   seatCategories?: unknown[];
   updatedAt?: string;
 }
 
-export interface MvpFloorPlanDraft {
+export interface PrismFloorPlanDraft {
   id: string;
   eventId: string;
   floorPlanId: string;
@@ -90,9 +90,9 @@ export interface MvpFloorPlanDraft {
   isActive: boolean;
   sourceType: "client_preference" | "blank" | "template" | string;
   createdByRole?: DemoRole | string;
-  clientPreference?: MvpFloorPlanPreference;
-  submittedSnapshot?: MvpFloorPlanSnapshot;
-  approvedSnapshot?: MvpFloorPlanSnapshot;
+  clientPreference?: PrismFloorPlanPreference;
+  submittedSnapshot?: PrismFloorPlanSnapshot;
+  approvedSnapshot?: PrismFloorPlanSnapshot;
   submittedAt?: string;
   reviewedAt?: string;
   approvedAt?: string;
@@ -103,7 +103,7 @@ export interface MvpFloorPlanDraft {
   updatedAt: string;
 }
 
-export interface MvpEvent {
+export interface PrismEvent {
   id: string;
   inquiryId: string;
   clientName: string;
@@ -117,10 +117,10 @@ export interface MvpEvent {
   floorPlanId?: string | null;
   guestAccessCode?: string;
   activeFloorPlanDraftId?: string;
-  floorPlanDrafts?: MvpFloorPlanDraft[];
+  floorPlanDrafts?: PrismFloorPlanDraft[];
 }
 
-export interface MvpDefenseReadinessAction {
+export interface PrismDefenseReadinessAction {
   key: string;
   label: string;
   detail: string;
@@ -128,7 +128,7 @@ export interface MvpDefenseReadinessAction {
   targetTab: string;
 }
 
-export interface MvpDefenseReadiness {
+export interface PrismDefenseReadiness {
   eventId: string;
   eventName: string;
   overallStatus: "ready" | "attention" | "blocked";
@@ -148,13 +148,13 @@ export interface MvpDefenseReadiness {
     pendingFeedbackModeration: number;
     closureReady: boolean;
   };
-  nextActions: MvpDefenseReadinessAction[];
+  nextActions: PrismDefenseReadinessAction[];
   liveAiBlocked: boolean;
   deferredScope: string[];
   generatedAt: string;
 }
 
-export interface MvpDocument {
+export interface PrismDocument {
   id: string;
   eventId: string;
   type: string;
@@ -163,7 +163,7 @@ export interface MvpDocument {
   uploadedAt: string;
 }
 
-export interface MvpBriefing {
+export interface PrismBriefing {
   eventId: string;
   venue: string;
   guestCount: number;
@@ -173,7 +173,7 @@ export interface MvpBriefing {
   submittedAt: string;
 }
 
-export interface MvpSupplierQuote {
+export interface PrismSupplierQuote {
   id: string;
   eventId: string;
   requestId?: string;
@@ -197,7 +197,7 @@ export interface MvpSupplierQuote {
   updatedAt?: string;
 }
 
-export interface MvpSupplierQuoteRequest {
+export interface PrismSupplierQuoteRequest {
   id: string;
   eventId: string;
   supplierId?: string;
@@ -230,9 +230,9 @@ export interface MvpSupplierQuoteRequest {
   createdAt: string;
 }
 
-export type MvpSupplierTier = "tier_1" | "tier_2" | "pending_first_event" | string;
+export type PrismSupplierTier = "tier_1" | "tier_2" | "pending_first_event" | string;
 
-export interface MvpSupplierCategory {
+export interface PrismSupplierCategory {
   id: string;
   slug: string;
   name: string;
@@ -242,14 +242,14 @@ export interface MvpSupplierCategory {
   acceptableMax?: number | null;
 }
 
-export interface MvpSupplierPastEvent {
+export interface PrismSupplierPastEvent {
   id: string;
   eventName: string;
   clientName: string;
   eventDate: string;
 }
 
-export interface MvpSupplierReview {
+export interface PrismSupplierReview {
   id: string;
   rating: number;
   notes: string;
@@ -259,7 +259,7 @@ export interface MvpSupplierReview {
   createdAt: string;
 }
 
-export interface MvpSupplierReliabilityNote {
+export interface PrismSupplierReliabilityNote {
   id: string;
   note: string;
   eventId?: string | null;
@@ -267,7 +267,7 @@ export interface MvpSupplierReliabilityNote {
   createdAt: string;
 }
 
-export interface MvpSupplierCertification {
+export interface PrismSupplierCertification {
   id: string;
   fileName: string;
   documentType?: string;
@@ -278,13 +278,13 @@ export interface MvpSupplierCertification {
   uploadedAt: string;
 }
 
-export interface MvpSupplier {
+export interface PrismSupplier {
   id: string;
   name: string;
   categoryId: string;
   categoryName: string;
   categorySlug: string;
-  tier: MvpSupplierTier;
+  tier: PrismSupplierTier;
   bniMember: boolean;
   autoTrust: boolean;
   contactName: string;
@@ -295,13 +295,13 @@ export interface MvpSupplier {
   applicationDate: string;
   aggregateRating: number | null;
   lastEventDate: string | null;
-  pastEvents: MvpSupplierPastEvent[];
-  reviews: MvpSupplierReview[];
-  reliabilityNotes: MvpSupplierReliabilityNote[];
-  certifications: MvpSupplierCertification[];
+  pastEvents: PrismSupplierPastEvent[];
+  reviews: PrismSupplierReview[];
+  reliabilityNotes: PrismSupplierReliabilityNote[];
+  certifications: PrismSupplierCertification[];
 }
 
-export interface MvpCoordinatorAssignment {
+export interface PrismCoordinatorAssignment {
   id: string;
   eventId: string;
   coordinatorId?: string | null;
@@ -323,7 +323,7 @@ export interface MvpCoordinatorAssignment {
   createdAt?: string;
 }
 
-export interface MvpCoordinator {
+export interface PrismCoordinator {
   id: string;
   userId?: string | null;
   name: string;
@@ -335,12 +335,12 @@ export interface MvpCoordinator {
   createdAt: string;
 }
 
-export interface MvpCoordinatorRoleRequirement {
+export interface PrismCoordinatorRoleRequirement {
   role: string;
   required: number;
 }
 
-export interface MvpGuestCheckIn {
+export interface PrismGuestCheckIn {
   id: string;
   eventId: string;
   guestName: string;
@@ -351,7 +351,7 @@ export interface MvpGuestCheckIn {
   checkedInAt: string;
 }
 
-export interface MvpEventDayTask {
+export interface PrismEventDayTask {
   id: string;
   eventId: string;
   title: string;
@@ -372,7 +372,7 @@ export interface MvpEventDayTask {
   updatedAt: string;
 }
 
-export interface MvpUrgentIssue {
+export interface PrismUrgentIssue {
   id: string;
   eventId: string;
   title: string;
@@ -394,7 +394,7 @@ export interface MvpUrgentIssue {
   updatedAt: string;
 }
 
-export interface MvpEventDayLog {
+export interface PrismEventDayLog {
   id: string;
   eventId: string;
   actionType: string;
@@ -407,19 +407,19 @@ export interface MvpEventDayLog {
   createdAt: string;
 }
 
-export interface MvpLiveOps {
-  event: MvpEvent;
+export interface PrismLiveOps {
+  event: PrismEvent;
   role?: string;
-  tasks: MvpEventDayTask[];
-  urgentIssues: MvpUrgentIssue[];
-  supplierStatuses: MvpSupplierQuoteRequest[];
-  coordinatorAssignments: MvpCoordinatorAssignment[];
+  tasks: PrismEventDayTask[];
+  urgentIssues: PrismUrgentIssue[];
+  supplierStatuses: PrismSupplierQuoteRequest[];
+  coordinatorAssignments: PrismCoordinatorAssignment[];
   guestAttendanceCount: number;
-  guestCheckIns: MvpGuestCheckIn[];
-  eventDayLogs: MvpEventDayLog[];
+  guestCheckIns: PrismGuestCheckIn[];
+  eventDayLogs: PrismEventDayLog[];
 }
 
-export interface MvpEventDayStatusFeedItem {
+export interface PrismEventDayStatusFeedItem {
   id: string;
   type: "task" | "urgent_issue" | "supplier_status" | string;
   title: string;
@@ -430,28 +430,28 @@ export interface MvpEventDayStatusFeedItem {
   verificationStatus?: string;
 }
 
-export interface MvpEventDayStatusFeed {
-  event: MvpEvent;
+export interface PrismEventDayStatusFeed {
+  event: PrismEvent;
   role?: string;
-  items: MvpEventDayStatusFeedItem[];
-  coordinatorAssignments: MvpCoordinatorAssignment[];
-  eventDayLogs: MvpEventDayLog[];
+  items: PrismEventDayStatusFeedItem[];
+  coordinatorAssignments: PrismCoordinatorAssignment[];
+  eventDayLogs: PrismEventDayLog[];
   guestAttendanceCount: number;
-  guestCheckIns: MvpGuestCheckIn[];
+  guestCheckIns: PrismGuestCheckIn[];
 }
 
-export interface MvpCoordinatorWorkspace {
-  coordinator: MvpCoordinator;
-  assignments: MvpCoordinatorAssignment[];
-  events: MvpEvent[];
+export interface PrismCoordinatorWorkspace {
+  coordinator: PrismCoordinator;
+  assignments: PrismCoordinatorAssignment[];
+  events: PrismEvent[];
 }
 
-export interface MvpCoordinatorRoleView extends MvpLiveOps {
-  assignment: MvpCoordinatorAssignment;
+export interface PrismCoordinatorRoleView extends PrismLiveOps {
+  assignment: PrismCoordinatorAssignment;
   role: string;
 }
 
-export interface MvpComplianceCheck {
+export interface PrismComplianceCheck {
   id: string;
   eventId: string;
   ruleId?: string | null;
@@ -469,7 +469,7 @@ export interface MvpComplianceCheck {
   overrideBy?: string | null;
 }
 
-export interface MvpComplianceRule {
+export interface PrismComplianceRule {
   id: string;
   eventId?: string | null;
   eventType: string;
@@ -484,7 +484,7 @@ export interface MvpComplianceRule {
   updatedAt: string;
 }
 
-export interface MvpBillingSource {
+export interface PrismBillingSource {
   id: string;
   eventId: string;
   sourceType: string;
@@ -502,7 +502,7 @@ export interface MvpBillingSource {
   updatedAt: string;
 }
 
-export interface MvpBillingStatement {
+export interface PrismBillingStatement {
   id: string;
   eventId: string;
   sourceId?: string | null;
@@ -523,7 +523,7 @@ export interface MvpBillingStatement {
   generatedAt: string;
 }
 
-export interface MvpPaymentRecord {
+export interface PrismPaymentRecord {
   id: string;
   eventId: string;
   milestoneId: string;
@@ -534,7 +534,7 @@ export interface MvpPaymentRecord {
   recordedAt: string;
 }
 
-export interface MvpPaymentMilestone {
+export interface PrismPaymentMilestone {
   id: string;
   eventId: string;
   label: string;
@@ -544,31 +544,31 @@ export interface MvpPaymentMilestone {
   remainingBalance: number;
   dueDate: string;
   status: string;
-  history: MvpPaymentRecord[];
+  history: PrismPaymentRecord[];
 }
 
-export interface MvpPostEventDocument {
+export interface PrismPostEventDocument {
   id: string;
   eventId: string;
   title: string;
   status: string;
 }
 
-export interface MvpCloseGate {
+export interface PrismCloseGate {
   key: string;
   label: string;
   passed: boolean;
   detail: string;
 }
 
-export interface MvpCloseGates {
+export interface PrismCloseGates {
   eventId: string;
   ready: boolean;
-  gates: MvpCloseGate[];
+  gates: PrismCloseGate[];
   missingKeys: string[];
 }
 
-export interface MvpEventInsight {
+export interface PrismEventInsight {
   id: string;
   eventId: string;
   summary: string;
@@ -583,7 +583,7 @@ export interface MvpEventInsight {
   updatedAt: string;
 }
 
-export interface MvpAuditLog {
+export interface PrismAuditLog {
   id: string;
   eventId?: string;
   actor: string;
@@ -604,7 +604,7 @@ export interface MvpAuditLog {
   createdAt: string;
 }
 
-export interface MvpLoginHistory {
+export interface PrismLoginHistory {
   id: string;
   userId?: string;
   userName: string;
@@ -617,7 +617,7 @@ export interface MvpLoginHistory {
   createdAt: string;
 }
 
-export interface MvpSecurityAlert {
+export interface PrismSecurityAlert {
   id: string;
   eventId?: string;
   type: string;
@@ -631,7 +631,7 @@ export interface MvpSecurityAlert {
   resolvedAt?: string | null;
 }
 
-export interface MvpAuditIntegrity {
+export interface PrismAuditIntegrity {
   valid: boolean;
   checkedCount: number;
   firstBrokenLogId?: string | null;
@@ -639,7 +639,7 @@ export interface MvpAuditIntegrity {
   checkedAt: string;
 }
 
-export interface MvpPrivacyInventorySurface {
+export interface PrismPrivacyInventorySurface {
   surface: string;
   recordCount: number;
   dataCategories: string[];
@@ -648,30 +648,30 @@ export interface MvpPrivacyInventorySurface {
   privacyNoticeVersions: string[];
 }
 
-export interface MvpPrivacyInventoryEvent {
+export interface PrismPrivacyInventoryEvent {
   eventId: string;
   eventName: string;
   dataCategories: string[];
   recordCount: number;
-  surfaces: MvpPrivacyInventorySurface[];
+  surfaces: PrismPrivacyInventorySurface[];
   retentionNotes: string;
 }
 
-export interface MvpPrivacyInventory {
+export interface PrismPrivacyInventory {
   generatedAt: string;
-  events: MvpPrivacyInventoryEvent[];
-  globalSurfaces: MvpPrivacyInventorySurface[];
+  events: PrismPrivacyInventoryEvent[];
+  globalSurfaces: PrismPrivacyInventorySurface[];
   retentionNotes: string[];
 }
 
-export interface MvpPrivacyRetentionPolicy {
+export interface PrismPrivacyRetentionPolicy {
   surface: string;
   dataCategories: string[];
   retentionPeriod: string;
   deletionBehavior: string;
 }
 
-export interface MvpPrivacyRequest {
+export interface PrismPrivacyRequest {
   id: string;
   eventId?: string | null;
   subjectType: string;
@@ -691,13 +691,13 @@ export interface MvpPrivacyRequest {
   updatedAt: string;
 }
 
-export interface MvpAuditExport {
+export interface PrismAuditExport {
   exportedAt: string;
   recordCount: number;
-  rows: MvpAuditLog[];
+  rows: PrismAuditLog[];
 }
 
-export interface MvpNotificationLog {
+export interface PrismNotificationLog {
   id: string;
   eventId?: string;
   channel: "email" | "viber";
@@ -707,7 +707,7 @@ export interface MvpNotificationLog {
   createdAt: string;
 }
 
-export interface MvpApprovalRequest {
+export interface PrismApprovalRequest {
   id: string;
   userId: string;
   name: string;
@@ -721,30 +721,30 @@ export interface MvpApprovalRequest {
   requestedAt: string;
 }
 
-export interface MvpDemoState {
-  users: MvpUser[];
-  inquiries: MvpInquiry[];
-  events: MvpEvent[];
-  documents: MvpDocument[];
-  briefings: MvpBriefing[];
-  supplierQuoteRequests: MvpSupplierQuoteRequest[];
-  supplierQuotes: MvpSupplierQuote[];
-  coordinators: MvpCoordinator[];
-  coordinatorRoleRequirements: MvpCoordinatorRoleRequirement[];
-  coordinatorAssignments: MvpCoordinatorAssignment[];
-  complianceRules: MvpComplianceRule[];
-  complianceChecks: MvpComplianceCheck[];
-  billingSources: MvpBillingSource[];
-  billingStatements: MvpBillingStatement[];
-  paymentMilestones: MvpPaymentMilestone[];
-  paymentRecords: MvpPaymentRecord[];
-  postEventDocuments: MvpPostEventDocument[];
-  eventInsights: MvpEventInsight[];
-  floorPlanDrafts: MvpFloorPlanDraft[];
-  supplierCategories: MvpSupplierCategory[];
-  suppliers: MvpSupplier[];
-  auditLogs: MvpAuditLog[];
-  notificationLogs: MvpNotificationLog[];
+export interface PrismDemoState {
+  users: PrismUser[];
+  inquiries: PrismInquiry[];
+  events: PrismEvent[];
+  documents: PrismDocument[];
+  briefings: PrismBriefing[];
+  supplierQuoteRequests: PrismSupplierQuoteRequest[];
+  supplierQuotes: PrismSupplierQuote[];
+  coordinators: PrismCoordinator[];
+  coordinatorRoleRequirements: PrismCoordinatorRoleRequirement[];
+  coordinatorAssignments: PrismCoordinatorAssignment[];
+  complianceRules: PrismComplianceRule[];
+  complianceChecks: PrismComplianceCheck[];
+  billingSources: PrismBillingSource[];
+  billingStatements: PrismBillingStatement[];
+  paymentMilestones: PrismPaymentMilestone[];
+  paymentRecords: PrismPaymentRecord[];
+  postEventDocuments: PrismPostEventDocument[];
+  eventInsights: PrismEventInsight[];
+  floorPlanDrafts: PrismFloorPlanDraft[];
+  supplierCategories: PrismSupplierCategory[];
+  suppliers: PrismSupplier[];
+  auditLogs: PrismAuditLog[];
+  notificationLogs: PrismNotificationLog[];
 }
 
 type CreateFloorPlanDraftInput = {
@@ -755,9 +755,9 @@ type CreateFloorPlanDraftInput = {
   height?: number;
   gridSize?: number;
   pax?: number;
-  objects?: MvpProjectLike["objects"];
-  guests?: MvpProjectLike["guests"];
-  suppliers?: MvpProjectLike["suppliers"];
+  objects?: PrismProjectLike["objects"];
+  guests?: PrismProjectLike["guests"];
+  suppliers?: PrismProjectLike["suppliers"];
 };
 
 type AddSupplierQuoteInput = {

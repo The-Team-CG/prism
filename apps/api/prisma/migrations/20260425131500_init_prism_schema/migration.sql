@@ -99,7 +99,7 @@ CREATE TABLE "inquiries" (
 );
 
 -- CreateTable
-CREATE TABLE "mvp_events" (
+CREATE TABLE "prism_events" (
     "id" TEXT NOT NULL,
     "inquiry_id" TEXT NOT NULL,
     "client_name" TEXT NOT NULL,
@@ -112,7 +112,7 @@ CREATE TABLE "mvp_events" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "mvp_events_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "prism_events_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable

@@ -1,6 +1,6 @@
 # P.R.I.S.M Agent Notes
 
-These notes preserve the product boundaries established by the project docs and the current MVP direction.
+These notes preserve the product boundaries established by the project docs and the current Prism direction.
 
 ## Product Truths
 
@@ -20,7 +20,7 @@ These notes preserve the product boundaries established by the project docs and 
 - `apps/supplier` is the supplier portal on port `3002`.
 - `apps/guest` is the guest portal on port `3003`.
 - `apps/api` is the shared NestJS API on port `4000`.
-- Do not rebuild `apps/client` as an all-role PMCM shell. The old MVP docs called that temporary; the current boundary is role-specific apps.
+- Do not rebuild `apps/client` as an all-role PMCM shell. The old Prism docs called that temporary; the current boundary is role-specific apps.
 
 ## Floorplan Rule
 

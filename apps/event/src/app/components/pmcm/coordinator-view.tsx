@@ -18,7 +18,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import { mvpApi, type MvpCoordinatorRoleView, type MvpCoordinatorWorkspace } from "@/lib/mvp-api";
+import { prismApi, type PrismCoordinatorRoleView, type PrismCoordinatorWorkspace } from "@/lib/prism-api";
 import { PrismDashboardShell } from "@prism/ui";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
@@ -205,7 +205,7 @@ export function CoordinatorView({
   onSignOut,
 }: {
   session: PmcmEventSession;
-  state: MvpCoordinatorWorkspace;
+  state: PrismCoordinatorWorkspace;
   onRefresh: () => Promise<void>;
   onSignOut?: () => void;
 }) {
@@ -214,7 +214,7 @@ export function CoordinatorView({
   const event = assignment ? state.events.find((item) => item.id === assignment.eventId) : undefined;
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event?.id && draft.isActive);
   const [busy, setBusy] = useState(false);
-  const [roleView, setRoleView] = useState<MvpCoordinatorRoleView | null>(null);
+  const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
   const [roleViewLoading, setRoleViewLoading] = useState(false);
   const [roleViewError, setRoleViewError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("coord-home");
@@ -229,7 +229,7 @@ export function CoordinatorView({
     let alive = true;
     setRoleViewLoading(true);
     setRoleViewError(null);
-    mvpApi.coordinatorRoleView(session, event.id)
+    prismApi.coordinatorRoleView(session, event.id)
       .then((next) => { if (alive) setRoleView(next); })
       .catch((err) => {
         if (!alive) return;
@@ -244,11 +244,11 @@ export function CoordinatorView({
     if (!event || !assignment) return;
     setBusy(true);
     try {
-      await mvpApi.acknowledgeCoordinator(event.id, assignment.id);
+      await prismApi.acknowledgeCoordinator(event.id, assignment.id);
       setRoleViewLoading(true);
       setRoleViewError(null);
       try {
-        setRoleView(await mvpApi.coordinatorRoleView(session, event.id));
+        setRoleView(await prismApi.coordinatorRoleView(session, event.id));
       } catch (err) {
         setRoleView(null);
         setRoleViewError(err instanceof Error ? err.message : "Unable to refresh role-safe event data.");

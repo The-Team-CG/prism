@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PrismBrandLogo } from "@prism/ui";
-import { mvpApi, type CreateMvpInquiryInput } from "@/lib/mvp-api";
+import { prismApi, type CreatePrismInquiryInput } from "@/lib/prism-api";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "../ui/field";
@@ -254,7 +254,7 @@ export function PublicInquiryPage() {
     setCurrentStep((step) => Math.max(step - 1, 0));
   }
 
-  function buildPayload(): CreateMvpInquiryInput {
+  function buildPayload(): CreatePrismInquiryInput {
     const reviewNotes = [
       `Phone: ${form.phoneNumber || "Not provided"}`,
       `Expected guests: ${form.expectedGuests || "Not provided"}`,
@@ -291,7 +291,7 @@ export function PublicInquiryPage() {
     setError(null);
 
     try {
-      await mvpApi.createInquiry(buildPayload());
+      await prismApi.createInquiry(buildPayload());
       setSubmitted(true);
       setForm(initialForm);
       setCurrentStep(0);

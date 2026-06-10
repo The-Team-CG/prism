@@ -39,24 +39,24 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  mvpApi,
-  type MvpAuditLog,
-  type MvpApprovalRequest,
-  type MvpBillingStatement,
-  type MvpBriefing,
-  type MvpComplianceCheck,
-  type MvpCoordinatorWorkspace,
-  type MvpDefenseReadiness,
-  type MvpDemoState,
-  type MvpDocument,
-  type MvpEvent,
-  type MvpEventDayStatusFeed,
-  type MvpFloorPlanDraft,
-  type MvpLiveOps,
-  type MvpNotificationLog,
-  type MvpPostEventDocument,
-  type MvpSupplierQuoteRequest,
-} from "@/lib/mvp-api";
+  prismApi,
+  type PrismAuditLog,
+  type PrismApprovalRequest,
+  type PrismBillingStatement,
+  type PrismBriefing,
+  type PrismComplianceCheck,
+  type PrismCoordinatorWorkspace,
+  type PrismDefenseReadiness,
+  type PrismDemoState,
+  type PrismDocument,
+  type PrismEvent,
+  type PrismEventDayStatusFeed,
+  type PrismFloorPlanDraft,
+  type PrismLiveOps,
+  type PrismNotificationLog,
+  type PrismPostEventDocument,
+  type PrismSupplierQuoteRequest,
+} from "@/lib/prism-api";
 import { PrismDashboardShell, type PrismNavItem } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
@@ -114,7 +114,7 @@ const EditorShell = dynamic(
 
 type Screen =
   | { name: "portal" }
-  | { name: "editor"; event: MvpEvent; draft: MvpFloorPlanDraft; project: Project };
+  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project };
 
 function lbl(value: string) {
   return value.replaceAll("_", " ");
@@ -135,20 +135,20 @@ function clientKey(value: string) {
 
 type TimedCache<T> = { value: T; loadedAt: number };
 type EventCommandData = {
-  liveOps: MvpLiveOps;
-  statusFeed: MvpEventDayStatusFeed;
-  defenseReadiness: MvpDefenseReadiness;
+  liveOps: PrismLiveOps;
+  statusFeed: PrismEventDayStatusFeed;
+  defenseReadiness: PrismDefenseReadiness;
 };
 
 const EVENT_DASHBOARD_CACHE_MS = 30_000;
 const EVENT_WORKSPACE_CACHE_MS = 20_000;
 
-let pmcmStateCache: TimedCache<MvpDemoState> | null = null;
-let pmcmStateRequest: Promise<MvpDemoState> | null = null;
-let approvalRequestsCache: TimedCache<MvpApprovalRequest[]> | null = null;
-let approvalRequestsRequest: Promise<MvpApprovalRequest[]> | null = null;
-const coordinatorWorkspaceCache = new Map<string, TimedCache<MvpCoordinatorWorkspace>>();
-const coordinatorWorkspaceRequests = new Map<string, Promise<MvpCoordinatorWorkspace>>();
+let pmcmStateCache: TimedCache<PrismDemoState> | null = null;
+let pmcmStateRequest: Promise<PrismDemoState> | null = null;
+let approvalRequestsCache: TimedCache<PrismApprovalRequest[]> | null = null;
+let approvalRequestsRequest: Promise<PrismApprovalRequest[]> | null = null;
+const coordinatorWorkspaceCache = new Map<string, TimedCache<PrismCoordinatorWorkspace>>();
+const coordinatorWorkspaceRequests = new Map<string, Promise<PrismCoordinatorWorkspace>>();
 const eventCommandDataCache = new Map<string, TimedCache<EventCommandData>>();
 const eventCommandDataRequests = new Map<string, Promise<EventCommandData>>();
 
@@ -170,7 +170,7 @@ function loadPmcmState(force = false) {
   }
   if (!force && pmcmStateRequest) return pmcmStateRequest;
 
-  pmcmStateRequest = mvpApi
+  pmcmStateRequest = prismApi
     .pmcmState()
     .then((next) => {
       pmcmStateCache = { value: next, loadedAt: Date.now() };
@@ -193,7 +193,7 @@ function loadApprovalRequests(force = false) {
   }
   if (!force && approvalRequestsRequest) return approvalRequestsRequest;
 
-  approvalRequestsRequest = mvpApi
+  approvalRequestsRequest = prismApi
     .approvalRequests()
     .then((next) => {
       approvalRequestsCache = { value: next, loadedAt: Date.now() };
@@ -218,7 +218,7 @@ function loadCoordinatorWorkspace(session: EventSession, force = false) {
   const existing = coordinatorWorkspaceRequests.get(key);
   if (!force && existing) return existing;
 
-  const request = mvpApi
+  const request = prismApi
     .coordinatorWorkspace(session)
     .then((next) => {
       coordinatorWorkspaceCache.set(key, { value: next, loadedAt: Date.now() });
@@ -246,9 +246,9 @@ function loadEventCommandData(eventId: string, force = false) {
   if (!force && existing) return existing;
 
   const request = Promise.all([
-    mvpApi.liveOps(eventId),
-    mvpApi.eventDayStatusFeed(eventId),
-    mvpApi.defenseReadiness(eventId),
+    prismApi.liveOps(eventId),
+    prismApi.eventDayStatusFeed(eventId),
+    prismApi.defenseReadiness(eventId),
   ])
     .then(([liveOps, statusFeed, defenseReadiness]) => {
       const next = { liveOps, statusFeed, defenseReadiness };
@@ -621,7 +621,7 @@ function messageTime(value?: string) {
   return parsed.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function auditMessage(item: MvpAuditLog): EventMessage {
+function auditMessage(item: PrismAuditLog): EventMessage {
   const author = item.actor || "PMCM Team";
   return {
     id: `audit-${item.id}`,
@@ -634,7 +634,7 @@ function auditMessage(item: MvpAuditLog): EventMessage {
   };
 }
 
-function outboundMessage(item: MvpNotificationLog): EventMessage {
+function outboundMessage(item: PrismNotificationLog): EventMessage {
   const channel = lbl(item.channel);
   return {
     id: `outbound-${item.id}`,
@@ -652,9 +652,9 @@ function buildEventMessageThreads({
   audit,
   notificationLogs,
 }: {
-  event: MvpEvent;
-  audit: MvpAuditLog[];
-  notificationLogs: MvpNotificationLog[];
+  event: PrismEvent;
+  audit: PrismAuditLog[];
+  notificationLogs: PrismNotificationLog[];
 }): EventMessageThread[] {
   const clientAudit = audit.filter((item) =>
     /client|briefing|conforme|proposal|billing|floor/i.test(`${item.actorRole} ${item.action} ${item.category}`),
@@ -762,10 +762,10 @@ function EventMessagesWorkspace({
   audit,
   notificationLogs,
 }: {
-  event: MvpEvent;
+  event: PrismEvent;
   session: EventSession;
-  audit: MvpAuditLog[];
-  notificationLogs: MvpNotificationLog[];
+  audit: PrismAuditLog[];
+  notificationLogs: PrismNotificationLog[];
 }) {
   const threads = useMemo(
     () => buildEventMessageThreads({ event, audit, notificationLogs }),
@@ -985,7 +985,7 @@ function EventFileThumbnail({ item, active }: { item: EventFileHubItem; active: 
   );
 }
 
-function EventFilePreview({ event, item }: { event: MvpEvent; item: EventFileHubItem }) {
+function EventFilePreview({ event, item }: { event: PrismEvent; item: EventFileHubItem }) {
   return (
     <div className="min-h-[30rem] bg-[#f8fbf8] p-5">
       <div className="mx-auto max-w-3xl rounded-md border border-border bg-white p-7 shadow-sm">
@@ -1080,14 +1080,14 @@ function EventFileHub({
   onOpenBilling,
   onOpenClosure,
 }: {
-  event: MvpEvent;
-  documents: MvpDocument[];
-  drafts: MvpFloorPlanDraft[];
-  billingStatements: MvpBillingStatement[];
-  quoteRequests: MvpSupplierQuoteRequest[];
-  briefing?: MvpBriefing;
-  checks: MvpComplianceCheck[];
-  postEventDocuments: MvpPostEventDocument[];
+  event: PrismEvent;
+  documents: PrismDocument[];
+  drafts: PrismFloorPlanDraft[];
+  billingStatements: PrismBillingStatement[];
+  quoteRequests: PrismSupplierQuoteRequest[];
+  briefing?: PrismBriefing;
+  checks: PrismComplianceCheck[];
+  postEventDocuments: PrismPostEventDocument[];
   onOpenFloorplans: () => void;
   onOpenBriefing: () => void;
   onOpenSuppliers: () => void;
@@ -1325,7 +1325,7 @@ function EventCalendarWorkspace({
   selectedEventId,
   onOpenEvent,
 }: {
-  events: MvpEvent[];
+  events: PrismEvent[];
   selectedEventId?: string | null;
   onOpenEvent: (id: string) => void;
 }) {
@@ -1412,9 +1412,9 @@ function EventTasksWorkspace({
   onNavigateEventTab,
 }: {
   unreviewedInquiries: number;
-  pendingApprovals: MvpApprovalRequest[];
-  selectedEvent?: MvpEvent;
-  defenseReadiness: MvpDefenseReadiness | null;
+  pendingApprovals: PrismApprovalRequest[];
+  selectedEvent?: PrismEvent;
+  defenseReadiness: PrismDefenseReadiness | null;
   draftsCount: number;
   quoteCount: number;
   paymentCount: number;
@@ -1509,7 +1509,7 @@ function EventTasksWorkspace({
   );
 }
 
-function EventSettingsWorkspace({ session, selectedEvent }: { session: EventSession; selectedEvent?: MvpEvent }) {
+function EventSettingsWorkspace({ session, selectedEvent }: { session: EventSession; selectedEvent?: PrismEvent }) {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       {[
@@ -1588,7 +1588,7 @@ function EventQueueCard({
   onReset,
   onNavigateEvent,
 }: {
-  events: MvpEvent[];
+  events: PrismEvent[];
   selectedEventId?: string;
   onSelectEvent: (id: string) => void;
   onReset: () => void;
@@ -1671,12 +1671,12 @@ function CommandHomePage({
   onReset,
 }: {
   session: EventSession;
-  state: MvpDemoState;
-  events: MvpEvent[];
-  selectedEvent?: MvpEvent;
+  state: PrismDemoState;
+  events: PrismEvent[];
+  selectedEvent?: PrismEvent;
   unreviewedInquiries: number;
-  pendingApprovals: MvpApprovalRequest[];
-  defenseReadiness: MvpDefenseReadiness | null;
+  pendingApprovals: PrismApprovalRequest[];
+  defenseReadiness: PrismDefenseReadiness | null;
   onNavigateSection: (section: DashboardSection) => void;
   onNavigateEvent: (id: string, tab?: DetailTab) => void;
   onReset: () => void;
@@ -1827,8 +1827,8 @@ export default function EventDashboard({
   }, [initialClientId, initialEventId, initialSection, initialTab, initialView, pathname]);
 
   const [session, setSession] = useState<EventSession | null>(null);
-  const [state, setState] = useState<MvpDemoState | null>(null);
-  const [coordinatorState, setCoordinatorState] = useState<MvpCoordinatorWorkspace | null>(null);
+  const [state, setState] = useState<PrismDemoState | null>(null);
+  const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
   const [error, setError] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(routeState.eventId ?? null);
@@ -1836,10 +1836,10 @@ export default function EventDashboard({
   const [section, setSection] = useState<DashboardSection>(routeState.section);
   const [tab, setTab] = useState<DetailTab>(routeState.tab);
   const [sidebarActiveOverride, setSidebarActiveOverride] = useState<string | null>(null);
-  const [approvalRequests, setApprovalRequests] = useState<MvpApprovalRequest[]>([]);
-  const [liveOps, setLiveOps] = useState<MvpLiveOps | null>(null);
-  const [statusFeed, setStatusFeed] = useState<MvpEventDayStatusFeed | null>(null);
-  const [defenseReadiness, setDefenseReadiness] = useState<MvpDefenseReadiness | null>(null);
+  const [approvalRequests, setApprovalRequests] = useState<PrismApprovalRequest[]>([]);
+  const [liveOps, setLiveOps] = useState<PrismLiveOps | null>(null);
+  const [statusFeed, setStatusFeed] = useState<PrismEventDayStatusFeed | null>(null);
+  const [defenseReadiness, setDefenseReadiness] = useState<PrismDefenseReadiness | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
 
@@ -2009,7 +2009,7 @@ export default function EventDashboard({
   const activeDraft = drafts.find((d) => d.isActive);
   const pendingApprovals = approvalRequests.filter((req) => req.status === "pending");
   const clientRecords = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; contact?: string; company?: string; events: MvpEvent[]; inquiries: MvpDemoState["inquiries"] }>();
+    const map = new Map<string, { id: string; name: string; contact?: string; company?: string; events: PrismEvent[]; inquiries: PrismDemoState["inquiries"] }>();
     inquiries.forEach((inquiry) => {
       const name = inquiry.companyName || inquiry.clientName;
       const id = clientKey(name);
@@ -2170,7 +2170,7 @@ export default function EventDashboard({
 
   async function createTemplateDraft(template: FloorPlanTemplate) {
     if (!selectedEvent) return;
-    const draft = await mvpApi.createFloorPlanDraft(selectedEvent.id, {
+    const draft = await prismApi.createFloorPlanDraft(selectedEvent.id, {
       name: `${template.name} PMCM draft`,
       sourceType: "template",
       venue: template.venue || selectedEvent.eventName,
@@ -2185,8 +2185,8 @@ export default function EventDashboard({
     await openEditor(selectedEvent, draft);
   }
 
-  async function openEditor(event: MvpEvent, draft: MvpFloorPlanDraft) {
-    const project = await mvpApi.loadPlan(draft.floorPlanId);
+  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
+    const project = await prismApi.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
 
@@ -2431,10 +2431,10 @@ export default function EventDashboard({
           eventName={screen.event.eventName}
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
-          onSave={(project) => mvpApi.savePlan(project)}
+          onSave={(project) => prismApi.savePlan(project)}
           onSubmit={async (project) => {
-            await mvpApi.savePlan(project);
-            await mvpApi.submitFloorPlanDraft(screen.event.id, screen.draft.id);
+            await prismApi.savePlan(project);
+            await prismApi.submitFloorPlanDraft(screen.event.id, screen.draft.id);
             await refresh(session);
             setScreen({ name: "portal" });
           }}
@@ -2806,15 +2806,15 @@ export default function EventDashboard({
             </Card>
             <InquiryIntakeLog
               inquiries={state.inquiries}
-              onAccept={(inq) => run("accept inquiry", () => mvpApi.acceptInquiry(inq.id))}
-              onPend={(inq) => run("pend inquiry", () => mvpApi.pendInquiry(inq.id))}
-              onDecline={(inq, reason) => run("decline inquiry", () => mvpApi.declineInquiry(inq.id, reason))}
+              onAccept={(inq) => run("accept inquiry", () => prismApi.acceptInquiry(inq.id))}
+              onPend={(inq) => run("pend inquiry", () => prismApi.pendInquiry(inq.id))}
+              onDecline={(inq, reason) => run("decline inquiry", () => prismApi.declineInquiry(inq.id, reason))}
               busy={Boolean(busy)}
             />
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => mvpApi.uploadConforme(inq.id))}
-              onSendReminder={(inq) => run("conforme reminder", () => mvpApi.sendConformeReminder(inq.id))}
+              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
           </>
@@ -2827,7 +2827,7 @@ export default function EventDashboard({
               roleRequirements={coordinatorRoleRequirements}
               busy={Boolean(busy)}
               onAssign={(coordinator, role, override) => run("coordinator assignment", () =>
-                mvpApi.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
+                prismApi.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
               )}
             />
           ) : (
@@ -2891,8 +2891,8 @@ export default function EventDashboard({
               payments={payments}
               notificationLogs={notificationLogs}
               busy={Boolean(busy)}
-              onRecordPayment={(milestoneId, input) => run("record payment", () => mvpApi.recordPayment(selectedEvent.id, milestoneId, input))}
-              onSendBilling={(billingId) => run("send billing", () => mvpApi.sendBillingStatement(selectedEvent.id, billingId))}
+              onRecordPayment={(milestoneId, input) => run("record payment", () => prismApi.recordPayment(selectedEvent.id, milestoneId, input))}
+              onSendBilling={(billingId) => run("send billing", () => prismApi.sendBillingStatement(selectedEvent.id, billingId))}
             />
           ) : (
             <EmptyState icon={ReceiptText} title="Select an event" description="Finance opens inside a confirmed event so billing can stay tied to proposal and conforme records." />
@@ -2901,12 +2901,12 @@ export default function EventDashboard({
           <SupplierDirectory
             categories={supplierCategories}
             suppliers={suppliers}
-            onToggleBni={(supplier, value) => run("supplier BNI flag", () => mvpApi.updateSupplier(supplier.id, { bniMember: value }))}
-            onCreateSupplier={(input) => run("create supplier", () => mvpApi.createSupplier(input))}
-            onUpdateSupplier={(supplierId, input) => run("update supplier", () => mvpApi.updateSupplier(supplierId, input))}
-            onChangeTier={(supplierId, tier, reason) => run("supplier tier change", () => mvpApi.changeSupplierTier(supplierId, { tier, reason }))}
-            onAddReview={(supplierId, input) => run("supplier private review", () => mvpApi.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }))}
-            onAddCertification={(supplierId, input) => run("supplier certification", () => mvpApi.addSupplierCertification(supplierId, input))}
+            onToggleBni={(supplier, value) => run("supplier BNI flag", () => prismApi.updateSupplier(supplier.id, { bniMember: value }))}
+            onCreateSupplier={(input) => run("create supplier", () => prismApi.createSupplier(input))}
+            onUpdateSupplier={(supplierId, input) => run("update supplier", () => prismApi.updateSupplier(supplierId, input))}
+            onChangeTier={(supplierId, tier, reason) => run("supplier tier change", () => prismApi.changeSupplierTier(supplierId, { tier, reason }))}
+            onAddReview={(supplierId, input) => run("supplier private review", () => prismApi.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }))}
+            onAddCertification={(supplierId, input) => run("supplier certification", () => prismApi.addSupplierCertification(supplierId, input))}
             onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
             busy={Boolean(busy)}
           />
@@ -2916,15 +2916,15 @@ export default function EventDashboard({
           <>
             <InquiryIntakeLog
               inquiries={state.inquiries}
-              onAccept={(inq) => run("accept inquiry", () => mvpApi.acceptInquiry(inq.id))}
-              onPend={(inq) => run("pend inquiry", () => mvpApi.pendInquiry(inq.id))}
-              onDecline={(inq, reason) => run("decline inquiry", () => mvpApi.declineInquiry(inq.id, reason))}
+              onAccept={(inq) => run("accept inquiry", () => prismApi.acceptInquiry(inq.id))}
+              onPend={(inq) => run("pend inquiry", () => prismApi.pendInquiry(inq.id))}
+              onDecline={(inq, reason) => run("decline inquiry", () => prismApi.declineInquiry(inq.id, reason))}
               busy={Boolean(busy)}
             />
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => mvpApi.uploadConforme(inq.id))}
-              onSendReminder={(inq) => run("conforme reminder", () => mvpApi.sendConformeReminder(inq.id))}
+              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
           </>
@@ -2933,7 +2933,7 @@ export default function EventDashboard({
             events={eventsForView}
             selectedEventId={selectedEvent?.id}
             onSelectEvent={(id) => navigateEvent(id)}
-            onReset={() => run("reset", mvpApi.reset)}
+            onReset={() => run("reset", prismApi.reset)}
             onNavigateEvent={(id) => navigateEvent(id, "overview")}
           />
         ) : isHome ? (
@@ -2948,22 +2948,22 @@ export default function EventDashboard({
               defenseReadiness={defenseReadiness}
               onNavigateSection={navigateSection}
               onNavigateEvent={navigateEvent}
-              onReset={() => run("reset", mvpApi.reset)}
+              onReset={() => run("reset", prismApi.reset)}
             />
 
             {/* Inquiry + onboarding below the command grid */}
             <InquiryIntakeLog
               inquiries={state.inquiries}
-              onAccept={(inq) => run("accept inquiry", () => mvpApi.acceptInquiry(inq.id))}
-              onPend={(inq) => run("pend inquiry", () => mvpApi.pendInquiry(inq.id))}
-              onDecline={(inq, reason) => run("decline inquiry", () => mvpApi.declineInquiry(inq.id, reason))}
+              onAccept={(inq) => run("accept inquiry", () => prismApi.acceptInquiry(inq.id))}
+              onPend={(inq) => run("pend inquiry", () => prismApi.pendInquiry(inq.id))}
+              onDecline={(inq, reason) => run("decline inquiry", () => prismApi.declineInquiry(inq.id, reason))}
               busy={Boolean(busy)}
             />
 
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => mvpApi.uploadConforme(inq.id))}
-              onSendReminder={(inq) => run("conforme reminder", () => mvpApi.sendConformeReminder(inq.id))}
+              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
 
@@ -2987,10 +2987,10 @@ export default function EventDashboard({
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-wrap gap-2">
-                        <Button size="sm" disabled={!!busy} onClick={() => run("approve account", () => mvpApi.approveApprovalRequest(request.id))} className="rounded-lg font-bold">
+                        <Button size="sm" disabled={!!busy} onClick={() => run("approve account", () => prismApi.approveApprovalRequest(request.id))} className="rounded-lg font-bold">
                           Approve
                         </Button>
-                        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => run("decline account", () => mvpApi.declineApprovalRequest(request.id))} className="rounded-lg font-bold">
+                        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => run("decline account", () => prismApi.declineApprovalRequest(request.id))} className="rounded-lg font-bold">
                           Decline
                         </Button>
                       </div>
@@ -3016,7 +3016,7 @@ export default function EventDashboard({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" className="rounded-lg font-bold" onClick={() => run("briefing", () => mvpApi.submitBriefing(selectedEvent.id))}>
+                  <Button size="sm" className="rounded-lg font-bold" onClick={() => run("briefing", () => prismApi.submitBriefing(selectedEvent.id))}>
                     Submit briefing
                   </Button>
                   <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => navigateEventTab("suppliers")}>
@@ -3037,9 +3037,9 @@ export default function EventDashboard({
                   quoteRequestCount={quoteRequests.length}
                   quoteCount={quotes.length}
                   openCheckCount={openCheckCount}
-                  onSubmitBriefing={() => run("briefing", () => mvpApi.submitBriefing(selectedEvent.id))}
+                  onSubmitBriefing={() => run("briefing", () => prismApi.submitBriefing(selectedEvent.id))}
                   onOpenSupplierDesk={() => navigateEventTab("suppliers")}
-                  onRunCompliance={() => run("compliance", () => mvpApi.runCompliance(selectedEvent.id, "planning"))}
+                  onRunCompliance={() => run("compliance", () => prismApi.runCompliance(selectedEvent.id, "planning"))}
                   onOpenCoordinatorDesk={() => navigateEventTab("coordinators")}
                   onOpenLiveOps={() => navigateEventTab("live-ops")}
                   onOpenFloorplans={() => navigateEventTab("floorplans")}
@@ -3110,12 +3110,12 @@ export default function EventDashboard({
                                   Open / Edit
                                 </Button>
                                 {draft.status !== "in_review" && draft.status !== "approved" && (
-                                  <Button size="sm" className="rounded-lg font-bold" onClick={() => run("submit draft", () => mvpApi.submitFloorPlanDraft(selectedEvent.id, draft.id))}>
+                                  <Button size="sm" className="rounded-lg font-bold" onClick={() => run("submit draft", () => prismApi.submitFloorPlanDraft(selectedEvent.id, draft.id))}>
                                     Submit
                                   </Button>
                                 )}
                                 {draft.status !== "approved" && (
-                                  <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/15" onClick={() => run("approve draft", () => mvpApi.approveFloorPlanDraft(selectedEvent.id, draft.id))}>
+                                  <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/15" onClick={() => run("approve draft", () => prismApi.approveFloorPlanDraft(selectedEvent.id, draft.id))}>
                                     Approve
                                   </Button>
                                 )}
@@ -3174,8 +3174,8 @@ export default function EventDashboard({
                         suppliers={suppliers}
                         requests={quoteRequests}
                         quotes={quotes}
-                        onRequestQuotes={(input) => run("request supplier quotes", () => mvpApi.requestSupplierQuotes(selectedEvent.id, input))}
-                        onSelectQuote={(quoteId) => run("select supplier quote", () => mvpApi.selectSupplierQuote(selectedEvent.id, quoteId))}
+                        onRequestQuotes={(input) => run("request supplier quotes", () => prismApi.requestSupplierQuotes(selectedEvent.id, input))}
+                        onSelectQuote={(quoteId) => run("select supplier quote", () => prismApi.selectSupplierQuote(selectedEvent.id, quoteId))}
                         busy={Boolean(busy)}
                       />
                     </CardBody>
@@ -3202,7 +3202,7 @@ export default function EventDashboard({
                         eventId={selectedEvent.id}
                         assignedRequests={quoteRequests.filter((r) => r.assignmentStatus === "confirmed")}
                         suppliers={suppliers}
-                        onWithdraw={(requestId) => run("withdraw supplier", () => mvpApi.withdrawSupplier(selectedEvent.id, requestId))}
+                        onWithdraw={(requestId) => run("withdraw supplier", () => prismApi.withdrawSupplier(selectedEvent.id, requestId))}
                         busy={Boolean(busy)}
                       />
                     </CardBody>
@@ -3218,7 +3218,7 @@ export default function EventDashboard({
                   roleRequirements={coordinatorRoleRequirements}
                   busy={Boolean(busy)}
                   onAssign={(coordinator, role, override) => run("coordinator assignment", () =>
-                    mvpApi.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
+                    prismApi.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
                   )}
                 />
               )}
@@ -3231,20 +3231,20 @@ export default function EventDashboard({
                   coordinators={coordinators}
                   busy={Boolean(busy)}
                   onReload={loadLiveOps}
-                  onCreateTask={(input) => runLiveOps("create task", () => mvpApi.createEventDayTask(selectedEvent.id, input))}
-                  onUpdateTask={(taskId, input) => runLiveOps("update task", () => mvpApi.updateEventDayTask(selectedEvent.id, taskId, input))}
-                  onEscalateTask={(taskId, input) => runLiveOps("escalate task", () => mvpApi.escalateEventDayTask(selectedEvent.id, taskId, input))}
-                  onCreateIssue={(input) => runLiveOps("create issue", () => mvpApi.createUrgentIssue(selectedEvent.id, input))}
-                  onUpdateIssue={(issueId, input) => runLiveOps("update issue", () => mvpApi.updateUrgentIssue(selectedEvent.id, issueId, input))}
-                  onEscalateIssue={(issueId, input) => runLiveOps("escalate issue", () => mvpApi.escalateUrgentIssue(selectedEvent.id, issueId, input))}
+                  onCreateTask={(input) => runLiveOps("create task", () => prismApi.createEventDayTask(selectedEvent.id, input))}
+                  onUpdateTask={(taskId, input) => runLiveOps("update task", () => prismApi.updateEventDayTask(selectedEvent.id, taskId, input))}
+                  onEscalateTask={(taskId, input) => runLiveOps("escalate task", () => prismApi.escalateEventDayTask(selectedEvent.id, taskId, input))}
+                  onCreateIssue={(input) => runLiveOps("create issue", () => prismApi.createUrgentIssue(selectedEvent.id, input))}
+                  onUpdateIssue={(issueId, input) => runLiveOps("update issue", () => prismApi.updateUrgentIssue(selectedEvent.id, issueId, input))}
+                  onEscalateIssue={(issueId, input) => runLiveOps("escalate issue", () => prismApi.escalateUrgentIssue(selectedEvent.id, issueId, input))}
                   onUpdateCoordinatorAttendance={(assignmentId, input) => runLiveOps("attendance", () =>
-                    mvpApi.updateCoordinatorAttendance(selectedEvent.id, assignmentId, { ...input, markedBy: session.name })
+                    prismApi.updateCoordinatorAttendance(selectedEvent.id, assignmentId, { ...input, markedBy: session.name })
                   )}
                   onReplaceCoordinator={(assignmentId, input) => runLiveOps("replace coordinator", () =>
-                    mvpApi.replaceCoordinator(selectedEvent.id, assignmentId, input)
+                    prismApi.replaceCoordinator(selectedEvent.id, assignmentId, input)
                   )}
                   onVerifySupplierStatus={(requestId, input) => runLiveOps("verify supplier", () =>
-                    mvpApi.verifySupplierStatus(selectedEvent.id, requestId, { ...input, verifiedBy: session.name })
+                    prismApi.verifySupplierStatus(selectedEvent.id, requestId, { ...input, verifiedBy: session.name })
                   )}
                 />
               )}
@@ -3257,8 +3257,8 @@ export default function EventDashboard({
                   payments={payments}
                   notificationLogs={notificationLogs}
                   busy={Boolean(busy)}
-                  onRecordPayment={(milestoneId, input) => run("record payment", () => mvpApi.recordPayment(selectedEvent.id, milestoneId, input))}
-                  onSendBilling={(billingId) => run("send billing", () => mvpApi.sendBillingStatement(selectedEvent.id, billingId))}
+                  onRecordPayment={(milestoneId, input) => run("record payment", () => prismApi.recordPayment(selectedEvent.id, milestoneId, input))}
+                  onSendBilling={(billingId) => run("send billing", () => prismApi.sendBillingStatement(selectedEvent.id, billingId))}
                 />
               )}
 
@@ -3271,21 +3271,21 @@ export default function EventDashboard({
                   billingStatements={billingStatements}
                   insights={eventInsights}
                   busy={Boolean(busy)}
-                  onCreateRule={(input) => run("create compliance rule", () => mvpApi.createComplianceRule(input))}
-                  onRunCompliance={(phase) => run("run compliance", () => mvpApi.runCompliance(selectedEvent.id, phase))}
+                  onCreateRule={(input) => run("create compliance rule", () => prismApi.createComplianceRule(input))}
+                  onRunCompliance={(phase) => run("run compliance", () => prismApi.runCompliance(selectedEvent.id, phase))}
                   onResolveCompliance={(checkId) => run("resolve compliance", () =>
-                    mvpApi.resolveCompliance(selectedEvent.id, checkId, { action: "resolve", note: "Resolved during PMCM review.", actorName: "Ms. Mys" })
+                    prismApi.resolveCompliance(selectedEvent.id, checkId, { action: "resolve", note: "Resolved during PMCM review.", actorName: "Ms. Mys" })
                   )}
                   onOverrideCompliance={(checkId, reason) => run("override compliance", () =>
-                    mvpApi.resolveCompliance(selectedEvent.id, checkId, { action: "override", overrideReason: reason, actorName: "Ms. Mys" })
+                    prismApi.resolveCompliance(selectedEvent.id, checkId, { action: "override", overrideReason: reason, actorName: "Ms. Mys" })
                   )}
-                  onCreateBillingSource={(input) => run("create billing source", () => mvpApi.createBillingSource(selectedEvent.id, input))}
-                  onApproveBillingSource={(sourceId) => run("approve billing source", () => mvpApi.approveBillingSource(selectedEvent.id, sourceId, "Approved by PMCM."))}
-                  onGenerateBillingStatement={(sourceId) => run("generate billing statement", () => mvpApi.generateBillingStatement(selectedEvent.id, sourceId))}
-                  onLoadCloseGates={() => mvpApi.closeGates(selectedEvent.id)}
-                  onArchive={(reason) => run("archive event", () => mvpApi.archiveEvent(selectedEvent.id, reason))}
-                  onLoadInsights={() => mvpApi.eventInsights(selectedEvent.id)}
-                  onGenerateInsights={() => run("generate insights", () => mvpApi.generateEventInsights(selectedEvent.id))}
+                  onCreateBillingSource={(input) => run("create billing source", () => prismApi.createBillingSource(selectedEvent.id, input))}
+                  onApproveBillingSource={(sourceId) => run("approve billing source", () => prismApi.approveBillingSource(selectedEvent.id, sourceId, "Approved by PMCM."))}
+                  onGenerateBillingStatement={(sourceId) => run("generate billing statement", () => prismApi.generateBillingStatement(selectedEvent.id, sourceId))}
+                  onLoadCloseGates={() => prismApi.closeGates(selectedEvent.id)}
+                  onArchive={(reason) => run("archive event", () => prismApi.archiveEvent(selectedEvent.id, reason))}
+                  onLoadInsights={() => prismApi.eventInsights(selectedEvent.id)}
+                  onGenerateInsights={() => run("generate insights", () => prismApi.generateEventInsights(selectedEvent.id))}
                 />
               )}
 

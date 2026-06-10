@@ -906,7 +906,7 @@ function mockDefenseReadiness(context) {
       { key: "closure", label: "Prepare closure packet", detail: "Post-event documents remain pending.", status: "blocked", targetTab: "closure" },
     ],
     liveAiBlocked: false,
-    deferredScope: ["Payment gateway settlement remains manual for MVP."],
+    deferredScope: ["Payment gateway settlement remains manual for Prism."],
     generatedAt: "2026-05-07T06:00:00.000Z",
   };
 }
@@ -999,7 +999,7 @@ function mockPrivacyInventory(context) {
       eventName: context.event.eventName,
       dataCategories: ["client contact", "guest attendance", "supplier documents"],
       recordCount: 18,
-      retentionNotes: "MVP demo retention follows event archive lifecycle.",
+      retentionNotes: "Prism demo retention follows event archive lifecycle.",
       surfaces: [{
         surface: "Guest check-ins",
         recordCount: context.state.guestCheckIns.length,
@@ -1254,7 +1254,7 @@ async function waitForReady(cdp, sessionId, page) {
   const markerResults = markers.map((marker) => ({ marker, found: lower.includes(marker) }));
   const pulseCount = document.querySelectorAll(".animate-pulse").length;
   const readyState = document.readyState;
-  const loadingText = /loading (your|the|pmcm|coordinator|visible|role-safe|readiness|close-gate|layout|mvp)|signing in|opening/i.test(text);
+  const loadingText = /loading (your|the|pmcm|coordinator|visible|role-safe|readiness|close-gate|layout|prism)|signing in|opening/i.test(text);
   const markerReady = markerResults.every((item) => item.found);
   return {
     ready: readyState === "complete" && markerReady && pulseCount === 0 && !loadingText && text.length > 120,
@@ -1434,7 +1434,7 @@ function buildIndex(features, capturedPages, context) {
   lines.push("");
   lines.push("- `Direct` means the feature ref is intentionally assigned to that screenshot page in the capture manifest.");
   lines.push("- `Nearest surface` means the feature is in the catalog but does not have a one-feature route; the index points to the closest current page for that persona/workflow.");
-  lines.push("- `Nearest / roadmap` is used for Phase 2 or live-AI catalog items whose current MVP evidence is a designed surface, data model, governance boundary, or roadmap view rather than live production behavior.");
+  lines.push("- `Nearest / roadmap` is used for Phase 2 or live-AI catalog items whose current Prism evidence is a designed surface, data model, governance boundary, or roadmap view rather than live production behavior.");
   lines.push("");
 
   return lines.join("\n");

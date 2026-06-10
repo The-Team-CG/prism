@@ -1,5 +1,5 @@
 -- Corrective migration for databases that were baselined after the initial
--- layout tables already existed, leaving the MVP tables uncreated.
+-- layout tables already existed, leaving the Prism tables uncreated.
 
 CREATE TABLE IF NOT EXISTS "users" (
     "id" TEXT NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS "inquiries" (
     CONSTRAINT "inquiries_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE IF NOT EXISTS "mvp_events" (
+CREATE TABLE IF NOT EXISTS "prism_events" (
     "id" TEXT NOT NULL,
     "inquiry_id" TEXT NOT NULL,
     "client_name" TEXT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS "mvp_events" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "mvp_events_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "prism_events_pkey" PRIMARY KEY ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "documents" (

@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, BadgeCheck, Eye, EyeOff, Handshake, Send, Shield
 import { toast } from "sonner";
 import { PrismBrandLogo } from "@prism/ui";
 import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
-import { mvpApi, type MvpUser } from "@/lib/mvp-api";
+import { prismApi, type PrismUser } from "@/lib/prism-api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
@@ -16,7 +16,7 @@ const initialState: SignInState = { email: "ana@ayala.test", password: "prism-cl
 const PRIVACY_NOTICE_VERSION = "2026-05-01";
 const demoPasswords: Record<string, string> = { "ana@ayala.test": "prism-client" };
 
-const clientDemoUsers: MvpUser[] = [
+const clientDemoUsers: PrismUser[] = [
   {
     id: "usr_client",
     name: "Ana Reyes",
@@ -40,8 +40,8 @@ export function SignInPage() {
   const [form, setForm] = useState(initialState);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingUser, setPendingUser] = useState<MvpUser | null>(null);
-  const [signedInUser, setSignedInUser] = useState<(MvpUser & { signedInAt: string }) | null>(null);
+  const [pendingUser, setPendingUser] = useState<PrismUser | null>(null);
+  const [signedInUser, setSignedInUser] = useState<(PrismUser & { signedInAt: string }) | null>(null);
   const [approvalConsentAccepted, setApprovalConsentAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -55,7 +55,7 @@ export function SignInPage() {
     setPendingUser(null);
     setBusy(true);
     try {
-      const session = await mvpApi.login(form);
+      const session = await prismApi.login(form);
       if (session.role !== "client") { setError(portalMessage(session.role)); return; }
       window.localStorage.setItem(MOCK_AUTH_SESSION_KEY, JSON.stringify(session));
       setSignedInUser(session);
@@ -82,9 +82,9 @@ export function SignInPage() {
     }
   }
 
-  async function requestApproval(user: MvpUser) {
+  async function requestApproval(user: PrismUser) {
     try {
-      await mvpApi.requestApproval(user.email, {
+      await prismApi.requestApproval(user.email, {
         privacyConsentAccepted: approvalConsentAccepted,
         privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
         marketingConsentAccepted: false,

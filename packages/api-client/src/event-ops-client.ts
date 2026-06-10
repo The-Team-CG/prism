@@ -1,4 +1,4 @@
-import type { MvpDemoState, MvpEvent, MvpInquiry } from "@prism/types";
+import type { PrismDemoState, PrismEvent, PrismInquiry } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
 export interface EventOpsActorQuery {
@@ -8,7 +8,7 @@ export interface EventOpsActorQuery {
   clientName?: string;
 }
 
-export interface CreateMvpInquiryInput {
+export interface CreatePrismInquiryInput {
   clientName: string;
   companyName?: string;
   email: string;
@@ -42,35 +42,35 @@ function actorPath(path: string, actor: EventOpsActorQuery = {}): string {
 
 export interface EventOpsClient {
   demo: {
-    state(): Promise<MvpDemoState>;
-    reset(): Promise<MvpDemoState>;
-    seed(): Promise<MvpDemoState>;
+    state(): Promise<PrismDemoState>;
+    reset(): Promise<PrismDemoState>;
+    seed(): Promise<PrismDemoState>;
   };
   inquiries: {
-    list(actor?: EventOpsActorQuery): Promise<MvpInquiry[]>;
-    create(input: CreateMvpInquiryInput): Promise<MvpInquiry>;
+    list(actor?: EventOpsActorQuery): Promise<PrismInquiry[]>;
+    create(input: CreatePrismInquiryInput): Promise<PrismInquiry>;
   };
   events: {
-    list(actor?: EventOpsActorQuery): Promise<MvpEvent[]>;
-    detail(eventId: string, actor?: EventOpsActorQuery): Promise<MvpEvent>;
+    list(actor?: EventOpsActorQuery): Promise<PrismEvent[]>;
+    detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
   };
 }
 
 export function createEventOpsClient(options: EventOpsClientOptions = {}): EventOpsClient {
   return {
     demo: {
-      state: () => prismRequest<MvpDemoState>("/demo/state", withBase(options)),
-      reset: () => prismRequest<MvpDemoState>("/demo/reset", withBase(options, { method: "POST" })),
-      seed: () => prismRequest<MvpDemoState>("/demo/seed", withBase(options, { method: "POST" })),
+      state: () => prismRequest<PrismDemoState>("/demo/state", withBase(options)),
+      reset: () => prismRequest<PrismDemoState>("/demo/reset", withBase(options, { method: "POST" })),
+      seed: () => prismRequest<PrismDemoState>("/demo/seed", withBase(options, { method: "POST" })),
     },
     inquiries: {
-      list: (actor = {}) => prismRequest<MvpInquiry[]>(actorPath("/inquiries", actor), withBase(options)),
-      create: (input) => prismRequest<MvpInquiry>("/inquiries", withBase(options, { method: "POST", body: input })),
+      list: (actor = {}) => prismRequest<PrismInquiry[]>(actorPath("/inquiries", actor), withBase(options)),
+      create: (input) => prismRequest<PrismInquiry>("/inquiries", withBase(options, { method: "POST", body: input })),
     },
     events: {
-      list: (actor = {}) => prismRequest<MvpEvent[]>(actorPath("/events", actor), withBase(options)),
+      list: (actor = {}) => prismRequest<PrismEvent[]>(actorPath("/events", actor), withBase(options)),
       detail: (eventId, actor = {}) =>
-        prismRequest<MvpEvent>(actorPath(`/events/${eventId}`, actor), withBase(options)),
+        prismRequest<PrismEvent>(actorPath(`/events/${eventId}`, actor), withBase(options)),
     },
   };
 }
