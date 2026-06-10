@@ -7,78 +7,18 @@ export type SupplierSession = {
   signedInAt: string;
 };
 
-export type PrismSupplierCertification = {
-  id: string;
-  fileName: string;
-  documentType?: string;
-  issuer?: string;
-  expiresAt?: string | null;
-  status?: string;
-  notes?: string;
-  uploadedAt: string;
-};
+export type {
+  PrismSupplier,
+  PrismSupplierCertification,
+  PrismSupplierQuote,
+  PrismSupplierQuoteRequest,
+} from "@prism/types";
 
-export type PrismSupplier = {
-  id: string;
-  name: string;
-  categoryId: string;
-  categoryName: string;
-  categorySlug: string;
-  tier: string;
-  bniMember: boolean;
-  autoTrust: boolean;
-  contactName: string;
-  email: string;
-  phone: string;
-  serviceInclusions: string;
-  applicationDate: string;
-  certifications: PrismSupplierCertification[];
-};
-
-export type PrismSupplierQuoteRequest = {
-  id: string;
-  eventId: string;
-  supplierId?: string;
-  categoryId?: string;
-  supplierName: string;
-  category: string;
-  message: string;
-  dueDate?: string | null;
-  accessToken: string;
-  confidentialBid: boolean;
-  status: string;
-  assignmentStatus?: string;
-  assignmentConfirmedAt?: string | null;
-  readinessStatus?: string;
-  readinessConfirmedAt?: string | null;
-  readinessNotes?: string;
-  eventDayStatus?: string;
-  eventDayStatusAt?: string | null;
-  eventDayNotes?: string;
-  statusPhotoFileName?: string | null;
-  contractDocumentId?: string | null;
-  createdAt: string;
-};
-
-export type PrismSupplierQuote = {
-  id: string;
-  eventId: string;
-  requestId?: string;
-  supplierId?: string;
-  categoryId?: string;
-  supplierName: string;
-  category: string;
-  amount: number;
-  inclusions: string[];
-  paymentTerms: string;
-  notes: string;
-  status: string;
-  revisionNumber?: number;
-  revisedAt?: string | null;
-  selectedAt?: string | null;
-  lockedAt?: string | null;
-  createdAt: string;
-};
+import type {
+  PrismSupplier,
+  PrismSupplierQuote,
+  PrismSupplierQuoteRequest,
+} from "@prism/types";
 
 export type SupplierWorkspace = {
   supplier: PrismSupplier;
