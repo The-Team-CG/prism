@@ -1,5 +1,6 @@
 import { createInitialPrismDemoState } from "@/mock/prism-demo-state";
 import type { Project } from "@/app/components/editor/types";
+import { createEventOpsClient } from "@prism/api-client";
 
 import type {
   DemoRole,
@@ -60,6 +61,7 @@ export type CreatePrismInquiryInput = Pick<PrismInquiry, "clientName" | "email" 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const USE_REMOTE_API = process.env.NEXT_PUBLIC_Prism_API_MODE !== "local";
 const STORAGE_KEY = "prism:prism-demo-state";
+const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
 const defaultInquiryInput: CreatePrismInquiryInput = {
   clientName: "Maria Santos",
   companyName: "SampleCorp",
@@ -304,7 +306,7 @@ function withClientActor(path: string, session?: Pick<PrismUser, "name" | "email
 }
 
 export const prismApi = {
-  state: () => (USE_REMOTE_API ? request<PrismDemoState>("/api/demo/state") : Promise.resolve(readMockState())),
+  state: () => (USE_REMOTE_API ? eventOpsClient.demo.state() : Promise.resolve(readMockState())),
   clientState: async (session: Pick<PrismUser, "name" | "email">) => {
     if (!USE_REMOTE_API) return readMockState();
 
@@ -312,7 +314,7 @@ export const prismApi = {
     return request<PrismDemoState>(`/api/client/workspace?${actor}`);
   },
   reset: () => {
-    if (USE_REMOTE_API) return request<PrismDemoState>("/api/demo/reset", { method: "POST" });
+    if (USE_REMOTE_API) return eventOpsClient.demo.reset();
 
     const state = createInitialPrismDemoState();
     writeMockState(state);
@@ -366,10 +368,7 @@ export const prismApi = {
         })),
   createInquiry: (input: CreatePrismInquiryInput = defaultInquiryInput) =>
     USE_REMOTE_API
-      ? request<PrismInquiry>("/api/inquiries", {
-          method: "POST",
-          body: JSON.stringify(input),
-        })
+      ? eventOpsClient.inquiries.create(input)
       : Promise.resolve(updateMockState((state) => {
         if (!input.privacyConsentAccepted) throw new Error("Privacy consent is required before submitting an inquiry");
         const inquiry: PrismInquiry = {
@@ -479,7 +478,7 @@ export const prismApi = {
       })),
   events: () =>
     USE_REMOTE_API
-      ? request<PrismEvent[]>("/api/events")
+      ? eventOpsClient.events.list()
       : Promise.resolve(updateMockState((state) =>
         state.events.map((event) => ({
           ...event,
@@ -489,7 +488,7 @@ export const prismApi = {
       )),
   eventDetail: (eventId: string) =>
     USE_REMOTE_API
-      ? request<PrismEvent>(`/api/events/${eventId}`)
+      ? eventOpsClient.events.detail(eventId)
       : Promise.resolve(updateMockState((state) => {
         const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
         const drafts = state.floorPlanDrafts.filter((draft) => draft.eventId === event.id);

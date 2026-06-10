@@ -1,4 +1,5 @@
 import type { Project } from "@/app/components/editor/types";
+import { createEventOpsClient } from "@prism/api-client";
 
 import type {
   DemoRole,
@@ -310,6 +311,7 @@ interface ApiFloorPlan {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
+const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
 
 export function apiUrl(path: string) {
   if (!path) return "#";
@@ -388,12 +390,16 @@ function withCoordinatorActor(path: string, session: { name: string; email: stri
 }
 
 export const prismApi = {
-  state: () => request<PrismDemoState>("/api/demo/state"),
+  state: () => eventOpsClient.demo.state(),
   pmcmState: async () => {
-    const state = await request<PrismDemoState>("/api/demo/state");
+    const state = await eventOpsClient.demo.state();
     const [onboarding, events, suppliers, billing] = await Promise.allSettled([
       request<{ inquiries: PrismInquiry[]; documents: PrismDocument[] }>(`/api/onboarding?${pmcmActorQuery}`),
-      request<PrismEvent[]>(`/api/events?${pmcmActorQuery}`),
+      eventOpsClient.events.list({
+        actorRole: "pmcm-admin",
+        actorName: "Ms. Mys",
+        actorEmail: "mys@pmcm.test",
+      }),
       request<PrismSupplier[]>(`/api/suppliers?${pmcmActorQuery}`),
       request<{
         billingSources: PrismBillingSource[];
@@ -430,7 +436,7 @@ export const prismApi = {
       paymentRecords: billingData.paymentRecords ?? state.paymentRecords,
     };
   },
-  reset: () => request<PrismDemoState>("/api/demo/reset", { method: "POST" }),
+  reset: () => eventOpsClient.demo.reset(),
   login: (input: { email: string; password: string }) =>
     request<PrismUser & { signedInAt: string }>("/api/auth/login", {
       method: "POST",
