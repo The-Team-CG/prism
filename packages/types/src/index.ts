@@ -1,3 +1,4 @@
+export * from "./event-ops";
 export * from "./lifecycle";
 
 export type PrismRole = "pmcm" | "client" | "supplier" | "guest" | "coordinator";
