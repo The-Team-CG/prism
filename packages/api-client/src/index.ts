@@ -1,26 +1,21 @@
-export const DEFAULT_PRISM_API_BASE_URL = "http://localhost:4000/api";
+export {
+  createEventOpsClient,
+  type CreateMvpInquiryInput,
+  type EventOpsActorQuery,
+  type EventOpsClient,
+  type EventOpsClientOptions,
+} from "./event-ops-client";
+export {
+  DEFAULT_PRISM_API_BASE_URL,
+  PrismApiError,
+  prismRequest,
+  resolvePrismApiBaseUrl,
+  toQueryString,
+  type PrismRequestInit,
+} from "./http";
 
-declare const process: {
-  env: Record<string, string | undefined>;
-};
+import { prismRequest, type PrismRequestInit } from "./http";
 
-export function resolvePrismApiBaseUrl(explicitBaseUrl?: string): string {
-  return explicitBaseUrl ?? process.env.NEXT_PUBLIC_PRISM_API_BASE_URL ?? DEFAULT_PRISM_API_BASE_URL;
-}
-
-export async function prismJson<T>(path: string, init?: RequestInit & { baseUrl?: string }): Promise<T> {
-  const baseUrl = resolvePrismApiBaseUrl(init?.baseUrl);
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`P.R.I.S.M API request failed: ${response.status}`);
-  }
-
-  return (await response.json()) as T;
+export async function prismJson<T>(path: string, init?: PrismRequestInit): Promise<T> {
+  return prismRequest<T>(path, init);
 }
