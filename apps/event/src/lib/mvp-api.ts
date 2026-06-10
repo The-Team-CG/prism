@@ -1087,8 +1087,8 @@ function withCoordinatorActor(path: string, session: { name: string; email: stri
 export const mvpApi = {
   state: () => request<MvpDemoState>("/api/demo/state"),
   pmcmState: async () => {
-    const [state, onboarding, events, suppliers, billing] = await Promise.all([
-      request<MvpDemoState>("/api/demo/state"),
+    const state = await request<MvpDemoState>("/api/demo/state");
+    const [onboarding, events, suppliers, billing] = await Promise.allSettled([
       request<{ inquiries: MvpInquiry[]; documents: MvpDocument[] }>(`/api/onboarding?${pmcmActorQuery}`),
       request<MvpEvent[]>(`/api/events?${pmcmActorQuery}`),
       request<MvpSupplier[]>(`/api/suppliers?${pmcmActorQuery}`),
@@ -1099,17 +1099,32 @@ export const mvpApi = {
         paymentRecords?: MvpPaymentRecord[];
       }>(`/api/billing?${pmcmActorQuery}`),
     ]);
+    const onboardingData =
+      onboarding.status === "fulfilled"
+        ? onboarding.value
+        : { inquiries: state.inquiries, documents: state.documents };
+    const eventsData = events.status === "fulfilled" ? events.value : state.events;
+    const suppliersData = suppliers.status === "fulfilled" ? suppliers.value : state.suppliers;
+    const billingData =
+      billing.status === "fulfilled"
+        ? billing.value
+        : {
+            billingSources: state.billingSources,
+            billingStatements: state.billingStatements,
+            paymentMilestones: state.paymentMilestones,
+            paymentRecords: state.paymentRecords,
+          };
 
     return {
       ...state,
-      inquiries: onboarding.inquiries,
-      events,
-      documents: onboarding.documents,
-      suppliers,
-      billingSources: billing.billingSources ?? state.billingSources,
-      billingStatements: billing.billingStatements,
-      paymentMilestones: billing.paymentMilestones,
-      paymentRecords: billing.paymentRecords ?? state.paymentRecords,
+      inquiries: onboardingData.inquiries,
+      events: eventsData,
+      documents: onboardingData.documents,
+      suppliers: suppliersData,
+      billingSources: billingData.billingSources ?? state.billingSources,
+      billingStatements: billingData.billingStatements,
+      paymentMilestones: billingData.paymentMilestones,
+      paymentRecords: billingData.paymentRecords ?? state.paymentRecords,
     };
   },
   reset: () => request<MvpDemoState>("/api/demo/reset", { method: "POST" }),
