@@ -22,6 +22,7 @@ import {
 } from './event-ops.controller';
 import { EventOpsService } from './event-ops.service';
 import { DemoStateService } from './services/demo-state.service';
+import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 
 @Module({
   imports: [DatabaseModule],
@@ -45,6 +46,6 @@ import { DemoStateService } from './services/demo-state.service';
     OpsOnboardingController,
     OpsGuestController,
   ],
-  providers: [EventOpsService, DemoStateService],
+  providers: [EventOpsService, DemoStateService, InquiryWorkflowService],
 })
 export class EventOpsModule {}

@@ -68,6 +68,7 @@ import {
 import { LiveOperationsService } from './services/live-operations.service';
 import { PrivacyOperationsService } from './services/privacy-operations.service';
 import { DemoStateService } from './services/demo-state.service';
+import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 import { PAREService } from './services/pare/pare.service';
 
 type CreateInquiryInput = {
@@ -714,6 +715,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly demoStateService = new DemoStateService(prisma),
+    private readonly inquiryWorkflowService = new InquiryWorkflowService(prisma),
   ) {
     this.auditService = new AuditService(prisma);
     this.inquiriesService = new InquiriesService(prisma, this.auditService);
@@ -832,6 +834,18 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.reminderTimer) clearInterval(this.reminderTimer);
+  }
+
+  private inquiryWorkflowContext() {
+    return {
+      inquiriesService: this.inquiriesService,
+      resolveActor: (input?: DemoActorInput) => this.resolveActor(input),
+      requireActorRole: (actor: ResolvedDemoActor, roles: OpsUserRoleValue[], resource: string) =>
+        this.requireActorRole(actor, roles, resource),
+      allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      mapInquiry: (inquiry: unknown) => this.mapInquiry(inquiry as Parameters<typeof this.mapInquiry>[0]),
+      mapDocument: (document: unknown) => this.mapDocument(document as Parameters<typeof this.mapDocument>[0]),
+    };
   }
 
   async state() {
@@ -1017,14 +1031,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async listInquiries(actorInput: DemoActorInput = {}) {
-    const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'inquiries');
-
-    const inquiries = await this.prisma.opsInquiry.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return inquiries.map((inquiry) => this.mapInquiry(inquiry));
+    return this.inquiryWorkflowService.listInquiries(actorInput, this.inquiryWorkflowContext());
   }
 
   async listOnboarding(actorInput: DemoActorInput = {}) {
@@ -1056,23 +1063,19 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async createInquiry(input: CreateInquiryInput) {
-    const inquiry = await this.inquiriesService.createInquiry(input);
-    return this.mapInquiry(inquiry);
+    return this.inquiryWorkflowService.createInquiry(input, this.inquiryWorkflowContext());
   }
 
   async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: DemoActorInput = {}) {
-    const inquiry = await this.inquiriesService.logInquiryOnBehalf(input, actorInput);
-    return this.mapInquiry(inquiry);
+    return this.inquiryWorkflowService.logInquiryOnBehalf(input, actorInput, this.inquiryWorkflowContext());
   }
 
   async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput) {
-    const inquiry = await this.inquiriesService.updateInquiryStatus(inquiryId, input);
-    return this.mapInquiry(inquiry);
+    return this.inquiryWorkflowService.updateInquiryStatus(inquiryId, input, this.inquiryWorkflowContext());
   }
 
   async sendConformeReminder(inquiryId: string) {
-    const inquiry = await this.inquiriesService.sendConformeReminder(inquiryId);
-    return this.mapInquiry(inquiry);
+    return this.inquiryWorkflowService.sendConformeReminder(inquiryId, this.inquiryWorkflowContext());
   }
 
   private async runConformeReminderSweep() {
@@ -1218,8 +1221,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
   ) {
-    const document = await this.inquiriesService.uploadConforme(inquiryId, input);
-    return this.mapDocument(document);
+    return this.inquiryWorkflowService.uploadConforme(inquiryId, input, this.inquiryWorkflowContext());
   }
 
   async listEvents(actorInput: DemoActorInput = {}) {
