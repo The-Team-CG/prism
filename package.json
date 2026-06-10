@@ -23,7 +23,8 @@
     "start:guest": "npm --workspace @prism/guest run start",
     "test:api": "npm --workspace prism-api run test",
     "db:generate": "npm --workspace prism-api run db:generate",
-    "smoke:ui": "node scripts/smoke-prism-ui.mjs"
+    "smoke:ui": "node scripts/smoke-prism-ui.mjs",
+    "check:boundaries": "node scripts/check-prism-boundaries.mjs"
   },
   "devDependencies": {
     "turbo": "^2.6.1",

@@ -16,6 +16,10 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "check:boundaries": {
+      "cache": false,
+      "outputs": []
     }
   }
 }

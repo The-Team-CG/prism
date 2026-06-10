@@ -56,6 +56,16 @@ Individual app defaults:
 - Dashboards are signed-in surfaces.
 - Event creation and portal access are gated by accepted inquiry plus signed conforme.
 - Clients submit layout preferences from confirmed events; PMCM owns official floorplan editing in `apps/event`.
+- Shared contracts belong in `packages/types`.
+- Shared request wrappers belong in `packages/api-client`.
+- Shared presentation primitives belong in `packages/ui`.
+- Role apps must not import each other's internals.
+
+Check import boundaries before merging architectural refactors:
+
+```bash
+npm run check:boundaries
+```
 
 ## Backend Architecture
 
