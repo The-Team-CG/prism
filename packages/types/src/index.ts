@@ -1,3 +1,5 @@
+export * from "./lifecycle";
+
 export type PrismRole = "pmcm" | "client" | "supplier" | "guest" | "coordinator";
 
 export type PrismReadinessStatus = "ready" | "attention" | "blocked" | "done";
