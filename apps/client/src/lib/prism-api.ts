@@ -1,201 +1,49 @@
 import { createInitialPrismDemoState } from "@/mock/prism-demo-state";
 import type { Project } from "@/app/components/editor/types";
 
-export type DemoRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
+import type {
+  DemoRole,
+  PrismApprovalRequest,
+  PrismAuditLog,
+  PrismBillingStatement,
+  PrismBriefing,
+  PrismComplianceCheck,
+  PrismCoordinatorAssignment,
+  PrismDemoState,
+  PrismDocument,
+  PrismEvent,
+  PrismFloorPlanDraft,
+  PrismFloorPlanPreference,
+  PrismFloorPlanSnapshot,
+  PrismInquiry,
+  PrismNotificationLog,
+  PrismPaymentMilestone,
+  PrismPostEventDocument,
+  PrismSupplierQuote,
+  PrismUser,
+} from "@prism/types";
 
-export interface PrismUser {
-  id: string;
-  name: string;
-  role: DemoRole;
-  email: string;
-  organization: string;
-  approvalStatus: "approved" | "pending" | string;
-}
-
-export interface PrismInquiry {
-  id: string;
-  clientName: string;
-  companyName?: string;
-  email: string;
-  eventName: string;
-  eventType?: string;
-  eventDate: string;
-  clientType: string;
-  source?: string;
-  referralDetails?: string;
-  message: string;
-  status: string;
-  declineReason?: string | null;
-  acceptedAt?: string | null;
-  conformeSentAt?: string | null;
-  conformeSignedAt?: string | null;
-  portalActivatedAt?: string | null;
-  portalInvitationStatus?: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-  createdAt: string;
-}
-
-export interface PrismEvent {
-  id: string;
-  inquiryId: string;
-  clientName: string;
-  eventName: string;
-  eventDate: string;
-  status: string;
-  clientPortalStatus: "locked" | "unlocked";
-  readiness: string;
-  archived: boolean;
-  floorPlanStatus: string;
-  floorPlanId?: string | null;
-  guestAccessCode?: string;
-  activeFloorPlanDraftId?: string;
-  floorPlanDrafts?: PrismFloorPlanDraft[];
-}
-
-export interface PrismFloorPlanDraft {
-  id: string;
-  eventId: string;
-  floorPlanId: string;
-  name: string;
-  status: "client_submitted" | "pmcm_draft" | "in_review" | "approved" | string;
-  isActive: boolean;
-  sourceType: "client_preference" | "blank" | "template" | string;
-  createdByRole?: DemoRole | string;
-  clientPreference?: PrismFloorPlanPreference;
-  submittedSnapshot?: PrismFloorPlanSnapshot;
-  approvedSnapshot?: PrismFloorPlanSnapshot;
-  submittedAt?: string;
-  reviewedAt?: string;
-  approvedAt?: string;
-  submittedSnapshotAt?: string;
-  approvedSnapshotAt?: string;
-  revisionComment?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PrismDocument {
-  id: string;
-  eventId: string;
-  type: string;
-  fileName: string;
-  status: string;
-  uploadedAt: string;
-}
-
-export interface PrismBriefing {
-  eventId: string;
-  venue: string;
-  guestCount: number;
-  budgetRange: string;
-  serviceRequirements: string[];
-  notes: string;
-  submittedAt: string;
-}
-
-export interface PrismSupplierQuote {
-  id: string;
-  eventId: string;
-  supplierName: string;
-  category: string;
-  amount: number;
-  status: string;
-}
-
-export interface PrismCoordinatorAssignment {
-  id: string;
-  eventId: string;
-  coordinatorName: string;
-  role: string;
-  status: string;
-  doubleBookingWarning: boolean;
-}
-
-export interface PrismComplianceCheck {
-  id: string;
-  eventId: string;
-  layer: "Must-Fix" | "Should-Fix" | "Advisory";
-  title: string;
-  status: "open" | "resolved";
-  note: string;
-}
-
-export interface PrismBillingStatement {
-  id: string;
-  eventId: string;
-  number: string;
-  totalAmount: number;
-  status: string;
-  generatedAt: string;
-}
-
-export interface PrismPaymentMilestone {
-  id: string;
-  eventId: string;
-  label: string;
-  amount: number;
-  dueDate: string;
-  status: string;
-}
-
-export interface PrismPostEventDocument {
-  id: string;
-  eventId: string;
-  title: string;
-  status: string;
-}
-
-export interface PrismAuditLog {
-  id: string;
-  eventId?: string;
-  actor: string;
-  action: string;
-  createdAt: string;
-}
-
-export interface PrismNotificationLog {
-  id: string;
-  eventId?: string;
-  channel: "email" | "viber";
-  recipient: string;
-  message: string;
-  status: string;
-  createdAt: string;
-}
-
-export interface PrismDemoState {
-  users: PrismUser[];
-  inquiries: PrismInquiry[];
-  events: PrismEvent[];
-  documents: PrismDocument[];
-  briefings: PrismBriefing[];
-  supplierQuotes: PrismSupplierQuote[];
-  coordinatorAssignments: PrismCoordinatorAssignment[];
-  complianceChecks: PrismComplianceCheck[];
-  billingStatements: PrismBillingStatement[];
-  paymentMilestones: PrismPaymentMilestone[];
-  postEventDocuments: PrismPostEventDocument[];
-  floorPlanDrafts: PrismFloorPlanDraft[];
-  auditLogs: PrismAuditLog[];
-  notificationLogs: PrismNotificationLog[];
-}
-
-export interface PrismApprovalRequest {
-  id: string;
-  userId: string;
-  name: string;
-  email: string;
-  role: string;
-  organization: string;
-  status: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-  requestedAt: string;
-}
-
+export type {
+  DemoRole,
+  PrismApprovalRequest,
+  PrismAuditLog,
+  PrismBillingStatement,
+  PrismBriefing,
+  PrismComplianceCheck,
+  PrismCoordinatorAssignment,
+  PrismDemoState,
+  PrismDocument,
+  PrismEvent,
+  PrismFloorPlanDraft,
+  PrismFloorPlanPreference,
+  PrismFloorPlanSnapshot,
+  PrismInquiry,
+  PrismNotificationLog,
+  PrismPaymentMilestone,
+  PrismPostEventDocument,
+  PrismSupplierQuote,
+  PrismUser,
+};
 export type PrivacyConsentInput = {
   privacyConsentAccepted: boolean;
   privacyNoticeVersion?: string;
@@ -208,31 +56,6 @@ export type CreatePrismInquiryInput = Pick<PrismInquiry, "clientName" | "email" 
   source?: string;
   referralDetails?: string;
 } & PrivacyConsentInput;
-
-export interface PrismFloorPlanPreference {
-  seatingStyle: string;
-  stagePreference: string;
-  flowNotes: string;
-  guestCount: number;
-  constraints: string[];
-  notes?: string;
-}
-
-export interface PrismFloorPlanSnapshot {
-  id: string;
-  name: string;
-  venue: string;
-  width: number;
-  height: number;
-  gridSize: number;
-  pax: number;
-  objects?: Project["objects"];
-  guests?: Project["guests"];
-  suppliers?: Project["suppliers"];
-  seats?: unknown[];
-  seatCategories?: unknown[];
-  updatedAt?: string;
-}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const USE_REMOTE_API = process.env.NEXT_PUBLIC_Prism_API_MODE !== "local";
@@ -272,6 +95,16 @@ function readMockState() {
 
   const parsed = JSON.parse(stored) as PrismDemoState;
   parsed.floorPlanDrafts ??= [];
+  parsed.supplierQuoteRequests ??= [];
+  parsed.coordinators ??= [];
+  parsed.coordinatorRoleRequirements ??= [];
+  parsed.coordinatorAssignments ??= [];
+  parsed.complianceRules ??= [];
+  parsed.billingSources ??= [];
+  parsed.paymentRecords ??= [];
+  parsed.eventInsights ??= [];
+  parsed.supplierCategories ??= [];
+  parsed.suppliers ??= [];
   parsed.events = parsed.events.map((event) => ({
     ...event,
     floorPlanStatus: event.floorPlanStatus ?? "not_started",
@@ -292,7 +125,15 @@ function addAudit(state: PrismDemoState, eventId: string | undefined, actor: str
     id: `aud_${crypto.randomUUID()}`,
     eventId,
     actor,
+    actorRole: actor,
+    actorEmail: undefined,
     action,
+    actionType: "demo_action",
+    category: "client_portal",
+    ipAddress: "local-demo",
+    device: "browser",
+    severity: "info",
+    immutableHash: `local_${crypto.randomUUID()}`,
     createdAt: now(),
   });
 }
@@ -590,13 +431,47 @@ export const prismApi = {
           id: `bill_${crypto.randomUUID()}`,
           eventId: event.id,
           number: `BS-${String(state.billingStatements.length + 1).padStart(4, "0")}`,
+          clientName: event.clientName,
+          clientContact: inquiry?.email ?? "",
+          eventName: event.eventName,
+          eventDate: event.eventDate,
+          lineItems: [{ label: "Event services", amount: 520000 }],
+          paymentSchedule: [
+            { label: "Reservation fee", percentage: 30, amount: 156000, dueDate: "2026-05-01" },
+            { label: "Final payment", percentage: 70, amount: 364000, dueDate: "2026-06-10" },
+          ],
+          paymentMethods: [{ label: "Bank Transfer", details: "PMCM demo account" }],
           totalAmount: 520000,
+          pdfUrl: "#",
+          storageKey: `billing/${event.id}.pdf`,
           status: "issued",
           generatedAt: now(),
         });
         state.paymentMilestones.push(
-          { id: `pay_${crypto.randomUUID()}`, eventId: event.id, label: "Reservation fee", amount: 156000, dueDate: "2026-05-01", status: "pending" },
-          { id: `pay_${crypto.randomUUID()}`, eventId: event.id, label: "Final payment", amount: 364000, dueDate: "2026-06-10", status: "pending" },
+          {
+            id: `pay_${crypto.randomUUID()}`,
+            eventId: event.id,
+            label: "Reservation fee",
+            percentage: 30,
+            amount: 156000,
+            amountPaid: 0,
+            remainingBalance: 156000,
+            dueDate: "2026-05-01",
+            status: "pending",
+            history: [],
+          },
+          {
+            id: `pay_${crypto.randomUUID()}`,
+            eventId: event.id,
+            label: "Final payment",
+            percentage: 70,
+            amount: 364000,
+            amountPaid: 0,
+            remainingBalance: 364000,
+            dueDate: "2026-06-10",
+            status: "pending",
+            history: [],
+          },
         );
         addAudit(state, event.id, "Client", "Uploaded signed conforme");
         addNotification(state, event.id, event.clientName, "Client portal unlocked");
@@ -803,7 +678,12 @@ export const prismApi = {
           supplierName: "BrightStage Technicals",
           category: "Technicals",
           amount: 165000,
+          inclusions: ["Stage lights", "Audio system", "Technical crew"],
+          paymentTerms: "50% reservation, 50% before ingress",
+          notes: "Local demo quote",
+          outsideAcceptableRange: false,
           status: "received",
+          createdAt: now(),
         };
         state.supplierQuotes.unshift(quote);
         addAudit(state, eventId, "Supplier", "Submitted supplier quote");
