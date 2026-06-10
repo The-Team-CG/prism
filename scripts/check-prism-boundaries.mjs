@@ -1,17 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
-const root = process.cwd();
-const files = execFileSync("git", ["ls-files", "apps", "packages"], {
-  cwd: root,
-  encoding: "utf8",
-})
-  .split(/\r?\n/)
-  .filter(Boolean)
-  .filter((file) => file.endsWith(".ts") || file.endsWith(".tsx"));
-
-const rules = [
+export const boundaryRules = [
   {
     name: "client app must not import event app internals",
     filePattern: /^apps\/client\//,
@@ -39,25 +31,50 @@ const rules = [
   },
 ];
 
-const violations = [];
+export function listTrackedSourceFiles(root = process.cwd()) {
+  return execFileSync("git", ["ls-files", "apps", "packages"], {
+    cwd: root,
+    encoding: "utf8",
+  })
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .filter((file) => file.endsWith(".ts") || file.endsWith(".tsx"));
+}
 
-for (const file of files) {
-  const normalized = file.replaceAll("\\", "/");
-  const source = readFileSync(join(root, file), "utf8");
+export function findBoundaryViolations(fileSources, rules = boundaryRules) {
+  const violations = [];
 
-  for (const rule of rules) {
-    if (rule.filePattern.test(normalized) && rule.importPattern.test(source)) {
-      violations.push(`${normalized}: ${rule.name}`);
+  for (const [file, source] of Object.entries(fileSources)) {
+    const normalized = file.replaceAll("\\", "/");
+
+    for (const rule of rules) {
+      if (rule.filePattern.test(normalized) && rule.importPattern.test(source)) {
+        violations.push(`${normalized}: ${rule.name}`);
+      }
     }
   }
+
+  return violations;
 }
 
-if (violations.length > 0) {
-  console.error("P.R.I.S.M boundary violations:");
-  for (const violation of violations) {
-    console.error(`- ${violation}`);
+export function runBoundaryCheck(root = process.cwd()) {
+  const files = listTrackedSourceFiles(root);
+  const fileSources = Object.fromEntries(files.map((file) => [file, readFileSync(join(root, file), "utf8")]));
+  const violations = findBoundaryViolations(fileSources);
+
+  if (violations.length > 0) {
+    console.error("P.R.I.S.M boundary violations:");
+    for (const violation of violations) {
+      console.error(`- ${violation}`);
+    }
+    return { ok: false, checkedCount: files.length, violations };
   }
-  process.exit(1);
+
+  console.log(`P.R.I.S.M boundary check passed for ${files.length} files.`);
+  return { ok: true, checkedCount: files.length, violations };
 }
 
-console.log(`P.R.I.S.M boundary check passed for ${files.length} files.`);
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const result = runBoundaryCheck();
+  if (!result.ok) process.exit(1);
+}
