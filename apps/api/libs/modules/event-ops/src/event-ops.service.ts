@@ -73,6 +73,11 @@ import {
   type CreateBillingSourceInput,
   type RecordPaymentInput,
 } from './services/billing-operations.service';
+import {
+  type CreateFloorPlanDraftInput,
+  type CreateFloorPlanPreferenceInput,
+  FloorPlanWorkflowService,
+} from './services/floor-plan-workflow.service';
 
 type CreateInquiryInput = {
   clientName: string;
@@ -286,34 +291,6 @@ type AiGovernanceInput = {
   modelVersion: string;
   zdrConfirmed: boolean;
   payload: Record<string, unknown>;
-};
-
-type CreateFloorPlanDraftInput = {
-  name: string;
-  sourceType: string;
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  pax?: number;
-  objects?: unknown[];
-  guests?: unknown[];
-  suppliers?: unknown[];
-};
-
-type CreateFloorPlanPreferenceInput = {
-  name: string;
-  seatingStyle: string;
-  stagePreference: string;
-  flowNotes: string;
-  guestCount: number;
-  constraints: string[];
-  notes?: string;
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  objects?: unknown[];
 };
 
 type AuditLogFilters = {
@@ -676,6 +653,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly suppliersService: SuppliersService;
   private readonly coordinatorsService: CoordinatorsService;
   private readonly billingOperationsService: BillingOperationsService;
+  private readonly floorPlanWorkflowService: FloorPlanWorkflowService;
   private readonly liveOperationsService: LiveOperationsService;
   private readonly pareService: PAREService;
 
@@ -691,6 +669,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.suppliersService = new SuppliersService(prisma);
     this.coordinatorsService = new CoordinatorsService(prisma);
     this.billingOperationsService = new BillingOperationsService(prisma);
+    this.floorPlanWorkflowService = new FloorPlanWorkflowService(prisma);
     this.liveOperationsService = new LiveOperationsService();
     this.pareService = new PAREService(prisma);
   }
@@ -859,7 +838,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       mapPostEventDocument: (document) =>
         this.mapPostEventDocument(document as Parameters<typeof this.mapPostEventDocument>[0]),
       mapEventInsight: (insight) => this.mapEventInsight(insight as Parameters<typeof this.mapEventInsight>[0]),
-      mapFloorPlanDraft: (draft) => this.mapFloorPlanDraft(draft as Parameters<typeof this.mapFloorPlanDraft>[0]),
+      mapFloorPlanDraft: (draft) =>
+        this.floorPlanWorkflowService.mapFloorPlanDraft(
+          draft as Parameters<typeof this.floorPlanWorkflowService.mapFloorPlanDraft>[0],
+        ),
       mapAuditLog: (log) => this.auditService.mapAuditLog(log as Parameters<typeof this.auditService.mapAuditLog>[0]),
       mapNotificationLog: (log) => this.mapNotificationLog(log as Parameters<typeof this.mapNotificationLog>[0]),
     });
@@ -1550,7 +1532,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         ),
       ),
       postEventDocuments: [],
-      floorPlanDrafts: floorPlanDrafts.map((draft) => this.mapFloorPlanDraft(draft)),
+      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft)),
       auditLogs: auditLogs.map((log) => this.auditService.mapAuditLog(log)),
       notificationLogs: [],
     };
@@ -2425,87 +2407,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan draft', eventId);
-    const event = await this.requireEvent(eventId);
-    const now = new Date();
-    const floorPlanId = `plan_${randomUUID()}`;
-    const objects = input.objects ?? [];
-
-    const draft = await this.prisma.$transaction(async (tx) => {
-      await tx.floorPlan.create({
-        data: {
-          id: floorPlanId,
-          name: input.name,
-          venue: input.venue ?? event.eventName,
-          ownerId: DEFAULT_OWNER_ID,
-          eventId,
-          width: input.width ?? 1200,
-          height: input.height ?? 800,
-          gridSize: input.gridSize ?? 20,
-          pax: input.pax ?? 0,
-          objects: toPrismaJson(objects),
-          guests: toPrismaJson(input.guests ?? []),
-          suppliers: toPrismaJson(input.suppliers ?? []),
-          seats: toPrismaJson([]),
-          seatCategories: toPrismaJson(defaultSeatCategories()),
-          updatedAt: now,
-        },
-      });
-
-      if (objects.length > 0) {
-        await tx.floorPlanObject.createMany({
-          data: objects.map((object, index) => {
-            const row = object as { id?: string; kind?: string; zIndex?: number; svgMarkup?: string };
-            return {
-              floorPlanId,
-              objectId: row.id ?? `obj_${randomUUID()}`,
-              kind: row.kind ?? 'custom-image',
-              zIndex: row.zIndex ?? index,
-              objectData: toPrismaJson(object),
-              svgMarkup: row.svgMarkup ?? null,
-            };
-          }),
-        });
-      }
-
-      const saved = await tx.opsFloorPlanDraft.create({
-        data: {
-          id: `fpd_${randomUUID()}`,
-          eventId,
-          floorPlanId,
-          name: input.name,
-          status: 'pmcm_draft',
-          isActive: false,
-          sourceType: input.sourceType,
-          createdByRole: 'pmcm-admin',
-          createdAt: now,
-          updatedAt: now,
-        },
-      });
-
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: event.floorPlanStatus === 'approved' ? 'approved' : 'pmcm_draft',
-          readiness:
-            event.floorPlanStatus === 'approved'
-              ? event.readiness
-              : 'Floorplan draft in progress',
-        },
-      });
-
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: actor.name,
-          action: `Created floorplan draft: ${input.name}`,
-        },
-      });
-
-      return saved;
+    return this.floorPlanWorkflowService.createFloorPlanDraft(eventId, input, {
+      name: actor.name,
+      role: actor.role,
     });
-
-    return this.mapFloorPlanDraft(draft);
   }
 
   async createFloorPlanPreference(
@@ -2525,104 +2430,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       await this.recordForbiddenAccess(actor, 'client floorplan preference', eventId);
       throw new ForbiddenException('client cannot access this event floorplan preference');
     }
-    const now = new Date();
-    const floorPlanId = `plan_${randomUUID()}`;
-    const objects = input.objects ?? [];
-    const preference = {
-      seatingStyle: input.seatingStyle,
-      stagePreference: input.stagePreference,
-      flowNotes: input.flowNotes,
-      guestCount: input.guestCount,
-      constraints: input.constraints,
-      notes: input.notes ?? '',
-    };
-
-    const draft = await this.prisma.$transaction(async (tx) => {
-      await tx.floorPlan.create({
-        data: {
-          id: floorPlanId,
-          name: input.name,
-          venue: input.venue ?? event.eventName,
-          ownerId: DEFAULT_OWNER_ID,
-          eventId,
-          width: input.width ?? 30,
-          height: input.height ?? 20,
-          gridSize: input.gridSize ?? 1,
-          pax: input.guestCount,
-          objects: toPrismaJson(objects),
-          guests: toPrismaJson([]),
-          suppliers: toPrismaJson([]),
-          seats: toPrismaJson([]),
-          seatCategories: toPrismaJson(defaultSeatCategories()),
-          updatedAt: now,
-        },
-      });
-
-      if (objects.length > 0) {
-        await tx.floorPlanObject.createMany({
-          data: objects.map((object, index) => {
-            const row = object as { id?: string; kind?: string; zIndex?: number; svgMarkup?: string };
-            return {
-              floorPlanId,
-              objectId: row.id ?? `obj_${randomUUID()}`,
-              kind: row.kind ?? 'custom-image',
-              zIndex: row.zIndex ?? index,
-              objectData: toPrismaJson(object),
-              svgMarkup: row.svgMarkup ?? null,
-            };
-          }),
-        });
-      }
-
-      const saved = await tx.opsFloorPlanDraft.create({
-        data: {
-          id: `fpd_${randomUUID()}`,
-          eventId,
-          floorPlanId,
-          name: input.name,
-          status: 'client_submitted',
-          isActive: false,
-          sourceType: 'client_preference',
-          createdByRole: actor.role === OpsUserRole.Client ? 'client' : 'pmcm-admin',
-          clientPreference: toPrismaJson(preference),
-          submittedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        },
-      });
-
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: 'client_submitted',
-          readiness: 'Client layout preference received',
-        },
-      });
-
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: actor.name,
-          action: `Submitted layout preference: ${input.name}`,
-        },
-      });
-
-      await tx.opsNotificationLog.create({
-        data: {
-          id: `not_${randomUUID()}`,
-          eventId,
-          channel: 'email',
-          recipient: 'PMCM Admin',
-          message: `Client submitted a layout preference: ${input.name}`,
-          status: 'queued',
-        },
-      });
-
-      return saved;
+    return this.floorPlanWorkflowService.createFloorPlanPreference(eventId, input, {
+      name: actor.name,
+      role: actor.role,
     });
-
-    return this.mapFloorPlanDraft(draft);
   }
 
   async submitFloorPlanDraft(
@@ -2632,56 +2443,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan submit', eventId);
-    await this.requireEvent(eventId);
-    const draft = await this.requireFloorPlanDraft(eventId, draftId);
-    const now = new Date();
-    const snapshot = await this.floorPlanSnapshot(draft.floorPlanId);
-
-    const submitted = await this.prisma.$transaction(async (tx) => {
-      const saved = await tx.opsFloorPlanDraft.update({
-        where: { id: draft.id },
-        data: {
-          status: 'in_review',
-          submittedSnapshot: toPrismaJson(snapshot),
-          submittedSnapshotAt: now,
-          submittedAt: draft.submittedAt ?? now,
-        },
-      });
-
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: 'in_review',
-          floorPlanId: draft.floorPlanId,
-          floorPlanSubmittedAt: now,
-          readiness: 'Floorplan awaiting review',
-        },
-      });
-
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: actor.name,
-          action: `Submitted floorplan draft for review: ${draft.name}`,
-        },
-      });
-
-      await tx.opsNotificationLog.create({
-        data: {
-          id: `not_${randomUUID()}`,
-          eventId,
-          channel: 'email',
-          recipient: 'Client',
-          message: `Floorplan draft ready for review: ${draft.name}`,
-          status: 'queued',
-        },
-      });
-
-      return saved;
+    return this.floorPlanWorkflowService.submitFloorPlanDraft(eventId, draftId, {
+      name: actor.name,
+      role: actor.role,
     });
-
-    return this.mapFloorPlanDraft(submitted);
   }
 
   async approveFloorPlanDraft(
@@ -2691,53 +2456,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan approve', eventId);
-    await this.requireEvent(eventId);
-    const draft = await this.requireFloorPlanDraft(eventId, draftId);
-    const now = new Date();
-    const snapshot = await this.floorPlanSnapshot(draft.floorPlanId);
-
-    const approved = await this.prisma.$transaction(async (tx) => {
-      await tx.opsFloorPlanDraft.updateMany({
-        where: { eventId, isActive: true },
-        data: { isActive: false },
-      });
-
-      const saved = await tx.opsFloorPlanDraft.update({
-        where: { id: draft.id },
-        data: {
-          status: 'approved',
-          isActive: true,
-          approvedSnapshot: toPrismaJson(snapshot),
-          approvedSnapshotAt: now,
-          reviewedAt: now,
-          approvedAt: now,
-          submittedAt: draft.submittedAt ?? now,
-        },
-      });
-
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: 'approved',
-          floorPlanId: draft.floorPlanId,
-          floorPlanReviewedAt: now,
-          readiness: 'Floorplan approved',
-        },
-      });
-
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: actor.name,
-          action: `Approved floorplan draft: ${draft.name}`,
-        },
-      });
-
-      return saved;
+    return this.floorPlanWorkflowService.approveFloorPlanDraft(eventId, draftId, {
+      name: actor.name,
+      role: actor.role,
     });
-
-    return this.mapFloorPlanDraft(approved);
   }
 
   async getFloorPlanSnapshot(
@@ -2752,14 +2474,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       await this.recordForbiddenAccess(actor, 'official floorplan snapshot', eventId);
       throw new ForbiddenException(`${actor.role} cannot access official floorplan snapshot`);
     }
-    const draft = await this.requireFloorPlanDraft(eventId, draftId);
-    const expanded = draft as OpsFloorPlanDraft & {
-      submittedSnapshot?: unknown;
-      approvedSnapshot?: unknown;
-    };
-    const snapshot = type === 'submitted' ? expanded.submittedSnapshot : expanded.approvedSnapshot;
-    if (!snapshot) throw new NotFoundException('Floorplan snapshot not found');
-    return snapshot;
+    return this.floorPlanWorkflowService.getFloorPlanSnapshot(eventId, draftId, type);
   }
 
   async submitBriefing(eventId: string, input: SubmitBriefingInput) {
@@ -5073,34 +4788,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return [...categories];
   }
 
-  private async requireFloorPlanDraft(eventId: string, draftId: string) {
-    const draft = await this.prisma.opsFloorPlanDraft.findFirst({
-      where: { id: draftId, eventId },
-    });
-    if (!draft) throw new NotFoundException('Floorplan draft not found');
-    return draft;
-  }
-
-  private async floorPlanSnapshot(planId: string) {
-    const plan = await this.prisma.floorPlan.findUnique({ where: { id: planId } });
-    if (!plan) throw new NotFoundException('Floorplan not found');
-    return {
-      id: plan.id,
-      name: plan.name,
-      venue: plan.venue,
-      width: plan.width,
-      height: plan.height,
-      gridSize: plan.gridSize,
-      pax: plan.pax,
-      objects: Array.isArray(plan.objects) ? plan.objects : [],
-      guests: Array.isArray(plan.guests) ? plan.guests : [],
-      suppliers: Array.isArray(plan.suppliers) ? plan.suppliers : [],
-      seats: Array.isArray(plan.seats) ? plan.seats : [],
-      seatCategories: Array.isArray(plan.seatCategories) ? plan.seatCategories : [],
-      updatedAt: plan.updatedAt ? timestamp(plan.updatedAt) : timestamp(new Date()),
-    };
-  }
-
   private async audit(
     eventId: string | undefined,
     actor: string,
@@ -5225,7 +4912,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       floorPlanId: event.floorPlanId,
       guestAccessCode: this.guestAccessCode(event),
       activeFloorPlanDraftId: activeDraft?.id,
-      floorPlanDrafts: floorPlanDrafts.map((draft) => this.mapFloorPlanDraft(draft)),
+      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft)),
     };
   }
 
@@ -5261,37 +4948,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   private normalizeGuestAccessCode(accessCode: string) {
     return accessCode.trim().toUpperCase().replace(/\s+/g, '-');
-  }
-
-  private mapFloorPlanDraft(draft: OpsFloorPlanDraft) {
-    const expanded = draft as OpsFloorPlanDraft & {
-      submittedSnapshot?: unknown;
-      approvedSnapshot?: unknown;
-      submittedSnapshotAt?: Date | null;
-      approvedSnapshotAt?: Date | null;
-      revisionComment?: string;
-    };
-    return {
-      id: draft.id,
-      eventId: draft.eventId,
-      floorPlanId: draft.floorPlanId,
-      name: draft.name,
-      status: draft.status,
-      isActive: draft.isActive,
-      sourceType: draft.sourceType,
-      createdByRole: draft.createdByRole,
-      clientPreference: draft.clientPreference ?? undefined,
-      submittedSnapshot: expanded.submittedSnapshot ?? undefined,
-      approvedSnapshot: expanded.approvedSnapshot ?? undefined,
-      submittedAt: draft.submittedAt ? timestamp(draft.submittedAt) : undefined,
-      reviewedAt: draft.reviewedAt ? timestamp(draft.reviewedAt) : undefined,
-      approvedAt: draft.approvedAt ? timestamp(draft.approvedAt) : undefined,
-      submittedSnapshotAt: expanded.submittedSnapshotAt ? timestamp(expanded.submittedSnapshotAt) : undefined,
-      approvedSnapshotAt: expanded.approvedSnapshotAt ? timestamp(expanded.approvedSnapshotAt) : undefined,
-      revisionComment: expanded.revisionComment ?? '',
-      createdAt: timestamp(draft.createdAt),
-      updatedAt: timestamp(draft.updatedAt),
-    };
   }
 
   private mapDocument(document: OpsDocument) {
