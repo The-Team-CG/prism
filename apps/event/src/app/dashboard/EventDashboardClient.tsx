@@ -83,6 +83,16 @@ import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/a
 import type { Project } from "@/app/components/editor/types";
 import { clearEventSession, readStoredEventSession, type EventSession } from "@/app/lib/session";
 import {
+  selectActiveEvents,
+  selectClientRecords,
+  selectClientRecordsForView,
+  selectEventWorkspaceResources,
+  selectEventsForView,
+  selectPendingApprovals,
+  selectSelectedEvent,
+  selectUnreviewedInquiryCount,
+} from "@/features/event-dashboard/event-dashboard.selectors";
+import {
   CLIENT_DETAIL_ROUTES,
   EVENT_DETAIL_ROUTES,
   EVENT_TAB_ROUTES,
@@ -127,10 +137,6 @@ function shortDate(value?: string | null) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
-function clientKey(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "client";
 }
 
 type TimedCache<T> = { value: T; loadedAt: number };
@@ -1980,84 +1986,40 @@ export default function EventDashboard({
     setSelectedEventId((prev) => routeState.eventId ?? prev ?? state.events[0]?.id ?? null);
   }, [routeState.eventId, state]);
 
-  const events = useMemo(() => (state?.events ?? []).filter((ev) => !ev.archived), [state]);
-  const selectedEvent = events.find((ev) => ev.id === selectedEventId) ?? events[0];
+  const events = useMemo(() => selectActiveEvents(state), [state]);
+  const selectedEvent = selectSelectedEvent(events, selectedEventId);
   const supplierCategories = state?.supplierCategories ?? [];
   const suppliers = state?.suppliers ?? [];
   const coordinators = state?.coordinators ?? [];
   const coordinatorRoleRequirements = state?.coordinatorRoleRequirements ?? [];
   const inquiries = state?.inquiries ?? [];
-  const unreviewedInquiries = inquiries.filter((inq) => inq.status === "new").length;
-  const drafts = selectedEvent ? (state?.floorPlanDrafts ?? []).filter((d) => d.eventId === selectedEvent.id) : [];
-  const quoteRequests = (state?.supplierQuoteRequests ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const quotes = (state?.supplierQuotes ?? []).filter((item) => item.eventId === selectedEvent?.id);
+  const unreviewedInquiries = selectUnreviewedInquiryCount(inquiries);
   const complianceRules = state?.complianceRules ?? [];
-  const checks = (state?.complianceChecks ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const assignments = (state?.coordinatorAssignments ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const payments = (state?.paymentMilestones ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const billingSources = (state?.billingSources ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const billingStatements = (state?.billingStatements ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const documents = (state?.documents ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const postEventDocuments = (state?.postEventDocuments ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const eventInsights = (state?.eventInsights ?? []).filter((item) => item.eventId === selectedEvent?.id);
-  const notificationLogs = (state?.notificationLogs ?? [])
-    .filter((item) => !item.eventId || item.eventId === selectedEvent?.id)
-    .slice(0, 8);
-  const briefing = state?.briefings.find((item) => item.eventId === selectedEvent?.id);
+  const {
+    activeDraft,
+    assignments,
+    audit,
+    billingSources,
+    billingStatements,
+    briefing,
+    checks,
+    documents,
+    drafts,
+    eventInsights,
+    notificationLogs,
+    payments,
+    postEventDocuments,
+    quoteRequests,
+    quotes,
+  } = selectEventWorkspaceResources(state, selectedEvent);
   const selectedInquiry = inquiries.find((item) => item.id === selectedEvent?.inquiryId);
-  const audit = (state?.auditLogs ?? []).filter((item) => item.eventId === selectedEvent?.id || !item.eventId).slice(0, 14);
-  const activeDraft = drafts.find((d) => d.isActive);
-  const pendingApprovals = approvalRequests.filter((req) => req.status === "pending");
-  const clientRecords = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; contact?: string; company?: string; events: PrismEvent[]; inquiries: PrismDemoState["inquiries"] }>();
-    inquiries.forEach((inquiry) => {
-      const name = inquiry.companyName || inquiry.clientName;
-      const id = clientKey(name);
-      const current = map.get(id) ?? { id, name, contact: inquiry.clientName, company: inquiry.companyName, events: [], inquiries: [] };
-      current.inquiries.push(inquiry);
-      map.set(id, current);
-    });
-    events.forEach((event) => {
-      const id = clientKey(event.clientName);
-      const current = map.get(id) ?? { id, name: event.clientName, contact: event.clientName, events: [], inquiries: [] };
-      current.events.push(event);
-      map.set(id, current);
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [events, inquiries]);
+  const pendingApprovals = selectPendingApprovals(approvalRequests);
+  const clientRecords = useMemo(() => selectClientRecords(events, inquiries), [events, inquiries]);
   const selectedClient = clientRecords.find((client) => client.id === selectedClientId) ?? null;
   const clientListView = !selectedClient ? routeState.view ?? "all" : "all";
-  const clientRecordsForView = useMemo(() => {
-    switch (clientListView) {
-      case "active":
-        return clientRecords.filter((client) => client.events.length > 0);
-      case "prospects":
-        return clientRecords.filter((client) => client.inquiries.length > 0 && client.events.length === 0);
-      case "past":
-        return clientRecords.filter((client) => client.events.some((event) => /completed|closed|archived/i.test(event.status)));
-      case "archived":
-        return clientRecords.filter((client) => client.events.length > 0 && client.events.every((event) => event.archived));
-      default:
-        return clientRecords;
-    }
-  }, [clientListView, clientRecords]);
+  const clientRecordsForView = useMemo(() => selectClientRecordsForView(clientRecords, clientListView), [clientListView, clientRecords]);
   const eventListView = routeState.view ?? "all";
-  const eventsForView = useMemo(() => {
-    switch (eventListView) {
-      case "upcoming":
-        return events.filter((event) => new Date(event.eventDate).getTime() >= Date.now());
-      case "ongoing":
-        return events.filter((event) => /planning|active|ongoing|in_progress|confirmed/i.test(event.status));
-      case "completed":
-        return events.filter((event) => /completed|closed/i.test(event.status));
-      case "cancelled":
-        return events.filter((event) => /cancel/i.test(event.status));
-      case "draft":
-        return events.filter((event) => /draft/i.test(event.status));
-      default:
-        return events;
-    }
-  }, [eventListView, events]);
+  const eventsForView = useMemo(() => selectEventsForView(events, eventListView), [eventListView, events]);
 
   useEffect(() => {
     if (!session || screen.name !== "portal") return;
