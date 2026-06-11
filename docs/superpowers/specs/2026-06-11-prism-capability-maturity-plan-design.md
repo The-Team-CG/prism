@@ -1331,13 +1331,10 @@ Owner D should apply this before any phase merges:
 
 ## Immediate Next Implementation Plan
 
-The first implementation plan should cover Phase 0 only:
+Phase 0 documentation is now represented by:
 
-1. Refresh current-state docs after the Prism architecture work.
-2. Create the feature ledger.
-3. Create the whole-app redesign inventory.
-4. Classify every app route by redesign severity.
-5. Decide the fate of the untracked old architecture plan with semantic old product-name references.
-6. Add a docs verification checklist.
+1. `docs/prism-v4/11-feature-ledger.md` for feature-family decisions, owners, phase placement, boundaries, audit needs, UX surfaces, and verification requirements.
+2. `docs/prism-v4/12-redesign-inventory.md` for app and route redesign severity.
+3. `docs/prism-v4/13-docs-cleanup-checklist.md` for canonical docs, retired artifacts, and verification commands.
 
-Phase 0 should happen before new redesign implementation because the team needs a shared inventory before four people work in parallel.
+The old standalone UI modernization plan has been retired because its named deliverables exist and future redesign work should flow through this capability maturity plan. The next implementation work should start at Phase 1 design system and shell foundation, using the Phase 0 ledger and route inventory as inputs.

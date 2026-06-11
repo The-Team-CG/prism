@@ -33,6 +33,9 @@ The complete catalog is now treated as the baseline feature inventory, not a har
 | Revision phase plan | ./08-revision-phase-plan.md | Durable phase roadmap for revision-first implementation and docs cleanup. |
 | Defense demo runbook | ./09-defense-demo-runbook.md | Local startup, accounts, demo order, verification, and defense boundaries. |
 | Product evolution governance | ./10-product-evolution-and-redesign-governance.md | Rules for adding, revising, merging, deferring, or retiring features during the whole-app redesign. |
+| Feature ledger | ./11-feature-ledger.md | Active feature-family decisions, phase placement, ownership, permission boundaries, and verification requirements. |
+| Redesign inventory | ./12-redesign-inventory.md | Current app route inventory with redesign severity, ownership, and role-boundary notes. |
+| Docs cleanup checklist | ./13-docs-cleanup-checklist.md | Canonical docs, retired artifacts, cleanup rules, and verification commands. |
 | PMCM Admin features | ./features/admin.md | Admin-owned operating system functions. |
 | Client features | ./features/client.md | Client portal functions. |
 | Supplier features | ./features/supplier.md | Supplier portal functions. |
@@ -51,3 +54,4 @@ The complete catalog is now treated as the baseline feature inventory, not a har
 6. Use `09-defense-demo-runbook.md` for the exact local rehearsal order.
 7. Use `03-ai-features-and-security.md` when the panel asks about AI, privacy, or human approval.
 8. Use `10-product-evolution-and-redesign-governance.md` before adding, revising, merging, or retiring catalog features.
+9. Use `11-feature-ledger.md`, `12-redesign-inventory.md`, and `13-docs-cleanup-checklist.md` before starting redesign implementation work.

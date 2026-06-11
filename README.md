@@ -12,6 +12,9 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 | `docs/prism-v4/07-implemented-feature-revisions.md` | Current implemented/partial features, revision gaps, and how to revise them. |
 | `docs/prism-v4/08-revision-phase-plan.md` | Historical phase roadmap for revision-first implementation and cleanup. |
 | `docs/prism-v4/10-product-evolution-and-redesign-governance.md` | Rules for adding, revising, merging, deferring, or retiring features during redesign. |
+| `docs/prism-v4/11-feature-ledger.md` | Active feature-family decisions, ownership, phase placement, and verification requirements. |
+| `docs/prism-v4/12-redesign-inventory.md` | Whole-app route inventory with redesign severity and role boundaries. |
+| `docs/prism-v4/13-docs-cleanup-checklist.md` | Documentation hygiene rules, retired artifacts, and verification commands. |
 | `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan. |
 
 ## Monorepo Layout

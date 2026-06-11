@@ -4,7 +4,7 @@ Generated from the official PRISM V4 DOCX feature catalog, then updated with rep
 
 | File | Bytes |
 | --- | --- |
-| .\\docs\\prism-v4\\00-index.md | 4482 |
+| .\\docs\\prism-v4\\00-index.md | 5064 |
 | .\\docs\\prism-v4\\01-complete-feature-catalog.md | 49053 |
 | .\\docs\\prism-v4\\02-system-behaviors.md | 10513 |
 | .\\docs\\prism-v4\\03-ai-features-and-security.md | 7176 |
@@ -15,6 +15,9 @@ Generated from the official PRISM V4 DOCX feature catalog, then updated with rep
 | .\\docs\\prism-v4\\08-revision-phase-plan.md | 16261 |
 | .\\docs\\prism-v4\\09-defense-demo-runbook.md | 4357 |
 | .\\docs\\prism-v4\\10-product-evolution-and-redesign-governance.md | 10419 |
+| .\\docs\\prism-v4\\11-feature-ledger.md | 16117 |
+| .\\docs\\prism-v4\\12-redesign-inventory.md | 10350 |
+| .\\docs\\prism-v4\\13-docs-cleanup-checklist.md | 4545 |
 | .\\docs\\prism-v4\\features\\admin.md | 44884 |
 | .\\docs\\prism-v4\\features\\ai.md | 7176 |
 | .\\docs\\prism-v4\\features\\client.md | 5279 |

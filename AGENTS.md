@@ -8,9 +8,12 @@ These notes preserve the product boundaries established by the project docs and 
 - The current feature baseline is `docs/prism-v4/01-complete-feature-catalog.md`; it is preserved for traceability and manuscript/defense counts, not as a hard ceiling.
 - The current implementation/revision source is `docs/prism-v4/07-implemented-feature-revisions.md`.
 - The current product evolution rules are `docs/prism-v4/10-product-evolution-and-redesign-governance.md`.
+- The current feature decision ledger is `docs/prism-v4/11-feature-ledger.md`.
+- The current whole-app redesign inventory is `docs/prism-v4/12-redesign-inventory.md`.
+- The current documentation cleanup checklist is `docs/prism-v4/13-docs-cleanup-checklist.md`.
 - The current whole-app redesign plan is `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
 - The historical revision roadmap is `docs/prism-v4/08-revision-phase-plan.md`.
-- The supporting root docs are `README.md`, `CLAUDE.md`, and `AGENTS.md`.
+- The supporting root docs are `README.md` and `AGENTS.md`; `CLAUDE.md` is a symlink to `AGENTS.md`.
 - The lifecycle is inquiry -> conforme -> briefing/proposal -> planning -> event day -> closure/archive.
 - Event creation and client portal access are gated by accepted inquiry plus signed conforme.
 - Dashboards are signed-in surfaces. Public pages are landing and inquiry only.
