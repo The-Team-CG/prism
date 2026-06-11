@@ -1,400 +1,1197 @@
-# P.R.I.S.M Capability Maturity Plan Design
+# P.R.I.S.M Whole-App Redesign and Capability Maturity Plan
 
 Date: 2026-06-11
 
 ## Purpose
 
-This document defines a full-product capability maturity plan for P.R.I.S.M beyond defense scope. It uses `docs/prism-v4/01-complete-feature-catalog.md` as the feature source of truth, `docs/prism-v4/07-implemented-feature-revisions.md` as the current-state backlog, and the current role-specific app boundaries in `AGENTS.md`.
+This document defines a full-product redesign and capability maturity plan for P.R.I.S.M. It treats the project as a complete operating system for PMCM, not as a set of isolated feature tickets. The plan covers UX redesign, information architecture, design system work, role-specific app flows, backend/data maturity, security/privacy, integrations, and AI/agentic features.
 
-The plan is designed for four people working in parallel without breaking product ownership boundaries:
+Primary sources:
 
-- P.R.I.S.M remains PMCM's internal event operating system, not a public generic SaaS.
-- `apps/event` remains the PMCM admin and coordinator command app.
-- `apps/client`, `apps/supplier`, and `apps/guest` remain separate role portals.
-- `apps/api` remains the shared NestJS API.
-- Clients submit guided layout preferences and review official layouts read-only.
-- PMCM owns official floorplan editing and approval workflow from `apps/event`.
+- `docs/prism-v4/01-complete-feature-catalog.md`
+- `docs/prism-v4/07-implemented-feature-revisions.md`
+- `docs/prism-v4/08-revision-phase-plan.md`
+- `AGENTS.md`
+- Current code in `apps/client`, `apps/event`, `apps/supplier`, `apps/guest`, `apps/api`, `packages/types`, `packages/api-client`, and `packages/ui`
+
+## Product Positioning
+
+P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It is not a generic SaaS product, public marketplace, or all-role mega-dashboard. The experience should feel like a serious operating desk for event work: quiet, exact, fast to scan, and trustworthy under pressure.
+
+The product is role-specific:
+
+- `apps/event`: PMCM admin and coordinator command app.
+- `apps/client`: public inquiry plus signed-in client portal.
+- `apps/supplier`: supplier portal.
+- `apps/guest`: guest portal.
+- `apps/api`: shared NestJS API.
+
+The lifecycle is:
+
+1. Inquiry
+2. Conforme
+3. Briefing and proposal
+4. Planning
+5. Event day
+6. Closure and archive
+
+The redesign must make that lifecycle visible and operable across apps.
+
+## Design Context
+
+### Target Audience
+
+Primary users:
+
+- Ms. Mys and PMCM admin staff who need a command view of active events, risks, supplier status, billing, files, and live operations.
+- Coordinators working from phones or laptops during assignments and event day.
+- Clients who need confidence, clarity, and a narrow set of next actions.
+- Suppliers who need quote, assignment, contract, readiness, and event-day status workflows.
+- Guests who need lightweight access without account friction.
+
+### Use Context
+
+The app is used in mixed conditions:
+
+- PMCM admin planning work on laptop/desktop.
+- Event-day command activity under time pressure.
+- Coordinators using phone-first task views onsite.
+- Suppliers responding from mobile or desktop.
+- Clients checking status and submitting assets asynchronously.
+- Guests opening access-code or QR-like flows on phones.
+
+### Brand and UX Tone
+
+The product should feel:
+
+- Operational, not promotional.
+- Calm, not sterile.
+- Dense enough for real work, not cluttered.
+- High-trust, with explicit status and audit cues.
+- PMCM-specific, not generic event SaaS.
+
+Visual direction:
+
+- Use restrained layouts with clear hierarchy.
+- Prefer tables, timelines, work queues, split panes, and event workspaces over decorative card grids.
+- Use color to signal workflow state and urgency, not decoration.
+- Avoid active underline nav treatments, decorative eyebrow pills, uppercase badge labels, avatar blocks in sidebars, nested cards, gradient orbs, and marketing-style heroes.
+
+## Planning Model
+
+Every phase has two required tracks:
+
+1. Experience redesign
+   - Information architecture
+   - Navigation
+   - Page layout
+   - Task flow
+   - Interaction model
+   - Role-specific UX
+   - Responsive behavior
+   - Empty/error/loading states
+
+2. Capability maturity
+   - API shape
+   - Data model
+   - Permissions
+   - Audit
+   - Notifications
+   - Upload/storage
+   - Tests
+   - Documentation
+
+No phase is complete if it only makes the UI prettier or only adds backend endpoints. A phase is complete when the affected workflow works end to end, has clear role boundaries, and is verified.
 
 ## Four-Person Ownership Model
 
-The four owners are workstream owners, not necessarily permanent code owners. They can work in parallel in every phase if they respect the dependency gates listed below.
+The plan assumes four people can work in parallel. The owners below are workstream owners. They may be actual people, pair leads, or subteam labels.
 
-| Owner | Primary ownership | Secondary responsibilities | Must not own alone |
-| --- | --- | --- | --- |
-| Owner A: API and Data Lead | NestJS services, Prisma schema/migrations, event-scoped endpoints, RBAC, audit side effects, tests | Shared contracts in `packages/types`, API client contracts in `packages/api-client` | Final UI behavior without the matching app owner |
-| Owner B: PMCM and Coordinator Lead | `apps/event`, PMCM dashboard, event workspace, coordinator role views, live-ops UI, action flows | PMCM-facing docs and demo workflows | Client/supplier/guest portal behavior |
-| Owner C: Portal Lead | `apps/client`, `apps/supplier`, `apps/guest`, public inquiry, supplier application, guest access, role-specific portal UX | Portal-scoped selectors/hooks and API client usage | PMCM-only internals, private supplier reviews, audit logs |
-| Owner D: Platform, QA, Security, and Docs Lead | Verification matrix, boundary checks, privacy/security acceptance, notification/upload adapter policy, docs ledger | Cross-app regression testing, release checklist, feature ledger updates | Feature implementation without an owning app/API partner |
+| Owner | Workstream | Primary ownership | Secondary ownership | Main risk to prevent |
+| --- | --- | --- | --- | --- |
+| Owner A | Product UX and Design System Lead | Whole-app IA, design language, app shells, workflow layout patterns, component standards, UX writing, responsive rules | Feature ledger UX status, design QA, page-by-page redesign briefs | Redesign becoming inconsistent across apps |
+| Owner B | PMCM and Coordinator App Lead | `apps/event`, PMCM command app, event workspace, coordinator role views, live operations, PMCM actions | PMCM/coordinator fixture data, app-specific selectors/hooks | PMCM command app becoming a generic dashboard or leaking too much data |
+| Owner C | Portal Apps Lead | `apps/client`, `apps/supplier`, `apps/guest`, public inquiry, supplier application, guest access, portal UX | Portal-specific scoped reads and state hooks | Portals becoming all-purpose dashboards or exposing PMCM-only data |
+| Owner D | API, Platform, QA, Security, and Docs Lead | `apps/api`, Prisma, shared contracts, API client, permission boundaries, audit, notifications, uploads, integration adapters, verification, docs | Cross-role regression matrix, release checklist, feature ledger | UI work outrunning data/security foundations |
 
-## Parallel Working Rules
+## Parallel Work Rules
 
-1. Owner A defines or updates API contracts before app owners depend on new behavior.
-2. Owners B and C may build UI in parallel once DTOs, response shapes, and route ownership are agreed.
-3. Owner D writes acceptance checks, verifies boundary rules, and keeps docs current during each phase.
-4. Any feature that crosses roles must include an API test plus at least one app build before the phase is marked complete.
-5. AI, QR scanning, production notification adapters, external auth, and real file storage remain gated until their prerequisite phases are complete.
+1. Owner A defines design patterns before Owners B and C implement redesigned pages.
+2. Owner D defines or validates API contracts before redesigned surfaces depend on new behavior.
+3. Owner B and Owner C may build in parallel once route ownership and DTOs are stable.
+4. Owner D owns cross-app verification and prevents role-boundary regressions.
+5. Any page redesign must identify the workflow it improves, not just the visual changes.
+6. Any capability expansion must identify the user-facing surface where it is operated.
+7. AI, QR scanning, production notification adapters, external auth, and real file storage stay gated until their prerequisite phases are complete.
 
-## Phase 1: Docs and Feature Ledger Refresh
+## Phase 0: Whole-App Audit, Feature Ledger, and Redesign Inventory
 
-Feature refs: all catalog features.
+### Goal
 
-Goal: make the feature backlog current after the Prism rename and architecture extraction work, then create a durable ledger for all remaining work.
+Establish the full current-state map before redesigning or adding more features. This phase answers: what exists, what is partial, what is missing, what needs redesign, and who owns each next slice.
 
-| Owner | Parallel work |
+### Feature Scope
+
+All catalog features.
+
+### Owner Work Packages
+
+| Owner | Work package |
 | --- | --- |
-| Owner A | Review API/service state against the backlog. Mark extracted demo, inquiry, billing, and floorplan services as current implementation reality. |
-| Owner B | Review PMCM/coordinator surfaces and identify stale references to old large-file or routing assumptions. |
-| Owner C | Review client/supplier/guest/public portal feature rows and note which are live, partial, or planned. |
-| Owner D | Create or update the feature ledger with statuses: `Live`, `Partial`, `Planned`, `Blocked`, `Phase 2`, `AI gated`. Clean semantic old product-name references in untracked/active docs. |
+| Owner A | Create a whole-app UX audit covering IA, navigation, density, status language, page templates, empty states, form patterns, action hierarchy, responsive behavior, and visual debt. |
+| Owner B | Audit `apps/event` page inventory: PMCM home, inquiries, clients, events, event workspace tabs, finance, suppliers, files, messages, calendar, tasks, team, audit, settings, coordinator role views. |
+| Owner C | Audit portal inventory: public landing/inquiry, client dashboard and event detail, supplier dashboard, supplier quote/assignment/readiness/status flows, guest access/check-in/feedback. |
+| Owner D | Create feature ledger and technical maturity ledger: feature ID, persona, current UI, API endpoint, data model, permission status, audit/notification state, tests, owner, status, blocker. |
 
-Deliverables:
+### Redesign Inventory Fields
+
+Each page or workflow should be recorded with:
+
+- App
+- Route
+- Persona
+- Primary user job
+- Current status
+- Redesign severity: none, light, moderate, major, rebuild
+- Capability maturity: live, partial, planned, blocked
+- Data dependencies
+- Permission dependencies
+- Visual issues
+- Interaction issues
+- Mobile/laptop behavior
+- Test coverage
+- Owning workstream
+
+### Deliverables
 
 - Updated `docs/prism-v4/07-implemented-feature-revisions.md`.
 - Updated `docs/prism-v4/08-revision-phase-plan.md`.
-- Feature ledger covering feature ID, persona, current status, owner, dependency, and verification command.
-- Decision on whether to rewrite, rename, or delete `docs/superpowers/plans/2026-06-10-prism-architecture-hardening.md`.
+- New feature ledger document.
+- New whole-app redesign inventory.
+- Decision on the untracked old architecture plan file.
 
-Acceptance:
+### Acceptance
 
-- Source docs no longer claim recently completed extractions are future work.
-- Semantic old product-name references are removed from tracked docs and chosen active planning docs.
-- The ledger can answer: what exists, what is partial, what is planned, what is blocked, and who owns the next slice.
+- Every feature in the catalog has a status.
+- Every current app route has an owner and redesign severity.
+- Existing architecture work is reflected accurately in docs.
+- Semantic old product-name references are removed from active planning docs.
 
-Verification:
+### Verification
 
-- Run the repository old-name sweep, excluding dependency/build output folders; only dependency integrity substrings may remain.
+- Repository old-name sweep.
 - `npm run check:boundaries`
-- Docs link check by targeted `rg` over `docs README.md CLAUDE.md AGENTS.md`.
+- Targeted doc link scan across `docs`, `README.md`, `CLAUDE.md`, and `AGENTS.md`.
 
-## Phase 2: Core Lifecycle Completion
+## Phase 1: Design System, Navigation, and Shell Foundation
 
-Feature refs: FR-01, FR-02, FR-03, FR-04, FR-05, FR-26, FR-27, FR-52, FR-58, FR-60.
+### Goal
 
-Goal: make the inquiry-to-active-event lifecycle coherent from public inquiry through signed conforme, briefing/proposal, planning workspace, and activity history.
+Create the foundation that every redesign depends on: shared visual language, role-specific shells, navigation rules, workflow components, and page layout patterns.
 
-| Owner | Parallel work |
+### Feature Scope
+
+Cross-cutting all features.
+
+### Experience Redesign
+
+Owner A leads:
+
+- Define the P.R.I.S.M design principles.
+- Define role-specific shell patterns:
+  - PMCM command shell
+  - Coordinator role shell
+  - Client portal shell
+  - Supplier portal shell
+  - Guest lightweight shell
+  - Public inquiry shell
+- Define standard page structures:
+  - Work queue
+  - Event workspace
+  - Timeline/activity
+  - Action checklist
+  - Review/approval flow
+  - File/document hub
+  - Financial ledger
+  - Live operations board
+  - Archive/search view
+- Define standard status language:
+  - Inquiry
+  - Conforme
+  - Proposal
+  - Planning
+  - Supplier assignment
+  - Coordinator assignment
+  - Billing
+  - Floorplan
+  - Event-day operations
+  - Closure
+- Define navigation rules:
+  - No active underline treatments.
+  - No profile/avatar block in sidebars when topbar has account menu.
+  - Signed-in dashboards only.
+  - Public routes remain public inquiry/landing only.
+  - No all-role shell.
+- Define responsive rules:
+  - PMCM desktop-first but usable on laptop.
+  - Coordinator and guest phone-first.
+  - Client/supplier responsive with action-first mobile views.
+
+### Capability Maturity
+
+Owner D leads:
+
+- Expand `packages/ui` only for stable shared primitives.
+- Keep role-specific workflow components in app packages until repeated use is proven.
+- Add boundary tests for shared UI imports.
+- Add visual QA checklist.
+- Define fixtures for page states:
+  - Empty
+  - Loading
+  - Error
+  - No permission
+  - First-time use
+  - High-volume data
+  - Overdue/urgent state
+
+### Owner Work Packages
+
+| Owner | Work package |
 | --- | --- |
-| Owner A | Add or harden event-scoped lifecycle endpoints for inquiry, onboarding, briefing, proposal status, activity, and event detail. Keep broad demo state as compatibility only. |
-| Owner B | Add PMCM log-on-behalf UI, clearer conforme/invitation state controls, and event workspace action history. Continue extracting PMCM action handlers from large dashboard files. |
-| Owner C | Wire client dashboard to scoped lifecycle reads and expose client-facing status, proposal review state, and next actions without PMCM internals. |
-| Owner D | Add lifecycle regression matrix: public cannot enter dashboard, client portal stays conforme-gated, event creation requires accepted inquiry and signed conforme. |
+| Owner A | Design system brief, component inventory, IA model, page template standards, UX writing rules. |
+| Owner B | Apply shell/nav standards to `apps/event` skeleton without rewriting every page yet. |
+| Owner C | Apply shell/nav standards to client/supplier/guest/public skeletons. |
+| Owner D | Boundary tests, component ownership rules, fixture state matrix, build/typecheck verification. |
 
-Deliverables:
+### Deliverables
 
-- Event-scoped lifecycle read APIs and typed API client functions.
-- PMCM inquiry/onboarding controls for log-on-behalf, reminder, invite, conforme upload, and proposal status.
-- Client portal status model for active event progress and proposal review.
-- Tests for inquiry acceptance, conforme gate, portal unlock, and scoped client reads.
+- Design system brief.
+- Navigation map for every app.
+- Shared component extraction plan.
+- Page state matrix.
+- App shell redesign plan.
+- Updated boundary checker if needed.
 
-Acceptance:
+### Acceptance
 
-- A new event can be traced from public/manual inquiry to accepted conforme to active planning workspace.
-- Client users cannot see PMCM internal CE, private supplier notes, audit logs, or unrelated events.
-- New lifecycle UI does not depend on reading all demo state unless no scoped endpoint exists yet.
+- All apps have consistent navigation logic but retain role-specific IA.
+- Shared UI remains presentation-only.
+- No workflow logic is moved into `packages/ui`.
+- Designers/developers can identify which template a page should use.
 
-Verification:
+### Verification
 
-- Focused API lifecycle tests.
+- `npm run check:boundaries`
 - `npm run typecheck`
 - `npm run build`
-- `npm run check:boundaries`
 
-## Phase 3: Client and Document/File Maturity
+## Phase 2: PMCM Command App Redesign
 
-Feature refs: FR-08, FR-29, FR-32, FR-33, FR-34, FR-67, FR-68, FR-70, FR-80, FR-81, FR-82, FR-83, FR-84.
+### Goal
 
-Goal: make client documents, file hub access, official floorplan review, and client asset submission production-shaped while preserving PMCM floorplan ownership.
+Redesign `apps/event` as the operational center of P.R.I.S.M. PMCM should be able to see what needs attention, move across active events, operate each workflow, and trust that private/internal data stays inside the command app.
 
-| Owner | Parallel work |
+### Feature Scope
+
+FR-01, FR-02, FR-03, FR-04, FR-05, FR-06, FR-08, FR-13, FR-14, FR-15, FR-17, FR-19, FR-20, FR-21, FR-22, FR-23, FR-52, FR-58, FR-60, FR-63, FR-75, FR-76, FR-78, FR-88, FR-89, FR-90, FR-96, FR-97, New-P2, New-P5, New-SY1, New-SY2, New-SY3.
+
+### Experience Redesign
+
+Owner B leads with Owner A:
+
+#### PMCM Home
+
+Redesign as a command board, not a landing dashboard.
+
+Primary sections:
+
+- Today and next 7 days
+- Active event risk list
+- New inquiries and pending conformes
+- Supplier/coordinator gaps
+- Billing/payment risk
+- Live event-day status
+- Pending approvals
+- Privacy/security alerts
+
+Expected interactions:
+
+- Open event workspace
+- Review inquiry
+- Chase conforme
+- Resolve supplier/coordinator gap
+- Open finance issue
+- Enter live-ops mode
+
+#### Inquiry and Client Management
+
+Redesign as a two-pane work queue:
+
+- Left: inquiry/client list with filters.
+- Right: selected record detail with timeline and actions.
+
+Must support:
+
+- Public inquiry review
+- Log on behalf
+- Send inquiry link
+- Duplicate/previous rejection indicators
+- Accepted/pending/declined decisions
+- Conforme status
+- Portal invitation state
+- Client organization grouping future path
+
+#### Event Workspace
+
+Redesign as the main operational object.
+
+Recommended IA:
+
+- Overview
+- Briefing and proposal
+- Floorplans
+- Suppliers
+- Coordinators
+- Files
+- Finance
+- Live ops
+- Compliance
+- Activity
+- Closure
+
+Each tab should have:
+
+- Current state summary
+- Required next action
+- Blocking issues
+- History/audit
+- Related documents
+
+#### PMCM Finance
+
+Redesign as a ledger/workflow surface:
+
+- Billing source
+- Statement
+- Payment schedule
+- Payment history
+- Disputes/corrections
+- Additional billing
+- Waivers
+- Cancellation/postponement impact
+
+#### PMCM Files
+
+Redesign as event file hub:
+
+- Categories
+- Visibility
+- Upload state
+- Validation state
+- Required/missing documents
+- Source workflow
+
+### Capability Maturity
+
+Owner D and Owner A:
+
+- Continue extracting app selectors/hooks/action handlers.
+- Add event-scoped PMCM API reads where missing.
+- Maintain audit/notification side effects.
+- Add route-level permission checks.
+
+### Owner Work Packages
+
+| Owner | Work package |
 | --- | --- |
-| Owner A | Add scoped document/file APIs, document categories, file validation metadata, floorplan revision-comment records, and table assignment eligibility primitives. |
-| Owner B | Build PMCM file hub, document review states, official floorplan revision management, and table assignment controls for eligible events. |
-| Owner C | Build client asset submission, allowed file views, read-only official floorplan review, revision comments, and client preference draft state. |
-| Owner D | Define file permission tests, upload validation fixtures, floorplan mutation regression tests, and document privacy checks. |
+| Owner A | PMCM IA, page templates, status language, workflow action hierarchy, dense layout standards. |
+| Owner B | Implement PMCM shell, command home, inquiry/client queue, event workspace IA, finance/files redesign surfaces. |
+| Owner C | Validate client/supplier/guest boundary implications for PMCM actions that trigger portal state. |
+| Owner D | PMCM API contracts, event-scoped endpoints, permission/audit tests, performance and build checks. |
 
-Deliverables:
+### Deliverables
 
-- Event file hub model with document categories and role visibility.
-- Client asset submission flow.
-- Official floorplan review/revision comment workflow.
-- Template metadata for conforme/billing documents.
-- Table assignment planning limited by event type and pax rules.
+- Redesigned PMCM shell and navigation.
+- Redesigned PMCM command home.
+- Redesigned inquiry/client queue.
+- Redesigned event workspace framework.
+- Redesigned finance and file hub surfaces.
+- PMCM action-handler extraction plan and first implementation slices.
 
-Acceptance:
+### Acceptance
 
-- Client users can submit and view only allowed event documents.
-- PMCM can review and organize files from `apps/event`.
-- Official floorplans remain editable only by PMCM and read-only for clients.
-- Table assignment is only offered when the catalog rules allow it.
+- PMCM users can identify the next operational action within 5 seconds on home and event workspace.
+- Event workspace is organized by lifecycle, not by demo panels.
+- PMCM-only data remains inaccessible from other apps.
+- Large component growth is controlled by selectors, hooks, and feature components.
 
-Verification:
+### Verification
 
-- API document/floorplan permission tests.
-- `npm --workspace @prism/client run typecheck`
 - `npm --workspace @prism/event run typecheck`
+- `npm run check:boundaries`
+- `npm run build`
+- Role-boundary manual checklist.
+
+## Phase 3: Client Portal Redesign
+
+### Goal
+
+Redesign the client portal around clarity, confidence, and next actions. Clients should not feel like they are inside PMCM's internal tool.
+
+### Feature Scope
+
+FR-26, FR-27, FR-29, FR-32, FR-33, FR-34, FR-58, FR-60, FR-65, FR-66, New-CL1, New-CL2.
+
+### Experience Redesign
+
+Owner C leads with Owner A:
+
+#### Client Home
+
+Primary jobs:
+
+- See active events.
+- See required actions.
+- See upcoming milestones.
+- Start a new event request if allowed.
+- View event history.
+
+Avoid:
+
+- PMCM operational terms.
+- Too many dashboard cards.
+- Internal risk/compliance detail.
+
+#### Client Event Workspace
+
+Recommended IA:
+
+- Overview
+- Required actions
+- Briefing
+- Proposal
+- Floorplan
+- Documents
+- Billing
+- Messages/activity
+
+Each view should answer:
+
+- What is the current state?
+- What does PMCM need from me?
+- What has PMCM already done?
+- What is locked/read-only?
+
+#### Floorplan Review
+
+Must preserve:
+
+- Client preference drafts are not official floorplans.
+- Official floorplans are read-only.
+- Client can approve or request revision/comment where supported.
+- Approved plans are locked.
+
+#### Documents
+
+Client-facing file hub:
+
+- Required uploads
+- Submitted assets
+- PMCM shared documents
+- Rejected/needs-revision documents
+- Visibility labels
+
+### Capability Maturity
+
+Owner D:
+
+- Replace remaining broad state slices with scoped client APIs.
+- Add document visibility permissions.
+- Add client action audit/notification hooks.
+- Add floorplan mutation regression tests.
+
+### Owner Work Packages
+
+| Owner | Work package |
+| --- | --- |
+| Owner A | Client portal IA, action language, client-safe status model, mobile rules. |
+| Owner B | Ensure PMCM actions produce client-safe portal states. |
+| Owner C | Implement client home, event workspace, documents, billing, floorplan review redesign. |
+| Owner D | Scoped client endpoints, tests, file permissions, boundary checks. |
+
+### Deliverables
+
+- Redesigned client shell and event workspace.
+- Scoped client data hooks.
+- Client action center.
+- Client document/file hub.
+- Client-safe floorplan review.
+- Billing/proposal state visibility.
+
+### Acceptance
+
+- Client cannot access PMCM internal CE, audit, private supplier reviews, private notes, or unrelated events.
+- Client sees clear next actions.
+- Client official floorplan view remains read-only.
+- Client document submission routes to PMCM event file hub.
+
+### Verification
+
+- `npm --workspace @prism/client run typecheck`
+- Client scoped API tests.
+- Floorplan read-only regression.
 - `npm run build`
 
-## Phase 4: Finance and Commercial Workflow Maturity
+## Phase 4: Supplier Portal and Supplier Network Redesign
 
-Feature refs: FR-19, FR-20, FR-21, FR-60, FR-69, FR-92, FR-93, FR-94, FR-96, FR-97, New-P5.
+### Goal
 
-Goal: make CE/proposal, billing, payment, cancellation, postponement, additional billing, and waiver workflows auditable from source records.
+Redesign supplier workflows from application to event-day completion. The supplier portal should be focused, low-friction, and scoped to the supplier's own work.
 
-| Owner | Parallel work |
+### Feature Scope
+
+FR-14, FR-15, FR-16, FR-17, FR-18, FR-35, FR-36, FR-37, FR-38, FR-49, FR-63, FR-64, FR-75, FR-76, FR-77, FR-78, FR-79, FR-87, New-S1, New-S2, New-S3, New-S4, New-S5, New-SUP1, New-SUP2, New-SUP3, New-SUP4.
+
+### Experience Redesign
+
+Owner C leads portal surfaces; Owner B leads PMCM supplier management.
+
+#### Public Supplier Application
+
+Workflow:
+
+- Company profile
+- Service category
+- Portfolio/past events
+- Certifications
+- Price range
+- Contact details
+- Privacy consent
+- Submitted confirmation
+- Application status lookup
+
+#### PMCM Supplier Applications Inbox
+
+PMCM actions:
+
+- Review
+- Request proposal
+- Schedule meeting
+- Approve
+- Decline
+- Convert to supplier profile with Pending First Event
+
+#### Supplier Portal Home
+
+Primary jobs:
+
+- See quote requests.
+- Submit/revise quote.
+- Confirm assignments.
+- Submit contract metadata.
+- Confirm readiness.
+- Send event-day status.
+
+#### PMCM Supplier Directory
+
+Redesign to support:
+
+- Category/tier view
+- BNI flag
+- Certifications
+- Private PMCM reviews
+- Reliability notes
+- Pending First Event
+- Past event performance
+- Capacity/scale rating
+
+### Capability Maturity
+
+Owner D:
+
+- Supplier application model.
+- Supplier status tracking.
+- Quote confidentiality rules.
+- Contract upload metadata.
+- Reliability trigger records.
+- Supplier-scoped APIs.
+
+### Owner Work Packages
+
+| Owner | Work package |
 | --- | --- |
-| Owner A | Extend billing source, payment terms, dispute, correction, additional billing, waiver, cancellation, and postponement records. |
-| Owner B | Build PMCM finance controls for configurable terms, disputes, corrections, waivers, cancellation/postponement summaries, and source-linked statements. |
-| Owner C | Show client-safe billing statements, milestones, dispute status, and approved proposal/payment state in the client portal. |
-| Owner D | Add finance audit tests, data-leak checks, and docs explaining the commercial source-of-truth model. |
+| Owner A | Supplier UX patterns, application form design, supplier-safe language, PMCM directory IA. |
+| Owner B | PMCM supplier directory, applications inbox, quote policy, reliability history, schedule view. |
+| Owner C | Supplier public application, status page, portal quote/assignment/readiness/status flows. |
+| Owner D | Supplier API/data, confidentiality tests, private-review leak tests, contract metadata model. |
 
-Deliverables:
-
-- CE/proposal source records linked to billing statements.
-- Configurable payment schedule with fixed 50% downpayment rule and override audit.
-- Payment discrepancy and typo-correction workflow.
-- Additional billing and waiver reason flow.
-- Cancellation and postponement financial impact summaries.
-
-Acceptance:
-
-- Every billing statement and payment milestone can be traced to an approved source record.
-- Every financial correction, waiver, cancellation, or postponement has audit metadata.
-- Client sees only client-safe billing state.
-
-Verification:
-
-- API finance tests.
-- `npm --workspace prism-api run typecheck`
-- `npm --workspace @prism/event run typecheck`
-- `npm --workspace @prism/client run typecheck`
-
-## Phase 5: Supplier Network Maturity
-
-Feature refs: FR-14, FR-15, FR-16, FR-17, FR-18, FR-35, FR-36, FR-37, FR-38, FR-49, FR-63, FR-64, FR-75, FR-76, FR-77, FR-78, FR-79, FR-87, New-S1, New-S2, New-S3, New-S4, New-S5, New-SUP1, New-SUP2, New-SUP3, New-SUP4.
-
-Goal: mature supplier management from directory and quote handling into application intake, assignment, contract, readiness, event-day status, and reliability history.
-
-| Owner | Parallel work |
-| --- | --- |
-| Owner A | Add supplier application, status tracking, contract metadata, reliability note triggers, quote policy, and supplier-scoped endpoints. |
-| Owner B | Build PMCM supplier applications inbox, supplier approval-to-directory flow, quote policy controls, reliability history, and event supplier schedule view. |
-| Owner C | Build public supplier registration, supplier application status view, contract upload metadata, readiness confirmation, and event-day status buttons. |
-| Owner D | Add supplier privacy tests, quote confidentiality tests, private review leak checks, and application workflow docs. |
-
-Deliverables:
+### Deliverables
 
 - Public supplier application and status page.
-- PMCM supplier applications inbox.
-- Approved supplier lifecycle with Pending First Event.
-- Contract upload metadata and quote mismatch warning.
-- Readiness and event-day status flows.
-- Supplier reliability notes from withdrawal, unresponsiveness, mismatch, and event-day underperformance.
+- PMCM applications inbox.
+- Redesigned supplier directory.
+- Supplier portal quote/assignment/readiness/event-day surfaces.
+- Reliability history and Pending First Event lifecycle.
 
-Acceptance:
+### Acceptance
 
-- Supplier users see only their own application, assignments, quotes, contracts, and statuses.
-- PMCM private reviews and internal reliability assessment never appear in supplier portal.
-- Quote confidentiality is enforced before bid win.
+- Supplier sees only own quotes, assignments, contracts, readiness, and status.
+- PMCM private reviews remain PMCM-only.
+- Confidential bid requests hide client-identifying information until bid win.
 
-Verification:
+### Verification
 
-- API supplier/application/quote tests.
+- Supplier-scoped API tests.
 - `npm --workspace @prism/supplier run typecheck`
 - `npm --workspace @prism/event run typecheck`
 - `npm run build`
 
-## Phase 6: Coordinator and Live-Ops Maturity
+## Phase 5: Coordinator Experience and Live-Ops Redesign
 
-Feature refs: FR-13, FR-88, FR-89, FR-90, FR-91, New-C1, New-C2, New-C3, New-C4, New-CO1, New-CO2, New-CO3, New-CO4, New-CO5, New-CO6.
+### Goal
 
-Goal: mature coordinator assignment and event-day operations into role-safe, operationally useful workflows.
+Redesign coordinator and live-ops workflows for event-day pressure. Coordinators need role-specific simplicity; PMCM needs operational command.
 
-| Owner | Parallel work |
+### Feature Scope
+
+FR-13, FR-88, FR-89, FR-90, FR-91, New-C1, New-C2, New-C3, New-C4, New-CO1, New-CO2, New-CO3, New-CO4, New-CO5, New-CO6.
+
+### Experience Redesign
+
+Owner B leads:
+
+#### Coordinator Home
+
+Phone-first list of assignments:
+
+- Event name
+- Date
+- Venue
+- Role
+- Acknowledgment state
+- Next action
+
+#### Role Views
+
+Each role gets a distinct operational layout:
+
+- Floor/Stage Director: script, floorplan, call times, tasks, urgent issue.
+- Registration Staff: guest search, check-in, walk-in, verification flag, attendance.
+- Ingress/Egress Assistant: supplier schedule, setup status, verified toggle, photo notes.
+- Event Day System Operator: full task dashboard, supplier status, coordinator check-in, urgent issues, reassignment.
+- Usher/General Coordinator: simple instructions, assigned tasks, urgent issue.
+
+#### PMCM Live-Ops View
+
+Should show:
+
+- Active tasks by SLA state
+- Urgent issues
+- Supplier readiness
+- Coordinator attendance
+- Guest attendance count
+- Escalations
+- Replacement controls
+- Live log
+
+### Capability Maturity
+
+Owner D:
+
+- Availability windows.
+- Staffing requirements.
+- Role-safe payloads.
+- Assignment acknowledgment reminders.
+- Replacement and reliability records.
+- Escalation audit/notifications.
+
+### Owner Work Packages
+
+| Owner | Work package |
 | --- | --- |
-| Owner A | Add coordinator availability windows, staffing requirements, role payload contracts, conflict/replacement records, and live-ops status-feed hardening. |
-| Owner B | Build PMCM coordinator staffing views, replacement controls, event-day operator view, role payload management, and live-ops dashboards. |
-| Owner C | Support coordinator role views inside `apps/event` session flow only; coordinate with Owner B for mobile/laptop usability. |
-| Owner D | Add role-leak tests, SLA/escalation tests, replacement/audit tests, and live-ops regression scripts. |
+| Owner A | Coordinator role UX standards, phone-first task patterns, live-ops density model. |
+| Owner B | Coordinator role views, PMCM live-ops command, replacement and reassignment UI. |
+| Owner C | Validate guest/supplier data exposure in coordinator views. |
+| Owner D | Role-safe API contracts, availability model, SLA/escalation/replacement tests. |
 
-Deliverables:
+### Deliverables
 
-- Coordinator availability and staffing gap model.
-- Role-specific coordinator payloads.
-- Event Day System Operator workflow.
+- Redesigned coordinator home.
+- Role-specific coordinator views.
+- PMCM live-ops command redesign.
+- Availability/staffing model.
+- Reassignment and replacement workflow.
 - Late/no-show reliability notes.
-- Task reassignment with Ms. Mys notification approval semantics.
-- Live status feed filters and escalation controls.
 
-Acceptance:
+### Acceptance
 
-- Coordinator users only see assigned-event operational data for their role.
-- PMCM can detect staffing gaps before event day and replace coordinators with audit/reliability side effects.
-- Registration staff can access check-in data; other roles cannot.
+- Coordinator roles see only relevant operational information.
+- Registration role can see guest check-in data; other roles cannot unless required.
+- PMCM can replace coordinators and see audit/reliability side effects.
 
-Verification:
+### Verification
 
-- API coordinator/live-ops tests.
+- Coordinator role access tests.
+- Live-ops API tests.
 - `npm --workspace @prism/event run typecheck`
 - `npm run build`
-- Manual role-session regression checklist.
 
-## Phase 7: Guest, Registration, and Feedback Maturity
+## Phase 6: Guest, Public, and Lightweight Access Redesign
 
-Feature refs: FR-39, FR-40, FR-41, FR-95, New-GU1, New-EX2.
+### Goal
 
-Goal: complete lightweight guest access, registration, check-in, feedback, and moderation before QR scanning or engagement games.
+Redesign public and guest experiences so low-friction external users can complete their tasks without account-heavy UI.
 
-| Owner | Parallel work |
+### Feature Scope
+
+FR-39, FR-40, FR-41, FR-42, FR-46, FR-47, FR-48, FR-50, FR-51, FR-95, New-GU1, New-EX1, New-EX2.
+
+### Experience Redesign
+
+Owner C leads:
+
+#### Public Inquiry
+
+Needs:
+
+- Clear PMCM/P.R.I.S.M signal.
+- Structured inquiry fields.
+- Referral source.
+- Client type.
+- Privacy consent.
+- Optional spatial preference section later.
+- Confirmation state.
+
+#### Guest Access
+
+Needs:
+
+- Access-code entry.
+- Event confirmation.
+- Name-based check-in.
+- Walk-in flow.
+- Verification flag.
+- Feedback flow.
+
+#### Post-Event Feedback
+
+Needs:
+
+- Short rating/text/photo/video submission.
+- Clear consent.
+- Moderation expectation.
+- No public auto-publish.
+
+### Capability Maturity
+
+Owner D:
+
+- Masterlist import/reconciliation.
+- Check-in mode configuration.
+- Feedback moderation state.
+- Ticket platform coordination records.
+- HTTPS/QR readiness gate.
+
+### Owner Work Packages
+
+| Owner | Work package |
 | --- | --- |
-| Owner A | Add guest masterlist import/reconciliation, check-in mode configuration, walk-in verification records, feedback moderation state, and ticket-platform coordination records. |
-| Owner B | Add PMCM/registration dashboards for masterlist reconciliation, walk-in verification, attendance, and feedback moderation. |
-| Owner C | Build guest check-in mode UI, walk-in flow, post-event feedback page, and supplier/client-safe guest surfaces. |
-| Owner D | Define HTTPS/QR readiness gate, guest privacy tests, moderation acceptance tests, and access-code scope checks. |
+| Owner A | Public/guest UX pattern, low-friction form standards, mobile-first states. |
+| Owner B | PMCM moderation and registration command surfaces. |
+| Owner C | Public inquiry, guest access, check-in, feedback, supplier public application coordination. |
+| Owner D | Guest APIs, moderation model, access-code tests, QR/HTTPS readiness gate. |
 
-Deliverables:
+### Deliverables
 
-- Name-based checklist and headcount-only modes.
-- Masterlist reconciliation.
-- Walk-in verification policy enforcement.
-- Moderated feedback queue.
-- Ticket platform coordination record for large events.
-- QR scanning deferred behind HTTPS readiness.
+- Redesigned public inquiry.
+- Guest access redesign.
+- Check-in modes.
+- Walk-in verification.
+- Feedback moderation queue.
+- Ticket platform coordination record.
+- QR scanning deferred until readiness gate is met.
 
-Acceptance:
+### Acceptance
 
-- Guest access is access-code scoped.
-- Guest feedback is never auto-published.
-- Unauthorized walk-ins trigger verification according to client policy.
+- Guest access is scoped by access code.
+- Guest feedback is moderated and never auto-published.
+- Public pages do not route directly into dashboards.
 
-Verification:
+### Verification
 
-- API guest tests.
+- Guest API tests.
+- Public route regression.
 - `npm --workspace @prism/guest run typecheck`
-- `npm --workspace @prism/event run typecheck`
+- `npm --workspace @prism/client run typecheck`
 - `npm run build`
 
-## Phase 8: Closure, Archive, Knowledge, and Testimonials
+## Phase 7: Core Workflow Maturity Across Apps
 
-Feature refs: FR-22, FR-23, New-P1, New-P2, New-P3, New-P4, New-SY1, New-SY2.
+### Goal
 
-Goal: turn event closure into a complete learning and archive loop.
+After the app redesign foundations are stable, deepen the core lifecycle workflows so they are operationally complete.
 
-| Owner | Parallel work |
+### Feature Scope
+
+FR-01 through FR-08, FR-13, FR-19 through FR-23, FR-26 through FR-34, FR-52, FR-58, FR-60, FR-63, FR-75, FR-88 through FR-90, FR-96, FR-97, New-CL1, New-P2, New-P5, New-SY1, New-SY2, New-SY3.
+
+### Capability Areas
+
+- Inquiry and onboarding.
+- Conforme and portal activation.
+- Briefing and proposal lifecycle.
+- Event workspace status model.
+- Compliance rules and override audit.
+- Floorplan snapshots and review.
+- Supplier assignment readiness.
+- Coordinator acknowledgment.
+- Billing and payment risk.
+- Event-day status.
+- Closure gates.
+
+### Owner Work Packages
+
+| Owner | Work package |
 | --- | --- |
-| Owner A | Extend close gates, archive search indexes, comparison records, testimonial records, logistics booking records, and event insights source aggregation. |
-| Owner B | Build PMCM wrap-up screen, one-screen close, archive search, event comparison, logistics booking, and event insights panels. |
-| Owner C | Build client acknowledgement/testimonial submission surfaces and safe post-event visibility. |
-| Owner D | Add close gate tests, archive search tests, override audit checks, and post-event privacy/retention docs. |
+| Owner A | Cross-app workflow maps and UX consistency checks. |
+| Owner B | PMCM workflow depth in event workspace and live ops. |
+| Owner C | Client/supplier/guest workflow depth and scoped reads. |
+| Owner D | API consistency, audit side effects, notification hooks, tests. |
 
-Deliverables:
+### Deliverables
 
-- Post-event wrap-up screen.
-- One-screen close indicators and override flow.
-- Archive search and event comparison.
-- Event insights card with private notes.
-- Testimonial request/library.
-- Logistics booking record and billing linkage.
+- End-to-end lifecycle map.
+- Scoped APIs for remaining broad state areas.
+- Consistent workflow status model.
+- Role-specific next-action model.
+- Audit and notification side effects for key actions.
 
-Acceptance:
+### Acceptance
 
-- Events cannot close without green gates or documented override.
-- Archived records are searchable and complete.
-- Client testimonials require explicit submission and do not expose private PMCM notes.
+- Every active event has a traceable lifecycle state.
+- Every persona sees the right next action.
+- No workflow depends on UI-only permission checks.
 
-Verification:
+### Verification
 
-- API close/archive/insights tests.
+- End-to-end API tests for lifecycle.
+- Role-boundary regression.
+- `npm run typecheck`
+- `npm run build`
+
+## Phase 8: Finance and Commercial Workflow Redesign
+
+### Goal
+
+Make finance understandable, auditable, and separated from PMCM internal costing where client access exists.
+
+### Feature Scope
+
+FR-19, FR-20, FR-21, FR-59, FR-60, FR-61, FR-62, FR-67, FR-68, FR-69, FR-92, FR-93, FR-94, FR-96, FR-97, New-P5, New-SY4.
+
+### Experience Redesign
+
+Owner B and Owner A:
+
+- PMCM CE builder.
+- Proposal source record.
+- Billing statement generation.
+- Payment schedule.
+- Payment history.
+- Corrections.
+- Disputes.
+- Additional billing.
+- Waiver reason.
+- Cancellation/postponement summary.
+
+Owner C:
+
+- Client-safe proposal and billing views.
+- Payment milestone visibility.
+- Dispute/correction status.
+
+### Capability Maturity
+
+Owner D:
+
+- Source-linked finance records.
+- Configurable payment terms.
+- Fixed downpayment rule.
+- Override audit.
+- Dispute/correction data model.
+- Additional billing and waiver data model.
+
+### Deliverables
+
+- Redesigned PMCM finance workspace.
+- Client billing/proposal review redesign.
+- CE/proposal source of truth.
+- Payment dispute/correction workflow.
+- Cancellation/postponement financial summary.
+- Additional billing and waiver workflow.
+
+### Acceptance
+
+- Billing statements can be explained from source records.
+- Corrections and waivers have audit metadata.
+- Client sees only client-safe financial information.
+
+### Verification
+
+- Finance API tests.
 - `npm --workspace @prism/event run typecheck`
 - `npm --workspace @prism/client run typecheck`
 - `npm run build`
 
-## Phase 9: Notifications, Upload Storage, and Integration Adapters
+## Phase 9: Closure, Archive, Knowledge, and Learning Loop
 
-Feature refs: FR-25, FR-55, FR-59, FR-61, FR-64, FR-76.
+### Goal
 
-Goal: replace demo-only notification and storage behavior with adapter-backed infrastructure that can fail safely.
+Make event closure a structured learning and archive workflow, not just an end state.
 
-| Owner | Parallel work |
-| --- | --- |
-| Owner A | Define notification adapter interfaces, retry policy, delivery audit, upload storage abstraction, signed URL flow, and integration shell APIs. |
-| Owner B | Build PMCM notification center, delivery status visibility, template controls, and integration status panels. |
-| Owner C | Add portal notification preferences and safe delivery state displays where needed. |
-| Owner D | Own credential readiness checklist, adapter failure tests, storage security tests, and integration runbooks. |
+### Feature Scope
 
-Deliverables:
+FR-22, FR-23, FR-41, New-P1, New-P2, New-P3, New-P4, New-SY1, New-SY2.
 
-- Email and Viber adapter interfaces.
-- Queued delivery with sent/failed/retry/acknowledged states.
-- Bilingual notification templates.
-- Real storage abstraction with signed access.
-- Canva/PowerPoint/Zoom integration shells where credentials exist.
+### Experience Redesign
 
-Acceptance:
+Owner B:
 
-- Failed adapters do not corrupt workflow state.
+- Post-event wrap-up.
+- One-screen close.
+- Close gate indicators.
+- Archive search.
+- Event comparison.
+- Event insights.
+- Logistics booking.
+- Private PMCM notes.
+
+Owner C:
+
+- Client acknowledgement.
+- Testimonial request.
+- Feedback submission state.
+
+### Capability Maturity
+
+Owner D:
+
+- Archive indexes.
+- Close gate records.
+- Testimonial records.
+- Logistics records.
+- Insights source aggregation.
+- Retention implications.
+
+### Deliverables
+
+- Post-event wrap-up screen.
+- One-screen close.
+- Archive search.
+- Event comparison.
+- Event insights card.
+- Client testimonial feature.
+- Logistics booking record.
+
+### Acceptance
+
+- Events cannot be archived without green close gates or documented override.
+- Archived events are searchable.
+- Comparison view uses normalized event records.
+- PMCM private notes stay private.
+
+### Verification
+
+- Close/archive API tests.
+- Search/compare tests.
+- `npm --workspace @prism/event run typecheck`
+- `npm run build`
+
+## Phase 10: Platform Services, Notifications, Upload Storage, and Integrations
+
+### Goal
+
+Move from demo infrastructure to adapter-backed services that fail safely and can be audited.
+
+### Feature Scope
+
+FR-25, FR-55, FR-59, FR-61, FR-64, FR-76, New-SEC3.
+
+### Experience Redesign
+
+Owner A:
+
+- Notification preference patterns.
+- Delivery state language.
+- Upload progress/error patterns.
+- Integration status surfaces.
+
+Owner B:
+
+- PMCM notification center.
+- PMCM upload/storage visibility.
+- Integration status panels.
+
+Owner C:
+
+- Portal notification preferences.
+- Portal-safe upload states.
+
+### Capability Maturity
+
+Owner D:
+
+- Email adapter.
+- Viber adapter.
+- Queue retry policy.
+- Delivery audit.
+- Storage abstraction.
+- Signed URLs.
+- Upload validation.
+- Canva/PowerPoint/Zoom integration shells.
+
+### Deliverables
+
+- Production adapter interfaces.
+- Notification retry and delivery audit.
+- Bilingual templates.
+- Real storage abstraction.
+- Signed file access.
+- Integration shells where credentials exist.
+
+### Acceptance
+
+- Provider failures do not corrupt workflow state.
+- Files are validated and permissioned.
 - Delivery attempts are auditable.
-- Uploaded files are validated, stored under generated names, and served only through authorized access.
 
-Verification:
+### Verification
 
-- Adapter unit tests with fake providers.
+- Adapter tests with fake providers.
 - Upload validation tests.
 - `npm run typecheck`
 - `npm run build`
 
-## Phase 10: Security, Privacy, and Production Auth
+## Phase 11: Security, Privacy, and Production Auth Redesign
 
-Feature refs: New-SEC1, New-SEC2, New-SEC3, New-SEC4, FR-56, FR-AI-ZDR foundation.
+### Goal
 
-Goal: raise P.R.I.S.M from demo auth/privacy to production-shaped security controls before live AI or external integrations process real data.
+Make privacy and security visible, operable, and production-shaped before live AI or broader external use.
 
-| Owner | Parallel work |
-| --- | --- |
-| Owner A | Add production auth abstractions, session expiry, password reset tokens, 2FA primitives, retention calendars, legal hold, redaction records, and audit hardening. |
-| Owner B | Build PMCM security/privacy console, retention controls, legal hold visibility, and audit verification views. |
-| Owner C | Update portal privacy notices, consent surfaces, account/session states, and user-facing privacy request entry points. |
-| Owner D | Own privacy/security threat model, audit-chain verification tests, retention/redaction acceptance, and production auth decision record. |
+### Feature Scope
 
-Deliverables:
+New-SEC1, New-SEC2, New-SEC3, New-SEC4, FR-56, FR-AI-ZDR foundation.
+
+### Experience Redesign
+
+Owner A:
+
+- Security/privacy console IA.
+- Consent UX patterns.
+- Privacy request UX.
+- Audit state language.
+
+Owner B:
+
+- PMCM privacy/security console.
+- Audit integrity view.
+- Retention/legal hold controls.
+
+Owner C:
+
+- Portal privacy notices.
+- User-facing privacy request entry.
+- Session/account states.
+
+### Capability Maturity
+
+Owner D:
+
+- Production auth decision.
+- PMCM 2FA.
+- Password reset.
+- Session expiry.
+- Retention calendars.
+- Legal hold.
+- Document-specific redaction.
+- Audit-chain verification.
+
+### Deliverables
 
 - Production auth decision record.
-- 2FA for PMCM admin.
-- Password reset and session controls.
-- Retention policy calendar.
+- PMCM 2FA flow.
+- Password reset/session controls.
+- Privacy request workflows.
+- Retention calendar.
 - Legal hold handling.
-- Document-specific redaction.
-- Privacy request execution with append-only audit.
+- Document redaction.
+- Audit-chain hardening.
 
-Acceptance:
+### Acceptance
 
-- PMCM can answer access, correction, deletion, and export requests.
-- Audit history remains append-only in normal workflows.
-- Production auth requirements are explicit before external launch.
+- PMCM can handle access, correction, deletion, and export requests.
+- Audit rows remain append-only in normal workflows.
+- Production auth requirements are explicit.
+- Live AI remains blocked until this phase is complete.
 
-Verification:
+### Verification
 
 - Security/privacy API tests.
 - Audit-chain tamper tests.
-- Role access regression suite.
+- Role-boundary regression.
 - `npm run typecheck`
 - `npm run build`
 
-## Phase 11: AI and Agentic Layer
+## Phase 12: AI and Agentic Layer Redesign
 
-Feature refs: FR-AI-01, FR-AI-03, FR-AI-04, FR-AI-04b, FR-AI-05, FR-AI-06, FR-AI-07, FR-AI-08, FR-AI-09, FR-AI-ZDR.
+### Goal
 
-Goal: add AI only after governance, privacy, audit, and human approval controls are operational.
+Add AI after the product has the governance, audit, approval, and UX surfaces required to use it safely.
 
-| Owner | Parallel work |
-| --- | --- |
-| Owner A | Build provider abstraction, sanitizer enforcement, AI audit records, approval records, prompt/input contracts, and deterministic fallback behavior. |
-| Owner B | Build PMCM approval queue, AI triage review, POA controls, PARE approval flow, event-day copilot review, and PEIL review surfaces. |
-| Owner C | Add only reviewed/approved AI outputs to client/supplier/guest-facing flows. No raw AI output leaves PMCM review. |
-| Owner D | Own ZDR/provider verification, sanitizer tests, prompt privacy review, AI risk register, and AI acceptance gates. |
+### Feature Scope
 
-Deliverables:
+FR-AI-01, FR-AI-03, FR-AI-04, FR-AI-04b, FR-AI-05, FR-AI-06, FR-AI-07, FR-AI-08, FR-AI-09, FR-AI-ZDR.
 
-- ZDR/provider verification record.
+### Experience Redesign
+
+Owner A:
+
+- AI interaction model.
+- Approval queue UX.
+- AI confidence/explanation patterns.
+- Human-review language.
+- Safe output presentation rules.
+
+Owner B:
+
+- PMCM AI triage review.
+- POA assistant.
+- PARE approval flow.
+- Event-day copilot review.
+- PEIL review.
+- Communication assistant review.
+
+Owner C:
+
+- Only approved AI outputs in portals.
+- No direct raw AI-to-client/supplier/guest output.
+
+### Capability Maturity
+
+Owner D:
+
+- Provider abstraction.
+- ZDR verification record.
+- DataSanitizer enforcement.
+- AI audit records.
+- Approval records.
+- Prompt/input contracts.
+- Deterministic fallback behavior.
+- AI risk register.
+
+### Deliverables
+
+- ZDR/provider verification.
 - Sanitizer test suite.
 - AI audit and approval queue.
 - Intelligent inquiry triage.
@@ -406,55 +1203,61 @@ Deliverables:
 - PEIL post-event intelligence.
 - Client communication assistant.
 
-Acceptance:
+### Acceptance
 
-- No AI feature runs without ZDR/provider approval and sanitizer enforcement.
-- No AI recommendation executes without PMCM approval.
-- Raw AI output is never sent directly to clients, suppliers, coordinators, or guests.
-- AI audit records show model version, data categories, sanitizer status, ZDR confirmation, and approval state.
+- No AI feature runs without ZDR/provider approval.
+- No AI action executes without PMCM approval.
+- Raw AI output is never sent directly outside PMCM review.
+- AI audit records include model version, data categories, sanitizer status, ZDR confirmation, and approval state.
 
-Verification:
+### Verification
 
 - Sanitizer redaction tests.
 - AI audit tests.
 - Human approval gate tests.
-- Prompt privacy review checklist.
+- Prompt privacy review.
 - `npm run typecheck`
 - `npm run build`
 
-## Cross-Phase Cadence
+## Cross-Phase Operating Cadence
 
-Each phase should be split into small implementation branches. A normal phase should use this sequence:
+Each phase should run with four coordinated branches:
 
-1. Owner D updates the feature ledger and acceptance checklist.
-2. Owner A lands API contracts, Prisma changes, and tests behind compatible routes.
-3. Owner B and Owner C build app surfaces in parallel against those contracts.
-4. Owner D runs cross-role regression, boundary checks, and docs updates.
-5. The team merges only after the phase has passing verification and no role-boundary regressions.
-
-## Branching and Parallel Work Strategy
-
-Recommended branch pattern:
-
-- `codex/phase-N-api-data`
+- `codex/phase-N-product-ux`
 - `codex/phase-N-pmcm-coordinator`
 - `codex/phase-N-portals`
-- `codex/phase-N-platform-qa-docs`
+- `codex/phase-N-api-platform`
 
-Merge order inside a phase:
+Recommended sequence inside a phase:
 
-1. API/data contracts.
-2. PMCM and portal app surfaces in either order once API is merged.
-3. Platform/QA/docs finalization.
+1. Owner A drafts the UX brief and page/workflow acceptance criteria.
+2. Owner D drafts API contracts, fixture shapes, data model changes, and test expectations.
+3. Owner B and Owner C implement app surfaces in parallel against stable contracts or typed fixtures.
+4. Owner D runs role-boundary, API, build, and regression verification.
+5. Owner A reviews visual consistency and UX completeness.
+6. Docs and feature ledger are updated before merge.
 
-When app work must start before API merge, use typed local fixtures or feature flags, then switch to the real API before merge.
+## Branch Merge Strategy
 
-## Definition of Done for Any Phase
+Preferred merge order:
+
+1. Product/UX and API contract docs.
+2. API/data changes.
+3. PMCM/coordinator app changes.
+4. Portal app changes.
+5. QA/docs finalization.
+
+When PMCM and portal app work can happen independently, both may proceed in parallel after DTOs and permission rules are stable.
+
+## Whole-App Definition of Done
+
+For any phase:
 
 - Feature ledger updated.
-- API and app ownership documented.
-- Role-boundary tests or checks updated.
-- Focused tests for touched workflows pass.
+- Redesign inventory updated.
+- Page/workflow acceptance criteria met.
+- Role boundaries verified.
+- Focused tests pass.
 - `npm run typecheck` passes.
 - `npm run build` passes before final merge.
 - `npm run check:boundaries` passes.
@@ -462,25 +1265,48 @@ When app work must start before API merge, use typed local fixtures or feature f
 - Public pages do not link directly to dashboards.
 - Clients cannot mutate official floorplans.
 - PMCM-only data stays PMCM-only.
+- Empty, loading, error, no-permission, and high-volume states are accounted for.
 
-## Risks and Gates
+## Design QA Checklist
 
-| Risk | Gate |
-| --- | --- |
-| Live AI before legal/privacy readiness | Block until Phase 10 and FR-AI-ZDR verification are complete. |
-| QR scanning instability in local/demo environments | Block until HTTPS and camera constraints are solved. |
-| Production notification failures | Route all providers through queue/retry/audit adapters. |
-| File upload privacy leakage | Require storage abstraction, generated names, validation, and signed access. |
-| Cross-role data leakage | Require boundary checks and scoped API tests for every cross-role feature. |
-| Large dashboard files returning | Use selectors/hooks/services and route-specific components as phase acceptance criteria. |
+Owner A should apply this before any redesigned surface merges:
+
+- Does the page have one clear primary job?
+- Is the next action visible without reading every panel?
+- Is the density appropriate for the user's context?
+- Is the page using a known P.R.I.S.M template?
+- Are cards used only where they clarify repeated items or framed tools?
+- Are status labels consistent with the lifecycle?
+- Are destructive actions gated and explained?
+- Are empty states useful?
+- Are errors recoverable?
+- Does the mobile/laptop layout preserve critical functionality?
+- Does the page avoid decorative eyebrow pills, active underline nav, nested cards, and generic dashboard filler?
+
+## Technical QA Checklist
+
+Owner D should apply this before any phase merges:
+
+- API route has role-aware scope.
+- Response shape is typed in shared contracts or app-local types.
+- Side effects are audited where required.
+- Notifications are queued rather than sent directly when applicable.
+- File uploads validate metadata and permissions.
+- Privacy consent is captured for public personal-data writes.
+- Tests cover forbidden role access.
+- Boundary checker passes.
+- Build and typecheck pass.
+- Docs reflect current implementation state.
 
 ## Immediate Next Implementation Plan
 
-The first implementation plan should cover Phase 1 only:
+The first implementation plan should cover Phase 0 only:
 
 1. Refresh current-state docs after the Prism architecture work.
 2. Create the feature ledger.
-3. Decide the fate of the untracked old architecture plan with semantic old product-name references.
-4. Add a docs verification checklist.
+3. Create the whole-app redesign inventory.
+4. Classify every app route by redesign severity.
+5. Decide the fate of the untracked old architecture plan with semantic old product-name references.
+6. Add a docs verification checklist.
 
-Phase 1 is the right first implementation slice because it prevents the team from planning against stale feature status while four people work in parallel.
+Phase 0 should happen before new redesign implementation because the team needs a shared inventory before four people work in parallel.
