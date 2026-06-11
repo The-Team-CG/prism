@@ -4,6 +4,8 @@ Last updated: 2026-05-01
 
 This is the durable look-back plan for revising the current P.R.I.S.M implementation. It uses `07-implemented-feature-revisions.md` as the current-state source and `01-complete-feature-catalog.md` as the complete Version 4 feature source.
 
+Planning note: this file remains the historical revision-first roadmap. The active whole-app redesign should use `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` together with `10-product-evolution-and-redesign-governance.md`. The catalog is a baseline inventory, not a hard ceiling; later work may add, revise, merge, split, defer, retire, or gate features when the feature ledger justifies it.
+
 The rule for all phases is revision first: if a feature already exists as live, partial, or prototype, deepen and correct that path before creating a parallel mockup.
 
 ## Phase Summary

@@ -2,9 +2,9 @@
 
 Source: `C:\Users\anton\Downloads\PRISM_V4_Complete_Feature_Catalog.docx`
 
-This document is the complete official feature catalog for P.R.I.S.M Version 4. It serves two purposes: (1) the manuscript reference for Chapter 3 Section 3.3.1 Functional Requirements, and (2) the panel defense reference confirming the complete scope of the system. Every feature from Version 3 is preserved. Ten new AI features have been added. All AI features include a security note explaining how client and supplier data is protected.
+This document set preserves the official feature catalog for P.R.I.S.M Version 4 and the current redesign roadmap. The original catalog serves two purposes: (1) the manuscript reference for Chapter 3 Section 3.3.1 Functional Requirements, and (2) the panel defense reference confirming the originally documented system scope. Every feature from Version 3 is preserved. Ten new AI features have been added. All AI features include a security note explaining how client and supplier data is protected.
 
-The complete catalog is the scope source of truth. It is not a claim that every feature is finished in code. For current implementation status, needed revisions, and exact revision guidance, use `07-implemented-feature-revisions.md`.
+The complete catalog is now treated as the baseline feature inventory, not a hard ceiling. The product may add, revise, merge, defer, or retire features during the whole-app redesign when that makes P.R.I.S.M better for PMCM operations. For current implementation status, needed revisions, and exact revision guidance, use `07-implemented-feature-revisions.md`. For rules on changing the feature set during redesign, use `10-product-evolution-and-redesign-governance.md`.
 
 ## Official Count Summary
 | Persona | V3 Count | V4 Additions | V4 Total |
@@ -32,6 +32,7 @@ The complete catalog is the scope source of truth. It is not a claim that every 
 | Implemented feature revisions | ./07-implemented-feature-revisions.md | Current implemented/partial features, revision gaps, and how to revise them safely. |
 | Revision phase plan | ./08-revision-phase-plan.md | Durable phase roadmap for revision-first implementation and docs cleanup. |
 | Defense demo runbook | ./09-defense-demo-runbook.md | Local startup, accounts, demo order, verification, and defense boundaries. |
+| Product evolution governance | ./10-product-evolution-and-redesign-governance.md | Rules for adding, revising, merging, deferring, or retiring features during the whole-app redesign. |
 | PMCM Admin features | ./features/admin.md | Admin-owned operating system functions. |
 | Client features | ./features/client.md | Client portal functions. |
 | Supplier features | ./features/supplier.md | Supplier portal functions. |
@@ -49,3 +50,4 @@ The complete catalog is the scope source of truth. It is not a claim that every 
 5. Use `08-revision-phase-plan.md` to choose the next revision phase.
 6. Use `09-defense-demo-runbook.md` for the exact local rehearsal order.
 7. Use `03-ai-features-and-security.md` when the panel asks about AI, privacy, or human approval.
+8. Use `10-product-evolution-and-redesign-governance.md` before adding, revising, merging, or retiring catalog features.

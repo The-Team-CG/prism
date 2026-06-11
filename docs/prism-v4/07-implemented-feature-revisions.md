@@ -4,7 +4,9 @@ Last updated: 2026-05-01
 
 This file separates the complete feature catalog from the current implementation reality. Use it when deciding what already exists, what needs revision, and how to revise it without breaking the role-specific app boundaries.
 
-The complete feature source remains `01-complete-feature-catalog.md`. This document is a working backlog for implemented or partially implemented features that need hardening before more scope is added.
+The complete feature source remains `01-complete-feature-catalog.md`, but the catalog is now treated as the baseline inventory rather than a hard ceiling. Use `10-product-evolution-and-redesign-governance.md` and `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` when deciding whether to add, revise, merge, split, defer, retire, or gate a feature during the whole-app redesign.
+
+This document is a working backlog for implemented or partially implemented features that need hardening before more scope is added. It should feed the Phase 0 feature ledger rather than freeze the product scope.
 
 ## Sources Reviewed
 
@@ -12,6 +14,8 @@ The complete feature source remains `01-complete-feature-catalog.md`. This docum
 | --- | --- |
 | `01-complete-feature-catalog.md` | Complete Version 4 feature list and official counts. |
 | `04-implementation-plan.md` | Target frontend, backend, entity, dependency, and acceptance criteria by feature. |
+| `10-product-evolution-and-redesign-governance.md` | Rules for adding, revising, merging, deferring, or retiring features during redesign. |
+| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan. |
 | `prism-event/docs/prism-feature-soundness-review.md` | Prior feature maturity review across all five apps. |
 | `prism-event/docs/prism-maintainability-tech-debt-audit.md` | Prior maintainability audit and refactor priorities. |
 | `prism-api/prisma/schema.prisma` | Current persistence model coverage. |
@@ -39,7 +43,7 @@ The complete feature source remains `01-complete-feature-catalog.md`. This docum
 | Client portal | `prism-client` has public/client surfaces, privacy-consented public inquiry and access approval request flows, conforme-gated dashboard, event filtering, split overview/briefing/billing/documents/activity sections, layout preference actions, and read-only official layout snapshot review. | Public pages remain landing and inquiry only; client dashboard stays signed in. | Phase 8 adds inquiry and approval consent UI; remaining documents, briefings, activity, and preference-draft state slices still need tighter scoped APIs. |
 | Supplier portal | `prism-supplier` has a supplier-scoped dashboard that reads assigned quote requests, submits/revises quotes, confirms awarded assignments, records readiness, saves contract metadata, sends event-day statuses through the API, and submits privacy-consented supplier approval requests. | Supplier remains a separate portal on port `3002`. | Phase 8 adds approval consent UI; deeper supplier self-service applications and real file upload remain future work. |
 | Guest portal | `prism-guest` has an access-code entry flow backed by `/api/guest/events/:accessCode`, event attendance count, privacy-consented name-based check-in, walk-in flagging, and privacy-consented moderated feedback writes. | Guest remains a separate portal on port `3003`. | Phase 8 adds check-in and feedback consent UI; QR scanning, masterlist reconciliation, and richer moderation queues remain future work. |
-| Shared docs | `docs/prism-v4` now contains the complete v4 catalog, implementation plan, defense guide, and this revision backlog. | `01-complete-feature-catalog.md` remains the scope source of truth. | Root docs must not drift back to the old all-role `prism-client` shell or stale v3-only counts. |
+| Shared docs | `docs/prism-v4` now contains the complete v4 catalog, implementation plan, defense guide, revision backlog, and product evolution governance. | `01-complete-feature-catalog.md` remains the baseline traceability source for catalog rows and official counts. | Root docs must not drift back to the old all-role `prism-client` shell, stale v3-only counts, or fixed-catalog planning assumptions. |
 
 ## Revision Backlog By Capability
 

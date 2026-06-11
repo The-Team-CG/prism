@@ -11,6 +11,7 @@ Primary sources:
 - `docs/prism-v4/01-complete-feature-catalog.md`
 - `docs/prism-v4/07-implemented-feature-revisions.md`
 - `docs/prism-v4/08-revision-phase-plan.md`
+- `docs/prism-v4/10-product-evolution-and-redesign-governance.md`
 - `AGENTS.md`
 - Current code in `apps/client`, `apps/event`, `apps/supplier`, `apps/guest`, `apps/api`, `packages/types`, `packages/api-client`, and `packages/ui`
 
@@ -102,6 +103,36 @@ Every phase has two required tracks:
    - Documentation
 
 No phase is complete if it only makes the UI prettier or only adds backend endpoints. A phase is complete when the affected workflow works end to end, has clear role boundaries, and is verified.
+
+## Product Evolution Model
+
+The Version 4 catalog is the baseline feature inventory, not a hard ceiling. The redesign may add, revise, merge, split, defer, retire, or gate features when doing so makes P.R.I.S.M clearer, safer, more usable, or more aligned with PMCM operations.
+
+Every catalog feature and proposed new feature should receive a feature-ledger decision:
+
+| Decision | When to use it |
+| --- | --- |
+| Keep | The feature is still valid and should be implemented or hardened as written. |
+| Revise | The feature is valuable but needs stronger UX, data, permission, workflow, or wording. |
+| Merge | Multiple features should become one stronger workflow. |
+| Split | One broad feature should become multiple implementation slices. |
+| Add | A new capability should be introduced because it improves PMCM's operating model. |
+| Defer | The feature is valid but should wait for a later maturity stage. |
+| Retire | The feature is outdated, redundant, unsafe, or no longer product-aligned. |
+| Gate | The feature can proceed only after a prerequisite such as privacy, auth, storage, notification, QR, or AI governance is complete. |
+
+Add or revise features when they reduce repeated PMCM work, reduce event-day risk, clarify responsibility across roles, improve audit/privacy/security, replace weak catalog items with stronger workflows, or make a core workflow easier to complete without training. Retire or merge features that push the product toward generic SaaS, duplicate a stronger workflow, expose too much PMCM state, depend on unwanted external operations, or exist only as demo artifacts.
+
+Ownership:
+
+| Owner | Product evolution responsibility |
+| --- | --- |
+| Owner A | Owns the product/UX quality case for add, revise, merge, split, defer, or retire decisions. |
+| Owner B | Validates PMCM and coordinator workflow impact. |
+| Owner C | Validates client, supplier, guest, and public portal impact. |
+| Owner D | Validates API, data, permission, audit, security, test, and documentation impact. |
+
+Phase 0 must produce the feature ledger with at least these fields: feature ID, source, persona, current state, decision, decision reason, owner, phase placement, dependencies, permission boundary, audit/notification needs, UX surface, and verification requirement.
 
 ## Four-Person Ownership Model
 

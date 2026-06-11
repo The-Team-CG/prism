@@ -4,13 +4,15 @@
 
 P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It is not a generic SaaS product. The current Prism boundary is role-specific portals plus one shared API.
 
-Canonical feature and revision docs:
+Canonical feature, revision, and redesign docs:
 
-- `docs/prism-v4/01-complete-feature-catalog.md`: complete Version 4 feature list and official counts.
+- `docs/prism-v4/01-complete-feature-catalog.md`: baseline Version 4 feature list and official manuscript/defense counts.
 - `docs/prism-v4/04-implementation-plan.md`: feature-to-build mapping.
 - `docs/prism-v4/05-prism-defense-demo-guide.md`: defense demo flow and evidence rules.
 - `docs/prism-v4/07-implemented-feature-revisions.md`: implemented/partial features that need revisions and how to revise them.
-- `docs/prism-v4/08-revision-phase-plan.md`: phase-by-phase revision roadmap.
+- `docs/prism-v4/08-revision-phase-plan.md`: historical phase-by-phase revision roadmap.
+- `docs/prism-v4/10-product-evolution-and-redesign-governance.md`: rules for adding, revising, merging, deferring, or retiring features.
+- `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`: active whole-app redesign and capability maturity plan.
 
 ## App Boundaries
 

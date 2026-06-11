@@ -5,9 +5,11 @@ These notes preserve the product boundaries established by the project docs and 
 ## Product Truths
 
 - P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It is not a generic SaaS and not a public multi-tenant product.
-- The current feature source of truth is `docs/prism-v4/01-complete-feature-catalog.md`.
+- The current feature baseline is `docs/prism-v4/01-complete-feature-catalog.md`; it is preserved for traceability and manuscript/defense counts, not as a hard ceiling.
 - The current implementation/revision source is `docs/prism-v4/07-implemented-feature-revisions.md`.
-- The current phase roadmap is `docs/prism-v4/08-revision-phase-plan.md`.
+- The current product evolution rules are `docs/prism-v4/10-product-evolution-and-redesign-governance.md`.
+- The current whole-app redesign plan is `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
+- The historical revision roadmap is `docs/prism-v4/08-revision-phase-plan.md`.
 - The supporting root docs are `README.md`, `CLAUDE.md`, and `AGENTS.md`.
 - The lifecycle is inquiry -> conforme -> briefing/proposal -> planning -> event day -> closure/archive.
 - Event creation and client portal access are gated by accepted inquiry plus signed conforme.

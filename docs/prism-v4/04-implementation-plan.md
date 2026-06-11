@@ -2,7 +2,7 @@
 
 This plan converts each source catalog row into implementation work. Rows are source-preserving, so cross-persona or AI-governance rows may appear where the original catalog repeats them. The official count summary remains the source of truth for manuscript totals.
 
-Current implementation status is tracked separately in `07-implemented-feature-revisions.md`. Check that file before adding new feature scope: many catalog rows already have partial code paths that should be revised instead of rebuilt from scratch.
+Current implementation status is tracked separately in `07-implemented-feature-revisions.md`. Product evolution rules live in `10-product-evolution-and-redesign-governance.md`. Check both before adding new scope: many catalog rows already have partial code paths that should be revised instead of rebuilt from scratch, and new non-catalog features must be justified through the feature ledger.
 
 ## Build Order
 | Order | Slice | Scope |
@@ -20,7 +20,7 @@ Before implementing a new catalog row, run this gate:
 
 | Gate | Required check |
 | --- | --- |
-| Scope source | Confirm the row exists in `01-complete-feature-catalog.md` and identify its FR number. |
+| Scope source | For catalog work, confirm the row exists in `01-complete-feature-catalog.md` and identify its FR number. For new, revised, merged, deferred, retired, or gated work, create or update the feature-ledger decision defined by `10-product-evolution-and-redesign-governance.md`. |
 | Current status | Check `07-implemented-feature-revisions.md` for existing UI/API/schema coverage and known gaps. |
 | App boundary | Keep PMCM command work in `prism-event`, client work in `prism-client`, supplier work in `prism-supplier`, guest work in `prism-guest`, and shared backend work in `prism-api`. |
 | Revision first | If the feature is already partial, finish the revision path before creating a parallel mockup. |
