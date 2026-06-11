@@ -38,7 +38,7 @@ All 10 AI features in P.R.I.S.M use the Anthropic Claude API under a Zero Data R
 | Human Approval Gate Enforcement | No AI recommendation in P.R.I.S.M is executed automatically. Every AI output (triage score, proposal draft, compliance advisory, PARE recommendation, PEIL recommendation, copilot alert, communication draft) requires explicit PMCM Admin click to Approve before any system action is taken. | All AI Phases |
 | PARE Emergency Activation | PARE Multi-Agent Emergency Response Engine (FR-AI-04) activates automatically when: a supplier marks as unavailable, PMCM Admin marks supplier as Withdrawn, or system detects Tier 1 unresponsive past quote deadline. PARE recommendation package presented to PMCM Admin within 20 seconds of trigger. | Phase 3-5 |
 
-## Demo Proof Required
+## Sample Proof Required
 | Evidence | What to show |
 | --- | --- |
 | Sanitized input | Show the before/after sample where private names, contacts, and supplier names are replaced before Claude is called. |

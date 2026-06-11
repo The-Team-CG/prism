@@ -228,7 +228,7 @@ export function AuditTrailPanel({
   const failedLoginCount = loginHistory.filter((entry) => entry.status !== "success").length;
   const approvalBacklog = approvalRequests.filter((request) => request.status === "pending").length;
   const privacyBacklog = privacyRequests.filter((request) => request.status === "submitted").length;
-  const retentionNote = privacyInventory?.retentionNotes?.[0] ?? "Demo retention notes unavailable";
+  const retentionNote = privacyInventory?.retentionNotes?.[0] ?? "Sample retention notes unavailable";
   const privacySurfaces = [
     ...(privacyInventory?.globalSurfaces ?? []),
     ...(privacyInventory?.events ?? []).flatMap((event) => event.surfaces),

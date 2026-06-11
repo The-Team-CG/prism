@@ -3,7 +3,7 @@ import {
   PRISM_LIFECYCLE_STAGES,
   canClientAccessPortal,
   canCreateEventWorkspace,
-  type PrismDemoState,
+  type PrismSampleState,
   type PrismEvent,
   type PrismFloorPlanDraft,
   type PrismInquiry,
@@ -57,7 +57,7 @@ describe("P.R.I.S.M lifecycle contract", () => {
 });
 
 describe("event-ops shared read model types", () => {
-  it("allows role apps to import the same Prism demo state shape", () => {
+  it("allows role apps to import the same Prism sample state shape", () => {
     const user: PrismUser = {
       id: "user_pmcm",
       name: "Ms. Mys",
@@ -157,7 +157,7 @@ describe("event-ops shared read model types", () => {
       suppliers: [supplier],
       auditLogs: [],
       notificationLogs: [],
-    } satisfies PrismDemoState;
+    } satisfies PrismSampleState;
 
     expect(state.events[0]?.id).toBe("evt_1");
     expect(state.suppliers[0]?.tier).toBe("tier_1");

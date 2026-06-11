@@ -121,7 +121,7 @@ Every catalog feature and proposed new feature should receive a feature-ledger d
 | Retire | The feature is outdated, redundant, unsafe, or no longer product-aligned. |
 | Gate | The feature can proceed only after a prerequisite such as privacy, auth, storage, notification, QR, or AI governance is complete. |
 
-Add or revise features when they reduce repeated PMCM work, reduce event-day risk, clarify responsibility across roles, improve audit/privacy/security, replace weak catalog items with stronger workflows, or make a core workflow easier to complete without training. Retire or merge features that push the product toward generic SaaS, duplicate a stronger workflow, expose too much PMCM state, depend on unwanted external operations, or exist only as demo artifacts.
+Add or revise features when they reduce repeated PMCM work, reduce event-day risk, clarify responsibility across roles, improve audit/privacy/security, replace weak catalog items with stronger workflows, or make a core workflow easier to complete without training. Retire or merge features that push the product toward generic SaaS, duplicate a stronger workflow, expose too much PMCM state, depend on unwanted external operations, or exist only as sample artifacts.
 
 Ownership:
 
@@ -452,7 +452,7 @@ Owner D and Owner A:
 ### Acceptance
 
 - PMCM users can identify the next operational action within 5 seconds on home and event workspace.
-- Event workspace is organized by lifecycle, not by demo panels.
+- Event workspace is organized by lifecycle, not by sample panels.
 - PMCM-only data remains inaccessible from other apps.
 - Large component growth is controlled by selectors, hooks, and feature components.
 
@@ -1042,7 +1042,7 @@ Owner D:
 
 ### Goal
 
-Move from demo infrastructure to adapter-backed services that fail safely and can be audited.
+Move from sample infrastructure to adapter-backed services that fail safely and can be audited.
 
 ### Feature Scope
 

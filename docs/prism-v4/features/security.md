@@ -1,6 +1,6 @@
 # Security Features
 
-This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and demo preparation.
+This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and sample preparation.
 
 ## Security - Cross-Cutting All Personas and All Phases
 
@@ -18,8 +18,8 @@ Database backbone: User, Role, Session, PrivacyNoticeAcceptance, UploadRecord, A
 | New-SEC4 | Comprehensive Audit Trail and Activity Log | Security | Every system action logged with timestamp, user identity, user role, action type, and affected data. Append-only and tamper-resistant. Accessible only to Ms. Mys and EA. Filterable by user, event, date range, and action type. |
 | FR-AI-ZDR | Zero Data Retention AI Governance Layer | Security | MANDATORY setup before any AI feature goes live. ZDR agreement with Anthropic guarantees no AI inputs or outputs are stored on Anthropic servers. DataSanitizer service replaces all PII with anonymized labels before every Claude API call. AIAuditLog table records every AI call with data categories processed, model version, and ZDR confirmation. Human approval required before any AI recommendation is acted upon. 🔒 AI Security: This is not optional. Without ZDR configured and DataSanitizer implemented, P.R.I.S.M cannot legally claim Philippine Data Privacy Act compliance for AI features. ZDR setup requires Anthropic Business Associates Agreement (contact api@anthropic.com). Process takes 1-3 business days. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | New-SEC1 | Role-Based Authentication and Session Management | Security | Show configuration, validation failure, and audit/log evidence. |
 | New-SEC2 | Data Privacy Compliance Module | Security | Show configuration, validation failure, and audit/log evidence. |

@@ -8,16 +8,16 @@ Source catalog: `docs/prism-v4/01-complete-feature-catalog.md`
 
 The capture pass uses a content-readiness guard instead of a fixed delay:
 
-- Seeds the correct demo session into `localStorage` before each route hydrates.
+- Seeds the correct sample session into `localStorage` before each route hydrates.
 - Waits for API health, route-specific text markers, `document.readyState === "complete"`, and loaded fonts.
 - Rejects screenshots while `.animate-pulse` skeleton elements or loading copy are still present.
 - Captures with Microsoft Edge headless through the Chrome DevTools Protocol, so no Playwright install is required.
 
 This is the safer idea for this repo because skeleton-only screenshots are a timing/auth/data-readiness problem. Waiting for real page markers makes the screenshot fail loudly instead of silently saving a loading state.
 
-## Demo Context
+## Sample Context
 
-- Event: `Ayala Tech Summit 2026` (`evt_demo_ayala`)
+- Event: `Ayala Tech Summit 2026` (`evt_sample_ayala`)
 - Guest code: `AYALA-TECH-YALA`
 - Viewport: `1440x1100`, max capture height `3200px`
 
@@ -29,19 +29,19 @@ This is the safer idea for this repo because skeleton-only screenshots are a tim
 | Public Inquiry Form | `apps/client` | `http://localhost:3001/inquiry` | [screenshots/client-public-inquiry.png](screenshots/client-public-inquiry.png) | `FR-46`, `FR-47`, `FR-48`, `FR-50`, `FR-51` |
 | Client Sign-In Gate | `apps/client` | `http://localhost:3001/sign-in` | [screenshots/client-sign-in.png](screenshots/client-sign-in.png) | `FR-26`, `New-SEC1` |
 | Client Dashboard Overview | `apps/client` | `http://localhost:3001/dashboard` | [screenshots/client-dashboard-overview.png](screenshots/client-dashboard-overview.png) | `FR-26`, `FR-27`, `FR-34`, `New-CL1`, `New-CL2` |
-| Client Event Floorplan | `apps/client` | `http://localhost:3001/dashboard/events/evt_demo_ayala/floor-plan` | [screenshots/client-event-floorplan.png](screenshots/client-event-floorplan.png) | `FR-08`, `FR-28`, `FR-29`, `FR-83` |
-| Client Proposal Review | `apps/client` | `http://localhost:3001/dashboard/events/evt_demo_ayala/proposal` | [screenshots/client-event-proposal.png](screenshots/client-event-proposal.png) | `FR-58`, `FR-60`, `FR-AI-09` |
-| Client Billing And Documents | `apps/client` | `http://localhost:3001/dashboard/events/evt_demo_ayala/billing` | [screenshots/client-event-billing-documents.png](screenshots/client-event-billing-documents.png) | `FR-32`, `FR-33`, `FR-34`, `FR-92` |
+| Client Event Floorplan | `apps/client` | `http://localhost:3001/dashboard/events/evt_sample_ayala/floor-plan` | [screenshots/client-event-floorplan.png](screenshots/client-event-floorplan.png) | `FR-08`, `FR-28`, `FR-29`, `FR-83` |
+| Client Proposal Review | `apps/client` | `http://localhost:3001/dashboard/events/evt_sample_ayala/proposal` | [screenshots/client-event-proposal.png](screenshots/client-event-proposal.png) | `FR-58`, `FR-60`, `FR-AI-09` |
+| Client Billing And Documents | `apps/client` | `http://localhost:3001/dashboard/events/evt_sample_ayala/billing` | [screenshots/client-event-billing-documents.png](screenshots/client-event-billing-documents.png) | `FR-32`, `FR-33`, `FR-34`, `FR-92` |
 | PMCM Command Dashboard | `apps/event` | `http://localhost:3004/dashboard` | [screenshots/pmcm-command-dashboard.png](screenshots/pmcm-command-dashboard.png) | `FR-04`, `FR-05`, `FR-06`, `FR-25`, `FR-56`, `FR-AI-05`, `FR-AI-07`, `FR-AI-ZDR`, `New-SY3` |
 | PMCM Inquiry And Onboarding | `apps/event` | `http://localhost:3004/dashboard/inquiries` | [screenshots/pmcm-inquiry-onboarding.png](screenshots/pmcm-inquiry-onboarding.png) | `FR-01`, `FR-02`, `FR-03`, `FR-44`, `FR-45`, `FR-52`, `FR-53`, `FR-54`, `FR-AI-01` |
-| PMCM Event Workspace Overview | `apps/event` | `http://localhost:3004/dashboard/events/evt_demo_ayala/overview` | [screenshots/pmcm-event-overview.png](screenshots/pmcm-event-overview.png) | `FR-04`, `FR-05`, `FR-06`, `FR-58`, `FR-60` |
-| PMCM Briefing And Proposal | `apps/event` | `http://localhost:3004/dashboard/events/evt_demo_ayala/briefing` | [screenshots/pmcm-event-briefing.png](screenshots/pmcm-event-briefing.png) | `FR-19`, `FR-58`, `FR-59`, `FR-60`, `FR-61`, `FR-62`, `FR-AI-03`, `FR-AI-09` |
-| PMCM Floorplans | `apps/event` | `http://localhost:3004/dashboard/events/evt_demo_ayala/floorplans` | [screenshots/pmcm-event-floorplans.png](screenshots/pmcm-event-floorplans.png) | `FR-08`, `FR-80`, `FR-81`, `FR-82`, `FR-83`, `FR-84` |
-| PMCM Suppliers And PARE | `apps/event` | `http://localhost:3004/dashboard/events/evt_demo_ayala/suppliers` | [screenshots/pmcm-event-suppliers-pare.png](screenshots/pmcm-event-suppliers-pare.png) | `FR-14`, `FR-15`, `FR-16`, `FR-17`, `FR-18`, `FR-49`, `FR-63`, `FR-64`, `FR-75`, `FR-76`, `FR-AI-04`, `FR-AI-04b`, `FR-AI-06`, `New-S5` |
-| PMCM Coordinator Desk | `apps/event` | `http://localhost:3004/dashboard/events/evt_demo_ayala/coordinators` | [screenshots/pmcm-event-coordinators.png](screenshots/pmcm-event-coordinators.png) | `FR-13`, `FR-88`, `FR-89`, `FR-90`, `New-C1`, `New-C2`, `New-C3`, `New-C4` |
-| PMCM Live Operations | `apps/event` | `http://localhost:3004/dashboard/events/evt_demo_ayala/live-ops` | [screenshots/pmcm-event-live-ops.png](screenshots/pmcm-event-live-ops.png) | `FR-39`, `FR-78`, `FR-79`, `FR-95`, `FR-AI-07`, `New-C3`, `New-C4`, `New-SUP1` |
-| PMCM Billing And Finance | `apps/event` | `http://localhost:3004/dashboard/events/evt_demo_ayala/billing` | [screenshots/pmcm-event-billing.png](screenshots/pmcm-event-billing.png) | `FR-20`, `FR-21`, `FR-69`, `FR-92`, `New-P5` |
-| PMCM Closure And Archive | `apps/event` | `http://localhost:3004/dashboard/events/evt_demo_ayala/closure` | [screenshots/pmcm-event-closure-archive.png](screenshots/pmcm-event-closure-archive.png) | `FR-22`, `FR-23`, `New-P1`, `New-P2`, `New-P3`, `New-P5`, `FR-AI-08`, `New-SY1`, `New-SY2` |
+| PMCM Event Workspace Overview | `apps/event` | `http://localhost:3004/dashboard/events/evt_sample_ayala/overview` | [screenshots/pmcm-event-overview.png](screenshots/pmcm-event-overview.png) | `FR-04`, `FR-05`, `FR-06`, `FR-58`, `FR-60` |
+| PMCM Briefing And Proposal | `apps/event` | `http://localhost:3004/dashboard/events/evt_sample_ayala/briefing` | [screenshots/pmcm-event-briefing.png](screenshots/pmcm-event-briefing.png) | `FR-19`, `FR-58`, `FR-59`, `FR-60`, `FR-61`, `FR-62`, `FR-AI-03`, `FR-AI-09` |
+| PMCM Floorplans | `apps/event` | `http://localhost:3004/dashboard/events/evt_sample_ayala/floorplans` | [screenshots/pmcm-event-floorplans.png](screenshots/pmcm-event-floorplans.png) | `FR-08`, `FR-80`, `FR-81`, `FR-82`, `FR-83`, `FR-84` |
+| PMCM Suppliers And PARE | `apps/event` | `http://localhost:3004/dashboard/events/evt_sample_ayala/suppliers` | [screenshots/pmcm-event-suppliers-pare.png](screenshots/pmcm-event-suppliers-pare.png) | `FR-14`, `FR-15`, `FR-16`, `FR-17`, `FR-18`, `FR-49`, `FR-63`, `FR-64`, `FR-75`, `FR-76`, `FR-AI-04`, `FR-AI-04b`, `FR-AI-06`, `New-S5` |
+| PMCM Coordinator Desk | `apps/event` | `http://localhost:3004/dashboard/events/evt_sample_ayala/coordinators` | [screenshots/pmcm-event-coordinators.png](screenshots/pmcm-event-coordinators.png) | `FR-13`, `FR-88`, `FR-89`, `FR-90`, `New-C1`, `New-C2`, `New-C3`, `New-C4` |
+| PMCM Live Operations | `apps/event` | `http://localhost:3004/dashboard/events/evt_sample_ayala/live-ops` | [screenshots/pmcm-event-live-ops.png](screenshots/pmcm-event-live-ops.png) | `FR-39`, `FR-78`, `FR-79`, `FR-95`, `FR-AI-07`, `New-C3`, `New-C4`, `New-SUP1` |
+| PMCM Billing And Finance | `apps/event` | `http://localhost:3004/dashboard/events/evt_sample_ayala/billing` | [screenshots/pmcm-event-billing.png](screenshots/pmcm-event-billing.png) | `FR-20`, `FR-21`, `FR-69`, `FR-92`, `New-P5` |
+| PMCM Closure And Archive | `apps/event` | `http://localhost:3004/dashboard/events/evt_sample_ayala/closure` | [screenshots/pmcm-event-closure-archive.png](screenshots/pmcm-event-closure-archive.png) | `FR-22`, `FR-23`, `New-P1`, `New-P2`, `New-P3`, `New-P5`, `FR-AI-08`, `New-SY1`, `New-SY2` |
 | PMCM Audit And Security | `apps/event` | `http://localhost:3004/dashboard/audit` | [screenshots/pmcm-audit-settings.png](screenshots/pmcm-audit-settings.png) | `New-SEC1`, `New-SEC2`, `New-SEC3`, `New-SEC4`, `FR-56`, `FR-AI-ZDR` |
 | Supplier Dashboard | `apps/supplier` | `http://localhost:3002/dashboard` | [screenshots/supplier-dashboard-overview.png](screenshots/supplier-dashboard-overview.png) | `FR-35`, `FR-36`, `FR-37`, `FR-38`, `FR-49`, `FR-64`, `New-SUP1`, `New-SUP2`, `New-SUP3`, `New-SUP4`, `FR-AI-04b` |
 | Supplier Quote Requests | `apps/supplier` | `http://localhost:3002/dashboard` | [screenshots/supplier-quote-requests.png](screenshots/supplier-quote-requests.png) | `FR-36`, `FR-49`, `FR-64` |
@@ -60,7 +60,7 @@ Public entry point and lifecycle boundary before any dashboard access.
 | Ref | Feature | Scope | Catalog section |
 | --- | --- | --- | --- |
 | `FR-26` | Client Portal Access Gated by Signed Conforme | Prism | Client Features |
-| `FR-42` | Guest Pass Promotional Demo | External | External and Public Features |
+| `FR-42` | Guest Pass Promotional Sample | External | External and Public Features |
 | `FR-46` | P.R.I.S.M Public Inquiry Page | Prism | External and Public Features |
 
 ### Public Inquiry Form
@@ -572,7 +572,7 @@ Unique refs with direct screenshot mapping: 108
 | `FR-41` | Post-Event Experience Upload with Moderation | Phase 2 | Guest Features | [Guest Dashboard](screenshots/guest-dashboard.png) | Direct |
 | `FR-95` | Lightweight Digital Registration Module | Prism | Guest Features | [PMCM Live Operations](screenshots/pmcm-event-live-ops.png), [Guest Code Gate](screenshots/guest-open-code.png), [Guest Dashboard](screenshots/guest-dashboard.png) | Direct |
 | `New-GU1` | Ticket-Based Event Registration Coordination | Phase 2 | Guest Features | [Guest Dashboard](screenshots/guest-dashboard.png) | Direct |
-| `FR-42` | Guest Pass Promotional Demo | External | External and Public Features | [Client Public Landing](screenshots/client-public-landing.png) | Direct |
+| `FR-42` | Guest Pass Promotional Sample | External | External and Public Features | [Client Public Landing](screenshots/client-public-landing.png) | Direct |
 | `FR-46` | P.R.I.S.M Public Inquiry Page | Prism | External and Public Features | [Client Public Landing](screenshots/client-public-landing.png), [Public Inquiry Form](screenshots/client-public-inquiry.png) | Direct |
 | `FR-47` | Lightweight Spatial Preference Form | Phase 2 | External and Public Features | [Public Inquiry Form](screenshots/client-public-inquiry.png) | Direct |
 | `FR-48` | Referral Source Dropdown | Prism | External and Public Features | [Public Inquiry Form](screenshots/client-public-inquiry.png) | Direct |

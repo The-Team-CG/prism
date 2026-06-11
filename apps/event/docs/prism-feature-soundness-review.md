@@ -46,7 +46,7 @@ flowchart LR
 
 | Status | Meaning |
 |---|---|
-| Live | Backend and visible UI are connected enough for a demo. |
+| Live | Backend and visible UI are connected enough for a sample. |
 | Partial | Main model or UI exists, but behavior is incomplete. |
 | Prototype | Mostly static, seeded, local-only, or mock-log behavior. |
 | Planned | Present in docs, not implemented in the app yet. |
@@ -67,7 +67,7 @@ flowchart LR
 | Billing and payment tracker | 20, 21, 69, 92, 93, 94, New-P5 | Partial | 5/5 | Amounts and dates are hardcoded; billing is not linked to CE/proposal line items. |
 | Post-event docs, archive, insights | 22, 23, New-P1, New-P2, New-SY1, New-SY2 | Partial | 4/5 | Archive is not gated by close indicators; insights and event comparison are not generated. |
 | Notifications | 25, 55 | Prototype | 4/5 | Email and Viber are logged as mock notifications, not queued or sent. |
-| Security and privacy | New-SEC1 to New-SEC4, 56 | Partial | 5/5 | Demo auth uses stored passwords and UI-level routing; no real RBAC guards, hashed credentials, or file validation. |
+| Security and privacy | New-SEC1 to New-SEC4, 56 | Partial | 5/5 | Sample auth uses stored passwords and UI-level routing; no real RBAC guards, hashed credentials, or file validation. |
 | Supplier portal | 35 to 38, New-SUP1 to New-SUP4 | Prototype | 4/5 | Landing and dashboard exist, but dashboard cards are static and not supplier-event scoped. |
 | Guest portal | 39 to 42, 95, New-EX2, New-GU1 | Prototype | 3/5 | Guest code lookup works, but check-in, feedback, moderation, QR scanning, and masterlist updates are not implemented. |
 | Public pages and visual system | External/Public | Live | 4/5 | Logo and palette are present; hard-coded legacy colors still exist in components. |
@@ -120,7 +120,7 @@ Even if real sending is deferred, logging the intent is useful for Prism defense
 ```mermaid
 quadrantChart
   title Feature Risk Map
-  x-axis Low demo value --> High demo value
+  x-axis Low sample value --> High sample value
   y-axis Low build risk --> High build risk
   quadrant-1 Do later
   quadrant-2 Stage carefully
@@ -141,8 +141,8 @@ quadrantChart
 | Risk | Why it matters | Recommended fix |
 |---|---|---|
 | Too many features are presented as equally important | The feature list has platform-scale scope, but the Prism needs a defensible event journey. | Mark each feature as Defense, Phase 2, or Roadmap in one canonical table. |
-| `event-ops.service.ts` owns too much behavior | Inquiry, onboarding, suppliers, compliance, billing, guest access, and seeding are in one large service. | Split into focused services: inquiry, onboarding, suppliers, event workspace, compliance, billing, notifications, demo seed. |
-| API auth is not enforcing real roles | Portals route users by UI, but the API endpoints are broadly callable. | Add a demo auth guard and role metadata before adding more workflows. |
+| `event-ops.service.ts` owns too much behavior | Inquiry, onboarding, suppliers, compliance, billing, guest access, and seeding are in one large service. | Split into focused services: inquiry, onboarding, suppliers, event workspace, compliance, billing, notifications, sample seed. |
+| API auth is not enforcing real roles | Portals route users by UI, but the API endpoints are broadly callable. | Add a sample auth guard and role metadata before adding more workflows. |
 | Read endpoint mutates data | `state()` triggers seeding and reminder sweep. That is convenient, but it makes behavior surprising. | Move seeding to reset/setup and reminders to a dedicated job endpoint or task runner. |
 | Hard-coded business rules | Billing amounts, payment dates, compliance checks, quote defaults, and some statuses are fixed values. | Move rules into config tables or scenario seed data. |
 | Notifications are mock logs | Good for Prism, but not enough for real PMCM operations. | Keep mock logs for defense, then add notification job status: queued, sent, failed, acknowledged. |
@@ -157,7 +157,7 @@ quadrantChart
 |---|---|---|
 | Create one canonical feature-status document | High | Prevents scope drift and makes it clear what is live vs roadmap. |
 | Update stale root docs | High | The docs still reference old `prism-web`; this can confuse setup and defense framing. |
-| Add demo RBAC guards to API endpoints | High | Current portal separation is mostly UI-level. The API should enforce PMCM/client/supplier/guest boundaries. |
+| Add sample RBAC guards to API endpoints | High | Current portal separation is mostly UI-level. The API should enforce PMCM/client/supplier/guest boundaries. |
 | Split `EventOpsService` into domain services | High | The service is becoming the platform bottleneck and will slow every new feature. |
 | Centralize statuses and transition rules | High | Inquiry, event, floorplan, payment, coordinator, and supplier tiers should not be free strings everywhere. |
 | Keep client floor plans as preferences only | High | PMCM must own official layouts; clients should not appear to manage official event plans. |
@@ -168,13 +168,13 @@ quadrantChart
 
 | Change | Capability improved | Reason |
 |---|---|---|
-| Add duplicate inquiry detection and previous-decline flag | Inquiry | These are explicitly in the feature list and easy to demonstrate. |
+| Add duplicate inquiry detection and previous-decline flag | Inquiry | These are explicitly in the feature list and easy to show. |
 | Add supplier profile edit/create and review submission | Supplier directory | The directory should not only show seeded data. |
 | Add actual supplier quote submission from `prism-supplier` | Supplier quotes | This makes supplier portal more than a static dashboard. |
-| Add configurable compliance rules table | Compliance | Turns the hardcoded demo check into a real PMCM rule engine. |
+| Add configurable compliance rules table | Compliance | Turns the hardcoded sample check into a real PMCM rule engine. |
 | Link billing to CE/proposal line items | Billing | Avoids hardcoded billing and supports dispute/audit story. |
 | Add close-event gates | Closure/archive | Archive should require deliverables, billing, logistics, issues, and feedback indicators. |
-| Add scoped event endpoints instead of broad `/api/demo/state` | API | Reduces data leakage and makes real-time polling cheaper. |
+| Add scoped event endpoints instead of broad `/api/sample/state` | API | Reduces data leakage and makes real-time polling cheaper. |
 
 ### P2: Production hardening after defense
 
@@ -185,14 +185,14 @@ quadrantChart
 | Add SendGrid and Viber adapters behind a notification queue | Notifications | Keeps Prism logs while allowing real delivery later. |
 | Add durable scheduled jobs | Reminders | In-process timers disappear on restart and do not scale. |
 | Add append-only audit guarantees | Governance | Required for the ITIL/accountability claim to be more than a normal log table. |
-| Add pagination, filters, and per-role data access | API | Needed once demo data becomes real operational data. |
+| Add pagination, filters, and per-role data access | API | Needed once sample data becomes real operational data. |
 
 ## Suggested Target Architecture
 
 ```mermaid
 flowchart TB
   Gateway[API Gateway Controllers]
-  Auth[Demo Auth and Role Guard]
+  Auth[Sample Auth and Role Guard]
   Inquiry[Inquiry Service]
   Onboarding[Onboarding Service]
   Events[Event Workspace Service]
@@ -237,7 +237,7 @@ flowchart TB
 
 ### Inquiry Management
 
-Sound: yes. This should stay in the Prism because every demo starts here. The new intake log, source filters, status actions, decline reason, and unreviewed badge match the requested workflow.
+Sound: yes. This should stay in the Prism because every sample starts here. The new intake log, source filters, status actions, decline reason, and unreviewed badge match the requested workflow.
 
 Improve next:
 - Add duplicate detection by email plus approximate event date.
@@ -266,7 +266,7 @@ Improve next:
 - Add internal supplier review form after event closure.
 - Add category-specific review dimensions.
 - Add certification upload metadata and file handling.
-- Make tier promotion/demotion explicit with reason and audit log.
+- Make tier promotion/sampletion explicit with reason and audit log.
 - Let quote request builder select Tier 1, Backup, or Pending First Event with clear warnings.
 
 ### Supplier Quotes
@@ -281,7 +281,7 @@ Improve next:
 
 ### Floor Plan
 
-Sound: yes. It is the best visual demo moment.
+Sound: yes. It is the best visual sample moment.
 
 Improve next:
 - Keep PMCM official editing in `prism-event`.
@@ -350,7 +350,7 @@ Sound: useful, but should remain extended scope unless the core event lifecycle 
 
 Improve next only after Prism:
 - Add guest masterlist and check-in writes.
-- Add QR scan support only if HTTPS/demo constraints are solved.
+- Add QR scan support only if HTTPS/sample constraints are solved.
 - Add post-event feedback submission.
 - Add PMCM moderation queue.
 
@@ -359,7 +359,7 @@ Improve next only after Prism:
 Sound: mandatory for credibility.
 
 Improve next:
-- Hash passwords or clearly label all auth as demo-only.
+- Hash passwords or clearly label all auth as sample-only.
 - Add API role guards and request actor context.
 - Add Data Privacy notice screen.
 - Add file type and size validation before accepting uploaded metadata.
@@ -386,11 +386,11 @@ These are valuable, but they should not block the defense Prism:
 | Full Canva OAuth and PowerPoint generation | External dependency risk. Manual PDF upload is enough for Prism. |
 | Full Zoom integration | Use a placeholder meeting link first. |
 | Full guest engagement/game builder | Real-time complexity; belongs after core lifecycle. |
-| Cancellation and postponement workflows | Important edge cases, but not required for the main demo. |
+| Cancellation and postponement workflows | Important edge cases, but not required for the main sample. |
 | Bilingual notification templates | Useful polish, but not core to the workflow proof. |
 | Advanced analytics/event comparison | Needs richer real closed-event data first. |
 
-## Recommended Defense Demo Cut
+## Recommended Defense Sample Cut
 
 ```mermaid
 flowchart TD
@@ -405,7 +405,7 @@ flowchart TD
   S9 --> S10[10. Complete post-event docs and archive]
 ```
 
-Use supplier directory as a strong supporting view inside step 6. Use guest and supplier portals as roadmap/prototype previews unless their workflows are made API-backed before the demo.
+Use supplier directory as a strong supporting view inside step 6. Use guest and supplier portals as roadmap/prototype previews unless their workflows are made API-backed before the sample.
 
 ## Best Next Build Order
 
@@ -414,7 +414,7 @@ Use supplier directory as a strong supporting view inside step 6. Use guest and 
 | 1 | Update root docs and create a canonical status matrix | Removes setup and scope confusion. |
 | 2 | Add API role guard and actor context | Prevents future portal features from leaking data. |
 | 3 | Split event-ops service by domain | Keeps future feature work maintainable. |
-| 4 | Finish inquiry duplicate/rejection/referral features | Small effort, high demo value. |
+| 4 | Finish inquiry duplicate/rejection/referral features | Small effort, high sample value. |
 | 5 | Finish supplier directory CRUD and review form | Makes the new supplier feature operational, not only seeded. |
 | 6 | Add supplier quote request and supplier-side submit flow | Connects `prism-event` and `prism-supplier` meaningfully. |
 | 7 | Convert compliance checks to configurable rules | Makes the differentiator real. |
@@ -425,7 +425,7 @@ Use supplier directory as a strong supporting view inside step 6. Use guest and 
 The feature set is sound if P.R.I.S.M is framed as PMCM's internal governed event lifecycle system. The best improvement is not adding more features. The best improvement is making the current lifecycle deeper, more enforceable, and easier to defend:
 
 1. One canonical status matrix.
-2. One complete inquiry-to-archive demo.
+2. One complete inquiry-to-archive sample.
 3. Real API boundaries and role guards.
 4. Supplier directory plus quote flow tied together.
 5. Compliance and close gates backed by configurable rules.

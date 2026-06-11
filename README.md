@@ -8,7 +8,7 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 | --- | --- |
 | `docs/prism-v4/01-complete-feature-catalog.md` | Baseline Version 4 feature catalog and official manuscript/defense counts. |
 | `docs/prism-v4/04-implementation-plan.md` | Build plan, app/API/database mapping, and acceptance criteria by feature. |
-| `docs/prism-v4/05-prism-defense-demo-guide.md` | Seeded defense story and feature demo matrix. |
+| `docs/prism-v4/05-prism-defense-sample-guide.md` | Seeded defense story and feature sample matrix. |
 | `docs/prism-v4/07-implemented-feature-revisions.md` | Current implemented/partial features, revision gaps, and how to revise them. |
 | `docs/prism-v4/08-revision-phase-plan.md` | Historical phase roadmap for revision-first implementation and cleanup. |
 | `docs/prism-v4/10-product-evolution-and-redesign-governance.md` | Rules for adding, revising, merging, deferring, or retiring features during redesign. |

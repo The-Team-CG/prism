@@ -1,6 +1,6 @@
 # Coordinator Features
 
-This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and demo preparation.
+This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and sample preparation.
 
 ## Coordinator Features
 
@@ -20,8 +20,8 @@ Database backbone: CoordinatorAssignment, CoordinatorTask, GuestCheckIn, Supplie
 | New-CO6 | Usher and General Coordinator View | Prism | Role badge prominently displayed. Simple instruction list with specific post and responsibilities. Urgent Issue button. Minimal interface. |
 | FR-90 | Coordinator Assignment Acknowledgment | Prism | Formal yes confirmation required from all coordinators. Pending Acknowledgment tracked on PMCM dashboard. Digital replacement for Viber group chat reconfirmation. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | New-CO1 | Coordinator Portal Homepage | Prism | Live walkthrough in seeded defense data. |
 | New-CO2 | Floor Director and Stage Director View | Prism | Live walkthrough in seeded defense data. |

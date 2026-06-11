@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -54,13 +54,13 @@ export class OpsInquiriesController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get()
-  list(@Query() actor: DemoActorDto) {
+  list(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listInquiries(actor);
   }
 
   @Post('log-on-behalf')
   @HttpCode(HttpStatus.CREATED)
-  logOnBehalf(@Body() dto: CreateInquiryDto, @Query() actor: DemoActorDto) {
+  logOnBehalf(@Body() dto: CreateInquiryDto, @Query() actor: SampleActorDto) {
     return this.eventOpsService.logInquiryOnBehalf(dto, actor);
   }
 

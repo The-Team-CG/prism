@@ -1,7 +1,7 @@
 {
   "generatedAt": "2026-05-07T06:46:04.744Z",
   "context": {
-    "eventId": "evt_demo_ayala",
+    "eventId": "evt_sample_ayala",
     "eventName": "Ayala Tech Summit 2026"
   },
   "pages": [
@@ -101,7 +101,7 @@
         "FR-83"
       ],
       "purpose": "Client layout preference and read-only official layout review boundary.",
-      "url": "http://localhost:3001/dashboard/events/evt_demo_ayala/floor-plan",
+      "url": "http://localhost:3001/dashboard/events/evt_sample_ayala/floor-plan",
       "screenshot": "screenshots/client-event-floorplan.png",
       "status": "captured",
       "captureHeight": 1244
@@ -121,7 +121,7 @@
         "FR-AI-09"
       ],
       "purpose": "Client-facing proposal review summary without internal cost exposure.",
-      "url": "http://localhost:3001/dashboard/events/evt_demo_ayala/proposal",
+      "url": "http://localhost:3001/dashboard/events/evt_sample_ayala/proposal",
       "screenshot": "screenshots/client-event-proposal.png",
       "status": "captured",
       "captureHeight": 1120
@@ -142,7 +142,7 @@
         "FR-92"
       ],
       "purpose": "Client-accessible billing milestones and document context.",
-      "url": "http://localhost:3001/dashboard/events/evt_demo_ayala/billing",
+      "url": "http://localhost:3001/dashboard/events/evt_sample_ayala/billing",
       "screenshot": "screenshots/client-event-billing-documents.png",
       "status": "captured",
       "captureHeight": 1120
@@ -216,7 +216,7 @@
         "FR-60"
       ],
       "purpose": "Selected-event workspace overview after accepted inquiry and signed conforme.",
-      "url": "http://localhost:3004/dashboard/events/evt_demo_ayala/overview",
+      "url": "http://localhost:3004/dashboard/events/evt_sample_ayala/overview",
       "screenshot": "screenshots/pmcm-event-overview.png",
       "status": "captured",
       "captureHeight": 1120
@@ -241,7 +241,7 @@
         "FR-AI-09"
       ],
       "purpose": "PMCM briefing, proposal, and CE-related planning surface.",
-      "url": "http://localhost:3004/dashboard/events/evt_demo_ayala/briefing",
+      "url": "http://localhost:3004/dashboard/events/evt_sample_ayala/briefing",
       "screenshot": "screenshots/pmcm-event-briefing.png",
       "status": "captured",
       "captureHeight": 1120
@@ -264,7 +264,7 @@
         "FR-84"
       ],
       "purpose": "PMCM-owned official floorplan management.",
-      "url": "http://localhost:3004/dashboard/events/evt_demo_ayala/floorplans",
+      "url": "http://localhost:3004/dashboard/events/evt_sample_ayala/floorplans",
       "screenshot": "screenshots/pmcm-event-floorplans.png",
       "status": "captured",
       "captureHeight": 1120
@@ -295,7 +295,7 @@
         "New-S5"
       ],
       "purpose": "Supplier comparison, assignment, gap handling, and PARE human-approval boundary.",
-      "url": "http://localhost:3004/dashboard/events/evt_demo_ayala/suppliers",
+      "url": "http://localhost:3004/dashboard/events/evt_sample_ayala/suppliers",
       "screenshot": "screenshots/pmcm-event-suppliers-pare.png",
       "status": "captured",
       "captureHeight": 1446
@@ -320,7 +320,7 @@
         "New-C4"
       ],
       "purpose": "Coordinator assignment, acknowledgment, and replacement evidence.",
-      "url": "http://localhost:3004/dashboard/events/evt_demo_ayala/coordinators",
+      "url": "http://localhost:3004/dashboard/events/evt_sample_ayala/coordinators",
       "screenshot": "screenshots/pmcm-event-coordinators.png",
       "status": "captured",
       "captureHeight": 1120
@@ -345,7 +345,7 @@
         "New-SUP1"
       ],
       "purpose": "Event-day operations, supplier status, coordinator attendance, and urgent issues.",
-      "url": "http://localhost:3004/dashboard/events/evt_demo_ayala/live-ops",
+      "url": "http://localhost:3004/dashboard/events/evt_sample_ayala/live-ops",
       "screenshot": "screenshots/pmcm-event-live-ops.png",
       "status": "captured",
       "captureHeight": 2207
@@ -367,7 +367,7 @@
         "New-P5"
       ],
       "purpose": "Billing statement generation and manual payment tracking.",
-      "url": "http://localhost:3004/dashboard/events/evt_demo_ayala/billing",
+      "url": "http://localhost:3004/dashboard/events/evt_sample_ayala/billing",
       "screenshot": "screenshots/pmcm-event-billing.png",
       "status": "captured",
       "captureHeight": 1300
@@ -393,7 +393,7 @@
         "New-SY2"
       ],
       "purpose": "Close gates, post-event documents, insights, and archive readiness.",
-      "url": "http://localhost:3004/dashboard/events/evt_demo_ayala/closure",
+      "url": "http://localhost:3004/dashboard/events/evt_sample_ayala/closure",
       "screenshot": "screenshots/pmcm-event-closure-archive.png",
       "status": "captured",
       "captureHeight": 1859
@@ -506,7 +506,7 @@
       "url": "http://localhost:3003/open",
       "markers": [
         "Open your event pass",
-        "Demo event code"
+        "Sample event code"
       ],
       "featureRefs": [
         "FR-39",

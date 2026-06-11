@@ -1,10 +1,10 @@
-# P.R.I.S.M Prism Defense Demo Guide
+# P.R.I.S.M Prism Defense Sample Guide
 
 Use one seeded event story from first inquiry to post-event archive. The goal is to prove the operating system flow, then use the catalog and implementation plan for deeper questions.
 
-For current live/partial/prototype status, use `07-implemented-feature-revisions.md`. Do not present a catalog feature as fully implemented just because it appears in the complete feature list. Live-demo only the surfaces that are connected in the current apps; use roadmap evidence for the rest.
+For current live/partial/prototype status, use `07-implemented-feature-revisions.md`. Do not present a catalog feature as fully implemented just because it appears in the complete feature list. Live-sample only the surfaces that are connected in the current apps; use roadmap evidence for the rest.
 
-## Current Demo Status Rules
+## Current Sample Status Rules
 
 | Rule | Meaning |
 | --- | --- |
@@ -20,13 +20,13 @@ For current live/partial/prototype status, use `07-implemented-feature-revisions
 | Client | A corporate client submits an event inquiry for a medium-scale company celebration. |
 | Event | One active event with date, venue, attendee count, supplier categories, proposal, floor plan, billing, coordinator team, and guest list. |
 | PMCM Admin | Ms. Mys or Executive Assistant account with full admin permissions. |
-| Supplier | At least two suppliers in one category so quote comparison and tier fallback can be demonstrated. |
+| Supplier | At least two suppliers in one category so quote comparison and tier fallback can be shown. |
 | Coordinator | One coordinator available and one conflicting assignment to prove double-booking detection. |
 | Guest | A small masterlist with QR/name-based check-in and one walk-in verification case. |
 | AI | Use sanitized sample data only; show AI outputs as drafts requiring approval. |
 
-## Main Live Demo Script
-| Step | Demo moment | Action | Feature refs | Expected proof |
+## Main Live Sample Script
+| Step | Sample moment | Action | Feature refs | Expected proof |
 | --- | --- | --- | --- | --- |
 | 1 | Public inquiry | Open public inquiry page, submit structured inquiry with referral source. | FR-46, FR-48, FR-01 | Inquiry ticket appears in admin queue. |
 | 2 | Admin triage and onboarding | Open inquiry, show status, duplicate/rejected flags if seeded, accept inquiry and start onboarding. | FR-01, FR-02, FR-44, FR-45, FR-52, FR-AI-01 | Client record and onboarding tracker update. |
@@ -41,8 +41,8 @@ For current live/partial/prototype status, use `07-implemented-feature-revisions
 | 11 | Billing | Show billing statement, payment milestone, overdue/at-risk status, and additional billing link if seeded. | FR-20, FR-21, FR-92 | Billing is connected to conforme, proposal, and urgent issues. |
 | 12 | Post-event archive | Show documentation tracker, archive search, event insights, and supplier review. | FR-22, FR-23, New-P2, New-P4, FR-AI-08 | Completed event is searchable and reusable for future planning. |
 
-## Feature Demo Matrix
-| FR # | Feature | Persona | Scope | How to demo | Fallback evidence |
+## Feature Sample Matrix
+| FR # | Feature | Persona | Scope | How to sample | Fallback evidence |
 | --- | --- | --- | --- | --- | --- |
 | FR-01 | Inquiry Intake Log | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-02 | Client Onboarding Tracker | PMCM Admin | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
@@ -176,7 +176,7 @@ For current live/partial/prototype status, use `07-implemented-feature-revisions
 | FR-41 | Post-Event Experience Upload with Moderation | Guest | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-95 | Lightweight Digital Registration Module | Guest | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | New-GU1 | Ticket-Based Event Registration Coordination | Guest | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
-| FR-42 | Guest Pass Promotional Demo | External/Public | External | Open public page or static demo with safe sample data. | Wireframe/mock screen, data model, and roadmap explanation. |
+| FR-42 | Guest Pass Promotional Sample | External/Public | External | Open public page or static sample with safe sample data. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-46 | P.R.I.S.M Public Inquiry Page | External/Public | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
 | FR-47 | Lightweight Spatial Preference Form | External/Public | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | FR-48 | Referral Source Dropdown | External/Public | Prism | Live walkthrough in seeded defense data. | Seeded screenshot, API response, or database row from the same scenario. |
@@ -185,8 +185,8 @@ For current live/partial/prototype status, use `07-implemented-feature-revisions
 | New-EX1 | Supplier Registration Page (Public-Facing) | External/Public | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 | New-EX2 | Post-Event Guest Feedback Page | External/Public | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. | Wireframe/mock screen, data model, and roadmap explanation. |
 
-## Live Demo Rules
-- Keep the demo on one event record so the panel sees continuity.
+## Live Sample Rules
+- Keep the sample on one event record so the panel sees continuity.
 - For AI features, never imply automatic action. Say clearly that the system produces drafts or recommendations and PMCM Admin must approve.
 - For Phase 2 features, show the designed screen/data model and state that the feature is documented for post-defense buildout unless it is already implemented.
 - If a live dependency fails, switch to the seeded screenshot/API/database evidence for that exact feature.

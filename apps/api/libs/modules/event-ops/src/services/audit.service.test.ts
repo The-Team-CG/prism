@@ -16,7 +16,7 @@ function auditRow(overrides: Record<string, unknown> = {}) {
     affectedLabel: null,
     metadata: {},
     ipAddress: '192.168.1.5',
-    device: 'Local demo browser',
+    device: 'Local sample browser',
     severity: 'info',
     immutableHash: 'hash',
     previousHash: null,

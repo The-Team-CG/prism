@@ -58,7 +58,7 @@ const forbiddenPublicPhrases = [
   /selected event cockpit/i,
   /readiness score/i,
   /See cockpit/i,
-  /demo/i,
+  /sample/i,
   /Ayala Tech/i,
   /Leadership Forum/i,
   /92%/,

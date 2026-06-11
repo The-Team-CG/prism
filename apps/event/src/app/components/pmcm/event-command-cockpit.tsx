@@ -250,11 +250,11 @@ export function EventQueuePanel({
           variant="ghost"
           size="icon"
           onClick={onReset}
-          title="Reset demo data"
+          title="Reset sample data"
           className="size-8 rounded-md"
         >
           <RotateCcw aria-hidden="true" />
-          <span className="sr-only">Reset demo data</span>
+          <span className="sr-only">Reset sample data</span>
         </Button>
       </div>
       <CompactRecordList
@@ -316,7 +316,7 @@ export function SelectedEventCockpit({
           { label: "Client", value: event.clientName, detail: event.clientPortalStatus === "unlocked" ? "Client portal unlocked" : "Client portal locked" },
           { label: "Event date", value: event.eventDate, detail: event.readiness ?? "Readiness pending" },
           { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${label(defenseReadiness.lifecycleStage)}` : "Loading readiness check" },
-          { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal demo" : "Generated after event setup" },
+          { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal sample" : "Generated after event setup" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>

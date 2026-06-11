@@ -1,4 +1,4 @@
-export { DemoController } from './demo.controller';
+export { SampleController } from './sample.controller';
 export { OpsAuthController } from './auth.controller';
 export { OpsAuditController, OpsPrivacyController } from './audit-privacy.controller';
 export { OpsNotificationsController } from './notifications.controller';
@@ -13,7 +13,7 @@ export { OpsOnboardingController, OpsClientController } from './client-workspace
 export { OpsGuestController } from './guest.controller';
 export { OpsAiController } from './ai.controller';
 
-import { DemoController } from './demo.controller';
+import { SampleController } from './sample.controller';
 import { OpsAuthController } from './auth.controller';
 import { OpsAuditController, OpsPrivacyController } from './audit-privacy.controller';
 import { OpsNotificationsController } from './notifications.controller';
@@ -29,7 +29,7 @@ import { OpsGuestController } from './guest.controller';
 import { OpsAiController } from './ai.controller';
 
 export const EVENT_OPS_CONTROLLERS = [
-  DemoController,
+  SampleController,
   OpsAuthController,
   OpsAuditController,
   OpsPrivacyController,

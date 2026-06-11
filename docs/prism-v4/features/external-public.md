@@ -1,18 +1,18 @@
 # External and Public Features
 
-This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and demo preparation.
+This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and sample preparation.
 
 ## External and Public Features
 
-Primary surface: PMCM public website, public inquiry page, lightweight demos
+Primary surface: PMCM public website, public inquiry page, lightweight samples
 
-Implementation backbone: Public inquiry, referral, event package, demo, privacy, and marketing APIs
+Implementation backbone: Public inquiry, referral, event package, sample, privacy, and marketing APIs
 
-Database backbone: PublicInquiry, ReferralSource, EventPackage, DemoSession, PublicAsset, PrivacyConsent
+Database backbone: PublicInquiry, ReferralSource, EventPackage, SampleSession, PublicAsset, PrivacyConsent
 
 | FR # | Feature | Scope | Description |
 | --- | --- | --- | --- |
-| FR-42 | Guest Pass Promotional Demo | External | Lightweight interactive simulation of P.R.I.S.M embedded on PMCM public website. Not connected to live data. Marketing and credibility tool for prospects. |
+| FR-42 | Guest Pass Promotional Sample | External | Lightweight interactive simulation of P.R.I.S.M embedded on PMCM public website. Not connected to live data. Marketing and credibility tool for prospects. |
 | FR-46 | P.R.I.S.M Public Inquiry Page | Prism | Public-facing structured intake page. No account needed. Auto-creates inquiry ticket on submission. Confirmation email sent to prospect. |
 | FR-47 | Lightweight Spatial Preference Form | Phase 2 | Short structured section at end of public inquiry form. Covers preferred seating arrangement type, stage position preference, and optional setup notes. Not a floor plan. |
 | FR-48 | Referral Source Dropdown | Prism | How did you hear about us dropdown on public inquiry form. Six source options. |
@@ -21,10 +21,10 @@ Database backbone: PublicInquiry, ReferralSource, EventPackage, DemoSession, Pub
 | New-EX1 | Supplier Registration Page (Public-Facing) | Phase 2 | Public-facing page where prospective suppliers submit application to join PMCM supplier network. Separate from client inquiry page. Feeds into Supplier Applications inbox on PMCM dashboard. |
 | New-EX2 | Post-Event Guest Feedback Page | Phase 2 | Simple web page accessed via QR code after event. No account or app needed. Star rating, text review, photo upload, and short video upload. Submissions go to PMCM moderated queue. Never auto-published. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
-| FR-42 | Guest Pass Promotional Demo | External | Open public page or static demo with safe sample data. |
+| FR-42 | Guest Pass Promotional Sample | External | Open public page or static sample with safe sample data. |
 | FR-46 | P.R.I.S.M Public Inquiry Page | Prism | Live walkthrough in seeded defense data. |
 | FR-47 | Lightweight Spatial Preference Form | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. |
 | FR-48 | Referral Source Dropdown | Prism | Live walkthrough in seeded defense data. |

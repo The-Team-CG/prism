@@ -27,11 +27,11 @@ The complete catalog is now treated as the baseline feature inventory, not a har
 | System behaviors | ./02-system-behaviors.md | All automatic rules and logic, including AI behavior rules. |
 | AI and security | ./03-ai-features-and-security.md | Claude ZDR, DataSanitizer, AIAuditLog, and all AI features. |
 | Implementation plan | ./04-implementation-plan.md | Frontend, backend, database, dependencies, acceptance criteria, and priority. |
-| Defense demo guide | ./05-prism-defense-demo-guide.md | Live demo script, persona flows, and fallback evidence. |
+| Defense sample guide | ./05-prism-defense-sample-guide.md | Live sample script, persona flows, and fallback evidence. |
 | Chapter 3 cross-reference | ./06-chapter-3-cross-reference.md | Feature references mapped to manuscript functional requirement groups. |
 | Implemented feature revisions | ./07-implemented-feature-revisions.md | Current implemented/partial features, revision gaps, and how to revise them safely. |
 | Revision phase plan | ./08-revision-phase-plan.md | Durable phase roadmap for revision-first implementation and docs cleanup. |
-| Defense demo runbook | ./09-defense-demo-runbook.md | Local startup, accounts, demo order, verification, and defense boundaries. |
+| Defense sample runbook | ./09-defense-sample-runbook.md | Local startup, accounts, sample order, verification, and defense boundaries. |
 | Product evolution governance | ./10-product-evolution-and-redesign-governance.md | Rules for adding, revising, merging, deferring, or retiring features during the whole-app redesign. |
 | Feature ledger | ./11-feature-ledger.md | Active feature-family decisions, phase placement, ownership, permission boundaries, and verification requirements. |
 | Redesign inventory | ./12-redesign-inventory.md | Current app route inventory with redesign severity, ownership, and role-boundary notes. |
@@ -41,17 +41,17 @@ The complete catalog is now treated as the baseline feature inventory, not a har
 | Supplier features | ./features/supplier.md | Supplier portal functions. |
 | Coordinator features | ./features/coordinator.md | Coordinator/event-day portal functions. |
 | Guest features | ./features/guest.md | Guest registration and engagement functions. |
-| External/public features | ./features/external-public.md | Public inquiry, demo, and marketing-facing scope. |
+| External/public features | ./features/external-public.md | Public inquiry, sample, and marketing-facing scope. |
 | Security features | ./features/security.md | Cross-cutting controls. |
 | AI feature summary | ./features/ai.md | AI feature matrix and governance notes. |
 
 ## Recommended Defense Reading Order
-1. Read `05-prism-defense-demo-guide.md` for the live story.
+1. Read `05-prism-defense-sample-guide.md` for the live story.
 2. Use `01-complete-feature-catalog.md` to answer scope questions.
 3. Use `04-implementation-plan.md` when the panel asks how a feature is built.
 4. Use `07-implemented-feature-revisions.md` when deciding what to fix before adding more features.
 5. Use `08-revision-phase-plan.md` to choose the next revision phase.
-6. Use `09-defense-demo-runbook.md` for the exact local rehearsal order.
+6. Use `09-defense-sample-runbook.md` for the exact local rehearsal order.
 7. Use `03-ai-features-and-security.md` when the panel asks about AI, privacy, or human approval.
 8. Use `10-product-evolution-and-redesign-governance.md` before adding, revising, merging, or retiring catalog features.
 9. Use `11-feature-ledger.md`, `12-redesign-inventory.md`, and `13-docs-cleanup-checklist.md` before starting redesign implementation work.

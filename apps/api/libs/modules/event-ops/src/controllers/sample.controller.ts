@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -49,8 +49,8 @@ import {
 } from '../dto/event-ops.dto';
 import { EventOpsService } from '../event-ops.service';
 
-@Controller('demo')
-export class DemoController {
+@Controller('sample')
+export class SampleController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('state')
@@ -61,13 +61,13 @@ export class DemoController {
   @Post('reset')
   @HttpCode(HttpStatus.OK)
   reset() {
-    return this.eventOpsService.resetDemo();
+    return this.eventOpsService.resetSample();
   }
 
   @Post('seed')
   @HttpCode(HttpStatus.OK)
   seed() {
-    return this.eventOpsService.seedDemoState();
+    return this.eventOpsService.seedSampleState();
   }
 }
 

@@ -1,6 +1,6 @@
 # Guest Features
 
-This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and demo preparation.
+This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and sample preparation.
 
 ## Guest Features
 
@@ -18,8 +18,8 @@ Database backbone: Guest, GuestCheckIn, WalkInRequest, EngagementSession, GuestR
 | FR-95 | Lightweight Digital Registration Module | Prism | Supports all three check-in modes. QR code generation using standard libraries. Browser-based QR scanning requiring HTTPS. Manual name search and check-in interface on laptop. Walk-in addition form. Unauthorized walk-in flag. Attendance count on Live Operations Dashboard in real time. |
 | New-GU1 | Ticket-Based Event Registration Coordination | Phase 2 | For large events 200 to 250 pax and above using XPERTO or client-chosen platform. PMCM records registration platform details in event file hub. Digital Registration supplier sub-ticket tracks platform setup confirmation. Final headcount data imported from XPERTO after event. P.R.I.S.M does not handle ticket sales or payment processing. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-39 | Digital Registration and Masterlist | Prism | Live walkthrough in seeded defense data. |
 | FR-40 | In-Event Engagement Feature with Game Builder | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. |

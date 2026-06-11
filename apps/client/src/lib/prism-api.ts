@@ -1,16 +1,16 @@
-import { createInitialPrismDemoState } from "@/mock/prism-demo-state";
+import { createInitialPrismSampleState } from "@/mock/prism-sample-state";
 import type { Project } from "@/app/components/editor/types";
 import { createEventOpsClient } from "@prism/api-client";
 
 import type {
-  DemoRole,
+  SampleRole,
   PrismApprovalRequest,
   PrismAuditLog,
   PrismBillingStatement,
   PrismBriefing,
   PrismComplianceCheck,
   PrismCoordinatorAssignment,
-  PrismDemoState,
+  PrismSampleState,
   PrismDocument,
   PrismEvent,
   PrismFloorPlanDraft,
@@ -25,14 +25,14 @@ import type {
 } from "@prism/types";
 
 export type {
-  DemoRole,
+  SampleRole,
   PrismApprovalRequest,
   PrismAuditLog,
   PrismBillingStatement,
   PrismBriefing,
   PrismComplianceCheck,
   PrismCoordinatorAssignment,
-  PrismDemoState,
+  PrismSampleState,
   PrismDocument,
   PrismEvent,
   PrismFloorPlanDraft,
@@ -60,7 +60,7 @@ export type CreatePrismInquiryInput = Pick<PrismInquiry, "clientName" | "email" 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const USE_REMOTE_API = process.env.NEXT_PUBLIC_Prism_API_MODE !== "local";
-const STORAGE_KEY = "prism:prism-demo-state";
+const STORAGE_KEY = "prism:prism-sample-state";
 const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
 const defaultInquiryInput: CreatePrismInquiryInput = {
   clientName: "Maria Santos",
@@ -86,16 +86,16 @@ function clone<T>(value: T): T {
 }
 
 function readMockState() {
-  if (typeof window === "undefined") return createInitialPrismDemoState();
+  if (typeof window === "undefined") return createInitialPrismSampleState();
 
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (!stored) {
-    const initial = createInitialPrismDemoState();
+    const initial = createInitialPrismSampleState();
     writeMockState(initial);
     return initial;
   }
 
-  const parsed = JSON.parse(stored) as PrismDemoState;
+  const parsed = JSON.parse(stored) as PrismSampleState;
   parsed.floorPlanDrafts ??= [];
   parsed.supplierQuoteRequests ??= [];
   parsed.coordinators ??= [];
@@ -115,14 +115,14 @@ function readMockState() {
   return parsed;
 }
 
-function writeMockState(state: PrismDemoState) {
+function writeMockState(state: PrismSampleState) {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
   return clone(state);
 }
 
-function addAudit(state: PrismDemoState, eventId: string | undefined, actor: string, action: string) {
+function addAudit(state: PrismSampleState, eventId: string | undefined, actor: string, action: string) {
   state.auditLogs.unshift({
     id: `aud_${crypto.randomUUID()}`,
     eventId,
@@ -130,9 +130,9 @@ function addAudit(state: PrismDemoState, eventId: string | undefined, actor: str
     actorRole: actor,
     actorEmail: undefined,
     action,
-    actionType: "demo_action",
+    actionType: "sample_action",
     category: "client_portal",
-    ipAddress: "local-demo",
+    ipAddress: "local-sample",
     device: "browser",
     severity: "info",
     immutableHash: `local_${crypto.randomUUID()}`,
@@ -140,7 +140,7 @@ function addAudit(state: PrismDemoState, eventId: string | undefined, actor: str
   });
 }
 
-function addNotification(state: PrismDemoState, eventId: string | undefined, recipient: string, message: string, channel: "email" | "viber" = "email") {
+function addNotification(state: PrismSampleState, eventId: string | undefined, recipient: string, message: string, channel: "email" | "viber" = "email") {
   state.notificationLogs.unshift({
     id: `not_${crypto.randomUUID()}`,
     eventId,
@@ -152,22 +152,22 @@ function addNotification(state: PrismDemoState, eventId: string | undefined, rec
   });
 }
 
-function updateMockState<T>(mutate: (state: PrismDemoState) => T): T {
+function updateMockState<T>(mutate: (state: PrismSampleState) => T): T {
   const state = readMockState();
   const result = mutate(state);
   writeMockState(state);
   return clone(result);
 }
 
-function firstEvent(state: PrismDemoState) {
+function firstEvent(state: PrismSampleState) {
   const event = state.events[0];
-  if (!event) throw new Error("No demo event found");
+  if (!event) throw new Error("No sample event found");
   return event;
 }
 
-function firstInquiry(state: PrismDemoState) {
+function firstInquiry(state: PrismSampleState) {
   const inquiry = state.inquiries[0];
-  if (!inquiry) throw new Error("No demo inquiry found");
+  if (!inquiry) throw new Error("No sample inquiry found");
   return inquiry;
 }
 
@@ -232,7 +232,7 @@ function apiPlanToProject(plan: ApiFloorPlan): Project {
   };
 }
 
-function ensureLocalEventForConforme(state: PrismDemoState, inquiryId: string) {
+function ensureLocalEventForConforme(state: PrismSampleState, inquiryId: string) {
   const existing = state.events.find((item) => item.inquiryId === inquiryId);
   if (existing) return existing;
 
@@ -306,17 +306,17 @@ function withClientActor(path: string, session?: Pick<PrismUser, "name" | "email
 }
 
 export const prismApi = {
-  state: () => (USE_REMOTE_API ? eventOpsClient.demo.state() : Promise.resolve(readMockState())),
+  state: () => (USE_REMOTE_API ? eventOpsClient.sample.state() : Promise.resolve(readMockState())),
   clientState: async (session: Pick<PrismUser, "name" | "email">) => {
     if (!USE_REMOTE_API) return readMockState();
 
     const actor = clientActorQuery(session);
-    return request<PrismDemoState>(`/api/client/workspace?${actor}`);
+    return request<PrismSampleState>(`/api/client/workspace?${actor}`);
   },
   reset: () => {
-    if (USE_REMOTE_API) return eventOpsClient.demo.reset();
+    if (USE_REMOTE_API) return eventOpsClient.sample.reset();
 
-    const state = createInitialPrismDemoState();
+    const state = createInitialPrismSampleState();
     writeMockState(state);
     return Promise.resolve(state);
   },
@@ -439,7 +439,7 @@ export const prismApi = {
             { label: "Reservation fee", percentage: 30, amount: 156000, dueDate: "2026-05-01" },
             { label: "Final payment", percentage: 70, amount: 364000, dueDate: "2026-06-10" },
           ],
-          paymentMethods: [{ label: "Bank Transfer", details: "PMCM demo account" }],
+          paymentMethods: [{ label: "Bank Transfer", details: "PMCM sample account" }],
           totalAmount: 520000,
           pdfUrl: "#",
           storageKey: `billing/${event.id}.pdf`,
@@ -679,7 +679,7 @@ export const prismApi = {
           amount: 165000,
           inclusions: ["Stage lights", "Audio system", "Technical crew"],
           paymentTerms: "50% reservation, 50% before ingress",
-          notes: "Local demo quote",
+          notes: "Local sample quote",
           outsideAcceptableRange: false,
           status: "received",
           createdAt: now(),

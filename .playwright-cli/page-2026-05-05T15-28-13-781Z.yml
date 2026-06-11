@@ -38,7 +38,7 @@
                 - link "No inquiry yet?" [ref=e42] [cursor=pointer]:
                   - /url: /inquiry
             - generic [ref=e43]:
-              - paragraph [ref=e44]: Demo accounts
+              - paragraph [ref=e44]: Sample accounts
               - button "Ana Reyes Ayala Corp" [ref=e46] [cursor=pointer]:
                 - generic [ref=e47]:
                   - paragraph [ref=e48]: Ana Reyes

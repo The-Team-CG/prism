@@ -179,7 +179,7 @@ SELECT
   height,
   grid_size,
   pax,
-  'owner-demo',
+  'owner-sample',
   template_id,
   objects,
   '[]'::jsonb,
@@ -205,7 +205,7 @@ INSERT INTO "venue_templates" (
 )
 SELECT
   template_id,
-  'owner-demo',
+  'owner-sample',
   name,
   description,
   venue,

@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -54,7 +54,7 @@ export class OpsBillingController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get()
-  list(@Query() actor: DemoActorDto) {
+  list(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listBilling(actor);
   }
 }

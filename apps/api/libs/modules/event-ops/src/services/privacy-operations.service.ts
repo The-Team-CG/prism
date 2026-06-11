@@ -102,7 +102,7 @@ export class PrivacyOperationsService {
       {
         surface: 'audit',
         dataCategories: ['actor', 'action', 'affected_record', 'hash_chain'],
-        retentionPeriod: '7 years append-only demo policy',
+        retentionPeriod: '7 years append-only sample policy',
         deletionBehavior: 'Never hard delete or mutate in normal workflows; append redaction events instead.',
       },
     ];

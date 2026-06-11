@@ -3,7 +3,7 @@ import type { PrismaService } from '@prism/database';
 
 type Mapper<TInput = unknown, TOutput = unknown> = (input: TInput) => TOutput;
 
-export interface DemoStateContext {
+export interface SampleStateContext {
   runConformeReminderSweep: () => Promise<void>;
   runPaymentRiskSweep: () => Promise<void>;
   listSupplierCategories: () => Promise<unknown[]>;
@@ -32,10 +32,10 @@ export interface DemoStateContext {
 }
 
 @Injectable()
-export class DemoStateService {
+export class SampleStateService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async state(context: DemoStateContext) {
+  async state(context: SampleStateContext) {
     await context.runConformeReminderSweep();
     await context.runPaymentRiskSweep();
 
@@ -122,9 +122,9 @@ export class DemoStateService {
     };
   }
 
-  async resetDemo(seedDemo: () => Promise<void>, readState: () => Promise<unknown>) {
-    if (process.env.NODE_ENV === 'production' && process.env.PRISM_ALLOW_DEMO_RESET !== '1') {
-      throw new ForbiddenException('Demo reset is disabled in production');
+  async resetSample(seedSample: () => Promise<void>, readState: () => Promise<unknown>) {
+    if (process.env.NODE_ENV === 'production' && process.env.PRISM_ALLOW_SAMPLE_RESET !== '1') {
+      throw new ForbiddenException('Sample reset is disabled in production');
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -171,11 +171,11 @@ export class DemoStateService {
       }
     });
 
-    await seedDemo();
+    await seedSample();
     return readState();
   }
 
-  async seedDemoState(ensureSeeded: () => Promise<void>, readState: () => Promise<unknown>) {
+  async seedSampleState(ensureSeeded: () => Promise<void>, readState: () => Promise<unknown>) {
     await ensureSeeded();
     return readState();
   }

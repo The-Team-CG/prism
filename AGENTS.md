@@ -39,7 +39,7 @@ These notes preserve the product boundaries established by the project docs and 
 
 - Keep one shared NestJS API in `apps/api` on port `4000`.
 - Keep the existing canvas/editor internals intact when moving workflow ownership.
-- Use API-backed demo auth/RBAC for now; no external auth provider in this pass.
+- Use API-backed sample auth/RBAC for now; no external auth provider in this pass.
 - Preserve existing uncommitted user work. Do not revert unrelated changes.
 
 ## Visual Rules

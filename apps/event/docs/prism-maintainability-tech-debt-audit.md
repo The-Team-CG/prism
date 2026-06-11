@@ -40,7 +40,7 @@ flowchart TD
   A[Current Debt Pressure] --> B[Backend god service]
   A --> C[Copied frontend code]
   A --> D[Raw string contracts]
-  A --> E[Demo auth and seed side effects]
+  A --> E[Sample auth and seed side effects]
   A --> F[Stale root docs]
   A --> G[Low test coverage]
 
@@ -56,7 +56,7 @@ flowchart TD
 
 | Area | Evidence | Maintainability Risk |
 | --- | --- | --- |
-| Backend hotspot | `prism-api/libs/modules/event-ops/src/event-ops.service.ts` is now 2,350 lines after extracting `AuditService`, `SuppliersService`, and `CoordinatorsService`. | Better than before, but the facade still owns inquiry, onboarding, billing, closure, compliance, floorplan workflow, seed/demo setup, and broad state aggregation. |
+| Backend hotspot | `prism-api/libs/modules/event-ops/src/event-ops.service.ts` is now 2,350 lines after extracting `AuditService`, `SuppliersService`, and `CoordinatorsService`. | Better than before, but the facade still owns inquiry, onboarding, billing, closure, compliance, floorplan workflow, seed/sample setup, and broad state aggregation. |
 | PMCM frontend hotspot | `prism-event/src/app/page.tsx` is now 1,088 lines after extracting PMCM panels into `src/app/components/pmcm/`. | Better than before, but the page still owns admin approvals, inquiry intake, event tabs, floorplan tab rendering, billing/activity sections, and shell state. |
 | Client frontend hotspot | `prism-client/src/app/components/dashboard/Dashboard.tsx` is 953 lines. | Client dashboard changes can accidentally affect unrelated dashboard behavior. |
 | API client hotspot | `prism-client/src/lib/prism-api.ts` is 810 lines; `prism-event/src/lib/prism-api.ts` is 488 lines. | Frontend/backend contracts are duplicated manually. |
@@ -66,10 +66,10 @@ flowchart TD
 | Schema breadth | Prisma schema has 28 models and API constants now exist for roles/statuses/tiers/action types. | Constants reduce string drift in touched API code, but values are not yet shared with frontend DTOs or enforced at DB level. |
 | Docs drift | Root `README.md` and `CLAUDE.md` were refreshed locally, but the root folder is not a git repo. | The docs need a versioned home or copy/sync strategy, otherwise app repos cannot preserve root doc fixes. |
 | Tests | `prism-api` now has Vitest and 4 event-ops test files covering 9 regression cases. | API lifecycle protection started, but frontend, shared editor, and other portal workflows still have no test foundation. |
-| Demo state endpoint | `/api/demo/state` still returns broad app state, but normal state reads no longer call `ensureSeeded()`. | Side effects are reduced; payload and coupling risk remain until scoped reads replace the aggregator. |
+| Sample state endpoint | `/api/sample/state` still returns broad app state, but normal state reads no longer call `ensureSeeded()`. | Side effects are reduced; payload and coupling risk remain until scoped reads replace the aggregator. |
 | Runtime jobs | `EventOpsService` starts a `setInterval` reminder loop in-process. | Background behavior depends on API process lifetime and is hard to observe. |
 | Styling debt | Raw hex values still appear in page/components after theme work. | Legacy colors will keep leaking into new components. |
-| Security debt | Sessions are stored in `localStorage` and demo users have plain seeded passwords. | Acceptable for Prism demo only; not a safe production baseline. |
+| Security debt | Sessions are stored in `localStorage` and sample users have plain seeded passwords. | Acceptable for Prism sample only; not a safe production baseline. |
 
 ## Sprint Progress Update
 
@@ -80,7 +80,7 @@ flowchart TD
 | Extract audit service | Done | `libs/modules/event-ops/src/services/audit.service.ts`. | Needs DB-level append-only enforcement later. |
 | Extract supplier service | Done | `libs/modules/event-ops/src/services/suppliers.service.ts`. | Supplier DTO/contracts still copied into frontends. |
 | Extract coordinator service | Done | `libs/modules/event-ops/src/services/coordinators.service.ts`. | Coordinator portal UI still needs focused tests. |
-| Stop read-time seeding | Done for normal state/read paths | `state()` no longer calls `ensureSeeded()`; explicit `POST /api/demo/seed` exists. | Demo state is still a broad aggregator. |
+| Stop read-time seeding | Done for normal state/read paths | `state()` no longer calls `ensureSeeded()`; explicit `POST /api/sample/seed` exists. | Sample state is still a broad aggregator. |
 | Split PMCM panels | Partially done | `src/app/components/pmcm/` now contains audit, onboarding, supplier, coordinator, helper, and primitive components. | `page.tsx` is still 1,088 lines and should be split again. |
 | Refresh root docs | Partially done | Local root `README.md` and `CLAUDE.md` were updated. | Root is not a git repo, so those edits are not preserved by child app commits. |
 
@@ -90,14 +90,14 @@ flowchart TD
 | --- | --- | --- | --- |
 | P0 | `EventOpsService` is still too large. | The first extraction helped, but the facade still owns too many lifecycle workflows. | Extract `InquiryService`, `OnboardingService`, `BillingService`, and `FloorplanWorkflowService` next. |
 | P0 | Test coverage is only a thin API slice. | The most fragile PMCM rules now have tests, but UI behavior and other workflows can still regress. | Add focused tests for billing, floorplan submit/approve, approval requests, and frontend smoke flows. |
-| P0 | `/api/demo/state` is still a broad aggregator. | The read-side mutation risk is fixed, but every feature still expands one response contract. | Keep compatibility temporarily, then add scoped endpoints and migrate panels one at a time. |
+| P0 | `/api/sample/state` is still a broad aggregator. | The read-side mutation risk is fixed, but every feature still expands one response contract. | Keep compatibility temporarily, then add scoped endpoints and migrate panels one at a time. |
 | P1 | Duplicated editor code in client and event apps. | Official floorplan ownership belongs in `prism-event`, but shared editor internals are copied. | Extract editor engine/store/components to a shared package, then expose read-only client mode. |
 | P1 | Duplicated shadcn-style UI across all portals. | Sidebar, buttons, cards, tables, badges, and tokens drift across portals. | Create `packages/prism-ui` or a synced component source with one owner. |
 | P1 | API contracts are manually copied in each frontend. | A backend DTO change requires manual frontend updates. | Add `packages/prism-contracts` with shared DTO types and enums, or generate client types from OpenAPI. |
 | P1 | Root docs have no versioned owner. | Local docs can be corrected but not committed if the root remains outside Git. | Put root docs in a versioned repo or move canonical boundary docs into each app repo with a sync rule. |
 | P2 | `prism-client` dependency bloat. | More packages mean slower installs, harder upgrades, and more security surface. | Remove unused UI stacks after role split is stable. |
 | P2 | Raw hex styling remains in components. | Brand/style cleanup becomes repetitive manual work. | Add lint/search gate for raw hex except in token files and canvas palettes. |
-| P2 | In-process reminder timer. | Reminders are not durable and will not scale past local/demo usage. | Replace with a job table plus worker/cron runner. |
+| P2 | In-process reminder timer. | Reminders are not durable and will not scale past local/sample usage. | Replace with a job table plus worker/cron runner. |
 
 ## Target Backend Shape
 
@@ -191,7 +191,7 @@ Goal: keep new features from increasing the same debt.
 | Task | Owner Surface | Status | Definition of Done |
 | --- | --- | --- | --- |
 | Create shared status/role/tier constants. | API plus frontends | API started | API constants exist in `ops.constants.ts`; still need frontend/contract adoption. |
-| Move seed/reset out of normal reads. | `prism-api` | Done for normal state reads | `/api/demo/state` no longer calls setup code; explicit demo seed route exists. |
+| Move seed/reset out of normal reads. | `prism-api` | Done for normal state reads | `/api/sample/state` no longer calls setup code; explicit sample seed route exists. |
 | Add tests around new PMCM workflows. | `prism-api` | Done for first slice | Tests cover accept inquiry, decline reason, supplier suggestion by tier, pending exclusion, audit export alert, coordinator conflict/ack, conforme unlock, and reminder eligibility. |
 | Split `prism-event/src/app/page.tsx`. | `prism-event` | Partially done | Page imports feature components for Suppliers, Audit, Onboarding, Coordinator Assignment, and Coordinator View. Inquiry intake and event detail sections still need extraction. |
 | Make raw color usage visible. | Frontends | Not started | Add a documented allowed list: CSS token files and canvas drawing palettes only. |
@@ -209,11 +209,11 @@ Goal: remove duplicated code that causes maintenance drift.
 
 ### Phase 3: Production Hardening
 
-Goal: make the Prism architecture survivable after demo.
+Goal: make the Prism architecture survivable after sample.
 
 | Task | Owner Surface | Definition of Done |
 | --- | --- | --- |
-| Replace demo auth storage. | API plus frontends | API receives actor identity through a guarded session flow; role checks are centralized. |
+| Replace sample auth storage. | API plus frontends | API receives actor identity through a guarded session flow; role checks are centralized. |
 | Make audit tamper-resistant at DB level. | `prism-api` | Audit table has no app route for update/delete; DB trigger/RLS or policy blocks mutation outside append. |
 | Replace in-process reminders. | `prism-api` | Reminder worker is a job runner with retry/log records, not `setInterval` inside the API service. |
 | Add CI-style validation. | Root scripts plus app repos | One command runs API typecheck/build and frontend builds sequentially on Windows. |
@@ -231,7 +231,7 @@ Observed responsibilities in one service:
 
 - login/session behavior
 - seed data
-- demo reset
+- sample reset
 - inquiry intake
 - inquiry accept/pend/decline
 - conforme reminders
@@ -258,13 +258,13 @@ Continue extracting services one at a time. Do not rewrite all at once. The firs
 
 This order keeps risk low because each extraction preserves the existing controller/API shape while shrinking the facade.
 
-### 2. `/api/demo/state` Is Becoming A Dumping Ground
+### 2. `/api/sample/state` Is Becoming A Dumping Ground
 
 File: `prism-api/libs/modules/event-ops/src/event-ops.service.ts`
 
 The `state()` method still loads many models at once and maps them into one response. That was useful for prototype speed, but every feature now makes the response bigger and more coupled.
 
-Status update: normal reads no longer call `ensureSeeded()`, so `/api/demo/state` is no longer a setup side-effect path. The remaining issue is response breadth and frontend coupling.
+Status update: normal reads no longer call `ensureSeeded()`, so `/api/sample/state` is no longer a setup side-effect path. The remaining issue is response breadth and frontend coupling.
 
 Recommended change:
 
@@ -272,14 +272,14 @@ Replace one broad state call with scoped reads:
 
 | Current | Replacement |
 | --- | --- |
-| `/api/demo/state` | `/api/inquiries` |
-| `/api/demo/state` | `/api/onboarding` |
-| `/api/demo/state` | `/api/events/:id` |
-| `/api/demo/state` | `/api/suppliers` |
-| `/api/demo/state` | `/api/audit` |
-| `/api/demo/state` | `/api/security-alerts` |
+| `/api/sample/state` | `/api/inquiries` |
+| `/api/sample/state` | `/api/onboarding` |
+| `/api/sample/state` | `/api/events/:id` |
+| `/api/sample/state` | `/api/suppliers` |
+| `/api/sample/state` | `/api/audit` |
+| `/api/sample/state` | `/api/security-alerts` |
 
-Keep `/api/demo/state` temporarily as a compatibility aggregator while the UI is migrated.
+Keep `/api/sample/state` temporarily as a compatibility aggregator while the UI is migrated.
 
 ### 3. UI Is Copied Across Portals
 
@@ -454,7 +454,7 @@ Do not do these yet:
 | Moving all apps into one shell | The current product truth is role-specific portals. |
 | Replacing Prisma | The problem is module ownership and contracts, not the ORM. |
 | Adding a heavy design system library | The existing shadcn-style components are enough; they need central ownership. |
-| Building more demo-only workflows on `/api/demo/state` | It increases migration cost every time. |
+| Building more sample-only workflows on `/api/sample/state` | It increases migration cost every time. |
 
 ## Best Next Sprint
 

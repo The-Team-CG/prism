@@ -1,6 +1,6 @@
 # PMCM Admin Features
 
-This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and demo preparation.
+This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and sample preparation.
 
 ## Inquiry and Client Management
 
@@ -22,8 +22,8 @@ Database backbone: Inquiry, Client, Organization, ConformeDocument, PortalInvita
 | FR-54 | Pre-Conforme Document Attachment | Phase 2 | Supports uploading NDAs and other required documents to inquiry record before conforme stage. |
 | FR-AI-01 | Intelligent Inquiry Triage Agent | Agentic | AI agent that automatically analyzes new inquiries before PMCM Admin opens them. Generates prospect score (High/Medium/Low), likely event type, date conflict check, client fit assessment, and one-sentence recommendation. PMCM Admin makes all Accept/Pend/Decline decisions independently. 🔒 AI Security: All data sent to Claude for Inquiry Triage passes through DataSanitizer (PII replaced with anonymized labels). Zero Data Retention (ZDR) enabled — Anthropic does not store inputs or outputs. Every API call logged in AIAuditLog table. Human approval required before any action is taken. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-01 | Inquiry Intake Log | Prism | Live walkthrough in seeded defense data. |
 | FR-02 | Client Onboarding Tracker | Prism | Live walkthrough in seeded defense data. |
@@ -59,8 +59,8 @@ Database backbone: Event, EventFile, Task, Milestone, ComplianceCheck, Permit, U
 | FR-AI-05 | P.R.I.S.M Operations Assistant (POA) — Caged Claude Chatbot | AI | Claude-powered conversational AI assistant embedded in PMCM Admin dashboard. Ms. Mys can ask natural language questions about any active event. Caged with Zero Data Retention — no data ever leaves PRISM. Cannot take any action without PMCM Admin confirmation. 🔒 AI Security: All data sent to Claude for POA Chatbot passes through DataSanitizer (PII replaced with anonymized labels). Zero Data Retention (ZDR) enabled — Anthropic does not store inputs or outputs. Every API call logged in AIAuditLog table. Human approval required before any action is taken. |
 | FR-AI-07 | Real-Time Event Day Copilot | Agentic | On event day, AI monitoring agent watches all incoming data streams on the Live Operations Dashboard. Proactively surfaces prioritized alerts and recommended interventions to Event Day System Operator every 60 seconds. Covers supplier late arrivals, overdue tasks, coordinator no-shows, and check-in anomalies. 🔒 AI Security: All data sent to Claude for Event Day Copilot passes through DataSanitizer (PII replaced with anonymized labels). Zero Data Retention (ZDR) enabled — Anthropic does not store inputs or outputs. Every API call logged in AIAuditLog table. Human approval required before any action is taken. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-04 | Per-Event File Hub | Prism | Live walkthrough in seeded defense data. |
 | FR-05 | Live Operations Dashboard | Prism | Live walkthrough in seeded defense data. |
@@ -95,8 +95,8 @@ Database backbone: CostEstimate, SupplierQuote, Proposal, ProposalRevision, Prop
 | FR-AI-03 | AI Proposal Drafting Assistant | AI | After CE Builder is populated with supplier quotes, AI automatically generates a structured first draft of the event proposal. Sections: Executive Summary, Event Concept, Service Package Summary, Investment Summary, Payment Schedule. PMCM Admin reviews and finalizes before sending to client. 🔒 AI Security: All data sent to Claude for Proposal Drafting passes through DataSanitizer (PII replaced with anonymized labels). Zero Data Retention (ZDR) enabled — Anthropic does not store inputs or outputs. Every API call logged in AIAuditLog table. Human approval required before any action is taken. |
 | FR-AI-09 | Client Communication Intelligence Assistant | AI | Proactively generates context-aware draft messages at specific workflow trigger points: unsigned conforme after 5 days, unanswered proposal after 3 days, balance payment due in 48 hours, floor plan approval pending after 2 days. PMCM Admin reviews and sends. Cannot send anything automatically. 🔒 AI Security: All data sent to Claude for Communication Assistant passes through DataSanitizer (PII replaced with anonymized labels). Zero Data Retention (ZDR) enabled — Anthropic does not store inputs or outputs. Every API call logged in AIAuditLog table. Human approval required before any action is taken. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-19 | Cost Estimation Builder | Prism | Live walkthrough in seeded defense data. |
 | FR-58 | Event Briefing Form | Prism | Live walkthrough in seeded defense data. |
@@ -124,8 +124,8 @@ Database backbone: DocumentTemplate, SignedDocument, PaymentTerms, Accreditation
 | FR-96 | Event Cancellation Workflow | Prism | PMCM initiates cancellation with reason field and double confirmation screen. Automatic cascade to all supplier and coordinator assignments. Cancellation Financial Summary generated showing downpayment status, sunk costs, and cancellation fee calculation (10 to 15 percent of contract amount when conforme is signed). No cancellation fee when conforme has not yet been signed. |
 | FR-97 | Event Postponement Workflow | Prism | PMCM marks event as Postponed with reason field and new date or Date To Be Confirmed. Automatic impact assessment: supplier availability re-check, coordinator availability re-check, venue confirmation sub-ticket created. No cancellation fee for postponements ever. Downpayment retained and applied to rescheduled event. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-67 | Document Template Pre-Fill System | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. |
 | FR-68 | Dual Signing Path | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. |
@@ -166,8 +166,8 @@ Database backbone: Supplier, SupplierCategory, SupplierTier, QuoteRequest, Quote
 | FR-AI-06 | Probabilistic Supplier Reliability Scoring Model | AI | Builds probabilistic reliability score per supplier combining on-time arrival history, complaint rates from Urgent Issue logs, quote response times, and contract mismatch frequency. Displayed with confidence band (e.g., 87% ± 8%, based on 12 events). PARE agent uses this score when recommending replacements. 🔒 AI Security: All data sent to Claude for Supplier Scoring passes through DataSanitizer (PII replaced with anonymized labels). Zero Data Retention (ZDR) enabled — Anthropic does not store inputs or outputs. Every API call logged in AIAuditLog table. Human approval required before any action is taken. |
 | FR-AI-04 | P.R.I.S.M Agentic Response Engine (PARE) — Multi-Agent Emergency Response | Agentic | 5-agent orchestrator that activates on Emergency Change triggers (supplier cancellation, coordinator withdrawal within 48 hours). Agent 1 reads event context. Agent 2 finds replacement suppliers. Agent 3 checks budget feasibility. Agent 4 assesses risk. Agent 5 drafts messages. Orchestrator assembles recommendation package. PMCM Admin approves before any action is taken. 🔒 AI Security: All data sent to Claude for PARE Multi-Agent passes through DataSanitizer (PII replaced with anonymized labels). Zero Data Retention (ZDR) enabled — Anthropic does not store inputs or outputs. Every API call logged in AIAuditLog table. Human approval required before any action is taken. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-14 | Supplier Directory with Category Tagging | Prism | Live walkthrough in seeded defense data. |
 | FR-15 | Tier 1 and Tier 2 Supplier Designation | Prism | Live walkthrough in seeded defense data. |
@@ -207,8 +207,8 @@ Database backbone: BillingStatement, PaymentMilestone, PaymentRecord, WaiverReas
 | FR-93 | Partial Payment Recording | Phase 2 | PMCM records partial payment amount and date. System calculates remaining balance. Partial Payment Received status on dashboard. PMCM prompted to follow up on outstanding balance. |
 | FR-94 | Billing Statement to Proposal Link | Phase 2 | Every billing statement directly linked to approved proposal and CE. Two severity levels: typo correction and amount discrepancy. Billing Dispute flag raises formal record with resolution notes. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-20 | Billing Statement Generation | Prism | Live walkthrough in seeded defense data. |
 | FR-21 | Post-Event Additional Billing Statement | Prism | Live walkthrough in seeded defense data. |
@@ -232,8 +232,8 @@ Database backbone: FloorPlan, Venue, VenueFeature, FloorPlanPreset, FloorPlanAnn
 | FR-83 | Client Floor Plan Annotation and Approval | Prism | Client views floor plan in portal. Can annotate directly on canvas. Only designated primary contact annotations are actionable. Others flagged as Non-Binding Notes. Full revision history tracked. Floor plan locked once formally approved. |
 | FR-84 | Table Assignment List | Phase 2 | Available only for private events under 200 pax. Each table assigned a number or name. PMCM or client assigns guest names from uploaded masterlist to specific tables. Printable seating list output. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-80 | Floor Plan Builder with Draggable Element Library | Prism | Live walkthrough in seeded defense data. |
 | FR-81 | Venue Library | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. |
@@ -260,8 +260,8 @@ Database backbone: Coordinator, CoordinatorSkill, CoordinatorAssignment, Availab
 | New-C3 | Coordinator Late Arrival and No Show Flag | Prism | During on-site briefing check-in, Event Day System Operator marks each coordinator as Present, Late Arrival, or Absent. Late Arrival and No Show recorded on coordinator profile as reliability notes. |
 | New-C4 | Task Reassignment with Ms. Mys Notification | Prism | Event Day System Operator initiates task reassignment. Ms. Mys notified immediately via phone with reassignment details. One-tap approval or rejection. Auto-approves after 2 minutes if no response to prioritize event flow. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-88 | Coordinator Double Booking Detection | Prism | Live walkthrough in seeded defense data. |
 | FR-89 | Coordinator Withdrawal and Replacement | Prism | Live walkthrough in seeded defense data. |
@@ -291,8 +291,8 @@ Database backbone: PostEventDeliverable, EventArchive, EventInsight, SupplierInt
 | New-P5 | Additional Billing Waiver | Prism | PMCM can mark any additional billing item as Waived with documented reason. Recorded in Activity History as deliberate goodwill decision not an oversight. |
 | FR-AI-08 | Post-Event Intelligence Layer (PEIL) | AI | After One-Screen Close, AI analyzes the complete event record and generates a three-section intelligence report: (1) What Worked — operational successes with evidence, (2) What Failed and Why — failure patterns with causal explanations, (3) Recommended Actions — specific actionable items with one-click approval. Upgrades Event Insights Card from static capture to AI-generated analytical report. 🔒 AI Security: All data sent to Claude for PEIL Post-Event passes through DataSanitizer (PII replaced with anonymized labels). Zero Data Retention (ZDR) enabled — Anthropic does not store inputs or outputs. Every API call logged in AIAuditLog table. Human approval required before any action is taken. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-22 | Post-Event Documentation Submission Tracker | Prism | Live walkthrough in seeded defense data. |
 | FR-23 | Event Archive with Search | Prism | Live walkthrough in seeded defense data. |
@@ -322,8 +322,8 @@ Database backbone: ModuleToggle, NotificationPreference, DataAnonymizationReques
 | New-SY3 | Change Freeze Deadline | Prism | Hard deadline automatically set to 5 days before event. Client-driven scope changes locked and routed to post-event billing after this point. Internal operational adjustments always allowed. |
 | New-SY4 | Addendum Conforme Workflow | Phase 2 | Client-driven scope additions require new conforme signed before implementation. New conforme triggers updated billing statement. Available before Change Freeze Deadline only. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-24 | Toggle System | Phase 2 | Roadmap walkthrough with designed screen, data model, and expected workflow. |
 | FR-25 | Dual Notification System | Prism | Live walkthrough in seeded defense data. |

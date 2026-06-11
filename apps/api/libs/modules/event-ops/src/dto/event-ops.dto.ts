@@ -75,7 +75,7 @@ export class ExecutePrivacyRequestDto {
   executionNotes?: string;
 }
 
-export class DemoActorDto {
+export class SampleActorDto {
   @IsOptional()
   @IsString()
   actorId?: string;
@@ -113,7 +113,7 @@ export class DemoActorDto {
   accessCode?: string;
 }
 
-export class FloorPlanSnapshotQueryDto extends DemoActorDto {
+export class FloorPlanSnapshotQueryDto extends SampleActorDto {
   @IsOptional()
   @IsIn(['submitted', 'approved'])
   type?: 'submitted' | 'approved';

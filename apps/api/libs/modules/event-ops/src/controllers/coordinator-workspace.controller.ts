@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -54,12 +54,12 @@ export class OpsCoordinatorWorkspaceController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('workspace')
-  workspace(@Query() actor: DemoActorDto) {
+  workspace(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listCoordinatorWorkspace(actor);
   }
 
   @Get('events/:eventId/role-view')
-  roleView(@Param('eventId') eventId: string, @Query() actor: DemoActorDto) {
+  roleView(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.getCoordinatorRoleView(eventId, actor);
   }
 }
@@ -69,7 +69,7 @@ export class OpsCoordinatorsController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get()
-  list(@Query() actor: DemoActorDto) {
+  list(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listCoordinators(actor);
   }
 }

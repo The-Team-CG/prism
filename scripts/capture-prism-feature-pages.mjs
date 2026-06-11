@@ -254,7 +254,7 @@ const PAGE_DEFINITIONS = [
     title: "Guest Code Gate",
     app: "apps/guest",
     url: `${BASE_URLS.guest}/open`,
-    markers: ["Open your event pass", "Demo event code"],
+    markers: ["Open your event pass", "Sample event code"],
     featureRefs: ["FR-39", "FR-95"],
     purpose: "Guest event-code gate before dashboard access.",
   },
@@ -418,8 +418,8 @@ async function readJson(url, timeoutMs = 30_000) {
 
 function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
   const event = {
-    id: "evt_demo_ayala",
-    inquiryId: "inq_demo_ayala",
+    id: "evt_sample_ayala",
+    inquiryId: "inq_sample_ayala",
     clientName: "Ana Reyes",
     eventName: "Ayala Tech Summit 2026",
     eventDate: "2026-06-18",
@@ -428,9 +428,9 @@ function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
     readiness: "Event-day walkthrough ready",
     archived: false,
     floorPlanStatus: "approved",
-    floorPlanId: "plan_demo_ayala_main",
+    floorPlanId: "plan_sample_ayala_main",
     guestAccessCode: "AYALA-TECH-YALA",
-    activeFloorPlanDraftId: "fpd_demo_review",
+    activeFloorPlanDraftId: "fpd_sample_review",
   };
   const supplierCategory = {
     id: "cat_registration",
@@ -480,7 +480,7 @@ function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
     category: supplierCategory.name,
     message: "Please quote registration desk staffing, QR scanning, badge printing, and attendance export.",
     dueDate: "2026-05-20",
-    accessToken: "quote_xperto_demo",
+    accessToken: "quote_xperto_sample",
     confidentialBid: true,
     status: "selected",
     assignmentStatus: "confirmed",
@@ -560,7 +560,7 @@ function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
   ];
   const paymentMethods = [{ label: "Bank transfer", details: "PMCM operating account" }];
   const billingSource = {
-    id: "bsrc_demo",
+    id: "bsrc_sample",
     eventId: event.id,
     sourceType: "proposal",
     sourceLabel: "Approved proposal package",
@@ -577,7 +577,7 @@ function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
     updatedAt: createdAt,
   };
   const billingStatement = {
-    id: "bill_demo_ayala",
+    id: "bill_sample_ayala",
     eventId: event.id,
     sourceId: billingSource.id,
     number: "BS-2026-0001",
@@ -591,7 +591,7 @@ function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
     totalAmount: 520000,
     documentId: "doc_billing",
     pdfUrl: "/mock/billing/BS-2026-0001.pdf",
-    storageKey: "events/evt_demo_ayala/billing/BS-2026-0001.pdf",
+    storageKey: "events/evt_sample_ayala/billing/BS-2026-0001.pdf",
     status: "sent",
     sentAt: createdAt,
     generatedAt: createdAt,
@@ -702,7 +702,7 @@ function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
       { id: "ped_gallery", eventId: event.id, title: "Photo and video turnover", status: "pending" },
     ],
     eventInsights: [{
-      id: "insight_demo",
+      id: "insight_sample",
       eventId: event.id,
       summary: "Readiness is strong; final balance and post-event closure items remain open.",
       highlights: ["Supplier and coordinator assignments are confirmed.", "Guest check-in workflow is ready."],
@@ -741,9 +741,9 @@ function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
       actor: "Ms. Mys",
       actorRole: "pmcm-admin",
       actorEmail: "mys@pmcm.test",
-      action: "Prepared screenshot demo state",
+      action: "Prepared screenshot sample state",
       actionType: "create",
-      category: "demo",
+      category: "sample",
       affectedType: "event",
       affectedId: event.id,
       affectedLabel: event.eventName,
@@ -766,7 +766,7 @@ function createFallbackState(createdAt = "2026-05-07T06:00:00.000Z") {
     eventDayLogs: [{ id: "log_registration", eventId: event.id, actionType: "status", actor: coordinator.name, actorRole: "coordinator", message: "Registration dry run started.", relatedType: "task", relatedId: "task_registration", metadata: {}, createdAt }],
     privacyRequests: [{ id: "priv_export", eventId: event.id, subjectType: "guest", subjectEmail: "sofia@example.test", subjectName: "Sofia Lim", requestType: "export", status: "submitted", requestNotes: "Guest requested attendance data export.", reviewReason: "", executionNotes: "", createdBy: "Ms. Mys", reviewedBy: null, reviewedAt: null, executedBy: null, executedAt: null, createdAt, updatedAt: createdAt }],
     privacyRetentionPolicies: [{ surface: "Guest check-ins", dataCategories: ["attendance", "consent"], retentionPeriod: "1 year after event closure", deletionBehavior: "Archive then purge on schedule" }],
-    securityAlerts: [{ id: "sec_demo", eventId: event.id, type: "lockout", title: "Demo security review", description: "Audit integrity check completed for demo state.", severity: "low", status: "resolved", triggeredBy: "system", metadata: {}, createdAt, resolvedAt: createdAt }],
+    securityAlerts: [{ id: "sec_sample", eventId: event.id, type: "lockout", title: "Sample security review", description: "Audit integrity check completed for sample state.", severity: "low", status: "resolved", triggeredBy: "system", metadata: {}, createdAt, resolvedAt: createdAt }],
   };
 }
 
@@ -791,7 +791,7 @@ function normalizeState(state) {
 
 function sessionByEmail(state, email) {
   const user = state.users.find((item) => item.email === email);
-  if (!user) throw new Error(`Demo user not found: ${email}`);
+  if (!user) throw new Error(`Sample user not found: ${email}`);
   return { ...user, signedInAt: new Date().toISOString() };
 }
 
@@ -838,7 +838,7 @@ function preloadScriptFor(items) {
 
 function mockFloorPlan(context) {
   return {
-    id: context.event.floorPlanId ?? "plan_demo_ayala_main",
+    id: context.event.floorPlanId ?? "plan_sample_ayala_main",
     name: "Ayala Tech Summit official layout",
     venue: "Shangri-La Grand Ballroom",
     width: 32,
@@ -999,7 +999,7 @@ function mockPrivacyInventory(context) {
       eventName: context.event.eventName,
       dataCategories: ["client contact", "guest attendance", "supplier documents"],
       recordCount: 18,
-      retentionNotes: "Prism demo retention follows event archive lifecycle.",
+      retentionNotes: "Prism sample retention follows event archive lifecycle.",
       surfaces: [{
         surface: "Guest check-ins",
         recordCount: context.state.guestCheckIns.length,
@@ -1029,7 +1029,7 @@ function mockApiData(url, method, context) {
 
   if (method === "OPTIONS") return { status: 204, body: null };
   if (pathName === "/health" || pathName === "/api/health") return { body: { status: "ok", service: "p.r.i.s.m api mock" } };
-  if (pathName === "/api/demo/state" || pathName === "/api/demo/reset" || pathName === "/api/demo/seed") return { body: state };
+  if (pathName === "/api/sample/state" || pathName === "/api/sample/reset" || pathName === "/api/sample/seed") return { body: state };
   if (pathName === "/api/client/workspace") return { body: state };
   if (pathName === "/api/onboarding") return { body: { inquiries: state.inquiries, documents: state.documents } };
   if (pathName === "/api/events") return { body: state.events };
@@ -1373,14 +1373,14 @@ function buildIndex(features, capturedPages, context) {
   lines.push("");
   lines.push("The capture pass uses a content-readiness guard instead of a fixed delay:");
   lines.push("");
-  lines.push("- Seeds the correct demo session into `localStorage` before each route hydrates.");
+  lines.push("- Seeds the correct sample session into `localStorage` before each route hydrates.");
   lines.push("- Waits for API health, route-specific text markers, `document.readyState === \"complete\"`, and loaded fonts.");
   lines.push("- Rejects screenshots while `.animate-pulse` skeleton elements or loading copy are still present.");
   lines.push("- Captures with Microsoft Edge headless through the Chrome DevTools Protocol, so no Playwright install is required.");
   lines.push("");
   lines.push("This is the safer idea for this repo because skeleton-only screenshots are a timing/auth/data-readiness problem. Waiting for real page markers makes the screenshot fail loudly instead of silently saving a loading state.");
   lines.push("");
-  lines.push("## Demo Context");
+  lines.push("## Sample Context");
   lines.push("");
   lines.push(`- Event: \`${context.event.eventName}\` (\`${context.eventId}\`)`);
   lines.push(`- Guest code: \`${context.event.guestAccessCode}\``);
@@ -1453,14 +1453,14 @@ async function main() {
   process.stdout.write("Preparing capture context... ");
   let state;
   try {
-    state = normalizeState(await readJson(`${BASE_URLS.api}/api/demo/state`, 8_000));
+    state = normalizeState(await readJson(`${BASE_URLS.api}/api/sample/state`, 8_000));
     process.stdout.write("live API state loaded\n");
   } catch (error) {
     state = createFallbackState();
     process.stdout.write(`using deterministic fallback state (${error.message})\n`);
   }
   const event = state.events.find((item) => item.guestAccessCode) ?? state.events[0];
-  if (!event) throw new Error("No demo event found for capture context.");
+  if (!event) throw new Error("No sample event found for capture context.");
 
   const context = {
     state,

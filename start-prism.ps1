@@ -168,10 +168,10 @@ function Stop-PortListeners {
 }
 
 function Ensure-WorkspaceInstall {
-  $nodeModules = Join-Path $root "node_modules"
+  $depsPath = Join-Path $root "node_modules"
   $packageLock = Join-Path $root "package-lock.json"
 
-  if ((Test-Path -LiteralPath $nodeModules) -and -not $Install) {
+  if ((Test-Path -LiteralPath $depsPath) -and -not $Install) {
     return
   }
 
@@ -228,7 +228,7 @@ if (-not $SkipPrismaGenerate) {
   Invoke-External -Label "Generating Prisma client in apps\api" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "db:generate")
 }
 
-Write-Host "Seeding PARE demo data in apps\api"
+Write-Host "Seeding PARE sample data in apps\api"
 Push-Location (Join-Path $root "apps\api")
 try {
   & node.exe --env-file=.env prisma/seed-pare.mjs

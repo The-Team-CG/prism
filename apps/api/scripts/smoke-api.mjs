@@ -132,12 +132,12 @@ await expectBadRequest('reject unknown template field', '/api/templates', {
   }),
 });
 
-const demo = await expectOk('reset event ops demo', '/api/demo/reset', {
+const sample = await expectOk('reset event ops sample', '/api/sample/reset', {
   method: 'POST',
 });
 
-if (!demo.events?.[0]?.id || !demo.inquiries?.[0]?.id) {
-  throw new Error(`event ops reset returned incomplete state: ${JSON.stringify(demo)}`);
+if (!sample.events?.[0]?.id || !sample.inquiries?.[0]?.id) {
+  throw new Error(`event ops reset returned incomplete state: ${JSON.stringify(sample)}`);
 }
 
 await expectOk('event ops auth login', '/api/auth/login', {
@@ -206,7 +206,7 @@ await expectOk('accept event ops inquiry', `/api/inquiries/${opsInquiry.id}/stat
   body: JSON.stringify({ status: 'accepted' }),
 });
 
-let opsState = await expectOk('read event ops state', '/api/demo/state');
+let opsState = await expectOk('read event ops state', '/api/sample/state');
 let opsEvent = opsState.events.find((item) => item.inquiryId === opsInquiry.id);
 
 if (opsEvent?.id) {
@@ -223,7 +223,7 @@ await expectOk('upload event ops conforme', `/api/inquiries/${opsInquiry.id}/con
   }),
 });
 
-opsState = await expectOk('read event ops state after conforme', '/api/demo/state');
+opsState = await expectOk('read event ops state after conforme', '/api/sample/state');
 opsEvent = opsState.events.find((item) => item.inquiryId === opsInquiry.id);
 
 if (!opsEvent?.id) {
@@ -373,7 +373,7 @@ await expectOk('ack event ops coordinator', `/api/events/${opsEvent.id}/coordina
   method: 'PATCH',
 });
 
-opsState = await expectOk('read event ops state after milestones', '/api/demo/state');
+opsState = await expectOk('read event ops state after milestones', '/api/sample/state');
 const payment = opsState.paymentMilestones.find((item) => item.eventId === opsEvent.id);
 const postEventDocument = opsState.postEventDocuments.find((item) => item.eventId === opsEvent.id);
 

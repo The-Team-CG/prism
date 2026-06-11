@@ -48,7 +48,7 @@ function readSession() {
   catch { window.localStorage.removeItem(SESSION_KEY); return null; }
 }
 
-const demoAccounts = [
+const sampleAccounts = [
   { email: "ops@xperto.test", password: "prism-supplier", label: "Xperto Events", tier: "Tier 1 supplier" },
   { email: "flowers@bloom.test", password: "prism-supplier", label: "Bloom Florals", tier: "Tier 2 supplier" },
 ];
@@ -216,20 +216,20 @@ export default function SupplierSignIn() {
                 </button>
               </form>
 
-              {/* Demo accounts */}
+              {/* Sample accounts */}
               <div className="mt-6 border-t border-[#d9d9d9] pt-5">
-                <p className="mb-3 text-sm font-medium text-[#888888]">Demo accounts</p>
+                <p className="mb-3 text-sm font-medium text-[#888888]">Sample accounts</p>
                 <div className="flex flex-col gap-2">
-                  {demoAccounts.map((demo) => (
+                  {sampleAccounts.map((sample) => (
                     <button
-                      key={demo.email}
+                      key={sample.email}
                       type="button"
-                      onClick={() => { setEmail(demo.email); setPassword(demo.password); }}
+                      onClick={() => { setEmail(sample.email); setPassword(sample.password); }}
                       className="flex items-center justify-between rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-left transition hover:border-[#c01867]/40 hover:bg-white/80"
                     >
                       <div>
-                        <p className="text-sm font-semibold text-[#171216]">{demo.label}</p>
-                        <p className="text-xs text-[#888888]">{demo.tier}</p>
+                        <p className="text-sm font-semibold text-[#171216]">{sample.label}</p>
+                        <p className="text-xs text-[#888888]">{sample.tier}</p>
                       </div>
                       <ArrowRight className="size-4 text-[#a7a7a7]" />
                     </button>

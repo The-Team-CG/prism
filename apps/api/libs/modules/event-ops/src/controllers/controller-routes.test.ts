@@ -17,7 +17,6 @@ describe('event-ops controller routes', () => {
       'compliance',
       'coordinator',
       'coordinators',
-      'demo',
       'events',
       'guest',
       'inquiries',
@@ -25,6 +24,7 @@ describe('event-ops controller routes', () => {
       'onboarding',
       'privacy',
       'quote-requests',
+      'sample',
       'supplier',
       'suppliers',
     ]);

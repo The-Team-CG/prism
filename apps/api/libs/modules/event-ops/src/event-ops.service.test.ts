@@ -6,7 +6,7 @@ import { AuthSecurityService } from './services/auth-security.service';
 function inquiry(overrides: Record<string, unknown> = {}) {
   const createdAt = new Date('2026-04-29T00:00:00.000Z');
   return {
-    id: 'inq_demo',
+    id: 'inq_sample',
     clientName: 'Ana Reyes',
     companyName: 'Ayala Corp',
     email: 'ana@ayala.test',
@@ -921,7 +921,7 @@ function createPrisma(seedInquiry: any = inquiry()) {
 }
 
 describe('EventOpsService', () => {
-  it('does not block API startup when non-production demo seeding cannot reach the database', async () => {
+  it('does not block API startup when non-production sample seeding cannot reach the database', async () => {
     const previousNodeEnv = process.env.NODE_ENV;
     const previousReminderFlag = process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB;
     process.env.NODE_ENV = 'development';
@@ -951,7 +951,7 @@ describe('EventOpsService', () => {
     const fake = createPrisma();
     const service = new EventOpsService(fake.prisma as any);
 
-    const accepted = await service.updateInquiryStatus('inq_demo', { status: 'accepted' });
+    const accepted = await service.updateInquiryStatus('inq_sample', { status: 'accepted' });
 
     expect(accepted.status).toBe('accepted');
     expect(accepted.acceptedAt).toBeTruthy();
@@ -963,7 +963,7 @@ describe('EventOpsService', () => {
     const fake = createPrisma();
     const service = new EventOpsService(fake.prisma as any);
 
-    await expect(service.updateInquiryStatus('inq_demo', { status: 'declined' })).rejects.toBeInstanceOf(
+    await expect(service.updateInquiryStatus('inq_sample', { status: 'declined' })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -989,7 +989,7 @@ describe('EventOpsService', () => {
     expect(created.normalizedEmail).toBe('ana@ayala.test');
     expect(created.referralDetails).toBe('Referred by Mika from BNI');
     expect(created.duplicate).toBe(true);
-    expect(created.duplicateOfInquiryId).toBe('inq_demo');
+    expect(created.duplicateOfInquiryId).toBe('inq_sample');
   });
 
   it('flags previous declined inquiries by normalized email without reopening the old record', async () => {
@@ -1069,7 +1069,7 @@ describe('EventOpsService', () => {
     const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
     const service = new EventOpsService(fake.prisma as any);
 
-    const document = await service.uploadConforme('inq_demo', {
+    const document = await service.uploadConforme('inq_sample', {
       type: 'signed_conforme',
       fileName: 'signed-conforme.pdf',
     });
@@ -1091,8 +1091,8 @@ describe('EventOpsService', () => {
   it('creates confidential quote requests for all selected Tier 1 suppliers with unique supplier tokens', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1106,7 +1106,7 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const requests = await (service as any).requestSupplierQuotes('evt_demo', {
+    const requests = await (service as any).requestSupplierQuotes('evt_sample', {
       categoryId: 'supcat_technicals',
       supplierIds: ['sup_sonicline', 'sup_avbackup'],
       confidentialBid: true,
@@ -1123,8 +1123,8 @@ describe('EventOpsService', () => {
   it('does not create duplicate active quote requests for the same event supplier and category', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1138,7 +1138,7 @@ describe('EventOpsService', () => {
     });
     fake.state.quoteRequests.push({
       id: 'qr_existing',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       supplierId: 'sup_sonicline',
       categoryId: 'supcat_technicals',
       supplierName: 'SonicLine Technicals',
@@ -1152,7 +1152,7 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const requests = await (service as any).requestSupplierQuotes('evt_demo', {
+    const requests = await (service as any).requestSupplierQuotes('evt_sample', {
       categoryId: 'supcat_technicals',
       supplierIds: ['sup_sonicline', 'sup_avbackup'],
       confidentialBid: false,
@@ -1168,8 +1168,8 @@ describe('EventOpsService', () => {
   it('creates and edits supplier profiles with private review, certification metadata, and tier-change audit', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1207,7 +1207,7 @@ describe('EventOpsService', () => {
     );
     const reviewed = await (service as any).addSupplierReview(
       created.id,
-      { eventId: 'evt_demo', rating: 4, notes: 'Private PMCM review after first walkthrough.', reviewedBy: 'Ms. Mys' },
+      { eventId: 'evt_sample', rating: 4, notes: 'Private PMCM review after first walkthrough.', reviewedBy: 'Ms. Mys' },
       actor,
     );
     const certified = await (service as any).addSupplierCertification(
@@ -1254,7 +1254,7 @@ describe('EventOpsService', () => {
     });
     fake.state.supplierQuotes.push({
       id: 'quote_private_range',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       requestId: 'qr_private_range',
       supplierId: 'sup_sonicline',
       categoryId: 'supcat_technicals',
@@ -1290,8 +1290,8 @@ describe('EventOpsService', () => {
   it('stores submitted supplier quotes and flags prices outside the category acceptable range', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1304,20 +1304,20 @@ describe('EventOpsService', () => {
       updatedAt: new Date(),
     });
     fake.state.quoteRequests.push({
-      id: 'qr_demo',
-      eventId: 'evt_demo',
+      id: 'qr_sample',
+      eventId: 'evt_sample',
       categoryId: 'supcat_technicals',
       supplierId: 'sup_sonicline',
       supplierName: 'SonicLine Technicals',
       category: 'Technicals',
-      accessToken: 'token-demo',
+      accessToken: 'token-sample',
       confidentialBid: true,
       status: 'open',
       createdAt: new Date(),
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const quote = await (service as any).submitSupplierQuoteByToken('token-demo', {
+    const quote = await (service as any).submitSupplierQuoteByToken('token-sample', {
       amount: 210000,
       inclusions: ['Audio system', 'LED wall'],
       paymentTerms: '50% reservation, 50% before ingress',
@@ -1333,8 +1333,8 @@ describe('EventOpsService', () => {
   it('reads confidential quote requests by token without exposing client or event details', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1347,13 +1347,13 @@ describe('EventOpsService', () => {
       updatedAt: new Date(),
     });
     fake.state.quoteRequests.push({
-      id: 'qr_demo',
-      eventId: 'evt_demo',
+      id: 'qr_sample',
+      eventId: 'evt_sample',
       categoryId: 'supcat_technicals',
       supplierId: 'sup_sonicline',
       supplierName: 'SonicLine Technicals',
       category: 'Technicals',
-      accessToken: 'token-demo',
+      accessToken: 'token-sample',
       confidentialBid: true,
       status: 'open',
       dueDate: new Date('2026-05-05T00:00:00.000Z'),
@@ -1361,18 +1361,18 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const request = await (service as any).getQuoteRequestByToken('token-demo');
+    const request = await (service as any).getQuoteRequestByToken('token-sample');
 
     expect(request.eventName).toBe('Confidential event');
     expect(request.clientName).toBeNull();
-    expect(request.request.accessToken).toBe('token-demo');
+    expect(request.request.accessToken).toBe('token-sample');
   });
 
   it('allows supplier quote revision before selection and blocks revision after selection', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1385,21 +1385,21 @@ describe('EventOpsService', () => {
       updatedAt: new Date(),
     });
     fake.state.quoteRequests.push({
-      id: 'qr_demo',
-      eventId: 'evt_demo',
+      id: 'qr_sample',
+      eventId: 'evt_sample',
       categoryId: 'supcat_technicals',
       supplierId: 'sup_sonicline',
       supplierName: 'SonicLine Technicals',
       category: 'Technicals',
-      accessToken: 'token-demo',
+      accessToken: 'token-sample',
       confidentialBid: false,
       status: 'submitted',
       createdAt: new Date(),
     });
     fake.state.supplierQuotes.push({
-      id: 'quote_demo',
-      eventId: 'evt_demo',
-      requestId: 'qr_demo',
+      id: 'quote_sample',
+      eventId: 'evt_sample',
+      requestId: 'qr_sample',
       supplierId: 'sup_sonicline',
       categoryId: 'supcat_technicals',
       supplierName: 'SonicLine Technicals',
@@ -1417,17 +1417,17 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const revised = await (service as any).reviseSupplierQuoteByToken('token-demo', {
+    const revised = await (service as any).reviseSupplierQuoteByToken('token-sample', {
       amount: 160000,
       inclusions: ['Audio', 'LED wall'],
       paymentTerms: '40/60',
       notes: 'Revised package',
     });
-    await (service as any).selectSupplierQuote('evt_demo', revised.id);
+    await (service as any).selectSupplierQuote('evt_sample', revised.id);
 
     expect(revised.status).toBe('revised');
     expect(fake.state.quoteRequests[0].status).toBe('selected');
-    await expect((service as any).reviseSupplierQuoteByToken('token-demo', { amount: 155000 })).rejects.toBeInstanceOf(
+    await expect((service as any).reviseSupplierQuoteByToken('token-sample', { amount: 155000 })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -1435,8 +1435,8 @@ describe('EventOpsService', () => {
   it('selects one quote, marks competitors not selected, and closes competing requests in the same category', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1451,7 +1451,7 @@ describe('EventOpsService', () => {
     fake.state.quoteRequests.push(
       {
         id: 'qr_selected',
-        eventId: 'evt_demo',
+        eventId: 'evt_sample',
         categoryId: 'supcat_technicals',
         supplierId: 'sup_sonicline',
         supplierName: 'SonicLine Technicals',
@@ -1463,7 +1463,7 @@ describe('EventOpsService', () => {
       },
       {
         id: 'qr_other',
-        eventId: 'evt_demo',
+        eventId: 'evt_sample',
         categoryId: 'supcat_technicals',
         supplierId: 'sup_avbackup',
         supplierName: 'AV Backup Crew',
@@ -1477,7 +1477,7 @@ describe('EventOpsService', () => {
     fake.state.supplierQuotes.push(
       {
         id: 'quote_selected',
-        eventId: 'evt_demo',
+        eventId: 'evt_sample',
         requestId: 'qr_selected',
         supplierId: 'sup_sonicline',
         categoryId: 'supcat_technicals',
@@ -1496,7 +1496,7 @@ describe('EventOpsService', () => {
       },
       {
         id: 'quote_other',
-        eventId: 'evt_demo',
+        eventId: 'evt_sample',
         requestId: 'qr_other',
         supplierId: 'sup_avbackup',
         categoryId: 'supcat_technicals',
@@ -1516,7 +1516,7 @@ describe('EventOpsService', () => {
     );
     const service = new EventOpsService(fake.prisma as any);
 
-    const selected = await (service as any).selectSupplierQuote('evt_demo', 'quote_selected');
+    const selected = await (service as any).selectSupplierQuote('evt_sample', 'quote_selected');
 
     expect(selected.status).toBe('selected');
     expect(selected.lockedAt).toBeTruthy();
@@ -1528,8 +1528,8 @@ describe('EventOpsService', () => {
   it('records partial milestone payments and calculates remaining balance', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1543,7 +1543,7 @@ describe('EventOpsService', () => {
     });
     fake.state.milestones.push({
       id: 'pay_balance',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       label: 'Balance',
       amount: 260000,
       dueDate: new Date('2026-06-11T00:00:00.000Z'),
@@ -1552,7 +1552,7 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const payment = await (service as any).recordPayment('evt_demo', 'pay_balance', {
+    const payment = await (service as any).recordPayment('evt_sample', 'pay_balance', {
       amountReceived: 100000,
       paymentDate: '2026-05-20',
       paymentMethod: 'Bank Transfer',
@@ -1568,8 +1568,8 @@ describe('EventOpsService', () => {
   it('rejects payment records that would overpay a milestone', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1583,7 +1583,7 @@ describe('EventOpsService', () => {
     });
     fake.state.milestones.push({
       id: 'pay_balance',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       label: 'Balance',
       amount: 260000,
       amountPaid: 200000,
@@ -1594,7 +1594,7 @@ describe('EventOpsService', () => {
     });
     fake.state.paymentRecords.push({
       id: 'payrec_existing',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       milestoneId: 'pay_balance',
       amountReceived: 200000,
       paymentDate: new Date('2026-05-20T00:00:00.000Z'),
@@ -1605,7 +1605,7 @@ describe('EventOpsService', () => {
     const service = new EventOpsService(fake.prisma as any);
 
     await expect(
-      (service as any).recordPayment('evt_demo', 'pay_balance', {
+      (service as any).recordPayment('evt_sample', 'pay_balance', {
         amountReceived: 70000,
         paymentDate: '2026-05-21',
         paymentMethod: 'GCash',
@@ -1617,8 +1617,8 @@ describe('EventOpsService', () => {
   it('persists submitted and approved official floorplan snapshots from the live plan', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1631,10 +1631,10 @@ describe('EventOpsService', () => {
       updatedAt: new Date(),
     });
     fake.state.floorPlans.push({
-      id: 'plan_demo',
+      id: 'plan_sample',
       name: 'Official Layout',
-      ownerId: 'demo-user',
-      eventId: 'evt_demo',
+      ownerId: 'sample-user',
+      eventId: 'evt_sample',
       width: 1200,
       height: 800,
       gridSize: 20,
@@ -1644,9 +1644,9 @@ describe('EventOpsService', () => {
       updatedAt: new Date('2026-05-01T00:00:00.000Z'),
     });
     fake.state.floorPlanDrafts.push({
-      id: 'fpd_demo',
-      eventId: 'evt_demo',
-      floorPlanId: 'plan_demo',
+      id: 'fpd_sample',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_sample',
       name: 'Official Layout',
       status: 'pmcm_draft',
       isActive: false,
@@ -1657,18 +1657,18 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const submitted = await (service as any).submitFloorPlanDraft('evt_demo', 'fpd_demo', {
+    const submitted = await (service as any).submitFloorPlanDraft('evt_sample', 'fpd_sample', {
       actorRole: 'pmcm-admin',
     });
     fake.state.floorPlans[0].objects = [{ id: 'stage', kind: 'stage', x: 20, y: 20 }];
-    const approved = await (service as any).approveFloorPlanDraft('evt_demo', 'fpd_demo', {
+    const approved = await (service as any).approveFloorPlanDraft('evt_sample', 'fpd_sample', {
       actorRole: 'pmcm-admin',
     });
-    const submittedSnapshot = await (service as any).getFloorPlanSnapshot('evt_demo', 'fpd_demo', 'submitted', {
+    const submittedSnapshot = await (service as any).getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'submitted', {
       actorRole: 'client',
       clientName: 'Ana Reyes',
     });
-    const approvedSnapshot = await (service as any).getFloorPlanSnapshot('evt_demo', 'fpd_demo', 'approved', {
+    const approvedSnapshot = await (service as any).getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'approved', {
       actorRole: 'client',
       clientName: 'Ana Reyes',
     });
@@ -1682,8 +1682,8 @@ describe('EventOpsService', () => {
   it('blocks client actors from creating PMCM official floorplan drafts', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1699,7 +1699,7 @@ describe('EventOpsService', () => {
 
     await expect(
       (service as any).createFloorPlanDraft(
-        'evt_demo',
+        'evt_sample',
         { name: 'Client official attempt', sourceType: 'blank' },
         { actorRole: 'client', clientName: 'Ana Reyes', actorEmail: 'ana@ayala.test' },
       ),
@@ -1759,7 +1759,7 @@ describe('EventOpsService', () => {
     expect(fake.state.inquiry.portalInvitationOpenedAt).toBeTruthy();
   });
 
-  it('accepts hashed demo passwords and keeps approval and login history behavior', async () => {
+  it('accepts hashed sample passwords and keeps approval and login history behavior', async () => {
     const fake = createPrisma();
     fake.state.users[0].password = AuthSecurityService.hashPassword('prism-client', 'phase8_test_salt');
     const service = new EventOpsService(fake.prisma as any);
@@ -1771,7 +1771,7 @@ describe('EventOpsService', () => {
     expect(fake.state.loginHistory.some((entry) => entry.status === 'success')).toBe(true);
   });
 
-  it('upgrades legacy plain-text demo passwords after a successful login', async () => {
+  it('upgrades legacy plain-text sample passwords after a successful login', async () => {
     const fake = createPrisma();
     expect(fake.state.users[0].password).toBe('prism-client');
     const service = new EventOpsService(fake.prisma as any);
@@ -1830,7 +1830,7 @@ describe('EventOpsService', () => {
     const suppliers = await (service as any).listSuppliers(actor);
 
     expect(inquiries).toHaveLength(1);
-    expect(inquiries[0].id).toBe('inq_demo');
+    expect(inquiries[0].id).toBe('inq_sample');
     expect(suppliers).toHaveLength(2);
   });
 
@@ -1839,7 +1839,7 @@ describe('EventOpsService', () => {
     fake.state.events.push(
       {
         id: 'evt_ana',
-        inquiryId: 'inq_demo',
+        inquiryId: 'inq_sample',
         clientName: 'Ana Reyes',
         eventName: 'Ayala Summit',
         eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -1942,7 +1942,7 @@ describe('EventOpsService', () => {
     fake.state.events.push(
       {
         id: 'evt_ana',
-        inquiryId: 'inq_demo',
+        inquiryId: 'inq_sample',
         clientName: 'Ana Reyes',
         eventName: 'Ayala Summit',
         eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2033,8 +2033,8 @@ describe('EventOpsService', () => {
   it('generates compliance checks from active matching rules and ignores inactive or unmatched rules', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2102,7 +2102,7 @@ describe('EventOpsService', () => {
     );
     const service = new EventOpsService(fake.prisma as any);
 
-    const checks = await (service as any).runCompliance('evt_demo', { phase: 'planning' });
+    const checks = await (service as any).runCompliance('evt_sample', { phase: 'planning' });
 
     expect(checks.map((check: any) => check.title)).toEqual(['Supplier contracts ready', 'Ingress timing ready']);
     expect(checks[0]).toMatchObject({
@@ -2117,8 +2117,8 @@ describe('EventOpsService', () => {
   it('requires an override reason before overriding a compliance check', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2132,7 +2132,7 @@ describe('EventOpsService', () => {
     });
     fake.state.complianceChecks.push({
       id: 'chk_contract',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       ruleId: 'rule_contract',
       layer: 'Must-Fix',
       severity: 'must_fix',
@@ -2146,10 +2146,10 @@ describe('EventOpsService', () => {
     const service = new EventOpsService(fake.prisma as any);
 
     await expect(
-      (service as any).resolveCompliance('evt_demo', 'chk_contract', { action: 'override' }),
+      (service as any).resolveCompliance('evt_sample', 'chk_contract', { action: 'override' }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    const check = await (service as any).resolveCompliance('evt_demo', 'chk_contract', {
+    const check = await (service as any).resolveCompliance('evt_sample', 'chk_contract', {
       action: 'override',
       overrideReason: 'Venue contract arrives on event morning; PMCM accepted the risk.',
       actorName: 'Ms. Mys',
@@ -2163,8 +2163,8 @@ describe('EventOpsService', () => {
   it('generates billing statements only from approved CE/proposal billing sources', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2177,7 +2177,7 @@ describe('EventOpsService', () => {
       updatedAt: new Date(),
     });
     const service = new EventOpsService(fake.prisma as any);
-    const source = await (service as any).createBillingSource('evt_demo', {
+    const source = await (service as any).createBillingSource('evt_sample', {
       sourceLabel: 'Approved CE v1',
       lineItems: [
         { label: 'Program management', amount: 350000 },
@@ -2189,13 +2189,13 @@ describe('EventOpsService', () => {
       ],
     });
 
-    await expect((service as any).generateBillingStatement('evt_demo', source.id)).rejects.toBeInstanceOf(BadRequestException);
+    await expect((service as any).generateBillingStatement('evt_sample', source.id)).rejects.toBeInstanceOf(BadRequestException);
 
-    await (service as any).approveBillingSource('evt_demo', source.id, {
+    await (service as any).approveBillingSource('evt_sample', source.id, {
       approvedBy: 'Ms. Mys',
       approvalNotes: 'Client approved proposal total.',
     });
-    const statement = await (service as any).generateBillingStatement('evt_demo', source.id);
+    const statement = await (service as any).generateBillingStatement('evt_sample', source.id);
 
     expect(statement.sourceId).toBe(source.id);
     expect(statement.totalAmount).toBe(520000);
@@ -2212,8 +2212,8 @@ describe('EventOpsService', () => {
   it('blocks archive until close gates pass and allows archive once indicators are complete', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2226,8 +2226,8 @@ describe('EventOpsService', () => {
       updatedAt: new Date(),
     });
     fake.state.billings.push({
-      id: 'bill_demo',
-      eventId: 'evt_demo',
+      id: 'bill_sample',
+      eventId: 'evt_sample',
       number: 'BS-2026-0001',
       clientName: 'Ana Reyes',
       clientContact: 'ana@ayala.test',
@@ -2238,33 +2238,33 @@ describe('EventOpsService', () => {
       paymentMethods: [],
       totalAmount: 520000,
       pdfUrl: '/documents/billing.pdf',
-      storageKey: 'events/evt_demo/billing.pdf',
+      storageKey: 'events/evt_sample/billing.pdf',
       status: 'issued',
       generatedAt: new Date(),
     });
-    fake.state.milestones.push({ id: 'pay_balance', eventId: 'evt_demo', label: 'Balance', percentage: 50, amount: 260000, amountPaid: 0, remainingBalance: 260000, dueDate: new Date(), status: 'pending', createdAt: new Date() });
+    fake.state.milestones.push({ id: 'pay_balance', eventId: 'evt_sample', label: 'Balance', percentage: 50, amount: 260000, amountPaid: 0, remainingBalance: 260000, dueDate: new Date(), status: 'pending', createdAt: new Date() });
     const service = new EventOpsService(fake.prisma as any);
 
-    const blocked = await (service as any).getCloseGates('evt_demo');
+    const blocked = await (service as any).getCloseGates('evt_sample');
     expect(blocked.ready).toBe(false);
-    await expect((service as any).archiveEvent('evt_demo')).rejects.toBeInstanceOf(BadRequestException);
+    await expect((service as any).archiveEvent('evt_sample')).rejects.toBeInstanceOf(BadRequestException);
 
-    fake.state.documents.push({ id: 'doc_close', eventId: 'evt_demo', type: 'post_event_report', fileName: 'report.pdf', status: 'submitted', uploadedAt: new Date() });
-    fake.state.postEventDocuments.push({ id: 'ped_feedback', eventId: 'evt_demo', title: 'Client feedback form', status: 'submitted' });
-    fake.state.supplierReviews.push({ id: 'rev_demo', supplierId: 'sup_sonicline', eventId: 'evt_demo', rating: 5, notes: 'Excellent show calling.', reviewedBy: 'PMCM Admin', createdAt: new Date() });
+    fake.state.documents.push({ id: 'doc_close', eventId: 'evt_sample', type: 'post_event_report', fileName: 'report.pdf', status: 'submitted', uploadedAt: new Date() });
+    fake.state.postEventDocuments.push({ id: 'ped_feedback', eventId: 'evt_sample', title: 'Client feedback form', status: 'submitted' });
+    fake.state.supplierReviews.push({ id: 'rev_sample', supplierId: 'sup_sonicline', eventId: 'evt_sample', rating: 5, notes: 'Excellent show calling.', reviewedBy: 'PMCM Admin', createdAt: new Date() });
     fake.state.milestones[0] = { ...fake.state.milestones[0], status: 'paid', amountPaid: 260000, remainingBalance: 0 };
 
-    const ready = await (service as any).getCloseGates('evt_demo');
+    const ready = await (service as any).getCloseGates('evt_sample');
     expect(ready.ready).toBe(true);
-    const archived = await (service as any).archiveEvent('evt_demo');
+    const archived = await (service as any).archiveEvent('evt_sample');
     expect(archived.archived).toBe(true);
   });
 
   it('allows archive override only with a documented PMCM reason', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2278,9 +2278,9 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    await expect((service as any).archiveEvent('evt_demo', { overrideReason: '' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect((service as any).archiveEvent('evt_sample', { overrideReason: '' })).rejects.toBeInstanceOf(BadRequestException);
 
-    const archived = await (service as any).archiveEvent('evt_demo', {
+    const archived = await (service as any).archiveEvent('evt_sample', {
       overrideReason: 'Client feedback will arrive after holiday closure.',
       actorName: 'Ms. Mys',
     });
@@ -2293,8 +2293,8 @@ describe('EventOpsService', () => {
   it('generates deterministic Event Insights and keeps them PMCM-only', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2306,20 +2306,20 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    fake.state.supplierReviews.push({ id: 'rev_demo', supplierId: 'sup_sonicline', eventId: 'evt_demo', rating: 5, notes: 'Excellent show calling.', reviewedBy: 'PMCM Admin', createdAt: new Date() });
-    fake.state.complianceChecks.push({ id: 'chk_demo', eventId: 'evt_demo', layer: 'Must-Fix', severity: 'must_fix', phase: 'planning', conditionKey: 'contracts', title: 'Supplier contracts ready', status: 'resolved', note: 'Resolved.', createdAt: new Date() });
-    fake.state.billings.push({ id: 'bill_demo', eventId: 'evt_demo', number: 'BS-2026-0001', clientName: 'Ana Reyes', clientContact: 'ana@ayala.test', eventName: 'Ayala Summit', lineItems: [], paymentSchedule: [], paymentMethods: [], totalAmount: 520000, pdfUrl: '', storageKey: '', status: 'sent', generatedAt: new Date() });
-    fake.state.documents.push({ id: 'doc_demo', eventId: 'evt_demo', type: 'post_event_report', fileName: 'report.pdf', status: 'submitted', uploadedAt: new Date() });
+    fake.state.supplierReviews.push({ id: 'rev_sample', supplierId: 'sup_sonicline', eventId: 'evt_sample', rating: 5, notes: 'Excellent show calling.', reviewedBy: 'PMCM Admin', createdAt: new Date() });
+    fake.state.complianceChecks.push({ id: 'chk_sample', eventId: 'evt_sample', layer: 'Must-Fix', severity: 'must_fix', phase: 'planning', conditionKey: 'contracts', title: 'Supplier contracts ready', status: 'resolved', note: 'Resolved.', createdAt: new Date() });
+    fake.state.billings.push({ id: 'bill_sample', eventId: 'evt_sample', number: 'BS-2026-0001', clientName: 'Ana Reyes', clientContact: 'ana@ayala.test', eventName: 'Ayala Summit', lineItems: [], paymentSchedule: [], paymentMethods: [], totalAmount: 520000, pdfUrl: '', storageKey: '', status: 'sent', generatedAt: new Date() });
+    fake.state.documents.push({ id: 'doc_sample', eventId: 'evt_sample', type: 'post_event_report', fileName: 'report.pdf', status: 'submitted', uploadedAt: new Date() });
     const service = new EventOpsService(fake.prisma as any);
 
-    const insight = await (service as any).generateEventInsights('evt_demo');
+    const insight = await (service as any).generateEventInsights('evt_sample');
 
     expect(insight.summary).toContain('Ayala Summit');
     expect(insight.supplierNotes[0].notes).toContain('Excellent');
     expect(insight.financialSummary.totalBilled).toBe(520000);
 
     await expect(
-      (service as any).listEventInsights('evt_demo', { actorRole: 'client', clientName: 'Ana Reyes' }),
+      (service as any).listEventInsights('evt_sample', { actorRole: 'client', clientName: 'Ana Reyes' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -2327,8 +2327,8 @@ describe('EventOpsService', () => {
     const fake = createPrisma();
     const service = new EventOpsService(fake.prisma as any);
 
-    await (service as any).queueNotification('evt_demo', 'client@example.test', 'Balance due', 'email');
-    await (service as any).queueNotification('evt_demo', 'bad@example.test', 'Will fail', 'email', { forceFail: true });
+    await (service as any).queueNotification('evt_sample', 'client@example.test', 'Balance due', 'email');
+    await (service as any).queueNotification('evt_sample', 'bad@example.test', 'Will fail', 'email', { forceFail: true });
 
     expect(fake.state.notifications.map((item) => item.status)).toEqual(['queued', 'queued']);
 
@@ -2348,17 +2348,17 @@ describe('EventOpsService', () => {
       fileName: '../../contract final.PDF',
       mimeType: 'application/pdf',
       sizeBytes: 1024,
-    }, 'events/evt_demo/documents');
+    }, 'events/evt_sample/documents');
 
     expect(accepted.generatedFileName).toMatch(/^[a-f0-9-]+\.pdf$/);
-    expect(accepted.storageKey).toContain('events/evt_demo/documents/');
+    expect(accepted.storageKey).toContain('events/evt_sample/documents/');
 
     expect(() =>
       (service as any).validateUploadMetadata({
         fileName: 'malware.exe',
         mimeType: 'application/x-msdownload',
         sizeBytes: 1024,
-      }, 'events/evt_demo/documents'),
+      }, 'events/evt_sample/documents'),
     ).toThrow(BadRequestException);
 
     expect(() =>
@@ -2366,15 +2366,15 @@ describe('EventOpsService', () => {
         fileName: 'huge.pdf',
         mimeType: 'application/pdf',
         sizeBytes: 50 * 1024 * 1024,
-      }, 'events/evt_demo/documents'),
+      }, 'events/evt_sample/documents'),
     ).toThrow(BadRequestException);
   });
 
   it('lets only the scoped supplier confirm assignment, readiness, contract, and event-day status', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2388,7 +2388,7 @@ describe('EventOpsService', () => {
     });
     fake.state.quoteRequests.push({
       id: 'qr_sonic',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       supplierId: 'sup_sonicline',
       categoryId: 'supcat_technicals',
       supplierName: 'SonicLine Technicals',
@@ -2429,8 +2429,8 @@ describe('EventOpsService', () => {
   it('records guest name check-ins, walk-in flags, attendance counts, and moderated feedback', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Tech Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2444,22 +2444,22 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const event = await (service as any).getGuestEventByAccessCode('AYALA-TECH-DEMO');
+    const event = await (service as any).getGuestEventByAccessCode('AYALA-TECH-MPLE');
     expect(event.attendanceCount).toBe(0);
 
-    const checkIn = await (service as any).checkInGuestByAccessCode('AYALA-TECH-DEMO', {
+    const checkIn = await (service as any).checkInGuestByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
       checkInMode: 'name_search',
       privacyConsentAccepted: true,
     });
-    const walkIn = await (service as any).checkInGuestByAccessCode('AYALA-TECH-DEMO', {
+    const walkIn = await (service as any).checkInGuestByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Walk In Guest',
       checkInMode: 'walk_in',
       walkIn: true,
       verificationStatus: 'flagged',
       privacyConsentAccepted: true,
     });
-    const feedback = await (service as any).submitGuestFeedbackByAccessCode('AYALA-TECH-DEMO', {
+    const feedback = await (service as any).submitGuestFeedbackByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
       rating: 5,
       comment: 'Smooth registration.',
@@ -2471,14 +2471,14 @@ describe('EventOpsService', () => {
     expect(walkIn.walkIn).toBe(true);
     expect(feedback.moderationStatus).toBe('pending_review');
     expect(feedback.privacyConsentAccepted).toBe(true);
-    expect((await (service as any).getGuestEventByAccessCode('AYALA-TECH-DEMO')).attendanceCount).toBe(2);
+    expect((await (service as any).getGuestEventByAccessCode('AYALA-TECH-MPLE')).attendanceCount).toBe(2);
   });
 
   it('requires and persists privacy consent on public inquiry, approval, guest check-in, and guest feedback writes', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Tech Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2501,8 +2501,8 @@ describe('EventOpsService', () => {
       message: 'Planning inquiry',
     })).rejects.toBeInstanceOf(BadRequestException);
     await expect((service as any).requestApproval({ email: 'ana@ayala.test' })).rejects.toBeInstanceOf(BadRequestException);
-    await expect((service as any).checkInGuestByAccessCode('AYALA-TECH-DEMO', { guestName: 'Sofia Lim' })).rejects.toBeInstanceOf(BadRequestException);
-    await expect((service as any).submitGuestFeedbackByAccessCode('AYALA-TECH-DEMO', { guestName: 'Sofia Lim', rating: 5 })).rejects.toBeInstanceOf(BadRequestException);
+    await expect((service as any).checkInGuestByAccessCode('AYALA-TECH-MPLE', { guestName: 'Sofia Lim' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect((service as any).submitGuestFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5 })).rejects.toBeInstanceOf(BadRequestException);
 
     const inquiryRecord = await (service as any).createInquiry({
       clientName: 'Mia Cruz',
@@ -2519,11 +2519,11 @@ describe('EventOpsService', () => {
       privacyConsentAccepted: true,
       privacyNoticeVersion: '2026-05-01',
     });
-    const checkIn = await (service as any).checkInGuestByAccessCode('AYALA-TECH-DEMO', {
+    const checkIn = await (service as any).checkInGuestByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
       privacyConsentAccepted: true,
     });
-    const feedback = await (service as any).submitGuestFeedbackByAccessCode('AYALA-TECH-DEMO', {
+    const feedback = await (service as any).submitGuestFeedbackByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
       rating: 5,
       privacyConsentAccepted: true,
@@ -2540,8 +2540,8 @@ describe('EventOpsService', () => {
     const fake = createPrisma();
     const service = new EventOpsService(fake.prisma as any);
 
-    await (service as any).audit('evt_demo', 'PMCM Admin', 'First audit row', { actionType: 'create' });
-    await (service as any).audit('evt_demo', 'PMCM Admin', 'Second audit row', { actionType: 'update' });
+    await (service as any).audit('evt_sample', 'PMCM Admin', 'First audit row', { actionType: 'create' });
+    await (service as any).audit('evt_sample', 'PMCM Admin', 'Second audit row', { actionType: 'update' });
 
     const valid = await (service as any).verifyAuditIntegrity({ actorRole: 'pmcm-admin' });
     expect(valid).toMatchObject({ valid: true, checkedCount: 2, firstBrokenLogId: null });
@@ -2557,8 +2557,8 @@ describe('EventOpsService', () => {
   it('returns a PMCM-only privacy inventory without exposing it to portal actors', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Tech Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2572,7 +2572,7 @@ describe('EventOpsService', () => {
     });
     fake.state.guestCheckIns.push({
       id: 'gci_1',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       guestName: 'Sofia Lim',
       checkInMode: 'name_search',
       status: 'checked_in',
@@ -2585,7 +2585,7 @@ describe('EventOpsService', () => {
     });
     fake.state.guestFeedback.push({
       id: 'gfb_1',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       guestName: 'Sofia Lim',
       rating: 5,
       comment: 'Great',
@@ -2596,9 +2596,9 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const inventory = await (service as any).getPrivacyInventory({ eventId: 'evt_demo' }, { actorRole: 'pmcm-admin' });
+    const inventory = await (service as any).getPrivacyInventory({ eventId: 'evt_sample' }, { actorRole: 'pmcm-admin' });
 
-    expect(inventory.events[0]).toMatchObject({ eventId: 'evt_demo', eventName: 'Ayala Tech Summit' });
+    expect(inventory.events[0]).toMatchObject({ eventId: 'evt_sample', eventName: 'Ayala Tech Summit' });
     expect(inventory.events[0].surfaces.map((surface: any) => surface.surface)).toEqual(
       expect.arrayContaining(['inquiry', 'guest_check_in', 'guest_feedback']),
     );
@@ -2618,7 +2618,7 @@ describe('EventOpsService', () => {
       subjectType: 'guest',
       subjectEmail: 'sofia@example.test',
       subjectName: 'Sofia Lim',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       requestType: 'deletion',
       requestNotes: 'Guest asked to redact check-in and feedback details.',
     }, { actorRole: 'pmcm-admin', actorName: 'Ms. Mys' });
@@ -2653,8 +2653,8 @@ describe('EventOpsService', () => {
       requestedAt: new Date(),
     });
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Sofia Lim',
       eventName: 'Sofia Launch',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2668,7 +2668,7 @@ describe('EventOpsService', () => {
     });
     fake.state.guestCheckIns.push({
       id: 'gci_sofia',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       guestName: 'Sofia Lim',
       checkInMode: 'name_search',
       status: 'checked_in',
@@ -2679,7 +2679,7 @@ describe('EventOpsService', () => {
     });
     fake.state.guestFeedback.push({
       id: 'gfb_sofia',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       guestName: 'Sofia Lim',
       rating: 4,
       comment: 'Please improve signage.',
@@ -2693,7 +2693,7 @@ describe('EventOpsService', () => {
       subjectType: 'guest',
       subjectEmail: 'sofia@example.test',
       subjectName: 'Sofia Lim',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       requestType: 'deletion',
       requestNotes: 'Redact personal fields but keep event operations history.',
     }, { actorRole: 'pmcm-admin', actorName: 'Ms. Mys' });
@@ -2770,7 +2770,7 @@ describe('EventOpsService', () => {
 
     await expect((service as any).runAiGovernanceDryRun({
       featureName: 'PEIL',
-      modelVersion: 'claude-sonnet-demo',
+      modelVersion: 'claude-sonnet-sample',
       zdrConfirmed: false,
       payload: { clientName: 'Ana Reyes' },
     })).rejects.toBeInstanceOf(BadRequestException);
@@ -2778,7 +2778,7 @@ describe('EventOpsService', () => {
 
     const result = await (service as any).runAiGovernanceDryRun({
       featureName: 'PEIL',
-      modelVersion: 'claude-sonnet-demo',
+      modelVersion: 'claude-sonnet-sample',
       zdrConfirmed: true,
       payload: { clientName: 'Ana Reyes', supplierName: 'SonicLine Technicals' },
     });
@@ -2789,8 +2789,8 @@ describe('EventOpsService', () => {
   it('returns PMCM live ops and role-safe coordinator live ops without private data leakage', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2804,7 +2804,7 @@ describe('EventOpsService', () => {
     });
     fake.state.quoteRequests.push({
       id: 'qr_sonic',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       supplierId: 'sup_sonicline',
       categoryId: 'supcat_technicals',
       supplierName: 'SonicLine Technicals',
@@ -2823,7 +2823,7 @@ describe('EventOpsService', () => {
     fake.state.supplierReviews.push({
       id: 'rev_private',
       supplierId: 'sup_sonicline',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       rating: 2,
       notes: 'Private PMCM review should not leak.',
       reviewedBy: 'PMCM Admin',
@@ -2831,7 +2831,7 @@ describe('EventOpsService', () => {
     });
     fake.state.coordinatorAssignments.push({
       id: 'coord_asg_reg',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       coordinatorId: 'coord_marco',
       coordinatorName: 'Marco Santos',
       role: 'Registration Staff',
@@ -2841,7 +2841,7 @@ describe('EventOpsService', () => {
     });
     fake.state.guestCheckIns.push({
       id: 'gci_1',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       guestName: 'Sofia Lim',
       checkInMode: 'name_search',
       status: 'checked_in',
@@ -2851,12 +2851,12 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const pmcmLive = await (service as any).getEventLiveOps('evt_demo', { actorRole: 'pmcm-admin' });
+    const pmcmLive = await (service as any).getEventLiveOps('evt_sample', { actorRole: 'pmcm-admin' });
     expect(pmcmLive.guestAttendanceCount).toBe(1);
     expect(pmcmLive.supplierStatuses[0].verificationStatus).toBe('self_reported');
     expect(JSON.stringify(pmcmLive)).not.toContain('Private PMCM review should not leak.');
 
-    const coordinatorLive = await (service as any).getEventLiveOps('evt_demo', {
+    const coordinatorLive = await (service as any).getEventLiveOps('evt_sample', {
       actorRole: 'coordinator',
       actorName: 'Marco Santos',
       actorEmail: 'marco@pmcm.test',
@@ -2865,7 +2865,7 @@ describe('EventOpsService', () => {
     expect(coordinatorLive.billingStatements).toBeUndefined();
 
     await expect(
-      (service as any).getEventLiveOps('evt_demo', {
+      (service as any).getEventLiveOps('evt_sample', {
         actorRole: 'coordinator',
         actorName: 'Ina Cruz',
         actorEmail: 'ina@pmcm.test',
@@ -2876,8 +2876,8 @@ describe('EventOpsService', () => {
   it('creates event-day tasks and urgent issues with event-day logs and audit records', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2891,26 +2891,26 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const task = await (service as any).createEventDayTask('evt_demo', {
+    const task = await (service as any).createEventDayTask('evt_sample', {
       title: 'Open registration counters',
       assignedRole: 'Registration Staff',
       priority: 'high',
     });
     expect(task.status).toBe('open');
 
-    const completed = await (service as any).updateEventDayTask('evt_demo', task.id, {
+    const completed = await (service as any).updateEventDayTask('evt_sample', task.id, {
       status: 'done',
       notes: 'All counters open.',
     });
     expect(completed.completedAt).toBeTruthy();
 
-    const issue = await (service as any).createUrgentIssue('evt_demo', {
+    const issue = await (service as any).createUrgentIssue('evt_sample', {
       title: 'VIP entrance queue overflow',
       severity: 'high',
       ownerRole: 'Ingress and Egress Assistant',
       description: 'Queue exceeds holding area.',
     });
-    const resolved = await (service as any).updateUrgentIssue('evt_demo', issue.id, {
+    const resolved = await (service as any).updateUrgentIssue('evt_sample', issue.id, {
       status: 'resolved',
       resolution: 'Opened second VIP entrance lane.',
     });
@@ -2925,8 +2925,8 @@ describe('EventOpsService', () => {
   it('tracks coordinator late and absent status with reliability notes', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2940,7 +2940,7 @@ describe('EventOpsService', () => {
     });
     fake.state.coordinatorAssignments.push({
       id: 'coord_asg_reg',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       coordinatorId: 'coord_marco',
       coordinatorName: 'Marco Santos',
       role: 'Registration Staff',
@@ -2950,7 +2950,7 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const late = await (service as any).updateCoordinatorAttendance('evt_demo', 'coord_asg_reg', {
+    const late = await (service as any).updateCoordinatorAttendance('evt_sample', 'coord_asg_reg', {
       status: 'late',
       notes: 'Arrived 18 minutes after call time.',
     });
@@ -2964,8 +2964,8 @@ describe('EventOpsService', () => {
   it('shows registration coordinator role view with attendance data but no PMCM-only records', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -2979,7 +2979,7 @@ describe('EventOpsService', () => {
     });
     fake.state.coordinatorAssignments.push({
       id: 'coord_asg_reg',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       coordinatorId: 'coord_marco',
       coordinatorName: 'Marco Santos',
       role: 'Registration Staff',
@@ -2989,7 +2989,7 @@ describe('EventOpsService', () => {
     });
     fake.state.guestCheckIns.push({
       id: 'gci_1',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       guestName: 'Sofia Lim',
       checkInMode: 'name_search',
       status: 'checked_in',
@@ -2999,7 +2999,7 @@ describe('EventOpsService', () => {
     });
     fake.state.complianceChecks.push({
       id: 'chk_override',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       layer: 'Must-Fix',
       severity: 'must_fix',
       phase: 'planning',
@@ -3017,7 +3017,7 @@ describe('EventOpsService', () => {
       actorName: 'Marco Santos',
       actorEmail: 'marco@pmcm.test',
     });
-    const roleView = await (service as any).getCoordinatorRoleView('evt_demo', {
+    const roleView = await (service as any).getCoordinatorRoleView('evt_sample', {
       actorRole: 'coordinator',
       actorName: 'Marco Santos',
       actorEmail: 'marco@pmcm.test',
@@ -3034,8 +3034,8 @@ describe('EventOpsService', () => {
   it('lets PMCM verify or dispute supplier event-day status without leaking private review data', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -3049,7 +3049,7 @@ describe('EventOpsService', () => {
     });
     fake.state.quoteRequests.push({
       id: 'qr_sonic',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       supplierId: 'sup_sonicline',
       categoryId: 'supcat_technicals',
       supplierName: 'SonicLine Technicals',
@@ -3068,7 +3068,7 @@ describe('EventOpsService', () => {
     fake.state.supplierReviews.push({
       id: 'rev_private',
       supplierId: 'sup_sonicline',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       rating: 2,
       notes: 'Private setup problem note.',
       reviewedBy: 'PMCM Admin',
@@ -3076,7 +3076,7 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const verified = await (service as any).verifySupplierEventStatus('evt_demo', 'qr_sonic', {
+    const verified = await (service as any).verifySupplierEventStatus('evt_sample', 'qr_sonic', {
       verificationStatus: 'verified',
       verifiedBy: 'Marco Santos',
       notes: 'Physically checked at stage left.',
@@ -3091,8 +3091,8 @@ describe('EventOpsService', () => {
   it('computes overdue SLA status for event-day tasks and urgent issues', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -3106,7 +3106,7 @@ describe('EventOpsService', () => {
     });
     fake.state.eventDayTasks.push({
       id: 'edt_overdue',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       title: 'Open registration counters',
       assignedRole: 'Registration Staff',
       ownerName: '',
@@ -3119,7 +3119,7 @@ describe('EventOpsService', () => {
     });
     fake.state.urgentIssues.push({
       id: 'urg_overdue',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       title: 'VIP entrance queue overflow',
       description: '',
       severity: 'high',
@@ -3134,7 +3134,7 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const live = await (service as any).getEventLiveOps('evt_demo', { actorRole: 'pmcm-admin' });
+    const live = await (service as any).getEventLiveOps('evt_sample', { actorRole: 'pmcm-admin' });
 
     expect(live.tasks[0]).toMatchObject({ id: 'edt_overdue', slaStatus: 'overdue' });
     expect(live.urgentIssues[0]).toMatchObject({ id: 'urg_overdue', slaStatus: 'overdue' });
@@ -3143,8 +3143,8 @@ describe('EventOpsService', () => {
   it('escalates live-ops records with event-day logs, audit logs, and queued notifications', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -3158,7 +3158,7 @@ describe('EventOpsService', () => {
     });
     fake.state.eventDayTasks.push({
       id: 'edt_escalate',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       title: 'Open registration counters',
       assignedRole: 'Registration Staff',
       ownerName: 'Marco Santos',
@@ -3170,7 +3170,7 @@ describe('EventOpsService', () => {
     });
     fake.state.urgentIssues.push({
       id: 'urg_escalate',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       title: 'VIP entrance queue overflow',
       description: '',
       severity: 'high',
@@ -3184,12 +3184,12 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const task = await (service as any).escalateEventDayTask('evt_demo', 'edt_escalate', {
+    const task = await (service as any).escalateEventDayTask('evt_sample', 'edt_escalate', {
       escalationLevel: 'pmcm',
       notes: 'Registration has not opened by call time.',
       ownerName: 'Marco Santos',
     });
-    const issue = await (service as any).escalateUrgentIssue('evt_demo', 'urg_escalate', {
+    const issue = await (service as any).escalateUrgentIssue('evt_sample', 'urg_escalate', {
       escalationLevel: 'critical',
       notes: 'Queue is blocking VIP ingress.',
       ownerRole: 'Event Day System Operator',
@@ -3207,8 +3207,8 @@ describe('EventOpsService', () => {
   it('replaces a coordinator assignment and records reliability, audit, live-log, and queued notifications', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -3222,7 +3222,7 @@ describe('EventOpsService', () => {
     });
     fake.state.coordinatorAssignments.push({
       id: 'coord_asg_reg',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       coordinatorId: 'coord_marco',
       coordinatorName: 'Marco Santos',
       role: 'Registration Staff',
@@ -3233,7 +3233,7 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const replacement = await (service as any).replaceCoordinatorAssignment('evt_demo', 'coord_asg_reg', {
+    const replacement = await (service as any).replaceCoordinatorAssignment('evt_sample', 'coord_asg_reg', {
       replacementCoordinatorId: 'coord_ina',
       role: 'Stage Director',
       reason: 'Marco cannot reach the venue before doors open.',
@@ -3259,8 +3259,8 @@ describe('EventOpsService', () => {
   it('returns role-safe status feeds and rejects non-live-ops actors', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -3274,7 +3274,7 @@ describe('EventOpsService', () => {
     });
     fake.state.coordinatorAssignments.push({
       id: 'coord_asg_reg',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       coordinatorId: 'coord_marco',
       coordinatorName: 'Marco Santos',
       role: 'Registration Staff',
@@ -3284,7 +3284,7 @@ describe('EventOpsService', () => {
     });
     fake.state.guestCheckIns.push({
       id: 'gci_1',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       guestName: 'Sofia Lim',
       checkInMode: 'walk_in',
       status: 'checked_in',
@@ -3294,7 +3294,7 @@ describe('EventOpsService', () => {
     });
     fake.state.complianceChecks.push({
       id: 'chk_override',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       title: 'Supplier contracts',
       status: 'overridden',
       overrideReason: 'Private PMCM override reason',
@@ -3303,7 +3303,7 @@ describe('EventOpsService', () => {
     fake.state.supplierReviews.push({
       id: 'rev_private',
       supplierId: 'sup_sonicline',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       rating: 2,
       notes: 'Private review note',
       reviewedBy: 'PMCM Admin',
@@ -3311,7 +3311,7 @@ describe('EventOpsService', () => {
     });
     fake.state.auditLogs.push({
       id: 'aud_private',
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       actor: 'PMCM Admin',
       action: 'Private audit',
       actionType: 'update',
@@ -3320,7 +3320,7 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const feed = await (service as any).getEventDayStatusFeed('evt_demo', {
+    const feed = await (service as any).getEventDayStatusFeed('evt_sample', {
       actorRole: 'coordinator',
       actorName: 'Marco Santos',
       actorEmail: 'marco@pmcm.test',
@@ -3333,15 +3333,15 @@ describe('EventOpsService', () => {
     expect(JSON.stringify(feed)).not.toContain('Private review note');
     expect(JSON.stringify(feed)).not.toContain('Private audit');
 
-    await expect((service as any).getEventDayStatusFeed('evt_demo', { actorRole: 'client', clientName: 'Ana Reyes' })).rejects.toBeInstanceOf(ForbiddenException);
-    await expect((service as any).escalateUrgentIssue('evt_demo', 'urg_missing', { escalationLevel: 'pmcm', notes: 'x' }, { actorRole: 'supplier' })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect((service as any).getEventDayStatusFeed('evt_sample', { actorRole: 'client', clientName: 'Ana Reyes' })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect((service as any).escalateUrgentIssue('evt_sample', 'urg_missing', { escalationLevel: 'pmcm', notes: 'x' }, { actorRole: 'supplier' })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('returns a PMCM-only defense readiness checklist without expanding demo state', async () => {
+  it('returns a PMCM-only defense readiness checklist without expanding sample state', async () => {
     const fake = createPrisma();
     fake.state.events.push({
-      id: 'evt_demo',
-      inquiryId: 'inq_demo',
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -3354,21 +3354,21 @@ describe('EventOpsService', () => {
       updatedAt: new Date(),
     });
     fake.state.quoteRequests.push({
-      id: 'qr_demo',
-      eventId: 'evt_demo',
+      id: 'qr_sample',
+      eventId: 'evt_sample',
       supplierId: 'sup_sonicline',
       supplierName: 'SonicLine Technicals',
       categoryId: 'supcat_technicals',
       category: 'Technicals',
-      accessToken: 'demo-token',
+      accessToken: 'sample-token',
       status: 'sent',
       confidentialBid: true,
       message: 'Submit technicals quote.',
       createdAt: new Date(),
     });
     fake.state.guestFeedback.push({
-      id: 'gfb_demo',
-      eventId: 'evt_demo',
+      id: 'gfb_sample',
+      eventId: 'evt_sample',
       guestName: 'Sofia Lim',
       rating: 5,
       comment: 'Smooth registration.',
@@ -3377,10 +3377,10 @@ describe('EventOpsService', () => {
     });
     const service = new EventOpsService(fake.prisma as any);
 
-    const readiness = await (service as any).getDefenseReadiness('evt_demo', { actorRole: 'pmcm-admin' });
+    const readiness = await (service as any).getDefenseReadiness('evt_sample', { actorRole: 'pmcm-admin' });
 
     expect(readiness).toMatchObject({
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       overallStatus: 'blocked',
       lifecycleStage: 'briefing',
       liveAiBlocked: true,
@@ -3396,7 +3396,7 @@ describe('EventOpsService', () => {
     });
 
     await expect(
-      (service as any).getDefenseReadiness('evt_demo', { actorRole: 'client', clientName: 'Ana Reyes' }),
+      (service as any).getDefenseReadiness('evt_sample', { actorRole: 'client', clientName: 'Ana Reyes' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

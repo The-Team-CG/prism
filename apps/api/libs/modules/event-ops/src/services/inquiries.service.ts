@@ -28,7 +28,7 @@ export type UpdateInquiryStatusInput = {
   declineReason?: string;
 };
 
-export type DemoActorInput = {
+export type SampleActorInput = {
   actorRole?: string;
   role?: string;
   actorName?: string;
@@ -89,7 +89,7 @@ export class InquiriesService {
     return this.createInquiryRecord(input, false);
   }
 
-  async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: DemoActorInput = {}) {
+  async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: SampleActorInput = {}) {
     const role = actorInput.actorRole ?? actorInput.role ?? OpsUserRole.Unknown;
     if (role !== OpsUserRole.PmcmAdmin && role !== OpsUserRole.System) {
       throw new ForbiddenException('Only PMCM can log inquiries on behalf of clients');

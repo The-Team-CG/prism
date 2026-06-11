@@ -1,4 +1,4 @@
-import type { PrismDemoState, PrismEvent, PrismInquiry } from "@prism/types";
+import type { PrismSampleState, PrismEvent, PrismInquiry } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
 export interface EventOpsActorQuery {
@@ -41,10 +41,10 @@ function actorPath(path: string, actor: EventOpsActorQuery = {}): string {
 }
 
 export interface EventOpsClient {
-  demo: {
-    state(): Promise<PrismDemoState>;
-    reset(): Promise<PrismDemoState>;
-    seed(): Promise<PrismDemoState>;
+  sample: {
+    state(): Promise<PrismSampleState>;
+    reset(): Promise<PrismSampleState>;
+    seed(): Promise<PrismSampleState>;
   };
   inquiries: {
     list(actor?: EventOpsActorQuery): Promise<PrismInquiry[]>;
@@ -58,10 +58,10 @@ export interface EventOpsClient {
 
 export function createEventOpsClient(options: EventOpsClientOptions = {}): EventOpsClient {
   return {
-    demo: {
-      state: () => prismRequest<PrismDemoState>("/demo/state", withBase(options)),
-      reset: () => prismRequest<PrismDemoState>("/demo/reset", withBase(options, { method: "POST" })),
-      seed: () => prismRequest<PrismDemoState>("/demo/seed", withBase(options, { method: "POST" })),
+    sample: {
+      state: () => prismRequest<PrismSampleState>("/sample/state", withBase(options)),
+      reset: () => prismRequest<PrismSampleState>("/sample/reset", withBase(options, { method: "POST" })),
+      seed: () => prismRequest<PrismSampleState>("/sample/seed", withBase(options, { method: "POST" })),
     },
     inquiries: {
       list: (actor = {}) => prismRequest<PrismInquiry[]>(actorPath("/inquiries", actor), withBase(options)),

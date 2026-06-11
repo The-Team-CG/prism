@@ -1,8 +1,8 @@
-# P.R.I.S.M Defense Demo Runbook
+# P.R.I.S.M Defense Sample Runbook
 
 Last updated: 2026-05-02
 
-This runbook is the local-only May 9, 2026 defense path. It should be used with the active Turborepo workspace and the seeded demo data. It is not the full V4 roadmap and does not require SendGrid, Viber, OAuth, QR scanning, file storage, Canva, Zoom, external auth, ticketing, or live AI.
+This runbook is the local-only May 9, 2026 defense path. It should be used with the active Turborepo workspace and the seeded sample data. It is not the full V4 roadmap and does not require SendGrid, Viber, OAuth, QR scanning, file storage, Canva, Zoom, external auth, ticketing, or live AI.
 
 ## Start And Reset
 
@@ -14,9 +14,9 @@ This runbook is the local-only May 9, 2026 defense path. It should be used with 
    - Supplier portal: `http://localhost:3002`
    - Guest portal: `http://localhost:3003`
    - API health: `http://localhost:4000/health`
-3. Use the PMCM command app reset action only when the demo needs a fresh seeded lifecycle.
+3. Use the PMCM command app reset action only when the sample needs a fresh seeded lifecycle.
 
-## Demo Accounts
+## Sample Accounts
 
 | Role | URL | Account |
 | --- | --- | --- |

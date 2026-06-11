@@ -451,7 +451,7 @@ async function main() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   5 events seeded:
-    • Reyes Grand Wedding       (45 days)  ← PARE demo event
+    • Reyes Grand Wedding       (45 days)  ← PARE sample event
     • Santos 18th Debut         (60 days)
     • Cruz Corp Annual Gala     (30 days)
     • Lim Silver Anniversary    (90 days)

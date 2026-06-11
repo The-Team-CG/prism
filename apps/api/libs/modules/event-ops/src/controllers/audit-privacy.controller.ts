@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -65,12 +65,12 @@ export class OpsAuditController {
   }
 
   @Get('alerts')
-  listAlerts(@Query() actor: DemoActorDto) {
+  listAlerts(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listSecurityAlerts(actor);
   }
 
   @Get('integrity')
-  integrity(@Query() actor: DemoActorDto) {
+  integrity(@Query() actor: SampleActorDto) {
     return this.eventOpsService.verifyAuditIntegrity(actor);
   }
 }
@@ -80,34 +80,34 @@ export class OpsPrivacyController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('inventory')
-  inventory(@Query() query: DemoActorDto & { eventId?: string }) {
+  inventory(@Query() query: SampleActorDto & { eventId?: string }) {
     return this.eventOpsService.getPrivacyInventory(query, query);
   }
 
   @Get('retention-policies')
-  retentionPolicies(@Query() actor: DemoActorDto) {
+  retentionPolicies(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listPrivacyRetentionPolicies(actor);
   }
 
   @Get('requests')
-  requests(@Query() query: DemoActorDto & { eventId?: string; status?: string }) {
+  requests(@Query() query: SampleActorDto & { eventId?: string; status?: string }) {
     return this.eventOpsService.listPrivacyRequests(query, query);
   }
 
   @Post('requests')
   @HttpCode(HttpStatus.CREATED)
-  createRequest(@Body() dto: CreatePrivacyRequestDto, @Query() actor: DemoActorDto) {
+  createRequest(@Body() dto: CreatePrivacyRequestDto, @Query() actor: SampleActorDto) {
     return this.eventOpsService.createPrivacyRequest(dto, actor);
   }
 
   @Patch('requests/:requestId/review')
-  reviewRequest(@Param('requestId') requestId: string, @Body() dto: ReviewPrivacyRequestDto, @Query() actor: DemoActorDto) {
+  reviewRequest(@Param('requestId') requestId: string, @Body() dto: ReviewPrivacyRequestDto, @Query() actor: SampleActorDto) {
     return this.eventOpsService.reviewPrivacyRequest(requestId, dto, actor);
   }
 
   @Post('requests/:requestId/execute')
   @HttpCode(HttpStatus.OK)
-  executeRequest(@Param('requestId') requestId: string, @Body() dto: ExecutePrivacyRequestDto, @Query() actor: DemoActorDto) {
+  executeRequest(@Param('requestId') requestId: string, @Body() dto: ExecutePrivacyRequestDto, @Query() actor: SampleActorDto) {
     return this.eventOpsService.executePrivacyRequest(requestId, dto, actor);
   }
 }

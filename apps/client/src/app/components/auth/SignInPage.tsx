@@ -14,9 +14,9 @@ type SignInState = { email: string; password: string };
 
 const initialState: SignInState = { email: "ana@ayala.test", password: "prism-client" };
 const PRIVACY_NOTICE_VERSION = "2026-05-01";
-const demoPasswords: Record<string, string> = { "ana@ayala.test": "prism-client" };
+const samplePasswords: Record<string, string> = { "ana@ayala.test": "prism-client" };
 
-const clientDemoUsers: PrismUser[] = [
+const clientSampleUsers: PrismUser[] = [
   {
     id: "usr_client",
     name: "Ana Reyes",
@@ -65,7 +65,7 @@ export function SignInPage() {
       router.replace(next?.startsWith("/") ? next : "/dashboard");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Sign in failed";
-      const user = clientDemoUsers.find(
+      const user = clientSampleUsers.find(
         (u) => u.email.toLowerCase() === form.email.trim().toLowerCase(),
       );
       if (user && user.role !== "client") setError(portalMessage(user.role));
@@ -241,17 +241,17 @@ export function SignInPage() {
                 </form>
               )}
 
-              {/* Demo accounts */}
+              {/* Sample accounts */}
               <div className="mt-6 border-t border-[#d9d9d9] pt-5">
-                <p className="mb-3 text-sm font-medium text-[#888888]">Demo accounts</p>
+                <p className="mb-3 text-sm font-medium text-[#888888]">Sample accounts</p>
                 <div className="flex flex-col gap-2">
-                  {clientDemoUsers.map((user) => (
+                  {clientSampleUsers.map((user) => (
                     <button
                       key={user.id}
                       type="button"
                       onClick={() => {
                         update("email", user.email);
-                        update("password", demoPasswords[user.email] ?? "prism-client");
+                        update("password", samplePasswords[user.email] ?? "prism-client");
                       }}
                       className="flex items-center justify-between rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-left transition hover:border-[#c01867]/40 hover:bg-white/80"
                     >

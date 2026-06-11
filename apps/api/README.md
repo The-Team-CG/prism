@@ -39,7 +39,7 @@ Health endpoint: `http://localhost:4000/health`
 - Backed by Supabase Postgres with Prisma schema + migrations.
 - Prisma datamodel is in `prisma/schema.prisma`.
 - Migration files are in `prisma/migrations`.
-- IDs are stored as `text` to support route-friendly plan IDs (for example `demo-plan`).
+- IDs are stored as `text` to support route-friendly plan IDs (for example `sample-plan`).
 - Floor plan objects are also stored in `floor_plan_objects` with `object_data` JSONB and `svg_markup` text.
 - `floor_plans.objects` is kept as a compatibility cache for existing flows.
 - Set DB URLs in `.env`:

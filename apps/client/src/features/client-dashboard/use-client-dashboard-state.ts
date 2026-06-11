@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
-import { prismApi, type PrismDemoState, type PrismUser } from "@/lib/prism-api";
+import { prismApi, type PrismSampleState, type PrismUser } from "@/lib/prism-api";
 import { dashboardHref } from "./client-dashboard.navigation";
 import type { ClientDashboardRoute, ClientPortalView } from "./client-dashboard.types";
 
 export type ClientSession = PrismUser & { signedInAt: string };
 
 const CLIENT_STATE_CACHE_MS = 30_000;
-const clientStateCache = new Map<string, { state: PrismDemoState; loadedAt: number }>();
-const clientStateRequests = new Map<string, Promise<PrismDemoState>>();
+const clientStateCache = new Map<string, { state: PrismSampleState; loadedAt: number }>();
+const clientStateRequests = new Map<string, Promise<PrismSampleState>>();
 
 function clientStateCacheKey(session: Pick<PrismUser, "email">) {
   return session.email.trim().toLowerCase();
@@ -71,7 +71,7 @@ export function useClientDashboardState({
 }) {
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
-  const [state, setState] = useState<PrismDemoState | null>(null);
+  const [state, setState] = useState<PrismSampleState | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,7 +85,7 @@ export function useClientDashboardState({
     setSession(current);
     if (current.role !== "client") return;
 
-    const applyState = (next: PrismDemoState) => {
+    const applyState = (next: PrismSampleState) => {
       if (cancelled) return;
       setState(next);
       setError(null);

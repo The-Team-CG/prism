@@ -13,14 +13,14 @@ The rule for all phases is revision first: if a feature already exists as live, 
 | Phase | Focus | Definition of done |
 | --- | --- | --- |
 | Phase 0 | Docs consolidation and cleanup | Active docs point to `docs/prism-v4`; superseded root planning files are removed; no child app source is touched. |
-| Phase 1 | API RBAC, actor context, and scoped reads | Dashboard data is protected by demo role context and new work no longer expands broad `/api/demo/state` by default. |
+| Phase 1 | API RBAC, actor context, and scoped reads | Dashboard data is protected by sample role context and new work no longer expands broad `/api/sample/state` by default. |
 | Phase 2 | Inquiry/onboarding extraction and dashboard splits | Inquiry and conforme workflows are extracted from the API facade; PMCM and client dashboard shells are smaller and workflow-owned. |
 | Phase 3 | Supplier, quote, finance, and floorplan hardening | Supplier directory, quote lifecycle, payment records, and official floorplan snapshots behave as event-owned workflows. |
 | Phase 4 | Compliance, billing source of truth, close gates, archive, and insights | Compliance rules are configurable; billing is tied to proposal/CE data; archive requires close indicators or documented override. |
 | Phase 5 | Portal hardening, notifications, file validation, and AI governance | Supplier/guest workflows are event-scoped; notifications and uploads have safe infrastructure; AI cannot ship without ZDR, sanitization, audit, and approval. |
 | Phase 6 | Event-day live operations | PMCM and assigned coordinators can run event-day tasks, urgent issues, supplier setup verification, coordinator attendance, guest attendance, and live logs from scoped APIs. |
 | Phase 7 | Live-ops reliability | Event-day work has SLA status, escalation, coordinator replacement, role-safe status feeds, and queued notification hooks without live AI, QR scanning, or production notification adapters. |
-| Phase 8 | Security, privacy, and audit readiness | Demo auth stores hashed credentials with legacy upgrade; public personal-data writes require consent; PMCM has privacy inventory and audit hash-chain verification. |
+| Phase 8 | Security, privacy, and audit readiness | Sample auth stores hashed credentials with legacy upgrade; public personal-data writes require consent; PMCM has privacy inventory and audit hash-chain verification. |
 | Phase 9 | Privacy operations and audit hardening | PMCM can manage privacy requests, see retention policies, execute soft redaction, and keep audit/event history append-only in normal workflows. |
 
 ## Phase 0 - Docs Consolidation And Cleanup
@@ -47,9 +47,9 @@ Goal: stop portal data access from depending on UI-only routing and broad state 
 
 | Area | Revision |
 | --- | --- |
-| Demo auth | Add API actor context for PMCM admin, client, supplier, coordinator, and guest flows. |
-| Role guards | Add route-level demo RBAC metadata for dashboard/event endpoints. |
-| Scoped reads | Add focused reads for inquiries, onboarding, events, suppliers, audit, billing, and guest access instead of expanding `/api/demo/state`. |
+| Sample auth | Add API actor context for PMCM admin, client, supplier, coordinator, and guest flows. |
+| Role guards | Add route-level sample RBAC metadata for dashboard/event endpoints. |
+| Scoped reads | Add focused reads for inquiries, onboarding, events, suppliers, audit, billing, and guest access instead of expanding `/api/sample/state`. |
 | Audit | Ensure restricted or denied access attempts are visible in audit/security logs where appropriate. |
 
 Verification:
@@ -78,7 +78,7 @@ Verification:
 
 ## Phase 3 - Supplier, Quote, Finance, And Floorplan Hardening
 
-Goal: make the strongest partial workflows operational instead of demo-only.
+Goal: make the strongest partial workflows operational instead of sample-only.
 
 | Area | Revision |
 | --- | --- |
@@ -167,11 +167,11 @@ Verification:
 
 ## Phase 8 - Security, Privacy, And Audit Readiness
 
-Goal: harden the demo security and privacy story before live AI, QR scanning, production notification adapters, external auth, or real file storage.
+Goal: harden the sample security and privacy story before live AI, QR scanning, production notification adapters, external auth, or real file storage.
 
 | Area | Revision |
 | --- | --- |
-| Demo auth | Move password hashing/verification helpers out of the event-ops facade; store seeded passwords as `scrypt` hashes; upgrade legacy plaintext values after successful login. |
+| Sample auth | Move password hashing/verification helpers out of the event-ops facade; store seeded passwords as `scrypt` hashes; upgrade legacy plaintext values after successful login. |
 | Privacy consent | Require persisted consent metadata on public inquiry, supplier approval request, guest check-in, and guest feedback writes. |
 | Privacy inventory | Add PMCM-only event and surface inventory for personal-data categories, counts, consent gaps, privacy notice versions, and retention notes. |
 | Audit integrity | Add PMCM-only audit hash-chain verification with first broken row reporting. |

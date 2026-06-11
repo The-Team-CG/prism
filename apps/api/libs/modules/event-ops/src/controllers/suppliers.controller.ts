@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -54,23 +54,23 @@ export class OpsSuppliersController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('categories')
-  listCategories(@Query() actor: DemoActorDto) {
+  listCategories(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listSupplierCategories(actor);
   }
 
   @Get()
-  list(@Query() actor: DemoActorDto) {
+  list(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listSuppliers(actor);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateSupplierDto, @Query() actor: DemoActorDto) {
+  create(@Body() dto: CreateSupplierDto, @Query() actor: SampleActorDto) {
     return this.eventOpsService.createSupplier(dto, actor);
   }
 
   @Patch(':supplierId')
-  update(@Param('supplierId') supplierId: string, @Body() dto: UpdateSupplierDto, @Query() actor: DemoActorDto) {
+  update(@Param('supplierId') supplierId: string, @Body() dto: UpdateSupplierDto, @Query() actor: SampleActorDto) {
     return this.eventOpsService.updateSupplier(supplierId, dto, actor);
   }
 
@@ -78,7 +78,7 @@ export class OpsSuppliersController {
   changeTier(
     @Param('supplierId') supplierId: string,
     @Body() dto: ChangeSupplierTierDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.changeSupplierTier(supplierId, dto, actor);
   }
@@ -88,7 +88,7 @@ export class OpsSuppliersController {
   addReview(
     @Param('supplierId') supplierId: string,
     @Body() dto: CreateSupplierReviewDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.addSupplierReview(supplierId, dto, actor);
   }
@@ -98,7 +98,7 @@ export class OpsSuppliersController {
   addCertification(
     @Param('supplierId') supplierId: string,
     @Body() dto: CreateSupplierCertificationDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.addSupplierCertification(supplierId, dto, actor);
   }

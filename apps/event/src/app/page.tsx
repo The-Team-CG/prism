@@ -30,14 +30,14 @@ import {
 } from "lucide-react";
 import {
   prismApi,
-  type DemoRole,
+  type SampleRole,
   type PrismAuditLog,
   type PrismApprovalRequest,
   type PrismCoordinator,
   type PrismCoordinatorAssignment,
   type PrismCoordinatorRoleRequirement,
   type PrismCoordinatorWorkspace,
-  type PrismDemoState,
+  type PrismSampleState,
   type PrismDefenseReadiness,
   type PrismEvent,
   type PrismEventDayStatusFeed,
@@ -668,7 +668,7 @@ function PmcmPortal({
   onSignOut,
 }: {
   session: EventSession;
-  state: PrismDemoState;
+  state: PrismSampleState;
   onRefresh: () => Promise<void>;
   onOpenEditor: (event: PrismEvent, draft: PrismFloorPlanDraft) => Promise<void>;
   onSignOut: () => void;
@@ -1362,7 +1362,7 @@ function PmcmPortal({
                     ))}
                   </div>
                 ) : (
-                  <EmptyState icon={FileCheck2} title="No briefing submitted yet" description="Use the quick action above to submit a demo briefing for this event." />
+                  <EmptyState icon={FileCheck2} title="No briefing submitted yet" description="Use the quick action above to submit a sample briefing for this event." />
                 )}
               </Panel>
             )}
@@ -1533,7 +1533,7 @@ function PmcmPortal({
 export default function EventCommandHome() {
   const router = useRouter();
   const [session, setSession] = useState<EventSession | null>(null);
-  const [state, setState] = useState<PrismDemoState | null>(null);
+  const [state, setState] = useState<PrismSampleState | null>(null);
   const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
   const [error, setError] = useState<string | null>(null);

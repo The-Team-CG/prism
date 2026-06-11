@@ -3,7 +3,7 @@ import { PAREService } from './pare.service';
 
 function createParePrisma() {
   const event = {
-    id: 'evt_demo',
+    id: 'evt_sample',
     clientName: 'Ana Reyes',
     eventName: 'Ayala Summit',
     eventDate: new Date('2026-06-18T00:00:00.000Z'),
@@ -129,15 +129,15 @@ describe('PAREService', () => {
     const service = new PAREService(prisma);
 
     await service.handleEmergencyTrigger(quoteRequest.id);
-    const pending = await service.getPendingApprovals('evt_demo');
+    const pending = await service.getPendingApprovals('evt_sample');
 
     expect(pending).toHaveLength(1);
     expect(pending[0]).toMatchObject({
-      eventId: 'evt_demo',
+      eventId: 'evt_sample',
       requestId: quoteRequest.id,
       status: 'pending',
       pareResult: {
-        eventId: 'evt_demo',
+        eventId: 'evt_sample',
         withdrawnSupplier: {
           id: 'sup_sonicline',
           name: 'SonicLine Technicals',

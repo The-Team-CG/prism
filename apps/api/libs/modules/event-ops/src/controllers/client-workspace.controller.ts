@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -54,7 +54,7 @@ export class OpsOnboardingController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get()
-  list(@Query() actor: DemoActorDto) {
+  list(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listOnboarding(actor);
   }
 }
@@ -64,7 +64,7 @@ export class OpsClientController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('workspace')
-  workspace(@Query() actor: DemoActorDto) {
+  workspace(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listClientWorkspace(actor);
   }
 }

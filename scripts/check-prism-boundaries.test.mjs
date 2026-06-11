@@ -7,7 +7,7 @@ describe("findBoundaryViolations", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { Button } from "@prism/ui";',
       "apps/event/src/app/page.tsx": 'import type { PrismEvent } from "@prism/types";',
-      "packages/api-client/src/index.ts": 'import type { PrismDemoState } from "@prism/types";',
+      "packages/api-client/src/index.ts": 'import type { PrismSampleState } from "@prism/types";',
     });
 
     assert.deepEqual(violations, []);

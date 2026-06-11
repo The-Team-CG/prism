@@ -59,7 +59,7 @@ function portalBadgeStatus(status: PrismEvent["clientPortalStatus"]) {
 }
 
 export function clientActivityTitle(action: string) {
-  if (/created demo event workspace/i.test(action)) return "Opened event workspace";
+  if (/created sample event workspace/i.test(action)) return "Opened event workspace";
   return action
     .replaceAll("_", " ")
     .replace(/\bPMCM Admin\b/gi, "Event team")

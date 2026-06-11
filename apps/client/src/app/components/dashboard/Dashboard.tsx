@@ -32,7 +32,7 @@ import {
   type CreatePrismInquiryInput,
   type PrismBillingStatement,
   type PrismBriefing,
-  type PrismDemoState,
+  type PrismSampleState,
   type PrismDocument,
   type PrismEvent,
   type PrismFloorPlanDraft,
@@ -430,7 +430,7 @@ function greetingByTime(name: string) {
   return `${greeting}, ${firstName}.`;
 }
 
-function eventProgressDots(ev: PrismEvent, state: PrismDemoState) {
+function eventProgressDots(ev: PrismEvent, state: PrismSampleState) {
   const drafts = state.floorPlanDrafts.filter((d) => d.eventId === ev.id);
   const billing = state.billingStatements.find((b) => b.eventId === ev.id);
   const docs = state.documents.filter((d) => d.eventId === ev.id);

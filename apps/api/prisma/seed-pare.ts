@@ -71,7 +71,7 @@ async function seedCategories() {
 
 // ─── SUPPLIERS ────────────────────────────────────────────────────────────────
 // 25 suppliers across 8 categories. Supplier[0] (Tier 1 Catering) is the one
-// that will go "unavailable" to trigger PARE in the demo.
+// that will go "unavailable" to trigger PARE in the sample.
 
 const SUPPLIER_IDS = Array.from({ length: 25 }, () => randomUUID());
 
@@ -471,7 +471,7 @@ async function seedUser() {
       id: PMCM_ADMIN_ID,
       name: 'Ms. Mys',
       email: 'admin@pmcm.ph',
-      password: 'pmcm2024!',  // demo only — not production
+      password: 'pmcm2024!',  // sample only — not production
       role: 'pmcm_admin',
       organization: 'PMCM Events',
       approvalStatus: 'approved',

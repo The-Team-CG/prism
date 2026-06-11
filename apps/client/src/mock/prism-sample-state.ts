@@ -1,6 +1,6 @@
-import type { PrismDemoState } from "@/lib/prism-api";
+import type { PrismSampleState } from "@/lib/prism-api";
 
-export function createInitialPrismDemoState(createdAt = new Date().toISOString()): PrismDemoState {
+export function createInitialPrismSampleState(createdAt = new Date().toISOString()): PrismSampleState {
   return {
     users: [
       { id: "usr_pmcm", name: "Ms. Mys", role: "pmcm-admin", email: "mys@pmcm.test", organization: "PMCM Events", approvalStatus: "approved" },
@@ -10,7 +10,7 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
     ],
     inquiries: [
       {
-        id: "inq_demo_ayala",
+        id: "inq_sample_ayala",
         clientName: "Ana Reyes",
         companyName: "Ayala Corp",
         email: "ana@ayala.test",
@@ -26,8 +26,8 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
     ],
     events: [
       {
-        id: "evt_demo_ayala",
-        inquiryId: "inq_demo_ayala",
+        id: "evt_sample_ayala",
+        inquiryId: "inq_sample_ayala",
         clientName: "Ana Reyes",
         eventName: "Ayala Tech Summit 2026",
         eventDate: "2026-06-18",
@@ -36,15 +36,15 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
         readiness: "Official layout awaiting client review",
         archived: false,
         floorPlanStatus: "in_review",
-        floorPlanId: "plan_demo_ayala_main",
-        activeFloorPlanDraftId: "fpd_demo_review",
+        floorPlanId: "plan_sample_ayala_main",
+        activeFloorPlanDraftId: "fpd_sample_review",
       },
     ],
     floorPlanDrafts: [
       {
-        id: "fpd_demo_review",
-        eventId: "evt_demo_ayala",
-        floorPlanId: "plan_demo_ayala_main",
+        id: "fpd_sample_review",
+        eventId: "evt_sample_ayala",
+        floorPlanId: "plan_sample_ayala_main",
         name: "Ayala Tech Summit official layout",
         status: "in_review",
         isActive: true,
@@ -58,7 +58,7 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
     documents: [
       {
         id: "doc_signed_conforme",
-        eventId: "evt_demo_ayala",
+        eventId: "evt_sample_ayala",
         type: "signed_conforme",
         fileName: "signed-conforme-ayala-tech-summit.pdf",
         status: "approved",
@@ -66,7 +66,7 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
       },
       {
         id: "doc_company_logo",
-        eventId: "evt_demo_ayala",
+        eventId: "evt_sample_ayala",
         type: "client_asset",
         fileName: "ayala-brand-kit.zip",
         status: "received",
@@ -74,7 +74,7 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
       },
       {
         id: "doc_speaker_files",
-        eventId: "evt_demo_ayala",
+        eventId: "evt_sample_ayala",
         type: "speaker_files",
         fileName: "speaker-deck-placeholders.pdf",
         status: "needs_update",
@@ -83,7 +83,7 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
     ],
     briefings: [
       {
-        eventId: "evt_demo_ayala",
+        eventId: "evt_sample_ayala",
         venue: "Shangri-La Grand Ballroom",
         guestCount: 240,
         budgetRange: "PHP 450,000 - 520,000",
@@ -102,8 +102,8 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
     billingSources: [],
     billingStatements: [
       {
-        id: "bill_demo_ayala",
-        eventId: "evt_demo_ayala",
+        id: "bill_sample_ayala",
+        eventId: "evt_sample_ayala",
         number: "BS-0001",
         clientName: "Ana Reyes",
         clientContact: "ana@ayala.test",
@@ -114,18 +114,18 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
           { label: "Reservation fee", percentage: 30, amount: 156000, dueDate: "2026-05-10" },
           { label: "Final balance", percentage: 70, amount: 364000, dueDate: "2026-06-10" },
         ],
-        paymentMethods: [{ label: "Bank Transfer", details: "PMCM demo account" }],
+        paymentMethods: [{ label: "Bank Transfer", details: "PMCM sample account" }],
         totalAmount: 520000,
         pdfUrl: "#",
-        storageKey: "billing/evt_demo_ayala.pdf",
+        storageKey: "billing/evt_sample_ayala.pdf",
         status: "issued",
         generatedAt: createdAt,
       },
     ],
     paymentMilestones: [
       {
-        id: "pay_demo_reservation",
-        eventId: "evt_demo_ayala",
+        id: "pay_sample_reservation",
+        eventId: "evt_sample_ayala",
         label: "Reservation fee",
         percentage: 30,
         amount: 156000,
@@ -136,8 +136,8 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
         history: [],
       },
       {
-        id: "pay_demo_balance",
-        eventId: "evt_demo_ayala",
+        id: "pay_sample_balance",
+        eventId: "evt_sample_ayala",
         label: "Final balance",
         percentage: 70,
         amount: 364000,
@@ -150,20 +150,20 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
     ],
     paymentRecords: [],
     postEventDocuments: [
-      { id: "ped_completion", eventId: "evt_demo_ayala", title: "Completion report", status: "pending" },
-      { id: "ped_gallery", eventId: "evt_demo_ayala", title: "Photo and video turnover", status: "pending" },
+      { id: "ped_completion", eventId: "evt_sample_ayala", title: "Completion report", status: "pending" },
+      { id: "ped_gallery", eventId: "evt_sample_ayala", title: "Photo and video turnover", status: "pending" },
     ],
     eventInsights: [],
     auditLogs: [
       {
         id: "aud_seed",
-        eventId: "evt_demo_ayala",
+        eventId: "evt_sample_ayala",
         actor: "PMCM Admin",
         actorRole: "pmcm-admin",
-        action: "Created demo event workspace",
-        actionType: "demo_seed",
+        action: "Created sample event workspace",
+        actionType: "sample_seed",
         category: "client_portal",
-        ipAddress: "local-demo",
+        ipAddress: "local-sample",
         device: "browser",
         severity: "info",
         immutableHash: "local_seed_hash",
@@ -175,7 +175,7 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
     notificationLogs: [
       {
         id: "notif_layout_review",
-        eventId: "evt_demo_ayala",
+        eventId: "evt_sample_ayala",
         channel: "email",
         recipient: "ana@ayala.test",
         message: "Official layout is ready for client review",
@@ -184,7 +184,7 @@ export function createInitialPrismDemoState(createdAt = new Date().toISOString()
       },
       {
         id: "notif_payment_reminder",
-        eventId: "evt_demo_ayala",
+        eventId: "evt_sample_ayala",
         channel: "viber",
         recipient: "Ana Reyes",
         message: "Final balance reminder scheduled before event day",

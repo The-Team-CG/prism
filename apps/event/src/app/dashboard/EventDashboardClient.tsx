@@ -47,7 +47,7 @@ import {
   type PrismComplianceCheck,
   type PrismCoordinatorWorkspace,
   type PrismDefenseReadiness,
-  type PrismDemoState,
+  type PrismSampleState,
   type PrismDocument,
   type PrismEvent,
   type PrismEventDayStatusFeed,
@@ -149,8 +149,8 @@ type EventCommandData = {
 const EVENT_DASHBOARD_CACHE_MS = 30_000;
 const EVENT_WORKSPACE_CACHE_MS = 20_000;
 
-let pmcmStateCache: TimedCache<PrismDemoState> | null = null;
-let pmcmStateRequest: Promise<PrismDemoState> | null = null;
+let pmcmStateCache: TimedCache<PrismSampleState> | null = null;
+let pmcmStateRequest: Promise<PrismSampleState> | null = null;
 let approvalRequestsCache: TimedCache<PrismApprovalRequest[]> | null = null;
 let approvalRequestsRequest: Promise<PrismApprovalRequest[]> | null = null;
 const coordinatorWorkspaceCache = new Map<string, TimedCache<PrismCoordinatorWorkspace>>();
@@ -1620,10 +1620,10 @@ function EventQueueCard({
           <button
             type="button"
             onClick={onReset}
-            title="Reset demo data"
+            title="Reset sample data"
             className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-(--prism-signal)/30 hover:text-foreground"
           >
-            <RotateCcw className="size-3" /> Reset demo
+            <RotateCcw className="size-3" /> Reset sample
           </button>
         </div>
       </CardHeader>
@@ -1677,7 +1677,7 @@ function CommandHomePage({
   onReset,
 }: {
   session: EventSession;
-  state: PrismDemoState;
+  state: PrismSampleState;
   events: PrismEvent[];
   selectedEvent?: PrismEvent;
   unreviewedInquiries: number;
@@ -1833,7 +1833,7 @@ export default function EventDashboard({
   }, [initialClientId, initialEventId, initialSection, initialTab, initialView, pathname]);
 
   const [session, setSession] = useState<EventSession | null>(null);
-  const [state, setState] = useState<PrismDemoState | null>(null);
+  const [state, setState] = useState<PrismSampleState | null>(null);
   const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
   const [error, setError] = useState<string | null>(null);
@@ -3115,7 +3115,7 @@ export default function EventDashboard({
                         ))}
                       </div>
                     ) : (
-                      <EmptyState icon={FileCheck2} title="No briefing submitted yet" description="Use the quick action to submit a demo briefing for this event." />
+                      <EmptyState icon={FileCheck2} title="No briefing submitted yet" description="Use the quick action to submit a sample briefing for this event." />
                     )}
                   </CardBody>
                 </Card>

@@ -2,7 +2,7 @@ import type { Project } from "@/app/components/editor/types";
 import { createEventOpsClient } from "@prism/api-client";
 
 import type {
-  DemoRole,
+  SampleRole,
   PrismApprovalRequest,
   PrismAuditExport,
   PrismAuditIntegrity,
@@ -20,7 +20,7 @@ import type {
   PrismCoordinatorWorkspace,
   PrismDefenseReadiness,
   PrismDocument,
-  PrismDemoState,
+  PrismSampleState,
   PrismEvent,
   PrismEventDayStatusFeed,
   PrismEventDayTask,
@@ -53,7 +53,7 @@ import type {
 } from "@prism/types";
 
 export type {
-  DemoRole,
+  SampleRole,
   PrismApprovalRequest,
   PrismAuditExport,
   PrismAuditIntegrity,
@@ -71,7 +71,7 @@ export type {
   PrismCoordinatorWorkspace,
   PrismDefenseReadiness,
   PrismDocument,
-  PrismDemoState,
+  PrismSampleState,
   PrismEvent,
   PrismEventDayStatusFeed,
   PrismEventDayTask,
@@ -390,9 +390,9 @@ function withCoordinatorActor(path: string, session: { name: string; email: stri
 }
 
 export const prismApi = {
-  state: () => eventOpsClient.demo.state(),
+  state: () => eventOpsClient.sample.state(),
   pmcmState: async () => {
-    const state = await eventOpsClient.demo.state();
+    const state = await eventOpsClient.sample.state();
     const [onboarding, events, suppliers, billing] = await Promise.allSettled([
       request<{ inquiries: PrismInquiry[]; documents: PrismDocument[] }>(`/api/onboarding?${pmcmActorQuery}`),
       eventOpsClient.events.list({
@@ -436,7 +436,7 @@ export const prismApi = {
       paymentRecords: billingData.paymentRecords ?? state.paymentRecords,
     };
   },
-  reset: () => eventOpsClient.demo.reset(),
+  reset: () => eventOpsClient.sample.reset(),
   login: (input: { email: string; password: string }) =>
     request<PrismUser & { signedInAt: string }>("/api/auth/login", {
       method: "POST",

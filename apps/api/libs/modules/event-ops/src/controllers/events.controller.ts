@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -54,27 +54,27 @@ export class OpsEventsController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get()
-  list(@Query() actor: DemoActorDto) {
+  list(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listEvents(actor);
   }
 
   @Get(':eventId')
-  detail(@Param('eventId') eventId: string, @Query() actor: DemoActorDto) {
+  detail(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.getEventDetail(eventId, actor);
   }
 
   @Get(':eventId/defense-readiness')
-  defenseReadiness(@Param('eventId') eventId: string, @Query() actor: DemoActorDto) {
+  defenseReadiness(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.getDefenseReadiness(eventId, actor);
   }
 
   @Get(':eventId/live-ops')
-  liveOps(@Param('eventId') eventId: string, @Query() actor: DemoActorDto) {
+  liveOps(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.getEventLiveOps(eventId, actor);
   }
 
   @Get(':eventId/event-day/status-feed')
-  statusFeed(@Param('eventId') eventId: string, @Query() actor: DemoActorDto) {
+  statusFeed(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.getEventDayStatusFeed(eventId, actor);
   }
 
@@ -83,7 +83,7 @@ export class OpsEventsController {
   createEventDayTask(
     @Param('eventId') eventId: string,
     @Body() dto: CreateEventDayTaskDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.createEventDayTask(eventId, dto, actor);
   }
@@ -93,7 +93,7 @@ export class OpsEventsController {
     @Param('eventId') eventId: string,
     @Param('taskId') taskId: string,
     @Body() dto: UpdateEventDayTaskDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.updateEventDayTask(eventId, taskId, dto, actor);
   }
@@ -104,7 +104,7 @@ export class OpsEventsController {
     @Param('eventId') eventId: string,
     @Param('taskId') taskId: string,
     @Body() dto: EscalateLiveOpsRecordDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.escalateEventDayTask(eventId, taskId, dto, actor);
   }
@@ -114,7 +114,7 @@ export class OpsEventsController {
   createUrgentIssue(
     @Param('eventId') eventId: string,
     @Body() dto: CreateUrgentIssueDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.createUrgentIssue(eventId, dto, actor);
   }
@@ -124,7 +124,7 @@ export class OpsEventsController {
     @Param('eventId') eventId: string,
     @Param('issueId') issueId: string,
     @Body() dto: UpdateUrgentIssueDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.updateUrgentIssue(eventId, issueId, dto, actor);
   }
@@ -135,7 +135,7 @@ export class OpsEventsController {
     @Param('eventId') eventId: string,
     @Param('issueId') issueId: string,
     @Body() dto: EscalateLiveOpsRecordDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.escalateUrgentIssue(eventId, issueId, dto, actor);
   }
@@ -145,7 +145,7 @@ export class OpsEventsController {
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
     @Body() dto: UpdateCoordinatorAttendanceDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.updateCoordinatorAttendance(eventId, assignmentId, dto, actor);
   }
@@ -156,7 +156,7 @@ export class OpsEventsController {
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
     @Body() dto: ReplaceCoordinatorAssignmentDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.replaceCoordinatorAssignment(eventId, assignmentId, dto, actor);
   }
@@ -166,7 +166,7 @@ export class OpsEventsController {
     @Param('eventId') eventId: string,
     @Param('requestId') requestId: string,
     @Body() dto: VerifySupplierStatusDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.verifySupplierEventStatus(eventId, requestId, dto, actor);
   }
@@ -176,7 +176,7 @@ export class OpsEventsController {
   createFloorPlanDraft(
     @Param('eventId') eventId: string,
     @Body() dto: CreateFloorPlanDraftDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.createFloorPlanDraft(eventId, dto, actor);
   }
@@ -186,7 +186,7 @@ export class OpsEventsController {
   createFloorPlanPreference(
     @Param('eventId') eventId: string,
     @Body() dto: CreateFloorPlanPreferenceDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.createFloorPlanPreference(eventId, dto, actor);
   }
@@ -196,7 +196,7 @@ export class OpsEventsController {
   submitFloorPlanDraft(
     @Param('eventId') eventId: string,
     @Param('draftId') draftId: string,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.submitFloorPlanDraft(eventId, draftId, actor);
   }
@@ -206,7 +206,7 @@ export class OpsEventsController {
   approveFloorPlanDraft(
     @Param('eventId') eventId: string,
     @Param('draftId') draftId: string,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.approveFloorPlanDraft(eventId, draftId, actor);
   }
@@ -249,7 +249,7 @@ export class OpsEventsController {
     @Param('eventId') _eventId: string,
     @Param('requestId') requestId: string,
     @Body() dto: { reason?: string } = {},
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.withdrawSupplier(requestId, dto.reason ?? 'Withdrawn by PMCM Admin', actor);
   }
@@ -352,7 +352,7 @@ export class OpsEventsController {
   }
 
   @Get(':eventId/insights')
-  eventInsights(@Param('eventId') eventId: string, @Query() actor: DemoActorDto) {
+  eventInsights(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.listEventInsights(eventId, actor);
   }
 
@@ -368,18 +368,18 @@ export class OpsComplianceController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('rules')
-  listRules(@Query() actor: DemoActorDto) {
+  listRules(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listComplianceRules(actor);
   }
 
   @Post('rules')
   @HttpCode(HttpStatus.CREATED)
-  createRule(@Body() dto: CreateComplianceRuleDto, @Query() actor: DemoActorDto) {
+  createRule(@Body() dto: CreateComplianceRuleDto, @Query() actor: SampleActorDto) {
     return this.eventOpsService.createComplianceRule(dto, actor);
   }
 
   @Patch('rules/:ruleId')
-  updateRule(@Param('ruleId') ruleId: string, @Body() dto: UpdateComplianceRuleDto, @Query() actor: DemoActorDto) {
+  updateRule(@Param('ruleId') ruleId: string, @Body() dto: UpdateComplianceRuleDto, @Query() actor: SampleActorDto) {
     return this.eventOpsService.updateComplianceRule(ruleId, dto, actor);
   }
 }

@@ -1,6 +1,6 @@
 # Client Features
 
-This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and demo preparation.
+This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and sample preparation.
 
 ## Client Features
 
@@ -26,8 +26,8 @@ Database backbone: ClientAccount, ClientEventAccess, ProposalComment, FloorPlanA
 | New-CL1 | Walk-In Policy Setting | Prism | Client sets walk-in policy during Phase 3: Allow Walk-Ins, Verify with PMCM, or No Walk-Ins Allowed. Applies to private events under 200 pax. Flag for Verification sends instant notification to Event Day System Operator and Ms. Mys. |
 | New-CL2 | Event Day Limited View | Phase 2 | High-level event status and milestone updates visible on event day. No internal task or coordinator details visible. PMCM-to-client messages trigger email and Viber notification. Toggle per event by PMCM. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-26 | Client Portal Access Gated by Signed Conforme | Prism | Live walkthrough in seeded defense data. |
 | FR-27 | Event Progress Visibility | Prism | Live walkthrough in seeded defense data. |

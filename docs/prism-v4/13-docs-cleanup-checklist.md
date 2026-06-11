@@ -27,10 +27,10 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 | `docs/prism-v4/02-system-behaviors.md` | Source-preserving behavior rules and AI-related automatic behavior notes. |
 | `docs/prism-v4/03-ai-features-and-security.md` | AI/security summary for review and defense. |
 | `docs/prism-v4/04-implementation-plan.md` | Catalog-to-build mapping, still useful for traceability. |
-| `docs/prism-v4/05-prism-defense-demo-guide.md` | Defense/demo story and fallback evidence. |
+| `docs/prism-v4/05-prism-defense-sample-guide.md` | Defense/sample story and fallback evidence. |
 | `docs/prism-v4/06-chapter-3-cross-reference.md` | Manuscript mapping. |
 | `docs/prism-v4/08-revision-phase-plan.md` | Historical revision-first roadmap. |
-| `docs/prism-v4/09-defense-demo-runbook.md` | Local defense rehearsal runbook. |
+| `docs/prism-v4/09-defense-sample-runbook.md` | Local defense rehearsal runbook. |
 | `docs/prism-v4/features/*.md` | Persona-specific source slices from the catalog. |
 | `docs/prism-v4/page-screenshots/2026-05-07/*` | Visual evidence snapshot. Keep until replaced by a newer verified screenshot set. |
 

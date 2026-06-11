@@ -1,6 +1,6 @@
 # Supplier Features
 
-This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and demo preparation.
+This file is split from the complete P.R.I.S.M Version 4 catalog for easier implementation and sample preparation.
 
 ## Supplier Features
 
@@ -24,8 +24,8 @@ Database backbone: Supplier, SupplierProfile, QuoteSubmission, AssignmentConfirm
 | New-SUP4 | Supplier Application Status Tracking | Phase 2 | After submitting application, prospective supplier receives confirmation email and can check status through a simple status page: Under Review, Proposal Requested, Meeting Scheduled, Approved, or Declined. |
 | FR-AI-04b | PARE — Supplier Replacement Recommendation (Supplier-Facing Output) | Agentic | When PARE identifies a replacement supplier, that supplier receives a formal assignment notification (drafted by PARE Agent 5) which PMCM Admin has reviewed and approved before sending. Supplier sees standard assignment notification and confirms through their portal as normal. 🔒 AI Security: No raw AI outputs are shown to suppliers. All supplier-facing communications are reviewed and approved by PMCM Admin before sending. Supplier data used by PARE is anonymized before API calls. |
 
-### Demo Focus
-| FR # | Feature | Scope | Demo focus |
+### Sample Focus
+| FR # | Feature | Scope | Sample focus |
 | --- | --- | --- | --- |
 | FR-35 | Supplier Profile with Category Tagging and Tier Designation | Prism | Live walkthrough in seeded defense data. |
 | FR-36 | Quote Submission | Prism | Live walkthrough in seeded defense data. |

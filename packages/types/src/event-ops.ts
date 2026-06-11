@@ -3,12 +3,12 @@ export interface PrismProjectLike {
   guests: unknown[];
   suppliers: unknown[];
 }
-export type DemoRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
+export type SampleRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
 
 export interface PrismUser {
   id: string;
   name: string;
-  role: DemoRole;
+  role: SampleRole;
   email: string;
   organization: string;
   approvalStatus: "approved" | "pending" | string;
@@ -89,7 +89,7 @@ export interface PrismFloorPlanDraft {
   status: "client_submitted" | "pmcm_draft" | "in_review" | "approved" | string;
   isActive: boolean;
   sourceType: "client_preference" | "blank" | "template" | string;
-  createdByRole?: DemoRole | string;
+  createdByRole?: SampleRole | string;
   clientPreference?: PrismFloorPlanPreference;
   submittedSnapshot?: PrismFloorPlanSnapshot;
   approvedSnapshot?: PrismFloorPlanSnapshot;
@@ -721,7 +721,7 @@ export interface PrismApprovalRequest {
   requestedAt: string;
 }
 
-export interface PrismDemoState {
+export interface PrismSampleState {
   users: PrismUser[];
   inquiries: PrismInquiry[];
   events: PrismEvent[];

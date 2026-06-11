@@ -209,7 +209,7 @@ export class AuditService {
         status,
         failureReason: failureReason ?? null,
         ipAddress: '192.168.1.5',
-        device: 'Local demo browser',
+        device: 'Local sample browser',
       },
     });
   }
@@ -372,7 +372,7 @@ export class AuditService {
       affectedLabel: input.affectedLabel ?? null,
       metadata: input.metadata ?? {},
       ipAddress: input.ipAddress ?? '192.168.1.5',
-      device: input.device ?? 'Local demo browser',
+      device: input.device ?? 'Local sample browser',
       severity: input.severity ?? 'info',
       previousHash: input.previousHash ?? null,
       createdAt: createdAt.toISOString(),

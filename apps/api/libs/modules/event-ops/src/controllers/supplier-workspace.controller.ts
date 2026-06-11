@@ -17,7 +17,7 @@ import {
   CreateSupplierReviewDto,
   CreateUrgentIssueDto,
   CreatePrivacyRequestDto,
-  DemoActorDto,
+  SampleActorDto,
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
@@ -54,12 +54,12 @@ export class OpsSupplierWorkspaceController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('workspace')
-  workspace(@Query() actor: DemoActorDto) {
+  workspace(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listSupplierWorkspace(actor);
   }
 
   @Patch('quote-requests/:requestId/assignment/confirm')
-  confirmAssignment(@Param('requestId') requestId: string, @Query() actor: DemoActorDto) {
+  confirmAssignment(@Param('requestId') requestId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.confirmSupplierAssignment(requestId, actor);
   }
 
@@ -67,7 +67,7 @@ export class OpsSupplierWorkspaceController {
   confirmReadiness(
     @Param('requestId') requestId: string,
     @Body() dto: SupplierReadinessDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.confirmSupplierReadiness(requestId, dto, actor);
   }
@@ -77,7 +77,7 @@ export class OpsSupplierWorkspaceController {
   uploadContract(
     @Param('requestId') requestId: string,
     @Body() dto: SupplierContractUploadDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.uploadSupplierContract(requestId, dto, actor);
   }
@@ -86,7 +86,7 @@ export class OpsSupplierWorkspaceController {
   updateEventStatus(
     @Param('requestId') requestId: string,
     @Body() dto: SupplierEventStatusDto,
-    @Query() actor: DemoActorDto,
+    @Query() actor: SampleActorDto,
   ) {
     return this.eventOpsService.updateSupplierEventStatus(requestId, dto, actor);
   }

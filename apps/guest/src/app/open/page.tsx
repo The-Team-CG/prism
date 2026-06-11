@@ -198,7 +198,7 @@ export default function GuestOpenWithCode() {
             </div>
 
             <p id="privacy-notice" className="flex items-center gap-2 text-xs leading-5 text-muted-foreground">
-              <QrCode className="size-4 text-(--prism-amber)" /> Demo event code: AYALA-TECH-YALA
+              <QrCode className="size-4 text-(--prism-amber)" /> Sample event code: AYALA-TECH-YALA
             </p>
           </form>
         </section>

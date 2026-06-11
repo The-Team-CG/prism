@@ -74,7 +74,7 @@ Severity scale:
 | Surface | Routes | Severity | Redesign direction | Must preserve |
 | --- | --- | --- | --- | --- |
 | Guest landing | `/` | S0/S1 | Keep lightweight. Route users to code entry. | No account-heavy flow. |
-| Guest sign-in | `/sign-in` | S1 | Keep fallback only if needed by seeded/demo access. | No broad event browsing. |
+| Guest sign-in | `/sign-in` | S1 | Keep fallback only if needed by seeded/sample access. | No broad event browsing. |
 | Open code | `/open` | S1 | Make event code entry and consent clear. | Event-code scoped access. |
 | Guest dashboard | `/dashboard` | S1/Gate | Check-in, event info, feedback. Gate QR/media upload. | Consent required; no cross-event data. |
 

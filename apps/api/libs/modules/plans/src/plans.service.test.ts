@@ -11,7 +11,7 @@ function floorPlanRow(overrides: Record<string, unknown> = {}) {
     height: 20,
     gridSize: 1,
     pax: 120,
-    ownerId: 'owner_demo',
+    ownerId: 'owner_sample',
     templateId: null,
     eventId: 'evt_1',
     objects: [],

@@ -1,6 +1,6 @@
 import type {
   PrismApprovalRequest,
-  PrismDemoState,
+  PrismSampleState,
   PrismEvent,
   PrismInquiry,
 } from "@prism/types";
@@ -18,7 +18,7 @@ function clientKey(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "client";
 }
 
-export function selectActiveEvents(state: Pick<PrismDemoState, "events"> | null | undefined): PrismEvent[] {
+export function selectActiveEvents(state: Pick<PrismSampleState, "events"> | null | undefined): PrismEvent[] {
   return (state?.events ?? []).filter((event) => !event.archived);
 }
 
@@ -36,7 +36,7 @@ export function selectPendingApprovals(approvalRequests: PrismApprovalRequest[])
 
 export function selectEventWorkspaceResources(
   state: Pick<
-    PrismDemoState,
+    PrismSampleState,
     | "auditLogs"
     | "billingSources"
     | "billingStatements"

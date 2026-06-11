@@ -64,7 +64,7 @@ import {
 } from './ops.constants';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PrivacyOperationsService } from './services/privacy-operations.service';
-import { DemoStateService } from './services/demo-state.service';
+import { SampleStateService } from './services/sample-state.service';
 import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 import { PAREService } from './services/pare/pare.service';
 import {
@@ -306,7 +306,7 @@ type AuditLogFilters = {
   limit?: string;
 };
 
-export type DemoActorInput = {
+export type SampleActorInput = {
   id?: string;
   actorId?: string;
   role?: string;
@@ -322,7 +322,7 @@ export type DemoActorInput = {
   accessCode?: string;
 };
 
-type ResolvedDemoActor = {
+type ResolvedSampleActor = {
   id?: string;
   role: OpsUserRoleValue;
   email?: string;
@@ -659,7 +659,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly demoStateService = new DemoStateService(prisma),
+    private readonly sampleStateService = new SampleStateService(prisma),
     private readonly inquiryWorkflowService = new InquiryWorkflowService(prisma),
   ) {
     this.auditService = new AuditService(prisma);
@@ -674,7 +674,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.pareService = new PAREService(prisma);
   }
 
-  private resolveActor(input: DemoActorInput = {}): ResolvedDemoActor {
+  private resolveActor(input: SampleActorInput = {}): ResolvedSampleActor {
     const requestedRole = (input.actorRole ?? input.role ?? OpsUserRole.PmcmAdmin).trim().toLowerCase();
     const knownRoles = Object.values(OpsUserRole) as OpsUserRoleValue[];
     const role = knownRoles.includes(requestedRole as OpsUserRoleValue)
@@ -701,7 +701,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async requireActorRole(
-    actor: ResolvedDemoActor,
+    actor: ResolvedSampleActor,
     allowedRoles: OpsUserRoleValue[],
     resource: string,
     eventId?: string,
@@ -712,7 +712,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
   }
 
-  private canReadEvent(actor: ResolvedDemoActor, event: Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'>) {
+  private canReadEvent(actor: ResolvedSampleActor, event: Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'>) {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
     if (actor.role === OpsUserRole.Client) {
       return (
@@ -727,7 +727,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private filterEventsForActor<T extends Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'>>(
-    actor: ResolvedDemoActor,
+    actor: ResolvedSampleActor,
     events: T[],
   ) {
     return events.filter((event) => this.canReadEvent(actor, event));
@@ -737,7 +737,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return Boolean(left && right && left.trim().toLowerCase() === right.trim().toLowerCase());
   }
 
-  private async recordForbiddenAccess(actor: ResolvedDemoActor, resource: string, eventId?: string) {
+  private async recordForbiddenAccess(actor: ResolvedSampleActor, resource: string, eventId?: string) {
     try {
       await this.audit(eventId, actor.name, `403 forbidden access: ${resource}`, {
         actorRole: actor.role,
@@ -766,7 +766,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       void this.ensureSeeded().catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          `Startup demo seed skipped; API will keep running, but data endpoints need the configured database. Reason: ${message}`,
+          `Startup sample seed skipped; API will keep running, but data endpoints need the configured database. Reason: ${message}`,
         );
       });
     }
@@ -786,8 +786,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private inquiryWorkflowContext() {
     return {
       inquiriesService: this.inquiriesService,
-      resolveActor: (input?: DemoActorInput) => this.resolveActor(input),
-      requireActorRole: (actor: ResolvedDemoActor, roles: OpsUserRoleValue[], resource: string) =>
+      resolveActor: (input?: SampleActorInput) => this.resolveActor(input),
+      requireActorRole: (actor: ResolvedSampleActor, roles: OpsUserRoleValue[], resource: string) =>
         this.requireActorRole(actor, roles, resource),
       allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       mapInquiry: (inquiry: unknown) => this.mapInquiry(inquiry as Parameters<typeof this.mapInquiry>[0]),
@@ -796,7 +796,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async state() {
-    return this.demoStateService.state({
+    return this.sampleStateService.state({
       runConformeReminderSweep: () => this.runConformeReminderSweep(),
       runPaymentRiskSweep: () => this.runPaymentRiskSweep(),
       listSupplierCategories: () => this.suppliersService.listSupplierCategories(),
@@ -847,12 +847,12 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async resetDemo() {
-    return this.demoStateService.resetDemo(() => this.seedDemo(), () => this.state());
+  async resetSample() {
+    return this.sampleStateService.resetSample(() => this.seedSample(), () => this.state());
   }
 
-  async seedDemoState() {
-    return this.demoStateService.seedDemoState(() => this.ensureSeeded(), () => this.state());
+  async seedSampleState() {
+    return this.sampleStateService.seedSampleState(() => this.ensureSeeded(), () => this.state());
   }
 
   async login(email: string, password: string) {
@@ -871,35 +871,35 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.authOperationsService.listLoginHistory(userId);
   }
 
-  async listAuditLogs(input: AuditLogFilters = {}, actorInput: DemoActorInput = input) {
+  async listAuditLogs(input: AuditLogFilters = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'audit logs');
 
     return this.auditService.listAuditLogs(input);
   }
 
-  async exportAuditLogs(input: AuditLogFilters = {}, actorInput: DemoActorInput = input) {
+  async exportAuditLogs(input: AuditLogFilters = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'audit export');
 
     return this.auditService.exportAuditLogs(input);
   }
 
-  async listSecurityAlerts(actorInput: DemoActorInput = {}) {
+  async listSecurityAlerts(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'security alerts');
 
     return this.auditService.listSecurityAlerts();
   }
 
-  async verifyAuditIntegrity(actorInput: DemoActorInput = {}) {
+  async verifyAuditIntegrity(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'audit integrity');
 
     return this.auditService.verifyIntegrity();
   }
 
-  async getPrivacyInventory(input: PrivacyInventoryInput = {}, actorInput: DemoActorInput = input) {
+  async getPrivacyInventory(input: PrivacyInventoryInput = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy inventory');
     const [events, inquiries, approvalRequests, guestCheckIns, guestFeedback] = await Promise.all([
@@ -946,53 +946,53 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         this.privacySurface('account_approval_request', approvalRequests.length, ['email', 'role', 'organization', 'consent'], approvalRequests),
       ],
       retentionNotes: [
-        'Demo personal-data records are retained with the event record until archive policy is finalized.',
+        'Sample personal-data records are retained with the event record until archive policy is finalized.',
         'Guest feedback remains moderated and is never published automatically.',
         'AI use remains blocked unless ZDR, sanitizer, audit, and human approval records are present.',
       ],
     };
   }
 
-  async listPrivacyRetentionPolicies(actorInput: DemoActorInput = {}) {
+  async listPrivacyRetentionPolicies(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy retention policies');
 
     return this.privacyOperationsService.listRetentionPolicies();
   }
 
-  async listPrivacyRequests(input: PrivacyRequestListInput = {}, actorInput: DemoActorInput = input) {
+  async listPrivacyRequests(input: PrivacyRequestListInput = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy requests');
 
     return this.privacyOperationsService.listRequests(input);
   }
 
-  async createPrivacyRequest(input: CreatePrivacyRequestInput, actorInput: DemoActorInput = {}) {
+  async createPrivacyRequest(input: CreatePrivacyRequestInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy requests');
 
     return this.privacyOperationsService.createRequest(input, { name: actor.name, role: actor.role });
   }
 
-  async reviewPrivacyRequest(requestId: string, input: ReviewPrivacyRequestInput, actorInput: DemoActorInput = {}) {
+  async reviewPrivacyRequest(requestId: string, input: ReviewPrivacyRequestInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy request review');
 
     return this.privacyOperationsService.reviewRequest(requestId, input, { name: actor.name, role: actor.role });
   }
 
-  async executePrivacyRequest(requestId: string, input: ExecutePrivacyRequestInput = {}, actorInput: DemoActorInput = {}) {
+  async executePrivacyRequest(requestId: string, input: ExecutePrivacyRequestInput = {}, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy request execution');
 
     return this.privacyOperationsService.executeRequest(requestId, input, { name: actor.name, role: actor.role });
   }
 
-  async listInquiries(actorInput: DemoActorInput = {}) {
+  async listInquiries(actorInput: SampleActorInput = {}) {
     return this.inquiryWorkflowService.listInquiries(actorInput, this.inquiryWorkflowContext());
   }
 
-  async listOnboarding(actorInput: DemoActorInput = {}) {
+  async listOnboarding(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'onboarding');
 
@@ -1024,7 +1024,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.inquiryWorkflowService.createInquiry(input, this.inquiryWorkflowContext());
   }
 
-  async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: DemoActorInput = {}) {
+  async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: SampleActorInput = {}) {
     return this.inquiryWorkflowService.logInquiryOnBehalf(input, actorInput, this.inquiryWorkflowContext());
   }
 
@@ -1122,7 +1122,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
               status: 'failed',
               attempts: (notification.attempts ?? 0) + 1,
               failedAt: new Date(),
-              failureReason: 'Demo adapter forced failure',
+              failureReason: 'Sample adapter forced failure',
             }
           : {
               status: 'sent',
@@ -1182,7 +1182,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.inquiryWorkflowService.uploadConforme(inquiryId, input, this.inquiryWorkflowContext());
   }
 
-  async listEvents(actorInput: DemoActorInput = {}) {
+  async listEvents(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const events = await this.prisma.opsEvent.findMany({
       where: { archived: false },
@@ -1193,7 +1193,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.filterEventsForActor(actor, events).map((event) => this.mapEvent(event));
   }
 
-  async getEventDetail(eventId: string, actorInput: DemoActorInput = {}) {
+  async getEventDetail(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const event = await this.prisma.opsEvent
       .findUnique({
@@ -1211,7 +1211,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapEvent(event);
   }
 
-  async getDefenseReadiness(eventId: string, actorInput: DemoActorInput = {}) {
+  async getDefenseReadiness(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'defense readiness', eventId);
     const event = await this.requireEvent(eventId);
@@ -1380,7 +1380,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async listBilling(actorInput: DemoActorInput = {}) {
+  async listBilling(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -1441,7 +1441,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async listClientWorkspace(actorInput: DemoActorInput = {}) {
+  async listClientWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Client], 'client workspace');
 
@@ -1621,7 +1621,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapGuestFeedback(feedback);
   }
 
-  async getEventLiveOps(eventId: string, actorInput: DemoActorInput = {}) {
+  async getEventLiveOps(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -1710,7 +1710,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return base;
   }
 
-  async listCoordinatorWorkspace(actorInput: DemoActorInput = {}) {
+  async listCoordinatorWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator workspace');
     const coordinator = await this.resolveCoordinatorForActor(actor);
@@ -1740,7 +1740,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async getCoordinatorRoleView(eventId: string, actorInput: DemoActorInput = {}) {
+  async getCoordinatorRoleView(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator role view', eventId);
     const assignment = await this.requireCoordinatorAssignmentForEvent(eventId, actor);
@@ -1758,7 +1758,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async getEventDayStatusFeed(eventId: string, actorInput: DemoActorInput = {}) {
+  async getEventDayStatusFeed(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -1790,7 +1790,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async createEventDayTask(
     eventId: string,
     input: CreateEventDayTaskInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day tasks');
     const title = input.title?.trim();
@@ -1834,7 +1834,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     taskId: string,
     input: UpdateEventDayTaskInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day tasks');
     const current = (await this.prisma.opsEventDayTask.findMany({ where: { eventId } })).find(
@@ -1879,7 +1879,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async createUrgentIssue(
     eventId: string,
     input: CreateUrgentIssueInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issues');
     const title = input.title?.trim();
@@ -1927,7 +1927,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     issueId: string,
     input: UpdateUrgentIssueInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issues');
     const current = (await this.prisma.opsUrgentIssue.findMany({ where: { eventId } })).find(
@@ -1974,7 +1974,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     taskId: string,
     input: EscalateLiveOpsInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day task escalation');
     const escalationLevel = this.validateEscalationLevel(input.escalationLevel);
@@ -2027,7 +2027,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     issueId: string,
     input: EscalateLiveOpsInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issue escalation');
     const escalationLevel = this.validateEscalationLevel(input.escalationLevel);
@@ -2081,7 +2081,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     assignmentId: string,
     input: ReplaceCoordinatorAssignmentInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'coordinator replacement', eventId);
@@ -2194,7 +2194,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     assignmentId: string,
     input: UpdateCoordinatorAttendanceInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'coordinator attendance');
     const status = input.status?.trim();
@@ -2260,7 +2260,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     requestId: string,
     input: VerifySupplierStatusInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'supplier setup verification');
     const verificationStatus = input.verificationStatus?.trim();
@@ -2403,7 +2403,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async createFloorPlanDraft(
     eventId: string,
     input: CreateFloorPlanDraftInput,
-    actorInput: DemoActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan draft', eventId);
@@ -2416,7 +2416,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async createFloorPlanPreference(
     eventId: string,
     input: CreateFloorPlanPreferenceInput,
-    actorInput: DemoActorInput = { actorRole: OpsUserRole.Client },
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.Client },
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
@@ -2439,7 +2439,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async submitFloorPlanDraft(
     eventId: string,
     draftId: string,
-    actorInput: DemoActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan submit', eventId);
@@ -2452,7 +2452,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async approveFloorPlanDraft(
     eventId: string,
     draftId: string,
-    actorInput: DemoActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan approve', eventId);
@@ -2466,7 +2466,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     draftId: string,
     type: 'submitted' | 'approved' = 'approved',
-    actorInput: DemoActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
   ) {
     const actor = this.resolveActor(actorInput);
     const event = await this.requireEvent(eventId);
@@ -2521,7 +2521,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapBriefing(briefing);
   }
 
-  async listSupplierCategories(actorInput: DemoActorInput = {}) {
+  async listSupplierCategories(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -2532,14 +2532,14 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.suppliersService.listSupplierCategories();
   }
 
-  async listSuppliers(actorInput: DemoActorInput = {}) {
+  async listSuppliers(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier directory');
 
     return this.suppliersService.listSuppliers();
   }
 
-  async createSupplier(input: CreateSupplierInput, actorInput: DemoActorInput = {}) {
+  async createSupplier(input: CreateSupplierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier creation');
 
@@ -2557,7 +2557,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return supplier;
   }
 
-  async updateSupplier(supplierId: string, input: UpdateSupplierInput, actorInput: DemoActorInput = {}) {
+  async updateSupplier(supplierId: string, input: UpdateSupplierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier update');
 
@@ -2577,7 +2577,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return supplier;
   }
 
-  async changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput, actorInput: DemoActorInput = {}) {
+  async changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier tier change');
 
@@ -2600,7 +2600,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return result.supplier;
   }
 
-  async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actorInput: DemoActorInput = {}) {
+  async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier private review');
 
@@ -2625,7 +2625,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async addSupplierCertification(
     supplierId: string,
     input: CreateSupplierCertificationInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier certification');
@@ -2650,7 +2650,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return supplier;
   }
 
-  async listSupplierWorkspace(actorInput: DemoActorInput = {}) {
+  async listSupplierWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Supplier], 'supplier workspace');
     const supplier = await this.resolveSupplierForActor(actor);
@@ -2672,7 +2672,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async confirmSupplierAssignment(requestId: string, actorInput: DemoActorInput = {}) {
+  async confirmSupplierAssignment(requestId: string, actorInput: SampleActorInput = {}) {
     const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
     const updated = await this.prisma.opsSupplierQuoteRequest.update({
       where: { id: request.id },
@@ -2693,7 +2693,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuoteRequest(updated);
   }
 
-  async withdrawSupplier(requestId: string, reason: string, actorInput: DemoActorInput = {}) {
+  async withdrawSupplier(requestId: string, reason: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'withdraw supplier');
     const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
@@ -2789,7 +2789,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async confirmSupplierReadiness(
     requestId: string,
     input: SupplierReadinessInput = {},
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
     const updated = await this.prisma.opsSupplierQuoteRequest.update({
@@ -2816,7 +2816,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async updateSupplierEventStatus(
     requestId: string,
     input: SupplierEventStatusInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
     const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
@@ -2849,7 +2849,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async uploadSupplierContract(
     requestId: string,
     input: UploadMetadataInput,
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
     const upload = this.validateUploadMetadata(input, `events/${request.eventId}/supplier-contracts`);
@@ -3274,7 +3274,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuote(selected);
   }
 
-  async listComplianceRules(actorInput: DemoActorInput = {}) {
+  async listComplianceRules(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance rules');
     const rules = await this.prisma.opsComplianceRule.findMany({
@@ -3283,7 +3283,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return rules.map((rule) => this.mapComplianceRule(rule));
   }
 
-  async createComplianceRule(input: CreateComplianceRuleInput, actorInput: DemoActorInput = {}) {
+  async createComplianceRule(input: CreateComplianceRuleInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance rules');
     if (!input.conditionKey?.trim()) throw new BadRequestException('Condition key is required');
@@ -3315,7 +3315,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapComplianceRule(rule);
   }
 
-  async updateComplianceRule(ruleId: string, input: UpdateComplianceRuleInput, actorInput: DemoActorInput = {}) {
+  async updateComplianceRule(ruleId: string, input: UpdateComplianceRuleInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance rules');
     const data: Record<string, unknown> = {};
@@ -3445,7 +3445,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapComplianceCheck(check);
   }
 
-  async listCoordinators(actorInput: DemoActorInput = {}) {
+  async listCoordinators(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -3472,7 +3472,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.billingOperationsService.recordPayment(eventId, milestoneId, input);
   }
 
-  async createBillingSource(eventId: string, input: CreateBillingSourceInput, actorInput: DemoActorInput = {}) {
+  async createBillingSource(eventId: string, input: CreateBillingSourceInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'billing source', eventId);
     return this.billingOperationsService.createBillingSource(eventId, input, {
@@ -3486,7 +3486,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     sourceId: string,
     input: ApproveBillingSourceInput = {},
-    actorInput: DemoActorInput = {},
+    actorInput: SampleActorInput = {},
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'billing source approval', eventId);
@@ -3629,7 +3629,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapEvent(event);
   }
 
-  async listEventInsights(eventId: string, actorInput: DemoActorInput = {}) {
+  async listEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event insights', eventId);
     await this.requireEvent(eventId);
@@ -3640,7 +3640,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return insights.map((insight) => this.mapEventInsight(insight));
   }
 
-  async generateEventInsights(eventId: string, actorInput: DemoActorInput = {}) {
+  async generateEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event insights', eventId);
     const event = await this.requireEvent(eventId);
@@ -3743,11 +3743,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private async ensureSeeded() {
     const count = await this.prisma.opsUser.count();
     if (count === 0) {
-      await this.seedDemo();
+      await this.seedSample();
     }
     await this.ensureSupplierDirectorySeeded();
     await this.ensureComplianceRulesSeeded();
-    await this.ensureSupplierQuoteDemoSeeded();
+    await this.ensureSupplierQuoteSampleSeeded();
     await this.ensurePareAssignedSuppliersSeeded();
     await this.ensureCoordinatorPoolSeeded();
     await this.ensureInquiryOnboardingBackfilled();
@@ -3798,8 +3798,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async ensureSupplierQuoteDemoSeeded() {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_demo_ayala' } });
+  private async ensureSupplierQuoteSampleSeeded() {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_sample_ayala' } });
     if (!event) return;
 
     const existingQuoteCount = await this.prisma.opsSupplierQuote.count({
@@ -3820,7 +3820,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.$transaction(async (tx) => {
       for (const supplier of suppliers) {
         const isStagePulse = supplier.id === 'sup_stagepulse';
-        const requestId = `qr_demo_${supplier.id}`;
+        const requestId = `qr_sample_${supplier.id}`;
         await tx.opsSupplierQuoteRequest.create({
           data: {
             id: requestId,
@@ -3830,16 +3830,16 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
             supplierName: supplier.name,
             category: category.name,
             dueDate,
-            accessToken: `demo-token-${supplier.id}`,
+            accessToken: `sample-token-${supplier.id}`,
             confidentialBid: true,
-            message: 'Demo confidential technical quote request.',
+            message: 'Sample confidential technical quote request.',
             status: 'submitted',
           },
         });
 
         await tx.opsSupplierQuote.create({
           data: {
-            id: `quote_demo_${supplier.id}`,
+            id: `quote_sample_${supplier.id}`,
             eventId: event.id,
             requestId,
             supplierId: supplier.id,
@@ -3865,11 +3865,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async ensurePareAssignedSuppliersSeeded() {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_demo_ayala' } });
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_sample_ayala' } });
     if (!event) return;
 
     const existing = await this.prisma.opsSupplierQuoteRequest.findFirst({
-      where: { eventId: 'evt_demo_ayala', id: 'qr_pare_harvesttable' },
+      where: { eventId: 'evt_sample_ayala', id: 'qr_pare_harvesttable' },
     });
     if (existing) return;
 
@@ -3881,14 +3881,14 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_harvesttable',
-          eventId: 'evt_demo_ayala',
+          eventId: 'evt_sample_ayala',
           supplierId: 'sup_harvesttable',
           categoryId: 'supcat_food_beverages',
           supplierName: 'Harvest Table Catering',
           category: 'Food and Beverages',
           message: 'Full buffet service for 300 pax. VIP plated section required. Include crew meals.',
           dueDate,
-          accessToken: 'demo-pare-token-harvesttable',
+          accessToken: 'sample-pare-token-harvesttable',
           status: 'open',
           assignmentStatus: 'confirmed',
           assignmentConfirmedAt: now,
@@ -3898,7 +3898,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       await tx.opsSupplierQuote.create({
         data: {
           id: 'quote_pare_harvesttable',
-          eventId: 'evt_demo_ayala',
+          eventId: 'evt_sample_ayala',
           requestId: 'qr_pare_harvesttable',
           supplierId: 'sup_harvesttable',
           categoryId: 'supcat_food_beverages',
@@ -3913,18 +3913,18 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      // LensCraft — assigned (second assigned supplier to give more demo options)
+      // LensCraft — assigned (second assigned supplier to give more sample options)
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_lenscraft',
-          eventId: 'evt_demo_ayala',
+          eventId: 'evt_sample_ayala',
           supplierId: 'sup_lenscraft',
           categoryId: 'supcat_documentation',
           supplierName: 'LensCraft Studios',
           category: 'Documentation',
           message: 'Full event documentation: photo, video, same-day edit, raw file turnover.',
           dueDate,
-          accessToken: 'demo-pare-token-lenscraft',
+          accessToken: 'sample-pare-token-lenscraft',
           status: 'open',
           assignmentStatus: 'confirmed',
           assignmentConfirmedAt: now,
@@ -3934,7 +3934,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       await tx.opsSupplierQuote.create({
         data: {
           id: 'quote_pare_lenscraft',
-          eventId: 'evt_demo_ayala',
+          eventId: 'evt_sample_ayala',
           requestId: 'qr_pare_lenscraft',
           supplierId: 'sup_lenscraft',
           categoryId: 'supcat_documentation',
@@ -3998,7 +3998,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
               id: 'seca_seed_bulk_export',
               type: 'bulk_export',
               title: 'Bulk audit export reviewed',
-              description: 'PMCM exported more audit records than the configured demo threshold.',
+              description: 'PMCM exported more audit records than the configured sample threshold.',
               severity: 'warning',
               status: 'open',
               triggeredBy: 'PMCM Admin',
@@ -4024,7 +4024,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
               email: 'mys@pmcm.test',
               status: 'success',
               ipAddress: '192.168.1.5',
-              device: 'Local demo browser',
+              device: 'Local sample browser',
               createdAt,
             },
             {
@@ -4036,7 +4036,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
               status: 'blocked',
               failureReason: 'Account waiting for approval',
               ipAddress: '192.168.1.9',
-              device: 'Local demo browser',
+              device: 'Local sample browser',
               createdAt: addDays(createdAt, -1),
             },
             {
@@ -4048,7 +4048,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
               status: 'failed',
               failureReason: 'Invalid password',
               ipAddress: '192.168.1.12',
-              device: 'Local demo browser',
+              device: 'Local sample browser',
               createdAt: addDays(createdAt, -2),
             },
           ],
@@ -4076,7 +4076,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
       if ((await tx.opsSupplier.count()) === 0) {
         const seedEvent = await tx.opsEvent.findUnique({
-          where: { id: 'evt_demo_ayala' },
+          where: { id: 'evt_sample_ayala' },
           select: { id: true },
         });
         const seedEventId = seedEvent?.id ?? null;
@@ -4215,7 +4215,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async seedDemo(createdAt = new Date()) {
+  private async seedSample(createdAt = new Date()) {
     await this.prisma.$transaction(async (tx) => {
       await tx.opsUser.createMany({
         data: [
@@ -4264,7 +4264,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
       await tx.opsInquiry.create({
         data: {
-          id: 'inq_demo_ayala',
+          id: 'inq_sample_ayala',
           clientName: 'Ana Reyes',
           companyName: 'Ayala Corp',
           email: 'ana@ayala.test',
@@ -4293,7 +4293,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       await tx.opsInquiry.createMany({
         data: [
           {
-            id: 'inq_demo_facebook_new',
+            id: 'inq_sample_facebook_new',
             clientName: 'Mika Tan',
             companyName: 'Northstar Retail',
             email: 'mika@northstar.test',
@@ -4307,7 +4307,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
             createdAt: addDays(createdAt, -1),
           },
           {
-            id: 'inq_demo_bni_pending',
+            id: 'inq_sample_bni_pending',
             clientName: 'Leo Garcia',
             companyName: 'Harbor Finance',
             email: 'leo@harbor.test',
@@ -4322,7 +4322,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
             createdAt: addDays(createdAt, -2),
           },
           {
-            id: 'inq_demo_walkin_declined',
+            id: 'inq_sample_walkin_declined',
             clientName: 'Ria Santos',
             companyName: '',
             email: 'ria@example.test',
@@ -4355,8 +4355,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
       await tx.opsEvent.create({
         data: {
-          id: 'evt_demo_ayala',
-          inquiryId: 'inq_demo_ayala',
+          id: 'evt_sample_ayala',
+          inquiryId: 'inq_sample_ayala',
           clientName: 'Ana Reyes',
           eventName: 'Ayala Tech Summit 2026',
           eventDate: new Date('2026-06-18'),
@@ -4365,7 +4365,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
           readiness: 'Floorplan approved',
           archived: false,
           floorPlanStatus: 'approved',
-          floorPlanId: 'plan_demo_ayala_main',
+          floorPlanId: 'plan_sample_ayala_main',
           floorPlanSubmittedAt: createdAt,
           floorPlanReviewedAt: createdAt,
           createdAt,
@@ -4375,16 +4375,16 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
       await tx.floorPlan.create({
         data: {
-          id: 'plan_demo_ayala_main',
+          id: 'plan_sample_ayala_main',
           name: 'Ayala Tech Summit ballroom layout',
           ownerId: DEFAULT_OWNER_ID,
-          eventId: 'evt_demo_ayala',
+          eventId: 'evt_sample_ayala',
           width: 1200,
           height: 800,
           gridSize: 20,
           objects: toPrismaJson([
             {
-              id: 'stage_demo',
+              id: 'stage_sample',
               name: 'Main stage',
               kind: 'rect',
               category: 'stage',
@@ -4410,9 +4410,9 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       await tx.opsFloorPlanDraft.createMany({
         data: [
           {
-            id: 'fpd_demo_approved',
-            eventId: 'evt_demo_ayala',
-            floorPlanId: 'plan_demo_ayala_main',
+            id: 'fpd_sample_approved',
+            eventId: 'evt_sample_ayala',
+            floorPlanId: 'plan_sample_ayala_main',
             name: 'Approved ballroom layout',
             status: 'approved',
             isActive: true,
@@ -4429,8 +4429,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
       await tx.opsDocument.create({
         data: {
-          id: 'doc_demo_conforme',
-          eventId: 'evt_demo_ayala',
+          id: 'doc_sample_conforme',
+          eventId: 'evt_sample_ayala',
           type: 'signed_conforme',
           fileName: 'ayala-signed-conforme.pdf',
           status: 'approved',
@@ -4443,8 +4443,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
       await tx.opsBillingStatement.create({
         data: {
-          id: 'bill_demo_ayala',
-          eventId: 'evt_demo_ayala',
+          id: 'bill_sample_ayala',
+          eventId: 'evt_sample_ayala',
           number: 'BS-2026-0001',
           clientName: 'Ana Reyes',
           clientContact: 'ana@ayala.test',
@@ -4461,9 +4461,9 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
             { label: 'Cheque', details: 'Payable to PMCM Events Management' },
           ]),
           totalAmount: 520000,
-          documentId: 'doc_demo_billing',
-          pdfUrl: '/api/documents/doc_demo_billing/signed-url',
-          storageKey: 'events/evt_demo_ayala/billing/BS-2026-0001.pdf',
+          documentId: 'doc_sample_billing',
+          pdfUrl: '/api/documents/doc_sample_billing/signed-url',
+          storageKey: 'events/evt_sample_ayala/billing/BS-2026-0001.pdf',
           status: 'issued',
           generatedAt: createdAt,
         },
@@ -4471,15 +4471,15 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
       await tx.opsDocument.create({
         data: {
-          id: 'doc_demo_billing',
-          eventId: 'evt_demo_ayala',
+          id: 'doc_sample_billing',
+          eventId: 'evt_sample_ayala',
           type: 'billing_statement',
           fileName: 'BS-2026-0001.pdf',
           status: 'generated',
           mimeType: 'application/pdf',
           sizeBytes: 0,
           storageBucket: 'document-vault',
-          storageKey: 'events/evt_demo_ayala/billing/BS-2026-0001.pdf',
+          storageKey: 'events/evt_sample_ayala/billing/BS-2026-0001.pdf',
           uploadedByRole: 'system',
           uploadedAt: createdAt,
         },
@@ -4488,8 +4488,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       await tx.opsPaymentMilestone.createMany({
         data: [
           {
-            id: 'pay_demo_reservation',
-            eventId: 'evt_demo_ayala',
+            id: 'pay_sample_reservation',
+            eventId: 'evt_sample_ayala',
             label: 'Downpayment',
             percentage: 50,
             amount: 260000,
@@ -4500,8 +4500,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
             createdAt,
           },
           {
-            id: 'pay_demo_final',
-            eventId: 'evt_demo_ayala',
+            id: 'pay_sample_final',
+            eventId: 'evt_sample_ayala',
             label: 'Balance',
             percentage: 50,
             amount: 260000,
@@ -4516,30 +4516,30 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
       await tx.opsPaymentRecord.create({
         data: {
-          id: 'payrec_demo_downpayment',
-          eventId: 'evt_demo_ayala',
-          milestoneId: 'pay_demo_reservation',
+          id: 'payrec_sample_downpayment',
+          eventId: 'evt_sample_ayala',
+          milestoneId: 'pay_sample_reservation',
           amountReceived: 260000,
           paymentDate: createdAt,
           paymentMethod: 'Bank Transfer',
-          referenceNumber: 'BPI-DEMO-001',
+          referenceNumber: 'BPI-SAMPLE-001',
           recordedAt: createdAt,
         },
       });
 
       await tx.opsPostEventDocument.createMany({
         data: [
-          { id: 'ped_completion', eventId: 'evt_demo_ayala', title: 'Completion report', status: 'pending' },
-          { id: 'ped_gallery', eventId: 'evt_demo_ayala', title: 'Photo and video turnover', status: 'pending' },
+          { id: 'ped_completion', eventId: 'evt_sample_ayala', title: 'Completion report', status: 'pending' },
+          { id: 'ped_gallery', eventId: 'evt_sample_ayala', title: 'Photo and video turnover', status: 'pending' },
         ],
       });
 
       await tx.opsAuditLog.create({
         data: {
           id: 'aud_seed',
-          eventId: 'evt_demo_ayala',
+          eventId: 'evt_sample_ayala',
           actor: 'PMCM Admin',
-          action: 'Created demo event workspace',
+          action: 'Created sample event workspace',
           createdAt,
         },
       });
@@ -4633,7 +4633,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private async requireEventDayWriteActor(eventId: string, actorInput: DemoActorInput, resource: string) {
+  private async requireEventDayWriteActor(eventId: string, actorInput: SampleActorInput, resource: string) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -4649,7 +4649,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return { actor, assignment };
   }
 
-  private async resolveCoordinatorForActor(actor: ResolvedDemoActor) {
+  private async resolveCoordinatorForActor(actor: ResolvedSampleActor) {
     const coordinators = await this.prisma.opsCoordinator.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
@@ -4664,7 +4664,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return coordinator;
   }
 
-  private async requireCoordinatorAssignmentForEvent(eventId: string, actor: ResolvedDemoActor) {
+  private async requireCoordinatorAssignmentForEvent(eventId: string, actor: ResolvedSampleActor) {
     const coordinator = await this.resolveCoordinatorForActor(actor);
     const assignments = await this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId } });
     const assignment = assignments.find(
@@ -4683,7 +4683,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private async recordEventDayLog(
     eventId: string,
     actionType: string,
-    actor: ResolvedDemoActor,
+    actor: ResolvedSampleActor,
     message: string,
     relatedType?: string,
     relatedId?: string,
@@ -4722,7 +4722,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return escalationLevel as (typeof allowed)[number];
   }
 
-  private async requireSupplierQuoteRequestForActor(requestId: string, actorInput: DemoActorInput = {}) {
+  private async requireSupplierQuoteRequestForActor(requestId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Supplier], 'supplier quote request');
     const supplier = await this.resolveSupplierForActor(actor);
@@ -4735,7 +4735,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return { request, actor, supplier };
   }
 
-  private async resolveSupplierForActor(actor: ResolvedDemoActor) {
+  private async resolveSupplierForActor(actor: ResolvedSampleActor) {
     const suppliers = await this.suppliersService.listSuppliers();
     const supplier = suppliers.find(
       (item: any) =>

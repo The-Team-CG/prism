@@ -287,7 +287,7 @@ Persona/scope: External/Public
 
 | FR # | Feature | Scope | Description |
 | --- | --- | --- | --- |
-| FR-42 | Guest Pass Promotional Demo | External | Lightweight interactive simulation of P.R.I.S.M embedded on PMCM public website. Not connected to live data. Marketing and credibility tool for prospects. |
+| FR-42 | Guest Pass Promotional Sample | External | Lightweight interactive simulation of P.R.I.S.M embedded on PMCM public website. Not connected to live data. Marketing and credibility tool for prospects. |
 | FR-46 | P.R.I.S.M Public Inquiry Page | Prism | Public-facing structured intake page. No account needed. Auto-creates inquiry ticket on submission. Confirmation email sent to prospect. |
 | FR-47 | Lightweight Spatial Preference Form | Phase 2 | Short structured section at end of public inquiry form. Covers preferred seating arrangement type, stage position preference, and optional setup notes. Not a floor plan. |
 | FR-48 | Referral Source Dropdown | Prism | How did you hear about us dropdown on public inquiry form. Six source options. |

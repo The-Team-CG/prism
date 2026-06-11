@@ -1,6 +1,6 @@
 # P.R.I.S.M System Behaviors
 
-System behaviors are automatic rules and logic the system follows across phases. They are not standalone screens, but they must be visible through status changes, validation, logs, or notifications during implementation and demo.
+System behaviors are automatic rules and logic the system follows across phases. They are not standalone screens, but they must be visible through status changes, validation, logs, or notifications during implementation and sample.
 
 Note: the source count summary lists 37 system behaviors, but the source behavior table contains 38 data rows. This Markdown file preserves all 38 behavior rows from the table.
 

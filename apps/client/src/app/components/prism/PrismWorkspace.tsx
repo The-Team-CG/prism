@@ -18,9 +18,9 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
-import { prismApi, type DemoRole, type PrismDemoState } from "@/lib/prism-api";
+import { prismApi, type SampleRole, type PrismSampleState } from "@/lib/prism-api";
 
-const roleLabels: Record<DemoRole, string> = {
+const roleLabels: Record<SampleRole, string> = {
   "pmcm-admin": "PMCM",
   client: "Client",
   coordinator: "Coordinator",
@@ -112,8 +112,8 @@ function ActionButton({
 }
 
 export function PrismWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => void }) {
-  const [state, setState] = useState<PrismDemoState | null>(null);
-  const [role, setRole] = useState<DemoRole>("pmcm-admin");
+  const [state, setState] = useState<PrismSampleState | null>(null);
+  const [role, setRole] = useState<SampleRole>("pmcm-admin");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -166,7 +166,7 @@ export function PrismWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => v
     );
   }
 
-  const roleHelp: Record<DemoRole, string> = {
+  const roleHelp: Record<SampleRole, string> = {
     "pmcm-admin": "Full lifecycle command center for Ms. Mys and EA.",
     client: event.clientPortalStatus === "unlocked" ? "Client can submit briefing and view billing." : "Client portal is locked until signed conforme.",
     coordinator: assignments.length ? "Coordinator can acknowledge assigned role." : "No coordinator assignment yet.",
@@ -182,7 +182,7 @@ export function PrismWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => v
             <h1 className="mt-1 text-2xl font-semibold tracking-normal">{event.eventName}</h1>
           </div>
           <div className="flex items-center gap-2">
-            {(["pmcm-admin", "client", "coordinator", "supplier"] as DemoRole[]).map((item) => (
+            {(["pmcm-admin", "client", "coordinator", "supplier"] as SampleRole[]).map((item) => (
               <button
                 key={item}
                 onClick={() => setRole(item)}
@@ -206,7 +206,7 @@ export function PrismWorkspace({ onOpenFloorPlans }: { onOpenFloorPlans: () => v
               onClick={() => run("reset", prismApi.reset)}
               className="inline-flex h-9 items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-700 hover:border-primary/40"
             >
-              <RotateCcw size={14} /> Reset demo
+              <RotateCcw size={14} /> Reset sample
             </button>
           </div>
         </div>

@@ -5,14 +5,14 @@ const createdAt = new Date('2026-05-06T00:00:00.000Z');
 
 function templateRow(overrides: Record<string, unknown> = {}) {
   return {
-    id: 'tpl_demo',
-    ownerId: 'owner_demo',
+    id: 'tpl_sample',
+    ownerId: 'owner_sample',
     name: 'Ballroom template',
     description: '',
     venue: '',
     venueRules: '',
     permanentFeatures: [],
-    floorPlanId: 'plan_tpl_demo',
+    floorPlanId: 'plan_tpl_sample',
     pax: 0,
     includeGuests: false,
     includeSuppliers: false,
@@ -22,7 +22,7 @@ function templateRow(overrides: Record<string, unknown> = {}) {
     createdAt,
     updatedAt: createdAt,
     floorPlan: {
-      id: 'plan_tpl_demo',
+      id: 'plan_tpl_sample',
       name: 'Ballroom template Base Layout',
       width: 30,
       height: 20,
@@ -59,8 +59,8 @@ describe('TemplatesService', () => {
 
     await expect(service.listTemplates()).resolves.toMatchObject([
       {
-        id: 'tpl_demo',
-        floorPlanId: 'plan_tpl_demo',
+        id: 'tpl_sample',
+        floorPlanId: 'plan_tpl_sample',
         objects: [{ id: 'stage' }],
         width: 30,
         height: 20,
@@ -72,7 +72,7 @@ describe('TemplatesService', () => {
   it('deletes the template record without deleting event data through a cascade fallback', async () => {
     const { service, prisma } = createService();
 
-    await expect((service as any).deleteTemplate('tpl_demo')).resolves.toMatchObject({ id: 'tpl_demo' });
-    expect(prisma.venueTemplate.delete).toHaveBeenCalledWith({ where: { id: 'tpl_demo' } });
+    await expect((service as any).deleteTemplate('tpl_sample')).resolves.toMatchObject({ id: 'tpl_sample' });
+    expect(prisma.venueTemplate.delete).toHaveBeenCalledWith({ where: { id: 'tpl_sample' } });
   });
 });

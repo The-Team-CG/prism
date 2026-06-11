@@ -91,7 +91,7 @@ Retire a feature from active scope when:
 - It depends on external services that PMCM does not want to operate.
 - It introduces privacy/security risk without clear value.
 - It creates work for users without reducing operational risk.
-- It is only useful as a demo artifact and not as a real PMCM workflow.
+- It is only useful as a sample artifact and not as a real PMCM workflow.
 
 Retired features should remain traceable in the ledger with a short reason. Do not delete the historical catalog row unless the document is explicitly being regenerated as a new catalog version.
 
