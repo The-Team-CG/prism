@@ -10,6 +10,10 @@ import { FileRequirementsMatrixService } from './services/file-requirements-matr
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
 import { AuditService } from './services/audit.service';
+import { EventReadModelsService } from './services/event-read-models.service';
+import { SuppliersService } from './services/suppliers.service';
+import { CommercialWorkflowService } from './services/commercial-workflow.service';
+import { EventClosureService } from './services/event-closure.service';
 
 @Module({
   imports: [DatabaseModule],
@@ -17,6 +21,7 @@ import { AuditService } from './services/audit.service';
   providers: [
     EventOpsService,
     AuditService,
+    SuppliersService,
     SampleStateService,
     InquiryWorkflowService,
     EventAccessPolicyService,
@@ -24,6 +29,9 @@ import { AuditService } from './services/audit.service';
     FileRequirementsMatrixService,
     NotificationOutboxService,
     WorkflowCommandService,
+    EventReadModelsService,
+    CommercialWorkflowService,
+    EventClosureService,
   ],
 })
 export class EventOpsModule {}

@@ -75,6 +75,9 @@ import { EventLifecycleService } from './services/event-lifecycle.service';
 import { FileRequirementsMatrixService } from './services/file-requirements-matrix.service';
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
+import { EventReadModelsService } from './services/event-read-models.service';
+import { CommercialWorkflowService } from './services/commercial-workflow.service';
+import { EventClosureService } from './services/event-closure.service';
 import { PAREService } from './services/pare/pare.service';
 import {
   type ApproveBillingSourceInput,
@@ -643,6 +646,9 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly fileRequirementsMatrixService: FileRequirementsMatrixService;
   private readonly notificationOutboxService: NotificationOutboxService;
   private readonly workflowCommandService: WorkflowCommandService;
+  private readonly eventReadModelsService: EventReadModelsService;
+  private readonly commercialWorkflowService: CommercialWorkflowService;
+  private readonly eventClosureService: EventClosureService;
   private readonly pareService: PAREService;
 
   constructor(
@@ -664,6 +670,21 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
     this.notificationOutboxService = new NotificationOutboxService(prisma);
     this.workflowCommandService = new WorkflowCommandService();
+    this.eventReadModelsService = new EventReadModelsService(prisma, this.eventAccessPolicyService, this.suppliersService);
+    this.commercialWorkflowService = new CommercialWorkflowService(
+      prisma,
+      this.auditService,
+      this.notificationOutboxService,
+      this.workflowCommandService,
+    );
+    this.eventClosureService = new EventClosureService(
+      prisma,
+      this.fileRequirementsMatrixService,
+      this.eventLifecycleService,
+      this.auditService,
+      this.notificationOutboxService,
+      this.workflowCommandService,
+    );
     this.pareService = new PAREService(prisma);
   }
 
@@ -1278,160 +1299,26 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async listBilling(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(
-      actor,
-      [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client],
-      'billing',
-    );
-
-    const events = await this.prisma.opsEvent.findMany({
-      where: { archived: false },
-      include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-      orderBy: { eventDate: 'asc' },
+    return this.eventReadModelsService.billing(actor, {
+      mapEvent: (event) => this.mapEvent(event),
+      mapBillingSource: (source) => this.billingOperationsService.mapBillingSource(source),
+      mapBillingStatement: (statement) => this.billingOperationsService.mapBillingStatement(statement),
+      mapPaymentMilestone: (payment, history) => this.billingOperationsService.mapPaymentMilestone(payment, history),
+      mapPaymentRecord: (record) => this.billingOperationsService.mapPaymentRecord(record),
     });
-    const visibleEvents = this.filterEventsForActor(actor, events);
-    const eventIds = visibleEvents.map((event) => event.id);
-
-    if (eventIds.length === 0) {
-      return {
-        events: [],
-        billingSources: [],
-        billingStatements: [],
-        paymentMilestones: [],
-        paymentRecords: [],
-      };
-    }
-
-    const [billingSources, billingStatements, paymentMilestones, paymentRecords] = await Promise.all([
-      actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System
-        ? this.prisma.opsBillingSource.findMany({
-            where: { eventId: { in: eventIds } },
-            orderBy: { createdAt: 'desc' },
-          })
-        : Promise.resolve([] as OpsBillingSource[]),
-      this.prisma.opsBillingStatement.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { generatedAt: 'desc' },
-      }),
-      this.prisma.opsPaymentMilestone.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { createdAt: 'asc' },
-      }),
-      this.prisma.opsPaymentRecord.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { recordedAt: 'desc' },
-      }),
-    ]);
-
-    return {
-      events: visibleEvents.map((event) => this.mapEvent(event)),
-      billingSources: billingSources.map((source) => this.billingOperationsService.mapBillingSource(source)),
-      billingStatements: billingStatements.map((statement) => this.billingOperationsService.mapBillingStatement(statement)),
-      paymentMilestones: paymentMilestones.map((payment) =>
-        this.billingOperationsService.mapPaymentMilestone(
-          payment,
-          paymentRecords.filter((record) => record.milestoneId === payment.id),
-        ),
-      ),
-      paymentRecords: paymentRecords.map((record) => this.billingOperationsService.mapPaymentRecord(record)),
-    };
   }
 
   async listClientWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.Client], 'client workspace');
-
-    const events = await this.prisma.opsEvent.findMany({
-      where: { archived: false },
-      include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-      orderBy: { eventDate: 'asc' },
+    return this.eventReadModelsService.clientWorkspace(actor, {
+      mapEvent: (event) => this.mapEvent(event),
+      mapDocument: (document) => this.mapDocument(document),
+      mapBriefing: (briefing) => this.mapBriefing(briefing),
+      mapBillingStatement: (statement) => this.billingOperationsService.mapBillingStatement(statement),
+      mapPaymentMilestone: (payment, history) => this.billingOperationsService.mapPaymentMilestone(payment, history),
+      mapFloorPlanDraft: (draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft),
+      mapAuditLog: (log) => this.auditService.mapAuditLog(log),
     });
-    const visibleEvents = this.filterEventsForActor(actor, events);
-    const eventIds = visibleEvents.map((event) => event.id);
-
-    if (eventIds.length === 0) {
-      return {
-        users: [],
-        inquiries: [],
-        events: [],
-        documents: [],
-        briefings: [],
-        supplierQuotes: [],
-        coordinatorAssignments: [],
-        complianceChecks: [],
-        billingStatements: [],
-        paymentMilestones: [],
-        postEventDocuments: [],
-        floorPlanDrafts: [],
-        auditLogs: [],
-        notificationLogs: [],
-      };
-    }
-
-    const [
-      documents,
-      briefings,
-      floorPlanDrafts,
-      billingStatements,
-      paymentMilestones,
-      paymentRecords,
-      auditLogs,
-    ] = await Promise.all([
-      this.prisma.opsDocument.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { uploadedAt: 'desc' },
-      }),
-      this.prisma.opsBriefing.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { submittedAt: 'desc' },
-      }),
-      this.prisma.opsFloorPlanDraft.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { updatedAt: 'desc' },
-      }),
-      this.prisma.opsBillingStatement.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { generatedAt: 'desc' },
-      }),
-      this.prisma.opsPaymentMilestone.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { createdAt: 'asc' },
-      }),
-      this.prisma.opsPaymentRecord.findMany({
-        where: { eventId: { in: eventIds } },
-        orderBy: { recordedAt: 'desc' },
-      }),
-      this.prisma.opsAuditLog.findMany({
-        where: {
-          eventId: { in: eventIds },
-          category: { not: AuditCategory.Access },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-    ]);
-
-    return {
-      users: [],
-      inquiries: [],
-      events: visibleEvents.map((event) => this.mapEvent(event)),
-      documents: documents.map((document) => this.mapDocument(document)),
-      briefings: briefings.map((briefing) => this.mapBriefing(briefing)),
-      supplierQuotes: [],
-      coordinatorAssignments: [],
-      complianceChecks: [],
-      billingStatements: billingStatements.map((statement) => this.billingOperationsService.mapBillingStatement(statement)),
-      paymentMilestones: paymentMilestones.map((payment) =>
-        this.billingOperationsService.mapPaymentMilestone(
-          payment,
-          paymentRecords.filter((record) => record.milestoneId === payment.id),
-        ),
-      ),
-      postEventDocuments: [],
-      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft)),
-      auditLogs: auditLogs.map((log) => this.auditService.mapAuditLog(log)),
-      notificationLogs: [],
-    };
   }
 
   async getGuestEventByAccessCode(accessCode: string) {
@@ -2548,24 +2435,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async listSupplierWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.Supplier], 'supplier workspace');
-    const supplier = await this.resolveSupplierForActor(actor);
-    const [requests, quotes] = await Promise.all([
-      this.prisma.opsSupplierQuoteRequest.findMany({
-        where: { supplierId: supplier.id },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.opsSupplierQuote.findMany({
-        where: { supplierId: supplier.id },
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
-
-    return {
-      supplier: this.sanitizeSupplierForSupplier(supplier),
-      quoteRequests: requests.map((request) => this.mapSupplierQuoteRequest(this.withExpiredQuoteRequestStatus(request))),
-      supplierQuotes: quotes.map((quote) => this.mapSupplierQuoteForSupplier(quote)),
-    };
+    return this.eventReadModelsService.supplierWorkspace(actor, {
+      mapSupplierQuoteRequest: (request) => this.mapSupplierQuoteRequest(request),
+      mapSupplierQuoteForSupplier: (quote) => this.mapSupplierQuoteForSupplier(quote),
+    });
   }
 
   async confirmSupplierAssignment(requestId: string, actorInput: SampleActorInput = {}) {
@@ -3130,43 +3003,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async selectSupplierQuote(eventId: string, quoteId: string) {
-    await this.requireEvent(eventId);
-    const quote = await this.prisma.opsSupplierQuote.findUnique({ where: { id: quoteId } });
-    if (!quote || quote.eventId !== eventId) throw new NotFoundException('Supplier quote not found');
-    if ([SupplierQuoteStatus.Selected, SupplierQuoteStatus.Locked].includes(quote.status as any)) {
-      return this.mapSupplierQuote(quote);
-    }
-
-    await this.prisma.opsSupplierQuote.updateMany({
-      where: { eventId, category: quote.category, id: { not: quote.id } },
-      data: { status: SupplierQuoteStatus.NotSelected },
-    });
-
-    const selected = await this.prisma.opsSupplierQuote.update({
-      where: { id: quote.id },
-      data: { status: SupplierQuoteStatus.Selected, selectedAt: new Date(), lockedAt: new Date() },
-    });
-
-    if (quote.requestId) {
-      await this.prisma.opsSupplierQuoteRequest.update({
-        where: { id: quote.requestId },
-        data: { status: SupplierQuoteRequestStatus.Selected },
-      });
-    }
-    await this.prisma.opsSupplierQuoteRequest.updateMany({
-      where: {
-        eventId,
-        ...(quote.categoryId ? { categoryId: quote.categoryId } : {}),
-        ...(quote.requestId ? { id: { not: quote.requestId } } : {}),
-      },
-      data: { status: SupplierQuoteRequestStatus.Closed },
-    });
-
-    await Promise.all([
-      this.audit(eventId, 'PMCM Admin', `Selected supplier quote: ${quote.supplierName}`),
-      this.notify(eventId, quote.supplierName, 'Your supplier quote was selected'),
-    ]);
-
+    const selected = await this.commercialWorkflowService.selectSupplierQuote(eventId, quoteId);
     return this.mapSupplierQuote(selected);
   }
 
@@ -3418,53 +3255,12 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getCloseGates(eventId: string) {
-    await this.requireEvent(eventId);
-    return this.fileRequirementsMatrixService.closeGates(eventId);
+    return this.eventClosureService.closeGates(eventId);
   }
 
   async archiveEvent(eventId: string, input: ArchiveEventInput = {}) {
-    const actorName = input.actorName?.trim() || 'PMCM Admin';
-    let closeGates = await this.getCloseGates(eventId);
-    const overrideReason = input.overrideReason?.trim();
-
-    return this.workflowCommandService.execute({
-      name: 'archive_event',
-      eventId,
-      validateState: async () => {
-        const event = await this.requireEvent(eventId);
-        this.eventLifecycleService.assertCanArchive(event, closeGates, overrideReason);
-      },
-      write: () =>
-        this.prisma.opsEvent
-          .update({
-            where: { id: eventId },
-            data: {
-              archived: true,
-              archivedAt: new Date(),
-              archiveOverrideReason: overrideReason || null,
-              archiveOverrideBy: overrideReason ? actorName : null,
-              archiveChecklist: toPrismaJson(closeGates),
-              status: 'archived',
-              readiness: 'Closed',
-            },
-          })
-          .catch(() => {
-            throw new NotFoundException('Event not found');
-          }),
-      sideEffects: async (event) => {
-        closeGates = await this.getCloseGates(eventId).catch(() => closeGates);
-        await Promise.all([
-          this.audit(eventId, actorName, overrideReason ? 'Archived event with override' : 'Archived event', {
-            actionType: AuditActionType.Archive,
-            category: AuditCategory.Events,
-            severity: overrideReason ? 'warning' : 'info',
-            metadata: { overrideReason, missingKeys: closeGates.missingKeys, gates: closeGates.gates },
-          }),
-          this.notify(eventId, event.clientName, 'Event workspace archived'),
-        ]);
-      },
-      project: (event) => this.mapEvent(event),
-    });
+    const event = await this.eventClosureService.archiveEvent(eventId, input);
+    return this.mapEvent(event);
   }
 
   async listEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
