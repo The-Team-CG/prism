@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment } from '@prisma/client';
+import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus } from '../ops.constants';
 import { AuditService } from './audit.service';
@@ -22,7 +23,7 @@ function timestamp(value: Date) {
 export class CoordinatorsService {
   private readonly auditService: AuditService;
 
-  constructor(private readonly prisma: any) {
+  constructor(private readonly prisma: PrismaService) {
     this.auditService = new AuditService(prisma);
   }
 

@@ -206,8 +206,8 @@ await expectOk('accept event ops inquiry', `/api/inquiries/${opsInquiry.id}/stat
   body: JSON.stringify({ status: 'accepted' }),
 });
 
-let opsState = await expectOk('read event ops state', '/api/sample/state');
-let opsEvent = opsState.events.find((item) => item.inquiryId === opsInquiry.id);
+let opsEvents = await expectOk('read scoped event list', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin');
+let opsEvent = opsEvents.find((item) => item.inquiryId === opsInquiry.id);
 
 if (opsEvent?.id) {
   throw new Error(`accepted inquiry should not create event before conforme: ${JSON.stringify(opsEvent)}`);
@@ -223,11 +223,11 @@ await expectOk('upload event ops conforme', `/api/inquiries/${opsInquiry.id}/con
   }),
 });
 
-opsState = await expectOk('read event ops state after conforme', '/api/sample/state');
-opsEvent = opsState.events.find((item) => item.inquiryId === opsInquiry.id);
+opsEvents = await expectOk('read scoped event list after conforme', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin');
+opsEvent = opsEvents.find((item) => item.inquiryId === opsInquiry.id);
 
 if (!opsEvent?.id) {
-  throw new Error(`conforme did not create event workspace: ${JSON.stringify(opsState.events)}`);
+  throw new Error(`conforme did not create event workspace: ${JSON.stringify(opsEvents)}`);
 }
 
 const preferenceDraft = await expectOk('submit client floorplan preference', `/api/events/${opsEvent.id}/floorplan-preferences`, {
@@ -373,12 +373,16 @@ await expectOk('ack event ops coordinator', `/api/events/${opsEvent.id}/coordina
   method: 'PATCH',
 });
 
-opsState = await expectOk('read event ops state after milestones', '/api/sample/state');
-const payment = opsState.paymentMilestones.find((item) => item.eventId === opsEvent.id);
-const postEventDocument = opsState.postEventDocuments.find((item) => item.eventId === opsEvent.id);
+const billingWorkspace = await expectOk(
+  'read scoped billing workspace after milestones',
+  '/api/billing?actorRole=pmcm-admin&actorName=PMCM%20Admin',
+);
+const closeGates = await expectOk('read scoped close gates after milestones', `/api/events/${opsEvent.id}/close-gates`);
+const payment = billingWorkspace.paymentMilestones.find((item) => item.eventId === opsEvent.id);
+const postEventDocument = closeGates.matrix.items.find((item) => item.key === 'post_event_documents');
 
-if (!payment?.id || !postEventDocument?.id) {
-  throw new Error(`event ops state missing payment or closure docs: ${JSON.stringify(opsState)}`);
+if (!payment?.id || !postEventDocument?.generatedDocumentId) {
+  throw new Error(`scoped read models missing payment or closure docs: ${JSON.stringify({ billingWorkspace, closeGates })}`);
 }
 
 await expectOk('mark event ops payment', `/api/events/${opsEvent.id}/payments/${payment.id}`, {
@@ -388,7 +392,7 @@ await expectOk('mark event ops payment', `/api/events/${opsEvent.id}/payments/${
 
 await expectOk(
   'complete event ops post-event document',
-  `/api/events/${opsEvent.id}/post-event-documents/${postEventDocument.id}/complete`,
+  `/api/events/${opsEvent.id}/post-event-documents/${postEventDocument.generatedDocumentId}/complete`,
   { method: 'PATCH' },
 );
 

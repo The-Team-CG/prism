@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsBillingStatement, OpsBillingSource, OpsPaymentMilestone, OpsPaymentRecord, Prisma } from '@prisma/client';
+import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory } from '../ops.constants';
@@ -71,7 +72,7 @@ function parseDate(value: string) {
 export class BillingOperationsService {
   private readonly auditService: AuditService;
 
-  constructor(private readonly prisma: any) {
+  constructor(private readonly prisma: PrismaService) {
     this.auditService = new AuditService(prisma);
   }
 

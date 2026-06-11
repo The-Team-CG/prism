@@ -1,4 +1,11 @@
-import type { PrismSampleState, PrismEvent, PrismInquiry } from "@prism/types";
+import type {
+  PrismBillingWorkspace,
+  PrismClientWorkspace,
+  PrismEvent,
+  PrismInquiry,
+  PrismSampleState,
+  PrismSupplierWorkspace,
+} from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
 export interface EventOpsActorQuery {
@@ -54,6 +61,15 @@ export interface EventOpsClient {
     list(actor?: EventOpsActorQuery): Promise<PrismEvent[]>;
     detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
   };
+  clientWorkspace: {
+    detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
+  };
+  supplierWorkspace: {
+    detail(actor?: EventOpsActorQuery): Promise<PrismSupplierWorkspace>;
+  };
+  billing: {
+    list(actor?: EventOpsActorQuery): Promise<PrismBillingWorkspace>;
+  };
 }
 
 export function createEventOpsClient(options: EventOpsClientOptions = {}): EventOpsClient {
@@ -71,6 +87,16 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
       list: (actor = {}) => prismRequest<PrismEvent[]>(actorPath("/events", actor), withBase(options)),
       detail: (eventId, actor = {}) =>
         prismRequest<PrismEvent>(actorPath(`/events/${eventId}`, actor), withBase(options)),
+    },
+    clientWorkspace: {
+      detail: (actor = {}) => prismRequest<PrismClientWorkspace>(actorPath("/client/workspace", actor), withBase(options)),
+    },
+    supplierWorkspace: {
+      detail: (actor = {}) =>
+        prismRequest<PrismSupplierWorkspace>(actorPath("/supplier/workspace", actor), withBase(options)),
+    },
+    billing: {
+      list: (actor = {}) => prismRequest<PrismBillingWorkspace>(actorPath("/billing", actor), withBase(options)),
     },
   };
 }

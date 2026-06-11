@@ -12,19 +12,18 @@ export type {
   PrismSupplierCertification,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
+  PrismSupplierWorkspace,
 } from "@prism/types";
 
+import { createEventOpsClient } from "@prism/api-client";
 import type {
   PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
+  PrismSupplierWorkspace,
 } from "@prism/types";
 
-export type SupplierWorkspace = {
-  supplier: PrismSupplier;
-  quoteRequests: PrismSupplierQuoteRequest[];
-  supplierQuotes: PrismSupplierQuote[];
-};
+export type SupplierWorkspace = PrismSupplierWorkspace;
 
 export type QuoteRequestDetail = {
   request: PrismSupplierQuoteRequest;
@@ -44,6 +43,7 @@ export type SubmitQuoteInput = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
+const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
@@ -82,7 +82,11 @@ function supplierRequestPath(session: SupplierSession, requestId: string, suffix
 
 export const prismApi = {
   supplierWorkspace: (session: SupplierSession) =>
-    request<SupplierWorkspace>(`/api/supplier/workspace?${supplierActorQuery(session)}`),
+    eventOpsClient.supplierWorkspace.detail({
+      actorRole: "supplier",
+      actorName: session.name,
+      actorEmail: session.email,
+    }),
   quoteRequest: (token: string) => request<QuoteRequestDetail>(`/api/quote-requests/${token}`),
   submitQuote: (token: string, input: SubmitQuoteInput) =>
     request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {

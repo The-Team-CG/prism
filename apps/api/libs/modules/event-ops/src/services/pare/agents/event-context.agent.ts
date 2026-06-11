@@ -1,7 +1,8 @@
+import type { PrismaService } from '@prism/database';
 import type { PAREContext } from '../pare.types';
 
 export class EventContextAgent {
-  constructor(private readonly prisma: any) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async run(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREContext> {
     let request: any;
@@ -36,14 +37,18 @@ export class EventContextAgent {
     try {
       const briefings = await this.prisma.opsBriefing.findMany({
         where: { eventId: event.id },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { submittedAt: 'desc' },
         take: 1,
       });
-      if (briefings.length > 0 && briefings[0].preferences) {
-        const prefs = briefings[0].preferences;
-        if (typeof prefs === 'object' && prefs !== null) {
-          Object.entries(prefs as Record<string, unknown>).forEach(([k, v]) => {
-            if (v && typeof v !== 'object') clientPreferences.push(`${k}: ${v}`);
+      if (briefings.length > 0 && briefings[0].serviceRequirements) {
+        const requirements = briefings[0].serviceRequirements;
+        if (Array.isArray(requirements)) {
+          requirements.forEach((value) => {
+            if (typeof value === 'string' && value.trim()) clientPreferences.push(value);
+          });
+        } else if (typeof requirements === 'object' && requirements !== null) {
+          Object.entries(requirements as Record<string, unknown>).forEach(([key, value]) => {
+            if (value && typeof value !== 'object') clientPreferences.push(`${key}: ${value}`);
           });
         }
       }

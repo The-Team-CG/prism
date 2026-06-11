@@ -126,7 +126,7 @@ function createParePrisma() {
 describe('PAREService', () => {
   it('returns a hydrated pending approval response even when replacement candidates have no quotes yet', async () => {
     const { prisma, quoteRequest } = createParePrisma();
-    const service = new PAREService(prisma);
+    const service = new PAREService(prisma as any);
 
     await service.handleEmergencyTrigger(quoteRequest.id);
     const pending = await service.getPendingApprovals('evt_sample');
@@ -163,7 +163,7 @@ describe('PAREService', () => {
 
   it('returns the same hydrated PARE response after approval', async () => {
     const { prisma, quoteRequest } = createParePrisma();
-    const service = new PAREService(prisma);
+    const service = new PAREService(prisma as any);
 
     const pending = await service.handleEmergencyTrigger(quoteRequest.id);
     const approved = await service.approveRecommendation(pending.id, 'Ms. Mys');

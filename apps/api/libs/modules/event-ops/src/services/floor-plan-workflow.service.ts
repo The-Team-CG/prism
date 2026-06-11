@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import type { OpsFloorPlanDraft, Prisma } from '@prisma/client';
+import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
@@ -42,7 +43,7 @@ function timestamp(value: Date) {
 }
 
 export class FloorPlanWorkflowService {
-  constructor(private readonly prisma: any) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanActor) {
     const event = await this.requireEvent(eventId);

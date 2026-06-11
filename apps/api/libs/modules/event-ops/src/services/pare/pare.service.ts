@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { PrismaService } from '@prism/database';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { EventContextAgent } from './agents/event-context.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';
@@ -47,7 +48,7 @@ export class PAREService {
   private readonly memoryAuditLogs = new Map<string, AuditRow>();
   private readonly memoryApprovals = new Map<string, ApprovalRow>();
 
-  constructor(private readonly prisma: any) {
+  constructor(private readonly prisma: PrismaService) {
     this.mode = (process.env.PARE_MODE as PAREMode) ?? 'mock';
     this.sanitizer = new DataSanitizerService();
     this.eventContextAgent = new EventContextAgent(prisma);

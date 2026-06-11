@@ -747,6 +747,38 @@ export interface PrismSampleState {
   notificationLogs: PrismNotificationLog[];
 }
 
+export type PrismClientWorkspace = Pick<
+  PrismSampleState,
+  | "users"
+  | "inquiries"
+  | "events"
+  | "documents"
+  | "briefings"
+  | "supplierQuotes"
+  | "coordinatorAssignments"
+  | "complianceChecks"
+  | "billingStatements"
+  | "paymentMilestones"
+  | "postEventDocuments"
+  | "floorPlanDrafts"
+  | "auditLogs"
+  | "notificationLogs"
+>;
+
+export interface PrismBillingWorkspace {
+  events: PrismEvent[];
+  billingSources: PrismBillingSource[];
+  billingStatements: PrismBillingStatement[];
+  paymentMilestones: PrismPaymentMilestone[];
+  paymentRecords: PrismPaymentRecord[];
+}
+
+export interface PrismSupplierWorkspace {
+  supplier: PrismSupplier;
+  quoteRequests: PrismSupplierQuoteRequest[];
+  supplierQuotes: PrismSupplierQuote[];
+}
+
 type CreateFloorPlanDraftInput = {
   name: string;
   sourceType: "blank" | "template" | "client_preference";

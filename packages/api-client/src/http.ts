@@ -67,5 +67,9 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
     throw new PrismApiError(response.status, responseBody);
   }
 
+  if (responseBody && typeof responseBody === "object" && "data" in responseBody) {
+    return (responseBody as { data: T }).data;
+  }
+
   return responseBody as T;
 }

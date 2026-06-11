@@ -1,4 +1,5 @@
 import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
+import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { createHash, randomUUID } from 'node:crypto';
 import {
@@ -57,7 +58,7 @@ function addMinutes(value: Date, minutes: number) {
 }
 
 export class AuditService {
-  constructor(private readonly prisma: any) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async listLoginHistory(userId: string) {
     const entries = await this.prisma.opsLoginHistory.findMany({

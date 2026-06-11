@@ -7,6 +7,7 @@ import type {
   OpsSupplierReliabilityNote,
   OpsSupplierReview,
 } from '@prisma/client';
+import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { SupplierTier } from '../ops.constants';
 
@@ -74,7 +75,7 @@ function timestamp(value: Date) {
 }
 
 export class SuppliersService {
-  constructor(private readonly prisma: any) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async listSupplierCategories() {
     const categories = await this.prisma.opsSupplierCategory.findMany({

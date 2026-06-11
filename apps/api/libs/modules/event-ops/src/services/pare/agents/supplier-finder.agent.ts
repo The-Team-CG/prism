@@ -1,7 +1,8 @@
+import type { PrismaService } from '@prism/database';
 import type { PARECandidate, PAREContext } from '../pare.types';
 
 export class SupplierFinderAgent {
-  constructor(private readonly prisma: any) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async run(ctx: PAREContext): Promise<PARECandidate[]> {
     const { withdrawnSupplier, eventId } = ctx;

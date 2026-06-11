@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsInquiry } from '@prisma/client';
+import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole } from '../ops.constants';
@@ -74,7 +75,7 @@ function daysBetween(left: Date, right: Date) {
 
 export class InquiriesService {
   constructor(
-    private readonly prisma: any,
+    private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
   ) {}
 

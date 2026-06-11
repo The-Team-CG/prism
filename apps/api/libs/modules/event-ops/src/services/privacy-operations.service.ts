@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, PrivacyRequestStatus, PrivacyRequestType } from '../ops.constants';
 import { AuditService } from './audit.service';
@@ -57,7 +58,7 @@ function timestamp(value?: Date | null) {
 
 export class PrivacyOperationsService {
   constructor(
-    private readonly prisma: any,
+    private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
   ) {}
 

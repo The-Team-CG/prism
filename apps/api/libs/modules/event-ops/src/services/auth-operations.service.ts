@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
+import type { PrismaService } from '@prism/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '../ops.constants';
 import { AuditService } from './audit.service';
 import { AuthSecurityService } from './auth-security.service';
@@ -23,7 +24,7 @@ function timestamp(value: Date) {
 
 export class AuthOperationsService {
   constructor(
-    private readonly prisma: any,
+    private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly inquiriesService: InquiriesService,
   ) {}

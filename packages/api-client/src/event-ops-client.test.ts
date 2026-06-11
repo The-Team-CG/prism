@@ -82,6 +82,51 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("loads scoped client workspace through the shared contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.clientWorkspace.detail({ actorRole: "client", clientName: "Ana Reyes" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/client/workspace?actorRole=client&clientName=Ana+Reyes",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
+  it("loads scoped supplier workspace through the shared contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ quoteRequests: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.supplierWorkspace.detail({ actorRole: "supplier", actorEmail: "supplier@example.com" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/supplier/workspace?actorRole=supplier&actorEmail=supplier%40example.com",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
+  it("loads billing as a scoped read model", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ paymentMilestones: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.billing.list({ actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/billing?actorName=Ms.+Mys&actorRole=pmcm-admin",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
   it("posts inquiry payloads", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "inq_1" }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);

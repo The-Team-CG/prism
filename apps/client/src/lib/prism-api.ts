@@ -22,6 +22,7 @@ import type {
   PrismPostEventDocument,
   PrismSupplierQuote,
   PrismUser,
+  PrismClientWorkspace,
 } from "@prism/types";
 
 export type {
@@ -171,6 +172,34 @@ function firstInquiry(state: PrismSampleState) {
   return inquiry;
 }
 
+function clientWorkspaceToState(workspace: PrismClientWorkspace): PrismSampleState {
+  return {
+    users: workspace.users,
+    inquiries: workspace.inquiries,
+    events: workspace.events,
+    documents: workspace.documents,
+    briefings: workspace.briefings,
+    supplierQuoteRequests: [],
+    supplierQuotes: workspace.supplierQuotes,
+    coordinators: [],
+    coordinatorRoleRequirements: [],
+    coordinatorAssignments: workspace.coordinatorAssignments,
+    complianceRules: [],
+    complianceChecks: workspace.complianceChecks,
+    billingSources: [],
+    billingStatements: workspace.billingStatements,
+    paymentMilestones: workspace.paymentMilestones,
+    paymentRecords: [],
+    postEventDocuments: workspace.postEventDocuments,
+    eventInsights: [],
+    floorPlanDrafts: workspace.floorPlanDrafts,
+    supplierCategories: [],
+    suppliers: [],
+    auditLogs: workspace.auditLogs,
+    notificationLogs: workspace.notificationLogs,
+  };
+}
+
 interface ApiFloorPlan {
   id: string;
   name: string;
@@ -310,8 +339,14 @@ export const prismApi = {
   clientState: async (session: Pick<PrismUser, "name" | "email">) => {
     if (!USE_REMOTE_API) return readMockState();
 
-    const actor = clientActorQuery(session);
-    return request<PrismSampleState>(`/api/client/workspace?${actor}`);
+    return clientWorkspaceToState(
+      await eventOpsClient.clientWorkspace.detail({
+        actorRole: "client",
+        actorName: session.name,
+        actorEmail: session.email,
+        clientName: session.name,
+      }),
+    );
   },
   reset: () => {
     if (USE_REMOTE_API) return eventOpsClient.sample.reset();

@@ -401,12 +401,11 @@ export const prismApi = {
         actorEmail: "mys@pmcm.test",
       }),
       request<PrismSupplier[]>(`/api/suppliers?${pmcmActorQuery}`),
-      request<{
-        billingSources: PrismBillingSource[];
-        billingStatements: PrismBillingStatement[];
-        paymentMilestones: PrismPaymentMilestone[];
-        paymentRecords?: PrismPaymentRecord[];
-      }>(`/api/billing?${pmcmActorQuery}`),
+      eventOpsClient.billing.list({
+        actorRole: "pmcm-admin",
+        actorName: "Ms. Mys",
+        actorEmail: "mys@pmcm.test",
+      }),
     ]);
     const onboardingData =
       onboarding.status === "fulfilled"

@@ -66,6 +66,15 @@ import { LiveOperationsService } from './services/live-operations.service';
 import { PrivacyOperationsService } from './services/privacy-operations.service';
 import { SampleStateService } from './services/sample-state.service';
 import { InquiryWorkflowService } from './services/inquiry-workflow.service';
+import {
+  EventAccessPolicyService,
+  type EventOpsActorInput,
+  type ResolvedEventOpsActor,
+} from './services/event-access-policy.service';
+import { EventLifecycleService } from './services/event-lifecycle.service';
+import { FileRequirementsMatrixService } from './services/file-requirements-matrix.service';
+import { NotificationOutboxService } from './services/notification-outbox.service';
+import { WorkflowCommandService } from './services/workflow-command.service';
 import { PAREService } from './services/pare/pare.service';
 import {
   type ApproveBillingSourceInput,
@@ -306,34 +315,8 @@ type AuditLogFilters = {
   limit?: string;
 };
 
-export type SampleActorInput = {
-  id?: string;
-  actorId?: string;
-  role?: string;
-  actorRole?: string;
-  email?: string;
-  actorEmail?: string;
-  name?: string;
-  actorName?: string;
-  clientName?: string;
-  supplierId?: string;
-  coordinatorId?: string;
-  eventId?: string;
-  accessCode?: string;
-};
-
-type ResolvedSampleActor = {
-  id?: string;
-  role: OpsUserRoleValue;
-  email?: string;
-  name: string;
-  clientName?: string;
-  supplierId?: string;
-  coordinatorId?: string;
-  eventId?: string;
-  accessCode?: string;
-  explicit: boolean;
-};
+export type SampleActorInput = EventOpsActorInput;
+type ResolvedSampleActor = ResolvedEventOpsActor;
 
 type AuditLogInput = {
   eventId?: string;
@@ -655,6 +638,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly billingOperationsService: BillingOperationsService;
   private readonly floorPlanWorkflowService: FloorPlanWorkflowService;
   private readonly liveOperationsService: LiveOperationsService;
+  private readonly eventAccessPolicyService: EventAccessPolicyService;
+  private readonly eventLifecycleService: EventLifecycleService;
+  private readonly fileRequirementsMatrixService: FileRequirementsMatrixService;
+  private readonly notificationOutboxService: NotificationOutboxService;
+  private readonly workflowCommandService: WorkflowCommandService;
   private readonly pareService: PAREService;
 
   constructor(
@@ -663,6 +651,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     private readonly inquiryWorkflowService = new InquiryWorkflowService(prisma),
   ) {
     this.auditService = new AuditService(prisma);
+    this.eventAccessPolicyService = new EventAccessPolicyService(this.auditService);
     this.inquiriesService = new InquiriesService(prisma, this.auditService);
     this.authOperationsService = new AuthOperationsService(prisma, this.auditService, this.inquiriesService);
     this.privacyOperationsService = new PrivacyOperationsService(prisma, this.auditService);
@@ -671,33 +660,15 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.billingOperationsService = new BillingOperationsService(prisma);
     this.floorPlanWorkflowService = new FloorPlanWorkflowService(prisma);
     this.liveOperationsService = new LiveOperationsService();
+    this.eventLifecycleService = new EventLifecycleService();
+    this.fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
+    this.notificationOutboxService = new NotificationOutboxService(prisma);
+    this.workflowCommandService = new WorkflowCommandService();
     this.pareService = new PAREService(prisma);
   }
 
   private resolveActor(input: SampleActorInput = {}): ResolvedSampleActor {
-    const requestedRole = (input.actorRole ?? input.role ?? OpsUserRole.PmcmAdmin).trim().toLowerCase();
-    const knownRoles = Object.values(OpsUserRole) as OpsUserRoleValue[];
-    const role = knownRoles.includes(requestedRole as OpsUserRoleValue)
-      ? (requestedRole as OpsUserRoleValue)
-      : OpsUserRole.Unknown;
-    const name =
-      input.actorName ??
-      input.name ??
-      input.clientName ??
-      (role === OpsUserRole.PmcmAdmin ? 'PMCM Admin' : role);
-
-    return {
-      id: input.actorId ?? input.id,
-      role,
-      email: input.actorEmail ?? input.email,
-      name,
-      clientName: input.clientName ?? (role === OpsUserRole.Client ? name : undefined),
-      supplierId: input.supplierId,
-      coordinatorId: input.coordinatorId,
-      eventId: input.eventId,
-      accessCode: input.accessCode,
-      explicit: Boolean(input.actorRole ?? input.role),
-    };
+    return this.eventAccessPolicyService.resolveActor(input);
   }
 
   private async requireActorRole(
@@ -706,59 +677,26 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     resource: string,
     eventId?: string,
   ) {
-    if (allowedRoles.includes(actor.role)) return;
-
-    await this.recordForbiddenAccess(actor, resource, eventId);
-    throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
+    return this.eventAccessPolicyService.requireActorRole(actor, allowedRoles, resource, eventId);
   }
 
   private canReadEvent(actor: ResolvedSampleActor, event: Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'>) {
-    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
-    if (actor.role === OpsUserRole.Client) {
-      return (
-        event.clientPortalStatus === 'unlocked' &&
-        this.sameText(actor.clientName, event.clientName)
-      );
-    }
-    if (actor.role === OpsUserRole.Coordinator) {
-      return Boolean(actor.eventId && actor.eventId === event.id);
-    }
-    return false;
+    return this.eventAccessPolicyService.canReadEvent(actor, event);
   }
 
   private filterEventsForActor<T extends Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'>>(
     actor: ResolvedSampleActor,
     events: T[],
   ) {
-    return events.filter((event) => this.canReadEvent(actor, event));
+    return this.eventAccessPolicyService.filterEventsForActor(actor, events);
   }
 
   private sameText(left?: string | null, right?: string | null) {
-    return Boolean(left && right && left.trim().toLowerCase() === right.trim().toLowerCase());
+    return this.eventAccessPolicyService.sameText(left, right);
   }
 
   private async recordForbiddenAccess(actor: ResolvedSampleActor, resource: string, eventId?: string) {
-    try {
-      await this.audit(eventId, actor.name, `403 forbidden access: ${resource}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.ForbiddenAccess,
-        category: AuditCategory.Access,
-        affectedType: 'scoped_read',
-        affectedLabel: resource,
-        severity: 'warning',
-        metadata: {
-          actorId: actor.id,
-          role: actor.role,
-          clientName: actor.clientName,
-          supplierId: actor.supplierId,
-          coordinatorId: actor.coordinatorId,
-        },
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Forbidden access audit log could not be recorded: ${message}`);
-    }
+    return this.eventAccessPolicyService.recordForbiddenAccess(actor, resource, eventId);
   }
 
   async onModuleInit() {
@@ -1093,58 +1031,16 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     channel: 'email' | 'viber' = 'email',
     options: { forceFail?: boolean } = {},
   ) {
-    return this.prisma.opsNotificationLog.create({
-      data: {
-        id: `not_${randomUUID()}`,
-        eventId,
-        channel,
-        recipient,
-        message,
-        status: 'queued',
-        attempts: 0,
-        failureReason: options.forceFail ? 'FORCE_FAIL' : null,
-      },
-    });
+    return this.notificationOutboxService.queue(eventId, recipient, message, channel, options);
   }
 
   async processNotificationQueue() {
-    const queued = await this.prisma.opsNotificationLog.findMany({
-      where: { status: 'queued' },
-      orderBy: { createdAt: 'asc' },
-    });
-    const processed: OpsNotificationLog[] = [];
-    for (const notification of queued) {
-      const shouldFail = notification.failureReason === 'FORCE_FAIL';
-      const updated = await this.prisma.opsNotificationLog.update({
-        where: { id: notification.id },
-        data: shouldFail
-          ? {
-              status: 'failed',
-              attempts: (notification.attempts ?? 0) + 1,
-              failedAt: new Date(),
-              failureReason: 'Sample adapter forced failure',
-            }
-          : {
-              status: 'sent',
-              attempts: (notification.attempts ?? 0) + 1,
-              sentAt: new Date(),
-              failureReason: null,
-            },
-      });
-      processed.push(updated);
-    }
+    const processed = await this.notificationOutboxService.processQueued();
     return processed.map((item) => this.mapNotificationLog(item));
   }
 
   async acknowledgeNotification(notificationId: string) {
-    const notification = await this.prisma.opsNotificationLog
-      .update({
-        where: { id: notificationId },
-        data: { status: 'acknowledged', acknowledgedAt: new Date() },
-      })
-      .catch(() => {
-        throw new NotFoundException('Notification not found');
-      });
+    const notification = await this.notificationOutboxService.acknowledge(notificationId);
     return this.mapNotificationLog(notification);
   }
 
@@ -2406,7 +2302,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
   ) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan draft', eventId);
+    await this.eventAccessPolicyService.requireCanMutateOfficialFloorplan(actor, eventId, 'official floorplan draft');
     return this.floorPlanWorkflowService.createFloorPlanDraft(eventId, input, {
       name: actor.name,
       role: actor.role,
@@ -2442,7 +2338,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
   ) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan submit', eventId);
+    await this.eventAccessPolicyService.requireCanMutateOfficialFloorplan(actor, eventId, 'official floorplan submit');
     return this.floorPlanWorkflowService.submitFloorPlanDraft(eventId, draftId, {
       name: actor.name,
       role: actor.role,
@@ -2455,7 +2351,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
   ) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'official floorplan approve', eventId);
+    await this.eventAccessPolicyService.requireCanMutateOfficialFloorplan(actor, eventId, 'official floorplan approve');
     return this.floorPlanWorkflowService.approveFloorPlanDraft(eventId, draftId, {
       name: actor.name,
       role: actor.role,
@@ -3522,111 +3418,53 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getCloseGates(eventId: string) {
-    const event = await this.requireEvent(eventId);
-    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews] = await Promise.all([
-      this.prisma.opsDocument.findMany({ where: { eventId } }),
-      this.prisma.opsPostEventDocument.findMany({ where: { eventId } }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId } }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId } }),
-      this.prisma.opsSupplierReview.findMany({ where: { eventId } }),
-    ]);
-
-    const submittedDocuments = documents.filter((document) =>
-      ['submitted', 'approved', 'generated', 'sent'].includes(document.status),
-    );
-    const unpaidMilestones = milestones.filter((milestone) => milestone.status !== 'paid' || milestone.remainingBalance > 0);
-    const feedbackDocs = [
-      ...postEventDocuments.filter((document) =>
-        document.title.toLowerCase().includes('feedback') && document.status === 'submitted',
-      ),
-      ...documents.filter((document) =>
-        document.type.toLowerCase().includes('feedback') && ['submitted', 'approved'].includes(document.status),
-      ),
-    ];
-
-    const gates = [
-      {
-        key: 'documents',
-        label: 'Post-event documents',
-        passed: submittedDocuments.length > 0,
-        detail: `${submittedDocuments.length} submitted/generated document(s) on file`,
-      },
-      {
-        key: 'billing',
-        label: 'Billing and payment schedule',
-        passed: billingStatements.length > 0 && unpaidMilestones.length === 0,
-        detail:
-          billingStatements.length === 0
-            ? 'No billing statement generated'
-            : unpaidMilestones.length === 0
-              ? 'Billing exists and all milestones are paid'
-              : `${unpaidMilestones.length} payment milestone(s) still unpaid`,
-      },
-      {
-        key: 'floorplan_logistics',
-        label: 'Floorplan/logistics closure',
-        passed: event.floorPlanStatus === 'approved',
-        detail: `Floorplan status is ${event.floorPlanStatus}`,
-      },
-      {
-        key: 'supplier_reviews',
-        label: 'Supplier review capture',
-        passed: supplierReviews.length > 0,
-        detail: `${supplierReviews.length} supplier review(s) recorded`,
-      },
-      {
-        key: 'feedback',
-        label: 'Client feedback indicator',
-        passed: feedbackDocs.length > 0,
-        detail: `${feedbackDocs.length} feedback document(s) recorded`,
-      },
-    ];
-
-    return {
-      eventId,
-      ready: gates.every((gate) => gate.passed),
-      gates,
-      missingKeys: gates.filter((gate) => !gate.passed).map((gate) => gate.key),
-    };
+    await this.requireEvent(eventId);
+    return this.fileRequirementsMatrixService.closeGates(eventId);
   }
 
   async archiveEvent(eventId: string, input: ArchiveEventInput = {}) {
-    const closeGates = await this.getCloseGates(eventId);
-    const overrideReason = input.overrideReason?.trim();
     const actorName = input.actorName?.trim() || 'PMCM Admin';
+    let closeGates = await this.getCloseGates(eventId);
+    const overrideReason = input.overrideReason?.trim();
 
-    if (!closeGates.ready && !overrideReason) {
-      throw new BadRequestException('Close gates must pass before archive, or PMCM must provide an override reason');
-    }
-
-    const event = await this.prisma.opsEvent
-      .update({
-        where: { id: eventId },
-        data: {
-          archived: true,
-          archivedAt: new Date(),
-          archiveOverrideReason: overrideReason || null,
-          archiveOverrideBy: overrideReason ? actorName : null,
-          archiveChecklist: toPrismaJson(closeGates),
-          status: 'archived',
-          readiness: 'Closed',
-        },
-      })
-      .catch(() => {
-        throw new NotFoundException('Event not found');
-      });
-
-    await Promise.all([
-      this.audit(eventId, actorName, overrideReason ? 'Archived event with override' : 'Archived event', {
-        actionType: AuditActionType.Archive,
-        category: AuditCategory.Events,
-        severity: overrideReason ? 'warning' : 'info',
-        metadata: { overrideReason, missingKeys: closeGates.missingKeys, gates: closeGates.gates },
-      }),
-      this.notify(eventId, event.clientName, 'Event workspace archived'),
-    ]);
-
-    return this.mapEvent(event);
+    return this.workflowCommandService.execute({
+      name: 'archive_event',
+      eventId,
+      validateState: async () => {
+        const event = await this.requireEvent(eventId);
+        this.eventLifecycleService.assertCanArchive(event, closeGates, overrideReason);
+      },
+      write: () =>
+        this.prisma.opsEvent
+          .update({
+            where: { id: eventId },
+            data: {
+              archived: true,
+              archivedAt: new Date(),
+              archiveOverrideReason: overrideReason || null,
+              archiveOverrideBy: overrideReason ? actorName : null,
+              archiveChecklist: toPrismaJson(closeGates),
+              status: 'archived',
+              readiness: 'Closed',
+            },
+          })
+          .catch(() => {
+            throw new NotFoundException('Event not found');
+          }),
+      sideEffects: async (event) => {
+        closeGates = await this.getCloseGates(eventId).catch(() => closeGates);
+        await Promise.all([
+          this.audit(eventId, actorName, overrideReason ? 'Archived event with override' : 'Archived event', {
+            actionType: AuditActionType.Archive,
+            category: AuditCategory.Events,
+            severity: overrideReason ? 'warning' : 'info',
+            metadata: { overrideReason, missingKeys: closeGates.missingKeys, gates: closeGates.gates },
+          }),
+          this.notify(eventId, event.clientName, 'Event workspace archived'),
+        ]);
+      },
+      project: (event) => this.mapEvent(event),
+    });
   }
 
   async listEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
@@ -4798,7 +4636,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private notify(eventId: string | undefined, recipient: string, message: string, channel: 'email' | 'viber' = 'email') {
-    return this.auditService.notify(eventId, recipient, message, channel);
+    return this.notificationOutboxService.queue(eventId, recipient, message, channel);
   }
 
   private mapUser(user: OpsUser) {
