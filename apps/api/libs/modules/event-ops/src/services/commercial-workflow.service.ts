@@ -14,6 +14,12 @@ type SelectSupplierQuoteResult = {
   selectedNow: boolean;
 };
 
+export type QuoteRequestTokenDetail = {
+  request: OpsSupplierQuoteRequest;
+  event: { id: string; eventName: string; clientName: string; eventDate: Date };
+  quote: OpsSupplierQuote | null;
+};
+
 export type RequestSupplierQuotesInput = {
   categoryId: string;
   supplierIds?: string[];
@@ -252,6 +258,26 @@ export class CommercialWorkflowService {
         ]);
       },
     });
+  }
+
+  async getQuoteRequestByToken(token: string): Promise<QuoteRequestTokenDetail> {
+    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
+    if (!request) throw new NotFoundException('Quote request not found');
+
+    const requestWithStatus = await this.expireQuoteRequestIfNeeded(request);
+    const [event, quote] = await Promise.all([
+      this.prisma.opsEvent.findUnique({
+        where: { id: requestWithStatus.eventId },
+        select: { id: true, eventName: true, clientName: true, eventDate: true },
+      }),
+      this.prisma.opsSupplierQuote.findFirst({
+        where: { requestId: requestWithStatus.id },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    if (!event) throw new NotFoundException('Event not found');
+
+    return { request: requestWithStatus, event, quote };
   }
 
   async submitSupplierQuoteByToken(token: string, input: SubmitSupplierQuoteInput) {

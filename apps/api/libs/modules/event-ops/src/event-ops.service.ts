@@ -1726,17 +1726,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getQuoteRequestByToken(token: string) {
-    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
-    if (!request) throw new NotFoundException('Quote request not found');
-    const requestWithStatus = await this.expireQuoteRequestIfNeeded(request);
-    const event = await this.requireEvent(request.eventId);
-    const quote = await this.prisma.opsSupplierQuote.findFirst({
-      where: { requestId: request.id },
-      orderBy: { createdAt: 'desc' },
-    });
+    const { request, event, quote } = await this.commercialWorkflowService.getQuoteRequestByToken(token);
 
     return {
-      request: this.mapSupplierQuoteRequest(requestWithStatus),
+      request: this.mapSupplierQuoteRequest(request),
       quote: quote ? this.mapSupplierQuoteForSupplier(quote) : null,
       eventId: event.id,
       eventName: request.confidentialBid ? 'Confidential event' : event.eventName,
@@ -2849,15 +2842,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       return { ...request, status: SupplierQuoteRequestStatus.Expired } as OpsSupplierQuoteRequest;
     }
     return request;
-  }
-
-  private async expireQuoteRequestIfNeeded(request: OpsSupplierQuoteRequest) {
-    const requestWithStatus = this.withExpiredQuoteRequestStatus(request);
-    if (requestWithStatus.status === request.status) return request;
-    return this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: request.id },
-      data: { status: requestWithStatus.status },
-    });
   }
 
   private async audit(
