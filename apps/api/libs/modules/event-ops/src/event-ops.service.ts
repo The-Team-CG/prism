@@ -94,6 +94,10 @@ import {
   FloorPlanWorkflowService,
 } from './services/floor-plan-workflow.service';
 import { ComplianceWorkflowService, type ComplianceRunInput } from './services/compliance-workflow.service';
+import {
+  ClientOnboardingWorkflowService,
+  type SubmitBriefingInput,
+} from './services/client-onboarding-workflow.service';
 
 type CreateInquiryInput = {
   clientName: string;
@@ -123,14 +127,6 @@ type RequestApprovalInput = {
 type UpdateInquiryStatusInput = {
   status: string;
   declineReason?: string;
-};
-
-type SubmitBriefingInput = {
-  venue: string;
-  guestCount: number;
-  budgetRange: string;
-  serviceRequirements: string[];
-  notes: string;
 };
 
 type ResolveComplianceInput = {
@@ -636,6 +632,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly commercialWorkflowService: CommercialWorkflowService;
   private readonly eventClosureService: EventClosureService;
   private readonly complianceWorkflowService: ComplianceWorkflowService;
+  private readonly clientOnboardingWorkflowService: ClientOnboardingWorkflowService;
   private readonly pareService: PAREService;
 
   constructor(
@@ -696,6 +693,12 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.complianceWorkflowService = new ComplianceWorkflowService(
       prisma,
       this.auditService,
+      this.workflowCommandService,
+    );
+    this.clientOnboardingWorkflowService = new ClientOnboardingWorkflowService(
+      prisma,
+      this.auditService,
+      this.notificationOutboxService,
       this.workflowCommandService,
     );
     this.pareService = new PAREService(prisma);
@@ -2301,46 +2304,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async submitBriefing(eventId: string, input: SubmitBriefingInput) {
-    await this.requireEvent(eventId);
-
-    const briefing = await this.prisma.$transaction(async (tx) => {
-      await tx.opsBriefing.deleteMany({ where: { eventId } });
-      const saved = await tx.opsBriefing.create({
-        data: {
-          id: `brief_${randomUUID()}`,
-          eventId,
-          venue: input.venue,
-          guestCount: input.guestCount,
-          budgetRange: input.budgetRange,
-          serviceRequirements: toPrismaJson(input.serviceRequirements),
-          notes: input.notes,
-        },
-      });
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: { readiness: 'Supplier quotes pending', status: 'planning' },
-      });
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: 'Client',
-          action: 'Submitted client briefing',
-        },
-      });
-      await tx.opsNotificationLog.create({
-        data: {
-          id: `not_${randomUUID()}`,
-          eventId,
-          channel: 'email',
-          recipient: 'PMCM Admin',
-          message: 'Client briefing submitted',
-          status: 'queued',
-        },
-      });
-      return saved;
-    });
-
+    const briefing = await this.clientOnboardingWorkflowService.submitBriefing(eventId, input);
     return this.mapBriefing(briefing);
   }
 
