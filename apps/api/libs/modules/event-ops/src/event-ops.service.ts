@@ -1998,6 +1998,20 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.eventClosureService.closeGates(eventId);
   }
 
+  async getFileRequirements(eventId: string, actorInput: SampleActorInput = {}) {
+    const actor = this.resolveActor(actorInput);
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+
+    await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'file requirements matrix');
+
+    const matrix = await this.fileRequirementsMatrixService.buildForEvent(eventId);
+    return {
+      ...matrix,
+      items: matrix.items.filter((item) => item.visibleToRoles.includes(actor.role)),
+    };
+  }
+
   async archiveEvent(eventId: string, input: ArchiveEventInput = {}) {
     const event = await this.eventClosureService.archiveEvent(eventId, input);
     return this.mapEvent(event);

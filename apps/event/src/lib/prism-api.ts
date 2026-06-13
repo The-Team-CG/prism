@@ -25,6 +25,7 @@ import type {
   PrismEventDayStatusFeed,
   PrismEventDayTask,
   PrismEventInsight,
+  PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
   PrismFloorPlanPreference,
   PrismFloorPlanSnapshot,
@@ -77,6 +78,7 @@ export type {
   PrismEventDayStatusFeed,
   PrismEventDayTask,
   PrismEventInsight,
+  PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
   PrismFloorPlanPreference,
   PrismFloorPlanSnapshot,
@@ -676,6 +678,12 @@ export const prismApi = {
   sendBillingStatement: (eventId: string, billingId: string) =>
     request<PrismBillingStatement>(`/api/events/${eventId}/billing-statements/${billingId}/send`, { method: "POST" }),
   closeGates: (eventId: string) => request<PrismCloseGates>(`/api/events/${eventId}/close-gates`),
+  fileRequirements: (eventId: string) =>
+    eventOpsClient.events.fileRequirements(eventId, {
+      actorRole: "pmcm-admin",
+      actorName: "Ms. Mys",
+      actorEmail: "mys@pmcm.test",
+    }),
   archiveEvent: (eventId: string, overrideReason?: string) =>
     request<PrismEvent>(`/api/events/${eventId}/archive`, {
       method: "POST",

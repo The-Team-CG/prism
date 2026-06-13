@@ -360,6 +360,11 @@ export class OpsEventsController {
     return this.eventOpsService.getCloseGates(eventId);
   }
 
+  @Get(':eventId/file-requirements')
+  fileRequirements(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
+    return this.eventOpsService.getFileRequirements(eventId, actor);
+  }
+
   @Post(':eventId/archive')
   @HttpCode(HttpStatus.OK)
   archiveEvent(@Param('eventId') eventId: string, @Body() dto: ArchiveEventDto = {}) {

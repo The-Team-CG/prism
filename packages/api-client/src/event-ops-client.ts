@@ -2,6 +2,7 @@ import type {
   PrismBillingWorkspace,
   PrismClientWorkspace,
   PrismEvent,
+  PrismFileRequirementsMatrix,
   PrismInquiry,
   PrismPmcmDashboardWorkspace,
   PrismSampleState,
@@ -61,6 +62,7 @@ export interface EventOpsClient {
   events: {
     list(actor?: EventOpsActorQuery): Promise<PrismEvent[]>;
     detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    fileRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismFileRequirementsMatrix>;
   };
   clientWorkspace: {
     detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
@@ -91,6 +93,11 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
       list: (actor = {}) => prismRequest<PrismEvent[]>(actorPath("/events", actor), withBase(options)),
       detail: (eventId, actor = {}) =>
         prismRequest<PrismEvent>(actorPath(`/events/${eventId}`, actor), withBase(options)),
+      fileRequirements: (eventId, actor = {}) =>
+        prismRequest<PrismFileRequirementsMatrix>(
+          actorPath(`/events/${eventId}/file-requirements`, actor),
+          withBase(options),
+        ),
     },
     clientWorkspace: {
       detail: (actor = {}) => prismRequest<PrismClientWorkspace>(actorPath("/client/workspace", actor), withBase(options)),

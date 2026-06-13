@@ -13,6 +13,7 @@ import type {
   PrismSampleState,
   PrismDocument,
   PrismEvent,
+  PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
   PrismFloorPlanPreference,
   PrismFloorPlanSnapshot,
@@ -36,6 +37,7 @@ export type {
   PrismSampleState,
   PrismDocument,
   PrismEvent,
+  PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
   PrismFloorPlanPreference,
   PrismFloorPlanSnapshot,
@@ -532,6 +534,18 @@ export const prismApi = {
           activeFloorPlanDraftId: drafts.find((draft) => draft.isActive)?.id,
         };
       })),
+  fileRequirements: (eventId: string, session: Pick<PrismUser, "name" | "email">) =>
+    USE_REMOTE_API
+      ? eventOpsClient.events.fileRequirements(eventId, {
+          actorRole: "client",
+          actorName: session.name,
+          actorEmail: session.email,
+          clientName: session.name,
+        })
+      : Promise.resolve<PrismFileRequirementsMatrix>({
+          eventId,
+          items: [],
+        }),
   createFloorPlanPreference: (
     eventId: string,
     input: { name: string; venue?: string; width?: number; height?: number; gridSize?: number; objects?: Project["objects"] } & PrismFloorPlanPreference,

@@ -82,6 +82,21 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("loads event file requirements as a scoped read model", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1", items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.events.fileRequirements("evt_1", { actorRole: "client", clientName: "Ana Reyes" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/events/evt_1/file-requirements?actorRole=client&clientName=Ana+Reyes",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
   it("loads scoped client workspace through the shared contract", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

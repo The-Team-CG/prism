@@ -163,6 +163,27 @@ export interface PrismDocument {
   uploadedAt: string;
 }
 
+export type PrismFileRequirementStatus = "missing" | "pending" | "submitted" | "generated" | "approved" | "complete";
+
+export interface PrismFileRequirementItem {
+  key: string;
+  label: string;
+  ownerRole: string;
+  visibleToRoles: string[];
+  sourceWorkflow: string;
+  status: PrismFileRequirementStatus;
+  dueDate?: string;
+  uploadedAssetId?: string;
+  generatedDocumentId?: string;
+  auditCategory: string;
+  detail: string;
+}
+
+export interface PrismFileRequirementsMatrix {
+  eventId: string;
+  items: PrismFileRequirementItem[];
+}
+
 export interface PrismBriefing {
   eventId: string;
   venue: string;
@@ -566,6 +587,7 @@ export interface PrismCloseGates {
   ready: boolean;
   gates: PrismCloseGate[];
   missingKeys: string[];
+  matrix?: PrismFileRequirementsMatrix;
 }
 
 export interface PrismEventInsight {
