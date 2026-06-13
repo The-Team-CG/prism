@@ -117,6 +117,7 @@ export const AuditCategory = {
   Suppliers: 'suppliers',
   Access: 'access',
   Documents: 'documents',
+  Compliance: 'compliance',
 } as const;
 
 export const PortalInvitationStatus = {

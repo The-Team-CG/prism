@@ -93,6 +93,7 @@ import {
   type CreateFloorPlanPreferenceInput,
   FloorPlanWorkflowService,
 } from './services/floor-plan-workflow.service';
+import { ComplianceWorkflowService, type ComplianceRunInput } from './services/compliance-workflow.service';
 
 type CreateInquiryInput = {
   clientName: string;
@@ -130,10 +131,6 @@ type SubmitBriefingInput = {
   budgetRange: string;
   serviceRequirements: string[];
   notes: string;
-};
-
-type ComplianceRunInput = {
-  phase?: string;
 };
 
 type ResolveComplianceInput = {
@@ -638,6 +635,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly eventReadModelsService: EventReadModelsService;
   private readonly commercialWorkflowService: CommercialWorkflowService;
   private readonly eventClosureService: EventClosureService;
+  private readonly complianceWorkflowService: ComplianceWorkflowService;
   private readonly pareService: PAREService;
 
   constructor(
@@ -693,6 +691,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       this.eventLifecycleService,
       this.auditService,
       this.notificationOutboxService,
+      this.workflowCommandService,
+    );
+    this.complianceWorkflowService = new ComplianceWorkflowService(
+      prisma,
+      this.auditService,
       this.workflowCommandService,
     );
     this.pareService = new PAREService(prisma);
@@ -2769,7 +2772,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       actorRole: actor.role,
       actorEmail: actor.email,
       actionType: AuditActionType.Create,
-      category: 'compliance',
+      category: AuditCategory.Compliance,
       affectedType: 'compliance_rule',
       affectedId: rule.id,
       affectedLabel: rule.title,
@@ -2800,7 +2803,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       actorRole: actor.role,
       actorEmail: actor.email,
       actionType: AuditActionType.Update,
-      category: 'compliance',
+      category: AuditCategory.Compliance,
       affectedType: 'compliance_rule',
       affectedId: rule.id,
       affectedLabel: rule.title,
@@ -2809,53 +2812,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async runCompliance(eventId: string, input: ComplianceRunInput = {}) {
-    const event = await this.requireEvent(eventId);
-    const phase = input.phase?.trim() || 'planning';
-    const inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: event.inquiryId } });
-    const eventType = inquiry?.eventType ?? '';
-
-    const rules = await this.prisma.opsComplianceRule.findMany({
-      where: { active: true, phase },
-      orderBy: [{ severity: 'asc' }, { title: 'asc' }],
-    });
-    const matchingRules = rules.filter((rule) => this.ruleAppliesToEvent(rule, eventId, eventType));
-
-    const checks = await this.prisma.$transaction(async (tx) => {
-      await tx.opsComplianceCheck.deleteMany({ where: { eventId } });
-      if (matchingRules.length > 0) {
-        await tx.opsComplianceCheck.createMany({
-          data: matchingRules.map((rule) => ({
-            id: `chk_${randomUUID()}`,
-            eventId,
-            ruleId: rule.id,
-            layer: rule.layer,
-            severity: rule.severity,
-            phase: rule.phase,
-            conditionKey: rule.conditionKey,
-            title: rule.title,
-            status: 'open',
-            note: rule.note,
-          })),
-        });
-      }
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: { readiness: matchingRules.some((rule) => rule.severity === 'must_fix') ? 'Must-Fix item open' : 'Compliance review open' },
-      });
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: 'PMCM Admin',
-          action: 'Ran compliance checks',
-          actionType: 'create',
-          category: 'compliance',
-          metadata: toPrismaJson({ phase, eventType, ruleCount: matchingRules.length }),
-        },
-      });
-      return tx.opsComplianceCheck.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
-    });
-
+    const checks = await this.complianceWorkflowService.runCompliance(eventId, input);
     return checks.map((check) => this.mapComplianceCheck(check));
   }
 
@@ -2897,7 +2854,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
     await this.audit(eventId, actorName, action === 'override' ? 'Overrode compliance item' : 'Resolved compliance item', {
       actionType: AuditActionType.Resolve,
-      category: 'compliance',
+      category: AuditCategory.Compliance,
       affectedType: 'compliance_check',
       affectedId: checkId,
       affectedLabel: check.title,
@@ -4006,12 +3963,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     if (severity === 'watch_out' || severity === 'should_fix') return 'Should-Fix';
     if (severity === 'advisory') return 'Advisory';
     return 'Must-Fix';
-  }
-
-  private ruleAppliesToEvent(rule: OpsComplianceRule, eventId: string, eventType: string) {
-    const eventScoped = !rule.eventId || rule.eventId === eventId;
-    const typeScoped = !rule.eventType || this.sameText(rule.eventType, eventType);
-    return eventScoped && typeScoped;
   }
 
   private privacySurface(
