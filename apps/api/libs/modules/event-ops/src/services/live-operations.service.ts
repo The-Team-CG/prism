@@ -7,11 +7,13 @@ import {
   AuditActionType,
   AuditCategory,
   EventDayTaskStatus,
+  LiveOpsEscalationLevel,
   LiveOpsSlaStatus,
   UrgentIssueSeverity,
   UrgentIssueStatus,
 } from '../ops.constants';
 import { AuditService } from './audit.service';
+import { NotificationOutboxService } from './notification-outbox.service';
 import { WorkflowCommandService } from './workflow-command.service';
 
 export type CreateEventDayTaskInput = {
@@ -49,6 +51,13 @@ export type UpdateUrgentIssueInput = {
   slaDueAt?: string;
 };
 
+export type EscalateLiveOpsInput = {
+  escalationLevel?: string;
+  notes?: string;
+  ownerRole?: string;
+  ownerName?: string;
+};
+
 export type LiveOpsActor = {
   name: string;
   role: string;
@@ -64,6 +73,8 @@ type SlaRecord = {
   completedAt?: Date | null;
 };
 
+type LiveOpsEscalationLevelValue = (typeof LiveOpsEscalationLevel)[keyof typeof LiveOpsEscalationLevel];
+
 const CLOSED_STATUSES = new Set(['done', 'resolved', 'cancelled', 'closed']);
 const DUE_SOON_MS = 60 * 60 * 1000;
 
@@ -71,6 +82,7 @@ export class LiveOperationsService {
   constructor(
     private readonly prisma?: PrismaService,
     private readonly auditService?: AuditService,
+    private readonly notificationOutboxService?: NotificationOutboxService,
     private readonly workflowCommandService = new WorkflowCommandService(),
   ) {}
 
@@ -276,6 +288,125 @@ export class LiveOperationsService {
     });
   }
 
+  async escalateEventDayTask(eventId: string, taskId: string, input: EscalateLiveOpsInput, actor: LiveOpsActor) {
+    const prisma = this.requirePrisma();
+    const auditService = this.requireAuditService();
+    const notificationOutboxService = this.requireNotificationOutboxService();
+    let current: OpsEventDayTask | null = null;
+    let escalationLevel: LiveOpsEscalationLevelValue = LiveOpsEscalationLevel.RoleLead;
+    let notes = '';
+
+    return this.workflowCommandService.execute<OpsEventDayTask>({
+      name: 'escalate_event_day_task',
+      eventId,
+      validateState: async () => {
+        escalationLevel = this.validateEscalationLevel(input.escalationLevel);
+        notes = input.notes?.trim() ?? '';
+        if (!notes) throw new BadRequestException('Escalation notes are required');
+        current = (await prisma.opsEventDayTask.findMany({ where: { eventId } })).find((task) => task.id === taskId) ?? null;
+        if (!current) throw new NotFoundException('Event-day task not found');
+      },
+      write: () => {
+        if (!current) throw new NotFoundException('Event-day task not found');
+        return prisma.opsEventDayTask.update({
+          where: { id: taskId },
+          data: {
+            ...(input.ownerRole !== undefined ? { assignedRole: input.ownerRole.trim() } : {}),
+            ...(input.ownerName !== undefined ? { ownerName: input.ownerName.trim() } : {}),
+            slaStatus: this.computeSlaStatus(current),
+            escalationLevel,
+            escalatedAt: new Date(),
+            escalatedBy: actor.name,
+            escalationNotes: notes,
+          },
+        });
+      },
+      sideEffects: async (task) => {
+        const recipient = input.ownerName?.trim() || task.ownerName || task.assignedRole || 'PMCM Live Ops';
+        await Promise.all([
+          this.recordEventDayLog(eventId, 'task_escalated', actor, `Escalated event-day task: ${task.title}`, 'event_day_task', task.id, {
+            escalationLevel,
+            notes,
+            ownerRole: input.ownerRole ?? task.assignedRole,
+            ownerName: input.ownerName ?? task.ownerName,
+          }),
+          auditService.audit(eventId, actor.name, `Escalated event-day task: ${task.title}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'event_day_task',
+            affectedId: task.id,
+            affectedLabel: task.title,
+            severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
+            metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? task.assignedRole, ownerName: input.ownerName ?? task.ownerName },
+          }),
+          notificationOutboxService.queue(eventId, recipient, `Event-day task escalated: ${task.title}`, 'viber'),
+        ]);
+      },
+    });
+  }
+
+  async escalateUrgentIssue(eventId: string, issueId: string, input: EscalateLiveOpsInput, actor: LiveOpsActor) {
+    const prisma = this.requirePrisma();
+    const auditService = this.requireAuditService();
+    const notificationOutboxService = this.requireNotificationOutboxService();
+    let current: OpsUrgentIssue | null = null;
+    let escalationLevel: LiveOpsEscalationLevelValue = LiveOpsEscalationLevel.RoleLead;
+    let notes = '';
+
+    return this.workflowCommandService.execute<OpsUrgentIssue>({
+      name: 'escalate_urgent_issue',
+      eventId,
+      validateState: async () => {
+        escalationLevel = this.validateEscalationLevel(input.escalationLevel);
+        notes = input.notes?.trim() ?? '';
+        if (!notes) throw new BadRequestException('Escalation notes are required');
+        current = (await prisma.opsUrgentIssue.findMany({ where: { eventId } })).find((issue) => issue.id === issueId) ?? null;
+        if (!current) throw new NotFoundException('Urgent issue not found');
+      },
+      write: () => {
+        if (!current) throw new NotFoundException('Urgent issue not found');
+        return prisma.opsUrgentIssue.update({
+          where: { id: issueId },
+          data: {
+            ...(input.ownerRole !== undefined ? { ownerRole: input.ownerRole.trim() } : {}),
+            ...(input.ownerName !== undefined ? { ownerName: input.ownerName.trim() } : {}),
+            ...(input.ownerRole || input.ownerName ? { status: UrgentIssueStatus.Assigned } : {}),
+            slaStatus: this.computeSlaStatus(current),
+            escalationLevel,
+            escalatedAt: new Date(),
+            escalatedBy: actor.name,
+            escalationNotes: notes,
+          },
+        });
+      },
+      sideEffects: async (issue) => {
+        const recipient = input.ownerName?.trim() || issue.ownerName || issue.ownerRole || 'PMCM Live Ops';
+        await Promise.all([
+          this.recordEventDayLog(eventId, 'urgent_issue_escalated', actor, `Escalated urgent issue: ${issue.title}`, 'urgent_issue', issue.id, {
+            escalationLevel,
+            notes,
+            ownerRole: input.ownerRole ?? issue.ownerRole,
+            ownerName: input.ownerName ?? issue.ownerName,
+          }),
+          auditService.audit(eventId, actor.name, `Escalated urgent issue: ${issue.title}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'urgent_issue',
+            affectedId: issue.id,
+            affectedLabel: issue.title,
+            severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
+            metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? issue.ownerRole, ownerName: input.ownerName ?? issue.ownerName },
+          }),
+          notificationOutboxService.queue(eventId, recipient, `Urgent issue escalated: ${issue.title}`, 'viber'),
+        ]);
+      },
+    });
+  }
+
   computeSlaStatus(record: SlaRecord, now = new Date()) {
     if (record.resolvedAt || record.completedAt || CLOSED_STATUSES.has(record.status ?? '')) {
       return LiveOpsSlaStatus.Resolved;
@@ -373,5 +504,24 @@ export class LiveOperationsService {
   private requireAuditService() {
     if (!this.auditService) throw new Error('AuditService is required for live operations writes');
     return this.auditService;
+  }
+
+  private requireNotificationOutboxService() {
+    if (!this.notificationOutboxService) throw new Error('NotificationOutboxService is required for live operations writes');
+    return this.notificationOutboxService;
+  }
+
+  private validateEscalationLevel(value?: string) {
+    const escalationLevel = value?.trim();
+    const allowed = [
+      LiveOpsEscalationLevel.RoleLead,
+      LiveOpsEscalationLevel.Pmcm,
+      LiveOpsEscalationLevel.Critical,
+    ];
+    if (!escalationLevel) return LiveOpsEscalationLevel.RoleLead;
+    if (!allowed.includes(escalationLevel as any)) {
+      throw new BadRequestException('Unsupported escalation level');
+    }
+    return escalationLevel as (typeof allowed)[number];
   }
 }

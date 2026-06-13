@@ -56,12 +56,12 @@ import {
   OpsUserRole,
   SupplierQuoteRequestStatus,
   SupplierVerificationStatus,
-  UrgentIssueStatus,
   type OpsUserRole as OpsUserRoleValue,
 } from './ops.constants';
 import {
   type CreateEventDayTaskInput,
   type CreateUrgentIssueInput,
+  type EscalateLiveOpsInput,
   LiveOperationsService,
   type UpdateEventDayTaskInput,
   type UpdateUrgentIssueInput,
@@ -184,13 +184,6 @@ type UpdateCoordinatorAttendanceInput = {
   status: string;
   notes?: string;
   markedBy?: string;
-};
-
-type EscalateLiveOpsInput = {
-  escalationLevel: string;
-  notes: string;
-  ownerRole?: string;
-  ownerName?: string;
 };
 
 type ReplaceCoordinatorAssignmentInput = {
@@ -616,6 +609,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.liveOperationsService = new LiveOperationsService(
       prisma,
       this.auditService,
+      this.notificationOutboxService,
       this.workflowCommandService,
     );
     this.eventLifecycleService = new EventLifecycleService();
@@ -1517,49 +1511,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day task escalation');
-    const escalationLevel = this.validateEscalationLevel(input.escalationLevel);
-    const notes = input.notes?.trim();
-    if (!notes) throw new BadRequestException('Escalation notes are required');
-    const current = (await this.prisma.opsEventDayTask.findMany({ where: { eventId } })).find(
-      (task: any) => task.id === taskId,
-    );
-    if (!current) throw new NotFoundException('Event-day task not found');
-
-    const task = await this.prisma.opsEventDayTask.update({
-      where: { id: taskId },
-      data: {
-        ...(input.ownerRole !== undefined ? { assignedRole: input.ownerRole.trim() } : {}),
-        ...(input.ownerName !== undefined ? { ownerName: input.ownerName.trim() } : {}),
-        slaStatus: this.liveOperationsService.computeSlaStatus(current),
-        escalationLevel,
-        escalatedAt: new Date(),
-        escalatedBy: actor.name,
-        escalationNotes: notes,
-      },
-    });
-    const recipient = input.ownerName?.trim() || task.ownerName || task.assignedRole || 'PMCM Live Ops';
-
-    await Promise.all([
-      this.recordEventDayLog(eventId, 'task_escalated', actor, `Escalated event-day task: ${task.title}`, 'event_day_task', task.id, {
-        escalationLevel,
-        notes,
-        ownerRole: input.ownerRole ?? task.assignedRole,
-        ownerName: input.ownerName ?? task.ownerName,
-      }),
-      this.audit(eventId, actor.name, `Escalated event-day task: ${task.title}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Events,
-        affectedType: 'event_day_task',
-        affectedId: task.id,
-        affectedLabel: task.title,
-        severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
-        metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? task.assignedRole, ownerName: input.ownerName ?? task.ownerName },
-      }),
-      this.queueNotification(eventId, recipient, `Event-day task escalated: ${task.title}`, 'viber'),
-    ]);
-
+    const task = await this.liveOperationsService.escalateEventDayTask(eventId, taskId, input, actor);
     return this.mapEventDayTask(task);
   }
 
@@ -1570,50 +1522,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issue escalation');
-    const escalationLevel = this.validateEscalationLevel(input.escalationLevel);
-    const notes = input.notes?.trim();
-    if (!notes) throw new BadRequestException('Escalation notes are required');
-    const current = (await this.prisma.opsUrgentIssue.findMany({ where: { eventId } })).find(
-      (issue: any) => issue.id === issueId,
-    );
-    if (!current) throw new NotFoundException('Urgent issue not found');
-
-    const issue = await this.prisma.opsUrgentIssue.update({
-      where: { id: issueId },
-      data: {
-        ...(input.ownerRole !== undefined ? { ownerRole: input.ownerRole.trim() } : {}),
-        ...(input.ownerName !== undefined ? { ownerName: input.ownerName.trim() } : {}),
-        ...(input.ownerRole || input.ownerName ? { status: UrgentIssueStatus.Assigned } : {}),
-        slaStatus: this.liveOperationsService.computeSlaStatus(current),
-        escalationLevel,
-        escalatedAt: new Date(),
-        escalatedBy: actor.name,
-        escalationNotes: notes,
-      },
-    });
-    const recipient = input.ownerName?.trim() || issue.ownerName || issue.ownerRole || 'PMCM Live Ops';
-
-    await Promise.all([
-      this.recordEventDayLog(eventId, 'urgent_issue_escalated', actor, `Escalated urgent issue: ${issue.title}`, 'urgent_issue', issue.id, {
-        escalationLevel,
-        notes,
-        ownerRole: input.ownerRole ?? issue.ownerRole,
-        ownerName: input.ownerName ?? issue.ownerName,
-      }),
-      this.audit(eventId, actor.name, `Escalated urgent issue: ${issue.title}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Events,
-        affectedType: 'urgent_issue',
-        affectedId: issue.id,
-        affectedLabel: issue.title,
-        severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
-        metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? issue.ownerRole, ownerName: input.ownerName ?? issue.ownerName },
-      }),
-      this.queueNotification(eventId, recipient, `Urgent issue escalated: ${issue.title}`, 'viber'),
-    ]);
-
+    const issue = await this.liveOperationsService.escalateUrgentIssue(eventId, issueId, input, actor);
     return this.mapUrgentIssue(issue);
   }
 
@@ -3676,19 +3585,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private isRegistrationRole(role: string) {
     const normalized = role.toLowerCase();
     return normalized.includes('registration') || normalized.includes('usher');
-  }
-
-  private validateEscalationLevel(value?: string) {
-    const escalationLevel = value?.trim();
-    const allowed = [
-      LiveOpsEscalationLevel.RoleLead,
-      LiveOpsEscalationLevel.Pmcm,
-      LiveOpsEscalationLevel.Critical,
-    ];
-    if (!allowed.includes(escalationLevel as any)) {
-      throw new BadRequestException('Unsupported escalation level');
-    }
-    return escalationLevel as (typeof allowed)[number];
   }
 
   private async requireSupplierQuoteRequestForActor(requestId: string, actorInput: SampleActorInput = {}) {
