@@ -98,6 +98,11 @@ import {
   ClientOnboardingWorkflowService,
   type SubmitBriefingInput,
 } from './services/client-onboarding-workflow.service';
+import {
+  GuestWorkflowService,
+  type GuestCheckInInput,
+  type GuestFeedbackInput,
+} from './services/guest-workflow.service';
 
 type CreateInquiryInput = {
   clientName: string;
@@ -256,27 +261,6 @@ type ReviewPrivacyRequestInput = {
 
 type ExecutePrivacyRequestInput = {
   executionNotes?: string;
-};
-
-type GuestCheckInInput = {
-  guestName: string;
-  checkInMode?: string;
-  walkIn?: boolean;
-  verificationStatus?: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-};
-
-type GuestFeedbackInput = {
-  guestName: string;
-  rating: number;
-  comment?: string;
-  photo?: UploadMetadataInput;
-  video?: UploadMetadataInput;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
 };
 
 type AiGovernanceInput = {
@@ -633,6 +617,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly eventClosureService: EventClosureService;
   private readonly complianceWorkflowService: ComplianceWorkflowService;
   private readonly clientOnboardingWorkflowService: ClientOnboardingWorkflowService;
+  private readonly guestWorkflowService: GuestWorkflowService;
   private readonly pareService: PAREService;
 
   constructor(
@@ -699,6 +684,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       prisma,
       this.auditService,
       this.notificationOutboxService,
+      this.workflowCommandService,
+    );
+    this.guestWorkflowService = new GuestWorkflowService(
+      prisma,
+      this.auditService,
       this.workflowCommandService,
     );
     this.pareService = new PAREService(prisma);
@@ -1323,85 +1313,19 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getGuestEventByAccessCode(accessCode: string) {
-    const event = await this.resolveGuestEventByAccessCode(accessCode);
+    const event = await this.guestWorkflowService.getEventByAccessCode(accessCode);
     const attendanceCount = await this.prisma.opsGuestCheckIn.count({ where: { eventId: event.id } });
 
     return this.mapGuestEvent(event, attendanceCount);
   }
 
   async checkInGuestByAccessCode(accessCode: string, input: GuestCheckInInput) {
-    const event = await this.resolveGuestEventByAccessCode(accessCode);
-    const guestName = input.guestName?.trim();
-    if (!guestName) throw new BadRequestException('Guest name is required');
-    if (!input.privacyConsentAccepted) {
-      throw new BadRequestException('Privacy consent is required before guest check-in');
-    }
-    const checkIn = await this.prisma.opsGuestCheckIn.create({
-      data: {
-        id: `gci_${randomUUID()}`,
-        eventId: event.id,
-        guestName,
-        checkInMode: input.checkInMode ?? (input.walkIn ? 'walk_in' : 'name_search'),
-        status: 'checked_in',
-        walkIn: Boolean(input.walkIn),
-        verificationStatus: input.verificationStatus ?? (input.walkIn ? 'flagged' : 'verified'),
-        privacyConsentAccepted: true,
-        privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
-        marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
-      },
-    });
-    await this.audit(event.id, guestName, `Guest checked in: ${guestName}`, {
-      actorRole: OpsUserRole.Guest,
-      category: AuditCategory.Events,
-      actionType: AuditActionType.Update,
-      affectedType: 'guest_check_in',
-      affectedId: checkIn.id,
-      affectedLabel: guestName,
-      metadata: { walkIn: Boolean(input.walkIn), checkInMode: input.checkInMode ?? 'name_search' },
-    });
+    const checkIn = await this.guestWorkflowService.checkInByAccessCode(accessCode, input);
     return this.mapGuestCheckIn(checkIn);
   }
 
   async submitGuestFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput) {
-    const event = await this.resolveGuestEventByAccessCode(accessCode);
-    const guestName = input.guestName?.trim();
-    if (!guestName) throw new BadRequestException('Guest name is required');
-    if (!input.privacyConsentAccepted) {
-      throw new BadRequestException('Privacy consent is required before guest feedback submission');
-    }
-    if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
-      throw new BadRequestException('Rating must be between 1 and 5');
-    }
-    const photo = input.photo
-      ? this.validateUploadMetadata(input.photo, `events/${event.id}/guest-feedback`)
-      : null;
-    const video = input.video
-      ? this.validateUploadMetadata(input.video, `events/${event.id}/guest-feedback`)
-      : null;
-    const feedback = await this.prisma.opsGuestFeedback.create({
-      data: {
-        id: `gfb_${randomUUID()}`,
-        eventId: event.id,
-        guestName,
-        rating: input.rating,
-        comment: input.comment?.trim() ?? '',
-        photoFileName: photo?.generatedFileName ?? null,
-        videoFileName: video?.generatedFileName ?? null,
-        privacyConsentAccepted: true,
-        privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
-        marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
-        moderationStatus: 'pending_review',
-      },
-    });
-    await this.audit(event.id, guestName, `Guest feedback submitted: ${guestName}`, {
-      actorRole: OpsUserRole.Guest,
-      category: AuditCategory.Events,
-      actionType: AuditActionType.Create,
-      affectedType: 'guest_feedback',
-      affectedId: feedback.id,
-      affectedLabel: guestName,
-      metadata: { rating: input.rating, moderationStatus: 'pending_review' },
-    });
+    const feedback = await this.guestWorkflowService.submitFeedbackByAccessCode(accessCode, input);
     return this.mapGuestFeedback(feedback);
   }
 
@@ -2166,22 +2090,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       audit: this.mapAiAuditLog(audit),
       approval: this.mapAiApprovalRecord(approval),
     };
-  }
-
-  private async resolveGuestEventByAccessCode(accessCode: string) {
-    const normalizedCode = this.normalizeGuestAccessCode(accessCode);
-    const events = await this.prisma.opsEvent.findMany({
-      where: { archived: false },
-      include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-      orderBy: { eventDate: 'asc' },
-    });
-    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
-
-    if (!event) {
-      throw new NotFoundException('Guest event code was not found');
-    }
-
-    return event;
   }
 
   async createFloorPlanDraft(
@@ -4177,10 +4085,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     const idPart = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase() || 'EVNT';
 
     return `${namePart}-${idPart}`;
-  }
-
-  private normalizeGuestAccessCode(accessCode: string) {
-    return accessCode.trim().toUpperCase().replace(/\s+/g, '-');
   }
 
   private mapDocument(document: OpsDocument) {
