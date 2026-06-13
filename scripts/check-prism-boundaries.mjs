@@ -29,6 +29,11 @@ export const boundaryRules = [
     filePattern: /^packages\/api-client\//,
     importPattern: /from\s+["'](?:@\/|apps\/)/,
   },
+  {
+    name: "role apps must not read the broad sample state aggregate",
+    filePattern: /^apps\/(?:client|event|supplier|guest)\//,
+    importPattern: /(?:eventOpsClient\.sample\.state\(|prismApi\.state\(|["']\/api\/sample\/state["']|["']\/sample\/state["'])/,
+  },
 ];
 
 export function listTrackedSourceFiles(root = process.cwd()) {
