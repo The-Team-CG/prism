@@ -4,13 +4,22 @@ import type {
   OpsBillingSource,
   OpsBillingStatement,
   OpsBriefing,
+  OpsComplianceCheck,
+  OpsComplianceRule,
+  OpsCoordinator,
+  OpsCoordinatorAssignment,
   OpsDocument,
   OpsEvent,
+  OpsEventInsight,
   OpsFloorPlanDraft,
+  OpsInquiry,
+  OpsNotificationLog,
   OpsPaymentMilestone,
   OpsPaymentRecord,
+  OpsPostEventDocument,
   OpsSupplierQuote,
   OpsSupplierQuoteRequest,
+  OpsUser,
 } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { AuditCategory, OpsUserRole, SupplierQuoteRequestStatus } from '../ops.constants';
@@ -40,6 +49,30 @@ type ClientWorkspaceMappers = {
 type SupplierWorkspaceMappers = {
   mapSupplierQuoteRequest: (request: OpsSupplierQuoteRequest) => unknown;
   mapSupplierQuoteForSupplier: (quote: OpsSupplierQuote) => unknown;
+};
+
+type PmcmDashboardMappers = {
+  coordinatorRoleRequirements: unknown[];
+  mapUser: (user: OpsUser) => unknown;
+  mapInquiry: (inquiry: OpsInquiry) => unknown;
+  mapEvent: (event: EventWithDrafts) => unknown;
+  mapDocument: (document: OpsDocument) => unknown;
+  mapBriefing: (briefing: OpsBriefing) => unknown;
+  mapSupplierQuoteRequest: (request: OpsSupplierQuoteRequest) => unknown;
+  mapSupplierQuote: (quote: OpsSupplierQuote) => unknown;
+  mapCoordinator: (coordinator: OpsCoordinator) => unknown;
+  mapCoordinatorAssignment: (assignment: OpsCoordinatorAssignment) => unknown;
+  mapComplianceRule: (rule: OpsComplianceRule) => unknown;
+  mapComplianceCheck: (check: OpsComplianceCheck) => unknown;
+  mapBillingSource: (source: OpsBillingSource) => unknown;
+  mapBillingStatement: (statement: OpsBillingStatement) => unknown;
+  mapPaymentMilestone: (payment: OpsPaymentMilestone, history: OpsPaymentRecord[]) => unknown;
+  mapPaymentRecord: (record: OpsPaymentRecord) => unknown;
+  mapPostEventDocument: (document: OpsPostEventDocument) => unknown;
+  mapEventInsight: (insight: OpsEventInsight) => unknown;
+  mapFloorPlanDraft: (draft: OpsFloorPlanDraft) => unknown;
+  mapAuditLog: (log: OpsAuditLog) => unknown;
+  mapNotificationLog: (log: OpsNotificationLog) => unknown;
 };
 
 export class EventReadModelsService {
@@ -206,6 +239,92 @@ export class EventReadModelsService {
       supplier: this.sanitizeSupplierForSupplier(supplier),
       quoteRequests: requests.map((request) => mappers.mapSupplierQuoteRequest(this.withExpiredQuoteRequestStatus(request))),
       supplierQuotes: quotes.map((quote) => mappers.mapSupplierQuoteForSupplier(quote)),
+    };
+  }
+
+  async pmcmDashboard(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers) {
+    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM dashboard');
+
+    const [
+      users,
+      inquiries,
+      events,
+      documents,
+      briefings,
+      supplierQuoteRequests,
+      supplierQuotes,
+      coordinators,
+      coordinatorAssignments,
+      complianceRules,
+      complianceChecks,
+      billingSources,
+      billingStatements,
+      paymentMilestones,
+      paymentRecords,
+      postEventDocuments,
+      eventInsights,
+      floorPlanDrafts,
+      supplierCategories,
+      suppliers,
+      auditLogs,
+      notificationLogs,
+    ] = await Promise.all([
+      this.prisma.opsUser.findMany({ orderBy: { createdAt: 'asc' } }),
+      this.prisma.opsInquiry.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsEvent.findMany({
+        include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.opsDocument.findMany({ orderBy: { uploadedAt: 'desc' } }),
+      this.prisma.opsBriefing.findMany({ orderBy: { submittedAt: 'desc' } }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsSupplierQuote.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsCoordinator.findMany({ where: { active: true }, orderBy: { name: 'asc' } }),
+      this.prisma.opsCoordinatorAssignment.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsComplianceRule.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsComplianceCheck.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsBillingSource.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsBillingStatement.findMany({ orderBy: { generatedAt: 'desc' } }),
+      this.prisma.opsPaymentMilestone.findMany({ orderBy: { createdAt: 'asc' } }),
+      this.prisma.opsPaymentRecord.findMany({ orderBy: { recordedAt: 'desc' } }),
+      this.prisma.opsPostEventDocument.findMany({ orderBy: { title: 'asc' } }),
+      this.prisma.opsEventInsight.findMany({ orderBy: { generatedAt: 'desc' } }),
+      this.prisma.opsFloorPlanDraft.findMany({ orderBy: { updatedAt: 'desc' } }),
+      this.suppliersService.listSupplierCategories(),
+      this.suppliersService.listSuppliers(),
+      this.prisma.opsAuditLog.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsNotificationLog.findMany({ orderBy: { createdAt: 'desc' } }),
+    ]);
+
+    return {
+      users: users.map(mappers.mapUser),
+      inquiries: inquiries.map(mappers.mapInquiry),
+      events: events.map(mappers.mapEvent),
+      documents: documents.map(mappers.mapDocument),
+      briefings: briefings.map(mappers.mapBriefing),
+      supplierQuoteRequests: supplierQuoteRequests.map(mappers.mapSupplierQuoteRequest),
+      supplierQuotes: supplierQuotes.map(mappers.mapSupplierQuote),
+      coordinators: coordinators.map(mappers.mapCoordinator),
+      coordinatorRoleRequirements: mappers.coordinatorRoleRequirements,
+      coordinatorAssignments: coordinatorAssignments.map(mappers.mapCoordinatorAssignment),
+      complianceRules: complianceRules.map(mappers.mapComplianceRule),
+      complianceChecks: complianceChecks.map(mappers.mapComplianceCheck),
+      billingSources: billingSources.map(mappers.mapBillingSource),
+      billingStatements: billingStatements.map(mappers.mapBillingStatement),
+      paymentMilestones: paymentMilestones.map((payment) =>
+        mappers.mapPaymentMilestone(
+          payment,
+          paymentRecords.filter((record) => record.milestoneId === payment.id),
+        ),
+      ),
+      paymentRecords: paymentRecords.map(mappers.mapPaymentRecord),
+      postEventDocuments: postEventDocuments.map(mappers.mapPostEventDocument),
+      eventInsights: eventInsights.map(mappers.mapEventInsight),
+      floorPlanDrafts: floorPlanDrafts.map(mappers.mapFloorPlanDraft),
+      supplierCategories,
+      suppliers,
+      auditLogs: auditLogs.map(mappers.mapAuditLog),
+      notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
     };
   }
 

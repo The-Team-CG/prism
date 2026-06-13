@@ -3,6 +3,7 @@ import type {
   PrismClientWorkspace,
   PrismEvent,
   PrismInquiry,
+  PrismPmcmDashboardWorkspace,
   PrismSampleState,
   PrismSupplierWorkspace,
 } from "@prism/types";
@@ -70,6 +71,9 @@ export interface EventOpsClient {
   billing: {
     list(actor?: EventOpsActorQuery): Promise<PrismBillingWorkspace>;
   };
+  pmcmDashboard: {
+    detail(actor?: EventOpsActorQuery): Promise<PrismPmcmDashboardWorkspace>;
+  };
 }
 
 export function createEventOpsClient(options: EventOpsClientOptions = {}): EventOpsClient {
@@ -97,6 +101,10 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     },
     billing: {
       list: (actor = {}) => prismRequest<PrismBillingWorkspace>(actorPath("/billing", actor), withBase(options)),
+    },
+    pmcmDashboard: {
+      detail: (actor = {}) =>
+        prismRequest<PrismPmcmDashboardWorkspace>(actorPath("/pmcm/dashboard", actor), withBase(options)),
     },
   };
 }

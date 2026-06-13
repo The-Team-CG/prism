@@ -747,6 +747,8 @@ export interface PrismSampleState {
   notificationLogs: PrismNotificationLog[];
 }
 
+export type PrismPmcmDashboardWorkspace = PrismSampleState;
+
 export type PrismClientWorkspace = Pick<
   PrismSampleState,
   | "users"

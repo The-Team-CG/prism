@@ -47,7 +47,6 @@ import {
   type PrismComplianceCheck,
   type PrismCoordinatorWorkspace,
   type PrismDefenseReadiness,
-  type PrismSampleState,
   type PrismDocument,
   type PrismEvent,
   type PrismEventDayStatusFeed,
@@ -55,6 +54,7 @@ import {
   type PrismLiveOps,
   type PrismNotificationLog,
   type PrismPostEventDocument,
+  type PrismPmcmDashboardWorkspace,
   type PrismSupplierQuoteRequest,
 } from "@/lib/prism-api";
 import { PrismDashboardShell, type PrismNavItem } from "@prism/ui";
@@ -149,8 +149,8 @@ type EventCommandData = {
 const EVENT_DASHBOARD_CACHE_MS = 30_000;
 const EVENT_WORKSPACE_CACHE_MS = 20_000;
 
-let pmcmStateCache: TimedCache<PrismSampleState> | null = null;
-let pmcmStateRequest: Promise<PrismSampleState> | null = null;
+let pmcmStateCache: TimedCache<PrismPmcmDashboardWorkspace> | null = null;
+let pmcmStateRequest: Promise<PrismPmcmDashboardWorkspace> | null = null;
 let approvalRequestsCache: TimedCache<PrismApprovalRequest[]> | null = null;
 let approvalRequestsRequest: Promise<PrismApprovalRequest[]> | null = null;
 const coordinatorWorkspaceCache = new Map<string, TimedCache<PrismCoordinatorWorkspace>>();
@@ -1677,7 +1677,7 @@ function CommandHomePage({
   onReset,
 }: {
   session: EventSession;
-  state: PrismSampleState;
+  state: PrismPmcmDashboardWorkspace;
   events: PrismEvent[];
   selectedEvent?: PrismEvent;
   unreviewedInquiries: number;
@@ -1833,7 +1833,7 @@ export default function EventDashboard({
   }, [initialClientId, initialEventId, initialSection, initialTab, initialView, pathname]);
 
   const [session, setSession] = useState<EventSession | null>(null);
-  const [state, setState] = useState<PrismSampleState | null>(null);
+  const [state, setState] = useState<PrismPmcmDashboardWorkspace | null>(null);
   const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
   const [error, setError] = useState<string | null>(null);

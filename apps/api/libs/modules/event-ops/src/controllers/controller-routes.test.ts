@@ -22,6 +22,7 @@ describe('event-ops controller routes', () => {
       'inquiries',
       'notifications',
       'onboarding',
+      'pmcm',
       'privacy',
       'quote-requests',
       'sample',

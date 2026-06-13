@@ -35,6 +35,7 @@ import type {
   PrismNotificationLog,
   PrismPaymentMilestone,
   PrismPaymentRecord,
+  PrismPmcmDashboardWorkspace,
   PrismPostEventDocument,
   PrismPrivacyInventory,
   PrismPrivacyRequest,
@@ -86,6 +87,7 @@ export type {
   PrismNotificationLog,
   PrismPaymentMilestone,
   PrismPaymentRecord,
+  PrismPmcmDashboardWorkspace,
   PrismPostEventDocument,
   PrismPrivacyInventory,
   PrismPrivacyRequest,
@@ -391,50 +393,12 @@ function withCoordinatorActor(path: string, session: { name: string; email: stri
 
 export const prismApi = {
   state: () => eventOpsClient.sample.state(),
-  pmcmState: async () => {
-    const state = await eventOpsClient.sample.state();
-    const [onboarding, events, suppliers, billing] = await Promise.allSettled([
-      request<{ inquiries: PrismInquiry[]; documents: PrismDocument[] }>(`/api/onboarding?${pmcmActorQuery}`),
-      eventOpsClient.events.list({
-        actorRole: "pmcm-admin",
-        actorName: "Ms. Mys",
-        actorEmail: "mys@pmcm.test",
-      }),
-      request<PrismSupplier[]>(`/api/suppliers?${pmcmActorQuery}`),
-      eventOpsClient.billing.list({
-        actorRole: "pmcm-admin",
-        actorName: "Ms. Mys",
-        actorEmail: "mys@pmcm.test",
-      }),
-    ]);
-    const onboardingData =
-      onboarding.status === "fulfilled"
-        ? onboarding.value
-        : { inquiries: state.inquiries, documents: state.documents };
-    const eventsData = events.status === "fulfilled" ? events.value : state.events;
-    const suppliersData = suppliers.status === "fulfilled" ? suppliers.value : state.suppliers;
-    const billingData =
-      billing.status === "fulfilled"
-        ? billing.value
-        : {
-            billingSources: state.billingSources,
-            billingStatements: state.billingStatements,
-            paymentMilestones: state.paymentMilestones,
-            paymentRecords: state.paymentRecords,
-          };
-
-    return {
-      ...state,
-      inquiries: onboardingData.inquiries,
-      events: eventsData,
-      documents: onboardingData.documents,
-      suppliers: suppliersData,
-      billingSources: billingData.billingSources ?? state.billingSources,
-      billingStatements: billingData.billingStatements,
-      paymentMilestones: billingData.paymentMilestones,
-      paymentRecords: billingData.paymentRecords ?? state.paymentRecords,
-    };
-  },
+  pmcmState: () =>
+    eventOpsClient.pmcmDashboard.detail({
+      actorRole: "pmcm-admin",
+      actorName: "Ms. Mys",
+      actorEmail: "mys@pmcm.test",
+    }),
   reset: () => eventOpsClient.sample.reset(),
   login: (input: { email: string; password: string }) =>
     request<PrismUser & { signedInAt: string }>("/api/auth/login", {

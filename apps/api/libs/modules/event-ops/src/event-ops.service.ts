@@ -759,6 +759,33 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  async listPmcmDashboard(actorInput: SampleActorInput = {}) {
+    const actor = this.resolveActor(actorInput);
+    return this.eventReadModelsService.pmcmDashboard(actor, {
+      coordinatorRoleRequirements: COORDINATOR_ROLE_REQUIREMENTS,
+      mapUser: (user) => this.mapUser(user),
+      mapInquiry: (inquiry) => this.mapInquiry(inquiry),
+      mapEvent: (event) => this.mapEvent(event),
+      mapDocument: (document) => this.mapDocument(document),
+      mapBriefing: (briefing) => this.mapBriefing(briefing),
+      mapSupplierQuoteRequest: (request) => this.mapSupplierQuoteRequest(request),
+      mapSupplierQuote: (quote) => this.mapSupplierQuote(quote),
+      mapCoordinator: (coordinator) => this.coordinatorsService.mapCoordinator(coordinator),
+      mapCoordinatorAssignment: (assignment) => this.coordinatorsService.mapCoordinatorAssignment(assignment),
+      mapComplianceRule: (rule) => this.mapComplianceRule(rule),
+      mapComplianceCheck: (check) => this.mapComplianceCheck(check),
+      mapBillingSource: (source) => this.billingOperationsService.mapBillingSource(source),
+      mapBillingStatement: (statement) => this.billingOperationsService.mapBillingStatement(statement),
+      mapPaymentMilestone: (payment, history) => this.billingOperationsService.mapPaymentMilestone(payment, history),
+      mapPaymentRecord: (record) => this.billingOperationsService.mapPaymentRecord(record),
+      mapPostEventDocument: (document) => this.mapPostEventDocument(document),
+      mapEventInsight: (insight) => this.mapEventInsight(insight),
+      mapFloorPlanDraft: (draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft),
+      mapAuditLog: (log) => this.auditService.mapAuditLog(log),
+      mapNotificationLog: (log) => this.mapNotificationLog(log),
+    });
+  }
+
   async state() {
     return this.sampleStateService.state({
       runConformeReminderSweep: () => this.runConformeReminderSweep(),

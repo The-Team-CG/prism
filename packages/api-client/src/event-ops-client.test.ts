@@ -127,6 +127,21 @@ describe("createEventOpsClient", () => {
     );
   });
 
+  it("loads the PMCM dashboard as a scoped read model", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.pmcmDashboard.detail({ actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/pmcm/dashboard?actorName=Ms.+Mys&actorRole=pmcm-admin",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
   it("posts inquiry payloads", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "inq_1" }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);

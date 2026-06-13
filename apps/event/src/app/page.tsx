@@ -37,7 +37,7 @@ import {
   type PrismCoordinatorAssignment,
   type PrismCoordinatorRoleRequirement,
   type PrismCoordinatorWorkspace,
-  type PrismSampleState,
+  type PrismPmcmDashboardWorkspace,
   type PrismDefenseReadiness,
   type PrismEvent,
   type PrismEventDayStatusFeed,
@@ -668,7 +668,7 @@ function PmcmPortal({
   onSignOut,
 }: {
   session: EventSession;
-  state: PrismSampleState;
+  state: PrismPmcmDashboardWorkspace;
   onRefresh: () => Promise<void>;
   onOpenEditor: (event: PrismEvent, draft: PrismFloorPlanDraft) => Promise<void>;
   onSignOut: () => void;
@@ -1533,7 +1533,7 @@ function PmcmPortal({
 export default function EventCommandHome() {
   const router = useRouter();
   const [session, setSession] = useState<EventSession | null>(null);
-  const [state, setState] = useState<PrismSampleState | null>(null);
+  const [state, setState] = useState<PrismPmcmDashboardWorkspace | null>(null);
   const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
   const [error, setError] = useState<string | null>(null);
