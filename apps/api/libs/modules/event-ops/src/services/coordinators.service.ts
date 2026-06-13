@@ -4,12 +4,20 @@ import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus } from '../ops.constants';
 import { AuditService } from './audit.service';
+import { NotificationOutboxService } from './notification-outbox.service';
+import { WorkflowCommandService } from './workflow-command.service';
 
 export type CreateCoordinatorAssignmentInput = {
   coordinatorId?: string;
   coordinatorName?: string;
   role?: string;
   overrideConflict?: boolean;
+};
+
+type CoordinatorConflict = OpsCoordinatorAssignment & {
+  event: {
+    eventName: string;
+  };
 };
 
 function isoDate(value: Date) {
@@ -21,11 +29,12 @@ function timestamp(value: Date) {
 }
 
 export class CoordinatorsService {
-  private readonly auditService: AuditService;
-
-  constructor(private readonly prisma: PrismaService) {
-    this.auditService = new AuditService(prisma);
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService = new AuditService(prisma),
+    private readonly notificationOutboxService = new NotificationOutboxService(prisma),
+    private readonly workflowCommandService = new WorkflowCommandService(),
+  ) {}
 
   async listCoordinators() {
     const coordinators = await this.prisma.opsCoordinator.findMany({
@@ -36,84 +45,117 @@ export class CoordinatorsService {
   }
 
   async assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput) {
-    const event = await this.requireEvent(eventId);
-    const coordinator = await this.resolveCoordinator(input);
-    const role = input.role || coordinator.roleTags[0] || 'General Coordinator';
+    let event: Awaited<ReturnType<CoordinatorsService['requireEvent']>> | null = null;
+    let coordinator: OpsCoordinator | null = null;
+    let role = '';
+    let conflict: CoordinatorConflict | null = null;
 
-    if (!coordinator.roleTags.includes(role)) {
-      throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
-    }
+    return this.workflowCommandService.execute<
+      OpsCoordinatorAssignment,
+      ReturnType<CoordinatorsService['mapCoordinatorAssignment']>
+    >({
+      name: 'assign_coordinator',
+      eventId,
+      validateState: async () => {
+        event = await this.requireEvent(eventId);
+        coordinator = await this.resolveCoordinator(input);
+        role = input.role || coordinator.roleTags[0] || 'General Coordinator';
 
-    const conflict = await this.prisma.opsCoordinatorAssignment.findFirst({
-      where: {
-        coordinatorId: coordinator.id,
-        eventDate: event.eventDate,
-        eventId: { not: event.id },
-        status: { not: CoordinatorAssignmentStatus.Cancelled },
+        if (!coordinator.roleTags.includes(role)) {
+          throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
+        }
+
+        conflict = await this.prisma.opsCoordinatorAssignment.findFirst({
+          where: {
+            coordinatorId: coordinator.id,
+            eventDate: event.eventDate,
+            eventId: { not: event.id },
+            status: { not: CoordinatorAssignmentStatus.Cancelled },
+          },
+          include: { event: true },
+          orderBy: { createdAt: 'desc' },
+        }) as CoordinatorConflict | null;
+
+        if (conflict && !input.overrideConflict) {
+          throw new BadRequestException(
+            `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
+          );
+        }
       },
-      include: { event: true },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (conflict && !input.overrideConflict) {
-      throw new BadRequestException(
-        `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
-      );
-    }
-
-    const assignment = await this.prisma.opsCoordinatorAssignment.create({
-      data: {
-        id: `coord_asg_${randomUUID()}`,
-        eventId,
-        coordinatorId: coordinator.id,
-        coordinatorName: coordinator.name,
-        role,
-        status: CoordinatorAssignmentStatus.PendingAcknowledgement,
-        doubleBookingWarning: Boolean(conflict),
-        eventDate: event.eventDate,
-        conflictEventId: conflict?.eventId ?? null,
-        conflictEventName: conflict?.event.eventName ?? null,
+      write: () => {
+        if (!event || !coordinator) throw new NotFoundException('Coordinator not found');
+        return this.prisma.opsCoordinatorAssignment.create({
+          data: {
+            id: `coord_asg_${randomUUID()}`,
+            eventId,
+            coordinatorId: coordinator.id,
+            coordinatorName: coordinator.name,
+            role,
+            status: CoordinatorAssignmentStatus.PendingAcknowledgement,
+            doubleBookingWarning: Boolean(conflict),
+            eventDate: event.eventDate,
+            conflictEventId: conflict?.eventId ?? null,
+            conflictEventName: conflict?.event.eventName ?? null,
+          },
+        });
       },
+      sideEffects: async (assignment) => {
+        if (!event || !coordinator) return;
+        await Promise.all([
+          this.auditService.audit(eventId, 'PMCM Admin', `Assigned ${coordinator.name} as ${role}`, {
+            actionType: AuditActionType.Assign,
+            category: AuditCategory.Events,
+            affectedType: 'coordinator_assignment',
+            affectedId: assignment.id,
+            affectedLabel: `${coordinator.name} - ${role}`,
+            metadata: {
+              coordinatorId: coordinator.id,
+              conflictEventId: conflict?.eventId ?? null,
+              conflictEventName: conflict?.event.eventName ?? null,
+            },
+          }),
+          this.notificationOutboxService.queue(
+            eventId,
+            coordinator.email,
+            `Coordinator assignment issued: ${event.eventName} (${role})`,
+          ),
+          this.notificationOutboxService.queue(eventId, assignment.coordinatorName, 'Coordinator assignment issued', 'viber'),
+        ]);
+      },
+      project: (assignment) => this.mapCoordinatorAssignment(assignment),
     });
-
-    await Promise.all([
-      this.auditService.audit(eventId, 'PMCM Admin', `Assigned ${coordinator.name} as ${role}`, {
-        actionType: AuditActionType.Assign,
-        category: AuditCategory.Events,
-        affectedType: 'coordinator_assignment',
-        affectedId: assignment.id,
-        affectedLabel: `${coordinator.name} - ${role}`,
-        metadata: {
-          coordinatorId: coordinator.id,
-          conflictEventId: conflict?.eventId ?? null,
-          conflictEventName: conflict?.event.eventName ?? null,
-        },
-      }),
-      this.auditService.notify(
-        eventId,
-        coordinator.email,
-        `Coordinator assignment issued: ${event.eventName} (${role})`,
-      ),
-      this.auditService.notify(eventId, assignment.coordinatorName, 'Coordinator assignment issued', 'viber'),
-    ]);
-
-    return this.mapCoordinatorAssignment(assignment);
   }
 
   async acknowledgeCoordinator(eventId: string, assignmentId: string) {
-    await this.requireEvent(eventId);
-
-    const assignment = await this.prisma.opsCoordinatorAssignment
-      .update({
-        where: { id: assignmentId },
-        data: { status: CoordinatorAssignmentStatus.Acknowledged, acknowledgedAt: new Date() },
-      })
-      .catch(() => {
-        throw new NotFoundException('Coordinator assignment not found');
-      });
-
-    await this.auditService.audit(eventId, assignment.coordinatorName, 'Acknowledged coordinator assignment');
-    return this.mapCoordinatorAssignment(assignment);
+    return this.workflowCommandService.execute<
+      OpsCoordinatorAssignment,
+      ReturnType<CoordinatorsService['mapCoordinatorAssignment']>
+    >({
+      name: 'acknowledge_coordinator_assignment',
+      eventId,
+      validateState: async () => {
+        await this.requireEvent(eventId);
+      },
+      write: () =>
+        this.prisma.opsCoordinatorAssignment
+          .update({
+            where: { id: assignmentId },
+            data: { status: CoordinatorAssignmentStatus.Acknowledged, acknowledgedAt: new Date() },
+          })
+          .catch(() => {
+            throw new NotFoundException('Coordinator assignment not found');
+          }),
+      sideEffects: async (assignment) => {
+        await this.auditService.audit(eventId, assignment.coordinatorName, 'Acknowledged coordinator assignment', {
+          actionType: AuditActionType.Update,
+          category: AuditCategory.Events,
+          affectedType: 'coordinator_assignment',
+          affectedId: assignment.id,
+          affectedLabel: assignment.coordinatorName,
+        });
+      },
+      project: (assignment) => this.mapCoordinatorAssignment(assignment),
+    });
   }
 
   mapCoordinator(coordinator: OpsCoordinator) {
