@@ -52,16 +52,20 @@ import {
   AuditCategory,
   CoordinatorAssignmentStatus,
   CoordinatorAttendanceStatus,
-  EventDayTaskStatus,
   LiveOpsEscalationLevel,
   OpsUserRole,
   SupplierQuoteRequestStatus,
   SupplierVerificationStatus,
-  UrgentIssueSeverity,
   UrgentIssueStatus,
   type OpsUserRole as OpsUserRoleValue,
 } from './ops.constants';
-import { LiveOperationsService } from './services/live-operations.service';
+import {
+  type CreateEventDayTaskInput,
+  type CreateUrgentIssueInput,
+  LiveOperationsService,
+  type UpdateEventDayTaskInput,
+  type UpdateUrgentIssueInput,
+} from './services/live-operations.service';
 import { PrivacyOperationsService } from './services/privacy-operations.service';
 import { SampleStateService } from './services/sample-state.service';
 import { InquiryWorkflowService } from './services/inquiry-workflow.service';
@@ -174,41 +178,6 @@ type SupplierEventStatusInput = {
   status: string;
   notes?: string;
   photo?: UploadMetadataInput;
-};
-
-type CreateEventDayTaskInput = {
-  title: string;
-  assignedRole?: string;
-  ownerName?: string;
-  priority?: string;
-  notes?: string;
-  dueAt?: string;
-  slaDueAt?: string;
-};
-
-type UpdateEventDayTaskInput = {
-  status?: string;
-  notes?: string;
-  ownerName?: string;
-  slaDueAt?: string;
-};
-
-type CreateUrgentIssueInput = {
-  title: string;
-  description?: string;
-  severity?: string;
-  ownerRole?: string;
-  ownerName?: string;
-  openedBy?: string;
-  slaDueAt?: string;
-};
-
-type UpdateUrgentIssueInput = {
-  status?: string;
-  ownerRole?: string;
-  ownerName?: string;
-  resolution?: string;
-  slaDueAt?: string;
 };
 
 type UpdateCoordinatorAttendanceInput = {
@@ -644,7 +613,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       this.notificationOutboxService,
       this.workflowCommandService,
     );
-    this.liveOperationsService = new LiveOperationsService();
+    this.liveOperationsService = new LiveOperationsService(
+      prisma,
+      this.auditService,
+      this.workflowCommandService,
+    );
     this.eventLifecycleService = new EventLifecycleService();
     this.fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
     this.floorPlanWorkflowService = new FloorPlanWorkflowService(
@@ -1501,40 +1474,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day tasks');
-    const title = input.title?.trim();
-    if (!title) throw new BadRequestException('Task title is required');
-    const status = EventDayTaskStatus.Open;
-    const task = await this.prisma.opsEventDayTask.create({
-      data: {
-        id: `edt_${randomUUID()}`,
-        eventId,
-        title,
-        assignedRole: input.assignedRole?.trim() || 'General Coordinator',
-        ownerName: input.ownerName?.trim() ?? '',
-        priority: input.priority?.trim() || 'normal',
-        status,
-        notes: input.notes?.trim() ?? '',
-        dueAt: input.dueAt ? new Date(input.dueAt) : null,
-        slaDueAt: input.slaDueAt ? new Date(input.slaDueAt) : input.dueAt ? new Date(input.dueAt) : null,
-      },
-    });
-
-    await Promise.all([
-      this.recordEventDayLog(eventId, 'task_created', actor, `Created event-day task: ${title}`, 'event_day_task', task.id, {
-        assignedRole: task.assignedRole,
-        priority: task.priority,
-      }),
-      this.audit(eventId, actor.name, `Created event-day task: ${title}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Create,
-        category: AuditCategory.Events,
-        affectedType: 'event_day_task',
-        affectedId: task.id,
-        affectedLabel: title,
-      }),
-    ]);
-
+    const task = await this.liveOperationsService.createEventDayTask(eventId, input, actor);
     return this.mapEventDayTask(task);
   }
 
@@ -1545,42 +1485,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day tasks');
-    const current = (await this.prisma.opsEventDayTask.findMany({ where: { eventId } })).find(
-      (task: any) => task.id === taskId,
-    );
-    if (!current) throw new NotFoundException('Event-day task not found');
-    const status = input.status?.trim();
-    if (status && !Object.values(EventDayTaskStatus).includes(status as any)) {
-      throw new BadRequestException('Unsupported event-day task status');
-    }
-
-    const task = await this.prisma.opsEventDayTask.update({
-      where: { id: taskId },
-      data: {
-        ...(status ? { status } : {}),
-        ...(input.notes !== undefined ? { notes: input.notes.trim() } : {}),
-        ...(input.ownerName !== undefined ? { ownerName: input.ownerName.trim() } : {}),
-        ...(input.slaDueAt !== undefined ? { slaDueAt: input.slaDueAt ? new Date(input.slaDueAt) : null } : {}),
-        ...(status === EventDayTaskStatus.Done && !current.completedAt ? { completedAt: new Date() } : {}),
-      },
-    });
-
-    await Promise.all([
-      this.recordEventDayLog(eventId, 'task_updated', actor, `Updated event-day task: ${task.title}`, 'event_day_task', task.id, {
-        status: task.status,
-      }),
-      this.audit(eventId, actor.name, `Updated event-day task: ${task.title}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Events,
-        affectedType: 'event_day_task',
-        affectedId: task.id,
-        affectedLabel: task.title,
-        metadata: { status: task.status },
-      }),
-    ]);
-
+    const task = await this.liveOperationsService.updateEventDayTask(eventId, taskId, input, actor);
     return this.mapEventDayTask(task);
   }
 
@@ -1590,44 +1495,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issues');
-    const title = input.title?.trim();
-    if (!title) throw new BadRequestException('Issue title is required');
-    const severity = input.severity?.trim() || UrgentIssueSeverity.Medium;
-    if (!Object.values(UrgentIssueSeverity).includes(severity as any)) {
-      throw new BadRequestException('Unsupported urgent issue severity');
-    }
-    const issue = await this.prisma.opsUrgentIssue.create({
-      data: {
-        id: `urg_${randomUUID()}`,
-        eventId,
-        title,
-        description: input.description?.trim() ?? '',
-        severity,
-        status: input.ownerRole || input.ownerName ? UrgentIssueStatus.Assigned : UrgentIssueStatus.Open,
-        ownerRole: input.ownerRole?.trim() ?? '',
-        ownerName: input.ownerName?.trim() ?? '',
-        openedBy: input.openedBy?.trim() || actor.name,
-        slaDueAt: input.slaDueAt ? new Date(input.slaDueAt) : null,
-      },
-    });
-
-    await Promise.all([
-      this.recordEventDayLog(eventId, 'urgent_issue_created', actor, `Opened urgent issue: ${title}`, 'urgent_issue', issue.id, {
-        severity: issue.severity,
-        ownerRole: issue.ownerRole,
-      }),
-      this.audit(eventId, actor.name, `Opened urgent issue: ${title}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Create,
-        category: AuditCategory.Events,
-        affectedType: 'urgent_issue',
-        affectedId: issue.id,
-        affectedLabel: title,
-        severity: issue.severity === UrgentIssueSeverity.Critical ? 'critical' : 'warning',
-      }),
-    ]);
-
+    const issue = await this.liveOperationsService.createUrgentIssue(eventId, input, actor);
     return this.mapUrgentIssue(issue);
   }
 
@@ -1638,43 +1506,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issues');
-    const current = (await this.prisma.opsUrgentIssue.findMany({ where: { eventId } })).find(
-      (issue: any) => issue.id === issueId,
-    );
-    if (!current) throw new NotFoundException('Urgent issue not found');
-    const status = input.status?.trim();
-    if (status && !Object.values(UrgentIssueStatus).includes(status as any)) {
-      throw new BadRequestException('Unsupported urgent issue status');
-    }
-    const issue = await this.prisma.opsUrgentIssue.update({
-      where: { id: issueId },
-      data: {
-        ...(status ? { status } : {}),
-        ...(input.ownerRole !== undefined ? { ownerRole: input.ownerRole.trim() } : {}),
-        ...(input.ownerName !== undefined ? { ownerName: input.ownerName.trim() } : {}),
-        ...(input.resolution !== undefined ? { resolution: input.resolution.trim() } : {}),
-        ...(input.slaDueAt !== undefined ? { slaDueAt: input.slaDueAt ? new Date(input.slaDueAt) : null } : {}),
-        ...(status === UrgentIssueStatus.Resolved && !current.resolvedAt ? { resolvedAt: new Date() } : {}),
-      },
-    });
-
-    await Promise.all([
-      this.recordEventDayLog(eventId, 'urgent_issue_updated', actor, `Updated urgent issue: ${issue.title}`, 'urgent_issue', issue.id, {
-        status: issue.status,
-        resolution: issue.resolution,
-      }),
-      this.audit(eventId, actor.name, `Updated urgent issue: ${issue.title}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Events,
-        affectedType: 'urgent_issue',
-        affectedId: issue.id,
-        affectedLabel: issue.title,
-        metadata: { status: issue.status, resolution: issue.resolution },
-      }),
-    ]);
-
+    const issue = await this.liveOperationsService.updateUrgentIssue(eventId, issueId, input, actor);
     return this.mapUrgentIssue(issue);
   }
 
@@ -3830,19 +3662,15 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     relatedId?: string,
     metadata: Record<string, unknown> = {},
   ) {
-    return this.prisma.opsEventDayLog.create({
-      data: {
-        id: `edl_${randomUUID()}`,
-        eventId,
-        actionType,
-        actor: actor.name,
-        actorRole: actor.role,
-        message,
-        relatedType: relatedType ?? null,
-        relatedId: relatedId ?? null,
-        metadata: toPrismaJson(metadata),
-      },
-    });
+    return this.liveOperationsService.recordEventDayLog(
+      eventId,
+      actionType,
+      actor,
+      message,
+      relatedType,
+      relatedId,
+      metadata,
+    );
   }
 
   private isRegistrationRole(role: string) {
