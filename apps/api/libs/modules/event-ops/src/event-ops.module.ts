@@ -12,6 +12,7 @@ import { WorkflowCommandService } from './services/workflow-command.service';
 import { AuditService } from './services/audit.service';
 import { EventReadModelsService } from './services/event-read-models.service';
 import { SuppliersService } from './services/suppliers.service';
+import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { EventClosureService } from './services/event-closure.service';
 
@@ -31,6 +32,7 @@ import { EventClosureService } from './services/event-closure.service';
     WorkflowCommandService,
     EventReadModelsService,
     CommercialWorkflowService,
+    SupplierNetworkWorkflowService,
     EventClosureService,
   ],
 })

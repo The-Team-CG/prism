@@ -43,6 +43,12 @@ import {
   type UpdateSupplierInput,
 } from './services/suppliers.service';
 import {
+  SupplierNetworkWorkflowService,
+  type SupplierEventStatusInput,
+  type SupplierReadinessInput,
+  type UploadMetadataInput,
+} from './services/supplier-network-workflow.service';
+import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,
 } from './services/coordinators.service';
@@ -165,22 +171,6 @@ type ArchiveEventInput = {
   actorName?: string;
 };
 
-type UploadMetadataInput = {
-  fileName: string;
-  mimeType?: string;
-  sizeBytes?: number;
-};
-
-type SupplierReadinessInput = {
-  notes?: string;
-};
-
-type SupplierEventStatusInput = {
-  status: string;
-  notes?: string;
-  photo?: UploadMetadataInput;
-};
-
 type VerifySupplierStatusInput = {
   verificationStatus: string;
   verifiedBy?: string;
@@ -258,17 +248,6 @@ type AuditLogInput = {
 };
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
-
-const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
-const ALLOWED_UPLOAD_TYPES: Record<string, string[]> = {
-  'application/pdf': ['pdf'],
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['docx'],
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['xlsx'],
-  'image/jpeg': ['jpg', 'jpeg'],
-  'image/png': ['png'],
-  'video/mp4': ['mp4'],
-  'video/quicktime': ['mov'],
-};
 
 const SUPPLIER_CATEGORIES = [
   { id: 'supcat_production', slug: 'production', name: 'Production', acceptableMin: 180000, acceptableMax: 280000 },
@@ -554,6 +533,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly authOperationsService: AuthOperationsService;
   private readonly privacyOperationsService: PrivacyOperationsService;
   private readonly suppliersService: SuppliersService;
+  private readonly supplierNetworkWorkflowService: SupplierNetworkWorkflowService;
   private readonly coordinatorsService: CoordinatorsService;
   private readonly billingOperationsService: BillingOperationsService;
   private readonly floorPlanWorkflowService: FloorPlanWorkflowService;
@@ -581,6 +561,13 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.notificationOutboxService = new NotificationOutboxService(prisma);
     this.workflowCommandService = new WorkflowCommandService();
     this.suppliersService = new SuppliersService(prisma);
+    this.supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
+      prisma,
+      this.suppliersService,
+      this.auditService,
+      this.eventAccessPolicyService,
+      this.workflowCommandService,
+    );
     this.inquiriesService = new InquiriesService(
       prisma,
       this.auditService,
@@ -1013,30 +1000,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   validateUploadMetadata(input: UploadMetadataInput, prefix: string) {
-    const fileName = input.fileName?.trim();
-    if (!fileName) throw new BadRequestException('File name is required');
-    const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
-    const mimeType = input.mimeType?.trim().toLowerCase() ?? '';
-    const allowedExtensions = ALLOWED_UPLOAD_TYPES[mimeType];
-    if (!allowedExtensions || !allowedExtensions.includes(extension)) {
-      throw new BadRequestException('Unsupported file type');
-    }
-    const sizeBytes = input.sizeBytes ?? 0;
-    if (sizeBytes <= 0) throw new BadRequestException('File size is required');
-    if (sizeBytes > MAX_UPLOAD_SIZE_BYTES) {
-      throw new BadRequestException('File exceeds allowed size');
-    }
-    const generatedFileName = `${randomUUID()}.${extension}`;
-    const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
-    return {
-      originalFileName: fileName.replace(/^.*[\\/]/, ''),
-      generatedFileName,
-      mimeType,
-      sizeBytes,
-      storageBucket: 'document-vault',
-      storageKey: `${cleanPrefix}/${generatedFileName}`,
-      validationStatus: 'accepted',
-    };
+    return this.supplierNetworkWorkflowService.validateUploadMetadata(input, prefix);
   }
 
   async uploadConforme(
@@ -1773,85 +1737,22 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async createSupplier(input: CreateSupplierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier creation');
-
-    const supplier = await this.suppliersService.createSupplier(input);
-    await this.audit(undefined, actor.name, `Created supplier profile: ${supplier.name}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      category: AuditCategory.Suppliers,
-      actionType: AuditActionType.Create,
-      affectedType: 'supplier',
-      affectedId: supplier.id,
-      affectedLabel: supplier.name,
-    });
-
-    return supplier;
+    return this.supplierNetworkWorkflowService.createSupplier(input, actor);
   }
 
   async updateSupplier(supplierId: string, input: UpdateSupplierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier update');
-
-    const supplier = await this.suppliersService.updateSupplier(supplierId, input);
-
-    await this.audit(undefined, actor.name, `Updated supplier profile: ${supplier.name}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      category: AuditCategory.Suppliers,
-      actionType: AuditActionType.Update,
-      affectedType: 'supplier',
-      affectedId: supplier.id,
-      affectedLabel: supplier.name,
-      metadata: input,
-    });
-
-    return supplier;
+    return this.supplierNetworkWorkflowService.updateSupplier(supplierId, input, actor);
   }
 
   async changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier tier change');
-
-    const result = await this.suppliersService.changeSupplierTier(supplierId, input);
-    await this.audit(undefined, actor.name, `Changed supplier tier: ${result.supplier.name}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      category: AuditCategory.Suppliers,
-      actionType: AuditActionType.Update,
-      affectedType: 'supplier',
-      affectedId: result.supplier.id,
-      affectedLabel: result.supplier.name,
-      metadata: {
-        oldTier: result.oldTier,
-        newTier: input.tier,
-        reason: input.reason,
-      },
-    });
-
-    return result.supplier;
+    return this.supplierNetworkWorkflowService.changeSupplierTier(supplierId, input, actor);
   }
 
   async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier private review');
-
-    const supplier = await this.suppliersService.addSupplierReview(supplierId, {
-      ...input,
-      reviewedBy: input.reviewedBy ?? actor.name,
-    });
-    await this.audit(input.eventId, actor.name, `Added private supplier review: ${supplier.name}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      category: AuditCategory.Suppliers,
-      actionType: AuditActionType.Create,
-      affectedType: 'supplier_review',
-      affectedId: supplier.id,
-      affectedLabel: supplier.name,
-      metadata: { rating: input.rating },
-    });
-
-    return supplier;
+    return this.supplierNetworkWorkflowService.addSupplierReview(supplierId, input, actor);
   }
 
   async addSupplierCertification(
@@ -1860,26 +1761,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier certification');
-
-    const supplier = await this.suppliersService.addSupplierCertification(supplierId, input);
-    await this.audit(undefined, actor.name, `Added supplier certification: ${supplier.name}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      category: AuditCategory.Suppliers,
-      actionType: AuditActionType.Upload,
-      affectedType: 'supplier_certification',
-      affectedId: supplier.id,
-      affectedLabel: input.fileName,
-      metadata: {
-        documentType: input.documentType,
-        issuer: input.issuer ?? '',
-        expiresAt: input.expiresAt ?? null,
-        status: input.status ?? 'submitted',
-      },
-    });
-
-    return supplier;
+    return this.supplierNetworkWorkflowService.addSupplierCertification(supplierId, input, actor);
   }
 
   async listSupplierWorkspace(actorInput: SampleActorInput = {}) {
@@ -1891,23 +1773,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async confirmSupplierAssignment(requestId: string, actorInput: SampleActorInput = {}) {
-    const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
-    const updated = await this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: request.id },
-      data: {
-        assignmentStatus: 'confirmed',
-        assignmentConfirmedAt: new Date(),
-      },
-    });
-    await this.audit(request.eventId, actor.name, `Confirmed supplier assignment: ${request.supplierName}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Update,
-      category: AuditCategory.Suppliers,
-      affectedType: 'supplier_quote_request',
-      affectedId: request.id,
-      affectedLabel: request.supplierName,
-    });
+    const actor = this.resolveActor(actorInput);
+    const updated = await this.supplierNetworkWorkflowService.confirmSupplierAssignment(requestId, actor);
     return this.mapSupplierQuoteRequest(updated);
   }
 
@@ -2009,25 +1876,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     input: SupplierReadinessInput = {},
     actorInput: SampleActorInput = {},
   ) {
-    const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
-    const updated = await this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: request.id },
-      data: {
-        readinessStatus: 'confirmed',
-        readinessConfirmedAt: new Date(),
-        readinessNotes: input.notes?.trim() ?? '',
-      },
-    });
-    await this.audit(request.eventId, actor.name, `Confirmed supplier readiness: ${request.supplierName}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Update,
-      category: AuditCategory.Suppliers,
-      affectedType: 'supplier_quote_request',
-      affectedId: request.id,
-      affectedLabel: request.supplierName,
-      metadata: { notes: input.notes ?? '' },
-    });
+    const actor = this.resolveActor(actorInput);
+    const updated = await this.supplierNetworkWorkflowService.confirmSupplierReadiness(requestId, input, actor);
     return this.mapSupplierQuoteRequest(updated);
   }
 
@@ -2036,31 +1886,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     input: SupplierEventStatusInput,
     actorInput: SampleActorInput = {},
   ) {
-    const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
-    const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
-    if (!allowed.includes(input.status)) throw new BadRequestException('Unsupported supplier event-day status');
-    const photo = input.photo
-      ? this.validateUploadMetadata(input.photo, `events/${request.eventId}/supplier-status`)
-      : null;
-    const updated = await this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: request.id },
-      data: {
-        eventDayStatus: input.status,
-        eventDayStatusAt: new Date(),
-        eventDayNotes: input.notes?.trim() ?? '',
-        statusPhotoFileName: photo?.generatedFileName ?? null,
-      },
-    });
-    await this.audit(request.eventId, actor.name, `Supplier status update: ${input.status}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Update,
-      category: AuditCategory.Suppliers,
-      affectedType: 'supplier_quote_request',
-      affectedId: request.id,
-      affectedLabel: request.supplierName,
-      metadata: { status: input.status, notes: input.notes ?? '', photoFileName: photo?.generatedFileName ?? null },
-    });
+    const actor = this.resolveActor(actorInput);
+    const updated = await this.supplierNetworkWorkflowService.updateSupplierEventStatus(requestId, input, actor);
     return this.mapSupplierQuoteRequest(updated);
   }
 
@@ -2069,37 +1896,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     input: UploadMetadataInput,
     actorInput: SampleActorInput = {},
   ) {
-    const { request, actor } = await this.requireSupplierQuoteRequestForActor(requestId, actorInput);
-    const upload = this.validateUploadMetadata(input, `events/${request.eventId}/supplier-contracts`);
-    const document = await this.prisma.opsDocument.create({
-      data: {
-        id: `doc_${randomUUID()}`,
-        eventId: request.eventId,
-        type: 'supplier_contract',
-        fileName: upload.originalFileName,
-        generatedFileName: upload.generatedFileName,
-        status: 'submitted',
-        mimeType: upload.mimeType,
-        sizeBytes: upload.sizeBytes,
-        validationStatus: upload.validationStatus,
-        storageBucket: upload.storageBucket,
-        storageKey: upload.storageKey,
-        uploadedByRole: 'supplier',
-      },
-    });
-    const updated = await this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: request.id },
-      data: { contractDocumentId: document.id },
-    });
-    await this.audit(request.eventId, actor.name, `Uploaded supplier contract: ${request.supplierName}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Upload,
-      category: AuditCategory.Documents,
-      affectedType: 'document',
-      affectedId: document.id,
-      affectedLabel: document.fileName,
-    });
+    const actor = this.resolveActor(actorInput);
+    const updated = await this.supplierNetworkWorkflowService.uploadSupplierContract(requestId, input, actor);
     return this.mapSupplierQuoteRequest(updated);
   }
 
@@ -3423,37 +3221,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private isRegistrationRole(role: string) {
     const normalized = role.toLowerCase();
     return normalized.includes('registration') || normalized.includes('usher');
-  }
-
-  private async requireSupplierQuoteRequestForActor(requestId: string, actorInput: SampleActorInput = {}) {
-    const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.Supplier], 'supplier quote request');
-    const supplier = await this.resolveSupplierForActor(actor);
-    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
-    if (!request) throw new NotFoundException('Supplier quote request not found');
-    if (request.supplierId !== supplier.id) {
-      await this.recordForbiddenAccess(actor, 'supplier quote request', request.id);
-      throw new ForbiddenException('Supplier cannot access this quote request');
-    }
-    return { request, actor, supplier };
-  }
-
-  private async resolveSupplierForActor(actor: ResolvedSampleActor) {
-    const suppliers = await this.suppliersService.listSuppliers();
-    const supplier = suppliers.find(
-      (item: any) =>
-        this.sameText(actor.supplierId, item.id) ||
-        this.sameText(actor.email, item.email) ||
-        this.sameText(actor.name, item.name),
-    );
-    if (!supplier) throw new NotFoundException('Supplier profile not found for actor');
-    return supplier;
-  }
-
-  private sanitizeSupplierForSupplier(supplier: any) {
-    const { reviews, reliabilityNotes, performanceNotes, aggregateRating, lastEventDate, pastEvents, ...safeSupplier } =
-      supplier;
-    return safeSupplier;
   }
 
   private withExpiredQuoteRequestStatus(request: OpsSupplierQuoteRequest) {
