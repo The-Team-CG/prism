@@ -104,7 +104,13 @@ import {
   type CreateFloorPlanPreferenceInput,
   FloorPlanWorkflowService,
 } from './services/floor-plan-workflow.service';
-import { ComplianceWorkflowService, type ComplianceRunInput } from './services/compliance-workflow.service';
+import {
+  ComplianceWorkflowService,
+  type ComplianceRunInput,
+  type CreateComplianceRuleInput,
+  type ResolveComplianceInput,
+  type UpdateComplianceRuleInput,
+} from './services/compliance-workflow.service';
 import {
   ClientOnboardingWorkflowService,
   type SubmitBriefingInput,
@@ -144,27 +150,6 @@ type UpdateInquiryStatusInput = {
   status: string;
   declineReason?: string;
 };
-
-type ResolveComplianceInput = {
-  action?: string;
-  note?: string;
-  overrideReason?: string;
-  actorName?: string;
-};
-
-type CreateComplianceRuleInput = {
-  eventId?: string;
-  eventType?: string;
-  phase?: string;
-  severity?: string;
-  layer?: string;
-  conditionKey: string;
-  title: string;
-  note?: string;
-  active?: boolean;
-};
-
-type UpdateComplianceRuleInput = Partial<CreateComplianceRuleInput>;
 
 type ArchiveEventInput = {
   overrideReason?: string;
@@ -621,6 +606,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.complianceWorkflowService = new ComplianceWorkflowService(
       prisma,
       this.auditService,
+      this.eventAccessPolicyService,
       this.workflowCommandService,
     );
     this.clientOnboardingWorkflowService = new ClientOnboardingWorkflowService(
@@ -1948,73 +1934,19 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async listComplianceRules(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance rules');
-    const rules = await this.prisma.opsComplianceRule.findMany({
-      orderBy: [{ active: 'desc' }, { phase: 'asc' }, { title: 'asc' }],
-    });
+    const rules = await this.complianceWorkflowService.listComplianceRules(actor);
     return rules.map((rule) => this.mapComplianceRule(rule));
   }
 
   async createComplianceRule(input: CreateComplianceRuleInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance rules');
-    if (!input.conditionKey?.trim()) throw new BadRequestException('Condition key is required');
-    if (!input.title?.trim()) throw new BadRequestException('Compliance rule title is required');
-
-    const rule = await this.prisma.opsComplianceRule.create({
-      data: {
-        id: `crule_${randomUUID()}`,
-        eventId: input.eventId ?? null,
-        eventType: input.eventType?.trim() ?? '',
-        phase: input.phase?.trim() || 'planning',
-        severity: input.severity?.trim() || 'must_fix',
-        layer: input.layer?.trim() || this.layerForSeverity(input.severity),
-        conditionKey: input.conditionKey.trim(),
-        title: input.title.trim(),
-        note: input.note?.trim() ?? '',
-        active: input.active ?? true,
-      },
-    });
-    await this.audit(input.eventId, actor.name, `Created compliance rule: ${rule.title}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Create,
-      category: AuditCategory.Compliance,
-      affectedType: 'compliance_rule',
-      affectedId: rule.id,
-      affectedLabel: rule.title,
-    });
+    const rule = await this.complianceWorkflowService.createComplianceRule(input, actor);
     return this.mapComplianceRule(rule);
   }
 
   async updateComplianceRule(ruleId: string, input: UpdateComplianceRuleInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance rules');
-    const data: Record<string, unknown> = {};
-    if (input.eventId !== undefined) data.eventId = input.eventId || null;
-    if (input.eventType !== undefined) data.eventType = input.eventType.trim();
-    if (input.phase !== undefined) data.phase = input.phase.trim() || 'planning';
-    if (input.severity !== undefined) data.severity = input.severity.trim() || 'must_fix';
-    if (input.layer !== undefined) data.layer = input.layer.trim() || this.layerForSeverity(input.severity);
-    if (input.conditionKey !== undefined) data.conditionKey = input.conditionKey.trim();
-    if (input.title !== undefined) data.title = input.title.trim();
-    if (input.note !== undefined) data.note = input.note.trim();
-    if (input.active !== undefined) data.active = input.active;
-
-    const rule = await this.prisma.opsComplianceRule
-      .update({ where: { id: ruleId }, data })
-      .catch(() => {
-        throw new NotFoundException('Compliance rule not found');
-      });
-    await this.audit(rule.eventId ?? undefined, actor.name, `Updated compliance rule: ${rule.title}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Update,
-      category: AuditCategory.Compliance,
-      affectedType: 'compliance_rule',
-      affectedId: rule.id,
-      affectedLabel: rule.title,
-    });
+    const rule = await this.complianceWorkflowService.updateComplianceRule(ruleId, input, actor);
     return this.mapComplianceRule(rule);
   }
 
@@ -2024,50 +1956,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async resolveCompliance(eventId: string, checkId: string, input: string | ResolveComplianceInput = {}) {
-    await this.requireEvent(eventId);
-    const resolvedInput: ResolveComplianceInput = typeof input === 'string' ? { note: input } : input;
-    const action = resolvedInput.action ?? 'resolve';
-    const actorName = resolvedInput.actorName?.trim() || 'PMCM Admin';
-    const now = new Date();
-
-    if (action === 'override' && !resolvedInput.overrideReason?.trim()) {
-      throw new BadRequestException('Override reason is required');
-    }
-
-    const data =
-      action === 'override'
-        ? {
-            status: 'overridden',
-            note: resolvedInput.note ?? 'PMCM override recorded.',
-            overrideReason: resolvedInput.overrideReason!.trim(),
-            overrideAt: now,
-            overrideBy: actorName,
-          }
-        : {
-            status: 'resolved',
-            note: resolvedInput.note ?? 'Compliance item resolved during PMCM review.',
-            resolvedAt: now,
-            resolvedBy: actorName,
-          };
-
-    const check = await this.prisma.opsComplianceCheck
-      .update({
-        where: { id: checkId },
-        data,
-      })
-      .catch(() => {
-        throw new NotFoundException('Compliance check not found');
-      });
-
-    await this.audit(eventId, actorName, action === 'override' ? 'Overrode compliance item' : 'Resolved compliance item', {
-      actionType: AuditActionType.Resolve,
-      category: AuditCategory.Compliance,
-      affectedType: 'compliance_check',
-      affectedId: checkId,
-      affectedLabel: check.title,
-      severity: action === 'override' ? 'warning' : 'info',
-      metadata: action === 'override' ? { overrideReason: resolvedInput.overrideReason } : { note: resolvedInput.note },
-    });
+    const check = await this.complianceWorkflowService.resolveCompliance(eventId, checkId, input);
     return this.mapComplianceCheck(check);
   }
 
@@ -3119,12 +3008,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     return event;
-  }
-
-  private layerForSeverity(severity?: string) {
-    if (severity === 'watch_out' || severity === 'should_fix') return 'Should-Fix';
-    if (severity === 'advisory') return 'Advisory';
-    return 'Must-Fix';
   }
 
   private privacySurface(
