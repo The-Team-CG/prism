@@ -546,12 +546,14 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.notificationOutboxService = new NotificationOutboxService(prisma);
     this.workflowCommandService = new WorkflowCommandService();
     this.suppliersService = new SuppliersService(prisma);
+    this.pareService = new PAREService(prisma);
     this.supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
       prisma,
       this.suppliersService,
       this.auditService,
       this.eventAccessPolicyService,
       this.workflowCommandService,
+      this.pareService,
     );
     this.inquiriesService = new InquiriesService(
       prisma,
@@ -620,7 +622,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       this.auditService,
       this.workflowCommandService,
     );
-    this.pareService = new PAREService(prisma);
   }
 
   private resolveActor(input: SampleActorInput = {}): ResolvedSampleActor {
@@ -1766,95 +1767,20 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async withdrawSupplier(requestId: string, reason: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'withdraw supplier');
-    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
-    if (!request) throw new NotFoundException('Supplier quote request not found');
-
-    let updated: typeof request;
-    let event: any = null;
-    try {
-      [updated, event] = await Promise.all([
-        this.prisma.opsSupplierQuoteRequest.update({
-          where: { id: request.id },
-          data: { assignmentStatus: 'withdrawn' },
-          include: { supplier: true },
-        }),
-        this.prisma.opsEvent.findUnique({ where: { id: request.eventId } }),
-      ]);
-    } catch {
-      updated = { ...request, assignmentStatus: 'withdrawn' };
-    }
-
-    try {
-      await this.audit(request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Suppliers,
-        affectedType: 'supplier_quote_request',
-        affectedId: request.id,
-        affectedLabel: request.supplierName,
-      });
-    } catch { /* audit failure is non-fatal */ }
-
-    // Fire PARE — pass prefetched data so agents don't need DB
-    const prefetched = event ? { request: updated, event } : undefined;
-    this.pareService.handleEmergencyTrigger(request.id, prefetched)
-      .then((approval) => {
-        const candidate = approval.pareResult?.budgetAnalysis?.selectedCandidate;
-        const label = candidate?.supplierName ? `Recommended: ${candidate.supplierName} (${approval.pareResult?.mode ?? 'mock'} mode)` : 'PARE engine completed';
-        return this.audit(request.eventId, 'PARE Engine', `PARE triggered for ${request.supplierName} — ${label}`, {
-          actorRole: OpsUserRole.System,
-          actionType: 'pare_triggered',
-          category: AuditCategory.Suppliers,
-          affectedType: 'supplier_quote_request',
-          affectedId: request.id,
-          affectedLabel: request.supplierName,
-          metadata: { approvalRecordId: approval.id, mode: approval.pareResult?.mode },
-        });
-      })
-      .catch((err) => {
-        this.logger.error(`PARE trigger failed for request ${request.id}: ${err?.message}`);
-      });
+    const updated = await this.supplierNetworkWorkflowService.withdrawSupplier(requestId, reason, actor);
     return this.mapSupplierQuoteRequest(updated);
   }
 
   async pareGetPendingApprovals(eventId?: string) {
-    return this.pareService.getPendingApprovals(eventId);
+    return this.supplierNetworkWorkflowService.pareGetPendingApprovals(eventId);
   }
 
   async pareApprove(approvalRecordId: string, approvedBy: string) {
-    const result = await this.pareService.approveRecommendation(approvalRecordId, approvedBy);
-    try {
-      const candidate = result.pareResult?.budgetAnalysis?.selectedCandidate;
-      await this.audit(result.eventId, approvedBy, `PARE recommendation approved: ${candidate?.supplierName ?? 'unknown supplier'}`, {
-        actorRole: OpsUserRole.PmcmAdmin,
-        actionType: 'pare_approved',
-        category: AuditCategory.Suppliers,
-        affectedType: 'pare_approval',
-        affectedId: approvalRecordId,
-        affectedLabel: candidate?.supplierName,
-        metadata: { approvalRecordId, candidate },
-      });
-    } catch { /* non-fatal */ }
-    return result;
+    return this.supplierNetworkWorkflowService.pareApprove(approvalRecordId, approvedBy);
   }
 
   async pareReject(approvalRecordId: string, rejectedBy: string) {
-    const result = await this.pareService.rejectRecommendation(approvalRecordId, rejectedBy);
-    try {
-      const candidate = result.pareResult?.budgetAnalysis?.selectedCandidate;
-      await this.audit(result.eventId, rejectedBy, `PARE recommendation rejected: ${candidate?.supplierName ?? 'unknown supplier'}`, {
-        actorRole: OpsUserRole.PmcmAdmin,
-        actionType: 'pare_rejected',
-        category: AuditCategory.Suppliers,
-        affectedType: 'pare_approval',
-        affectedId: approvalRecordId,
-        affectedLabel: candidate?.supplierName,
-        metadata: { approvalRecordId, candidate },
-      });
-    } catch { /* non-fatal */ }
-    return result;
+    return this.supplierNetworkWorkflowService.pareReject(approvalRecordId, rejectedBy);
   }
 
   async confirmSupplierReadiness(

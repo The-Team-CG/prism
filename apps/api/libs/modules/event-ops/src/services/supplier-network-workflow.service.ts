@@ -1,5 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsSupplierQuoteRequest } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import type { OpsEvent, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole } from '../ops.constants';
@@ -14,6 +14,8 @@ import {
   type UpdateSupplierInput,
 } from './suppliers.service';
 import { WorkflowCommandService } from './workflow-command.service';
+import { PAREService } from './pare/pare.service';
+import type { PAREApprovalRecord } from './pare/pare.types';
 
 type SupplierResult = Awaited<ReturnType<SuppliersService['createSupplier']>>;
 type ChangeSupplierTierResult = Awaited<ReturnType<SuppliersService['changeSupplierTier']>>;
@@ -47,12 +49,15 @@ const ALLOWED_UPLOAD_TYPES: Record<string, string[]> = {
 
 @Injectable()
 export class SupplierNetworkWorkflowService {
+  private readonly logger = new Logger(SupplierNetworkWorkflowService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly suppliersService: SuppliersService,
     private readonly auditService: AuditService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
+    private readonly pareService: PAREService,
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {
@@ -205,6 +210,71 @@ export class SupplierNetworkWorkflowService {
         });
       },
     });
+  }
+
+  async withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor) {
+    let request: OpsSupplierQuoteRequest | null = null;
+
+    return this.workflowCommandService.execute<
+      { request: OpsSupplierQuoteRequest; event: OpsEvent | null },
+      OpsSupplierQuoteRequest
+    >({
+      name: 'withdraw_supplier',
+      validatePermission: () => this.requireSupplierAdmin(actor, 'withdraw supplier'),
+      validateState: async () => {
+        request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
+        if (!request) throw new NotFoundException('Supplier quote request not found');
+      },
+      write: async () => {
+        if (!request) throw new NotFoundException('Supplier quote request not found');
+        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const [updated, event] = await Promise.all([
+            tx.opsSupplierQuoteRequest.update({
+              where: { id: request!.id },
+              data: { assignmentStatus: 'withdrawn' },
+              include: { supplier: true },
+            }),
+            tx.opsEvent.findUnique({ where: { id: request!.eventId } }),
+          ]);
+          return { request: updated, event };
+        });
+      },
+      sideEffects: async (result) => {
+        if (!request) return;
+        try {
+          await this.auditService.audit(request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Suppliers,
+            affectedType: 'supplier_quote_request',
+            affectedId: request.id,
+            affectedLabel: request.supplierName,
+          });
+        } catch {
+          // Supplier withdrawal should not be rolled back by an audit logging outage.
+        }
+
+        void this.triggerPareForWithdrawnSupplier(request, result.request, result.event);
+      },
+      project: (result) => result.request,
+    });
+  }
+
+  pareGetPendingApprovals(eventId?: string) {
+    return this.pareService.getPendingApprovals(eventId);
+  }
+
+  async pareApprove(approvalRecordId: string, approvedBy: string) {
+    const result = await this.pareService.approveRecommendation(approvalRecordId, approvedBy);
+    await this.auditPareDecision(result, approvalRecordId, approvedBy, 'approved');
+    return result;
+  }
+
+  async pareReject(approvalRecordId: string, rejectedBy: string) {
+    const result = await this.pareService.rejectRecommendation(approvalRecordId, rejectedBy);
+    await this.auditPareDecision(result, approvalRecordId, rejectedBy, 'rejected');
+    return result;
   }
 
   async confirmSupplierReadiness(
@@ -376,6 +446,65 @@ export class SupplierNetworkWorkflowService {
     );
     if (!supplier) throw new NotFoundException('Supplier profile not found for actor');
     return supplier;
+  }
+
+  private async triggerPareForWithdrawnSupplier(
+    originalRequest: OpsSupplierQuoteRequest,
+    updatedRequest: OpsSupplierQuoteRequest,
+    event: OpsEvent | null,
+  ) {
+    const prefetched = event ? { request: updatedRequest, event } : undefined;
+    try {
+      const approval = await this.pareService.handleEmergencyTrigger(originalRequest.id, prefetched);
+      const candidate = approval.pareResult?.budgetAnalysis?.selectedCandidate;
+      const label = candidate?.supplierName
+        ? `Recommended: ${candidate.supplierName} (${approval.pareResult?.mode ?? 'mock'} mode)`
+        : 'PARE engine completed';
+      await this.auditService.audit(
+        originalRequest.eventId,
+        'PARE Engine',
+        `PARE triggered for ${originalRequest.supplierName} - ${label}`,
+        {
+          actorRole: OpsUserRole.System,
+          actionType: 'pare_triggered',
+          category: AuditCategory.Suppliers,
+          affectedType: 'supplier_quote_request',
+          affectedId: originalRequest.id,
+          affectedLabel: originalRequest.supplierName,
+          metadata: { approvalRecordId: approval.id, mode: approval.pareResult?.mode },
+        },
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`PARE trigger failed for request ${originalRequest.id}: ${message}`);
+    }
+  }
+
+  private async auditPareDecision(
+    result: PAREApprovalRecord,
+    approvalRecordId: string,
+    actorName: string,
+    decision: 'approved' | 'rejected',
+  ) {
+    try {
+      const candidate = result.pareResult?.budgetAnalysis?.selectedCandidate;
+      await this.auditService.audit(
+        result.eventId,
+        actorName,
+        `PARE recommendation ${decision}: ${candidate?.supplierName ?? 'unknown supplier'}`,
+        {
+          actorRole: OpsUserRole.PmcmAdmin,
+          actionType: decision === 'approved' ? 'pare_approved' : 'pare_rejected',
+          category: AuditCategory.Suppliers,
+          affectedType: 'pare_approval',
+          affectedId: approvalRecordId,
+          affectedLabel: candidate?.supplierName,
+          metadata: { approvalRecordId, candidate },
+        },
+      );
+    } catch {
+      // PARE approval state is authoritative even if audit logging is unavailable.
+    }
   }
 
   validateUploadMetadata(input: UploadMetadataInput, prefix: string) {

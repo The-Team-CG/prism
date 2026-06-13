@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Injectable } from '@nestjs/common';
 import type { PrismaService } from '@prism/database';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { EventContextAgent } from './agents/event-context.agent';
@@ -35,6 +36,7 @@ type AuditRow = {
   createdAt?: Date | string | null;
 };
 
+@Injectable()
 export class PAREService {
   private readonly mode: PAREMode;
   private readonly sanitizer: DataSanitizerService;

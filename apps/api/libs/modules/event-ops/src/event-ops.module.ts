@@ -15,6 +15,7 @@ import { SuppliersService } from './services/suppliers.service';
 import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { EventClosureService } from './services/event-closure.service';
+import { PAREService } from './services/pare/pare.service';
 
 @Module({
   imports: [DatabaseModule],
@@ -34,6 +35,7 @@ import { EventClosureService } from './services/event-closure.service';
     CommercialWorkflowService,
     SupplierNetworkWorkflowService,
     EventClosureService,
+    PAREService,
   ],
 })
 export class EventOpsModule {}
