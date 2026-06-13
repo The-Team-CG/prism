@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PrismEventOpsActorContext } from "@prism/types";
 import { PrismApiError, createEventOpsClient, prismRequest, toQueryString } from "./index";
 
 afterEach(() => {
@@ -121,6 +122,30 @@ describe("createEventOpsClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:4000/api/supplier/workspace?actorRole=supplier&actorEmail=supplier%40example.com",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
+  it("accepts the full shared actor context for scoped supplier reads", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ quoteRequests: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const actor = {
+      actorRole: "supplier",
+      actorName: "Sonic Line Events",
+      actorEmail: "supplier@example.com",
+      supplierId: "sup_sonicline",
+      eventId: "evt_sample",
+      accessCode: "supplier-access",
+    } satisfies PrismEventOpsActorContext;
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.supplierWorkspace.detail(actor);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/supplier/workspace?actorRole=supplier&actorName=Sonic+Line+Events&actorEmail=supplier%40example.com&supplierId=sup_sonicline&eventId=evt_sample&accessCode=supplier-access",
       {
         headers: { "Content-Type": "application/json" },
       },

@@ -6,16 +6,12 @@ import type {
   PrismInquiry,
   PrismPmcmDashboardWorkspace,
   PrismSampleState,
+  PrismEventOpsActorContext,
   PrismSupplierWorkspace,
 } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
-export interface EventOpsActorQuery {
-  actorName?: string;
-  actorRole?: string;
-  actorEmail?: string;
-  clientName?: string;
-}
+export type EventOpsActorQuery = PrismEventOpsActorContext;
 
 export interface CreatePrismInquiryInput {
   clientName: string;

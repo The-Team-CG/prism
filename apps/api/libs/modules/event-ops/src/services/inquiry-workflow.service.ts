@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { PrismaService } from '@prism/database';
+import type { PrismEventOpsActorContext } from '@prism/types';
 import { OpsUserRole } from '../ops.constants';
 import type { InquiriesService } from './inquiries.service';
 
@@ -30,7 +31,7 @@ export type UpdateInquiryStatusInput = {
 
 export interface InquiryWorkflowContext {
   inquiriesService: InquiriesService;
-  resolveActor: (input?: Record<string, unknown>) => any;
+  resolveActor: (input?: PrismEventOpsActorContext) => any;
   requireActorRole: (actor: any, roles: OpsUserRoleValue[], resource: string) => Promise<void>;
   allowedAdminRoles: OpsUserRoleValue[];
   mapInquiry: (inquiry: unknown) => any;
@@ -41,7 +42,7 @@ export interface InquiryWorkflowContext {
 export class InquiryWorkflowService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listInquiries(actorInput: Record<string, unknown> = {}, context: InquiryWorkflowContext) {
+  async listInquiries(actorInput: PrismEventOpsActorContext = {}, context: InquiryWorkflowContext) {
     const actor = context.resolveActor(actorInput);
     await context.requireActorRole(actor, context.allowedAdminRoles, 'inquiries');
 
@@ -59,7 +60,7 @@ export class InquiryWorkflowService {
 
   async logInquiryOnBehalf(
     input: CreateInquiryInput,
-    actorInput: Record<string, unknown> = {},
+    actorInput: PrismEventOpsActorContext = {},
     context: InquiryWorkflowContext,
   ) {
     const inquiry = await context.inquiriesService.logInquiryOnBehalf(input, actorInput);

@@ -5,6 +5,34 @@ export interface PrismProjectLike {
 }
 export type SampleRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
 
+export const PRISM_EVENT_OPS_ACTOR_ROLES = [
+  "pmcm-admin",
+  "client",
+  "coordinator",
+  "supplier",
+  "guest",
+  "system",
+  "unknown",
+] as const;
+
+export type PrismEventOpsActorRole = (typeof PRISM_EVENT_OPS_ACTOR_ROLES)[number];
+
+export interface PrismEventOpsActorContext {
+  id?: string;
+  actorId?: string;
+  role?: PrismEventOpsActorRole | string;
+  actorRole?: PrismEventOpsActorRole | string;
+  email?: string;
+  actorEmail?: string;
+  name?: string;
+  actorName?: string;
+  clientName?: string;
+  supplierId?: string;
+  coordinatorId?: string;
+  eventId?: string;
+  accessCode?: string;
+}
+
 export interface PrismUser {
   id: string;
   name: string;

@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
+import type { PrismEventOpsActorContext } from '@prism/types';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole } from '../ops.constants';
 import { AuditService } from './audit.service';
@@ -31,14 +32,7 @@ export type UpdateInquiryStatusInput = {
   declineReason?: string;
 };
 
-export type SampleActorInput = {
-  actorRole?: string;
-  role?: string;
-  actorName?: string;
-  name?: string;
-  actorEmail?: string;
-  email?: string;
-};
+export type SampleActorInput = PrismEventOpsActorContext;
 
 type InquiryWithTriage = OpsInquiry & {
   normalizedEmail?: string;

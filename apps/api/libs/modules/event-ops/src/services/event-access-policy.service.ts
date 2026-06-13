@@ -1,23 +1,10 @@
 import { ForbiddenException, Logger } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
+import type { PrismEventOpsActorContext } from '@prism/types';
 import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '../ops.constants';
 import { AuditService } from './audit.service';
 
-export type EventOpsActorInput = {
-  id?: string;
-  actorId?: string;
-  role?: string;
-  actorRole?: string;
-  email?: string;
-  actorEmail?: string;
-  name?: string;
-  actorName?: string;
-  clientName?: string;
-  supplierId?: string;
-  coordinatorId?: string;
-  eventId?: string;
-  accessCode?: string;
-};
+export type EventOpsActorInput = PrismEventOpsActorContext;
 
 export type ResolvedEventOpsActor = {
   id?: string;
