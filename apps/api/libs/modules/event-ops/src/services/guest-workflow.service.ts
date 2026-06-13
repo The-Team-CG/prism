@@ -4,15 +4,10 @@ import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole } from '../ops.constants';
 import { AuditService } from './audit.service';
+import { DocumentVaultService, type UploadMetadataInput } from './document-vault.service';
 import { WorkflowCommandService } from './workflow-command.service';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[] };
-
-export type UploadMetadataInput = {
-  fileName: string;
-  mimeType?: string;
-  sizeBytes?: number;
-};
 
 export type GuestCheckInInput = {
   guestName: string;
@@ -36,18 +31,14 @@ export type GuestFeedbackInput = {
 };
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_UPLOAD_TYPES: Record<string, string[]> = {
-  'application/pdf': ['pdf'],
-  'image/jpeg': ['jpg', 'jpeg'],
-  'image/png': ['png'],
-  'video/mp4': ['mp4'],
-};
+const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'video/mp4'] as const;
 
 export class GuestWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly workflowCommandService: WorkflowCommandService,
+    private readonly documentVaultService = new DocumentVaultService(),
   ) {}
 
   async getEventByAccessCode(accessCode: string) {
@@ -188,27 +179,9 @@ export class GuestWorkflowService {
   }
 
   private validateUploadMetadata(input: UploadMetadataInput, prefix: string) {
-    const fileName = input.fileName?.trim();
-    if (!fileName) throw new BadRequestException('File name is required');
-    const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
-    const mimeType = input.mimeType?.trim().toLowerCase() ?? '';
-    const allowedExtensions = ALLOWED_UPLOAD_TYPES[mimeType];
-    if (!allowedExtensions || !allowedExtensions.includes(extension)) {
-      throw new BadRequestException('Unsupported file type');
-    }
-    const sizeBytes = input.sizeBytes ?? 0;
-    if (sizeBytes <= 0) throw new BadRequestException('File size is required');
-    if (sizeBytes > MAX_UPLOAD_SIZE_BYTES) throw new BadRequestException('File exceeds allowed size');
-    const generatedFileName = `${randomUUID()}.${extension}`;
-    const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
-    return {
-      originalFileName: fileName.replace(/^.*[\\/]/, ''),
-      generatedFileName,
-      mimeType,
-      sizeBytes,
-      storageBucket: 'document-vault',
-      storageKey: `${cleanPrefix}/${generatedFileName}`,
-      validationStatus: 'accepted',
-    };
+    return this.documentVaultService.validateUploadMetadata(input, prefix, {
+      maxSizeBytes: MAX_UPLOAD_SIZE_BYTES,
+      allowedMimeTypes: GUEST_UPLOAD_MIME_TYPES,
+    });
   }
 }

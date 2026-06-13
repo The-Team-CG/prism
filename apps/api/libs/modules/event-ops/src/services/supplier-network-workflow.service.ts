@@ -23,15 +23,10 @@ import {
 import { WorkflowCommandService } from './workflow-command.service';
 import { PAREService } from './pare/pare.service';
 import type { PAREApprovalRecord } from './pare/pare.types';
+import { DocumentVaultService, type UploadMetadataInput, type ValidatedUploadMetadata } from './document-vault.service';
 
 type SupplierResult = Awaited<ReturnType<SuppliersService['createSupplier']>>;
 type ChangeSupplierTierResult = Awaited<ReturnType<SuppliersService['changeSupplierTier']>>;
-
-export type UploadMetadataInput = {
-  fileName: string;
-  mimeType?: string;
-  sizeBytes?: number;
-};
 
 export type SupplierReadinessInput = {
   notes?: string;
@@ -49,17 +44,6 @@ export type VerifySupplierEventStatusInput = {
   notes?: string;
 };
 
-const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
-const ALLOWED_UPLOAD_TYPES: Record<string, string[]> = {
-  'application/pdf': ['pdf'],
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['docx'],
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['xlsx'],
-  'image/jpeg': ['jpg', 'jpeg'],
-  'image/png': ['png'],
-  'video/mp4': ['mp4'],
-  'video/quicktime': ['mov'],
-};
-
 @Injectable()
 export class SupplierNetworkWorkflowService {
   private readonly logger = new Logger(SupplierNetworkWorkflowService.name);
@@ -72,6 +56,7 @@ export class SupplierNetworkWorkflowService {
     private readonly workflowCommandService: WorkflowCommandService,
     private readonly pareService: PAREService,
     private readonly liveOperationsService: LiveOperationsService,
+    private readonly documentVaultService = new DocumentVaultService(),
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {
@@ -336,7 +321,7 @@ export class SupplierNetworkWorkflowService {
     actor: ResolvedEventOpsActor,
   ) {
     let request: OpsSupplierQuoteRequest | null = null;
-    let photo: ReturnType<SupplierNetworkWorkflowService['validateUploadMetadata']> | null = null;
+    let photo: ValidatedUploadMetadata | null = null;
 
     return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'update_supplier_event_status',
@@ -444,7 +429,7 @@ export class SupplierNetworkWorkflowService {
 
   async uploadSupplierContract(requestId: string, input: UploadMetadataInput, actor: ResolvedEventOpsActor) {
     let request: OpsSupplierQuoteRequest | null = null;
-    let upload: ReturnType<SupplierNetworkWorkflowService['validateUploadMetadata']> | null = null;
+    let upload: ValidatedUploadMetadata | null = null;
 
     return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'upload_supplier_contract',
@@ -587,29 +572,6 @@ export class SupplierNetworkWorkflowService {
   }
 
   validateUploadMetadata(input: UploadMetadataInput, prefix: string) {
-    const fileName = input.fileName?.trim();
-    if (!fileName) throw new BadRequestException('File name is required');
-    const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
-    const mimeType = input.mimeType?.trim().toLowerCase() ?? '';
-    const allowedExtensions = ALLOWED_UPLOAD_TYPES[mimeType];
-    if (!allowedExtensions || !allowedExtensions.includes(extension)) {
-      throw new BadRequestException('Unsupported file type');
-    }
-    const sizeBytes = input.sizeBytes ?? 0;
-    if (sizeBytes <= 0) throw new BadRequestException('File size is required');
-    if (sizeBytes > MAX_UPLOAD_SIZE_BYTES) {
-      throw new BadRequestException('File exceeds allowed size');
-    }
-    const generatedFileName = `${randomUUID()}.${extension}`;
-    const cleanPrefix = prefix.replace(/^\/+|\/+$/g, '');
-    return {
-      originalFileName: fileName.replace(/^.*[\\/]/, ''),
-      generatedFileName,
-      mimeType,
-      sizeBytes,
-      storageBucket: 'document-vault',
-      storageKey: `${cleanPrefix}/${generatedFileName}`,
-      validationStatus: 'accepted',
-    };
+    return this.documentVaultService.validateUploadMetadata(input, prefix);
   }
 }

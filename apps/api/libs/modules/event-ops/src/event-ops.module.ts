@@ -18,6 +18,7 @@ import { EventClosureService } from './services/event-closure.service';
 import { PAREService } from './services/pare/pare.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { AiGovernanceService } from './services/ai-governance.service';
+import { DocumentVaultService } from './services/document-vault.service';
 
 @Module({
   imports: [DatabaseModule],
@@ -31,6 +32,7 @@ import { AiGovernanceService } from './services/ai-governance.service';
     EventAccessPolicyService,
     EventLifecycleService,
     FileRequirementsMatrixService,
+    DocumentVaultService,
     NotificationOutboxService,
     WorkflowCommandService,
     EventReadModelsService,

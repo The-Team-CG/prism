@@ -46,8 +46,8 @@ import {
   SupplierNetworkWorkflowService,
   type SupplierEventStatusInput,
   type SupplierReadinessInput,
-  type UploadMetadataInput,
 } from './services/supplier-network-workflow.service';
+import { DocumentVaultService, type UploadMetadataInput } from './services/document-vault.service';
 import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,
@@ -528,6 +528,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly eventAccessPolicyService: EventAccessPolicyService;
   private readonly eventLifecycleService: EventLifecycleService;
   private readonly fileRequirementsMatrixService: FileRequirementsMatrixService;
+  private readonly documentVaultService: DocumentVaultService;
   private readonly notificationOutboxService: NotificationOutboxService;
   private readonly workflowCommandService: WorkflowCommandService;
   private readonly eventReadModelsService: EventReadModelsService;
@@ -571,6 +572,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     );
     this.suppliersService = new SuppliersService(prisma);
     this.pareService = new PAREService(prisma);
+    this.documentVaultService = new DocumentVaultService();
     this.supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
       prisma,
       this.suppliersService,
@@ -579,6 +581,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       this.workflowCommandService,
       this.pareService,
       this.liveOperationsService,
+      this.documentVaultService,
     );
     this.eventLifecycleService = new EventLifecycleService();
     this.fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
@@ -993,7 +996,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   validateUploadMetadata(input: UploadMetadataInput, prefix: string) {
-    return this.supplierNetworkWorkflowService.validateUploadMetadata(input, prefix);
+    return this.documentVaultService.validateUploadMetadata(input, prefix);
   }
 
   async uploadConforme(
