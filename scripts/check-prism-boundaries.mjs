@@ -34,6 +34,11 @@ export const boundaryRules = [
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
     importPattern: /(?:eventOpsClient\.sample\.state\(|prismApi\.state\(|["']\/api\/sample\/state["']|["']\/sample\/state["'])/,
   },
+  {
+    name: "backend services must not inject Prisma as any",
+    filePattern: /^apps\/api\/libs\/modules\/.*\/src\/.*service\.ts$/,
+    importPattern: /(?:private\s+readonly\s+)?prisma\s*:\s*any\b/,
+  },
 ];
 
 export function listTrackedSourceFiles(root = process.cwd()) {

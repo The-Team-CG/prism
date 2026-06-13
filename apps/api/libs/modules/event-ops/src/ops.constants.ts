@@ -177,3 +177,10 @@ export type NotificationChannel = (typeof NotificationChannel)[keyof typeof Noti
 export type LoginHistoryStatus = (typeof LoginHistoryStatus)[keyof typeof LoginHistoryStatus];
 export type PrivacyRequestStatus = (typeof PrivacyRequestStatus)[keyof typeof PrivacyRequestStatus];
 export type PrivacyRequestType = (typeof PrivacyRequestType)[keyof typeof PrivacyRequestType];
+
+export function isOpsConstantValue<const T extends Record<string, string>>(
+  values: T,
+  candidate: string | null | undefined,
+): candidate is T[keyof T] {
+  return Boolean(candidate && (Object.values(values) as string[]).includes(candidate));
+}

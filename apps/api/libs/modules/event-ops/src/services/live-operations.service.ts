@@ -13,6 +13,7 @@ import {
   LiveOpsSlaStatus,
   UrgentIssueSeverity,
   UrgentIssueStatus,
+  isOpsConstantValue,
 } from '../ops.constants';
 import { AuditService } from './audit.service';
 import { NotificationOutboxService } from './notification-outbox.service';
@@ -161,7 +162,7 @@ export class LiveOperationsService {
         current = (await prisma.opsEventDayTask.findMany({ where: { eventId } })).find((task) => task.id === taskId) ?? null;
         if (!current) throw new NotFoundException('Event-day task not found');
         status = input.status?.trim();
-        if (status && !Object.values(EventDayTaskStatus).includes(status as any)) {
+        if (status && !isOpsConstantValue(EventDayTaskStatus, status)) {
           throw new BadRequestException('Unsupported event-day task status');
         }
       },
@@ -202,7 +203,7 @@ export class LiveOperationsService {
     const prisma = this.requirePrisma();
     const auditService = this.requireAuditService();
     let title = '';
-    let severity = UrgentIssueSeverity.Medium;
+    let severity: UrgentIssueSeverity = UrgentIssueSeverity.Medium;
 
     return this.workflowCommandService.execute<OpsUrgentIssue>({
       name: 'create_urgent_issue',
@@ -210,10 +211,11 @@ export class LiveOperationsService {
       validateState: () => {
         title = input.title?.trim();
         if (!title) throw new BadRequestException('Issue title is required');
-        severity = (input.severity?.trim() || UrgentIssueSeverity.Medium) as typeof severity;
-        if (!Object.values(UrgentIssueSeverity).includes(severity as any)) {
+        const requestedSeverity = input.severity?.trim() || UrgentIssueSeverity.Medium;
+        if (!isOpsConstantValue(UrgentIssueSeverity, requestedSeverity)) {
           throw new BadRequestException('Unsupported urgent issue severity');
         }
+        severity = requestedSeverity;
       },
       write: () =>
         prisma.opsUrgentIssue.create({
@@ -264,7 +266,7 @@ export class LiveOperationsService {
         current = (await prisma.opsUrgentIssue.findMany({ where: { eventId } })).find((issue) => issue.id === issueId) ?? null;
         if (!current) throw new NotFoundException('Urgent issue not found');
         status = input.status?.trim();
-        if (status && !Object.values(UrgentIssueStatus).includes(status as any)) {
+        if (status && !isOpsConstantValue(UrgentIssueStatus, status)) {
           throw new BadRequestException('Unsupported urgent issue status');
         }
       },
@@ -574,10 +576,11 @@ export class LiveOperationsService {
       name: 'update_coordinator_attendance',
       eventId,
       validateState: async () => {
-        status = input.status?.trim() as CoordinatorAttendanceStatusValue;
-        if (!Object.values(CoordinatorAttendanceStatus).includes(status as any)) {
+        const requestedStatus = input.status?.trim();
+        if (!isOpsConstantValue(CoordinatorAttendanceStatus, requestedStatus)) {
           throw new BadRequestException('Unsupported coordinator attendance status');
         }
+        status = requestedStatus;
         current = (await prisma.opsCoordinatorAssignment.findMany({ where: { eventId } })).find(
           (assignment) => assignment.id === assignmentId,
         ) ?? null;
@@ -747,9 +750,12 @@ export class LiveOperationsService {
       LiveOpsEscalationLevel.Critical,
     ];
     if (!escalationLevel) return LiveOpsEscalationLevel.RoleLead;
-    if (!allowed.includes(escalationLevel as any)) {
+    if (
+      !isOpsConstantValue(LiveOpsEscalationLevel, escalationLevel) ||
+      !allowed.some((allowedLevel) => allowedLevel === escalationLevel)
+    ) {
       throw new BadRequestException('Unsupported escalation level');
     }
-    return escalationLevel as (typeof allowed)[number];
+    return escalationLevel;
   }
 }

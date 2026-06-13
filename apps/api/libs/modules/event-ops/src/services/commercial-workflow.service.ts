@@ -3,7 +3,7 @@ import type { OpsSupplier, OpsSupplierCategory, OpsSupplierQuote, OpsSupplierQuo
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { randomUUID } from 'node:crypto';
-import { AuditCategory, SupplierQuoteRequestStatus, SupplierQuoteStatus } from '../ops.constants';
+import { AuditCategory, SupplierQuoteRequestStatus, SupplierQuoteStatus, isOpsConstantValue } from '../ops.constants';
 import { AuditService } from './audit.service';
 import { NotificationOutboxService } from './notification-outbox.service';
 import { SuppliersService, type AddSupplierQuoteInput } from './suppliers.service';
@@ -93,7 +93,9 @@ export class CommercialWorkflowService {
                 request.categoryId === category!.id &&
                 request.supplierId &&
                 selectedSupplierIds.has(request.supplierId) &&
-                ![SupplierQuoteRequestStatus.Closed, SupplierQuoteRequestStatus.Expired].includes(request.status as any),
+                isOpsConstantValue(SupplierQuoteRequestStatus, request.status) &&
+                request.status !== SupplierQuoteRequestStatus.Closed &&
+                request.status !== SupplierQuoteRequestStatus.Expired,
             )
             .map((request) => request.supplierId as string),
         );
@@ -277,7 +279,10 @@ export class CommercialWorkflowService {
       },
       write: async () => {
         if (!quote) throw new NotFoundException('Supplier quote not found');
-        if ([SupplierQuoteStatus.Selected, SupplierQuoteStatus.Locked].includes(quote.status as any)) {
+        if (
+          isOpsConstantValue(SupplierQuoteStatus, quote.status) &&
+          (quote.status === SupplierQuoteStatus.Selected || quote.status === SupplierQuoteStatus.Locked)
+        ) {
           return { quote, selectedNow: false };
         }
 
@@ -349,19 +354,25 @@ export class CommercialWorkflowService {
         if (!foundRequest) throw new NotFoundException('Quote request not found');
 
         request = await this.expireQuoteRequestIfNeeded(foundRequest);
+        const requestStatus = request.status;
         if (
+          isOpsConstantValue(SupplierQuoteRequestStatus, requestStatus) &&
           [
             SupplierQuoteRequestStatus.Selected,
             SupplierQuoteRequestStatus.Closed,
             SupplierQuoteRequestStatus.Expired,
-          ].includes(request.status as any)
+          ].some((status) => status === requestStatus)
         ) {
           throw new BadRequestException('Quote request is already closed');
         }
 
         quote = await this.prisma.opsSupplierQuote.findFirst({ where: { requestId: request.id } });
         if (requestedMode === 'revise' && !quote) throw new NotFoundException('Supplier quote not found');
-        if (quote && [SupplierQuoteStatus.Selected, SupplierQuoteStatus.Locked].includes(quote.status as any)) {
+        if (
+          quote &&
+          isOpsConstantValue(SupplierQuoteStatus, quote.status) &&
+          (quote.status === SupplierQuoteStatus.Selected || quote.status === SupplierQuoteStatus.Locked)
+        ) {
           throw new BadRequestException('Supplier quote is already locked');
         }
         effectiveMode = quote ? 'revise' : 'submit';
@@ -462,7 +473,9 @@ export class CommercialWorkflowService {
     if (
       request.dueDate &&
       request.dueDate.getTime() < Date.now() &&
-      [SupplierQuoteRequestStatus.Open, SupplierQuoteRequestStatus.RevisionRequested].includes(request.status as any)
+      isOpsConstantValue(SupplierQuoteRequestStatus, request.status) &&
+      (request.status === SupplierQuoteRequestStatus.Open ||
+        request.status === SupplierQuoteRequestStatus.RevisionRequested)
     ) {
       return { ...request, status: SupplierQuoteRequestStatus.Expired } as OpsSupplierQuoteRequest;
     }

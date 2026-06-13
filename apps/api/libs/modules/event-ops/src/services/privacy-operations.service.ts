@@ -1,7 +1,14 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, OpsUserRole, PrivacyRequestStatus, PrivacyRequestType } from '../ops.constants';
+import {
+  AuditActionType,
+  AuditCategory,
+  OpsUserRole,
+  PrivacyRequestStatus,
+  PrivacyRequestType,
+  isOpsConstantValue,
+} from '../ops.constants';
 import { AuditService } from './audit.service';
 
 type PrivacyActor = {
@@ -155,7 +162,10 @@ export class PrivacyOperationsService {
   }
 
   async reviewRequest(requestId: string, input: ReviewPrivacyRequestInput, actor: PrivacyActor) {
-    if (![PrivacyRequestStatus.Approved, PrivacyRequestStatus.Rejected].includes(input.status as any)) {
+    if (
+      !isOpsConstantValue(PrivacyRequestStatus, input.status) ||
+      (input.status !== PrivacyRequestStatus.Approved && input.status !== PrivacyRequestStatus.Rejected)
+    ) {
       throw new BadRequestException('Privacy request review must approve or reject');
     }
     const request = await this.requireRequest(requestId);
@@ -236,8 +246,7 @@ export class PrivacyOperationsService {
   }
 
   private assertRequestType(requestType: string) {
-    const allowed = Object.values(PrivacyRequestType);
-    if (!allowed.includes(requestType as any)) {
+    if (!isOpsConstantValue(PrivacyRequestType, requestType)) {
       throw new BadRequestException('Unsupported privacy request type');
     }
   }

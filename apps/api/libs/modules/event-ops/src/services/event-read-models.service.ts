@@ -22,7 +22,7 @@ import type {
   OpsUser,
 } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
-import { AuditCategory, OpsUserRole, SupplierQuoteRequestStatus } from '../ops.constants';
+import { AuditCategory, OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '../ops.constants';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from './event-access-policy.service';
 import { SuppliersService } from './suppliers.service';
 
@@ -359,7 +359,9 @@ export class EventReadModelsService {
     if (
       request.dueDate &&
       request.dueDate.getTime() < Date.now() &&
-      [SupplierQuoteRequestStatus.Open, SupplierQuoteRequestStatus.RevisionRequested].includes(request.status as any)
+      isOpsConstantValue(SupplierQuoteRequestStatus, request.status) &&
+      (request.status === SupplierQuoteRequestStatus.Open ||
+        request.status === SupplierQuoteRequestStatus.RevisionRequested)
     ) {
       return { ...request, status: SupplierQuoteRequestStatus.Expired } as OpsSupplierQuoteRequest;
     }

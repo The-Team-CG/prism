@@ -61,6 +61,7 @@ import {
   OpsUserRole,
   SupplierQuoteRequestStatus,
   SupplierVerificationStatus,
+  isOpsConstantValue,
   type OpsUserRole as OpsUserRoleValue,
 } from './ops.constants';
 import {
@@ -1503,7 +1504,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'supplier setup verification');
     const verificationStatus = input.verificationStatus?.trim();
-    if (!Object.values(SupplierVerificationStatus).includes(verificationStatus as any)) {
+    if (!isOpsConstantValue(SupplierVerificationStatus, verificationStatus)) {
       throw new BadRequestException('Unsupported supplier verification status');
     }
     const current = (await this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId } })).find(
@@ -2941,7 +2942,9 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     if (
       request.dueDate &&
       request.dueDate.getTime() < Date.now() &&
-      [SupplierQuoteRequestStatus.Open, SupplierQuoteRequestStatus.RevisionRequested].includes(request.status as any)
+      isOpsConstantValue(SupplierQuoteRequestStatus, request.status) &&
+      (request.status === SupplierQuoteRequestStatus.Open ||
+        request.status === SupplierQuoteRequestStatus.RevisionRequested)
     ) {
       return { ...request, status: SupplierQuoteRequestStatus.Expired } as OpsSupplierQuoteRequest;
     }
