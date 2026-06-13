@@ -6,6 +6,9 @@ import { NotificationChannel } from '../ops.constants';
 
 export type NotificationOutboxChannel = 'email' | 'viber';
 
+const DEFAULT_MAX_ATTEMPTS = 3;
+const FORCE_FAIL_MARKER = 'FORCE_FAIL';
+
 export class NotificationOutboxService {
   constructor(private readonly prisma: PrismaService) {}
 
@@ -25,31 +28,34 @@ export class NotificationOutboxService {
         message,
         status: 'queued',
         attempts: 0,
-        failureReason: options.forceFail ? 'FORCE_FAIL' : null,
+        failureReason: options.forceFail ? FORCE_FAIL_MARKER : null,
       },
     });
   }
 
-  async processQueued() {
+  async processQueued(options: { maxAttempts?: number } = {}) {
+    const maxAttempts = Math.max(1, options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
     const queued = await this.prisma.opsNotificationLog.findMany({
       where: { status: 'queued' },
       orderBy: { createdAt: 'asc' },
     });
     const processed: OpsNotificationLog[] = [];
     for (const notification of queued) {
-      const shouldFail = notification.failureReason === 'FORCE_FAIL';
+      const nextAttempt = (notification.attempts ?? 0) + 1;
+      const shouldFail = notification.failureReason?.startsWith(FORCE_FAIL_MARKER) ?? false;
+      const permanentlyFailed = shouldFail && nextAttempt >= maxAttempts;
       const updated = await this.prisma.opsNotificationLog.update({
         where: { id: notification.id },
         data: shouldFail
           ? {
-              status: 'failed',
-              attempts: (notification.attempts ?? 0) + 1,
+              status: permanentlyFailed ? 'failed' : 'queued',
+              attempts: nextAttempt,
               failedAt: new Date(),
-              failureReason: 'Sample adapter forced failure',
+              failureReason: `${FORCE_FAIL_MARKER}: Sample adapter forced failure (${nextAttempt}/${maxAttempts})`,
             }
           : {
               status: 'sent',
-              attempts: (notification.attempts ?? 0) + 1,
+              attempts: nextAttempt,
               sentAt: new Date(),
               failureReason: null,
             },

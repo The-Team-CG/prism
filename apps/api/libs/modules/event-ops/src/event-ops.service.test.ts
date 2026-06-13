@@ -2369,7 +2369,7 @@ describe('EventOpsService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('moves notifications through queued, sent, failed, and acknowledged states', async () => {
+  it('moves notifications through queued, sent, retried, failed, and acknowledged states', async () => {
     const fake = createPrisma();
     const service = new EventOpsService(fake.prisma as any);
 
@@ -2378,8 +2378,18 @@ describe('EventOpsService', () => {
 
     expect(fake.state.notifications.map((item) => item.status)).toEqual(['queued', 'queued']);
 
-    const processed = await (service as any).processNotificationQueue();
-    expect(processed.map((item: any) => item.status)).toEqual(['sent', 'failed']);
+    const firstPass = await (service as any).processNotificationQueue();
+    expect(firstPass.map((item: any) => item.status)).toEqual(['sent', 'queued']);
+    expect(fake.state.notifications[1].attempts).toBe(1);
+
+    const secondPass = await (service as any).processNotificationQueue();
+    expect(secondPass.map((item: any) => item.status)).toEqual(['queued']);
+    expect(fake.state.notifications[1].attempts).toBe(2);
+
+    const thirdPass = await (service as any).processNotificationQueue();
+    expect(thirdPass.map((item: any) => item.status)).toEqual(['failed']);
+    expect(fake.state.notifications[1].attempts).toBe(3);
+    expect(fake.state.notifications[1].failureReason).toContain('3/3');
 
     const acknowledged = await (service as any).acknowledgeNotification(fake.state.notifications[0].id);
     expect(acknowledged.status).toBe('acknowledged');
