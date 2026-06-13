@@ -151,6 +151,12 @@ function addNotification(state: PrismSampleState, eventId: string | undefined, r
     recipient,
     message,
     status: "sent",
+    attempts: 1,
+    correlationId: null,
+    failureReason: null,
+    sentAt: now(),
+    failedAt: null,
+    acknowledgedAt: null,
     createdAt: now(),
   });
 }

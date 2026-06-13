@@ -4,7 +4,7 @@ import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { NotificationChannel } from '../ops.constants';
 
-export type NotificationOutboxChannel = 'email' | 'viber';
+export type NotificationOutboxChannel = 'email' | 'viber' | 'zoom' | 'canva' | 'storage' | 'ai';
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const FORCE_FAIL_MARKER = 'FORCE_FAIL';
@@ -28,6 +28,7 @@ export class NotificationOutboxService {
         message,
         status: 'queued',
         attempts: 0,
+        correlationId: options.correlationId ?? null,
         failureReason: options.forceFail ? FORCE_FAIL_MARKER : null,
       },
     });

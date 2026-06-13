@@ -3272,6 +3272,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private mapNotificationLog(log: OpsNotificationLog) {
     const expanded = log as OpsNotificationLog & {
       attempts?: number;
+      correlationId?: string | null;
       failureReason?: string | null;
       sentAt?: Date | null;
       failedAt?: Date | null;
@@ -3285,6 +3286,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       message: log.message,
       status: log.status,
       attempts: expanded.attempts ?? 0,
+      correlationId: expanded.correlationId ?? null,
       failureReason: expanded.failureReason ?? null,
       sentAt: expanded.sentAt ? timestamp(expanded.sentAt) : null,
       failedAt: expanded.failedAt ? timestamp(expanded.failedAt) : null,

@@ -1,0 +1,78 @@
+import { describe, expect, it, vi } from 'vitest';
+import { NotificationOutboxService } from './notification-outbox.service';
+
+function createService() {
+  const notifications: Array<Record<string, unknown>> = [];
+  const prisma = {
+    opsNotificationLog: {
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const record = { ...data, createdAt: new Date('2026-05-01T08:00:00.000Z') };
+        notifications.push(record);
+        return record;
+      }),
+      findMany: vi.fn(async ({ where }: { where: { status: string } }) =>
+        notifications.filter((notification) => notification.status === where.status),
+      ),
+      update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        const index = notifications.findIndex((notification) => notification.id === where.id);
+        if (index === -1) throw new Error('Notification not found');
+        notifications[index] = { ...notifications[index], ...data };
+        return notifications[index];
+      }),
+    },
+  };
+
+  return {
+    notifications,
+    prisma,
+    service: new NotificationOutboxService(prisma as never),
+  };
+}
+
+describe('NotificationOutboxService', () => {
+  it('persists audit correlation when queueing notification work', async () => {
+    const { prisma, service } = createService();
+
+    const queued = await service.queue('evt_1', 'client@example.test', 'Conforme ready', 'email', {
+      correlationId: 'audit_123',
+    });
+
+    expect(queued).toMatchObject({
+      eventId: 'evt_1',
+      channel: 'email',
+      recipient: 'client@example.test',
+      message: 'Conforme ready',
+      status: 'queued',
+      attempts: 0,
+      correlationId: 'audit_123',
+    });
+    expect(prisma.opsNotificationLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        correlationId: 'audit_123',
+        status: 'queued',
+        attempts: 0,
+      }),
+    });
+  });
+
+  it('retries forced adapter failures until terminal failure', async () => {
+    const { service } = createService();
+    await service.queue('evt_1', 'pmcm@example.test', 'Sync integration payload', 'email', { forceFail: true });
+
+    const firstAttempt = await service.processQueued({ maxAttempts: 2 });
+    const secondAttempt = await service.processQueued({ maxAttempts: 2 });
+    const thirdAttempt = await service.processQueued({ maxAttempts: 2 });
+
+    expect(firstAttempt[0]).toMatchObject({
+      status: 'queued',
+      attempts: 1,
+      failureReason: 'FORCE_FAIL: Sample adapter forced failure (1/2)',
+    });
+    expect(secondAttempt[0]).toMatchObject({
+      status: 'failed',
+      attempts: 2,
+      failureReason: 'FORCE_FAIL: Sample adapter forced failure (2/2)',
+    });
+    expect(thirdAttempt).toEqual([]);
+  });
+});

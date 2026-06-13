@@ -750,10 +750,16 @@ export interface PrismAuditExport {
 export interface PrismNotificationLog {
   id: string;
   eventId?: string;
-  channel: "email" | "viber";
+  channel: "email" | "viber" | "zoom" | "canva" | "storage" | "ai" | string;
   recipient: string;
   message: string;
   status: string;
+  attempts: number;
+  correlationId?: string | null;
+  failureReason?: string | null;
+  sentAt?: string | null;
+  failedAt?: string | null;
+  acknowledgedAt?: string | null;
   createdAt: string;
 }
 

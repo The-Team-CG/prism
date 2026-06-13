@@ -856,6 +856,7 @@ model OpsNotificationLog {
   message        String
   status         String   @default("queued")
   attempts       Int      @default(0)
+  correlationId  String?  @map("correlation_id")
   failureReason  String?  @map("failure_reason")
   sentAt         DateTime? @map("sent_at")
   failedAt       DateTime? @map("failed_at")
@@ -866,6 +867,7 @@ model OpsNotificationLog {
 
   @@index([eventId, createdAt], map: "ops_notification_logs_event_id_created_at_idx")
   @@index([status, createdAt], map: "ops_notification_logs_status_created_at_idx")
+  @@index([correlationId], map: "ops_notification_logs_correlation_id_idx")
   @@map("ops_notification_logs")
 }
 
