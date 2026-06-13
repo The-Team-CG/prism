@@ -17,6 +17,7 @@ import { CommercialWorkflowService } from './services/commercial-workflow.servic
 import { EventClosureService } from './services/event-closure.service';
 import { PAREService } from './services/pare/pare.service';
 import { LiveOperationsService } from './services/live-operations.service';
+import { AiGovernanceService } from './services/ai-governance.service';
 
 @Module({
   imports: [DatabaseModule],
@@ -36,6 +37,7 @@ import { LiveOperationsService } from './services/live-operations.service';
     CommercialWorkflowService,
     SupplierNetworkWorkflowService,
     LiveOperationsService,
+    AiGovernanceService,
     EventClosureService,
     PAREService,
   ],
