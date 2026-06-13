@@ -21,6 +21,13 @@ export type RequestSupplierQuotesInput = {
   deadline?: string;
 };
 
+export type SubmitSupplierQuoteInput = {
+  amount: number;
+  inclusions?: string[];
+  paymentTerms?: string;
+  notes?: string;
+};
+
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -245,6 +252,14 @@ export class CommercialWorkflowService {
     });
   }
 
+  async submitSupplierQuoteByToken(token: string, input: SubmitSupplierQuoteInput) {
+    return this.saveSupplierQuoteByToken(token, input, 'submit');
+  }
+
+  async reviseSupplierQuoteByToken(token: string, input: Partial<SubmitSupplierQuoteInput>) {
+    return this.saveSupplierQuoteByToken(token, input, 'revise');
+  }
+
   async selectSupplierQuote(eventId: string, quoteId: string, actorName = 'PMCM Admin') {
     let quote: OpsSupplierQuote | null = null;
 
@@ -311,6 +326,155 @@ export class CommercialWorkflowService {
         ]);
       },
       project: (result) => result.quote,
+    });
+  }
+
+  private async saveSupplierQuoteByToken(
+    token: string,
+    input: Partial<SubmitSupplierQuoteInput>,
+    requestedMode: 'submit' | 'revise',
+  ) {
+    let request: OpsSupplierQuoteRequest | null = null;
+    let quote: OpsSupplierQuote | null = null;
+    let category: OpsSupplierCategory | null = null;
+    let amount = 0;
+    let outsideAcceptableRange = false;
+    let effectiveMode: 'submit' | 'revise' = requestedMode;
+    const revisedAt = new Date();
+
+    return this.workflowCommandService.execute<OpsSupplierQuote>({
+      name: requestedMode === 'submit' ? 'submit_supplier_quote_by_token' : 'revise_supplier_quote_by_token',
+      validateState: async () => {
+        const foundRequest = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
+        if (!foundRequest) throw new NotFoundException('Quote request not found');
+
+        request = await this.expireQuoteRequestIfNeeded(foundRequest);
+        if (
+          [
+            SupplierQuoteRequestStatus.Selected,
+            SupplierQuoteRequestStatus.Closed,
+            SupplierQuoteRequestStatus.Expired,
+          ].includes(request.status as any)
+        ) {
+          throw new BadRequestException('Quote request is already closed');
+        }
+
+        quote = await this.prisma.opsSupplierQuote.findFirst({ where: { requestId: request.id } });
+        if (requestedMode === 'revise' && !quote) throw new NotFoundException('Supplier quote not found');
+        if (quote && [SupplierQuoteStatus.Selected, SupplierQuoteStatus.Locked].includes(quote.status as any)) {
+          throw new BadRequestException('Supplier quote is already locked');
+        }
+        effectiveMode = quote ? 'revise' : 'submit';
+        if (effectiveMode === 'submit' && input.amount === undefined) {
+          throw new BadRequestException('Quote amount is required');
+        }
+
+        category = request.categoryId
+          ? await this.prisma.opsSupplierCategory.findUnique({ where: { id: request.categoryId } })
+          : null;
+        amount = input.amount ?? quote?.amount ?? 0;
+        outsideAcceptableRange = Boolean(
+          (typeof category?.acceptableMin === 'number' && amount < category.acceptableMin) ||
+            (typeof category?.acceptableMax === 'number' && amount > category.acceptableMax),
+        );
+      },
+      write: () => {
+        if (!request) throw new NotFoundException('Quote request not found');
+        const activeRequest = request;
+        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          if (effectiveMode === 'revise') {
+            if (!quote) throw new NotFoundException('Supplier quote not found');
+            const saved = await tx.opsSupplierQuote.update({
+              where: { id: quote.id },
+              data: {
+                amount,
+                ...(input.inclusions ? { inclusions: toPrismaJson(input.inclusions) } : {}),
+                ...(input.paymentTerms !== undefined ? { paymentTerms: input.paymentTerms } : {}),
+                ...(input.notes !== undefined ? { notes: input.notes } : {}),
+                acceptableMin: category?.acceptableMin ?? quote.acceptableMin ?? null,
+                acceptableMax: category?.acceptableMax ?? quote.acceptableMax ?? null,
+                outsideAcceptableRange,
+                status: SupplierQuoteStatus.Revised,
+                revisionNumber: quote.revisionNumber + 1,
+                revisedAt,
+              },
+            });
+            await tx.opsSupplierQuoteRequest.update({
+              where: { id: activeRequest.id },
+              data: { status: SupplierQuoteRequestStatus.Revised },
+            });
+            return saved;
+          }
+
+          const saved = await tx.opsSupplierQuote.create({
+            data: {
+              id: `quote_${randomUUID()}`,
+              eventId: activeRequest.eventId,
+              requestId: activeRequest.id,
+              supplierId: activeRequest.supplierId ?? null,
+              categoryId: activeRequest.categoryId ?? null,
+              supplierName: activeRequest.supplierName,
+              category: activeRequest.category,
+              amount,
+              inclusions: toPrismaJson(input.inclusions ?? []),
+              paymentTerms: input.paymentTerms ?? '',
+              notes: input.notes ?? '',
+              acceptableMin: category?.acceptableMin ?? null,
+              acceptableMax: category?.acceptableMax ?? null,
+              outsideAcceptableRange,
+              status: SupplierQuoteStatus.Received,
+              revisionNumber: 1,
+            },
+          });
+          await tx.opsSupplierQuoteRequest.update({
+            where: { id: activeRequest.id },
+            data: { status: SupplierQuoteRequestStatus.Submitted },
+          });
+          return saved;
+        });
+      },
+      sideEffects: async (saved) => {
+        if (!request) return;
+        await Promise.all([
+          this.auditService.audit(
+            request.eventId,
+            'Supplier',
+            `${effectiveMode === 'revise' ? 'Revised' : 'Submitted'} quote from ${request.supplierName}`,
+            {
+              category: AuditCategory.Suppliers,
+              actionType: effectiveMode === 'revise' ? 'update' : 'create',
+              affectedType: 'supplier_quote',
+              affectedId: saved.id,
+              affectedLabel: request.supplierName,
+            },
+          ),
+          this.notificationOutboxService.queue(
+            request.eventId,
+            'PMCM Admin',
+            `${request.supplierName} ${effectiveMode === 'revise' ? 'revised' : 'submitted'} a ${request.category} quote`,
+          ),
+        ]);
+      },
+    });
+  }
+
+  private withExpiredQuoteRequestStatus(request: OpsSupplierQuoteRequest) {
+    if (
+      request.dueDate &&
+      request.dueDate.getTime() < Date.now() &&
+      [SupplierQuoteRequestStatus.Open, SupplierQuoteRequestStatus.RevisionRequested].includes(request.status as any)
+    ) {
+      return { ...request, status: SupplierQuoteRequestStatus.Expired } as OpsSupplierQuoteRequest;
+    }
+    return request;
+  }
+
+  private async expireQuoteRequestIfNeeded(request: OpsSupplierQuoteRequest) {
+    const requestWithStatus = this.withExpiredQuoteRequestStatus(request);
+    if (requestWithStatus.status === request.status) return request;
+    return this.prisma.opsSupplierQuoteRequest.update({
+      where: { id: request.id },
+      data: { status: requestWithStatus.status },
     });
   }
 }

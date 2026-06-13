@@ -56,7 +56,6 @@ import {
   LiveOpsEscalationLevel,
   OpsUserRole,
   SupplierQuoteRequestStatus,
-  SupplierQuoteStatus,
   SupplierVerificationStatus,
   UrgentIssueSeverity,
   UrgentIssueStatus,
@@ -76,7 +75,11 @@ import { FileRequirementsMatrixService } from './services/file-requirements-matr
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
 import { EventReadModelsService } from './services/event-read-models.service';
-import { CommercialWorkflowService, type RequestSupplierQuotesInput } from './services/commercial-workflow.service';
+import {
+  CommercialWorkflowService,
+  type RequestSupplierQuotesInput,
+  type SubmitSupplierQuoteInput,
+} from './services/commercial-workflow.service';
 import { EventClosureService } from './services/event-closure.service';
 import { PAREService } from './services/pare/pare.service';
 import {
@@ -127,13 +130,6 @@ type SubmitBriefingInput = {
   budgetRange: string;
   serviceRequirements: string[];
   notes: string;
-};
-
-type SubmitSupplierQuoteInput = {
-  amount: number;
-  inclusions?: string[];
-  paymentTerms?: string;
-  notes?: string;
 };
 
 type ComplianceRunInput = {
@@ -2726,162 +2722,12 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async submitSupplierQuoteByToken(token: string, input: SubmitSupplierQuoteInput) {
-    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
-    if (!request) throw new NotFoundException('Quote request not found');
-    const requestWithStatus = await this.expireQuoteRequestIfNeeded(request);
-    if (
-      [
-        SupplierQuoteRequestStatus.Selected,
-        SupplierQuoteRequestStatus.Closed,
-        SupplierQuoteRequestStatus.Expired,
-      ].includes(requestWithStatus.status as any)
-    ) {
-      throw new BadRequestException('Quote request is already closed');
-    }
-    const existing = await this.prisma.opsSupplierQuote.findFirst({ where: { requestId: request.id } });
-    if (existing) return this.reviseSupplierQuoteByToken(token, input);
-
-    const category = request.categoryId
-      ? await this.prisma.opsSupplierCategory.findUnique({ where: { id: request.categoryId } })
-      : null;
-    const amount = input.amount;
-    const outsideAcceptableRange = Boolean(
-      (typeof category?.acceptableMin === 'number' && amount < category.acceptableMin) ||
-        (typeof category?.acceptableMax === 'number' && amount > category.acceptableMax),
-    );
-
-    const quote = await this.prisma.$transaction(async (tx) => {
-      const saved = await tx.opsSupplierQuote.create({
-        data: {
-          id: `quote_${randomUUID()}`,
-          eventId: request.eventId,
-          requestId: request.id,
-          supplierId: request.supplierId ?? null,
-          categoryId: request.categoryId ?? null,
-          supplierName: request.supplierName,
-          category: request.category,
-          amount,
-          inclusions: toPrismaJson(input.inclusions ?? []),
-          paymentTerms: input.paymentTerms ?? '',
-          notes: input.notes ?? '',
-          acceptableMin: category?.acceptableMin ?? null,
-          acceptableMax: category?.acceptableMax ?? null,
-          outsideAcceptableRange,
-          status: SupplierQuoteStatus.Received,
-          revisionNumber: 1,
-        },
-      });
-
-      await tx.opsSupplierQuoteRequest.update({
-        where: { id: request.id },
-        data: { status: SupplierQuoteRequestStatus.Submitted },
-      });
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId: request.eventId,
-          actor: 'Supplier',
-          action: `Submitted quote from ${request.supplierName}`,
-          category: 'suppliers',
-          actionType: 'create',
-          affectedType: 'supplier_quote',
-          affectedId: saved.id,
-          affectedLabel: request.supplierName,
-        },
-      });
-      await tx.opsNotificationLog.create({
-        data: {
-          id: `not_${randomUUID()}`,
-          eventId: request.eventId,
-          channel: 'email',
-          recipient: 'PMCM Admin',
-          message: `${request.supplierName} submitted a ${request.category} quote`,
-          status: 'queued',
-        },
-      });
-
-      return saved;
-    });
-
+    const quote = await this.commercialWorkflowService.submitSupplierQuoteByToken(token, input);
     return this.mapSupplierQuoteForSupplier(quote);
   }
 
   async reviseSupplierQuoteByToken(token: string, input: Partial<SubmitSupplierQuoteInput>) {
-    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { accessToken: token } });
-    if (!request) throw new NotFoundException('Quote request not found');
-    const requestWithStatus = await this.expireQuoteRequestIfNeeded(request);
-    if (
-      [
-        SupplierQuoteRequestStatus.Selected,
-        SupplierQuoteRequestStatus.Closed,
-        SupplierQuoteRequestStatus.Expired,
-      ].includes(requestWithStatus.status as any)
-    ) {
-      throw new BadRequestException('Quote request is already closed');
-    }
-
-    const quote = await this.prisma.opsSupplierQuote.findFirst({ where: { requestId: request.id } });
-    if (!quote) throw new NotFoundException('Supplier quote not found');
-    if ([SupplierQuoteStatus.Selected, SupplierQuoteStatus.Locked].includes(quote.status as any)) {
-      throw new BadRequestException('Supplier quote is already locked');
-    }
-
-    const category = request.categoryId
-      ? await this.prisma.opsSupplierCategory.findUnique({ where: { id: request.categoryId } })
-      : null;
-    const amount = input.amount ?? quote.amount;
-    const outsideAcceptableRange = Boolean(
-      (typeof category?.acceptableMin === 'number' && amount < category.acceptableMin) ||
-        (typeof category?.acceptableMax === 'number' && amount > category.acceptableMax),
-    );
-    const now = new Date();
-
-    const revised = await this.prisma.$transaction(async (tx) => {
-      const saved = await tx.opsSupplierQuote.update({
-        where: { id: quote.id },
-        data: {
-          amount,
-          ...(input.inclusions ? { inclusions: toPrismaJson(input.inclusions) } : {}),
-          ...(input.paymentTerms !== undefined ? { paymentTerms: input.paymentTerms } : {}),
-          ...(input.notes !== undefined ? { notes: input.notes } : {}),
-          acceptableMin: category?.acceptableMin ?? quote.acceptableMin ?? null,
-          acceptableMax: category?.acceptableMax ?? quote.acceptableMax ?? null,
-          outsideAcceptableRange,
-          status: SupplierQuoteStatus.Revised,
-          revisionNumber: ((quote as any).revisionNumber ?? 1) + 1,
-          revisedAt: now,
-        },
-      });
-      await tx.opsSupplierQuoteRequest.update({
-        where: { id: request.id },
-        data: { status: SupplierQuoteRequestStatus.Revised },
-      });
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId: request.eventId,
-          actor: 'Supplier',
-          action: `Revised quote from ${request.supplierName}`,
-          category: 'suppliers',
-          actionType: 'update',
-          affectedType: 'supplier_quote',
-          affectedId: saved.id,
-          affectedLabel: request.supplierName,
-        },
-      });
-      await tx.opsNotificationLog.create({
-        data: {
-          id: `not_${randomUUID()}`,
-          eventId: request.eventId,
-          channel: 'email',
-          recipient: 'PMCM Admin',
-          message: `${request.supplierName} revised a ${request.category} quote`,
-          status: 'queued',
-        },
-      });
-      return saved;
-    });
-
+    const revised = await this.commercialWorkflowService.reviseSupplierQuoteByToken(token, input);
     return this.mapSupplierQuoteForSupplier(revised);
   }
 
