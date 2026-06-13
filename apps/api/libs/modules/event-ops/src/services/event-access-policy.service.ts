@@ -21,6 +21,10 @@ export type ResolvedEventOpsActor = {
 
 type ReadableEvent = Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'>;
 
+type EventAccessScope = {
+  supplierEventIds?: readonly string[];
+};
+
 export class EventAccessPolicyService {
   private readonly logger = new Logger(EventAccessPolicyService.name);
 
@@ -64,7 +68,7 @@ export class EventAccessPolicyService {
     throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
   }
 
-  canReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent) {
+  canReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, scope: EventAccessScope = {}) {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
     if (actor.role === OpsUserRole.Client) {
       return event.clientPortalStatus === 'unlocked' && this.sameText(actor.clientName, event.clientName);
@@ -72,17 +76,21 @@ export class EventAccessPolicyService {
     if (actor.role === OpsUserRole.Coordinator) {
       return Boolean(actor.eventId && actor.eventId === event.id);
     }
+    if (actor.role === OpsUserRole.Supplier) {
+      if (actor.eventId && actor.eventId !== event.id) return false;
+      return Boolean(scope.supplierEventIds?.includes(event.id));
+    }
     return false;
   }
 
-  async requireCanReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, resource: string) {
-    if (this.canReadEvent(actor, event)) return;
+  async requireCanReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, resource: string, scope: EventAccessScope = {}) {
+    if (this.canReadEvent(actor, event, scope)) return;
     await this.recordForbiddenAccess(actor, resource, event.id);
     throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
   }
 
-  filterEventsForActor<T extends ReadableEvent>(actor: ResolvedEventOpsActor, events: T[]) {
-    return events.filter((event) => this.canReadEvent(actor, event));
+  filterEventsForActor<T extends ReadableEvent>(actor: ResolvedEventOpsActor, events: T[], scope: EventAccessScope = {}) {
+    return events.filter((event) => this.canReadEvent(actor, event, scope));
   }
 
   canMutateOfficialFloorplan(actor: ResolvedEventOpsActor) {

@@ -234,11 +234,26 @@ export class EventReadModelsService {
         orderBy: { createdAt: 'desc' },
       }),
     ]);
+    const supplierEventIds = Array.from(new Set([...requests, ...quotes].map((record) => record.eventId)));
+    const events = supplierEventIds.length
+      ? await this.prisma.opsEvent.findMany({
+          where: { id: { in: supplierEventIds }, archived: false },
+        })
+      : [];
+    const visibleEventIds = new Set(
+      this.policy
+        .filterEventsForActor(actor, events, { supplierEventIds })
+        .map((event) => event.id),
+    );
 
     return {
       supplier: this.sanitizeSupplierForSupplier(supplier),
-      quoteRequests: requests.map((request) => mappers.mapSupplierQuoteRequest(this.withExpiredQuoteRequestStatus(request))),
-      supplierQuotes: quotes.map((quote) => mappers.mapSupplierQuoteForSupplier(quote)),
+      quoteRequests: requests
+        .filter((request) => visibleEventIds.has(request.eventId))
+        .map((request) => mappers.mapSupplierQuoteRequest(this.withExpiredQuoteRequestStatus(request))),
+      supplierQuotes: quotes
+        .filter((quote) => visibleEventIds.has(quote.eventId))
+        .map((quote) => mappers.mapSupplierQuoteForSupplier(quote)),
     };
   }
 
