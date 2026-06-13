@@ -1,11 +1,13 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import type { OpsEventDayTask, OpsUrgentIssue } from '@prisma/client';
+import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, OpsEventDayTask, OpsUrgentIssue, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import {
   AuditActionType,
   AuditCategory,
+  CoordinatorAssignmentStatus,
+  CoordinatorAttendanceStatus,
   EventDayTaskStatus,
   LiveOpsEscalationLevel,
   LiveOpsSlaStatus,
@@ -58,6 +60,18 @@ export type EscalateLiveOpsInput = {
   ownerName?: string;
 };
 
+export type ReplaceCoordinatorAssignmentInput = {
+  replacementCoordinatorId: string;
+  role: string;
+  reason: string;
+};
+
+export type UpdateCoordinatorAttendanceInput = {
+  status: string;
+  notes?: string;
+  markedBy?: string;
+};
+
 export type LiveOpsActor = {
   name: string;
   role: string;
@@ -74,6 +88,7 @@ type SlaRecord = {
 };
 
 type LiveOpsEscalationLevelValue = (typeof LiveOpsEscalationLevel)[keyof typeof LiveOpsEscalationLevel];
+type CoordinatorAttendanceStatusValue = (typeof CoordinatorAttendanceStatus)[keyof typeof CoordinatorAttendanceStatus];
 
 const CLOSED_STATUSES = new Set(['done', 'resolved', 'cancelled', 'closed']);
 const DUE_SOON_MS = 60 * 60 * 1000;
@@ -402,6 +417,219 @@ export class LiveOperationsService {
             metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? issue.ownerRole, ownerName: input.ownerName ?? issue.ownerName },
           }),
           notificationOutboxService.queue(eventId, recipient, `Urgent issue escalated: ${issue.title}`, 'viber'),
+        ]);
+      },
+    });
+  }
+
+  async replaceCoordinatorAssignment(
+    eventId: string,
+    assignmentId: string,
+    input: ReplaceCoordinatorAssignmentInput,
+    actor: LiveOpsActor,
+  ) {
+    const prisma = this.requirePrisma();
+    const auditService = this.requireAuditService();
+    const notificationOutboxService = this.requireNotificationOutboxService();
+    let event: Pick<OpsEvent, 'id' | 'eventName' | 'eventDate'> | null = null;
+    let current: OpsCoordinatorAssignment | null = null;
+    let coordinator: OpsCoordinator | null = null;
+    let role = '';
+    let reason = '';
+
+    return this.workflowCommandService.execute<{
+      replacedAssignment: OpsCoordinatorAssignment;
+      replacementAssignment: OpsCoordinatorAssignment;
+    }>({
+      name: 'replace_coordinator_assignment',
+      eventId,
+      validateState: async () => {
+        event = await prisma.opsEvent.findUnique({
+          where: { id: eventId },
+          select: { id: true, eventName: true, eventDate: true },
+        });
+        if (!event) throw new NotFoundException('Event not found');
+        if (!input.replacementCoordinatorId?.trim()) throw new BadRequestException('Replacement coordinator is required');
+        role = input.role?.trim();
+        if (!role) throw new BadRequestException('Replacement role is required');
+        reason = input.reason?.trim();
+        if (!reason) throw new BadRequestException('Replacement reason is required');
+
+        current = (await prisma.opsCoordinatorAssignment.findMany({ where: { eventId } })).find(
+          (assignment) => assignment.id === assignmentId,
+        ) ?? null;
+        if (!current) throw new NotFoundException('Coordinator assignment not found');
+
+        coordinator = await prisma.opsCoordinator.findUnique({
+          where: { id: input.replacementCoordinatorId.trim() },
+        });
+        if (!coordinator || !coordinator.active) throw new NotFoundException('Replacement coordinator not found');
+        if (Array.isArray(coordinator.roleTags) && coordinator.roleTags.length > 0 && !coordinator.roleTags.includes(role)) {
+          throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
+        }
+      },
+      write: () => {
+        if (!event || !current || !coordinator) throw new NotFoundException('Coordinator assignment not found');
+        return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const replacementAssignment = await tx.opsCoordinatorAssignment.create({
+            data: {
+              id: `coord_asg_${randomUUID()}`,
+              eventId,
+              coordinatorId: coordinator!.id,
+              coordinatorName: coordinator!.name,
+              role,
+              status: CoordinatorAssignmentStatus.PendingAcknowledgement,
+              attendanceStatus: CoordinatorAttendanceStatus.Pending,
+              eventDate: current!.eventDate ?? event!.eventDate ?? null,
+            },
+          });
+          const replacedAssignment = await tx.opsCoordinatorAssignment.update({
+            where: { id: assignmentId },
+            data: {
+              status: CoordinatorAssignmentStatus.Replaced,
+              attendanceStatus: CoordinatorAttendanceStatus.Replaced,
+              attendanceMarkedAt: new Date(),
+              attendanceNotes: reason,
+              replacedByAssignmentId: replacementAssignment.id,
+              replacementReason: reason,
+              replacedAt: new Date(),
+              replacedBy: actor.name,
+            },
+          });
+          return { replacedAssignment, replacementAssignment };
+        });
+      },
+      sideEffects: async ({ replacedAssignment, replacementAssignment }) => {
+        if (!event || !coordinator) return;
+        await Promise.all([
+          prisma.opsCoordinatorReliabilityNote.create({
+            data: {
+              id: `crn_${randomUUID()}`,
+              eventId,
+              coordinatorId: replacedAssignment.coordinatorId ?? null,
+              assignmentId: replacedAssignment.id,
+              note: `${replacedAssignment.coordinatorName} replaced for ${replacedAssignment.role}: ${reason}`,
+              severity: 'warning',
+            },
+          }),
+          this.recordEventDayLog(
+            eventId,
+            'coordinator_replaced',
+            actor,
+            `Replaced ${replacedAssignment.coordinatorName} with ${replacementAssignment.coordinatorName}`,
+            'coordinator_assignment',
+            replacedAssignment.id,
+            {
+              replacementAssignmentId: replacementAssignment.id,
+              replacementCoordinatorId: replacementAssignment.coordinatorId,
+              role,
+              reason,
+            },
+          ),
+          auditService.audit(eventId, actor.name, `Replaced coordinator: ${replacedAssignment.coordinatorName}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'coordinator_assignment',
+            affectedId: replacedAssignment.id,
+            affectedLabel: `${replacedAssignment.coordinatorName} - ${replacedAssignment.role}`,
+            severity: 'warning',
+            metadata: {
+              replacementAssignmentId: replacementAssignment.id,
+              replacementCoordinatorId: replacementAssignment.coordinatorId,
+              replacementCoordinatorName: replacementAssignment.coordinatorName,
+              role,
+              reason,
+            },
+          }),
+          notificationOutboxService.queue(
+            eventId,
+            replacedAssignment.coordinatorName,
+            `Coordinator replacement recorded for ${event.eventName}: ${reason}`,
+            'viber',
+          ),
+          notificationOutboxService.queue(
+            eventId,
+            coordinator.email ?? coordinator.name,
+            `Coordinator replacement assignment issued: ${event.eventName} (${role})`,
+          ),
+        ]);
+      },
+    });
+  }
+
+  async updateCoordinatorAttendance(
+    eventId: string,
+    assignmentId: string,
+    input: UpdateCoordinatorAttendanceInput,
+    actor: LiveOpsActor,
+  ) {
+    const prisma = this.requirePrisma();
+    const auditService = this.requireAuditService();
+    let current: OpsCoordinatorAssignment | null = null;
+    let status: CoordinatorAttendanceStatusValue = CoordinatorAttendanceStatus.Pending;
+
+    return this.workflowCommandService.execute<OpsCoordinatorAssignment>({
+      name: 'update_coordinator_attendance',
+      eventId,
+      validateState: async () => {
+        status = input.status?.trim() as CoordinatorAttendanceStatusValue;
+        if (!Object.values(CoordinatorAttendanceStatus).includes(status as any)) {
+          throw new BadRequestException('Unsupported coordinator attendance status');
+        }
+        current = (await prisma.opsCoordinatorAssignment.findMany({ where: { eventId } })).find(
+          (assignment) => assignment.id === assignmentId,
+        ) ?? null;
+        if (!current) throw new NotFoundException('Coordinator assignment not found');
+      },
+      write: () =>
+        prisma.opsCoordinatorAssignment.update({
+          where: { id: assignmentId },
+          data: {
+            attendanceStatus: status,
+            attendanceMarkedAt: new Date(),
+            attendanceNotes: input.notes?.trim() ?? '',
+          },
+        }),
+      sideEffects: async (assignment) => {
+        const reliabilityPromise =
+          status === CoordinatorAttendanceStatus.Late ||
+          status === CoordinatorAttendanceStatus.Absent ||
+          status === CoordinatorAttendanceStatus.Replaced
+            ? prisma.opsCoordinatorReliabilityNote.create({
+                data: {
+                  id: `crn_${randomUUID()}`,
+                  eventId,
+                  coordinatorId: assignment.coordinatorId ?? null,
+                  assignmentId: assignment.id,
+                  note: `${assignment.coordinatorName} marked ${status}${input.notes ? `: ${input.notes.trim()}` : ''}`,
+                  severity: status === CoordinatorAttendanceStatus.Absent ? 'critical' : 'warning',
+                },
+              })
+            : Promise.resolve(null);
+
+        await Promise.all([
+          reliabilityPromise,
+          this.recordEventDayLog(
+            eventId,
+            'coordinator_status_updated',
+            actor,
+            `Marked ${assignment.coordinatorName} ${status}`,
+            'coordinator_assignment',
+            assignment.id,
+            { status, notes: input.notes ?? '', markedBy: input.markedBy ?? actor.name },
+          ),
+          auditService.audit(eventId, actor.name, `Updated coordinator attendance: ${assignment.coordinatorName}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'coordinator_assignment',
+            affectedId: assignment.id,
+            affectedLabel: `${assignment.coordinatorName} - ${assignment.role}`,
+            metadata: { status, notes: input.notes ?? '', markedBy: input.markedBy ?? actor.name },
+          }),
         ]);
       },
     });

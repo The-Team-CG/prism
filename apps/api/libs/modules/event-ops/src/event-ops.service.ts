@@ -50,7 +50,6 @@ import { InquiriesService } from './services/inquiries.service';
 import {
   AuditActionType,
   AuditCategory,
-  CoordinatorAssignmentStatus,
   CoordinatorAttendanceStatus,
   LiveOpsEscalationLevel,
   OpsUserRole,
@@ -63,6 +62,8 @@ import {
   type CreateUrgentIssueInput,
   type EscalateLiveOpsInput,
   LiveOperationsService,
+  type ReplaceCoordinatorAssignmentInput,
+  type UpdateCoordinatorAttendanceInput,
   type UpdateEventDayTaskInput,
   type UpdateUrgentIssueInput,
 } from './services/live-operations.service';
@@ -178,18 +179,6 @@ type SupplierEventStatusInput = {
   status: string;
   notes?: string;
   photo?: UploadMetadataInput;
-};
-
-type UpdateCoordinatorAttendanceInput = {
-  status: string;
-  notes?: string;
-  markedBy?: string;
-};
-
-type ReplaceCoordinatorAssignmentInput = {
-  replacementCoordinatorId: string;
-  role: string;
-  reason: string;
 };
 
 type VerifySupplierStatusInput = {
@@ -1534,104 +1523,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   ) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'coordinator replacement', eventId);
-    const event = await this.requireEvent(eventId);
-    const reason = input.reason?.trim();
-    const role = input.role?.trim();
-    if (!input.replacementCoordinatorId?.trim()) throw new BadRequestException('Replacement coordinator is required');
-    if (!role) throw new BadRequestException('Replacement role is required');
-    if (!reason) throw new BadRequestException('Replacement reason is required');
-    const current = (await this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId } })).find(
-      (assignment: any) => assignment.id === assignmentId,
-    );
-    if (!current) throw new NotFoundException('Coordinator assignment not found');
-    const coordinator = await this.prisma.opsCoordinator.findUnique({
-      where: { id: input.replacementCoordinatorId.trim() },
-    });
-    if (!coordinator || !coordinator.active) throw new NotFoundException('Replacement coordinator not found');
-    if (Array.isArray(coordinator.roleTags) && coordinator.roleTags.length > 0 && !coordinator.roleTags.includes(role)) {
-      throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
-    }
-
-    const replacementAssignment = await this.prisma.opsCoordinatorAssignment.create({
-      data: {
-        id: `coord_asg_${randomUUID()}`,
-        eventId,
-        coordinatorId: coordinator.id,
-        coordinatorName: coordinator.name,
-        role,
-        status: CoordinatorAssignmentStatus.PendingAcknowledgement,
-        attendanceStatus: CoordinatorAttendanceStatus.Pending,
-        eventDate: current.eventDate ?? event.eventDate ?? null,
-      },
-    });
-    const replacedAssignment = await this.prisma.opsCoordinatorAssignment.update({
-      where: { id: assignmentId },
-      data: {
-        status: CoordinatorAssignmentStatus.Replaced,
-        attendanceStatus: CoordinatorAttendanceStatus.Replaced,
-        attendanceMarkedAt: new Date(),
-        attendanceNotes: reason,
-        replacedByAssignmentId: replacementAssignment.id,
-        replacementReason: reason,
-        replacedAt: new Date(),
-        replacedBy: actor.name,
-      },
-    });
-
-    await Promise.all([
-      this.prisma.opsCoordinatorReliabilityNote.create({
-        data: {
-          id: `crn_${randomUUID()}`,
-          eventId,
-          coordinatorId: replacedAssignment.coordinatorId ?? null,
-          assignmentId: replacedAssignment.id,
-          note: `${replacedAssignment.coordinatorName} replaced for ${replacedAssignment.role}: ${reason}`,
-          severity: 'warning',
-        },
-      }),
-      this.recordEventDayLog(
-        eventId,
-        'coordinator_replaced',
-        actor,
-        `Replaced ${replacedAssignment.coordinatorName} with ${replacementAssignment.coordinatorName}`,
-        'coordinator_assignment',
-        replacedAssignment.id,
-        {
-          replacementAssignmentId: replacementAssignment.id,
-          replacementCoordinatorId: replacementAssignment.coordinatorId,
-          role,
-          reason,
-        },
-      ),
-      this.audit(eventId, actor.name, `Replaced coordinator: ${replacedAssignment.coordinatorName}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Events,
-        affectedType: 'coordinator_assignment',
-        affectedId: replacedAssignment.id,
-        affectedLabel: `${replacedAssignment.coordinatorName} - ${replacedAssignment.role}`,
-        severity: 'warning',
-        metadata: {
-          replacementAssignmentId: replacementAssignment.id,
-          replacementCoordinatorId: replacementAssignment.coordinatorId,
-          replacementCoordinatorName: replacementAssignment.coordinatorName,
-          role,
-          reason,
-        },
-      }),
-      this.queueNotification(
-        eventId,
-        replacedAssignment.coordinatorName,
-        `Coordinator replacement recorded for ${event.eventName}: ${reason}`,
-        'viber',
-      ),
-      this.queueNotification(
-        eventId,
-        coordinator.email ?? coordinator.name,
-        `Coordinator replacement assignment issued: ${event.eventName} (${role})`,
-      ),
-    ]);
+    const { replacedAssignment, replacementAssignment } =
+      await this.liveOperationsService.replaceCoordinatorAssignment(eventId, assignmentId, input, actor);
 
     return {
       replacedAssignment: this.mapCoordinatorAssignmentForEventDay(replacedAssignment),
@@ -1646,62 +1539,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'coordinator attendance');
-    const status = input.status?.trim();
-    if (!Object.values(CoordinatorAttendanceStatus).includes(status as any)) {
-      throw new BadRequestException('Unsupported coordinator attendance status');
-    }
-    const current = (await this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId } })).find(
-      (assignment: any) => assignment.id === assignmentId,
-    );
-    if (!current) throw new NotFoundException('Coordinator assignment not found');
-    const assignment = await this.prisma.opsCoordinatorAssignment.update({
-      where: { id: assignmentId },
-      data: {
-        attendanceStatus: status,
-        attendanceMarkedAt: new Date(),
-        attendanceNotes: input.notes?.trim() ?? '',
-      },
-    });
-
-    const reliabilityPromise =
-      status === CoordinatorAttendanceStatus.Late ||
-      status === CoordinatorAttendanceStatus.Absent ||
-      status === CoordinatorAttendanceStatus.Replaced
-        ? this.prisma.opsCoordinatorReliabilityNote.create({
-            data: {
-              id: `crn_${randomUUID()}`,
-              eventId,
-              coordinatorId: assignment.coordinatorId ?? null,
-              assignmentId: assignment.id,
-              note: `${assignment.coordinatorName} marked ${status}${input.notes ? `: ${input.notes.trim()}` : ''}`,
-              severity: status === CoordinatorAttendanceStatus.Absent ? 'critical' : 'warning',
-            },
-          })
-        : Promise.resolve(null);
-
-    await Promise.all([
-      reliabilityPromise,
-      this.recordEventDayLog(
-        eventId,
-        'coordinator_status_updated',
-        actor,
-        `Marked ${assignment.coordinatorName} ${status}`,
-        'coordinator_assignment',
-        assignment.id,
-        { status, notes: input.notes ?? '', markedBy: input.markedBy ?? actor.name },
-      ),
-      this.audit(eventId, actor.name, `Updated coordinator attendance: ${assignment.coordinatorName}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Events,
-        affectedType: 'coordinator_assignment',
-        affectedId: assignment.id,
-        affectedLabel: `${assignment.coordinatorName} - ${assignment.role}`,
-        metadata: { status, notes: input.notes ?? '', markedBy: input.markedBy ?? actor.name },
-      }),
-    ]);
-
+    const assignment = await this.liveOperationsService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
     return this.mapCoordinatorAssignmentForEventDay(assignment);
   }
 
