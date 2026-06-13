@@ -602,6 +602,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       this.fileRequirementsMatrixService,
       this.eventLifecycleService,
       this.auditService,
+      this.eventAccessPolicyService,
       this.notificationOutboxService,
       this.workflowCommandService,
     );
@@ -1989,18 +1990,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async completePostEventDocument(eventId: string, documentId: string) {
-    await this.requireEvent(eventId);
-
-    const document = await this.prisma.opsPostEventDocument
-      .update({
-        where: { id: documentId },
-        data: { status: 'submitted' },
-      })
-      .catch(() => {
-        throw new NotFoundException('Post-event document not found');
-      });
-
-    await this.audit(eventId, 'PMCM Admin', `Completed ${document.title}`);
+    const document = await this.eventClosureService.completePostEventDocument(eventId, documentId);
     return this.mapPostEventDocument(document);
   }
 
@@ -2015,112 +2005,13 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async listEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event insights', eventId);
-    await this.requireEvent(eventId);
-    const insights = await this.prisma.opsEventInsight.findMany({
-      where: { eventId },
-      orderBy: { generatedAt: 'desc' },
-    });
+    const insights = await this.eventClosureService.listEventInsights(eventId, actor);
     return insights.map((insight) => this.mapEventInsight(insight));
   }
 
   async generateEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event insights', eventId);
-    const event = await this.requireEvent(eventId);
-    const [supplierReviews, complianceChecks, billingStatements, paymentMilestones, documents, postEventDocuments] =
-      await Promise.all([
-        this.prisma.opsSupplierReview.findMany({ where: { eventId } }),
-        this.prisma.opsComplianceCheck.findMany({ where: { eventId } }),
-        this.prisma.opsBillingStatement.findMany({ where: { eventId } }),
-        this.prisma.opsPaymentMilestone.findMany({ where: { eventId } }),
-        this.prisma.opsDocument.findMany({ where: { eventId } }),
-        this.prisma.opsPostEventDocument.findMany({ where: { eventId } }),
-      ]);
-
-    const totalBilled = billingStatements.reduce((sum, statement) => sum + statement.totalAmount, 0);
-    const amountPaid = paymentMilestones.reduce((sum, milestone) => sum + milestone.amountPaid, 0);
-    const outstandingAmount = paymentMilestones.reduce((sum, milestone) => sum + milestone.remainingBalance, 0);
-    const openChecks = complianceChecks.filter((check) => check.status === 'open');
-    const submittedDocuments = documents.filter((document) =>
-      ['submitted', 'approved', 'generated', 'sent'].includes(document.status),
-    );
-    const feedbackDocuments = postEventDocuments.filter((document) =>
-      document.title.toLowerCase().includes('feedback') && document.status === 'submitted',
-    );
-
-    const summary = `Event Insights for ${event.eventName}: ${supplierReviews.length} supplier review(s), ${openChecks.length} open compliance issue(s), ${totalBilled} total billed.`;
-    const highlights = [
-      supplierReviews.length > 0 ? `${supplierReviews.length} supplier review(s) captured` : 'No supplier reviews captured',
-      submittedDocuments.length > 0 ? `${submittedDocuments.length} submitted/generated document(s)` : 'No close documents submitted',
-      outstandingAmount === 0 ? 'Payment schedule closed' : `${outstandingAmount} outstanding payment balance`,
-    ];
-    const risks = openChecks.map((check) => ({
-      title: check.title,
-      severity: (check as OpsComplianceCheck & { severity?: string }).severity ?? 'must_fix',
-      status: check.status,
-    }));
-    const supplierNotes = supplierReviews.map((review: any) => ({
-      supplierId: review.supplierId,
-      rating: review.rating,
-      notes: review.notes,
-      reviewedBy: review.reviewedBy,
-    }));
-    const financialSummary = {
-      billingCount: billingStatements.length,
-      totalBilled,
-      amountPaid,
-      outstandingAmount,
-    };
-    const documentSummary = {
-      total: documents.length,
-      submitted: submittedDocuments.length,
-      pendingPostEventDocuments: postEventDocuments.filter((document) => document.status !== 'submitted').length,
-    };
-    const feedbackSummary = {
-      feedbackDocuments: feedbackDocuments.length,
-      supplierReviews: supplierReviews.length,
-      clientFeedbackSubmitted: feedbackDocuments.length > 0,
-    };
-
-    const insight = await this.prisma.opsEventInsight.upsert({
-      where: { eventId },
-      create: {
-        id: `ins_${randomUUID()}`,
-        eventId,
-        summary,
-        highlights: toPrismaJson(highlights),
-        risks: toPrismaJson(risks),
-        supplierNotes: toPrismaJson(supplierNotes),
-        financialSummary: toPrismaJson(financialSummary),
-        documentSummary: toPrismaJson(documentSummary),
-        feedbackSummary: toPrismaJson(feedbackSummary),
-        privateNotes: 'PMCM-only deterministic insight generated from closed event records.',
-      },
-      update: {
-        summary,
-        highlights: toPrismaJson(highlights),
-        risks: toPrismaJson(risks),
-        supplierNotes: toPrismaJson(supplierNotes),
-        financialSummary: toPrismaJson(financialSummary),
-        documentSummary: toPrismaJson(documentSummary),
-        feedbackSummary: toPrismaJson(feedbackSummary),
-        privateNotes: 'PMCM-only deterministic insight generated from closed event records.',
-        generatedAt: new Date(),
-      },
-    });
-
-    await this.audit(eventId, actor.name, 'Generated Event Insights', {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Create,
-      category: AuditCategory.Events,
-      affectedType: 'event_insight',
-      affectedId: insight.id,
-      affectedLabel: event.eventName,
-      metadata: { totalBilled, supplierReviewCount: supplierReviews.length, openComplianceCount: openChecks.length },
-    });
-
+    const insight = await this.eventClosureService.generateEventInsights(eventId, actor);
     return this.mapEventInsight(insight);
   }
 
