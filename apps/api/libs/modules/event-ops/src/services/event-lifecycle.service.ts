@@ -17,6 +17,15 @@ export type CloseGateResult = {
   missingKeys: string[];
 };
 
+export const EVENT_LIFECYCLE_TRANSITIONS: Record<EventLifecycleStage, EventLifecycleStage[]> = {
+  [EventLifecycleStage.Inquiry]: [EventLifecycleStage.Conforme],
+  [EventLifecycleStage.Conforme]: [EventLifecycleStage.BriefingProposal],
+  [EventLifecycleStage.BriefingProposal]: [EventLifecycleStage.Planning],
+  [EventLifecycleStage.Planning]: [EventLifecycleStage.EventDay],
+  [EventLifecycleStage.EventDay]: [EventLifecycleStage.ClosureArchive],
+  [EventLifecycleStage.ClosureArchive]: [],
+};
+
 export class EventLifecycleService {
   stageForEvent(event: Pick<OpsEvent, 'status' | 'clientPortalStatus' | 'archived' | 'floorPlanStatus'>): EventLifecycleStage {
     if (event.archived || event.status === 'archived') return EventLifecycleStage.ClosureArchive;
@@ -27,10 +36,26 @@ export class EventLifecycleService {
     return EventLifecycleStage.Inquiry;
   }
 
-  assertCanArchive(event: Pick<OpsEvent, 'status' | 'archived'>, closeGates: CloseGateResult, overrideReason?: string) {
+  nextAllowedStages(stage: EventLifecycleStage): EventLifecycleStage[] {
+    return EVENT_LIFECYCLE_TRANSITIONS[stage];
+  }
+
+  assertCanTransition(from: EventLifecycleStage, to: EventLifecycleStage) {
+    if (from === to) return;
+    if (this.nextAllowedStages(from).includes(to)) return;
+
+    throw new BadRequestException(`Cannot move event lifecycle from ${from} to ${to}`);
+  }
+
+  assertCanArchive(
+    event: Pick<OpsEvent, 'status' | 'archived' | 'clientPortalStatus' | 'floorPlanStatus'>,
+    closeGates: CloseGateResult,
+    overrideReason?: string,
+  ) {
     if (event.archived || event.status === 'archived') {
       throw new BadRequestException('Event is already archived');
     }
+    this.assertCanTransition(this.stageForEvent(event), EventLifecycleStage.ClosureArchive);
     if (!closeGates.ready && !overrideReason) {
       throw new BadRequestException('Close gates must pass before archive, or PMCM must provide an override reason');
     }
