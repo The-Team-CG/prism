@@ -79,6 +79,51 @@ export class BillingOperationsService {
     private readonly workflowCommandService = new WorkflowCommandService(),
   ) {}
 
+  async runPaymentRiskSweep() {
+    const now = new Date();
+    const threshold = addDays(now, 2);
+    const events = await this.prisma.opsEvent.findMany({
+      where: {
+        archived: false,
+        eventDate: {
+          gte: now,
+          lte: threshold,
+        },
+      },
+      select: { id: true, eventName: true },
+    });
+
+    for (const event of events) {
+      const milestones = await this.prisma.opsPaymentMilestone.findMany({
+        where: { eventId: event.id },
+      });
+      const balance = milestones.find((milestone) => milestone.label.toLowerCase().includes('balance'));
+      if (!balance || balance.status === 'paid' || balance.remainingBalance <= 0 || balance.status === 'at_risk') {
+        continue;
+      }
+
+      await this.workflowCommandService.execute<OpsPaymentMilestone>({
+        name: 'mark_payment_at_risk',
+        eventId: event.id,
+        write: () =>
+          this.prisma.opsPaymentMilestone.update({
+            where: { id: balance.id },
+            data: { status: 'at_risk' },
+          }),
+        sideEffects: async (payment) => {
+          await this.auditService.audit(event.id, 'System', `Payment at risk for ${event.eventName}`, {
+            category: AuditCategory.Finance,
+            actionType: AuditActionType.Update,
+            affectedType: 'payment_milestone',
+            affectedId: payment.id,
+            affectedLabel: payment.label,
+            severity: 'warning',
+          });
+        },
+      });
+    }
+  }
+
   async markPayment(eventId: string, milestoneId: string, status: string, actor: BillingActor = { name: 'PMCM Admin' }) {
     return this.workflowCommandService.execute<OpsPaymentMilestone, ReturnType<BillingOperationsService['mapPaymentMilestone']>>({
       name: 'mark_payment',

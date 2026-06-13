@@ -1043,49 +1043,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async runPaymentRiskSweep() {
-    const now = new Date();
-    const threshold = addDays(now, 2);
-    const events = await this.prisma.opsEvent.findMany({
-      where: {
-        archived: false,
-        eventDate: {
-          gte: now,
-          lte: threshold,
-        },
-      },
-      select: { id: true, eventName: true },
-    });
-
-    for (const event of events) {
-      const milestones = await this.prisma.opsPaymentMilestone.findMany({
-        where: { eventId: event.id },
-      });
-      const balance = milestones.find((milestone) => milestone.label.toLowerCase().includes('balance'));
-      if (!balance || balance.status === 'paid' || balance.remainingBalance <= 0 || balance.status === 'at_risk') {
-        continue;
-      }
-
-      await this.prisma.$transaction(async (tx) => {
-        await tx.opsPaymentMilestone.update({
-          where: { id: balance.id },
-          data: { status: 'at_risk' },
-        });
-        await tx.opsAuditLog.create({
-          data: {
-            id: `aud_${randomUUID()}`,
-            eventId: event.id,
-            actor: 'System',
-            action: `Payment at risk for ${event.eventName}`,
-            category: 'finance',
-            actionType: 'update',
-            affectedType: 'payment_milestone',
-            affectedId: balance.id,
-            affectedLabel: balance.label,
-            severity: 'warning',
-          },
-        });
-      });
-    }
+    return this.billingOperationsService.runPaymentRiskSweep();
   }
 
   async queueNotification(
@@ -3869,51 +3827,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
           createdAt,
         },
       });
-    });
-  }
-
-  private async openEventWorkspace(inquiry: OpsInquiry) {
-    const existing = await this.prisma.opsEvent.findFirst({ where: { inquiryId: inquiry.id } });
-    if (existing) return existing;
-
-    return this.prisma.$transaction(async (tx) => {
-      const event = await tx.opsEvent.create({
-        data: {
-          id: `evt_${randomUUID()}`,
-          inquiryId: inquiry.id,
-          clientName: inquiry.clientName,
-          eventName: inquiry.eventName,
-          eventDate: inquiry.eventDate,
-          status: 'planning',
-          clientPortalStatus: 'locked',
-          readiness: 'Conforme pending',
-        },
-      });
-      await tx.opsPostEventDocument.createMany({
-        data: [
-          { id: `ped_${randomUUID()}`, eventId: event.id, title: 'Completion report', status: 'pending' },
-          { id: `ped_${randomUUID()}`, eventId: event.id, title: 'Photo and video turnover', status: 'pending' },
-        ],
-      });
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId: event.id,
-          actor: 'PMCM Admin',
-          action: 'Accepted inquiry and opened event workspace',
-        },
-      });
-      await tx.opsNotificationLog.create({
-        data: {
-          id: `not_${randomUUID()}`,
-          eventId: event.id,
-          channel: 'email',
-          recipient: inquiry.email,
-          message: 'Inquiry accepted',
-          status: 'queued',
-        },
-      });
-      return event;
     });
   }
 
