@@ -1,9 +1,12 @@
-import { NotFoundException } from '@nestjs/common';
-import type { OpsSupplierQuote, Prisma } from '@prisma/client';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import type { OpsSupplier, OpsSupplierCategory, OpsSupplierQuote, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
+import { toPrismaJson } from '@prism/database';
+import { randomUUID } from 'node:crypto';
 import { AuditCategory, SupplierQuoteRequestStatus, SupplierQuoteStatus } from '../ops.constants';
 import { AuditService } from './audit.service';
 import { NotificationOutboxService } from './notification-outbox.service';
+import { SuppliersService, type AddSupplierQuoteInput } from './suppliers.service';
 import { WorkflowCommandService } from './workflow-command.service';
 
 type SelectSupplierQuoteResult = {
@@ -11,13 +14,236 @@ type SelectSupplierQuoteResult = {
   selectedNow: boolean;
 };
 
+export type RequestSupplierQuotesInput = {
+  categoryId: string;
+  supplierIds?: string[];
+  confidentialBid?: boolean;
+  deadline?: string;
+};
+
+function isoDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function parseDate(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) throw new BadRequestException('Invalid date');
+  return parsed;
+}
+
 export class CommercialWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly notificationOutboxService: NotificationOutboxService,
     private readonly workflowCommandService: WorkflowCommandService,
+    private readonly suppliersService: SuppliersService,
   ) {}
+
+  async requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput) {
+    let event: { eventName: string; clientName: string } | null = null;
+    let category: OpsSupplierCategory | null = null;
+    let suppliersToRequest: OpsSupplier[] = [];
+    let dueDate: Date | null = null;
+
+    return this.workflowCommandService.execute<OpsSupplierQuoteRequest[], OpsSupplierQuoteRequest[]>({
+      name: 'request_supplier_quotes',
+      eventId,
+      validateState: async () => {
+        event = await this.prisma.opsEvent.findUnique({
+          where: { id: eventId },
+          select: { eventName: true, clientName: true },
+        });
+        if (!event) throw new NotFoundException('Event not found');
+
+        category = await this.prisma.opsSupplierCategory.findUnique({ where: { id: input.categoryId } });
+        if (!category) throw new NotFoundException('Supplier category not found');
+
+        const selectedSuppliers =
+          input.supplierIds && input.supplierIds.length > 0
+            ? await this.prisma.opsSupplier.findMany({
+                where: { id: { in: input.supplierIds }, categoryId: category.id },
+                orderBy: { name: 'asc' },
+              })
+            : await this.prisma.opsSupplier.findMany({
+                where: { categoryId: category.id, tier: 'tier_1' },
+                orderBy: { name: 'asc' },
+              });
+
+        if (selectedSuppliers.length === 0) {
+          throw new BadRequestException('Select at least one supplier for this quote request');
+        }
+
+        const selectedSupplierIds = new Set(selectedSuppliers.map((supplier) => supplier.id));
+        const duplicateRequestSupplierIds = new Set(
+          (
+            await this.prisma.opsSupplierQuoteRequest.findMany({
+              where: { eventId },
+            })
+          )
+            .filter(
+              (request) =>
+                request.categoryId === category!.id &&
+                request.supplierId &&
+                selectedSupplierIds.has(request.supplierId) &&
+                ![SupplierQuoteRequestStatus.Closed, SupplierQuoteRequestStatus.Expired].includes(request.status as any),
+            )
+            .map((request) => request.supplierId as string),
+        );
+        suppliersToRequest = selectedSuppliers.filter((supplier) => !duplicateRequestSupplierIds.has(supplier.id));
+        if (suppliersToRequest.length === 0) {
+          throw new BadRequestException('Selected suppliers already have active quote requests for this event and category');
+        }
+
+        dueDate = input.deadline ? parseDate(input.deadline) : null;
+      },
+      write: () => {
+        if (!event || !category) throw new NotFoundException('Supplier category not found');
+        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const created: OpsSupplierQuoteRequest[] = [];
+          for (const supplier of suppliersToRequest) {
+            const token = randomUUID();
+            const request = await tx.opsSupplierQuoteRequest.create({
+              data: {
+                id: `qr_${randomUUID()}`,
+                eventId,
+                supplierId: supplier.id,
+                categoryId: category!.id,
+                supplierName: supplier.name,
+                category: category!.name,
+                dueDate,
+                accessToken: token,
+                confidentialBid: Boolean(input.confidentialBid),
+                message: input.confidentialBid
+                  ? `${event!.eventName} quote request with client details hidden until selection.`
+                  : `${event!.clientName} / ${event!.eventName} quote request.`,
+                status: SupplierQuoteRequestStatus.Open,
+              },
+            });
+            created.push(request);
+          }
+          return created;
+        });
+      },
+      sideEffects: async (requests) => {
+        if (!category) return;
+        const notifications = requests.flatMap((request) => {
+          const supplier = suppliersToRequest.find((item) => item.id === request.supplierId);
+          return [
+            this.notificationOutboxService.queue(
+              eventId,
+              supplier?.email || request.supplierName,
+              `Quote request link: /quote-requests/${request.accessToken}`,
+            ),
+            this.notificationOutboxService.queue(
+              eventId,
+              supplier?.phone || request.supplierName,
+              `Quote request link: /quote-requests/${request.accessToken}`,
+              'viber',
+            ),
+          ];
+        });
+        await Promise.all([
+          ...notifications,
+          this.auditService.audit(
+            eventId,
+            'PMCM Admin',
+            `Requested ${category.name} quotes from ${requests.length} supplier${requests.length === 1 ? '' : 's'}`,
+            {
+              category: AuditCategory.Suppliers,
+              actionType: 'create',
+              affectedType: 'supplier_quote_request',
+              metadata: {
+                confidentialBid: Boolean(input.confidentialBid),
+                deadline: dueDate ? isoDate(dueDate) : null,
+              },
+            },
+          ),
+        ]);
+      },
+    });
+  }
+
+  async addSupplierQuote(eventId: string, input: AddSupplierQuoteInput) {
+    let supplierName: string | undefined;
+    let category: string | undefined;
+    let categoryId: string | null = null;
+    let amount = 0;
+    let outsideAcceptableRange = false;
+    let categoryRange: OpsSupplierCategory | null = null;
+    let directorySupplier: Awaited<ReturnType<SuppliersService['resolveQuoteSupplier']>> = null;
+
+    return this.workflowCommandService.execute<OpsSupplierQuote>({
+      name: 'add_supplier_quote',
+      eventId,
+      validateState: async () => {
+        const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+        if (!event) throw new NotFoundException('Event not found');
+
+        directorySupplier = await this.suppliersService.resolveQuoteSupplier(input);
+
+        supplierName = directorySupplier?.name ?? input.supplierName;
+        category = directorySupplier?.category.name ?? input.category;
+        categoryId = directorySupplier?.categoryId ?? input.categoryId ?? null;
+        if (!supplierName || !category) {
+          throw new BadRequestException('Supplier name and category are required');
+        }
+
+        categoryRange = categoryId
+          ? await this.prisma.opsSupplierCategory.findUnique({ where: { id: categoryId } })
+          : null;
+        amount = input.amount ?? 0;
+        outsideAcceptableRange =
+          amount > 0 &&
+          Boolean(
+            (typeof categoryRange?.acceptableMin === 'number' && amount < categoryRange.acceptableMin) ||
+              (typeof categoryRange?.acceptableMax === 'number' && amount > categoryRange.acceptableMax),
+          );
+      },
+      write: () => {
+        if (!supplierName || !category) throw new BadRequestException('Supplier name and category are required');
+        return this.prisma.opsSupplierQuote.create({
+          data: {
+            id: `quote_${randomUUID()}`,
+            eventId,
+            requestId: input.requestId ?? null,
+            supplierId: directorySupplier?.id ?? null,
+            categoryId,
+            supplierName,
+            category,
+            amount,
+            inclusions: toPrismaJson(input.inclusions ?? []),
+            paymentTerms: input.paymentTerms ?? '',
+            notes: input.notes ?? '',
+            acceptableMin: categoryRange?.acceptableMin ?? null,
+            acceptableMax: categoryRange?.acceptableMax ?? null,
+            outsideAcceptableRange,
+            status: input.status ?? SupplierQuoteStatus.Received,
+          },
+        });
+      },
+      sideEffects: async (quote) => {
+        await Promise.all([
+          this.auditService.audit(
+            eventId,
+            input.status === 'requested' ? 'PMCM Admin' : 'Supplier',
+            `${input.status === 'requested' ? 'Requested' : 'Submitted'} supplier quote: ${quote.supplierName}`,
+            {
+              category: AuditCategory.Suppliers,
+              affectedType: 'supplier_quote',
+              affectedId: quote.id,
+              affectedLabel: quote.supplierName,
+            },
+          ),
+          this.notificationOutboxService.queue(
+            eventId,
+            input.status === 'requested' ? quote.supplierName : 'PMCM Admin',
+            input.status === 'requested' ? 'Supplier quote request issued' : 'Supplier quote received',
+          ),
+        ]);
+      },
+    });
+  }
 
   async selectSupplierQuote(eventId: string, quoteId: string, actorName = 'PMCM Admin') {
     let quote: OpsSupplierQuote | null = null;
