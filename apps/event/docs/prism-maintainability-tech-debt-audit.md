@@ -66,7 +66,7 @@ flowchart TD
 | Schema breadth | Prisma schema has 28 models and API constants now exist for roles/statuses/tiers/action types. | Constants reduce string drift in touched API code, but values are not yet shared with frontend DTOs or enforced at DB level. |
 | Docs drift | Root `README.md` and `CLAUDE.md` were refreshed locally, but the root folder is not a git repo. | The docs need a versioned home or copy/sync strategy, otherwise app repos cannot preserve root doc fixes. |
 | Tests | `prism-api` now has Vitest and 4 event-ops test files covering 9 regression cases. | API lifecycle protection started, but frontend, shared editor, and other portal workflows still have no test foundation. |
-| Sample state endpoint | `/api/sample/state` still exists for sample/reset compatibility, while the PMCM event dashboard now reads `/api/pmcm/dashboard`. | The main PMCM dashboard path is scoped, but client/capture compatibility paths and the sample aggregate still need retirement or narrower replacements. |
+| Sample state endpoint | `/api/sample/state` still exists for sample/reset compatibility, while PMCM and client app state now read scoped workspace endpoints. | Normal app surfaces no longer read the broad sample aggregate; keep it isolated to seed/demo compatibility until the sample harness can be removed. |
 | Runtime jobs | `EventOpsService` starts a `setInterval` reminder loop in-process. | Background behavior depends on API process lifetime and is hard to observe. |
 | Styling debt | Raw hex values still appear in page/components after theme work. | Legacy colors will keep leaking into new components. |
 | Security debt | Sessions are stored in `localStorage` and sample users have plain seeded passwords. | Acceptable for Prism sample only; not a safe production baseline. |
@@ -80,7 +80,7 @@ flowchart TD
 | Extract audit service | Done | `libs/modules/event-ops/src/services/audit.service.ts`. | Needs DB-level append-only enforcement later. |
 | Extract supplier service | Done | `libs/modules/event-ops/src/services/suppliers.service.ts`. | Supplier DTO/contracts still copied into frontends. |
 | Extract coordinator service | Done | `libs/modules/event-ops/src/services/coordinators.service.ts`. | Coordinator portal UI still needs focused tests. |
-| Stop read-time seeding | Done for normal state/read paths | `state()` no longer calls `ensureSeeded()`; explicit `POST /api/sample/seed` exists. | Sample state is still a broad compatibility aggregate. |
+| Stop read-time seeding | Done for normal state/read paths | `state()` no longer calls `ensureSeeded()`; explicit `POST /api/sample/seed` exists. | Sample state remains only as a seed/demo compatibility aggregate. |
 | Split PMCM panels | Partially done | `src/app/components/pmcm/` now contains audit, onboarding, supplier, coordinator, helper, and primitive components. | `page.tsx` is still 1,088 lines and should be split again. |
 | Refresh root docs | Partially done | Local root `README.md` and `CLAUDE.md` were updated. | Root is not a git repo, so those edits are not preserved by child app commits. |
 
@@ -90,7 +90,7 @@ flowchart TD
 | --- | --- | --- | --- |
 | P0 | `EventOpsService` is still too large. | The first extraction helped, but the facade still owns too many lifecycle workflows. | Extract `InquiryService`, `OnboardingService`, `BillingService`, and `FloorplanWorkflowService` next. |
 | P0 | Test coverage is only a thin API slice. | The most fragile PMCM rules now have tests, but UI behavior and other workflows can still regress. | Add focused tests for billing, floorplan submit/approve, approval requests, and frontend smoke flows. |
-| P0 | `/api/sample/state` is still a broad compatibility aggregate. | The PMCM dashboard moved to `/api/pmcm/dashboard`, but remaining compatibility callers can still hide coupling. | Keep compatibility temporarily, then migrate client/capture paths and remove broad sample reads from normal app surfaces. |
+| P0 | `/api/sample/state` is still a broad compatibility aggregate. | Normal app state reads now use scoped workspace endpoints, but the compatibility endpoint remains broad enough to hide future coupling if new callers are added. | Keep compatibility isolated to API seed/demo paths and block new UI consumers from using it. |
 | P1 | Duplicated editor code in client and event apps. | Official floorplan ownership belongs in `prism-event`, but shared editor internals are copied. | Extract editor engine/store/components to a shared package, then expose read-only client mode. |
 | P1 | Duplicated shadcn-style UI across all portals. | Sidebar, buttons, cards, tables, badges, and tokens drift across portals. | Create `packages/prism-ui` or a synced component source with one owner. |
 | P1 | API contracts are manually copied in each frontend. | A backend DTO change requires manual frontend updates. | Add `packages/prism-contracts` with shared DTO types and enums, or generate client types from OpenAPI. |
@@ -260,11 +260,11 @@ This order keeps risk low because each extraction preserves the existing control
 
 ### 2. `/api/sample/state` Is Becoming A Dumping Ground
 
-File: `prism-api/libs/modules/event-ops/src/event-ops.service.ts`
+File: `prism-api/libs/modules/event-ops/src/controllers/sample.controller.ts`
 
-The `state()` method still loads many models at once and maps them into one response. That was useful for prototype speed, but every feature now makes the response bigger and more coupled.
+The sample state endpoint still returns many models at once and maps them into one response. That was useful for prototype speed, but normal app surfaces should not depend on it.
 
-Status update: normal reads no longer call `ensureSeeded()`, so `/api/sample/state` is no longer a setup side-effect path. The remaining issue is response breadth and frontend coupling.
+Status update: normal reads no longer call `ensureSeeded()`, and the client/event app wrappers no longer expose broad sample-state reads. The remaining issue is keeping the compatibility endpoint from becoming a new UI dependency.
 
 Recommended change:
 
@@ -279,7 +279,7 @@ Replace one broad state call with scoped reads:
 | `/api/sample/state` | `/api/audit` |
 | `/api/sample/state` | `/api/security-alerts` |
 
-Keep `/api/sample/state` temporarily as a compatibility aggregator while the UI is migrated.
+Keep `/api/sample/state` temporarily as a compatibility aggregator for seed/demo tests only.
 
 ### 3. UI Is Copied Across Portals
 

@@ -392,7 +392,6 @@ function withCoordinatorActor(path: string, session: { name: string; email: stri
 }
 
 export const prismApi = {
-  state: () => eventOpsClient.sample.state(),
   pmcmState: () =>
     eventOpsClient.pmcmDashboard.detail({
       actorRole: "pmcm-admin",

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -38,7 +38,8 @@ export function listTrackedSourceFiles(root = process.cwd()) {
   })
     .split(/\r?\n/)
     .filter(Boolean)
-    .filter((file) => file.endsWith(".ts") || file.endsWith(".tsx"));
+    .filter((file) => file.endsWith(".ts") || file.endsWith(".tsx"))
+    .filter((file) => existsSync(join(root, file)));
 }
 
 export function findBoundaryViolations(fileSources, rules = boundaryRules) {

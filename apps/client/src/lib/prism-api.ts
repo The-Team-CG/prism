@@ -335,7 +335,6 @@ function withClientActor(path: string, session?: Pick<PrismUser, "name" | "email
 }
 
 export const prismApi = {
-  state: () => (USE_REMOTE_API ? eventOpsClient.sample.state() : Promise.resolve(readMockState())),
   clientState: async (session: Pick<PrismUser, "name" | "email">) => {
     if (!USE_REMOTE_API) return readMockState();
 
