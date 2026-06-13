@@ -1,9 +1,13 @@
 import { NotFoundException } from '@nestjs/common';
-import type { OpsFloorPlanDraft, Prisma } from '@prisma/client';
+import type { OpsEvent, OpsFloorPlanDraft, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
+import { AuditActionType, AuditCategory } from '../ops.constants';
+import { AuditService } from './audit.service';
+import { NotificationOutboxService } from './notification-outbox.service';
+import { WorkflowCommandService } from './workflow-command.service';
 
 export type CreateFloorPlanDraftInput = {
   name: string;
@@ -43,77 +47,85 @@ function timestamp(value: Date) {
 }
 
 export class FloorPlanWorkflowService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService = new AuditService(prisma),
+    private readonly notificationOutboxService = new NotificationOutboxService(prisma),
+    private readonly workflowCommandService = new WorkflowCommandService(),
+  ) {}
 
   async createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanActor) {
-    const event = await this.requireEvent(eventId);
+    let event: OpsEvent | null = null;
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
     const objects = input.objects ?? [];
 
-    const draft = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.floorPlan.create({
-        data: {
-          id: floorPlanId,
-          name: input.name,
-          venue: input.venue ?? event.eventName,
-          ownerId: DEFAULT_OWNER_ID,
-          eventId,
-          width: input.width ?? 1200,
-          height: input.height ?? 800,
-          gridSize: input.gridSize ?? 20,
-          pax: input.pax ?? 0,
-          objects: toPrismaJson(objects),
-          guests: toPrismaJson(input.guests ?? []),
-          suppliers: toPrismaJson(input.suppliers ?? []),
-          seats: toPrismaJson([]),
-          seatCategories: toPrismaJson(defaultSeatCategories()),
-          updatedAt: now,
-        },
-      });
+    return this.workflowCommandService.execute<OpsFloorPlanDraft, ReturnType<FloorPlanWorkflowService['mapFloorPlanDraft']>>({
+      name: 'create_floorplan_draft',
+      eventId,
+      validateState: async () => {
+        event = await this.requireEvent(eventId);
+      },
+      write: async () => {
+        if (!event) throw new NotFoundException('Event not found');
+        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await tx.floorPlan.create({
+            data: {
+              id: floorPlanId,
+              name: input.name,
+              venue: input.venue ?? event!.eventName,
+              ownerId: DEFAULT_OWNER_ID,
+              eventId,
+              width: input.width ?? 1200,
+              height: input.height ?? 800,
+              gridSize: input.gridSize ?? 20,
+              pax: input.pax ?? 0,
+              objects: toPrismaJson(objects),
+              guests: toPrismaJson(input.guests ?? []),
+              suppliers: toPrismaJson(input.suppliers ?? []),
+              seats: toPrismaJson([]),
+              seatCategories: toPrismaJson(defaultSeatCategories()),
+              updatedAt: now,
+            },
+          });
 
-      await this.createFloorPlanObjects(tx, floorPlanId, objects);
+          await this.createFloorPlanObjects(tx, floorPlanId, objects);
 
-      const saved = await tx.opsFloorPlanDraft.create({
-        data: {
-          id: `fpd_${randomUUID()}`,
-          eventId,
-          floorPlanId,
-          name: input.name,
-          status: 'pmcm_draft',
-          isActive: false,
-          sourceType: input.sourceType,
-          createdByRole: 'pmcm-admin',
-          createdAt: now,
-          updatedAt: now,
-        },
-      });
+          const saved = await tx.opsFloorPlanDraft.create({
+            data: {
+              id: `fpd_${randomUUID()}`,
+              eventId,
+              floorPlanId,
+              name: input.name,
+              status: 'pmcm_draft',
+              isActive: false,
+              sourceType: input.sourceType,
+              createdByRole: 'pmcm-admin',
+              createdAt: now,
+              updatedAt: now,
+            },
+          });
 
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: event.floorPlanStatus === 'approved' ? 'approved' : 'pmcm_draft',
-          readiness: event.floorPlanStatus === 'approved' ? event.readiness : 'Floorplan draft in progress',
-        },
-      });
+          await tx.opsEvent.update({
+            where: { id: eventId },
+            data: {
+              floorPlanStatus: event!.floorPlanStatus === 'approved' ? 'approved' : 'pmcm_draft',
+              readiness: event!.floorPlanStatus === 'approved' ? event!.readiness : 'Floorplan draft in progress',
+            },
+          });
 
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: actor.name,
-          action: `Created floorplan draft: ${input.name}`,
-        },
-      });
-
-      return saved;
+          return saved;
+        });
+      },
+      sideEffects: async (draft) => {
+        await this.auditFloorPlan(eventId, actor, `Created floorplan draft: ${input.name}`, draft);
+      },
+      project: (draft) => this.mapFloorPlanDraft(draft),
     });
-
-    return this.mapFloorPlanDraft(draft);
   }
 
   async createFloorPlanPreference(eventId: string, input: CreateFloorPlanPreferenceInput, actor: FloorPlanActor) {
-    const event = await this.requireEvent(eventId);
+    let event: OpsEvent | null = null;
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
     const objects = input.objects ?? [];
@@ -126,78 +138,73 @@ export class FloorPlanWorkflowService {
       notes: input.notes ?? '',
     };
 
-    const draft = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.floorPlan.create({
-        data: {
-          id: floorPlanId,
-          name: input.name,
-          venue: input.venue ?? event.eventName,
-          ownerId: DEFAULT_OWNER_ID,
-          eventId,
-          width: input.width ?? 30,
-          height: input.height ?? 20,
-          gridSize: input.gridSize ?? 1,
-          pax: input.guestCount,
-          objects: toPrismaJson(objects),
-          guests: toPrismaJson([]),
-          suppliers: toPrismaJson([]),
-          seats: toPrismaJson([]),
-          seatCategories: toPrismaJson(defaultSeatCategories()),
-          updatedAt: now,
-        },
-      });
+    return this.workflowCommandService.execute<OpsFloorPlanDraft, ReturnType<FloorPlanWorkflowService['mapFloorPlanDraft']>>({
+      name: 'create_floorplan_preference',
+      eventId,
+      validateState: async () => {
+        event = await this.requireEvent(eventId);
+      },
+      write: async () => {
+        if (!event) throw new NotFoundException('Event not found');
+        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await tx.floorPlan.create({
+            data: {
+              id: floorPlanId,
+              name: input.name,
+              venue: input.venue ?? event!.eventName,
+              ownerId: DEFAULT_OWNER_ID,
+              eventId,
+              width: input.width ?? 30,
+              height: input.height ?? 20,
+              gridSize: input.gridSize ?? 1,
+              pax: input.guestCount,
+              objects: toPrismaJson(objects),
+              guests: toPrismaJson([]),
+              suppliers: toPrismaJson([]),
+              seats: toPrismaJson([]),
+              seatCategories: toPrismaJson(defaultSeatCategories()),
+              updatedAt: now,
+            },
+          });
 
-      await this.createFloorPlanObjects(tx, floorPlanId, objects);
+          await this.createFloorPlanObjects(tx, floorPlanId, objects);
 
-      const saved = await tx.opsFloorPlanDraft.create({
-        data: {
-          id: `fpd_${randomUUID()}`,
-          eventId,
-          floorPlanId,
-          name: input.name,
-          status: 'client_submitted',
-          isActive: false,
-          sourceType: 'client_preference',
-          createdByRole: actor.role === 'client' ? 'client' : 'pmcm-admin',
-          clientPreference: toPrismaJson(preference),
-          submittedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        },
-      });
+          const saved = await tx.opsFloorPlanDraft.create({
+            data: {
+              id: `fpd_${randomUUID()}`,
+              eventId,
+              floorPlanId,
+              name: input.name,
+              status: 'client_submitted',
+              isActive: false,
+              sourceType: 'client_preference',
+              createdByRole: actor.role === 'client' ? 'client' : 'pmcm-admin',
+              clientPreference: toPrismaJson(preference),
+              submittedAt: now,
+              createdAt: now,
+              updatedAt: now,
+            },
+          });
 
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: 'client_submitted',
-          readiness: 'Client layout preference received',
-        },
-      });
+          await tx.opsEvent.update({
+            where: { id: eventId },
+            data: {
+              floorPlanStatus: 'client_submitted',
+              readiness: 'Client layout preference received',
+            },
+          });
 
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: actor.name,
-          action: `Submitted layout preference: ${input.name}`,
-        },
-      });
-
-      await tx.opsNotificationLog.create({
-        data: {
-          id: `not_${randomUUID()}`,
-          eventId,
-          channel: 'email',
-          recipient: 'PMCM Admin',
-          message: `Client submitted a layout preference: ${input.name}`,
-          status: 'queued',
-        },
-      });
-
-      return saved;
+          return saved;
+        });
+      },
+      sideEffects: async (draft) => {
+        await Promise.all([
+          this.auditFloorPlan(eventId, actor, `Submitted layout preference: ${input.name}`, draft),
+          this.notificationOutboxService.queue(eventId, 'PMCM Admin', `Client submitted a layout preference: ${input.name}`),
+        ]);
+      },
+      project: (draft) => this.mapFloorPlanDraft(draft),
     });
-
-    return this.mapFloorPlanDraft(draft);
   }
 
   async submitFloorPlanDraft(eventId: string, draftId: string, actor: FloorPlanActor) {
@@ -206,51 +213,41 @@ export class FloorPlanWorkflowService {
     const now = new Date();
     const snapshot = await this.floorPlanSnapshot(draft.floorPlanId);
 
-    const submitted = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const saved = await tx.opsFloorPlanDraft.update({
-        where: { id: draft.id },
-        data: {
-          status: 'in_review',
-          submittedSnapshot: toPrismaJson(snapshot),
-          submittedSnapshotAt: now,
-          submittedAt: draft.submittedAt ?? now,
-        },
-      });
+    return this.workflowCommandService.execute<OpsFloorPlanDraft, ReturnType<FloorPlanWorkflowService['mapFloorPlanDraft']>>({
+      name: 'submit_floorplan_draft',
+      eventId,
+      write: () =>
+        this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const saved = await tx.opsFloorPlanDraft.update({
+            where: { id: draft.id },
+            data: {
+              status: 'in_review',
+              submittedSnapshot: toPrismaJson(snapshot),
+              submittedSnapshotAt: now,
+              submittedAt: draft.submittedAt ?? now,
+            },
+          });
 
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: 'in_review',
-          floorPlanId: draft.floorPlanId,
-          floorPlanSubmittedAt: now,
-          readiness: 'Floorplan awaiting review',
-        },
-      });
+          await tx.opsEvent.update({
+            where: { id: eventId },
+            data: {
+              floorPlanStatus: 'in_review',
+              floorPlanId: draft.floorPlanId,
+              floorPlanSubmittedAt: now,
+              readiness: 'Floorplan awaiting review',
+            },
+          });
 
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: actor.name,
-          action: `Submitted floorplan draft for review: ${draft.name}`,
-        },
-      });
-
-      await tx.opsNotificationLog.create({
-        data: {
-          id: `not_${randomUUID()}`,
-          eventId,
-          channel: 'email',
-          recipient: 'Client',
-          message: `Floorplan draft ready for review: ${draft.name}`,
-          status: 'queued',
-        },
-      });
-
-      return saved;
+          return saved;
+        }),
+      sideEffects: async (submitted) => {
+        await Promise.all([
+          this.auditFloorPlan(eventId, actor, `Submitted floorplan draft for review: ${draft.name}`, submitted),
+          this.notificationOutboxService.queue(eventId, 'Client', `Floorplan draft ready for review: ${draft.name}`),
+        ]);
+      },
+      project: (submitted) => this.mapFloorPlanDraft(submitted),
     });
-
-    return this.mapFloorPlanDraft(submitted);
   }
 
   async approveFloorPlanDraft(eventId: string, draftId: string, actor: FloorPlanActor) {
@@ -259,48 +256,46 @@ export class FloorPlanWorkflowService {
     const now = new Date();
     const snapshot = await this.floorPlanSnapshot(draft.floorPlanId);
 
-    const approved = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.opsFloorPlanDraft.updateMany({
-        where: { eventId, isActive: true },
-        data: { isActive: false },
-      });
+    return this.workflowCommandService.execute<OpsFloorPlanDraft, ReturnType<FloorPlanWorkflowService['mapFloorPlanDraft']>>({
+      name: 'approve_floorplan_draft',
+      eventId,
+      write: () =>
+        this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await tx.opsFloorPlanDraft.updateMany({
+            where: { eventId, isActive: true },
+            data: { isActive: false },
+          });
 
-      const saved = await tx.opsFloorPlanDraft.update({
-        where: { id: draft.id },
-        data: {
-          status: 'approved',
-          isActive: true,
-          approvedSnapshot: toPrismaJson(snapshot),
-          approvedSnapshotAt: now,
-          reviewedAt: now,
-          approvedAt: now,
-          submittedAt: draft.submittedAt ?? now,
-        },
-      });
+          const saved = await tx.opsFloorPlanDraft.update({
+            where: { id: draft.id },
+            data: {
+              status: 'approved',
+              isActive: true,
+              approvedSnapshot: toPrismaJson(snapshot),
+              approvedSnapshotAt: now,
+              reviewedAt: now,
+              approvedAt: now,
+              submittedAt: draft.submittedAt ?? now,
+            },
+          });
 
-      await tx.opsEvent.update({
-        where: { id: eventId },
-        data: {
-          floorPlanStatus: 'approved',
-          floorPlanId: draft.floorPlanId,
-          floorPlanReviewedAt: now,
-          readiness: 'Floorplan approved',
-        },
-      });
+          await tx.opsEvent.update({
+            where: { id: eventId },
+            data: {
+              floorPlanStatus: 'approved',
+              floorPlanId: draft.floorPlanId,
+              floorPlanReviewedAt: now,
+              readiness: 'Floorplan approved',
+            },
+          });
 
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: actor.name,
-          action: `Approved floorplan draft: ${draft.name}`,
-        },
-      });
-
-      return saved;
+          return saved;
+        }),
+      sideEffects: async (approved) => {
+        await this.auditFloorPlan(eventId, actor, `Approved floorplan draft: ${draft.name}`, approved);
+      },
+      project: (approved) => this.mapFloorPlanDraft(approved),
     });
-
-    return this.mapFloorPlanDraft(approved);
   }
 
   async getFloorPlanSnapshot(eventId: string, draftId: string, type: 'submitted' | 'approved' = 'approved') {
@@ -377,6 +372,25 @@ export class FloorPlanWorkflowService {
       seatCategories: Array.isArray(plan.seatCategories) ? plan.seatCategories : [],
       updatedAt: plan.updatedAt ? timestamp(plan.updatedAt) : timestamp(new Date()),
     };
+  }
+
+  private auditFloorPlan(eventId: string, actor: FloorPlanActor, action: string, draft: OpsFloorPlanDraft) {
+    return this.auditService.audit(eventId, actor.name, action, {
+      actorRole: actor.role,
+      category: AuditCategory.Events,
+      actionType: this.floorPlanAuditAction(action),
+      affectedType: 'floor_plan_draft',
+      affectedId: draft.id,
+      affectedLabel: draft.name,
+    });
+  }
+
+  private floorPlanAuditAction(action: string) {
+    const normalized = action.toLowerCase();
+    if (normalized.includes('approved')) return AuditActionType.Approve;
+    if (normalized.includes('submitted')) return AuditActionType.Update;
+    if (normalized.includes('created')) return AuditActionType.Create;
+    return AuditActionType.General;
   }
 
   private async createFloorPlanObjects(tx: Prisma.TransactionClient, floorPlanId: string, objects: unknown[]) {

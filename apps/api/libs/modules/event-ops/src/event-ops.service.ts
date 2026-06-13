@@ -663,12 +663,17 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.privacyOperationsService = new PrivacyOperationsService(prisma, this.auditService);
     this.suppliersService = new SuppliersService(prisma);
     this.coordinatorsService = new CoordinatorsService(prisma);
-    this.floorPlanWorkflowService = new FloorPlanWorkflowService(prisma);
     this.liveOperationsService = new LiveOperationsService();
     this.eventLifecycleService = new EventLifecycleService();
     this.fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
     this.notificationOutboxService = new NotificationOutboxService(prisma);
     this.workflowCommandService = new WorkflowCommandService();
+    this.floorPlanWorkflowService = new FloorPlanWorkflowService(
+      prisma,
+      this.auditService,
+      this.notificationOutboxService,
+      this.workflowCommandService,
+    );
     this.billingOperationsService = new BillingOperationsService(
       prisma,
       this.auditService,
