@@ -546,16 +546,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.eventAccessPolicyService = new EventAccessPolicyService(this.auditService);
     this.notificationOutboxService = new NotificationOutboxService(prisma);
     this.workflowCommandService = new WorkflowCommandService();
-    this.suppliersService = new SuppliersService(prisma);
-    this.pareService = new PAREService(prisma);
-    this.supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
-      prisma,
-      this.suppliersService,
-      this.auditService,
-      this.eventAccessPolicyService,
-      this.workflowCommandService,
-      this.pareService,
-    );
     this.inquiriesService = new InquiriesService(
       prisma,
       this.auditService,
@@ -575,6 +565,17 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       this.auditService,
       this.notificationOutboxService,
       this.workflowCommandService,
+    );
+    this.suppliersService = new SuppliersService(prisma);
+    this.pareService = new PAREService(prisma);
+    this.supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
+      prisma,
+      this.suppliersService,
+      this.auditService,
+      this.eventAccessPolicyService,
+      this.workflowCommandService,
+      this.pareService,
+      this.liveOperationsService,
     );
     this.eventLifecycleService = new EventLifecycleService();
     this.fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
@@ -1503,47 +1504,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     actorInput: SampleActorInput = {},
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'supplier setup verification');
-    const verificationStatus = input.verificationStatus?.trim();
-    if (!isOpsConstantValue(SupplierVerificationStatus, verificationStatus)) {
-      throw new BadRequestException('Unsupported supplier verification status');
-    }
-    const current = (await this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId } })).find(
-      (request: any) => request.id === requestId,
-    );
-    if (!current) throw new NotFoundException('Supplier quote request not found');
-    const verifiedBy = input.verifiedBy?.trim() || actor.name;
-    const request = await this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: requestId },
-      data: {
-        eventDayVerificationStatus: verificationStatus,
-        eventDayVerifiedAt: new Date(),
-        eventDayVerifiedBy: verifiedBy,
-        eventDayVerificationNotes: input.notes?.trim() ?? '',
-      },
-    });
-
-    await Promise.all([
-      this.recordEventDayLog(
-        eventId,
-        'supplier_status_verified',
-        actor,
-        `Marked supplier setup ${verificationStatus}: ${request.supplierName}`,
-        'supplier_quote_request',
-        request.id,
-        { verificationStatus, verifiedBy, notes: input.notes ?? '' },
-      ),
-      this.audit(eventId, actor.name, `Marked supplier setup ${verificationStatus}: ${request.supplierName}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Suppliers,
-        affectedType: 'supplier_quote_request',
-        affectedId: request.id,
-        affectedLabel: request.supplierName,
-        metadata: { verificationStatus, verifiedBy, notes: input.notes ?? '' },
-      }),
-    ]);
-
+    const request = await this.supplierNetworkWorkflowService.verifySupplierEventStatus(eventId, requestId, input, actor);
     return this.mapSupplierQuoteRequest(request);
   }
 

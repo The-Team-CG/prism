@@ -2,9 +2,16 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import type { OpsEvent, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, OpsUserRole } from '../ops.constants';
+import {
+  AuditActionType,
+  AuditCategory,
+  OpsUserRole,
+  SupplierVerificationStatus,
+  isOpsConstantValue,
+} from '../ops.constants';
 import { AuditService } from './audit.service';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from './event-access-policy.service';
+import { LiveOperationsService } from './live-operations.service';
 import {
   type ChangeSupplierTierInput,
   type CreateSupplierCertificationInput,
@@ -36,6 +43,12 @@ export type SupplierEventStatusInput = {
   photo?: UploadMetadataInput;
 };
 
+export type VerifySupplierEventStatusInput = {
+  verificationStatus: string;
+  verifiedBy?: string;
+  notes?: string;
+};
+
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
 const ALLOWED_UPLOAD_TYPES: Record<string, string[]> = {
   'application/pdf': ['pdf'],
@@ -58,6 +71,7 @@ export class SupplierNetworkWorkflowService {
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
     private readonly pareService: PAREService,
+    private readonly liveOperationsService: LiveOperationsService,
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {
@@ -359,6 +373,71 @@ export class SupplierNetworkWorkflowService {
           affectedLabel: request.supplierName,
           metadata: { status: input.status, notes: input.notes ?? '', photoFileName: photo?.generatedFileName ?? null },
         });
+      },
+    });
+  }
+
+  async verifySupplierEventStatus(
+    eventId: string,
+    requestId: string,
+    input: VerifySupplierEventStatusInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    let request: OpsSupplierQuoteRequest | null = null;
+    let verificationStatus: SupplierVerificationStatus | null = null;
+    let verifiedBy = actor.name;
+
+    return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
+      name: 'verify_supplier_event_status',
+      eventId,
+      validateState: async () => {
+        const requestedStatus = input.verificationStatus?.trim();
+        if (!isOpsConstantValue(SupplierVerificationStatus, requestedStatus)) {
+          throw new BadRequestException('Unsupported supplier verification status');
+        }
+        verificationStatus = requestedStatus;
+        request = (await this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId } })).find(
+          (quoteRequest) => quoteRequest.id === requestId,
+        ) ?? null;
+        if (!request) throw new NotFoundException('Supplier quote request not found');
+        verifiedBy = input.verifiedBy?.trim() || actor.name;
+      },
+      write: () => {
+        if (!verificationStatus) throw new BadRequestException('Unsupported supplier verification status');
+        return this.prisma.opsSupplierQuoteRequest.update({
+          where: { id: requestId },
+          data: {
+            eventDayVerificationStatus: verificationStatus,
+            eventDayVerifiedAt: new Date(),
+            eventDayVerifiedBy: verifiedBy,
+            eventDayVerificationNotes: input.notes?.trim() ?? '',
+          },
+        });
+      },
+      sideEffects: async (updated) => {
+        if (!verificationStatus) return;
+        const metadata = { verificationStatus, verifiedBy, notes: input.notes ?? '' };
+        await Promise.all([
+          this.liveOperationsService.recordEventDayLog(
+            eventId,
+            'supplier_status_verified',
+            actor,
+            `Marked supplier setup ${verificationStatus}: ${updated.supplierName}`,
+            'supplier_quote_request',
+            updated.id,
+            metadata,
+          ),
+          this.auditService.audit(eventId, actor.name, `Marked supplier setup ${verificationStatus}: ${updated.supplierName}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Suppliers,
+            affectedType: 'supplier_quote_request',
+            affectedId: updated.id,
+            affectedLabel: updated.supplierName,
+            metadata,
+          }),
+        ]);
       },
     });
   }

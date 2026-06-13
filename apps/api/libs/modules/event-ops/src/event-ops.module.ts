@@ -16,6 +16,7 @@ import { SupplierNetworkWorkflowService } from './services/supplier-network-work
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { EventClosureService } from './services/event-closure.service';
 import { PAREService } from './services/pare/pare.service';
+import { LiveOperationsService } from './services/live-operations.service';
 
 @Module({
   imports: [DatabaseModule],
@@ -34,6 +35,7 @@ import { PAREService } from './services/pare/pare.service';
     EventReadModelsService,
     CommercialWorkflowService,
     SupplierNetworkWorkflowService,
+    LiveOperationsService,
     EventClosureService,
     PAREService,
   ],
