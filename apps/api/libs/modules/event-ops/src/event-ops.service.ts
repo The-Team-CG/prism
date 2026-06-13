@@ -663,13 +663,18 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     this.privacyOperationsService = new PrivacyOperationsService(prisma, this.auditService);
     this.suppliersService = new SuppliersService(prisma);
     this.coordinatorsService = new CoordinatorsService(prisma);
-    this.billingOperationsService = new BillingOperationsService(prisma);
     this.floorPlanWorkflowService = new FloorPlanWorkflowService(prisma);
     this.liveOperationsService = new LiveOperationsService();
     this.eventLifecycleService = new EventLifecycleService();
     this.fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
     this.notificationOutboxService = new NotificationOutboxService(prisma);
     this.workflowCommandService = new WorkflowCommandService();
+    this.billingOperationsService = new BillingOperationsService(
+      prisma,
+      this.auditService,
+      this.notificationOutboxService,
+      this.workflowCommandService,
+    );
     this.eventReadModelsService = new EventReadModelsService(prisma, this.eventAccessPolicyService, this.suppliersService);
     this.commercialWorkflowService = new CommercialWorkflowService(
       prisma,
@@ -3197,12 +3202,34 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId);
   }
 
-  async markPayment(eventId: string, milestoneId: string, status: string) {
-    return this.billingOperationsService.markPayment(eventId, milestoneId, status);
+  async markPayment(
+    eventId: string,
+    milestoneId: string,
+    status: string,
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+  ) {
+    const actor = this.resolveActor(actorInput);
+    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'payment milestone', eventId);
+    return this.billingOperationsService.markPayment(eventId, milestoneId, status, {
+      name: actor.name,
+      role: actor.role,
+      email: actor.email,
+    });
   }
 
-  async recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput) {
-    return this.billingOperationsService.recordPayment(eventId, milestoneId, input);
+  async recordPayment(
+    eventId: string,
+    milestoneId: string,
+    input: RecordPaymentInput,
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+  ) {
+    const actor = this.resolveActor(actorInput);
+    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'payment recording', eventId);
+    return this.billingOperationsService.recordPayment(eventId, milestoneId, input, {
+      name: actor.name,
+      role: actor.role,
+      email: actor.email,
+    });
   }
 
   async createBillingSource(eventId: string, input: CreateBillingSourceInput, actorInput: SampleActorInput = {}) {
@@ -3230,12 +3257,32 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async generateBillingStatement(eventId: string, sourceId?: string) {
-    return this.billingOperationsService.generateBillingStatement(eventId, sourceId);
+  async generateBillingStatement(
+    eventId: string,
+    sourceId?: string,
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+  ) {
+    const actor = this.resolveActor(actorInput);
+    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'billing statement', eventId);
+    return this.billingOperationsService.generateBillingStatement(eventId, sourceId, {
+      name: actor.name,
+      role: actor.role,
+      email: actor.email,
+    });
   }
 
-  async sendBillingStatement(eventId: string, billingId: string) {
-    return this.billingOperationsService.sendBillingStatement(eventId, billingId);
+  async sendBillingStatement(
+    eventId: string,
+    billingId: string,
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+  ) {
+    const actor = this.resolveActor(actorInput);
+    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'billing statement delivery', eventId);
+    return this.billingOperationsService.sendBillingStatement(eventId, billingId, {
+      name: actor.name,
+      role: actor.role,
+      email: actor.email,
+    });
   }
 
   async completePostEventDocument(eventId: string, documentId: string) {

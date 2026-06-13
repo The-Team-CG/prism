@@ -5,6 +5,8 @@ import { toPrismaJson } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory } from '../ops.constants';
 import { AuditService } from './audit.service';
+import { NotificationOutboxService } from './notification-outbox.service';
+import { WorkflowCommandService } from './workflow-command.service';
 
 export type RecordPaymentInput = {
   amountReceived: number;
@@ -70,139 +72,179 @@ function parseDate(value: string) {
 }
 
 export class BillingOperationsService {
-  private readonly auditService: AuditService;
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService = new AuditService(prisma),
+    private readonly notificationOutboxService = new NotificationOutboxService(prisma),
+    private readonly workflowCommandService = new WorkflowCommandService(),
+  ) {}
 
-  constructor(private readonly prisma: PrismaService) {
-    this.auditService = new AuditService(prisma);
+  async markPayment(eventId: string, milestoneId: string, status: string, actor: BillingActor = { name: 'PMCM Admin' }) {
+    return this.workflowCommandService.execute<OpsPaymentMilestone, ReturnType<BillingOperationsService['mapPaymentMilestone']>>({
+      name: 'mark_payment',
+      eventId,
+      validateState: async () => {
+        await this.requireEvent(eventId);
+      },
+      write: () =>
+        this.prisma.opsPaymentMilestone
+          .update({
+            where: { id: milestoneId },
+            data: { status },
+          })
+          .catch(() => {
+            throw new NotFoundException('Payment milestone not found');
+          }),
+      sideEffects: async (payment) => {
+        await Promise.all([
+          this.auditService.audit(eventId, actor.name, `Marked ${payment.label} as ${status}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            category: AuditCategory.Finance,
+            actionType: AuditActionType.Update,
+            affectedType: 'payment_milestone',
+            affectedId: payment.id,
+            affectedLabel: payment.label,
+          }),
+          this.notificationOutboxService.queue(eventId, 'Finance', `${payment.label} ${status}`),
+        ]);
+      },
+      project: (payment) => this.mapPaymentMilestone(payment),
+    });
   }
 
-  async markPayment(eventId: string, milestoneId: string, status: string) {
-    await this.requireEvent(eventId);
+  async recordPayment(
+    eventId: string,
+    milestoneId: string,
+    input: RecordPaymentInput,
+    actor: BillingActor = { name: 'PMCM Admin' },
+  ) {
+    let milestone: OpsPaymentMilestone | null = null;
 
-    const payment = await this.prisma.opsPaymentMilestone
-      .update({
-        where: { id: milestoneId },
-        data: { status },
-      })
-      .catch(() => {
-        throw new NotFoundException('Payment milestone not found');
-      });
+    return this.workflowCommandService.execute<
+      { payment: OpsPaymentMilestone; history: OpsPaymentRecord[] },
+      ReturnType<BillingOperationsService['mapPaymentMilestone']>
+    >({
+      name: 'record_payment',
+      eventId,
+      validateState: async () => {
+        await this.requireEvent(eventId);
 
-    await Promise.all([
-      this.auditService.audit(eventId, 'PMCM Admin', `Marked ${payment.label} as ${status}`),
-      this.auditService.notify(eventId, 'Finance', `${payment.label} ${status}`),
-    ]);
+        milestone = await this.prisma.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
+        if (!milestone || milestone.eventId !== eventId) {
+          throw new NotFoundException('Payment milestone not found');
+        }
 
-    return this.mapPaymentMilestone(payment);
-  }
+        if (input.amountReceived <= 0) {
+          throw new BadRequestException('Amount received must be greater than zero');
+        }
 
-  async recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput) {
-    await this.requireEvent(eventId);
+        const existingHistory = (await this.prisma.opsPaymentRecord.findMany({
+          where: { milestoneId },
+          orderBy: { paymentDate: 'asc' },
+        })) as OpsPaymentRecord[];
+        const currentPaid = existingHistory.reduce((sum, record) => sum + record.amountReceived, 0);
+        if (currentPaid + input.amountReceived > milestone.amount) {
+          throw new BadRequestException('Payment record exceeds remaining milestone balance');
+        }
+      },
+      write: () => {
+        if (!milestone) throw new NotFoundException('Payment milestone not found');
+        const paymentDate = parseDate(input.paymentDate);
 
-    const milestone = await this.prisma.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
-    if (!milestone || milestone.eventId !== eventId) {
-      throw new NotFoundException('Payment milestone not found');
-    }
+        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await tx.opsPaymentRecord.create({
+            data: {
+              id: `payrec_${randomUUID()}`,
+              eventId,
+              milestoneId,
+              amountReceived: input.amountReceived,
+              paymentDate,
+              paymentMethod: input.paymentMethod,
+              referenceNumber: input.referenceNumber ?? '',
+            },
+          });
 
-    if (input.amountReceived <= 0) {
-      throw new BadRequestException('Amount received must be greater than zero');
-    }
+          const history = await tx.opsPaymentRecord.findMany({
+            where: { milestoneId },
+            orderBy: { paymentDate: 'asc' },
+          });
+          const amountPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
+          const remainingBalance = Math.max(0, milestone!.amount - amountPaid);
+          const nextStatus = remainingBalance === 0 ? 'paid' : amountPaid > 0 ? 'partially_paid' : 'pending';
+          const payment = await tx.opsPaymentMilestone.update({
+            where: { id: milestoneId },
+            data: { amountPaid, remainingBalance, status: nextStatus },
+          });
 
-    const paymentDate = parseDate(input.paymentDate);
-    const existingHistory = (await this.prisma.opsPaymentRecord.findMany({
-      where: { milestoneId },
-      orderBy: { paymentDate: 'asc' },
-    })) as OpsPaymentRecord[];
-    const currentPaid = existingHistory.reduce((sum, record) => sum + record.amountReceived, 0);
-    if (currentPaid + input.amountReceived > milestone.amount) {
-      throw new BadRequestException('Payment record exceeds remaining milestone balance');
-    }
-
-    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.opsPaymentRecord.create({
-        data: {
-          id: `payrec_${randomUUID()}`,
-          eventId,
-          milestoneId,
-          amountReceived: input.amountReceived,
-          paymentDate,
-          paymentMethod: input.paymentMethod,
-          referenceNumber: input.referenceNumber ?? '',
-        },
-      });
-
-      const history = await tx.opsPaymentRecord.findMany({
-        where: { milestoneId },
-        orderBy: { paymentDate: 'asc' },
-      });
-      const amountPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
-      const remainingBalance = Math.max(0, milestone.amount - amountPaid);
-      const status = remainingBalance === 0 ? 'paid' : amountPaid > 0 ? 'partially_paid' : 'pending';
-      const payment = await tx.opsPaymentMilestone.update({
-        where: { id: milestoneId },
-        data: { amountPaid, remainingBalance, status },
-      });
-
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: 'PMCM Admin',
-          action: `Recorded ${input.paymentMethod} payment for ${milestone.label}`,
-          category: 'finance',
-          actionType: 'create',
+          return { payment, history };
+        });
+      },
+      sideEffects: async ({ payment }) => {
+        await this.auditService.audit(eventId, actor.name, `Recorded ${input.paymentMethod} payment for ${payment.label}`, {
+          actorRole: actor.role,
+          actorEmail: actor.email,
+          category: AuditCategory.Finance,
+          actionType: AuditActionType.Create,
           affectedType: 'payment_milestone',
           affectedId: milestoneId,
-          affectedLabel: milestone.label,
-          metadata: toPrismaJson({
+          affectedLabel: payment.label,
+          metadata: {
             amountReceived: input.amountReceived,
             referenceNumber: input.referenceNumber ?? '',
-          }),
-        },
-      });
-
-      return { payment, history };
+          },
+        });
+      },
+      project: ({ payment, history }) => this.mapPaymentMilestone(payment, history),
     });
-
-    return this.mapPaymentMilestone(result.payment, result.history);
   }
 
   async createBillingSource(eventId: string, input: CreateBillingSourceInput, actor: BillingActor) {
-    await this.requireEvent(eventId);
+    let lineItems: BillingLineItemInput[] = [];
+    let totalAmount = 0;
+    let paymentSchedule: ReturnType<BillingOperationsService['normalizeBillingSchedule']> = [];
+    let paymentMethods: ReturnType<BillingOperationsService['normalizeBillingMethods']> = [];
 
-    const lineItems = this.normalizeBillingLineItems(input.lineItems);
-    const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
-    if (totalAmount <= 0) throw new BadRequestException('Billing source total must be greater than zero');
-    const paymentSchedule = this.normalizeBillingSchedule(input.paymentSchedule, totalAmount);
-    const paymentMethods = this.normalizeBillingMethods(input.paymentMethods);
-
-    const source = await this.prisma.opsBillingSource.create({
-      data: {
-        id: `bsrc_${randomUUID()}`,
-        eventId,
-        sourceType: input.sourceType?.trim() || 'ce_proposal',
-        sourceLabel: input.sourceLabel.trim(),
-        sourceDocumentId: input.sourceDocumentId ?? null,
-        lineItems: toPrismaJson(lineItems),
-        paymentSchedule: toPrismaJson(paymentSchedule),
-        paymentMethods: toPrismaJson(paymentMethods),
-        totalAmount,
-        status: 'draft',
+    return this.workflowCommandService.execute<OpsBillingSource, ReturnType<BillingOperationsService['mapBillingSource']>>({
+      name: 'create_billing_source',
+      eventId,
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        lineItems = this.normalizeBillingLineItems(input.lineItems);
+        totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
+        if (totalAmount <= 0) throw new BadRequestException('Billing source total must be greater than zero');
+        paymentSchedule = this.normalizeBillingSchedule(input.paymentSchedule, totalAmount);
+        paymentMethods = this.normalizeBillingMethods(input.paymentMethods);
       },
+      write: () =>
+        this.prisma.opsBillingSource.create({
+          data: {
+            id: `bsrc_${randomUUID()}`,
+            eventId,
+            sourceType: input.sourceType?.trim() || 'ce_proposal',
+            sourceLabel: input.sourceLabel.trim(),
+            sourceDocumentId: input.sourceDocumentId ?? null,
+            lineItems: toPrismaJson(lineItems),
+            paymentSchedule: toPrismaJson(paymentSchedule),
+            paymentMethods: toPrismaJson(paymentMethods),
+            totalAmount,
+            status: 'draft',
+          },
+        }),
+      sideEffects: async (source) => {
+        await this.auditService.audit(eventId, actor.name, `Created billing source: ${source.sourceLabel}`, {
+          actorRole: actor.role,
+          actorEmail: actor.email,
+          actionType: AuditActionType.Create,
+          category: AuditCategory.Finance,
+          affectedType: 'billing_source',
+          affectedId: source.id,
+          affectedLabel: source.sourceLabel,
+          metadata: { totalAmount },
+        });
+      },
+      project: (source) => this.mapBillingSource(source),
     });
-
-    await this.auditService.audit(eventId, actor.name, `Created billing source: ${source.sourceLabel}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Create,
-      category: AuditCategory.Finance,
-      affectedType: 'billing_source',
-      affectedId: source.id,
-      affectedLabel: source.sourceLabel,
-      metadata: { totalAmount },
-    });
-
-    return this.mapBillingSource(source);
   }
 
   async approveBillingSource(
@@ -211,152 +253,180 @@ export class BillingOperationsService {
     input: ApproveBillingSourceInput = {},
     actor: BillingActor,
   ) {
-    await this.requireEvent(eventId);
-
     const approvedBy = input.approvedBy?.trim() || actor.name || 'PMCM Admin';
-    const source = await this.prisma.opsBillingSource
-      .update({
-        where: { id: sourceId },
-        data: {
-          status: 'approved',
-          approvedAt: new Date(),
-          approvedBy,
-          approvalNotes: input.approvalNotes?.trim() ?? '',
-        },
-      })
-      .catch(() => {
-        throw new NotFoundException('Billing source not found');
-      });
+    let source: OpsBillingSource | null = null;
 
-    if (source.eventId !== eventId) throw new NotFoundException('Billing source not found');
-
-    await this.auditService.audit(eventId, approvedBy, `Approved billing source: ${source.sourceLabel}`, {
-      actorRole: actor.role,
-      actorEmail: actor.email,
-      actionType: AuditActionType.Approve,
-      category: AuditCategory.Finance,
-      affectedType: 'billing_source',
-      affectedId: source.id,
-      affectedLabel: source.sourceLabel,
-      metadata: { totalAmount: source.totalAmount, approvalNotes: input.approvalNotes ?? '' },
+    return this.workflowCommandService.execute<OpsBillingSource, ReturnType<BillingOperationsService['mapBillingSource']>>({
+      name: 'approve_billing_source',
+      eventId,
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        source = await this.prisma.opsBillingSource.findUnique({ where: { id: sourceId } });
+        if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
+      },
+      write: () =>
+        this.prisma.opsBillingSource.update({
+          where: { id: sourceId },
+          data: {
+            status: 'approved',
+            approvedAt: new Date(),
+            approvedBy,
+            approvalNotes: input.approvalNotes?.trim() ?? '',
+          },
+        }),
+      sideEffects: async (approvedSource) => {
+        await this.auditService.audit(eventId, approvedBy, `Approved billing source: ${approvedSource.sourceLabel}`, {
+          actorRole: actor.role,
+          actorEmail: actor.email,
+          actionType: AuditActionType.Approve,
+          category: AuditCategory.Finance,
+          affectedType: 'billing_source',
+          affectedId: approvedSource.id,
+          affectedLabel: approvedSource.sourceLabel,
+          metadata: { totalAmount: approvedSource.totalAmount, approvalNotes: input.approvalNotes ?? '' },
+        });
+      },
+      project: (approvedSource) => this.mapBillingSource(approvedSource),
     });
-
-    return this.mapBillingSource(source);
   }
 
-  async generateBillingStatement(eventId: string, sourceId?: string) {
-    const event = await this.requireEvent(eventId);
-    const inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: event.inquiryId } });
-    const source = sourceId
-      ? await this.prisma.opsBillingSource.findUnique({ where: { id: sourceId } })
-      : await this.prisma.opsBillingSource.findFirst({ where: { eventId, status: 'approved' } });
+  async generateBillingStatement(eventId: string, sourceId?: string, actor: BillingActor = { name: 'PMCM Admin' }) {
+    let event: Awaited<ReturnType<BillingOperationsService['requireEvent']>> | null = null;
+    let inquiry: Awaited<ReturnType<PrismaService['opsInquiry']['findUnique']>> | null = null;
+    let source: OpsBillingSource | null = null;
+    let billingNumber = '';
+    let storageKey = '';
+    let lineItems: ReturnType<BillingOperationsService['asBillingLineItems']> = [];
+    let paymentSchedule: ReturnType<BillingOperationsService['asBillingSchedule']> = [];
+    let paymentMethods: ReturnType<BillingOperationsService['asBillingMethods']> = [];
 
-    if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
-    if (source.status !== 'approved') {
-      throw new BadRequestException('Billing source must be approved before generating a billing statement');
-    }
+    return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<BillingOperationsService['mapBillingStatement']>>({
+      name: 'generate_billing_statement',
+      eventId,
+      validateState: async () => {
+        event = await this.requireEvent(eventId);
+        inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: event.inquiryId } });
+        source = sourceId
+          ? await this.prisma.opsBillingSource.findUnique({ where: { id: sourceId } })
+          : await this.prisma.opsBillingSource.findFirst({ where: { eventId, status: 'approved' } });
 
-    const billingYear = event.eventDate.getFullYear();
-    const billingCount = await this.prisma.opsBillingStatement.count();
-    const billingNumber = `BS-${billingYear}-${String(billingCount + 1).padStart(4, '0')}`;
-    const storageKey = `events/${event.id}/billing/${billingNumber}.pdf`;
-    const lineItems = this.asBillingLineItems(source.lineItems);
-    const paymentSchedule = this.asBillingSchedule(source.paymentSchedule, source.totalAmount, event.eventDate);
-    const paymentMethods = this.asBillingMethods(source.paymentMethods);
+        if (!source || source.eventId !== eventId) throw new NotFoundException('Billing source not found');
+        if (source.status !== 'approved') {
+          throw new BadRequestException('Billing source must be approved before generating a billing statement');
+        }
 
-    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const billingDocument = await tx.opsDocument.create({
-        data: {
-          id: `doc_${randomUUID()}`,
-          eventId: event.id,
-          type: 'billing_statement',
-          fileName: `${billingNumber}.pdf`,
-          status: 'generated',
-          mimeType: 'application/pdf',
-          storageBucket: 'document-vault',
-          storageKey,
-          uploadedByRole: 'system',
-        },
-      });
+        const billingYear = event.eventDate.getFullYear();
+        const billingCount = await this.prisma.opsBillingStatement.count();
+        billingNumber = `BS-${billingYear}-${String(billingCount + 1).padStart(4, '0')}`;
+        storageKey = `events/${event.id}/billing/${billingNumber}.pdf`;
+        lineItems = this.asBillingLineItems(source.lineItems);
+        paymentSchedule = this.asBillingSchedule(source.paymentSchedule, source.totalAmount, event.eventDate);
+        paymentMethods = this.asBillingMethods(source.paymentMethods);
+      },
+      write: () => {
+        if (!event || !source) throw new NotFoundException('Billing source not found');
 
-      const statement = await tx.opsBillingStatement.create({
-        data: {
-          id: `bill_${randomUUID()}`,
-          eventId,
-          sourceId: source.id,
-          number: billingNumber,
-          clientName: inquiry?.clientName ?? event.clientName,
-          clientContact: inquiry?.email ?? '',
-          eventName: event.eventName,
-          eventDate: event.eventDate,
-          lineItems: toPrismaJson(lineItems),
-          paymentSchedule: toPrismaJson(paymentSchedule),
-          paymentMethods: toPrismaJson(paymentMethods),
-          totalAmount: source.totalAmount,
-          documentId: billingDocument.id,
-          pdfUrl: `/documents/${storageKey}`,
-          storageKey,
-          status: 'issued',
-        },
-      });
+        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const billingDocument = await tx.opsDocument.create({
+            data: {
+              id: `doc_${randomUUID()}`,
+              eventId: event!.id,
+              type: 'billing_statement',
+              fileName: `${billingNumber}.pdf`,
+              status: 'generated',
+              mimeType: 'application/pdf',
+              storageBucket: 'document-vault',
+              storageKey,
+              uploadedByRole: 'system',
+            },
+          });
 
-      await tx.opsPaymentMilestone.createMany({
-        data: paymentSchedule.map((item) => ({
-          id: `pay_${randomUUID()}`,
-          eventId,
-          label: item.label,
-          percentage: item.percentage,
-          amount: item.amount,
-          amountPaid: 0,
-          remainingBalance: item.amount,
-          dueDate: parseDate(item.dueDate ?? isoDate(addDays(event.eventDate, -7))),
-          status: 'pending',
-        })),
-      });
+          const statement = await tx.opsBillingStatement.create({
+            data: {
+              id: `bill_${randomUUID()}`,
+              eventId,
+              sourceId: source!.id,
+              number: billingNumber,
+              clientName: inquiry?.clientName ?? event!.clientName,
+              clientContact: inquiry?.email ?? '',
+              eventName: event!.eventName,
+              eventDate: event!.eventDate,
+              lineItems: toPrismaJson(lineItems),
+              paymentSchedule: toPrismaJson(paymentSchedule),
+              paymentMethods: toPrismaJson(paymentMethods),
+              totalAmount: source!.totalAmount,
+              documentId: billingDocument.id,
+              pdfUrl: `/documents/${storageKey}`,
+              storageKey,
+              status: 'issued',
+            },
+          });
 
-      await tx.opsAuditLog.create({
-        data: {
-          id: `aud_${randomUUID()}`,
-          eventId,
-          actor: 'PMCM Admin',
-          action: `Generated billing statement ${billingNumber}`,
+          await tx.opsPaymentMilestone.createMany({
+            data: paymentSchedule.map((item) => ({
+              id: `pay_${randomUUID()}`,
+              eventId,
+              label: item.label,
+              percentage: item.percentage,
+              amount: item.amount,
+              amountPaid: 0,
+              remainingBalance: item.amount,
+              dueDate: parseDate(item.dueDate ?? isoDate(addDays(event!.eventDate, -7))),
+              status: 'pending',
+            })),
+          });
+
+          return statement;
+        });
+      },
+      sideEffects: async (statement) => {
+        await this.auditService.audit(eventId, actor.name, `Generated billing statement ${billingNumber}`, {
+          actorRole: actor.role,
+          actorEmail: actor.email,
           category: AuditCategory.Finance,
           actionType: AuditActionType.Create,
           affectedType: 'billing_statement',
           affectedId: statement.id,
           affectedLabel: billingNumber,
-          metadata: toPrismaJson({ sourceId: source.id, sourceLabel: source.sourceLabel, totalAmount: source.totalAmount }),
-        },
-      });
-
-      return statement;
+          metadata: { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount },
+        });
+      },
+      project: (statement) => this.mapBillingStatement(statement),
     });
-
-    return this.mapBillingStatement(result);
   }
 
-  async sendBillingStatement(eventId: string, billingId: string) {
-    await this.requireEvent(eventId);
-
-    const existing = await this.prisma.opsBillingStatement.findUnique({ where: { id: billingId } });
-    if (!existing || existing.eventId !== eventId) throw new NotFoundException('Billing statement not found');
-
-    const billing = await this.prisma.opsBillingStatement
-      .update({
-        where: { id: billingId },
-        data: { status: 'sent', sentAt: new Date() },
-      })
-      .catch(() => {
-        throw new NotFoundException('Billing statement not found');
-      });
-
-    await Promise.all([
-      this.auditService.audit(eventId, 'PMCM Admin', `Sent billing statement ${billing.number}`),
-      this.auditService.notify(eventId, billing.clientContact || billing.clientName || 'Client', `Billing statement ${billing.number} sent`, 'email'),
-      this.auditService.notify(eventId, billing.clientContact || billing.clientName || 'Client', `Billing statement ${billing.number} sent`, 'viber'),
-    ]);
-
-    return this.mapBillingStatement(billing);
+  async sendBillingStatement(eventId: string, billingId: string, actor: BillingActor = { name: 'PMCM Admin' }) {
+    return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<BillingOperationsService['mapBillingStatement']>>({
+      name: 'send_billing_statement',
+      eventId,
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        const existing = await this.prisma.opsBillingStatement.findUnique({ where: { id: billingId } });
+        if (!existing || existing.eventId !== eventId) throw new NotFoundException('Billing statement not found');
+      },
+      write: () =>
+        this.prisma.opsBillingStatement.update({
+          where: { id: billingId },
+          data: { status: 'sent', sentAt: new Date() },
+        }),
+      sideEffects: async (billing) => {
+        const recipient = billing.clientContact || billing.clientName || 'Client';
+        await Promise.all([
+          this.auditService.audit(eventId, actor.name, `Sent billing statement ${billing.number}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            category: AuditCategory.Finance,
+            actionType: AuditActionType.Update,
+            affectedType: 'billing_statement',
+            affectedId: billing.id,
+            affectedLabel: billing.number,
+          }),
+          this.notificationOutboxService.queue(eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
+          this.notificationOutboxService.queue(eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
+        ]);
+      },
+      project: (billing) => this.mapBillingStatement(billing),
+    });
   }
 
   mapBillingSource(source: OpsBillingSource) {
