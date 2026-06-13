@@ -1,5 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
+import {
+  nextPrismLifecycleStages,
+  type PrismLifecycleStage,
+} from '@prism/types';
 
 export const EventLifecycleStage = {
   Inquiry: 'inquiry',
@@ -10,20 +14,11 @@ export const EventLifecycleStage = {
   ClosureArchive: 'closure_archive',
 } as const;
 
-export type EventLifecycleStage = (typeof EventLifecycleStage)[keyof typeof EventLifecycleStage];
+export type EventLifecycleStage = PrismLifecycleStage;
 
 export type CloseGateResult = {
   ready: boolean;
   missingKeys: string[];
-};
-
-export const EVENT_LIFECYCLE_TRANSITIONS: Record<EventLifecycleStage, EventLifecycleStage[]> = {
-  [EventLifecycleStage.Inquiry]: [EventLifecycleStage.Conforme],
-  [EventLifecycleStage.Conforme]: [EventLifecycleStage.BriefingProposal],
-  [EventLifecycleStage.BriefingProposal]: [EventLifecycleStage.Planning],
-  [EventLifecycleStage.Planning]: [EventLifecycleStage.EventDay],
-  [EventLifecycleStage.EventDay]: [EventLifecycleStage.ClosureArchive],
-  [EventLifecycleStage.ClosureArchive]: [],
 };
 
 export class EventLifecycleService {
@@ -37,7 +32,7 @@ export class EventLifecycleService {
   }
 
   nextAllowedStages(stage: EventLifecycleStage): EventLifecycleStage[] {
-    return EVENT_LIFECYCLE_TRANSITIONS[stage];
+    return nextPrismLifecycleStages(stage);
   }
 
   assertCanTransition(from: EventLifecycleStage, to: EventLifecycleStage) {

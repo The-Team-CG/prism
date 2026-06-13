@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   PRISM_LIFECYCLE_STAGES,
+  PRISM_LIFECYCLE_TRANSITIONS,
   canClientAccessPortal,
   canCreateEventWorkspace,
+  nextPrismLifecycleStages,
   type PrismSampleState,
   type PrismEvent,
   type PrismFloorPlanDraft,
@@ -25,6 +27,12 @@ describe("P.R.I.S.M lifecycle contract", () => {
 
     const stage: PrismLifecycleStage = "planning";
     expect(stage).toBe("planning");
+  });
+
+  it("publishes lifecycle transition rules for role apps and API services", () => {
+    expect(PRISM_LIFECYCLE_TRANSITIONS.inquiry).toEqual(["conforme"]);
+    expect(PRISM_LIFECYCLE_TRANSITIONS.event_day).toEqual(["closure_archive"]);
+    expect(nextPrismLifecycleStages("closure_archive")).toEqual([]);
   });
 
   it("allows client portal access only after inquiry acceptance and signed conforme", () => {

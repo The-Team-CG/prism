@@ -9,6 +9,19 @@ export const PRISM_LIFECYCLE_STAGES = [
 
 export type PrismLifecycleStage = (typeof PRISM_LIFECYCLE_STAGES)[number];
 
+export const PRISM_LIFECYCLE_TRANSITIONS: Record<PrismLifecycleStage, PrismLifecycleStage[]> = {
+  inquiry: ["conforme"],
+  conforme: ["briefing_proposal"],
+  briefing_proposal: ["planning"],
+  planning: ["event_day"],
+  event_day: ["closure_archive"],
+  closure_archive: [],
+};
+
+export function nextPrismLifecycleStages(stage: PrismLifecycleStage): PrismLifecycleStage[] {
+  return PRISM_LIFECYCLE_TRANSITIONS[stage];
+}
+
 export type PrismInquiryGateStatus =
   | "new"
   | "pending_review"
