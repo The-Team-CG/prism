@@ -95,6 +95,19 @@ Until this gate passes, frontend implementation must stay inside bounded work qu
 | Owner C | Ethan | Make every external portal a narrow, safe action surface instead of a dashboard clone. | `apps/client`, `apps/supplier`, `apps/guest`, public inquiry, supplier application, guest access. |
 | Owner D | Anthony | Make the platform enforce trust: correct data, permissions, audit, files, notifications, lifecycle, and verification. | `apps/api`, Prisma, `packages/types`, `packages/api-client`, boundary checks, tests, docs. |
 
+## Cross-App Operating Model
+
+P.R.I.S.M works as one event operating system, but it is not one all-role frontend. The apps stay separate and collaborate through shared API contracts, lifecycle state, audit records, notifications, and event-scoped read models.
+
+| App | Product role | What it owns | How it works with the others |
+| --- | --- | --- | --- |
+| `apps/event` | PMCM/coordinator command app | Internal PMCM command, selected event workspace, official floorplan control, supplier decisions, staffing/live-ops, risk/change, billing corrections, closure/archive, audit/security cues. | Reads portal-submitted state from scoped API contracts, makes PMCM decisions, writes audited event state, and exposes only safe derived states back to portals. |
+| `apps/client` | Client portal | Accepted-inquiry/conforme-gated client actions, briefing/proposal visibility, client-safe documents, billing milestones, floorplan preferences/comments, closeout/testimonial actions. | Receives PMCM decisions and event status through client-safe contracts; submits preferences, files, approvals, and comments without mutating PMCM-only controls. |
+| `apps/supplier` | Supplier portal | Supplier application/status, quote requests, assigned event readiness, contract metadata, event-day supplier status, supplier-owned file/status updates. | Receives only assigned/application-scoped work; sends readiness and status updates back to PMCM for review in `apps/event`. |
+| `apps/guest` | Guest portal | Event-code access, consent, check-in state, event-day lightweight details, moderated feedback. | Uses event-code scoped contracts only; sends check-in and feedback signals back to PMCM without exposing client, supplier, billing, or internal PMCM data. |
+
+Cross-app completion means a user action in one app changes the appropriate shared event state and appears in the other apps only where that role is allowed to see it. It does not mean duplicating PMCM dashboards inside the portals or giving portals broad access to event workspace data.
+
 ## Operating Rules
 
 - Start each sprint with a one-hour planning review using this document, `docs/prism-v4/14-redesign-readiness-foundation.md`, and `docs/prism-v4/12-redesign-inventory.md`.
@@ -102,6 +115,8 @@ Until this gate passes, frontend implementation must stay inside bounded work qu
 - Keep one branch per owner per sprint when work can run independently: `codex/sprint-N-maxine`, `codex/sprint-N-francis`, `codex/sprint-N-ethan`, and `codex/sprint-N-anthony`.
 - Merge order is Anthony contracts/guards first, then Maxine shell/design rules, then Francis and Ethan app surfaces, then Anthony final verification/docs.
 - Do not add new broad sample-state reads, app-local literal `prism:*` keys, cross-role app imports, or PMCM-only data in external portals.
+- Do not merge the role apps into one shell. PMCM belongs in `apps/event`; client work belongs in `apps/client`; supplier work belongs in `apps/supplier`; guest work belongs in `apps/guest`.
+- Every cross-app workflow must name the source app, target app, shared contract, allowed role visibility, audit/notification behavior, and verification command before UI work starts.
 - Demo only work that passes the stated verification commands. Screens that cannot run because the local database is misconfigured must show the explicit API service-unavailable message and list the database fix as a blocker.
 - AI, QR scanning, production notification adapters, external auth, and real file storage stay gated unless this plan explicitly moves them into a spike.
 - Every executable task has exactly one DRI. Feature-family rows may list support or affected owners, but sprint tasks, backlog items, and closeout decisions must name one person who owns completion evidence.
@@ -117,6 +132,7 @@ This backlog turns the sprint plan into executable tasks. Each row has one DRI, 
 | T02 | Sprint 1 | Finalize the UI-enabling API contract audit and cutline. | Anthony | Maxine, Francis, Ethan | FL-003, FL-004, FL-006, FL-007, FL-010, FL-012, FL-014, FL-015, FL-024 | Contract gate table is updated with current coverage, missing contracts, sprint target, and explicit frontend restrictions. |
 | T03 | Sprint 1 | Choose the first PMCM demo path and identify coupled areas to avoid in Sprint 2. | Francis | Maxine, Anthony | FL-001, FL-002, FL-003, FL-017 | PMCM demo path names route, read model, actions, gates, and verification commands. |
 | T04 | Sprint 1 | Choose the first portal demo path and portal surfaces for Sprint 3. | Ethan | Maxine, Anthony | FL-004, FL-020, FL-022, FL-012 | Portal demo path names client, supplier, and guest route targets with role-boundary notes. |
+| T04A | Sprint 1 | Map the first cross-app handoff from PMCM to each portal and back. | Anthony | Francis, Ethan, Maxine | FL-002, FL-004, FL-006, FL-007, FL-011, FL-012, FL-020, FL-022, FL-024 | Each handoff names source app, target app, API contract, allowed fields, audit/notification expectation, and route-level verification. |
 | T05 | Sprint 2 | Define normalized error, empty-state, pagination, and filter/sort contracts before advanced frontend patterns. | Anthony | Maxine, Francis, Ethan | FL-003, FL-004, FL-006, FL-007, FL-010, FL-015, FL-024 | Shared types/API-client changes or documented gates exist; typecheck and focused API-client tests pass. |
 | T06 | Sprint 2 | Deliver shared shell/state-language rules through the first PMCM and client surfaces. | Maxine | Francis, Ethan | FL-016, FL-017, FL-020 | UX brief is updated; banned visual patterns are checked; PMCM/client surfaces use the agreed hierarchy. |
 | T07 | Sprint 2 | Ship the PMCM Event Command Inbox and selected-event summary slice. | Francis | Anthony, Maxine | FL-001, FL-002, FL-003, FL-017 | `/dashboard`, `/dashboard/events`, and one selected event workspace route render; PMCM-only actions remain scoped. |
@@ -268,6 +284,7 @@ Turn readiness into execution inputs: named owner responsibilities, exact sprint
 
 - [ ] Review `apps/event/src/app/dashboard/EventDashboardClient.tsx` and extracted modules under `apps/event/src/app/components/pmcm` and `apps/event/src/features/event-dashboard`.
 - [ ] Choose the Sprint 2 PMCM surface: Event Command Inbox plus selected-event summary.
+- [ ] List which PMCM decisions must appear in portals as safe derived state: conforme status, file requirement status, official floorplan snapshot, supplier readiness, guest check-in, billing milestone, and closure/readiness evidence.
 - [ ] Identify which unfinished PMCM features must appear in the July demo path: inquiry triage, PMCM command, supplier readiness, coordinator/live-ops, billing, risk/change, floorplan, closure, and audit/privacy cues.
 - [ ] List the event app sections that remain too coupled for Sprint 2: finance, files, closure/archive, coordinator replacement, live-ops board, and settings.
 - [ ] Create acceptance notes for the PMCM slice: PMCM-only visibility, selected event remains stable, command actions are route-safe, and loading states do not flash incorrect role data.
@@ -276,6 +293,7 @@ Turn readiness into execution inputs: named owner responsibilities, exact sprint
 
 - [ ] Review `apps/client`, `apps/supplier`, and `apps/guest` route inventory from `docs/prism-v4/12-redesign-inventory.md`.
 - [ ] Choose one thin Sprint 2 portal surface: client action center shell with safe event status and next actions.
+- [ ] List which portal actions must flow back into PMCM as event state: client file/preference/approval submissions, supplier readiness/status updates, guest check-in/feedback, and closeout/testimonial actions.
 - [ ] Identify which unfinished portal features must appear in the July completion path: client action center, client-safe documents/billing/floorplan summary, supplier readiness, supplier application/status, guest access/check-in, and moderated feedback.
 - [ ] List Sprint 3 portal surfaces: supplier readiness board, guest access/check-in, client event workspace documents/billing/floorplan summary.
 - [ ] Create portal acceptance notes: no PMCM-only data, no official floorplan editing from client, supplier sees only assigned/application-scoped records, guest stays access-code scoped.
@@ -285,6 +303,7 @@ Turn readiness into execution inputs: named owner responsibilities, exact sprint
 - [ ] Verify `npm run check:boundaries` and `node --test scripts\check-prism-boundaries.test.mjs` still pass after the calendar doc is added.
 - [ ] Document the local database blocker and exact recovery command in `docs/prism-v4/14-redesign-readiness-foundation.md`: `npm --workspace prism-api run db:doctor:runtime`.
 - [ ] Translate incomplete feature rows from `docs/prism-v4/11-feature-ledger.md` into the Sprint 2-4 contract/test cutline, especially files, notifications, privacy, floorplan eligibility, guest access, supplier readiness, and billing.
+- [ ] Define the first cross-app handoff contract checklist: source app, actor role, target app, event ID/access scope, fields allowed, fields forbidden, audit event, notification event, empty/error states, and verification command.
 - [ ] Identify missing typed response shapes needed by Sprint 2: PMCM command summary, selected-event summary, client action card, shared status vocabulary.
 - [ ] Finalize the UI-enabling API contract gate: pagination/result envelopes, filtering/sorting, upload sessions/file rules, normalized errors, empty-state reasons, and bulk/action responses.
 - [ ] Mark which frontend patterns are allowed before the gate passes: bounded queues, known-small lists, simple local filters, metadata upload flows, and no generalized grid/upload/bulk manager.
@@ -299,6 +318,7 @@ Turn readiness into execution inputs: named owner responsibilities, exact sprint
 - [ ] July treatment labels are assigned for every feature family: accept as existing, finish, thin slice, gate, or post-July.
 - [ ] UI-enabling API contract gate is approved, and any frontend work that would violate it is moved to a later sprint or marked gated.
 - [ ] Single-owner task backlog is reviewed so every executable task has exactly one DRI and one completion evidence line.
+- [ ] Cross-app handoff checklist is approved for PMCM -> client, client -> PMCM, PMCM -> supplier, supplier -> PMCM, PMCM -> guest, and guest -> PMCM flows.
 - [ ] Sprint 2 backlog is small enough for four people to complete in two weeks without each person owning more than one primary surface.
 
 ### Sprint 1 Scope Cuts
@@ -358,6 +378,7 @@ Implement the first reusable design and workflow foundation: shared shell rules,
 - [ ] PMCM command surface is visibly more focused and still PMCM-only.
 - [ ] Client action center has a clear next-action hierarchy and does not expose PMCM internals.
 - [ ] Shared UI work stays presentation-only.
+- [ ] At least one PMCM-to-client or client-to-PMCM handoff is visible through shared API state without merging the apps or leaking PMCM-only fields.
 - [ ] Any frontend pagination, filtering, sorting, upload, error, empty-state, or bulk/action behavior is either backed by the shared contract gate or explicitly kept out of Sprint 2.
 - [ ] FL-017 and FL-020 are real working slices, and FL-001, FL-002, FL-006, and FL-024 have a working slice or a documented gate.
 - [ ] Boundary checks catch forbidden broad sample-state and magic storage-key coupling.
@@ -429,6 +450,7 @@ Deepen and complete the main role workflows before feature freeze: PMCM selected
 - [ ] One selected-event workspace area is easier to redesign independently.
 - [ ] Supplier readiness and event-day status are clearer and scoped.
 - [ ] Guest access/check-in is lightweight, consent-aware, and event-code scoped.
+- [ ] Supplier and guest portal updates can be reviewed from PMCM through scoped event state, while supplier and guest users cannot see PMCM workspace data.
 - [ ] Client event summary changes do not grant floorplan edit access.
 - [ ] FL-007, FL-011, FL-012, and FL-022 have working July slices; FL-008, FL-009, FL-010, FL-023, and FL-025 are either working slices or explicitly gated.
 - [ ] Tests cover the highest-risk role boundaries touched in the sprint.
@@ -552,6 +574,7 @@ Add `npm run build` only after local environment blockers are resolved or when a
 - [ ] Phase 1 shell/design foundation is represented in at least one PMCM surface and one portal surface.
 - [ ] PMCM command/event workspace work is decomposed enough for continued parallel development.
 - [ ] Client, supplier, and guest portal direction is clear and role-safe.
+- [ ] PMCM and portals demonstrably work together through shared event state, not shared dashboards or cross-role imports.
 - [ ] All partial/planned feature families from the ledger have a July 31 outcome: working slice, documented gate, deferred slice, or post-July task.
 - [ ] Shared contracts and boundary checks guard future work.
 - [ ] Demo path and screenshots are current.
