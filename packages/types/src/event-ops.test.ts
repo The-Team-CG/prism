@@ -5,6 +5,7 @@ import {
   canClientAccessPortal,
   canCreateEventWorkspace,
   nextPrismLifecycleStages,
+  type PrismPmcmDashboardWorkspace,
   type PrismSampleState,
   type PrismEvent,
   type PrismFloorPlanDraft,
@@ -167,7 +168,9 @@ describe("event-ops shared read model types", () => {
       notificationLogs: [],
     } satisfies PrismSampleState;
 
+    const pmcmWorkspace: PrismPmcmDashboardWorkspace = state;
     expect(state.events[0]?.id).toBe("evt_1");
+    expect(pmcmWorkspace.events[0]?.id).toBe("evt_1");
     expect(state.suppliers[0]?.tier).toBe("tier_1");
   });
 });

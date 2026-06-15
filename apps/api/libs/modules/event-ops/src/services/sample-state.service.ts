@@ -36,6 +36,8 @@ export class SampleStateService {
   constructor(private readonly prisma: PrismaService) {}
 
   async state(context: SampleStateContext) {
+    this.assertSampleCompatibilityEnabled('state read');
+
     await context.runConformeReminderSweep();
     await context.runPaymentRiskSweep();
 
@@ -123,9 +125,7 @@ export class SampleStateService {
   }
 
   async resetSample(seedSample: () => Promise<void>, readState: () => Promise<unknown>) {
-    if (process.env.NODE_ENV === 'production' && process.env.PRISM_ALLOW_SAMPLE_RESET !== '1') {
-      throw new ForbiddenException('Sample reset is disabled in production');
-    }
+    this.assertSampleCompatibilityEnabled('reset');
 
     await this.prisma.$transaction(async (tx) => {
       const draftFloorPlanIds = (
@@ -176,7 +176,20 @@ export class SampleStateService {
   }
 
   async seedSampleState(ensureSeeded: () => Promise<void>, readState: () => Promise<unknown>) {
+    this.assertSampleCompatibilityEnabled('seed');
+
     await ensureSeeded();
     return readState();
+  }
+
+  private assertSampleCompatibilityEnabled(action: string) {
+    const legacyResetOverride = action === 'reset' && process.env.PRISM_ALLOW_SAMPLE_RESET === '1';
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.PRISM_ALLOW_SAMPLE_STATE !== '1' &&
+      !legacyResetOverride
+    ) {
+      throw new ForbiddenException(`Sample ${action} is disabled in production`);
+    }
   }
 }

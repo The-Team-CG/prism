@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { SampleActorDto } from '../dto/event-ops.dto';
 import { EventOpsService } from '../event-ops.service';
 
@@ -9,5 +9,15 @@ export class OpsPmcmDashboardController {
   @Get('dashboard')
   dashboard(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listPmcmDashboard(actor);
+  }
+
+  @Get('command-inbox')
+  commandInbox(@Query() actor: SampleActorDto) {
+    return this.eventOpsService.listPmcmCommandInbox(actor);
+  }
+
+  @Get('events/:eventId/workspace')
+  eventWorkspace(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
+    return this.eventOpsService.getPmcmEventWorkspace(eventId, actor);
   }
 }

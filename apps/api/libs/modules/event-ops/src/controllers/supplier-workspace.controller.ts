@@ -58,6 +58,11 @@ export class OpsSupplierWorkspaceController {
     return this.eventOpsService.listSupplierWorkspace(actor);
   }
 
+  @Get('readiness-board')
+  readinessBoard(@Query() actor: SampleActorDto) {
+    return this.eventOpsService.listSupplierReadinessBoard(actor);
+  }
+
   @Patch('quote-requests/:requestId/assignment/confirm')
   confirmAssignment(@Param('requestId') requestId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.confirmSupplierAssignment(requestId, actor);

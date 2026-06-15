@@ -1,3 +1,5 @@
+import { PRISM_LEGACY_SESSION_STORAGE_KEYS } from "@prism/types";
+
 export type MockUserRole = "admin" | "planner" | "client";
 export type MockApprovalStatus = "approved" | "pending";
 
@@ -41,5 +43,7 @@ export const MOCK_AUTH_USERS: MockAuthUser[] = [
   },
 ];
 
-export const MOCK_AUTH_SESSION_KEY = "prism:mock-auth-session";
-export const MOCK_AUTH_REQUESTS_KEY = "prism:mock-auth-requests";
+/** @deprecated Use PRISM_SESSION_STORAGE_KEYS.client for new client portal session work. */
+export const MOCK_AUTH_SESSION_KEY = PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth;
+/** @deprecated Approval requests should move to API-backed auth operations. */
+export const MOCK_AUTH_REQUESTS_KEY = PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuthRequests;

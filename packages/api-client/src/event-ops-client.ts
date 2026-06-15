@@ -1,12 +1,17 @@
 import type {
   PrismBillingWorkspace,
+  PrismClientActionCenter,
   PrismClientWorkspace,
   PrismEvent,
   PrismFileRequirementsMatrix,
+  PrismGuestEventPass,
   PrismInquiry,
+  PrismPmcmCommandInbox,
   PrismPmcmDashboardWorkspace,
+  PrismPmcmEventWorkspace,
   PrismSampleState,
   PrismEventOpsActorContext,
+  PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
 } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
@@ -46,6 +51,11 @@ function actorPath(path: string, actor: EventOpsActorQuery = {}): string {
 }
 
 export interface EventOpsClient {
+  /**
+   * @deprecated Compatibility-only seed/demo aggregate. New role app work must
+   * use scoped clients such as clientWorkspace, supplierWorkspace,
+   * pmcmDashboard, events, billing, and inquiries.
+   */
   sample: {
     state(): Promise<PrismSampleState>;
     reset(): Promise<PrismSampleState>;
@@ -62,15 +72,24 @@ export interface EventOpsClient {
   };
   clientWorkspace: {
     detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
+    actionCenter(actor?: EventOpsActorQuery): Promise<PrismClientActionCenter>;
   };
   supplierWorkspace: {
     detail(actor?: EventOpsActorQuery): Promise<PrismSupplierWorkspace>;
+    readinessBoard(actor?: EventOpsActorQuery): Promise<PrismSupplierReadinessBoard>;
   };
   billing: {
     list(actor?: EventOpsActorQuery): Promise<PrismBillingWorkspace>;
   };
   pmcmDashboard: {
     detail(actor?: EventOpsActorQuery): Promise<PrismPmcmDashboardWorkspace>;
+  };
+  pmcm: {
+    commandInbox(actor?: EventOpsActorQuery): Promise<PrismPmcmCommandInbox>;
+    eventWorkspace(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPmcmEventWorkspace>;
+  };
+  guest: {
+    eventPass(accessCode: string): Promise<PrismGuestEventPass>;
   };
 }
 
@@ -97,10 +116,14 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     },
     clientWorkspace: {
       detail: (actor = {}) => prismRequest<PrismClientWorkspace>(actorPath("/client/workspace", actor), withBase(options)),
+      actionCenter: (actor = {}) =>
+        prismRequest<PrismClientActionCenter>(actorPath("/client/action-center", actor), withBase(options)),
     },
     supplierWorkspace: {
       detail: (actor = {}) =>
         prismRequest<PrismSupplierWorkspace>(actorPath("/supplier/workspace", actor), withBase(options)),
+      readinessBoard: (actor = {}) =>
+        prismRequest<PrismSupplierReadinessBoard>(actorPath("/supplier/readiness-board", actor), withBase(options)),
     },
     billing: {
       list: (actor = {}) => prismRequest<PrismBillingWorkspace>(actorPath("/billing", actor), withBase(options)),
@@ -108,6 +131,16 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     pmcmDashboard: {
       detail: (actor = {}) =>
         prismRequest<PrismPmcmDashboardWorkspace>(actorPath("/pmcm/dashboard", actor), withBase(options)),
+    },
+    pmcm: {
+      commandInbox: (actor = {}) =>
+        prismRequest<PrismPmcmCommandInbox>(actorPath("/pmcm/command-inbox", actor), withBase(options)),
+      eventWorkspace: (eventId, actor = {}) =>
+        prismRequest<PrismPmcmEventWorkspace>(actorPath(`/pmcm/events/${eventId}/workspace`, actor), withBase(options)),
+    },
+    guest: {
+      eventPass: (accessCode) =>
+        prismRequest<PrismGuestEventPass>(`/guest/events/${encodeURIComponent(accessCode)}`, withBase(options)),
     },
   };
 }

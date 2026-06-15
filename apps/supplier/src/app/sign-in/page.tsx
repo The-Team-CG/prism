@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, PackageCheck, Shield, ShieldCheck } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
+import { PRISM_SESSION_STORAGE_KEYS, readPrismSession, savePrismSession } from "@prism/types";
 import { Input } from "@/app/components/ui/input";
 
 type SupplierSession = {
@@ -16,7 +17,7 @@ type SupplierSession = {
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const SESSION_KEY = "prism:supplier-session";
+const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;
 const API_OFFLINE_MESSAGE =
   "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 const PRIVACY_NOTICE_VERSION = "2026-05-01";
@@ -41,11 +42,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function readSession() {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(SESSION_KEY);
-  if (!raw) return null;
-  try { return JSON.parse(raw) as SupplierSession; }
-  catch { window.localStorage.removeItem(SESSION_KEY); return null; }
+  return readPrismSession<SupplierSession>(SESSION_KEY);
 }
 
 const sampleAccounts = [
@@ -89,7 +86,7 @@ export default function SupplierSignIn() {
         return;
       }
       const session = { ...user, signedInAt: new Date().toISOString() };
-      window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      savePrismSession(SESSION_KEY, session);
       const next = new URLSearchParams(window.location.search).get("next");
       router.replace(next?.startsWith("/") ? next : "/dashboard");
     } catch (err) {

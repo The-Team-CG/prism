@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
-import { prismApi, type PrismSampleState, type PrismUser } from "@/lib/prism-api";
+import { PRISM_LEGACY_SESSION_STORAGE_KEYS, PRISM_SESSION_STORAGE_KEYS, readPrismSession } from "@prism/types";
+import { prismApi, type PrismClientActionCenter, type PrismClientWorkspace, type PrismUser } from "@/lib/prism-api";
 import { dashboardHref } from "./client-dashboard.navigation";
 import type { ClientDashboardRoute, ClientPortalView } from "./client-dashboard.types";
 
 export type ClientSession = PrismUser & { signedInAt: string };
 
 const CLIENT_STATE_CACHE_MS = 30_000;
-const clientStateCache = new Map<string, { state: PrismSampleState; loadedAt: number }>();
-const clientStateRequests = new Map<string, Promise<PrismSampleState>>();
+const clientStateCache = new Map<string, { state: PrismClientWorkspace; loadedAt: number }>();
+const clientStateRequests = new Map<string, Promise<PrismClientWorkspace>>();
+const clientActionCenterCache = new Map<string, { actionCenter: PrismClientActionCenter; loadedAt: number }>();
+const clientActionCenterRequests = new Map<string, Promise<PrismClientActionCenter>>();
 
 function clientStateCacheKey(session: Pick<PrismUser, "email">) {
   return session.email.trim().toLowerCase();
@@ -21,20 +23,18 @@ function getCachedClientState(session: Pick<PrismUser, "email">) {
   return clientStateCache.get(clientStateCacheKey(session));
 }
 
+function getCachedClientActionCenter(session: Pick<PrismUser, "email">) {
+  return clientActionCenterCache.get(clientStateCacheKey(session));
+}
+
 function isFresh(loadedAt: number, ttl: number) {
   return Date.now() - loadedAt < ttl;
 }
 
 function readSession(): ClientSession | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(MOCK_AUTH_SESSION_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as ClientSession;
-  } catch {
-    window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
-    return null;
-  }
+  return readPrismSession<ClientSession>(PRISM_SESSION_STORAGE_KEYS.client, {
+    legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
+  });
 }
 
 async function loadClientState(session: Pick<PrismUser, "email" | "name">, force = false) {
@@ -60,6 +60,29 @@ async function loadClientState(session: Pick<PrismUser, "email" | "name">, force
   return request;
 }
 
+async function loadClientActionCenter(session: Pick<PrismUser, "email" | "name">, force = false) {
+  const key = clientStateCacheKey(session);
+
+  if (!force) {
+    const cached = clientActionCenterCache.get(key);
+    if (cached && isFresh(cached.loadedAt, CLIENT_STATE_CACHE_MS)) return cached.actionCenter;
+
+    const existing = clientActionCenterRequests.get(key);
+    if (existing) return existing;
+  }
+
+  const request = prismApi
+    .clientActionCenter(session)
+    .then((next) => {
+      clientActionCenterCache.set(key, { actionCenter: next, loadedAt: Date.now() });
+      return next;
+    })
+    .finally(() => clientActionCenterRequests.delete(key));
+
+  clientActionCenterRequests.set(key, request);
+  return request;
+}
+
 export function useClientDashboardState({
   route,
   eventId,
@@ -71,7 +94,8 @@ export function useClientDashboardState({
 }) {
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
-  const [state, setState] = useState<PrismSampleState | null>(null);
+  const [actionCenter, setActionCenter] = useState<PrismClientActionCenter | null>(null);
+  const [state, setState] = useState<PrismClientWorkspace | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,13 +103,18 @@ export function useClientDashboardState({
     let cancelled = false;
     const current = readSession();
     if (!current) {
+      setActionCenter(null);
+      setState(null);
       router.replace(`/sign-in?next=${encodeURIComponent(dashboardHref(route, eventId, portalView))}`);
       return;
     }
     setSession(current);
-    if (current.role !== "client") return;
+    if (current.role !== "client") {
+      setActionCenter(null);
+      return;
+    }
 
-    const applyState = (next: PrismSampleState) => {
+    const applyState = (next: PrismClientWorkspace) => {
       if (cancelled) return;
       setState(next);
       setError(null);
@@ -95,20 +124,31 @@ export function useClientDashboardState({
       setSelectedEventId(eventId ?? firstClientEvent?.id ?? null);
     };
 
+    const applyActionCenter = (next: PrismClientActionCenter) => {
+      if (cancelled) return;
+      setActionCenter(next);
+    };
+
     const cached = getCachedClientState(current);
     if (cached) {
       applyState(cached.state);
-      if (isFresh(cached.loadedAt, CLIENT_STATE_CACHE_MS)) {
-        return () => {
-          cancelled = true;
-        };
-      }
     }
+    const cachedActionCenter = getCachedClientActionCenter(current);
+    if (cachedActionCenter) applyActionCenter(cachedActionCenter.actionCenter);
 
-    loadClientState(current, !cached)
+    const stateIsFresh = Boolean(cached && isFresh(cached.loadedAt, CLIENT_STATE_CACHE_MS));
+    const actionCenterIsFresh = Boolean(cachedActionCenter && isFresh(cachedActionCenter.loadedAt, CLIENT_STATE_CACHE_MS));
+
+    if (!stateIsFresh) loadClientState(current, !cached)
       .then(applyState)
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load client portal");
+      });
+
+    if (!actionCenterIsFresh) loadClientActionCenter(current, !cachedActionCenter)
+      .then(applyActionCenter)
+      .catch(() => {
+        if (!cancelled) setActionCenter(null);
       });
 
     return () => {
@@ -118,11 +158,16 @@ export function useClientDashboardState({
 
   const refresh = useCallback(async () => {
     if (!session) return;
-    const next = await loadClientState(session, true);
+    const [next, nextActionCenter] = await Promise.all([
+      loadClientState(session, true),
+      loadClientActionCenter(session, true).catch(() => null),
+    ]);
     setState(next);
+    setActionCenter(nextActionCenter);
   }, [session]);
 
   return {
+    actionCenter,
     error,
     refresh,
     selectedEventId,

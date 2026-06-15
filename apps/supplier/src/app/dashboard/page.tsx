@@ -33,17 +33,19 @@ import { Input } from "@/app/components/ui/input";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { PrismDashboardShell } from "@prism/ui";
+import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, readPrismSession } from "@prism/types";
 import {
   prismApi,
   type PrismSupplier,
   type PrismSupplierCertification,
   type PrismSupplierQuote,
   type PrismSupplierQuoteRequest,
+  type PrismSupplierReadinessBoard,
   type SupplierSession,
   type SupplierWorkspace,
 } from "@/lib/prism-api";
 
-const SESSION_KEY = "prism:supplier-session";
+const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;
 
 type Section =
   | "dashboard"
@@ -91,11 +93,7 @@ const EVENT_STATUS_ACTIONS = [
 /* ── Helpers ─────────────────────────────────────────────────── */
 
 function readSession(): SupplierSession | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(SESSION_KEY);
-  if (!raw) return null;
-  try { return JSON.parse(raw) as SupplierSession; }
-  catch { window.localStorage.removeItem(SESSION_KEY); return null; }
+  return readPrismSession<SupplierSession>(SESSION_KEY);
 }
 
 function fmt(value: string) { return value.replaceAll("_", " "); }
@@ -115,6 +113,13 @@ function isPastDate(value?: string | null) {
   if (!value) return false;
   const p = new Date(value);
   return !Number.isNaN(p.getTime()) && p.getTime() < Date.now();
+}
+
+function readinessTone(priority: string) {
+  if (priority === "critical") return "border-(--prism-danger)/25 bg-(--prism-danger)/8 text-(--prism-danger)";
+  if (priority === "warning") return "border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)";
+  if (priority === "attention") return "border-(--prism-signal)/20 bg-(--prism-signal-soft) text-(--prism-signal)";
+  return "border-border bg-muted text-muted-foreground";
 }
 
 function initialForm(quote?: PrismSupplierQuote): QuoteFormState {
@@ -163,7 +168,7 @@ function StatCell({
 function DashboardPage({
   session, workspace, quoteByRequest, openRequests, selectedRequests,
   selectedQuotes, quoteNeedingSubmission, handoffPending, needsActionCount,
-  eventsThisMonth, onNavigate,
+  eventsThisMonth, readinessBoard, onNavigate,
 }: {
   session: SupplierSession;
   workspace: SupplierWorkspace;
@@ -175,6 +180,7 @@ function DashboardPage({
   handoffPending: number;
   needsActionCount: number;
   eventsThisMonth: number;
+  readinessBoard: PrismSupplierReadinessBoard | null;
   onNavigate: (s: Section) => void;
 }) {
   const h = new Date().getHours();
@@ -221,6 +227,50 @@ function DashboardPage({
         <StatCell label="Active bookings" value={selectedQuotes.length} sub={handoffPending ? `${handoffPending} handoff pending` : "Handoff clear"} icon={BadgeCheck} accent={handoffPending > 0} />
         <StatCell label="Events this month" value={eventsThisMonth} icon={CalendarClock} />
       </div>
+
+      {readinessBoard && (
+        <Card>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <SectionAccent>Readiness board</SectionAccent>
+              <h2 className="mt-1 text-lg font-black text-foreground">Supplier-scoped handoff state</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Quote, assignment, contract, readiness, and event-day status from the shared API contract.
+              </p>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              {(["critical", "warning", "attention", "info"] as const).map((key) => (
+                <span key={key} className={`rounded-xl border px-3 py-2 ${readinessTone(key)}`}>
+                  <span className="block text-base font-black">{readinessBoard.counts[key]}</span>
+                  <span className="capitalize">{fmt(key)}</span>
+                </span>
+              ))}
+            </div>
+          </CardHeader>
+          <CardBody className="grid gap-3">
+            {readinessBoard.items.length ? readinessBoard.items.slice(0, 4).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onNavigate(item.quoteStatus === "selected" ? "bookings" : "requests")}
+                className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-(--prism-signal)/30 hover:bg-muted/35"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-black text-foreground">{item.eventName ?? "Assigned event"}</span>
+                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                    {item.category} · quote {fmt(item.quoteStatus)} · assignment {fmt(item.assignmentStatus ?? "pending")} · readiness {fmt(item.readinessStatus ?? "not confirmed")}
+                  </span>
+                </span>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${readinessTone(item.priority)}`}>
+                  {fmt(item.priority)}
+                </span>
+              </button>
+            )) : (
+              <p className="text-sm text-muted-foreground">No supplier readiness items are open.</p>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       {/* Quick nav cards */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -887,6 +937,7 @@ export default function SupplierDashboard() {
   const router = useRouter();
   const [session, setSession] = useState<SupplierSession | null>(null);
   const [workspace, setWorkspace] = useState<SupplierWorkspace | null>(null);
+  const [readinessBoard, setReadinessBoard] = useState<PrismSupplierReadinessBoard | null>(null);
   const [section, setSection] = useState<Section>("dashboard");
   const [forms, setForms] = useState<Record<string, QuoteFormState>>({});
   const [readinessNotes, setReadinessNotes] = useState<Record<string, string>>({});
@@ -906,8 +957,12 @@ export default function SupplierDashboard() {
     if (!current) return;
     setError(null);
     try {
-      const next = await prismApi.supplierWorkspace(current);
+      const [next, nextReadinessBoard] = await Promise.all([
+        prismApi.supplierWorkspace(current),
+        prismApi.supplierReadinessBoard(current).catch(() => null),
+      ]);
       setWorkspace(next);
+      setReadinessBoard(nextReadinessBoard);
       setForms((existing) => {
         const qbr = new Map(next.supplierQuotes.map((q) => [q.requestId, q]));
         const merged: Record<string, QuoteFormState> = {};
@@ -945,7 +1000,10 @@ export default function SupplierDashboard() {
   const handoffPending = selectedRequests.filter(
     (r) => r.assignmentStatus !== "confirmed" || r.readinessStatus !== "confirmed" || !r.contractDocumentId,
   ).length;
-  const needsActionCount = quoteNeedingSubmission + handoffPending;
+  const readinessNeedsActionCount = readinessBoard
+    ? readinessBoard.counts.critical + readinessBoard.counts.warning + readinessBoard.counts.attention
+    : quoteNeedingSubmission + handoffPending;
+  const needsActionCount = readinessNeedsActionCount;
 
   const eventsThisMonth = useMemo(() => {
     const now = new Date();
@@ -1011,7 +1069,7 @@ export default function SupplierDashboard() {
     );
   }
 
-  const signOut = () => { window.localStorage.removeItem(SESSION_KEY); router.replace("/sign-in"); };
+  const signOut = () => { clearPrismSession(SESSION_KEY); router.replace("/sign-in"); };
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: Warehouse, badge: needsActionCount || undefined },
@@ -1055,7 +1113,7 @@ export default function SupplierDashboard() {
       searchPlaceholder="Search quotes, requests…"
       commandActions={[
         { id: "requests", label: quoteNeedingSubmission ? `${quoteNeedingSubmission} quote(s) need submission` : `${openRequests.length} open request(s)`, description: "Submit or revise before the deadline.", icon: ClipboardList, status: quoteNeedingSubmission ? "pending" : "completed", onSelect: () => setSection("requests") },
-        { id: "bookings", label: handoffPending ? "Booking handoff needs action" : "Handoff is clear", description: "Confirm assignment, readiness, and contract.", icon: PackageCheck, status: handoffPending ? "pending" : "confirmed", onSelect: () => setSection("bookings") },
+        { id: "bookings", label: handoffPending ? "Booking handoff needs action" : readinessBoard ? `${readinessBoard.counts.info} readiness item(s) monitored` : "Handoff is clear", description: "Confirm assignment, readiness, and contract.", icon: PackageCheck, status: handoffPending || readinessNeedsActionCount ? "pending" : "confirmed", onSelect: () => setSection("bookings") },
       ]}
       onSignOut={signOut}
       headerActions={
@@ -1088,7 +1146,7 @@ export default function SupplierDashboard() {
             openRequests={openRequests} selectedRequests={selectedRequests}
             selectedQuotes={selectedQuotes} quoteNeedingSubmission={quoteNeedingSubmission}
             handoffPending={handoffPending} needsActionCount={needsActionCount}
-            eventsThisMonth={eventsThisMonth} onNavigate={setSection}
+            eventsThisMonth={eventsThisMonth} readinessBoard={readinessBoard} onNavigate={setSection}
           />
         )}
 

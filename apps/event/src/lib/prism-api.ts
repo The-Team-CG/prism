@@ -36,7 +36,9 @@ import type {
   PrismNotificationLog,
   PrismPaymentMilestone,
   PrismPaymentRecord,
+  PrismPmcmCommandInbox,
   PrismPmcmDashboardWorkspace,
+  PrismPmcmEventWorkspace,
   PrismPostEventDocument,
   PrismPrivacyInventory,
   PrismPrivacyRequest,
@@ -89,7 +91,9 @@ export type {
   PrismNotificationLog,
   PrismPaymentMilestone,
   PrismPaymentRecord,
+  PrismPmcmCommandInbox,
   PrismPmcmDashboardWorkspace,
+  PrismPmcmEventWorkspace,
   PrismPostEventDocument,
   PrismPrivacyInventory,
   PrismPrivacyRequest,
@@ -396,6 +400,18 @@ function withCoordinatorActor(path: string, session: { name: string; email: stri
 export const prismApi = {
   pmcmState: () =>
     eventOpsClient.pmcmDashboard.detail({
+      actorRole: "pmcm-admin",
+      actorName: "Ms. Mys",
+      actorEmail: "mys@pmcm.test",
+    }),
+  pmcmCommandInbox: () =>
+    eventOpsClient.pmcm.commandInbox({
+      actorRole: "pmcm-admin",
+      actorName: "Ms. Mys",
+      actorEmail: "mys@pmcm.test",
+    }),
+  pmcmEventWorkspace: (eventId: string) =>
+    eventOpsClient.pmcm.eventWorkspace(eventId, {
       actorRole: "pmcm-admin",
       actorName: "Ms. Mys",
       actorEmail: "mys@pmcm.test",

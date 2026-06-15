@@ -15,7 +15,8 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 | `docs/prism-v4/11-feature-ledger.md` | Active feature-family decisions, ownership, phase placement, and verification requirements. |
 | `docs/prism-v4/12-redesign-inventory.md` | Whole-app route inventory with redesign severity and role boundaries. |
 | `docs/prism-v4/13-docs-cleanup-checklist.md` | Documentation hygiene rules, retired artifacts, and verification commands. |
-| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan. |
+| `docs/prism-v4/14-redesign-readiness-foundation.md` | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
+| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan, including Owner A-D system goals. |
 
 ## Monorepo Layout
 
@@ -65,6 +66,9 @@ Individual app defaults:
 - Shared request wrappers belong in `packages/api-client`.
 - Shared presentation primitives belong in `packages/ui`.
 - Role apps must not import each other's internals.
+- `/api/sample/state` and local sample state are compatibility-only for seed/demo/reset paths; new app work should use scoped APIs.
+- Session and sample storage keys belong in `@prism/types`; role apps should not add new literal `prism:*` storage keys.
+- Redesign work should name the owner system goal it advances: Owner A for product/UX coherence, Owner B for PMCM/coordinator operability, Owner C for safe external portals, and Owner D for platform trust.
 
 Check import boundaries before merging architectural refactors:
 

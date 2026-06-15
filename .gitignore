@@ -43,6 +43,7 @@ prism-guest/
 .claude/
 .codex/
 .github/skills/
+.tmp/
 .tmp-pmcm-standalone-assets/
 
 # Environment files

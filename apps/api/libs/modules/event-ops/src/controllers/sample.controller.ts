@@ -53,6 +53,11 @@ import { EventOpsService } from '../event-ops.service';
 export class SampleController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
+  /**
+   * Compatibility aggregate for local demos, seed verification, and reset flows.
+   * New role surfaces should use scoped controllers such as /client/workspace,
+   * /pmcm/dashboard, /supplier/workspace, /events/:id, and /billing.
+   */
   @Get('state')
   state() {
     return this.eventOpsService.state();

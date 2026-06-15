@@ -113,6 +113,21 @@ describe("createEventOpsClient", () => {
     );
   });
 
+  it("loads client action center through the shared contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.clientWorkspace.actionCenter({ actorRole: "client", clientName: "Ana Reyes" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/client/action-center?actorRole=client&clientName=Ana+Reyes",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
   it("loads scoped supplier workspace through the shared contract", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ quoteRequests: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -122,6 +137,21 @@ describe("createEventOpsClient", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:4000/api/supplier/workspace?actorRole=supplier&actorEmail=supplier%40example.com",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
+  it("loads supplier readiness board through the shared contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.supplierWorkspace.readinessBoard({ actorRole: "supplier", actorEmail: "supplier@example.com" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/supplier/readiness-board?actorRole=supplier&actorEmail=supplier%40example.com",
       {
         headers: { "Content-Type": "application/json" },
       },
@@ -180,6 +210,48 @@ describe("createEventOpsClient", () => {
         headers: { "Content-Type": "application/json" },
       },
     );
+  });
+
+  it("loads the PMCM command inbox as a scoped read model", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.pmcm.commandInbox({ actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/pmcm/command-inbox?actorName=Ms.+Mys&actorRole=pmcm-admin",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
+  it("loads the PMCM selected event workspace as a scoped read model", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ event: { id: "evt_1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.pmcm.eventWorkspace("evt_1", { actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/pmcm/events/evt_1/workspace?actorName=Ms.+Mys&actorRole=pmcm-admin",
+      {
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
+  it("loads the guest event pass through the shared contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "evt_1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.guest.eventPass("AYALA-TECH-YALA");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/guest/events/AYALA-TECH-YALA", {
+      headers: { "Content-Type": "application/json" },
+    });
   });
 
   it("posts inquiry payloads", async () => {

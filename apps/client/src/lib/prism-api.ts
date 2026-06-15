@@ -1,6 +1,7 @@
 import { createInitialPrismSampleState } from "@/mock/prism-sample-state";
 import type { Project } from "@/app/components/editor/types";
 import { createEventOpsClient } from "@prism/api-client";
+import { PRISM_SAMPLE_STATE_STORAGE_KEY } from "@prism/types";
 
 import type {
   SampleRole,
@@ -10,6 +11,9 @@ import type {
   PrismBriefing,
   PrismComplianceCheck,
   PrismCoordinatorAssignment,
+  PrismClientActionCenter,
+  PrismClientActionItem,
+  PrismClientWorkspace,
   PrismSampleState,
   PrismDocument,
   PrismEvent,
@@ -23,7 +27,6 @@ import type {
   PrismPostEventDocument,
   PrismSupplierQuote,
   PrismUser,
-  PrismClientWorkspace,
 } from "@prism/types";
 
 export type {
@@ -34,6 +37,9 @@ export type {
   PrismBriefing,
   PrismComplianceCheck,
   PrismCoordinatorAssignment,
+  PrismClientActionCenter,
+  PrismClientActionItem,
+  PrismClientWorkspace,
   PrismSampleState,
   PrismDocument,
   PrismEvent,
@@ -63,7 +69,7 @@ export type CreatePrismInquiryInput = Pick<PrismInquiry, "clientName" | "email" 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const USE_REMOTE_API = process.env.NEXT_PUBLIC_Prism_API_MODE !== "local";
-const STORAGE_KEY = "prism:prism-sample-state";
+const STORAGE_KEY = PRISM_SAMPLE_STATE_STORAGE_KEY;
 const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
 const defaultInquiryInput: CreatePrismInquiryInput = {
   clientName: "Maria Santos",
@@ -178,34 +184,6 @@ function firstInquiry(state: PrismSampleState) {
   const inquiry = state.inquiries[0];
   if (!inquiry) throw new Error("No sample inquiry found");
   return inquiry;
-}
-
-function clientWorkspaceToState(workspace: PrismClientWorkspace): PrismSampleState {
-  return {
-    users: workspace.users,
-    inquiries: workspace.inquiries,
-    events: workspace.events,
-    documents: workspace.documents,
-    briefings: workspace.briefings,
-    supplierQuoteRequests: [],
-    supplierQuotes: workspace.supplierQuotes,
-    coordinators: [],
-    coordinatorRoleRequirements: [],
-    coordinatorAssignments: workspace.coordinatorAssignments,
-    complianceRules: [],
-    complianceChecks: workspace.complianceChecks,
-    billingSources: [],
-    billingStatements: workspace.billingStatements,
-    paymentMilestones: workspace.paymentMilestones,
-    paymentRecords: [],
-    postEventDocuments: workspace.postEventDocuments,
-    eventInsights: [],
-    floorPlanDrafts: workspace.floorPlanDrafts,
-    supplierCategories: [],
-    suppliers: [],
-    auditLogs: workspace.auditLogs,
-    notificationLogs: workspace.notificationLogs,
-  };
 }
 
 interface ApiFloorPlan {
@@ -342,18 +320,125 @@ function withClientActor(path: string, session?: Pick<PrismUser, "name" | "email
   return `${path}${path.includes("?") ? "&" : "?"}${actor}`;
 }
 
+function localClientActionCenter(session: Pick<PrismUser, "name" | "email">): PrismClientActionCenter {
+  const state = readMockState();
+  const events = state.events.filter(
+    (event) => event.clientName === session.name && event.clientPortalStatus === "unlocked" && !event.archived,
+  );
+  const items: PrismClientActionItem[] = [];
+
+  for (const event of events) {
+    const briefing = state.briefings.find((item) => item.eventId === event.id);
+    if (!briefing) {
+      items.push({
+        id: `briefing:${event.id}`,
+        kind: "briefing",
+        priority: "attention",
+        label: "Complete event briefing",
+        description: `Share venue, guest count, budget, and service requirements for ${event.eventName}.`,
+        status: "missing",
+        eventId: event.id,
+        eventName: event.eventName,
+        dueAt: event.eventDate,
+        href: `/dashboard/events/${event.id}/briefing`,
+      });
+    }
+
+    if (event.floorPlanStatus === "in_review") {
+      items.push({
+        id: `floorplan:review:${event.id}`,
+        kind: "floorplan",
+        priority: "attention",
+        label: "Review official floorplan",
+        description: `PMCM submitted the official layout for ${event.eventName}.`,
+        status: event.floorPlanStatus,
+        eventId: event.id,
+        eventName: event.eventName,
+        href: `/dashboard/events/${event.id}/floorplan`,
+      });
+    } else if (event.floorPlanStatus === "not_started") {
+      items.push({
+        id: `floorplan:preferences:${event.id}`,
+        kind: "floorplan",
+        priority: "info",
+        label: "Submit layout preferences",
+        description: `Share layout requirements before PMCM prepares the official floorplan for ${event.eventName}.`,
+        status: event.floorPlanStatus,
+        eventId: event.id,
+        eventName: event.eventName,
+        href: `/dashboard/events/${event.id}/floorplan`,
+      });
+    }
+
+    state.paymentMilestones
+      .filter((payment) => payment.eventId === event.id && payment.status !== "paid")
+      .forEach((payment) => {
+        items.push({
+          id: `billing:${payment.id}`,
+          kind: "billing",
+          priority: new Date(payment.dueDate).getTime() < Date.now() ? "critical" : "warning",
+          label: new Date(payment.dueDate).getTime() < Date.now() ? "Payment overdue" : "Payment pending",
+          description: `${payment.label} has ${payment.amount.toLocaleString("en-PH")} PHP remaining.`,
+          status: payment.status,
+          eventId: event.id,
+          eventName: event.eventName,
+          dueAt: payment.dueDate,
+          href: `/dashboard/events/${event.id}/billing`,
+        });
+      });
+
+    state.documents
+      .filter((document) => document.eventId === event.id && /needs|pending|requested|rejected/i.test(document.status))
+      .forEach((document) => {
+        items.push({
+          id: `document:${document.id}`,
+          kind: "document",
+          priority: document.status === "rejected" ? "warning" : "attention",
+          label: "Document needs attention",
+          description: `${document.fileName} is ${document.status.replaceAll("_", " ")}.`,
+          status: document.status,
+          eventId: event.id,
+          eventName: event.eventName,
+          href: `/dashboard/events/${event.id}/documents`,
+        });
+      });
+  }
+
+  const severityOrder = { critical: 0, warning: 1, attention: 2, info: 3 };
+  items.sort((left, right) => severityOrder[left.priority] - severityOrder[right.priority]);
+
+  return {
+    generatedAt: now(),
+    counts: {
+      critical: items.filter((item) => item.priority === "critical").length,
+      warning: items.filter((item) => item.priority === "warning").length,
+      attention: items.filter((item) => item.priority === "attention").length,
+      info: items.filter((item) => item.priority === "info").length,
+    },
+    items,
+  };
+}
+
 export const prismApi = {
-  clientState: async (session: Pick<PrismUser, "name" | "email">) => {
+  clientState: async (session: Pick<PrismUser, "name" | "email">): Promise<PrismClientWorkspace> => {
     if (!USE_REMOTE_API) return readMockState();
 
-    return clientWorkspaceToState(
-      await eventOpsClient.clientWorkspace.detail({
-        actorRole: "client",
-        actorName: session.name,
-        actorEmail: session.email,
-        clientName: session.name,
-      }),
-    );
+    return eventOpsClient.clientWorkspace.detail({
+      actorRole: "client",
+      actorName: session.name,
+      actorEmail: session.email,
+      clientName: session.name,
+    });
+  },
+  clientActionCenter: async (session: Pick<PrismUser, "name" | "email">): Promise<PrismClientActionCenter> => {
+    if (!USE_REMOTE_API) return localClientActionCenter(session);
+
+    return eventOpsClient.clientWorkspace.actionCenter({
+      actorRole: "client",
+      actorName: session.name,
+      actorEmail: session.email,
+      clientName: session.name,
+    });
   },
   reset: () => {
     if (USE_REMOTE_API) return eventOpsClient.sample.reset();

@@ -9,7 +9,7 @@ For current live/partial/prototype status, use `07-implemented-feature-revisions
 | Rule | Meaning |
 | --- | --- |
 | One event story first | Keep the defense on one seeded lifecycle: inquiry, conforme, briefing/proposal, planning, event day, closure/archive. |
-| Role-specific apps | Use `prism-event` for PMCM/coordinator command, `prism-client` for client portal, `prism-supplier` for supplier portal, and `prism-guest` for guest access. |
+| Role-specific apps | Use `apps/event` for PMCM/coordinator command, `apps/client` for client portal, `apps/supplier` for supplier portal, and `apps/guest` for guest access. |
 | Public-only landing | Public navigation should show landing and inquiry only. Dashboards are signed-in surfaces. |
 | Revision honesty | If a feature is partial or prototype in `07-implemented-feature-revisions.md`, describe the working portion and the revision needed. |
 | AI safety | AI outputs are drafts/recommendations only. Show sanitized sample data, audit evidence, and PMCM human approval. |

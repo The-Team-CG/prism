@@ -86,7 +86,7 @@ import { EventLifecycleService } from './services/event-lifecycle.service';
 import { FileRequirementsMatrixService } from './services/file-requirements-matrix.service';
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
-import { EventReadModelsService } from './services/event-read-models.service';
+import { EventReadModelsService, type PmcmDashboardMappers } from './services/event-read-models.service';
 import {
   CommercialWorkflowService,
   type RequestSupplierQuotesInput,
@@ -539,12 +539,12 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly guestWorkflowService: GuestWorkflowService;
   private readonly pareService: PAREService;
   private readonly aiGovernanceService: AiGovernanceService;
+  private readonly sampleStateService: SampleStateService;
+  private readonly inquiryWorkflowService: InquiryWorkflowService;
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly sampleStateService = new SampleStateService(prisma),
-    private readonly inquiryWorkflowService = new InquiryWorkflowService(prisma),
-  ) {
+  constructor(private readonly prisma: PrismaService) {
+    this.sampleStateService = new SampleStateService(prisma);
+    this.inquiryWorkflowService = new InquiryWorkflowService(prisma);
     this.auditService = new AuditService(prisma);
     this.eventAccessPolicyService = new EventAccessPolicyService(this.auditService);
     this.notificationOutboxService = new NotificationOutboxService(prisma);
@@ -701,7 +701,21 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async listPmcmDashboard(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    return this.eventReadModelsService.pmcmDashboard(actor, {
+    return this.eventReadModelsService.pmcmDashboard(actor, this.pmcmReadModelMappers());
+  }
+
+  async listPmcmCommandInbox(actorInput: SampleActorInput = {}) {
+    const actor = this.resolveActor(actorInput);
+    return this.eventReadModelsService.pmcmCommandInbox(actor);
+  }
+
+  async getPmcmEventWorkspace(eventId: string, actorInput: SampleActorInput = {}) {
+    const actor = this.resolveActor(actorInput);
+    return this.eventReadModelsService.pmcmEventWorkspace(actor, eventId, this.pmcmReadModelMappers());
+  }
+
+  private pmcmReadModelMappers(): PmcmDashboardMappers {
+    return {
       coordinatorRoleRequirements: COORDINATOR_ROLE_REQUIREMENTS,
       mapUser: (user) => this.mapUser(user),
       mapInquiry: (inquiry) => this.mapInquiry(inquiry),
@@ -723,7 +737,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       mapFloorPlanDraft: (draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft),
       mapAuditLog: (log) => this.auditService.mapAuditLog(log),
       mapNotificationLog: (log) => this.mapNotificationLog(log),
-    });
+    };
   }
 
   async state() {
@@ -1228,6 +1242,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async listClientActionCenter(actorInput: SampleActorInput = {}) {
+    const actor = this.resolveActor(actorInput);
+    return this.eventReadModelsService.clientActionCenter(actor);
+  }
+
   async getGuestEventByAccessCode(accessCode: string) {
     const event = await this.guestWorkflowService.getEventByAccessCode(accessCode);
     const attendanceCount = await this.prisma.opsGuestCheckIn.count({ where: { eventId: event.id } });
@@ -1662,6 +1681,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       mapSupplierQuoteRequest: (request) => this.mapSupplierQuoteRequest(request),
       mapSupplierQuoteForSupplier: (quote) => this.mapSupplierQuoteForSupplier(quote),
     });
+  }
+
+  async listSupplierReadinessBoard(actorInput: SampleActorInput = {}) {
+    const actor = this.resolveActor(actorInput);
+    return this.eventReadModelsService.supplierReadinessBoard(actor);
   }
 
   async confirmSupplierAssignment(requestId: string, actorInput: SampleActorInput = {}) {

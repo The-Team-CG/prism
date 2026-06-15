@@ -1,6 +1,6 @@
 # P.R.I.S.M Product Evolution and Redesign Governance
 
-Last updated: 2026-06-11
+Last updated: 2026-06-15
 
 This document defines how P.R.I.S.M can evolve beyond the original Version 4 catalog. The catalog remains a valuable baseline, but it is not a hard ceiling. During the whole-app redesign, features may be added, revised, merged, deferred, or retired when doing so makes the product clearer, safer, more usable, or more aligned with PMCM operations.
 
@@ -11,6 +11,7 @@ This document defines how P.R.I.S.M can evolve beyond the original Version 4 cat
 | `01-complete-feature-catalog.md` | Baseline feature inventory and original manuscript/defense reference. |
 | `07-implemented-feature-revisions.md` | Current implementation reality and revision backlog. |
 | `08-revision-phase-plan.md` | Historical revision-first roadmap. |
+| `14-redesign-readiness-foundation.md` | Handoff rules for sample-state fencing, session conventions, owner boundaries, and legacy removal before UI redesign work. |
 | `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan. |
 | This document | Rules for changing the feature set during redesign. |
 
@@ -23,6 +24,28 @@ If these documents conflict, use this order for product planning:
 5. Original feature catalog.
 
 The original catalog should still be preserved for traceability, but implementation should not blindly ship catalog items that are outdated, redundant, unsafe, or weak from a product perspective.
+
+## Owner Goal Governance
+
+Feature decisions must now identify which owner system goal they advance. Ownership is not just assignment to an app or code area.
+
+| Owner | System goal used for governance decisions |
+| --- | --- |
+| Owner A | The change makes P.R.I.S.M more coherent as a PMCM operating system through IA, design system, workflow language, and interaction standards. |
+| Owner B | The change makes PMCM/coordinator operations more executable from inquiry through event day and closure without exposing internal state externally. |
+| Owner C | The change makes client, supplier, guest, or public surfaces safer, narrower, clearer, and easier to complete without PMCM-only leakage. |
+| Owner D | The change makes platform behavior more trustworthy through contracts, permissions, audit, notifications, files, lifecycle, integrations, tests, and docs. |
+
+Every ledger row should include:
+
+- Primary owner.
+- Owner system goal.
+- Secondary owner if another surface is affected.
+- Permission boundary.
+- Audit/notification/file/lifecycle impact.
+- Verification requirement.
+
+If a proposed feature does not advance one of these system goals, it should be deferred, revised, or retired.
 
 ## Allowed Feature Decisions
 
@@ -146,16 +169,19 @@ Before implementing or redesigning a feature, answer:
 
 1. Which persona owns the action?
 2. Which app owns the surface?
-3. What is the one primary user job?
-4. What data does the user need?
-5. What data must be hidden?
-6. What state changes?
-7. What must be audited?
-8. What notification is created?
-9. What is the empty state?
-10. What is the failure state?
-11. What should happen on mobile?
-12. Which feature ledger row is updated?
+3. Which owner owns the system goal?
+4. What system condition becomes true when this is complete?
+5. What is the one primary user job?
+6. What data does the user need?
+7. What data must be hidden?
+8. What state changes?
+9. What must be audited?
+10. What notification is created?
+11. What file, lifecycle, integration, or privacy rule is affected?
+12. What is the empty state?
+13. What is the failure state?
+14. What should happen on mobile?
+15. Which feature ledger row is updated?
 
 If these cannot be answered, the feature is not ready for implementation.
 

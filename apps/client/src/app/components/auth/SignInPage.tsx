@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, BadgeCheck, Eye, EyeOff, Handshake, Send, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { PrismBrandLogo } from "@prism/ui";
-import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
+import { PRISM_SESSION_STORAGE_KEYS, savePrismSession } from "@prism/types";
 import { prismApi, type PrismUser } from "@/lib/prism-api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -57,7 +57,7 @@ export function SignInPage() {
     try {
       const session = await prismApi.login(form);
       if (session.role !== "client") { setError(portalMessage(session.role)); return; }
-      window.localStorage.setItem(MOCK_AUTH_SESSION_KEY, JSON.stringify(session));
+      savePrismSession(PRISM_SESSION_STORAGE_KEYS.client, session);
       setSignedInUser(session);
       toast.success("Signed in", { description: `${session.name} is now signed in.` });
       const next = typeof window !== "undefined"

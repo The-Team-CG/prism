@@ -67,5 +67,10 @@ export class OpsClientController {
   workspace(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listClientWorkspace(actor);
   }
+
+  @Get('action-center')
+  actionCenter(@Query() actor: SampleActorDto) {
+    return this.eventOpsService.listClientActionCenter(actor);
+  }
 }
 

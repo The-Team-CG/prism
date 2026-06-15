@@ -22,10 +22,10 @@ Before implementing a new catalog row, run this gate:
 | --- | --- |
 | Scope source | For catalog work, confirm the row exists in `01-complete-feature-catalog.md` and identify its FR number. For new, revised, merged, deferred, retired, or gated work, create or update the feature-ledger decision defined by `10-product-evolution-and-redesign-governance.md`. |
 | Current status | Check `07-implemented-feature-revisions.md` for existing UI/API/schema coverage and known gaps. |
-| App boundary | Keep PMCM command work in `prism-event`, client work in `prism-client`, supplier work in `prism-supplier`, guest work in `prism-guest`, and shared backend work in `prism-api`. |
+| App boundary | Keep PMCM command work in `apps/event`, client work in `apps/client`, supplier work in `apps/supplier`, guest work in `apps/guest`, and shared backend work in `apps/api`. |
 | Revision first | If the feature is already partial, finish the revision path before creating a parallel mockup. |
 | Security | For dashboards and event data, add or preserve API actor/role checks. Public surfaces remain landing and inquiry only. |
-| Floorplan ownership | PMCM owns official layouts in `prism-event`; client users submit preferences and review approved/submitted official layouts read-only. |
+| Floorplan ownership | PMCM owns official layouts in `apps/event`; client users submit preferences and review approved/submitted official layouts read-only. |
 | Verification | Add or run focused backend/frontend checks listed in `07-implemented-feature-revisions.md`. |
 
 ### Highest-Priority Revisions

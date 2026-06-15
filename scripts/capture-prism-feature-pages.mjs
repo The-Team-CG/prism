@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
+import { PRISM_SESSION_STORAGE_KEYS } from "../packages/types/src/session.ts";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.slice(1)), "..");
 const CAPTURE_DATE = process.env.PRISM_CAPTURE_DATE ?? new Date().toISOString().slice(0, 10);
@@ -813,11 +814,11 @@ function buildGuestSession(state, event) {
 
 function localStorageItemsForAuth(auth, context) {
   if (!auth) return [];
-  if (auth === "client") return [["prism:mock-auth-session", JSON.stringify(context.sessions.client)]];
-  if (auth === "pmcm") return [["prism:event-command-session", JSON.stringify(context.sessions.pmcm)]];
-  if (auth === "coordinator") return [["prism:event-command-session", JSON.stringify(context.sessions.coordinator)]];
-  if (auth === "supplier") return [["prism:supplier-session", JSON.stringify(context.sessions.supplier)]];
-  if (auth === "guest") return [["prism:guest-session", JSON.stringify(context.sessions.guest)]];
+  if (auth === "client") return [[PRISM_SESSION_STORAGE_KEYS.client, JSON.stringify(context.sessions.client)]];
+  if (auth === "pmcm") return [[PRISM_SESSION_STORAGE_KEYS.event, JSON.stringify(context.sessions.pmcm)]];
+  if (auth === "coordinator") return [[PRISM_SESSION_STORAGE_KEYS.event, JSON.stringify(context.sessions.coordinator)]];
+  if (auth === "supplier") return [[PRISM_SESSION_STORAGE_KEYS.supplier, JSON.stringify(context.sessions.supplier)]];
+  if (auth === "guest") return [[PRISM_SESSION_STORAGE_KEYS.guest, JSON.stringify(context.sessions.guest)]];
   throw new Error(`Unknown auth profile: ${auth}`);
 }
 

@@ -3,29 +3,18 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, KeyRound, QrCode, ShieldCheck, TicketCheck } from "lucide-react";
+import { PRISM_SESSION_STORAGE_KEYS, readPrismSession, savePrismSession, type PrismGuestEventPass } from "@prism/types";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 
-type GuestEvent = {
-  id: string;
-  eventName: string;
-  eventDate: string;
-  clientName: string;
-  readiness: string;
-  floorPlanStatus: string;
-  activeFloorPlanDraftId?: string;
-  guestAccessCode: string;
-  attendanceCount: number;
-};
-
-type GuestSession = GuestEvent & {
+type GuestSession = PrismGuestEventPass & {
   guestName: string;
   openedAt: string;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const SESSION_KEY = "prism:guest-session";
+const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.guest;
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 
 async function request<T>(path: string): Promise<T> {
@@ -46,15 +35,7 @@ async function request<T>(path: string): Promise<T> {
 }
 
 function readSession() {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(SESSION_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as GuestSession;
-  } catch {
-    window.localStorage.removeItem(SESSION_KEY);
-    return null;
-  }
+  return readPrismSession<GuestSession>(SESSION_KEY);
 }
 
 export default function GuestOpenWithCode() {
@@ -64,7 +45,7 @@ export default function GuestOpenWithCode() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [existing, setExisting] = useState<GuestSession | null>(null);
-  const [preview, setPreview] = useState<GuestEvent | null>(null);
+  const [preview, setPreview] = useState<PrismGuestEventPass | null>(null);
 
   useEffect(() => {
     setExisting(readSession());
@@ -76,7 +57,7 @@ export default function GuestOpenWithCode() {
     setError(null);
     try {
       const normalizedCode = encodeURIComponent(accessCode.trim().toUpperCase());
-      const guestEvent = preview ?? await request<GuestEvent>(`/api/guest/events/${normalizedCode}`);
+      const guestEvent = preview ?? await request<PrismGuestEventPass>(`/api/guest/events/${normalizedCode}`);
       if (!preview) {
         setPreview(guestEvent);
         return;
@@ -86,7 +67,7 @@ export default function GuestOpenWithCode() {
         guestName,
         openedAt: new Date().toISOString(),
       };
-      window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      savePrismSession(SESSION_KEY, session);
       const next = new URLSearchParams(window.location.search).get("next");
       router.replace(next?.startsWith("/") ? next : "/dashboard");
     } catch (err) {

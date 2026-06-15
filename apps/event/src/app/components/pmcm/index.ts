@@ -1,7 +1,13 @@
+export { AdminApprovalsPanel } from "./admin-approvals-panel";
 export { AuditTrailPanel } from "./audit-trail-panel";
 export { ClientOnboardingTracker } from "./client-onboarding-tracker";
 export { CoordinatorAssignmentDesk } from "./coordinator-assignment-desk";
 export { CoordinatorView } from "./coordinator-view";
+export { EventActivityPanel } from "./event-activity-panel";
+export { EventBriefingPanel } from "./event-briefing-panel";
+export { EventFloorplansTab } from "./event-floorplans-tab";
+export { EventRoleLoadingState } from "./event-role-loading-state";
+export { EventSuppliersTab } from "./event-suppliers-tab";
 export { FinancialWorkspace } from "./financial-workspace";
 export { InquiryIntakeLog } from "./inquiry-intake-log";
 export { LiveOperationsWorkspace } from "./live-operations-workspace";

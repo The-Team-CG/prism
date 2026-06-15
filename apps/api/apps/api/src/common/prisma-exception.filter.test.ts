@@ -1,5 +1,5 @@
 import type { ArgumentsHost } from '@nestjs/common';
-import { HttpStatus } from '@nestjs/common';
+import { BadRequestException, HttpStatus } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { PrismaExceptionFilter } from './prisma-exception.filter';
 
@@ -45,6 +45,35 @@ describe('PrismaExceptionFilter', () => {
       error: 'Service Unavailable',
       message:
         'P.R.I.S.M database is unavailable. Check the prism-api database URL/network, then run npm run db:doctor:runtime.',
+    });
+  });
+
+  it('preserves ordinary Nest HTTP exceptions', () => {
+    const filter = new PrismaExceptionFilter();
+    const { host, response } = createHttpHost();
+    const exception = new BadRequestException('Validation failed');
+
+    filter.catch(exception, host);
+
+    expect(response.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(response.body).toMatchObject({
+      statusCode: HttpStatus.BAD_REQUEST,
+      message: 'Validation failed',
+      error: 'Bad Request',
+    });
+  });
+
+  it('does not label non-database errors as database outages', () => {
+    const filter = new PrismaExceptionFilter();
+    const { host, response } = createHttpHost();
+
+    filter.catch(new Error('Unexpected worker failure'), host);
+
+    expect(response.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(response.body).toMatchObject({
+      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      error: 'Internal Server Error',
+      message: 'An unexpected API error occurred.',
     });
   });
 });

@@ -35,6 +35,18 @@ export const boundaryRules = [
     importPattern: /(?:eventOpsClient\.sample\.state\(|prismApi\.state\(|["']\/api\/sample\/state["']|["']\/sample\/state["'])/,
   },
   {
+    name: "role apps must not import the client mock sample dataset",
+    filePattern: /^apps\/(?:client|event|supplier|guest)\//,
+    allowedFilePattern: /^apps\/client\/src\/lib\/prism-api\.ts$/,
+    importPattern: /from\s+["']@\/mock\/prism-sample-state["']/,
+  },
+  {
+    name: "role apps must use shared Prism session and sample storage keys",
+    filePattern: /^apps\/(?:client|event|supplier|guest)\//,
+    importPattern:
+      /["']prism:(?:client-session|mock-auth-session|supplier-session|guest-session|event-command-session|prism-sample-state)["']/,
+  },
+  {
     name: "backend services must not inject Prisma as any",
     filePattern: /^apps\/api\/libs\/modules\/.*\/src\/.*service\.ts$/,
     importPattern: /(?:private\s+readonly\s+)?prisma\s*:\s*any\b/,
@@ -59,7 +71,11 @@ export function findBoundaryViolations(fileSources, rules = boundaryRules) {
     const normalized = file.replaceAll("\\", "/");
 
     for (const rule of rules) {
-      if (rule.filePattern.test(normalized) && rule.importPattern.test(source)) {
+      if (
+        rule.filePattern.test(normalized) &&
+        !(rule.allowedFilePattern && rule.allowedFilePattern.test(normalized)) &&
+        rule.importPattern.test(source)
+      ) {
         violations.push(`${normalized}: ${rule.name}`);
       }
     }

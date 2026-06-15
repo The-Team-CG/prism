@@ -329,6 +329,44 @@ export const EVENT_DETAIL_ROUTES: Record<string, string> = {
   "event-report": "closure",
 };
 
+export function activeSidebarItemFromRoute(routeState: RouteState) {
+  if (routeState.section === "dashboard") return "dashboard";
+  if (routeState.section === "suppliers") return "suppliers";
+  if (routeState.section === "audit") return "audit";
+  if (routeState.section === "clients") return "clients";
+  if (routeState.section === "calendar") return "calendar";
+  if (routeState.section === "tasks") return "tasks";
+  if (routeState.section === "team") return routeState.eventId ? "event-staff" : "dashboard";
+  if (routeState.section === "files") return routeState.eventId ? "event-files" : "dashboard";
+  if (routeState.section === "messages") return routeState.eventId ? "event-messages" : "dashboard";
+  if (routeState.section === "finance") return routeState.eventId ? "event-budget" : "dashboard";
+  if (routeState.section === "settings") return "settings";
+  if (routeState.section === "inquiries") return "inquiries";
+  if (routeState.section === "events-list") return "events-list";
+  if (!routeState.eventId) return "dashboard";
+
+  return EVENT_WORKSPACE_ROUTE_ITEMS[routeState.view ?? "overview"]
+    ?? EVENT_WORKSPACE_ROUTE_ITEMS[EVENT_TAB_ROUTES[routeState.tab]]
+    ?? "event-overview";
+}
+
+export function routeLoadingShellCopy(routeState: RouteState) {
+  if (routeState.section === "suppliers") return { eyebrow: "Supplier directory", title: "Supplier Directory" };
+  if (routeState.section === "audit") return { eyebrow: "Audit log", title: "Audit Trail" };
+  if (routeState.section === "clients") return { eyebrow: "Clients", title: "Client Desk" };
+  if (routeState.section === "calendar") return { eyebrow: "Calendar", title: "Calendar" };
+  if (routeState.section === "tasks") return { eyebrow: "Tasks", title: "Tasks" };
+  if (routeState.section === "team") return { eyebrow: "Team", title: "Team & Coordinators" };
+  if (routeState.section === "files") return { eyebrow: "Files", title: "Event File Hub" };
+  if (routeState.section === "messages") return { eyebrow: "Messages", title: "Event Messages" };
+  if (routeState.section === "finance") return { eyebrow: "Finance", title: "Finance Desk" };
+  if (routeState.section === "inquiries") return { eyebrow: "Inquiries", title: "Inquiry Intake" };
+  if (routeState.section === "events-list") return { eyebrow: "Events", title: "All Events" };
+  if (routeState.section === "settings") return { eyebrow: "Settings", title: "Settings" };
+  if (routeState.eventId) return { eyebrow: "Event workspace", title: "Event workspace" };
+  return { eyebrow: "Command home", title: "Event Manager" };
+}
+
 export function routeStateFromPath(pathname: string): RouteState {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] !== "dashboard") return { section: "dashboard", tab: "overview", view: "overview" };

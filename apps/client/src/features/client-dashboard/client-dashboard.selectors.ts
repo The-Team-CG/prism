@@ -1,12 +1,12 @@
 import type {
-  PrismSampleState,
+  PrismClientWorkspace,
   PrismEvent,
   PrismFloorPlanDraft,
   PrismUser,
 } from "@prism/types";
 
 export function selectClientEvents(
-  state: Pick<PrismSampleState, "events"> | null | undefined,
+  state: Pick<PrismClientWorkspace, "events"> | null | undefined,
   session: Pick<PrismUser, "name"> | null | undefined,
 ): PrismEvent[] {
   if (!state || !session) return [];
@@ -25,7 +25,7 @@ export function selectSelectedClientEvent(
 }
 
 export function selectEventDrafts(
-  state: Pick<PrismSampleState, "floorPlanDrafts"> | null | undefined,
+  state: Pick<PrismClientWorkspace, "floorPlanDrafts"> | null | undefined,
   selectedEvent?: Pick<PrismEvent, "id">,
 ): PrismFloorPlanDraft[] {
   if (!state || !selectedEvent) return [];
@@ -34,7 +34,7 @@ export function selectEventDrafts(
 
 export function selectEventWorkspaceResources(
   state: Pick<
-    PrismSampleState,
+    PrismClientWorkspace,
     "auditLogs" | "billingStatements" | "briefings" | "documents" | "notificationLogs" | "paymentMilestones"
   > | null | undefined,
   selectedEvent?: Pick<PrismEvent, "id">,

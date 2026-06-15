@@ -6,6 +6,8 @@ This document set preserves the official feature catalog for P.R.I.S.M Version 4
 
 The complete catalog is now treated as the baseline feature inventory, not a hard ceiling. The product may add, revise, merge, defer, or retire features during the whole-app redesign when that makes P.R.I.S.M better for PMCM operations. For current implementation status, needed revisions, and exact revision guidance, use `07-implemented-feature-revisions.md`. For rules on changing the feature set during redesign, use `10-product-evolution-and-redesign-governance.md`.
 
+The active maturity plan assigns each of the four owners an actual system goal, not only a file/workstream label. Use `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` before planning owner work so each branch states the product condition it is making true.
+
 ## Official Count Summary
 | Persona | V3 Count | V4 Additions | V4 Total |
 | --- | --- | --- | --- |
@@ -34,8 +36,9 @@ The complete catalog is now treated as the baseline feature inventory, not a har
 | Defense sample runbook | ./09-defense-sample-runbook.md | Local startup, accounts, sample order, verification, and defense boundaries. |
 | Product evolution governance | ./10-product-evolution-and-redesign-governance.md | Rules for adding, revising, merging, deferring, or retiring features during the whole-app redesign. |
 | Feature ledger | ./11-feature-ledger.md | Active feature-family decisions, phase placement, ownership, permission boundaries, and verification requirements. |
-| Redesign inventory | ./12-redesign-inventory.md | Current app route inventory with redesign severity, ownership, and role-boundary notes. |
+| Redesign inventory | ./12-redesign-inventory.md | Current app route inventory with redesign severity, owner system goals, and role-boundary notes. |
 | Docs cleanup checklist | ./13-docs-cleanup-checklist.md | Canonical docs, retired artifacts, cleanup rules, and verification commands. |
+| Redesign readiness foundation | ./14-redesign-readiness-foundation.md | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before UI redesign branches. |
 | PMCM Admin features | ./features/admin.md | Admin-owned operating system functions. |
 | Client features | ./features/client.md | Client portal functions. |
 | Supplier features | ./features/supplier.md | Supplier portal functions. |
@@ -54,4 +57,5 @@ The complete catalog is now treated as the baseline feature inventory, not a har
 6. Use `09-defense-sample-runbook.md` for the exact local rehearsal order.
 7. Use `03-ai-features-and-security.md` when the panel asks about AI, privacy, or human approval.
 8. Use `10-product-evolution-and-redesign-governance.md` before adding, revising, merging, or retiring catalog features.
-9. Use `11-feature-ledger.md`, `12-redesign-inventory.md`, and `13-docs-cleanup-checklist.md` before starting redesign implementation work.
+9. Use `11-feature-ledger.md`, `12-redesign-inventory.md`, `13-docs-cleanup-checklist.md`, and `14-redesign-readiness-foundation.md` before starting redesign implementation work.
+10. Use the owner system goals in the active maturity plan to assign parallel work across Product UX, PMCM/coordinator, portal, and API/platform owners.

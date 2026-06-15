@@ -1,6 +1,6 @@
 # P.R.I.S.M Documentation Cleanup Checklist
 
-Last updated: 2026-06-11
+Last updated: 2026-06-15
 
 This checklist keeps the docs set small, current, and executable. It is the Phase 0 documentation hygiene output from the whole-app capability maturity plan.
 
@@ -18,7 +18,8 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 | `docs/prism-v4/11-feature-ledger.md` | Active | Feature-family decisions for the redesign. |
 | `docs/prism-v4/12-redesign-inventory.md` | Active | Route/app redesign severity and ownership. |
 | `docs/prism-v4/13-docs-cleanup-checklist.md` | Active | Documentation hygiene rules. |
-| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan. |
+| `docs/prism-v4/14-redesign-readiness-foundation.md` | Active | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
+| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan, including explicit system goals for Owners A-D. |
 
 ## Files To Keep
 
@@ -41,6 +42,8 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 | May 2026 UI modernization Phase 2 plan | Removed | Its deliverables now exist, but it still reads as an unchecked implementation plan. Future UI work belongs in the active capability maturity plan plus `11-feature-ledger.md` and `12-redesign-inventory.md`. |
 | June 2026 architecture hardening plan | Removed | Stale old-name planning artifact. |
 | Root `Prism-CHECKLIST.md`, `prism-strategy.md`, `prism-feature-list.md`, `DESIGN.md` | Removed earlier | Superseded by `docs/prism-v4`. |
+| `apps/api/README.md` | Removed | App-local module guidance described stale module boundaries and duplicated setup instructions that now belong in root `README.md` plus the active v4 docs. |
+| `apps/event/docs/prism-feature-soundness-review.md` and `apps/event/docs/prism-maintainability-tech-debt-audit.md` | Removed | App-local snapshots were stale and competed with the current v4 docs, redesign inventory, and readiness foundation. |
 
 ## Cleanup Rules
 
@@ -54,6 +57,10 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 8. Remove docs that contradict role-specific app boundaries.
 9. Rewrite docs that imply `apps/client` is an all-role PMCM shell.
 10. Keep public pages and signed-in dashboard boundaries explicit in docs.
+11. Redesign or implementation plans must state which owner system goal they advance.
+12. Owner labels must not be used as vague assignees; link them to the system goals in the maturity plan.
+13. Sample-state guidance belongs in `14-redesign-readiness-foundation.md`; app-local docs should not reintroduce `/api/sample/state` as a normal read path.
+14. Session/storage conventions belong in `@prism/types`; docs should not endorse app-local literal `prism:*` keys.
 
 ## Verification Commands
 
@@ -65,6 +72,8 @@ git ls-files -s CLAUDE.md AGENTS.md
 rg -n -i "old-name-token-one|old-name-token-two" docs/prism-v4 docs/superpowers README.md AGENTS.md
 Test-Path docs/superpowers/plans
 rg -n "10-product-evolution|11-feature-ledger|12-redesign-inventory|13-docs-cleanup-checklist" docs/prism-v4 README.md AGENTS.md
+rg -n "Owner system goal|Owner System Goals|system goal" docs/prism-v4 docs/superpowers/specs README.md AGENTS.md
+npm --workspace prism-api run db:doctor:runtime
 git diff --check
 ```
 
@@ -74,4 +83,6 @@ Expected:
 - No stale old-name terms appear in active docs.
 - `docs/superpowers/plans` does not exist unless a short-lived approved execution plan is active.
 - New governing docs are linked from the index and manifest.
+- Owner system goals are discoverable from the active maturity plan and supporting docs.
+- API-backed sample auth and sample-state compatibility paths have a valid database configuration, or failures return the documented service-unavailable guidance.
 - Working tree contains only intentional changes before commit.

@@ -12,6 +12,7 @@ export type {
   PrismSupplierCertification,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
+  PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
 } from "@prism/types";
 
@@ -20,6 +21,7 @@ import type {
   PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
+  PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
 } from "@prism/types";
 
@@ -83,6 +85,12 @@ function supplierRequestPath(session: SupplierSession, requestId: string, suffix
 export const prismApi = {
   supplierWorkspace: (session: SupplierSession) =>
     eventOpsClient.supplierWorkspace.detail({
+      actorRole: "supplier",
+      actorName: session.name,
+      actorEmail: session.email,
+    }),
+  supplierReadinessBoard: (session: SupplierSession): Promise<PrismSupplierReadinessBoard> =>
+    eventOpsClient.supplierWorkspace.readinessBoard({
       actorRole: "supplier",
       actorName: session.name,
       actorEmail: session.email,

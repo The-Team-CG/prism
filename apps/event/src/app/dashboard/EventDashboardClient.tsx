@@ -28,7 +28,6 @@ import {
   ReceiptText,
   RotateCcw,
   Search,
-  Send,
   Settings,
   ShieldCheck,
   Share2,
@@ -40,7 +39,6 @@ import {
 } from "lucide-react";
 import {
   prismApi,
-  type PrismAuditLog,
   type PrismApprovalRequest,
   type PrismBillingStatement,
   type PrismBriefing,
@@ -52,7 +50,6 @@ import {
   type PrismEventDayStatusFeed,
   type PrismFloorPlanDraft,
   type PrismLiveOps,
-  type PrismNotificationLog,
   type PrismPostEventDocument,
   type PrismPmcmDashboardWorkspace,
   type PrismSupplierQuoteRequest,
@@ -79,6 +76,13 @@ import {
 import {
   EventOverviewPanels,
 } from "@/app/components/pmcm/event-command-cockpit";
+import {
+  EventDashboardSessionSkeleton,
+  EventDashboardSkeleton,
+  SkeletonCard,
+  SkeletonLine,
+  eventDashboardSkeletonVariant,
+} from "./components/event-dashboard-skeleton";
 import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/app/components/editor/templates";
 import type { Project } from "@/app/components/editor/types";
 import { clearEventSession, readStoredEventSession, type EventSession } from "@/app/lib/session";
@@ -96,11 +100,13 @@ import {
   CLIENT_DETAIL_ROUTES,
   EVENT_DETAIL_ROUTES,
   EVENT_TAB_ROUTES,
-  EVENT_WORKSPACE_ROUTE_ITEMS,
   EVENT_WORKSPACE_ROUTE_TABS,
   SIDEBAR_STATIC_ROUTES,
+  activeSidebarItemFromRoute,
+  routeLoadingShellCopy,
   routeStateFromPath,
 } from "@/features/event-dashboard/event-dashboard.routing";
+import { EventMessagesWorkspace } from "./components/event-messages-workspace";
 import type {
   DashboardSection,
   DetailTab,
@@ -293,251 +299,6 @@ function SectionAccent({ children }: { children: React.ReactNode }) {
   );
 }
 
-type EventDashboardSkeletonVariant = "command" | "event" | "suppliers" | "audit" | "coordinator";
-
-function SkeletonLine({ className = "" }: { className?: string }) {
-  return (
-    <div
-      className={`animate-pulse rounded-md bg-gradient-to-r from-muted/80 via-muted/50 to-muted/80 ring-1 ring-border/30 ${className}`}
-    />
-  );
-}
-
-function SkeletonCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <section
-      className={`relative overflow-hidden rounded-xl border border-border/80 bg-card/95 p-4 shadow-sm ring-1 ring-black/5 sm:p-5 ${className}`}
-    >
-      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-(--prism-signal)/60 via-transparent to-transparent" />
-      {children}
-    </section>
-  );
-}
-
-function MetricSkeletonGrid() {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <SkeletonCard key={index}>
-          <div className="flex items-center gap-3">
-            <SkeletonLine className="size-10 shrink-0 rounded-md" />
-            <div className="min-w-0 flex-1">
-              <SkeletonLine className="h-6 w-16 rounded-md" />
-              <SkeletonLine className="mt-2 h-3 w-24 rounded-md" />
-            </div>
-          </div>
-        </SkeletonCard>
-      ))}
-    </div>
-  );
-}
-
-function EventDashboardSessionSkeleton() {
-  return (
-    <main className="grid min-h-screen place-items-center bg-background px-6">
-      <section className="w-full max-w-sm rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm ring-1 ring-black/5">
-        <div className="flex items-center gap-3">
-          <SkeletonLine className="size-11 rounded-md" />
-          <div className="min-w-0 flex-1">
-            <SkeletonLine className="h-4 w-32 rounded-md" />
-            <SkeletonLine className="mt-2 h-3 w-40 rounded-md" />
-          </div>
-        </div>
-        <SkeletonLine className="mt-5 h-3 w-full rounded-md" />
-        <SkeletonLine className="mt-2 h-3 w-4/5 rounded-md" />
-      </section>
-    </main>
-  );
-}
-
-function EventDashboardSkeleton({ variant = "event" }: { variant?: EventDashboardSkeletonVariant }) {
-  if (variant === "suppliers") {
-    return (
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="space-y-4">
-          <SkeletonCard>
-            <SkeletonLine className="h-3 w-32 rounded-full" />
-            <SkeletonLine className="mt-3 h-7 w-72 max-w-full rounded-md" />
-            <SkeletonLine className="mt-4 h-10 w-full max-w-md rounded-lg" />
-          </SkeletonCard>
-          <SkeletonCard>
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="flex items-center gap-3 border-b border-border py-3 last:border-b-0">
-                <SkeletonLine className="size-9 rounded-md" />
-                <div className="min-w-0 flex-1">
-                  <SkeletonLine className="h-4 w-44 rounded-md" />
-                  <SkeletonLine className="mt-2 h-3 w-64 max-w-full rounded-md" />
-                </div>
-                <SkeletonLine className="h-7 w-20 rounded-full" />
-              </div>
-            ))}
-          </SkeletonCard>
-        </div>
-        <SkeletonCard className="min-h-72">
-          <SkeletonLine className="h-4 w-40 rounded-md" />
-          {Array.from({ length: 5 }).map((_, index) => (
-            <SkeletonLine key={index} className="mt-4 h-10 w-full rounded-lg" />
-          ))}
-        </SkeletonCard>
-      </div>
-    );
-  }
-
-  if (variant === "audit") {
-    return (
-      <div className="space-y-5">
-        <SkeletonCard>
-          <SkeletonLine className="h-3 w-28 rounded-full" />
-          <SkeletonLine className="mt-3 h-7 w-64 rounded-md" />
-          <SkeletonLine className="mt-4 h-10 w-full max-w-lg rounded-lg" />
-        </SkeletonCard>
-        <div className="grid gap-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <SkeletonCard key={index}>
-              <div className="flex items-start gap-3">
-                <SkeletonLine className="size-8 shrink-0 rounded-md" />
-                <div className="min-w-0 flex-1">
-                  <SkeletonLine className="h-4 w-56 max-w-full rounded-md" />
-                  <SkeletonLine className="mt-2 h-3 w-72 max-w-full rounded-md" />
-                </div>
-                <SkeletonLine className="h-7 w-24 rounded-full" />
-              </div>
-            </SkeletonCard>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === "command") {
-    return (
-      <div className="space-y-5">
-        <SkeletonCard>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <SkeletonLine className="h-3 w-28 rounded-full" />
-              <SkeletonLine className="mt-3 h-8 w-80 max-w-full rounded-md" />
-              <SkeletonLine className="mt-3 h-4 w-full max-w-xl rounded-md" />
-            </div>
-            <SkeletonLine className="h-10 w-32 rounded-md" />
-          </div>
-          <div className="mt-5 grid gap-2 sm:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <SkeletonLine key={index} className="h-9 rounded-full" />
-            ))}
-          </div>
-        </SkeletonCard>
-        <MetricSkeletonGrid />
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-          <SkeletonCard>
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="border-b border-border py-3 last:border-b-0">
-                <SkeletonLine className="h-4 w-64 max-w-full rounded-md" />
-                <SkeletonLine className="mt-2 h-3 w-44 rounded-md" />
-              </div>
-            ))}
-          </SkeletonCard>
-          <SkeletonCard className="min-h-60">
-            <SkeletonLine className="h-4 w-36 rounded-md" />
-            <SkeletonLine className="mt-5 h-24 w-full rounded-lg" />
-            <SkeletonLine className="mt-4 h-4 w-4/5 rounded-md" />
-            <SkeletonLine className="mt-2 h-4 w-2/3 rounded-md" />
-          </SkeletonCard>
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === "coordinator") {
-    return (
-      <div className="space-y-5">
-        <MetricSkeletonGrid />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SkeletonCard className="min-h-64">
-            <SkeletonLine className="h-4 w-40 rounded-md" />
-            <SkeletonLine className="mt-5 h-20 w-full rounded-lg" />
-            <SkeletonLine className="mt-3 h-20 w-full rounded-lg" />
-          </SkeletonCard>
-          <SkeletonCard className="min-h-64">
-            <SkeletonLine className="h-4 w-44 rounded-md" />
-            <SkeletonLine className="mt-5 h-32 w-full rounded-lg" />
-          </SkeletonCard>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-5">
-      <SkeletonCard>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <SkeletonLine className="h-3 w-32 rounded-full" />
-            <SkeletonLine className="mt-3 h-8 w-80 max-w-full rounded-md" />
-            <SkeletonLine className="mt-3 h-4 w-60 rounded-md" />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <SkeletonLine className="h-7 w-24 rounded-full" />
-              <SkeletonLine className="h-7 w-32 rounded-full" />
-              <SkeletonLine className="h-7 w-28 rounded-full" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <SkeletonLine className="h-9 w-28 rounded-md" />
-            <SkeletonLine className="h-9 w-24 rounded-md" />
-          </div>
-        </div>
-      </SkeletonCard>
-      <MetricSkeletonGrid />
-      <SkeletonCard>
-        <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 7 }).map((_, index) => (
-            <SkeletonLine key={index} className="h-9 w-28 rounded-full" />
-          ))}
-        </div>
-      </SkeletonCard>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <SkeletonCard className="min-h-72">
-          <SkeletonLine className="h-4 w-40 rounded-md" />
-          <SkeletonLine className="mt-5 h-36 w-full rounded-lg" />
-          <SkeletonLine className="mt-4 h-4 w-3/4 rounded-md" />
-        </SkeletonCard>
-        <SkeletonCard className="min-h-72">
-          <SkeletonLine className="h-4 w-36 rounded-md" />
-          {Array.from({ length: 4 }).map((_, index) => (
-            <SkeletonLine key={index} className="mt-4 h-12 w-full rounded-lg" />
-          ))}
-        </SkeletonCard>
-      </div>
-    </div>
-  );
-}
-
-function eventDashboardSkeletonVariant(routeState: RouteState): EventDashboardSkeletonVariant {
-  if (routeState.section === "suppliers") return "suppliers";
-  if (routeState.section === "audit") return "audit";
-  if (routeState.eventId) return "event";
-  return "command";
-}
-
-function activeSidebarItemFromRoute(routeState: RouteState) {
-  if (routeState.section === "dashboard") return "dashboard";
-  if (routeState.section === "suppliers") return "suppliers";
-  if (routeState.section === "audit") return "audit";
-  if (routeState.section === "clients") return "clients";
-  if (routeState.section === "calendar") return "calendar";
-  if (routeState.section === "tasks") return "tasks";
-  if (routeState.section === "team") return routeState.eventId ? "event-staff" : "dashboard";
-  if (routeState.section === "files") return routeState.eventId ? "event-files" : "dashboard";
-  if (routeState.section === "messages") return routeState.eventId ? "event-messages" : "dashboard";
-  if (routeState.section === "finance") return routeState.eventId ? "event-budget" : "dashboard";
-  if (routeState.section === "settings") return "settings";
-  if (routeState.section === "inquiries") return "inquiries";
-  if (routeState.section === "events-list") return "events-list";
-  if (!routeState.eventId) return "dashboard";
-
-  return EVENT_WORKSPACE_ROUTE_ITEMS[routeState.view ?? "overview"] ?? EVENT_WORKSPACE_ROUTE_ITEMS[EVENT_TAB_ROUTES[routeState.tab]] ?? "event-overview";
-}
-
 function loadingShellNavItems(hasEvent: boolean): PrismNavItem[] {
   return eventPortalNavItems({ hasEvent });
 }
@@ -588,354 +349,6 @@ function eventPortalNavItems({
     { id: "audit", icon: ShieldCheck, label: "Audit Trail", section: "System" },
     { id: "settings", icon: Settings, label: "Settings", section: "System" },
   ];
-}
-
-type EventMessage = {
-  id: string;
-  author: string;
-  initials: string;
-  body: string;
-  time: string;
-  mine?: boolean;
-  status?: string;
-};
-
-type EventMessageThread = {
-  id: string;
-  title: string;
-  detail: string;
-  tag: string;
-  status: string;
-  messages: EventMessage[];
-};
-
-function initialsFrom(value: string) {
-  return (
-    value
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join("") || "PM"
-  );
-}
-
-function messageTime(value?: string) {
-  if (!value) return "Now";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
-
-function auditMessage(item: PrismAuditLog): EventMessage {
-  const author = item.actor || "PMCM Team";
-  return {
-    id: `audit-${item.id}`,
-    author,
-    initials: initialsFrom(author),
-    body: item.action,
-    time: messageTime(item.createdAt),
-    mine: item.actorRole === "pmcm-admin",
-    status: lbl(item.category || item.actionType || "update"),
-  };
-}
-
-function outboundMessage(item: PrismNotificationLog): EventMessage {
-  const channel = lbl(item.channel);
-  return {
-    id: `outbound-${item.id}`,
-    author: "PMCM Team",
-    initials: "PM",
-    body: item.message,
-    time: messageTime(item.createdAt),
-    mine: true,
-    status: `${channel} to ${item.recipient}`,
-  };
-}
-
-function buildEventMessageThreads({
-  event,
-  audit,
-  notificationLogs,
-}: {
-  event: PrismEvent;
-  audit: PrismAuditLog[];
-  notificationLogs: PrismNotificationLog[];
-}): EventMessageThread[] {
-  const clientAudit = audit.filter((item) =>
-    /client|briefing|conforme|proposal|billing|floor/i.test(`${item.actorRole} ${item.action} ${item.category}`),
-  );
-  const coordinatorAudit = audit.filter((item) => /coordinator|assignment|event day/i.test(`${item.action} ${item.category}`));
-  const supplierAudit = audit.filter((item) => /supplier|quote|Supplier/i.test(`${item.action} ${item.category}`));
-
-  const clientOutbound = notificationLogs.filter((item) => /client|briefing|billing|proposal|floor/i.test(item.message));
-  const coordinatorOutbound = notificationLogs.filter((item) => /coordinator|assignment/i.test(item.message));
-  const supplierOutbound = notificationLogs.filter((item) => /supplier|quote|menu|setup|contract/i.test(item.message));
-
-  const clientMessages = [
-    ...clientAudit.slice(0, 4).map(auditMessage),
-    ...clientOutbound.slice(0, 4).map(outboundMessage),
-  ];
-  const coordinatorMessages = [
-    ...coordinatorAudit.slice(0, 4).map(auditMessage),
-    ...coordinatorOutbound.slice(0, 5).map(outboundMessage),
-  ];
-  const supplierMessages = [
-    ...supplierAudit.slice(0, 4).map(auditMessage),
-    ...supplierOutbound.slice(0, 4).map(outboundMessage),
-  ];
-  const internalMessages = audit.slice(0, 6).map(auditMessage);
-
-  return [
-    {
-      id: "client",
-      title: event.clientName,
-      detail: `${event.eventName} client thread`,
-      tag: "Client",
-      status: `${clientMessages.length || 1} item${clientMessages.length === 1 ? "" : "s"}`,
-      messages: clientMessages.length
-        ? clientMessages
-        : [{
-            id: "client-empty",
-            author: "PMCM Team",
-            initials: "PM",
-            body: `Client coordination thread for ${event.eventName}.`,
-            time: "Now",
-            mine: true,
-            status: "ready",
-          }],
-    },
-    {
-      id: "coordinators",
-      title: "Coordinator Team",
-      detail: "Assignments, call times, and day-of updates",
-      tag: "Team",
-      status: `${coordinatorMessages.length || 1} item${coordinatorMessages.length === 1 ? "" : "s"}`,
-      messages: coordinatorMessages.length
-        ? coordinatorMessages
-        : [{
-            id: "coordinators-empty",
-            author: "PMCM Team",
-            initials: "PM",
-            body: "Coordinator thread is ready for assignment confirmations and day-of status replies.",
-            time: "Now",
-            mine: true,
-            status: "ready",
-          }],
-    },
-    {
-      id: "suppliers",
-      title: "Supplier Desk",
-      detail: "Quotes, setup notes, attachments, and confirmations",
-      tag: "Supplier",
-      status: `${supplierMessages.length || 1} item${supplierMessages.length === 1 ? "" : "s"}`,
-      messages: supplierMessages.length
-        ? supplierMessages
-        : [{
-            id: "suppliers-empty",
-            author: "PMCM Team",
-            initials: "PM",
-            body: "Supplier thread is ready for quote follow-ups, call times, contracts, and setup confirmations.",
-            time: "Now",
-            mine: true,
-            status: "ready",
-          }],
-    },
-    {
-      id: "internal",
-      title: "PMCM Internal",
-      detail: "Team-only operational updates",
-      tag: "Internal",
-      status: `${internalMessages.length || 1} item${internalMessages.length === 1 ? "" : "s"}`,
-      messages: internalMessages.length
-        ? internalMessages
-        : [{
-            id: "internal-empty",
-            author: "PMCM Team",
-            initials: "PM",
-            body: "Internal thread is ready for PMCM coordination notes.",
-            time: "Now",
-            mine: true,
-            status: "ready",
-          }],
-    },
-  ];
-}
-
-function EventMessagesWorkspace({
-  event,
-  session,
-  audit,
-  notificationLogs,
-}: {
-  event: PrismEvent;
-  session: EventSession;
-  audit: PrismAuditLog[];
-  notificationLogs: PrismNotificationLog[];
-}) {
-  const threads = useMemo(
-    () => buildEventMessageThreads({ event, audit, notificationLogs }),
-    [audit, event, notificationLogs],
-  );
-  const [activeThreadId, setActiveThreadId] = useState(threads[0]?.id ?? "client");
-  const [draft, setDraft] = useState("");
-  const [localMessages, setLocalMessages] = useState<Record<string, EventMessage[]>>({});
-
-  useEffect(() => {
-    if (threads.some((thread) => thread.id === activeThreadId)) return;
-    setActiveThreadId(threads[0]?.id ?? "client");
-  }, [activeThreadId, threads]);
-
-  const activeThread = threads.find((thread) => thread.id === activeThreadId) ?? threads[0];
-  const messages = activeThread ? [...activeThread.messages, ...(localMessages[activeThread.id] ?? [])] : [];
-
-  function sendMessage() {
-    if (!activeThread || !draft.trim()) return;
-    const body = draft.trim();
-    setLocalMessages((current) => ({
-      ...current,
-      [activeThread.id]: [
-        ...(current[activeThread.id] ?? []),
-        {
-          id: `local-${activeThread.id}-${Date.now()}`,
-          author: session.name,
-          initials: initialsFrom(session.name),
-          body,
-          time: "Now",
-          mine: true,
-          status: "draft",
-        },
-      ],
-    }));
-    setDraft("");
-  }
-
-  if (!activeThread) {
-    return <EmptyState icon={MessageSquareText} title="No message threads" description="Select an event workspace to view PMCM messages." />;
-  }
-
-  return (
-    <section className="overflow-hidden rounded-lg border border-primary/12 bg-card shadow-none">
-      <div className="grid min-h-[680px] lg:grid-cols-[20rem_minmax(0,1fr)]">
-        <aside className="border-b border-border bg-secondary/45 lg:border-b-0 lg:border-r">
-          <div className="border-b border-border p-4">
-            <p className="text-sm font-black text-foreground">Event Threads</p>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{event.eventName}</p>
-            <div className="relative mt-3">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                className="h-10 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus:border-primary"
-                placeholder="Search threads..."
-              />
-            </div>
-          </div>
-          <div className="p-2">
-            {threads.map((thread) => (
-              <button
-                key={thread.id}
-                type="button"
-                data-active={thread.id === activeThread.id}
-                onClick={() => setActiveThreadId(thread.id)}
-                className="flex w-full items-start gap-3 rounded-md px-3 py-3 text-left transition hover:bg-card data-[active=true]:bg-card data-[active=true]:shadow-sm"
-              >
-                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-black text-primary">
-                  {initialsFrom(thread.title)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-black text-foreground">{thread.title}</span>
-                    <span className="text-[11px] font-bold text-muted-foreground">{thread.status}</span>
-                  </span>
-                  <span className="mt-1 block truncate text-xs text-muted-foreground">{thread.detail}</span>
-                  <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-black text-primary">
-                    {thread.tag}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-col bg-background">
-          <div className="border-b border-border bg-card px-5 py-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-base font-black text-foreground">{activeThread.title}</p>
-                <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{activeThread.detail}</p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-[11px] font-black text-muted-foreground">
-                <span className="rounded-full bg-secondary px-2.5 py-1">{activeThread.tag}</span>
-                <span className="rounded-full bg-secondary px-2.5 py-1">{event.status}</span>
-                <span className="rounded-full bg-secondary px-2.5 py-1">{event.floorPlanStatus}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-6">
-            <div className="mx-auto w-fit rounded-md bg-secondary px-3 py-1 text-[11px] font-black text-muted-foreground">
-              {event.eventDate}
-            </div>
-            {messages.map((message) => (
-              <div key={message.id} className={`flex items-end gap-2 ${message.mine ? "justify-end" : "justify-start"}`}>
-                {!message.mine ? (
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-[11px] font-black text-foreground">
-                    {message.initials}
-                  </span>
-                ) : null}
-                <div className={`max-w-[min(48rem,82%)] ${message.mine ? "text-right" : "text-left"}`}>
-                  <div
-                    className={
-                      message.mine
-                        ? "rounded-2xl rounded-br-md bg-primary px-4 py-3 text-sm font-medium leading-6 text-primary-foreground"
-                        : "rounded-2xl rounded-bl-md bg-card px-4 py-3 text-sm font-medium leading-6 text-foreground shadow-sm ring-1 ring-border"
-                    }
-                  >
-                    {message.body}
-                  </div>
-                  <div className={`mt-1 flex flex-wrap gap-2 text-[11px] font-semibold text-muted-foreground ${message.mine ? "justify-end" : "justify-start"}`}>
-                    <span>{message.author}</span>
-                    <span>{message.time}</span>
-                    {message.status ? <span>{message.status}</span> : null}
-                  </div>
-                </div>
-                {message.mine ? (
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-black text-primary-foreground">
-                    {message.initials}
-                  </span>
-                ) : null}
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-border bg-card p-4">
-            <div className="flex gap-2">
-              <input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                className="h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-primary"
-                placeholder={`Reply to ${activeThread.title}...`}
-              />
-              <button
-                type="button"
-                disabled={!draft.trim()}
-                onClick={sendMessage}
-                className="grid size-11 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-45"
-                aria-label="Send message"
-              >
-                <Send className="size-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
 }
 
 /* ── Home page stat card ───────────────────────────────────── */
@@ -2440,68 +1853,13 @@ export default function EventDashboard({
   /* PMCM loading */
   if (!state) {
     const loadingVariant = eventDashboardSkeletonVariant(routeState);
-    const loadingTitle =
-      routeState.section === "suppliers"
-        ? "Supplier Directory"
-        : routeState.section === "audit"
-          ? "Audit Trail"
-          : routeState.section === "clients"
-            ? "Client Desk"
-          : routeState.section === "calendar"
-            ? "Calendar"
-          : routeState.section === "tasks"
-            ? "Tasks"
-          : routeState.section === "team"
-            ? "Team & Coordinators"
-          : routeState.section === "files"
-            ? "Event File Hub"
-          : routeState.section === "messages"
-            ? "Event Messages"
-          : routeState.section === "finance"
-            ? "Finance Desk"
-          : routeState.section === "inquiries"
-            ? "Inquiry Intake"
-          : routeState.section === "events-list"
-            ? "All Events"
-          : routeState.section === "settings"
-            ? "Settings"
-          : routeState.eventId
-            ? "Event workspace"
-            : "Event Manager";
-    const loadingEyebrow =
-      routeState.section === "suppliers"
-        ? "Supplier directory"
-        : routeState.section === "audit"
-          ? "Audit log"
-          : routeState.section === "clients"
-            ? "Clients"
-          : routeState.section === "calendar"
-            ? "Calendar"
-          : routeState.section === "tasks"
-            ? "Tasks"
-          : routeState.section === "team"
-            ? "Team"
-          : routeState.section === "files"
-            ? "Files"
-          : routeState.section === "messages"
-            ? "Messages"
-          : routeState.section === "finance"
-            ? "Finance"
-          : routeState.section === "inquiries"
-            ? "Inquiries"
-          : routeState.section === "events-list"
-            ? "Events"
-          : routeState.section === "settings"
-            ? "Settings"
-          : routeState.eventId
-            ? "Event workspace"
-            : "Command home";
+    const loadingShellCopy = routeLoadingShellCopy(routeState);
     return (
       <PrismDashboardShell
         productLabel="P.R.I.S.M"
         roleLabel="PMCM Event Command"
-        eyebrow={loadingEyebrow}
-        title={loadingTitle}
+        eyebrow={loadingShellCopy.eyebrow}
+        title={loadingShellCopy.title}
         description="Loading the PMCM event command data, route context, and workspace queue."
         activeItemId={activeSidebarItemFromRoute(routeState)}
         navItems={loadingShellNavItems(Boolean(routeState.eventId))}

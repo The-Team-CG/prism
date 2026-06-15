@@ -1,10 +1,13 @@
 # P.R.I.S.M Whole-App Redesign and Capability Maturity Plan
 
 Date: 2026-06-11
+Last updated: 2026-06-15
 
 ## Purpose
 
 This document defines a full-product redesign and capability maturity plan for P.R.I.S.M. It treats the project as a complete operating system for PMCM, not as a set of isolated feature tickets. The plan covers UX redesign, information architecture, design system work, role-specific app flows, backend/data maturity, security/privacy, integrations, and AI/agentic features.
+
+This is the active redesign plan. It now assigns each owner an explicit system goal, not only a workstream. A phase is not complete when an owner finishes screens or endpoints in isolation; it is complete when the owner's system goal is measurably true in the running product.
 
 Primary sources:
 
@@ -104,6 +107,30 @@ Every phase has two required tracks:
 
 No phase is complete if it only makes the UI prettier or only adds backend endpoints. A phase is complete when the affected workflow works end to end, has clear role boundaries, and is verified.
 
+## Current Architecture Baseline
+
+As of 2026-06-15, the highest-impact backend architecture hardening work is treated as the starting baseline for the redesign, not as future discovery work.
+
+Implemented baseline:
+
+- `EventOpsService` remains the public facade, but operational ownership has been split into workflow services for inquiry, onboarding, commercial workflow, supplier network, live operations, closure, compliance, AI governance, notifications, read models, lifecycle, and document validation.
+- Role-aware read models and scoped controllers exist alongside seed/sample compatibility. Broad sample state remains for demo/reset paths only and should not become the default design dependency for new surfaces.
+- `EventAccessPolicyService` is the central permission and role-boundary layer for event access decisions.
+- Workflow writes increasingly follow the command pattern: validate permission, validate state, write, audit, queue notification, return typed result.
+- Notification delivery uses a durable outbox with attempt state, failure reason, acknowledgement state, and audit correlation.
+- File upload metadata validation is centralized in `DocumentVaultService`; the file requirements matrix is the target product model for document/file surfaces.
+- Lifecycle transitions are encoded in `EventLifecycleService`.
+- Shared actor context, notification log details, lifecycle types, and event-ops contracts live in `packages/types` and `packages/api-client`.
+- Boundary checks prevent backend services from injecting `Prisma` as `any`.
+
+Remaining implementation debt:
+
+- Keep reducing `EventOpsService` until it is only a route-facing orchestrator and mapper.
+- Move more app surfaces off broad sample state and onto scoped read APIs.
+- Convert remaining direct integration/file side effects into durable command or adapter boundaries.
+- Keep frontend feature modules aligned to workflow ownership instead of route sprawl.
+- Fix local database configuration before treating API-backed sample data as live in local demos.
+
 ## Product Evolution Model
 
 The Version 4 catalog is the baseline feature inventory, not a hard ceiling. The redesign may add, revise, merge, split, defer, retire, or gate features when doing so makes P.R.I.S.M clearer, safer, more usable, or more aligned with PMCM operations.
@@ -145,15 +172,47 @@ The plan assumes four people can work in parallel. The owners below are workstre
 | Owner C | Portal Apps Lead | `apps/client`, `apps/supplier`, `apps/guest`, public inquiry, supplier application, guest access, portal UX | Portal-specific scoped reads and state hooks | Portals becoming all-purpose dashboards or exposing PMCM-only data |
 | Owner D | API, Platform, QA, Security, and Docs Lead | `apps/api`, Prisma, shared contracts, API client, permission boundaries, audit, notifications, uploads, integration adapters, verification, docs | Cross-role regression matrix, release checklist, feature ledger | UI work outrunning data/security foundations |
 
+## Owner System Goals
+
+Each owner has one durable goal for the system. The goal describes the product condition that must become true, regardless of which individual tickets or files are involved.
+
+| Owner | System goal | What the system must let PMCM do | Success signals | Non-goal |
+| --- | --- | --- | --- | --- |
+| Owner A | Make P.R.I.S.M feel like one coherent PMCM operating system across every role surface. | PMCM, clients, suppliers, coordinators, and guests should recognize the same lifecycle, status language, action hierarchy, and interaction patterns while still seeing role-specific surfaces. | Every redesigned page has one primary job, a visible next action, consistent status language, responsive states, and no banned visual patterns. | Owner A does not own every component implementation or turn portals into the same shell. |
+| Owner B | Make PMCM and coordinator work operable from inquiry intake through event-day command and closure. | Ms. Mys, EA, PMCM admins, and coordinators should be able to see operational risk, resolve blockers, run events, replace people, verify suppliers, manage official floorplans, and close/archive events from the PMCM command app. | Event Command Inbox, selected event workspace, live-ops board, staffing/role views, finance/files/closure surfaces, and PMCM-only data boundaries are usable and verified. | Owner B does not expose PMCM internal state to client, supplier, or guest portals. |
+| Owner C | Make every external portal a narrow, safe action surface instead of a dashboard clone. | Clients, suppliers, and guests should complete their own next action without seeing internal PMCM work, unrelated events, private reviews, internal costs, or cross-role data. | Client Action Center, supplier readiness/quote/contract/status flows, guest access/check-in/feedback, public inquiry, and supplier application flows are scoped, mobile-ready, and role-safe. | Owner C does not build all-role shells or bypass PMCM gates for event creation, official floorplan edits, or supplier decisions. |
+| Owner D | Make the platform enforce trust: correct data, permissions, audit, files, notifications, lifecycle, and verification. | PMCM should be able to trust that every workflow state change is typed, permissioned, auditable, queued when external delivery is involved, and backed by durable records. | Scoped APIs replace broad state dependencies, shared contracts are source of truth, policy checks gate reads/writes, command handlers own side effects, outbox/file/lifecycle services are tested, and docs stay current. | Owner D does not block product work with speculative platform rewrites or move workflow UX into backend abstractions. |
+
+## Owner Definitions of Done
+
+| Owner | Definition of done |
+| --- | --- |
+| Owner A | UX brief, IA, state language, layout pattern, responsive expectations, empty/error/no-permission states, and design QA notes exist for every redesigned workflow before implementation is called complete. |
+| Owner B | PMCM/coordinator workflows can be completed from the event command app with correct PMCM-only visibility, clear next actions, and verified lifecycle/audit/notification side effects. |
+| Owner C | Portal users can complete their scoped tasks without PMCM-only leakage, all public-to-signed-in boundaries are explicit, and mobile/low-friction states are verified. |
+| Owner D | API/data contracts, permission policy, audit, outbox/file/lifecycle behavior, tests, build/typecheck/boundary checks, and docs are updated for the changed workflow. |
+
+## Owner Goal To Phase Mapping
+
+The same four goals apply in every phase:
+
+| Phase group | Owner A goal in that phase | Owner B goal in that phase | Owner C goal in that phase | Owner D goal in that phase |
+| --- | --- | --- | --- | --- |
+| Phase 0-1 foundation | Define the shared operating language and page patterns. | Confirm PMCM/coordinator IA and command workflows. | Confirm portal IA and external action boundaries. | Lock contracts, policies, fixtures, and verification gates. |
+| Phase 2-6 app redesign | Keep every app coherent while preserving role-specific UX. | Make PMCM/coordinator surfaces operationally complete. | Make client/supplier/guest/public surfaces focused and safe. | Provide scoped APIs and prevent role-boundary regressions. |
+| Phase 7-9 workflow maturity | Align lifecycle/action/status models across apps. | Deepen PMCM command, commercial, live-ops, closure, and archive work. | Deepen portal next-action, visibility, and feedback flows. | Mature workflow data, audit, notification, file, and search foundations. |
+| Phase 10-12 platform/AI maturity | Define visible, understandable states for integrations, security, privacy, and AI review. | Operate notifications, privacy/security, and AI review from PMCM surfaces. | Show only approved and portal-safe external states. | Own adapters, storage, auth, privacy, ZDR, AI audit, approval gates, and regression suites. |
+
 ## Parallel Work Rules
 
 1. Owner A defines design patterns before Owners B and C implement redesigned pages.
 2. Owner D defines or validates API contracts before redesigned surfaces depend on new behavior.
 3. Owner B and Owner C may build in parallel once route ownership and DTOs are stable.
 4. Owner D owns cross-app verification and prevents role-boundary regressions.
-5. Any page redesign must identify the workflow it improves, not just the visual changes.
-6. Any capability expansion must identify the user-facing surface where it is operated.
-7. AI, QR scanning, production notification adapters, external auth, and real file storage stay gated until their prerequisite phases are complete.
+5. Every owner must state which system goal their branch advances before implementation starts.
+6. Any page redesign must identify the workflow it improves, not just the visual changes.
+7. Any capability expansion must identify the user-facing surface where it is operated.
+8. AI, QR scanning, production notification adapters, external auth, and real file storage stay gated until their prerequisite phases are complete.
 
 ## Phase 0: Whole-App Audit, Feature Ledger, and Redesign Inventory
 
@@ -1268,6 +1327,16 @@ Recommended sequence inside a phase:
 5. Owner A reviews visual consistency and UX completeness.
 6. Docs and feature ledger are updated before merge.
 
+Every branch or work package should include:
+
+- Owner label.
+- Owner system goal advanced.
+- Workflow or app surface changed.
+- API/data contracts changed.
+- Permission boundary affected.
+- Audit/notification/file/lifecycle side effects affected.
+- Verification evidence.
+
 ## Branch Merge Strategy
 
 Preferred merge order:
@@ -1284,6 +1353,7 @@ When PMCM and portal app work can happen independently, both may proceed in para
 
 For any phase:
 
+- Each owner can point to the system goal they advanced and the evidence that it is true in the product.
 - Feature ledger updated.
 - Redesign inventory updated.
 - Page/workflow acceptance criteria met.

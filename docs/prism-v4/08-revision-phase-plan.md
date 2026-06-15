@@ -66,15 +66,15 @@ Goal: protect the first defense flow and reduce high-risk large files.
 | Area | Revision |
 | --- | --- |
 | API services | Extract inquiry acceptance, pending/decline, duplicate detection, previous rejection flags, conforme reminders, portal invitations, and conforme upload into focused services. |
-| PMCM app | Split `prism-event` PMCM shell into inquiry, event list, event detail, billing/activity, and action-handler units. |
+| PMCM app | Split `apps/event` PMCM shell into inquiry, event list, event detail, billing/activity, and action-handler units. |
 | Client app | Split client dashboard into overview, briefing, layout, billing, documents, and activity units. |
 | State | Preserve current behavior while migrating panels to scoped reads. |
 
 Verification:
 
 - Focused API tests for inquiry accept/pend/decline, duplicate flag, previous rejection flag, conforme upload, and reminder eligibility.
-- `npm run build` in `prism-event`.
-- `npm run build` in `prism-client`.
+- `npm --workspace @prism/event run build`.
+- `npm --workspace @prism/client run build`.
 
 ## Phase 3 - Supplier, Quote, Finance, And Floorplan Hardening
 
@@ -85,13 +85,13 @@ Goal: make the strongest partial workflows operational instead of sample-only.
 | Supplier directory | Add create/edit, private PMCM review, tier-change reason, certification metadata, and audit trail. |
 | Quote lifecycle | Connect PMCM quote requests to supplier-side submit/revise flows with deadline, status, confidentiality, comparison, selection, and lock behavior. |
 | Finance | Keep billing statement generation, manual payment history, remaining balance, and Payment At Risk as separate finance surfaces. |
-| Floorplans | Persist submitted/approved official snapshots; keep PMCM official editing in `prism-event`; keep client official layout review read-only. |
+| Floorplans | Persist submitted/approved official snapshots; keep PMCM official editing in `apps/event`; keep client official layout review read-only. |
 
 Verification:
 
 - API tests for supplier tier/review, quote request/submission/selection, payment record audit, and floorplan submit/approve boundary.
-- `npm run build` in `prism-event`.
-- `npm run build` in `prism-supplier` once supplier submission UI is touched.
+- `npm --workspace @prism/event run build`.
+- `npm --workspace @prism/supplier run build` once supplier submission UI is touched.
 
 ## Phase 4 - Compliance, Billing Source, Close Gates, Archive, And Insights
 
@@ -107,7 +107,7 @@ Goal: turn the defense differentiators into rule-backed workflows.
 Verification:
 
 - API tests for compliance rule generation, override audit, billing-source link, archive blocking, archive override, and insights output.
-- `npm run build` in `prism-api` and `prism-event`.
+- `npm --workspace prism-api run build` and `npm --workspace @prism/event run build`.
 
 ## Phase 5 - Portal Hardening, Notifications, File Validation, And AI Governance
 
@@ -136,13 +136,13 @@ Goal: add the missing live event-day layer without starting live AI, QR scanning
 | Supplier verification | Keep supplier self-reported Phase 5 statuses, then let PMCM/coordinators mark setup as `self_reported`, `verified`, or `disputed`. |
 | Coordinator attendance | Track `present`, `late`, `absent`, and `replaced`; create reliability/audit metadata when a coordinator is marked late or absent. |
 | PMCM workspace | Add a PMCM live-ops panel for supplier readiness, coordinator attendance, guest attendance count, urgent issues, task completion, and live log review. |
-| Coordinator role views | Keep coordinator surfaces in `prism-event`; show assigned-event, role-safe views for floor/stage, registration, ingress/egress, event-day operator, and usher/general coordinator roles. |
+| Coordinator role views | Keep coordinator surfaces in `apps/event`; show assigned-event, role-safe views for floor/stage, registration, ingress/egress, event-day operator, and usher/general coordinator roles. |
 
 Verification:
 
 - API tests for PMCM full live ops, assigned coordinator role-safe reads, urgent issue create/resolve, coordinator late/absent reliability notes, supplier verification, and registration attendance access.
-- `npm run test:event-ops`, `npm run typecheck`, `npm run build`, and `npm run prisma:validate` in `prism-api`.
-- `npm run build` in `prism-event`.
+- `npm --workspace prism-api run test:event-ops`, `npm --workspace prism-api run typecheck`, `npm --workspace prism-api run build`, and `npm --workspace prism-api run prisma:validate`.
+- `npm --workspace @prism/event run build`.
 - Regression checks for public dashboard links, client official floorplan mutation, and PMCM-only private data leakage.
 
 ## Phase 7 - Live-Ops Reliability
@@ -156,13 +156,13 @@ Goal: harden the Phase 6 live event-day layer for real PMCM execution pressure.
 | Escalation | Add PMCM/coordinator escalation writes for tasks and urgent issues with event-day log, audit log, and queued notification side effects. |
 | Coordinator replacement | Let PMCM replace a coordinator assignment with a new pending assignment, reliability note, audit metadata, live log, and queued notifications. |
 | Role-safe feeds | Add PMCM/coordinator-scoped status feeds; registration can see check-ins while other coordinator roles only see assigned tasks, issues, supplier setup status, and live logs. |
-| PMCM workspace | Add overdue/SLA badges, escalation controls, replacement picker, and status-feed filters in `prism-event`. |
+| PMCM workspace | Add overdue/SLA badges, escalation controls, replacement picker, and status-feed filters in `apps/event`. |
 
 Verification:
 
 - API tests for overdue SLA computation, task/issue escalation side effects, coordinator replacement, replaced reliability metadata, role-safe feeds, and non-live-ops actor rejection.
-- `npm run db:generate`, `npm run test:event-ops`, `npm run typecheck`, `npm run build`, and `npm run prisma:validate` in `prism-api`.
-- `npm run build` in `prism-event`.
+- `npm run db:generate`, `npm --workspace prism-api run test:event-ops`, `npm --workspace prism-api run typecheck`, `npm --workspace prism-api run build`, and `npm --workspace prism-api run prisma:validate`.
+- `npm --workspace @prism/event run build`.
 - Regression checks for public dashboard links, client official floorplan mutation, and supplier/guest/coordinator private data leakage.
 
 ## Phase 8 - Security, Privacy, And Audit Readiness
@@ -181,8 +181,8 @@ Goal: harden the sample security and privacy story before live AI, QR scanning, 
 Verification:
 
 - API tests for hashed password login, legacy plaintext upgrade, wrong-password lockout counters, pending-account gate, consent rejection/persistence, audit integrity pass/tamper detection, and PMCM-only privacy inventory.
-- `npm run db:generate`, `npm run test:event-ops`, `npm run typecheck`, `npm run build`, and `npm run prisma:validate` in `prism-api`.
-- `npm run build` in `prism-event`, `prism-client`, `prism-supplier`, and `prism-guest`.
+- `npm run db:generate`, `npm --workspace prism-api run test:event-ops`, `npm --workspace prism-api run typecheck`, `npm --workspace prism-api run build`, and `npm --workspace prism-api run prisma:validate`.
+- `npm --workspace @prism/event run build`, `npm --workspace @prism/client run build`, `npm --workspace @prism/supplier run build`, and `npm --workspace @prism/guest run build`.
 - Regression checks for public dashboard links, client official floorplan mutation, and PMCM-only private data leakage.
 
 ## Phase 9 - Privacy Operations And Audit Hardening
@@ -196,20 +196,20 @@ Goal: move from passive privacy inventory to PMCM-operated privacy request handl
 | Retention policies | Add PMCM-only retention policy reads for inquiry, approval request, supplier, guest check-in, guest feedback, documents, and audit surfaces. |
 | Soft redaction | Execute deletion requests by redacting personal fields while preserving event, finance, operations, and audit records. |
 | Audit hardening | Use append-only audit entries for privacy review and redaction; normal privacy execution must not delete or mutate audit rows. |
-| PMCM workspace | Add privacy operations controls beside audit/security monitoring in `prism-event`. |
+| PMCM workspace | Add privacy operations controls beside audit/security monitoring in `apps/event`. |
 
 Verification:
 
 - API tests for auth compatibility, retention policies, privacy request create/list/review/execute, soft redaction, audit-chain validity, and non-PMCM rejection.
-- `npx prisma migrate dev --name phase9_privacy_operations_audit_hardening`, `npm run db:generate`, `npm run test:event-ops`, `npm run typecheck`, `npm run build`, and `npm run prisma:validate` in `prism-api`.
-- `npm run build` in `prism-event`.
+- `npx prisma migrate dev --name phase9_privacy_operations_audit_hardening`, `npm run db:generate`, `npm --workspace prism-api run test:event-ops`, `npm --workspace prism-api run typecheck`, `npm --workspace prism-api run build`, and `npm --workspace prism-api run prisma:validate`.
+- `npm --workspace @prism/event run build`.
 - Regression checks for public dashboard links, client official floorplan mutation, and PMCM-only private data leakage.
 
 ## Phase Guardrails
 
-- Keep `prism-client` as the client/public portal, not an all-role PMCM shell.
-- Keep PMCM command workflows in `prism-event`.
-- Keep one shared API in `prism-api`.
+- Keep `apps/client` as the client/public portal, not an all-role PMCM shell.
+- Keep PMCM command workflows in `apps/event`.
+- Keep one shared API in `apps/api`.
 - Do not expose PMCM internal CE, private supplier reviews, audit logs, or internal cost data to clients, suppliers, or guests.
 - Do not let public pages link directly to dashboards.
 - Do not let clients edit official floorplans.

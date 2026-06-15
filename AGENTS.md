@@ -11,7 +11,9 @@ These notes preserve the product boundaries established by the project docs and 
 - The current feature decision ledger is `docs/prism-v4/11-feature-ledger.md`.
 - The current whole-app redesign inventory is `docs/prism-v4/12-redesign-inventory.md`.
 - The current documentation cleanup checklist is `docs/prism-v4/13-docs-cleanup-checklist.md`.
+- The current redesign readiness handoff contract is `docs/prism-v4/14-redesign-readiness-foundation.md`.
 - The current whole-app redesign plan is `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
+- The maturity plan defines explicit system goals for Owner A, Owner B, Owner C, and Owner D. Do not treat owners as loose assignees; every redesign or capability branch should state which owner system goal it advances.
 - The historical revision roadmap is `docs/prism-v4/08-revision-phase-plan.md`.
 - The supporting root docs are `README.md` and `AGENTS.md`; `CLAUDE.md` is a symlink to `AGENTS.md`.
 - The lifecycle is inquiry -> conforme -> briefing/proposal -> planning -> event day -> closure/archive.
@@ -32,7 +34,7 @@ These notes preserve the product boundaries established by the project docs and 
 - Clients can manage official floorplans from the dashboard.
 - Official floorplans are managed from the selected event workspace in `apps/event`.
 - Clients submit guided layout preferences inside a confirmed event.
-- PMCM can edit the real floorplan and controls submit/approve workflow in `prism-event`.
+- PMCM can edit the real floorplan and controls submit/approve workflow in `apps/event`.
 - Client users only see submitted/approved official layouts read-only.
 
 ## Implementation Defaults
@@ -40,6 +42,8 @@ These notes preserve the product boundaries established by the project docs and 
 - Keep one shared NestJS API in `apps/api` on port `4000`.
 - Keep the existing canvas/editor internals intact when moving workflow ownership.
 - Use API-backed sample auth/RBAC for now; no external auth provider in this pass.
+- Treat `/api/sample/state` and local sample state as compatibility-only for seed/demo/reset paths; new role surfaces should use scoped APIs and typed contracts.
+- Session and sample storage keys belong in `@prism/types`; do not add new app-local literal `prism:*` storage keys.
 - Preserve existing uncommitted user work. Do not revert unrelated changes.
 
 ## Visual Rules

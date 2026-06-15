@@ -26,13 +26,14 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
-import { MOCK_AUTH_SESSION_KEY } from "@/mock/auth-users";
+import { PRISM_LEGACY_SESSION_STORAGE_KEYS, PRISM_SESSION_STORAGE_KEYS, clearPrismSession } from "@prism/types";
 import {
   prismApi,
   type CreatePrismInquiryInput,
   type PrismBillingStatement,
   type PrismBriefing,
-  type PrismSampleState,
+  type PrismClientActionItem,
+  type PrismClientWorkspace,
   type PrismDocument,
   type PrismEvent,
   type PrismFloorPlanDraft,
@@ -328,6 +329,7 @@ type ClientDashboardAction = {
   description: string;
   detail: string;
   ctaLabel: string;
+  href?: string;
   icon: LucideIcon;
   targetTab: DetailTab;
   status: string;
@@ -417,6 +419,45 @@ function getClientDashboardActions({
   ];
 }
 
+function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIcon {
+  if (kind === "billing") return ReceiptText;
+  if (kind === "document" || kind === "closure") return FileText;
+  if (kind === "floorplan") return MapPinned;
+  if (kind === "approval") return BadgeCheck;
+  if (kind === "feedback") return MessageSquareText;
+  return Presentation;
+}
+
+function clientActionTarget(kind: PrismClientActionItem["kind"]): DetailTab {
+  if (kind === "billing") return "billing";
+  if (kind === "document" || kind === "closure") return "documents";
+  if (kind === "floorplan") return "floorplan";
+  if (kind === "approval") return "proposal";
+  if (kind === "feedback") return "activity";
+  return "briefing";
+}
+
+function clientActionTone(priority: PrismClientActionItem["priority"]): ClientDashboardAction["tone"] {
+  if (priority === "critical" || priority === "warning") return "warning";
+  if (priority === "attention") return "primary";
+  return "neutral";
+}
+
+function actionCenterItemToDashboardAction(item: PrismClientActionItem): ClientDashboardAction {
+  return {
+    id: item.id,
+    title: item.label,
+    description: item.description,
+    detail: item.dueAt ? formatEventDate(item.dueAt) : formatStatusLabel(item.status),
+    ctaLabel: "Open",
+    href: item.href,
+    icon: clientActionIcon(item.kind),
+    targetTab: clientActionTarget(item.kind),
+    status: item.status,
+    tone: clientActionTone(item.priority),
+  };
+}
+
 function selectNextAction(actions: ClientDashboardAction[]) {
   return actions.find((action) => action.tone === "primary")
     ?? actions.find((action) => action.tone === "warning")
@@ -430,7 +471,7 @@ function greetingByTime(name: string) {
   return `${greeting}, ${firstName}.`;
 }
 
-function eventProgressDots(ev: PrismEvent, state: PrismSampleState) {
+function eventProgressDots(ev: PrismEvent, state: PrismClientWorkspace) {
   const drafts = state.floorPlanDrafts.filter((d) => d.eventId === ev.id);
   const billing = state.billingStatements.find((b) => b.eventId === ev.id);
   const docs = state.documents.filter((d) => d.eventId === ev.id);
@@ -650,7 +691,7 @@ export function Dashboard({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
-  const { error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardState({
+  const { actionCenter, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardState({
     route,
     eventId,
     portalView,
@@ -835,7 +876,7 @@ export function Dashboard({
     }
   }
 
-  const clientActions = selectedEvent
+  const derivedClientActions = selectedEvent
     ? getClientDashboardActions({
         selectedEvent,
         briefing,
@@ -845,9 +886,26 @@ export function Dashboard({
         officialDraft,
       })
     : [];
+  const contractClientActions = selectedEvent && actionCenter
+    ? actionCenter.items
+        .filter((item) => item.eventId === selectedEvent.id)
+        .map(actionCenterItemToDashboardAction)
+    : [];
+  const clientActions = actionCenter
+    ? [
+        ...contractClientActions,
+        ...derivedClientActions.filter(
+          (action) => action.tone === "success" && !contractClientActions.some((contractAction) => contractAction.targetTab === action.targetTab),
+        ),
+      ]
+    : derivedClientActions;
   const nextAction = selectNextAction(clientActions);
 
   function runClientAction(action: ClientDashboardAction) {
+    if (action.href?.startsWith("/dashboard")) {
+      router.push(action.href);
+      return;
+    }
     if (action.id === "layout-review" && officialDraft) {
       void openFloorplanEditor(officialDraft, officialDraft.status === "approved");
       return;
@@ -899,7 +957,9 @@ export function Dashboard({
   }
 
   const signOut = () => {
-    window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
+    clearPrismSession(PRISM_SESSION_STORAGE_KEYS.client, {
+      legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
+    });
     router.replace("/sign-in");
   };
 
@@ -941,7 +1001,9 @@ export function Dashboard({
               variant="outline"
               className="rounded-lg"
               onClick={() => {
-                window.localStorage.removeItem(MOCK_AUTH_SESSION_KEY);
+                clearPrismSession(PRISM_SESSION_STORAGE_KEYS.client, {
+                  legacyKeys: [PRISM_LEGACY_SESSION_STORAGE_KEYS.clientMockAuth],
+                });
                 router.replace("/sign-in?next=/dashboard");
               }}
             >

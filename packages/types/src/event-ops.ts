@@ -400,6 +400,18 @@ export interface PrismGuestCheckIn {
   checkedInAt: string;
 }
 
+export interface PrismGuestEventPass {
+  id: string;
+  eventName: string;
+  eventDate: string;
+  clientName: string;
+  readiness: string;
+  floorPlanStatus: string;
+  activeFloorPlanDraftId?: string;
+  guestAccessCode: string;
+  attendanceCount: number;
+}
+
 export interface PrismEventDayTask {
   id: string;
   eventId: string;
@@ -777,7 +789,7 @@ export interface PrismApprovalRequest {
   requestedAt: string;
 }
 
-export interface PrismSampleState {
+export interface PrismPmcmDashboardWorkspace {
   users: PrismUser[];
   inquiries: PrismInquiry[];
   events: PrismEvent[];
@@ -803,10 +815,16 @@ export interface PrismSampleState {
   notificationLogs: PrismNotificationLog[];
 }
 
-export type PrismPmcmDashboardWorkspace = PrismSampleState;
+/**
+ * @deprecated Compatibility shape for local seed/reset/demo paths. New app
+ * contracts should use role-specific workspaces such as
+ * PrismPmcmDashboardWorkspace, PrismClientWorkspace, PrismSupplierWorkspace,
+ * billing workspaces, or event-specific read models.
+ */
+export interface PrismSampleState extends PrismPmcmDashboardWorkspace {}
 
 export type PrismClientWorkspace = Pick<
-  PrismSampleState,
+  PrismPmcmDashboardWorkspace,
   | "users"
   | "inquiries"
   | "events"
@@ -835,6 +853,106 @@ export interface PrismSupplierWorkspace {
   supplier: PrismSupplier;
   quoteRequests: PrismSupplierQuoteRequest[];
   supplierQuotes: PrismSupplierQuote[];
+}
+
+export interface PrismSupplierReadinessItem {
+  id: string;
+  requestId: string;
+  eventId: string;
+  eventName?: string | null;
+  clientName?: string | null;
+  category: string;
+  quoteStatus: string;
+  assignmentStatus?: string;
+  readinessStatus?: string;
+  contractStatus: "missing" | "uploaded";
+  eventDayStatus?: string;
+  verificationStatus?: string;
+  priority: PrismCommandInboxSeverity;
+  dueAt?: string | null;
+  href?: string;
+}
+
+export interface PrismSupplierReadinessBoard {
+  generatedAt: string;
+  supplier: PrismSupplier;
+  counts: Record<PrismCommandInboxSeverity, number>;
+  items: PrismSupplierReadinessItem[];
+}
+
+export type PrismCommandInboxSeverity = "critical" | "warning" | "attention" | "info";
+
+export type PrismCommandInboxKind =
+  | "inquiry"
+  | "conforme"
+  | "briefing"
+  | "billing"
+  | "document"
+  | "floorplan"
+  | "approval"
+  | "supplier"
+  | "coordinator"
+  | "closure"
+  | "live_ops"
+  | "feedback";
+
+export interface PrismCommandInboxItem {
+  id: string;
+  kind: PrismCommandInboxKind;
+  severity: PrismCommandInboxSeverity;
+  label: string;
+  description: string;
+  status: string;
+  eventId?: string | null;
+  eventName?: string | null;
+  clientName?: string | null;
+  dueAt?: string | null;
+  createdAt?: string | null;
+  href?: string;
+}
+
+export interface PrismPmcmCommandInbox {
+  generatedAt: string;
+  counts: Record<PrismCommandInboxSeverity, number>;
+  items: PrismCommandInboxItem[];
+}
+
+export interface PrismPmcmEventWorkspace {
+  event: PrismEvent;
+  documents: PrismDocument[];
+  briefings: PrismBriefing[];
+  supplierQuoteRequests: PrismSupplierQuoteRequest[];
+  supplierQuotes: PrismSupplierQuote[];
+  coordinatorAssignments: PrismCoordinatorAssignment[];
+  complianceChecks: PrismComplianceCheck[];
+  billingSources: PrismBillingSource[];
+  billingStatements: PrismBillingStatement[];
+  paymentMilestones: PrismPaymentMilestone[];
+  paymentRecords: PrismPaymentRecord[];
+  postEventDocuments: PrismPostEventDocument[];
+  eventInsights: PrismEventInsight[];
+  floorPlanDrafts: PrismFloorPlanDraft[];
+  auditLogs: PrismAuditLog[];
+  notificationLogs: PrismNotificationLog[];
+}
+
+export interface PrismClientActionItem {
+  id: string;
+  kind: Extract<PrismCommandInboxKind, "briefing" | "billing" | "document" | "floorplan" | "approval" | "closure" | "feedback">;
+  priority: PrismCommandInboxSeverity;
+  label: string;
+  description: string;
+  status: string;
+  eventId: string;
+  eventName: string;
+  dueAt?: string | null;
+  href?: string;
+}
+
+export interface PrismClientActionCenter {
+  generatedAt: string;
+  counts: Record<PrismCommandInboxSeverity, number>;
+  items: PrismClientActionItem[];
 }
 
 type CreateFloorPlanDraftInput = {

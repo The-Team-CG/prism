@@ -27,38 +27,20 @@ import {
   PrismTextarea,
   RolePageHeader,
 } from "@prism/ui";
+import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, readPrismSession, savePrismSession, type PrismGuestEventPass } from "@prism/types";
 
-type GuestSession = {
-  id: string;
-  eventName: string;
-  eventDate: string;
-  clientName: string;
-  readiness: string;
-  floorPlanStatus: string;
-  activeFloorPlanDraftId?: string;
-  guestAccessCode: string;
-  attendanceCount: number;
+type GuestSession = PrismGuestEventPass & {
   guestName: string;
   openedAt: string;
 };
 
-type GuestEvent = Omit<GuestSession, "guestName" | "openedAt">;
-
-const SESSION_KEY = "prism:guest-session";
+const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.guest;
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 const PRIVACY_NOTICE_VERSION = "2026-05-01";
 
 function readSession() {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(SESSION_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as GuestSession;
-  } catch {
-    window.localStorage.removeItem(SESSION_KEY);
-    return null;
-  }
+  return readPrismSession<GuestSession>(SESSION_KEY);
 }
 
 async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -109,10 +91,10 @@ export default function GuestDashboard() {
 
   async function refreshEvent(current = session) {
     if (!current) return;
-    const event = await apiFetch<GuestEvent>(guestPath(current));
+    const event = await apiFetch<PrismGuestEventPass>(guestPath(current));
     const next = { ...current, ...event };
     setSession(next);
-    window.localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+    savePrismSession(SESSION_KEY, next);
   }
 
   async function checkIn() {
@@ -180,7 +162,7 @@ export default function GuestDashboard() {
   }
 
   const leaveEvent = () => {
-    window.localStorage.removeItem(SESSION_KEY);
+    clearPrismSession(SESSION_KEY);
     router.replace("/open");
   };
 
