@@ -13,7 +13,8 @@ These notes preserve the product boundaries established by the project docs and 
 - The current documentation cleanup checklist is `docs/prism-v4/13-docs-cleanup-checklist.md`.
 - The current redesign readiness handoff contract is `docs/prism-v4/14-redesign-readiness-foundation.md`.
 - The current whole-app redesign plan is `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
-- The maturity plan defines explicit system goals for Owner A, Owner B, Owner C, and Owner D. Do not treat owners as loose assignees; every redesign or capability branch should state which owner system goal it advances.
+- The current sprint execution calendar is `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md`.
+- The maturity plan defines explicit system goals for Owner A (Maxine), Owner B (Francis), Owner C (Ethan), and Owner D (Anthony). Do not treat owners as loose assignees; every redesign or capability branch should state which owner system goal it advances.
 - The historical revision roadmap is `docs/prism-v4/08-revision-phase-plan.md`.
 - The supporting root docs are `README.md` and `AGENTS.md`; `CLAUDE.md` is a symlink to `AGENTS.md`.
 - The lifecycle is inquiry -> conforme -> briefing/proposal -> planning -> event day -> closure/archive.

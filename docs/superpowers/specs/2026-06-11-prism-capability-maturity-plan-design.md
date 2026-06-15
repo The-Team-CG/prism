@@ -7,7 +7,7 @@ Last updated: 2026-06-15
 
 This document defines a full-product redesign and capability maturity plan for P.R.I.S.M. It treats the project as a complete operating system for PMCM, not as a set of isolated feature tickets. The plan covers UX redesign, information architecture, design system work, role-specific app flows, backend/data maturity, security/privacy, integrations, and AI/agentic features.
 
-This is the active redesign plan. It now assigns each owner an explicit system goal, not only a workstream. A phase is not complete when an owner finishes screens or endpoints in isolation; it is complete when the owner's system goal is measurably true in the running product.
+This is the active redesign plan. It now assigns each owner an explicit system goal, not only a workstream. Owner A is Maxine, Owner B is Francis, Owner C is Ethan, and Owner D is Anthony. A phase is not complete when an owner finishes screens or endpoints in isolation; it is complete when the owner's system goal is measurably true in the running product. The sprint calendar in `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` is the execution cutline for partial, planned, or otherwise unfinished feature families through July 31, 2026.
 
 Primary sources:
 
@@ -15,6 +15,11 @@ Primary sources:
 - `docs/prism-v4/07-implemented-feature-revisions.md`
 - `docs/prism-v4/08-revision-phase-plan.md`
 - `docs/prism-v4/10-product-evolution-and-redesign-governance.md`
+- `docs/prism-v4/11-feature-ledger.md`
+- `docs/prism-v4/12-redesign-inventory.md`
+- `docs/prism-v4/13-docs-cleanup-checklist.md`
+- `docs/prism-v4/14-redesign-readiness-foundation.md`
+- `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md`
 - `AGENTS.md`
 - Current code in `apps/client`, `apps/event`, `apps/supplier`, `apps/guest`, `apps/api`, `packages/types`, `packages/api-client`, and `packages/ui`
 
@@ -121,12 +126,15 @@ Implemented baseline:
 - File upload metadata validation is centralized in `DocumentVaultService`; the file requirements matrix is the target product model for document/file surfaces.
 - Lifecycle transitions are encoded in `EventLifecycleService`.
 - Shared actor context, notification log details, lifecycle types, and event-ops contracts live in `packages/types` and `packages/api-client`.
-- Boundary checks prevent backend services from injecting `Prisma` as `any`.
+- The redesign readiness foundation is complete: active docs, app ownership, sample-state fencing, session/storage conventions, scoped-contract direction, event-app extraction seams, stale-doc removal, and `.tmp/` hygiene are documented in `docs/prism-v4/14-redesign-readiness-foundation.md`.
+- Session key names and browser session read/write/clear helpers live in `@prism/types`, and the client, event, supplier, guest, and screenshot-capture flows consume that shared contract.
+- The event app now has explicit extracted handoff surfaces for public entry, loading/skeleton states, selected-event workspace loading, live-ops/readiness loading, approval requests, action orchestration, floorplans, briefing, suppliers, activity, and messages.
+- Boundary checks prevent backend services from injecting `Prisma` as `any`, block cross-role app imports, and catch new broad sample-state or magic storage-key coupling.
 
 Remaining implementation debt:
 
 - Keep reducing `EventOpsService` until it is only a route-facing orchestrator and mapper.
-- Move more app surfaces off broad sample state and onto scoped read APIs.
+- Continue replacing compatibility fallbacks after scoped read APIs cover the full surface area.
 - Convert remaining direct integration/file side effects into durable command or adapter boundaries.
 - Keep frontend feature modules aligned to workflow ownership instead of route sprawl.
 - Fix local database configuration before treating API-backed sample data as live in local demos.
@@ -152,51 +160,51 @@ Add or revise features when they reduce repeated PMCM work, reduce event-day ris
 
 Ownership:
 
-| Owner | Product evolution responsibility |
-| --- | --- |
-| Owner A | Owns the product/UX quality case for add, revise, merge, split, defer, or retire decisions. |
-| Owner B | Validates PMCM and coordinator workflow impact. |
-| Owner C | Validates client, supplier, guest, and public portal impact. |
-| Owner D | Validates API, data, permission, audit, security, test, and documentation impact. |
+| Owner | Person | Product evolution responsibility |
+| --- | --- | --- |
+| Owner A | Maxine | Owns the product/UX quality case for add, revise, merge, split, defer, or retire decisions. |
+| Owner B | Francis | Validates PMCM and coordinator workflow impact. |
+| Owner C | Ethan | Validates client, supplier, guest, and public portal impact. |
+| Owner D | Anthony | Validates API, data, permission, audit, security, test, and documentation impact. |
 
 Phase 0 must produce the feature ledger with at least these fields: feature ID, source, persona, current state, decision, decision reason, owner, phase placement, dependencies, permission boundary, audit/notification needs, UX surface, and verification requirement.
 
 ## Four-Person Ownership Model
 
-The plan assumes four people can work in parallel. The owners below are workstream owners. They may be actual people, pair leads, or subteam labels.
+The plan assumes four people can work in parallel. The owners below are named workstream owners.
 
-| Owner | Workstream | Primary ownership | Secondary ownership | Main risk to prevent |
-| --- | --- | --- | --- | --- |
-| Owner A | Product UX and Design System Lead | Whole-app IA, design language, app shells, workflow layout patterns, component standards, UX writing, responsive rules | Feature ledger UX status, design QA, page-by-page redesign briefs | Redesign becoming inconsistent across apps |
-| Owner B | PMCM and Coordinator App Lead | `apps/event`, PMCM command app, event workspace, coordinator role views, live operations, PMCM actions | PMCM/coordinator fixture data, app-specific selectors/hooks | PMCM command app becoming a generic dashboard or leaking too much data |
-| Owner C | Portal Apps Lead | `apps/client`, `apps/supplier`, `apps/guest`, public inquiry, supplier application, guest access, portal UX | Portal-specific scoped reads and state hooks | Portals becoming all-purpose dashboards or exposing PMCM-only data |
-| Owner D | API, Platform, QA, Security, and Docs Lead | `apps/api`, Prisma, shared contracts, API client, permission boundaries, audit, notifications, uploads, integration adapters, verification, docs | Cross-role regression matrix, release checklist, feature ledger | UI work outrunning data/security foundations |
+| Owner | Person | Workstream | Primary ownership | Secondary ownership | Main risk to prevent |
+| --- | --- | --- | --- | --- | --- |
+| Owner A | Maxine | Product UX and Design System Lead | Whole-app IA, design language, app shells, workflow layout patterns, component standards, UX writing, responsive rules | Feature ledger UX status, design QA, page-by-page redesign briefs | Redesign becoming inconsistent across apps |
+| Owner B | Francis | PMCM and Coordinator App Lead | `apps/event`, PMCM command app, event workspace, coordinator role views, live operations, PMCM actions | PMCM/coordinator fixture data, app-specific selectors/hooks | PMCM command app becoming a generic dashboard or leaking too much data |
+| Owner C | Ethan | Portal Apps Lead | `apps/client`, `apps/supplier`, `apps/guest`, public inquiry, supplier application, guest access, portal UX | Portal-specific scoped reads and state hooks | Portals becoming all-purpose dashboards or exposing PMCM-only data |
+| Owner D | Anthony | API, Platform, QA, Security, and Docs Lead | `apps/api`, Prisma, shared contracts, API client, permission boundaries, audit, notifications, uploads, integration adapters, verification, docs | Cross-role regression matrix, release checklist, feature ledger | UI work outrunning data/security foundations |
 
 ## Owner System Goals
 
 Each owner has one durable goal for the system. The goal describes the product condition that must become true, regardless of which individual tickets or files are involved.
 
-| Owner | System goal | What the system must let PMCM do | Success signals | Non-goal |
-| --- | --- | --- | --- | --- |
-| Owner A | Make P.R.I.S.M feel like one coherent PMCM operating system across every role surface. | PMCM, clients, suppliers, coordinators, and guests should recognize the same lifecycle, status language, action hierarchy, and interaction patterns while still seeing role-specific surfaces. | Every redesigned page has one primary job, a visible next action, consistent status language, responsive states, and no banned visual patterns. | Owner A does not own every component implementation or turn portals into the same shell. |
-| Owner B | Make PMCM and coordinator work operable from inquiry intake through event-day command and closure. | Ms. Mys, EA, PMCM admins, and coordinators should be able to see operational risk, resolve blockers, run events, replace people, verify suppliers, manage official floorplans, and close/archive events from the PMCM command app. | Event Command Inbox, selected event workspace, live-ops board, staffing/role views, finance/files/closure surfaces, and PMCM-only data boundaries are usable and verified. | Owner B does not expose PMCM internal state to client, supplier, or guest portals. |
-| Owner C | Make every external portal a narrow, safe action surface instead of a dashboard clone. | Clients, suppliers, and guests should complete their own next action without seeing internal PMCM work, unrelated events, private reviews, internal costs, or cross-role data. | Client Action Center, supplier readiness/quote/contract/status flows, guest access/check-in/feedback, public inquiry, and supplier application flows are scoped, mobile-ready, and role-safe. | Owner C does not build all-role shells or bypass PMCM gates for event creation, official floorplan edits, or supplier decisions. |
-| Owner D | Make the platform enforce trust: correct data, permissions, audit, files, notifications, lifecycle, and verification. | PMCM should be able to trust that every workflow state change is typed, permissioned, auditable, queued when external delivery is involved, and backed by durable records. | Scoped APIs replace broad state dependencies, shared contracts are source of truth, policy checks gate reads/writes, command handlers own side effects, outbox/file/lifecycle services are tested, and docs stay current. | Owner D does not block product work with speculative platform rewrites or move workflow UX into backend abstractions. |
+| Owner | Person | System goal | What the system must let PMCM do | Success signals | Non-goal |
+| --- | --- | --- | --- | --- | --- |
+| Owner A | Maxine | Make P.R.I.S.M feel like one coherent PMCM operating system across every role surface. | PMCM, clients, suppliers, coordinators, and guests should recognize the same lifecycle, status language, action hierarchy, and interaction patterns while still seeing role-specific surfaces. | Every redesigned page has one primary job, a visible next action, consistent status language, responsive states, and no banned visual patterns. | Maxine does not own every component implementation or turn portals into the same shell. |
+| Owner B | Francis | Make PMCM and coordinator work operable from inquiry intake through event-day command and closure. | Ms. Mys, EA, PMCM admins, and coordinators should be able to see operational risk, resolve blockers, run events, replace people, verify suppliers, manage official floorplans, and close/archive events from the PMCM command app. | Event Command Inbox, selected event workspace, live-ops board, staffing/role views, finance/files/closure surfaces, and PMCM-only data boundaries are usable and verified. | Francis does not expose PMCM internal state to client, supplier, or guest portals. |
+| Owner C | Ethan | Make every external portal a narrow, safe action surface instead of a dashboard clone. | Clients, suppliers, and guests should complete their own next action without seeing internal PMCM work, unrelated events, private reviews, internal costs, or cross-role data. | Client Action Center, supplier readiness/quote/contract/status flows, guest access/check-in/feedback, public inquiry, and supplier application flows are scoped, mobile-ready, and role-safe. | Ethan does not build all-role shells or bypass PMCM gates for event creation, official floorplan edits, or supplier decisions. |
+| Owner D | Anthony | Make the platform enforce trust: correct data, permissions, audit, files, notifications, lifecycle, and verification. | PMCM should be able to trust that every workflow state change is typed, permissioned, auditable, queued when external delivery is involved, and backed by durable records. | Scoped APIs replace broad state dependencies, shared contracts are source of truth, policy checks gate reads/writes, command handlers own side effects, outbox/file/lifecycle services are tested, and docs stay current. | Anthony does not block product work with speculative platform rewrites or move workflow UX into backend abstractions. |
 
 ## Owner Definitions of Done
 
-| Owner | Definition of done |
-| --- | --- |
-| Owner A | UX brief, IA, state language, layout pattern, responsive expectations, empty/error/no-permission states, and design QA notes exist for every redesigned workflow before implementation is called complete. |
-| Owner B | PMCM/coordinator workflows can be completed from the event command app with correct PMCM-only visibility, clear next actions, and verified lifecycle/audit/notification side effects. |
-| Owner C | Portal users can complete their scoped tasks without PMCM-only leakage, all public-to-signed-in boundaries are explicit, and mobile/low-friction states are verified. |
-| Owner D | API/data contracts, permission policy, audit, outbox/file/lifecycle behavior, tests, build/typecheck/boundary checks, and docs are updated for the changed workflow. |
+| Owner | Person | Definition of done |
+| --- | --- | --- |
+| Owner A | Maxine | UX brief, IA, state language, layout pattern, responsive expectations, empty/error/no-permission states, and design QA notes exist for every redesigned workflow before implementation is called complete. |
+| Owner B | Francis | PMCM/coordinator workflows can be completed from the event command app with correct PMCM-only visibility, clear next actions, and verified lifecycle/audit/notification side effects. |
+| Owner C | Ethan | Portal users can complete their scoped tasks without PMCM-only leakage, all public-to-signed-in boundaries are explicit, and mobile/low-friction states are verified. |
+| Owner D | Anthony | API/data contracts, permission policy, audit, outbox/file/lifecycle behavior, tests, build/typecheck/boundary checks, and docs are updated for the changed workflow. |
 
 ## Owner Goal To Phase Mapping
 
 The same four goals apply in every phase:
 
-| Phase group | Owner A goal in that phase | Owner B goal in that phase | Owner C goal in that phase | Owner D goal in that phase |
+| Phase group | Maxine / Owner A goal in that phase | Francis / Owner B goal in that phase | Ethan / Owner C goal in that phase | Anthony / Owner D goal in that phase |
 | --- | --- | --- | --- | --- |
 | Phase 0-1 foundation | Define the shared operating language and page patterns. | Confirm PMCM/coordinator IA and command workflows. | Confirm portal IA and external action boundaries. | Lock contracts, policies, fixtures, and verification gates. |
 | Phase 2-6 app redesign | Keep every app coherent while preserving role-specific UX. | Make PMCM/coordinator surfaces operationally complete. | Make client/supplier/guest/public surfaces focused and safe. | Provide scoped APIs and prevent role-boundary regressions. |
@@ -205,10 +213,10 @@ The same four goals apply in every phase:
 
 ## Parallel Work Rules
 
-1. Owner A defines design patterns before Owners B and C implement redesigned pages.
-2. Owner D defines or validates API contracts before redesigned surfaces depend on new behavior.
-3. Owner B and Owner C may build in parallel once route ownership and DTOs are stable.
-4. Owner D owns cross-app verification and prevents role-boundary regressions.
+1. Maxine defines design patterns before Francis and Ethan implement redesigned pages.
+2. Anthony defines or validates API contracts before redesigned surfaces depend on new behavior.
+3. Francis and Ethan may build in parallel once route ownership and DTOs are stable.
+4. Anthony owns cross-app verification and prevents role-boundary regressions.
 5. Every owner must state which system goal their branch advances before implementation starts.
 6. Any page redesign must identify the workflow it improves, not just the visual changes.
 7. Any capability expansion must identify the user-facing surface where it is operated.
@@ -219,6 +227,8 @@ The same four goals apply in every phase:
 ### Goal
 
 Establish the full current-state map before redesigning or adding more features. This phase answers: what exists, what is partial, what is missing, what needs redesign, and who owns each next slice.
+
+Status: complete as of 2026-06-15. The readiness output is committed on `main` in `9ab88c5` and captured by `docs/prism-v4/14-redesign-readiness-foundation.md`.
 
 ### Feature Scope
 
@@ -256,9 +266,11 @@ Each page or workflow should be recorded with:
 
 - Updated `docs/prism-v4/07-implemented-feature-revisions.md`.
 - Updated `docs/prism-v4/08-revision-phase-plan.md`.
-- New feature ledger document.
-- New whole-app redesign inventory.
-- Decision on the untracked old architecture plan file.
+- `docs/prism-v4/11-feature-ledger.md`.
+- `docs/prism-v4/12-redesign-inventory.md`.
+- `docs/prism-v4/13-docs-cleanup-checklist.md`.
+- `docs/prism-v4/14-redesign-readiness-foundation.md`.
+- Retired stale app-local docs and old standalone plans from active guidance.
 
 ### Acceptance
 
@@ -266,11 +278,15 @@ Each page or workflow should be recorded with:
 - Every current app route has an owner and redesign severity.
 - Existing architecture work is reflected accurately in docs.
 - Semantic old product-name references are removed from active planning docs.
+- App ownership, sample-state compatibility boundaries, shared session conventions, and scoped-contract direction are explicit enough for four owners to start Phase 1 without guessing.
 
 ### Verification
 
 - Repository old-name sweep.
 - `npm run check:boundaries`
+- `node --test scripts\check-prism-boundaries.test.mjs`
+- `npm --workspace @prism/types run typecheck`
+- `npm --workspace @prism/api-client run typecheck`
 - Targeted doc link scan across `docs`, `README.md`, `CLAUDE.md`, and `AGENTS.md`.
 
 ## Phase 1: Design System, Navigation, and Shell Foundation
@@ -1320,11 +1336,11 @@ Each phase should run with four coordinated branches:
 
 Recommended sequence inside a phase:
 
-1. Owner A drafts the UX brief and page/workflow acceptance criteria.
-2. Owner D drafts API contracts, fixture shapes, data model changes, and test expectations.
-3. Owner B and Owner C implement app surfaces in parallel against stable contracts or typed fixtures.
-4. Owner D runs role-boundary, API, build, and regression verification.
-5. Owner A reviews visual consistency and UX completeness.
+1. Maxine drafts the UX brief and page/workflow acceptance criteria.
+2. Anthony drafts API contracts, fixture shapes, data model changes, and test expectations.
+3. Francis and Ethan implement app surfaces in parallel against stable contracts or typed fixtures.
+4. Anthony runs role-boundary, API, build, and regression verification.
+5. Maxine reviews visual consistency and UX completeness.
 6. Docs and feature ledger are updated before merge.
 
 Every branch or work package should include:
@@ -1401,10 +1417,12 @@ Owner D should apply this before any phase merges:
 
 ## Immediate Next Implementation Plan
 
-Phase 0 documentation is now represented by:
+Phase 0 and the redesign readiness foundation are complete. The active Phase 0/readiness documents are:
 
 1. `docs/prism-v4/11-feature-ledger.md` for feature-family decisions, owners, phase placement, boundaries, audit needs, UX surfaces, and verification requirements.
 2. `docs/prism-v4/12-redesign-inventory.md` for app and route redesign severity.
 3. `docs/prism-v4/13-docs-cleanup-checklist.md` for canonical docs, retired artifacts, and verification commands.
+4. `docs/prism-v4/14-redesign-readiness-foundation.md` for sample-state fencing, session conventions, owner boundaries, scoped-contract direction, and legacy removal before redesign branches.
+5. `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` for the one-week kickoff sprint and three two-week sprints through July 31, 2026.
 
-The old standalone UI modernization plan has been retired because its named deliverables exist and future redesign work should flow through this capability maturity plan. The next implementation work should start at Phase 1 design system and shell foundation, using the Phase 0 ledger and route inventory as inputs.
+The old standalone UI modernization plan has been retired because its named deliverables exist and future redesign work should flow through this capability maturity plan. The next implementation work should start at Phase 1 design system and shell foundation, using the Phase 0 ledger, route inventory, and readiness foundation as inputs. Do not reopen Phase 0 unless docs drift, route ownership changes, or a redesign branch exposes a missing contract that belongs in the readiness handoff.

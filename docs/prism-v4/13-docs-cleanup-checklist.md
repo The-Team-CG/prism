@@ -19,7 +19,8 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 | `docs/prism-v4/12-redesign-inventory.md` | Active | Route/app redesign severity and ownership. |
 | `docs/prism-v4/13-docs-cleanup-checklist.md` | Active | Documentation hygiene rules. |
 | `docs/prism-v4/14-redesign-readiness-foundation.md` | Active | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
-| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan, including explicit system goals for Owners A-D. |
+| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan, including explicit system goals for Owner A (Maxine), Owner B (Francis), Owner C (Ethan), and Owner D (Anthony). |
+| `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Active | Sprint calendar through July 31, 2026 with actionable work for Maxine, Francis, Ethan, and Anthony. |
 
 ## Files To Keep
 
@@ -48,7 +49,7 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 ## Cleanup Rules
 
 1. Keep one active plan for the whole redesign: `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
-2. Do not create a new `docs/superpowers/plans/*` file unless it is a short-lived execution plan for an approved phase.
+2. Do not create a new `docs/superpowers/plans/*` file unless it is a short-lived execution plan for an approved phase; the active July 31 sprint calendar is `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md`.
 3. When a plan is completed, either convert it into a closeout note inside the active docs or remove it.
 4. Do not keep unchecked implementation checklists after the implementation exists.
 5. Do not duplicate `AGENTS.md` into `CLAUDE.md`; `CLAUDE.md` must remain a symlink.
@@ -58,7 +59,7 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 9. Rewrite docs that imply `apps/client` is an all-role PMCM shell.
 10. Keep public pages and signed-in dashboard boundaries explicit in docs.
 11. Redesign or implementation plans must state which owner system goal they advance.
-12. Owner labels must not be used as vague assignees; link them to the system goals in the maturity plan.
+12. Owner labels must not be used as vague assignees; link them to the system goals in the maturity plan and the named owners Maxine, Francis, Ethan, and Anthony.
 13. Sample-state guidance belongs in `14-redesign-readiness-foundation.md`; app-local docs should not reintroduce `/api/sample/state` as a normal read path.
 14. Session/storage conventions belong in `@prism/types`; docs should not endorse app-local literal `prism:*` keys.
 

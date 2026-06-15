@@ -29,12 +29,12 @@ The original catalog should still be preserved for traceability, but implementat
 
 Feature decisions must now identify which owner system goal they advance. Ownership is not just assignment to an app or code area.
 
-| Owner | System goal used for governance decisions |
-| --- | --- |
-| Owner A | The change makes P.R.I.S.M more coherent as a PMCM operating system through IA, design system, workflow language, and interaction standards. |
-| Owner B | The change makes PMCM/coordinator operations more executable from inquiry through event day and closure without exposing internal state externally. |
-| Owner C | The change makes client, supplier, guest, or public surfaces safer, narrower, clearer, and easier to complete without PMCM-only leakage. |
-| Owner D | The change makes platform behavior more trustworthy through contracts, permissions, audit, notifications, files, lifecycle, integrations, tests, and docs. |
+| Owner | Person | System goal used for governance decisions |
+| --- | --- | --- |
+| Owner A | Maxine | The change makes P.R.I.S.M more coherent as a PMCM operating system through IA, design system, workflow language, and interaction standards. |
+| Owner B | Francis | The change makes PMCM/coordinator operations more executable from inquiry through event day and closure without exposing internal state externally. |
+| Owner C | Ethan | The change makes client, supplier, guest, or public surfaces safer, narrower, clearer, and easier to complete without PMCM-only leakage. |
+| Owner D | Anthony | The change makes platform behavior more trustworthy through contracts, permissions, audit, notifications, files, lifecycle, integrations, tests, and docs. |
 
 Every ledger row should include:
 

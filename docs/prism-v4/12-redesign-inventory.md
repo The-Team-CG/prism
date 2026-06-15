@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-15
 
-This is the Phase 0 redesign inventory for the whole-app capability maturity plan. It classifies current app surfaces by redesign severity so four owners can work in parallel without turning P.R.I.S.M back into an all-role shell. Owner labels here refer to the system goals defined in `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
+This is the Phase 0 redesign inventory for the whole-app capability maturity plan. It classifies current app surfaces by redesign severity so four owners can work in parallel without turning P.R.I.S.M back into an all-role shell. Owner labels here refer to the system goals defined in `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`: Owner A is Maxine, Owner B is Francis, Owner C is Ethan, and Owner D is Anthony.
 
 Severity scale:
 
@@ -18,23 +18,23 @@ Severity scale:
 
 | App | Product role | Current route shape | Redesign priority | Primary owner | Owner system goal for this area | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `apps/client` | Public inquiry plus signed-in client portal | Landing, inquiry, sign-in/sign-up, dashboard, event sections, billing/files/messages/calendar/approvals | S2 | Owner C | Make the client portal a narrow, safe action center for client-owned work. | Client Action Center is now consumed by the dashboard actions; continue tighter event-scoped reads and clearer public-to-signed-in boundary. |
-| `apps/event` | PMCM admin and coordinator command app | Large dashboard with many filtered subroutes plus selected event workspace | S3 | Owner B | Make PMCM and coordinator operations executable from command surfaces. | Event Command Inbox is now consumed by shell actions; selected event sections now prefer `PrismPmcmEventWorkspace`; event messages now have a route-owned workspace component. Continue workspace IA, staffing/live-ops redesign, and route consolidation. |
-| `apps/supplier` | Supplier portal | Landing, sign-in, dashboard | S2 | Owner C | Make supplier work limited to quote, assignment, contract, readiness, and event-day status. | Supplier Readiness Board is now visible on the dashboard; continue supplier application/status depth while preserving supplier-scoped data. |
-| `apps/guest` | Lightweight guest portal | Landing, sign-in, open code, dashboard | S1/Gate | Owner C | Make guest access low-friction, consented, and event-code scoped. | Use the shared Guest Event Pass contract. Keep lightweight. Gate QR/camera and media upload until HTTPS, consent, upload, and moderation are ready. |
-| `apps/api` | Shared NestJS API | Event-ops controllers/services plus plans/templates/publishing/health modules | S2 | Owner D | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Highest-impact architecture hardening is the baseline; continue contract consolidation, scoped APIs, policy tests, and adapter boundaries. |
-| `packages/ui` | Shared presentation system | App shell, public shell, primitives, blocks, client/public blocks | S1 | Owner A | Make shared presentation patterns coherent without absorbing workflow logic. | Keep presentation-only. Continue component consolidation through actual app needs. |
-| `packages/types` | Shared contracts | Lifecycle and event-ops types | S2 | Owner D | Make shared contracts the source of truth for role-safe app/API integration. | Expand route/feature contracts before large app redesign. |
-| `packages/api-client` | Shared request helpers | Event-ops client and HTTP helper | S1 | Owner D | Make app data access typed, scoped, and migration-safe. | Keep stable, add typed clients when app surfaces stop using broad state. |
+| `apps/client` | Public inquiry plus signed-in client portal | Landing, inquiry, sign-in/sign-up, dashboard, event sections, billing/files/messages/calendar/approvals | S2 | Owner C (Ethan) | Make the client portal a narrow, safe action center for client-owned work. | Client Action Center is now consumed by the dashboard actions; continue tighter event-scoped reads and clearer public-to-signed-in boundary. |
+| `apps/event` | PMCM admin and coordinator command app | Large dashboard with many filtered subroutes plus selected event workspace | S3 | Owner B (Francis) | Make PMCM and coordinator operations executable from command surfaces. | Event Command Inbox is now consumed by shell actions; selected event sections now prefer `PrismPmcmEventWorkspace`; event messages now have a route-owned workspace component. Continue workspace IA, staffing/live-ops redesign, and route consolidation. |
+| `apps/supplier` | Supplier portal | Landing, sign-in, dashboard | S2 | Owner C (Ethan) | Make supplier work limited to quote, assignment, contract, readiness, and event-day status. | Supplier Readiness Board is now visible on the dashboard; continue supplier application/status depth while preserving supplier-scoped data. |
+| `apps/guest` | Lightweight guest portal | Landing, sign-in, open code, dashboard | S1/Gate | Owner C (Ethan) | Make guest access low-friction, consented, and event-code scoped. | Use the shared Guest Event Pass contract. Keep lightweight. Gate QR/camera and media upload until HTTPS, consent, upload, and moderation are ready. |
+| `apps/api` | Shared NestJS API | Event-ops controllers/services plus plans/templates/publishing/health modules | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Highest-impact architecture hardening is the baseline; continue contract consolidation, scoped APIs, policy tests, and adapter boundaries. |
+| `packages/ui` | Shared presentation system | App shell, public shell, primitives, blocks, client/public blocks | S1 | Owner A (Maxine) | Make shared presentation patterns coherent without absorbing workflow logic. | Keep presentation-only. Continue component consolidation through actual app needs. |
+| `packages/types` | Shared contracts | Lifecycle and event-ops types | S2 | Owner D (Anthony) | Make shared contracts the source of truth for role-safe app/API integration. | Expand route/feature contracts before large app redesign. |
+| `packages/api-client` | Shared request helpers | Event-ops client and HTTP helper | S1 | Owner D (Anthony) | Make app data access typed, scoped, and migration-safe. | Keep stable, add typed clients when app surfaces stop using broad state. |
 
 ## Owner System Goal Summary
 
-| Owner | Applies to | System goal |
-| --- | --- | --- |
-| Owner A | `packages/ui`, design system, IA, page templates, status language | Make all role surfaces feel like one coherent PMCM operating system while preserving role-specific workflows. |
-| Owner B | `apps/event`, PMCM command, coordinator role views, live operations, closure | Make PMCM/coordinator work executable from inquiry through event day and archive. |
-| Owner C | `apps/client`, `apps/supplier`, `apps/guest`, public flows | Make external portals narrow, safe, mobile-ready action surfaces. |
-| Owner D | `apps/api`, Prisma, `packages/types`, `packages/api-client`, verification/docs | Make platform behavior trustworthy through contracts, permissions, audit, notifications, file/lifecycle services, tests, and docs. |
+| Owner | Person | Applies to | System goal |
+| --- | --- | --- | --- |
+| Owner A | Maxine | `packages/ui`, design system, IA, page templates, status language | Make all role surfaces feel like one coherent PMCM operating system while preserving role-specific workflows. |
+| Owner B | Francis | `apps/event`, PMCM command, coordinator role views, live operations, closure | Make PMCM/coordinator work executable from inquiry through event day and archive. |
+| Owner C | Ethan | `apps/client`, `apps/supplier`, `apps/guest`, public flows | Make external portals narrow, safe, mobile-ready action surfaces. |
+| Owner D | Anthony | `apps/api`, Prisma, `packages/types`, `packages/api-client`, verification/docs | Make platform behavior trustworthy through contracts, permissions, audit, notifications, file/lifecycle services, tests, and docs. |
 
 ## Client Portal Route Inventory
 
@@ -99,11 +99,11 @@ Severity scale:
 
 ## Redesign Sequencing
 
-1. Owner A and Owner D lock shell patterns, route inventory, typed contracts, sample-state boundaries, session/storage conventions, and the owner system goal for each branch.
-2. Owner B starts PMCM command dashboard and selected event workspace restructuring against the PMCM/coordinator operability goal.
-3. Owner C starts client action center and supplier readiness workflow against the external portal safety/action goal.
-4. Owner D verifies API role boundaries before app work merges.
-5. Owner A reviews visual/system consistency across all role apps.
+1. Maxine and Anthony lock shell patterns, route inventory, typed contracts, sample-state boundaries, session/storage conventions, and the owner system goal for each branch.
+2. Francis starts PMCM command dashboard and selected event workspace restructuring against the PMCM/coordinator operability goal.
+3. Ethan starts client action center and supplier readiness workflow against the external portal safety/action goal.
+4. Anthony verifies API role boundaries before app work merges.
+5. Maxine reviews visual/system consistency across all role apps.
 
 ## Inventory Acceptance
 
