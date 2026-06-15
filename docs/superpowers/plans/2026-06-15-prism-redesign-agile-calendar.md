@@ -59,6 +59,7 @@ These block the July 31 system target and override ordinary sprint priorities:
 - File requirements, billing, compliance, or close gates display misleading complete states when required data is missing.
 - Audit, notification, privacy, or lifecycle side effects silently fail without visible error or documented gate.
 - Local database/runtime blockers prevent authenticated route verification and are not documented with recovery steps.
+- Advanced frontend tables, infinite scroll, upload managers, bulk actions, or complex filters ship before the UI-enabling API contracts are finalized.
 
 ### Feature Freeze
 
@@ -69,6 +70,21 @@ Sprint 3 ends on July 17, 2026 and is the feature-freeze point. After July 17, S
 - Documentation and screenshot evidence updates.
 - Small UX clarity fixes that do not change API/data scope.
 - Explicitly approved gate documentation for work that cannot safely finish by July 31.
+
+### UI-Enabling API Contract Gate
+
+The current codebase gives the redesign a useful read-model foundation, but it does not yet give frontend teams unlimited freedom. The shared contracts cover role workspaces, command/action queues, supplier readiness, guest pass, and file requirement display shapes. They do not yet standardize the operational contracts that advanced UI patterns need.
+
+Until this gate passes, frontend implementation must stay inside bounded work queues, dashboard panels, known-small arrays, simple client-side filters, and metadata-style upload flows. Do not build generalized data grids, infinite scroll, complex saved filters, upload managers, retrying multipart flows, or bulk action consoles until the matching contract row below is complete.
+
+| Contract area | Current coverage from code audit | Gap to close | DRI | Support | Sprint target | Completion evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| Role read models | `PrismPmcmCommandInbox`, `PrismPmcmEventWorkspace`, `PrismClientActionCenter`, `PrismSupplierReadinessBoard`, `PrismFileRequirementsMatrix`, and `PrismGuestEventPass` exist in `packages/types` and `packages/api-client`. | Keep these as the stable baseline and prevent app-local shape drift. | Anthony | Francis, Ethan, Maxine | Sprint 1-2 | Typecheck passes for `@prism/types` and `@prism/api-client`; app surfaces import shared types rather than redefining them. |
+| Pagination/result envelopes | Most API client methods return full arrays or single read models; no shared `page`, `limit`, `cursor`, `total`, `nextCursor`, or `hasMore` contract exists. | Define `PrismPageRequest`, `PrismCursorPage<T>`, and list metadata rules before advanced tables or infinite scroll. | Anthony | Francis, Ethan | Sprint 2 | Shared types and API-client signatures exist; at least one list endpoint test proves pagination metadata behavior or the feature remains bounded. |
+| Filtering and sorting | Audit logs have local `query`, `category`, `eventId`, `actor`, `severity`, `dateRange`, and `limit`; there is no cross-resource filter/sort standard. | Define shared query/filter/sort contracts for command inbox, event lists, supplier readiness, file requirements, billing, audit/privacy, and closure views. | Anthony | Maxine, Francis, Ethan | Sprint 2-3 | Filter/sort types are in `packages/types`; UX labels and empty states are documented; app code does not invent incompatible filter payloads. |
+| Upload sessions and file rules | DTOs accept `fileName`, `mimeType`, and `sizeBytes`; `document-vault.service.ts` validates size/type metadata. | Define accepted file matrix, per-requirement rules, upload intent/session shape, signed URL or multipart strategy, progress/retry states, and upload error semantics. | Anthony | Ethan, Francis | Sprint 3 gate | If real storage is not approved, the plan explicitly ships metadata-only upload UX and names the storage adapter as gated/post-July. |
+| Normalized errors and empty states | `PrismApiError` carries `status` and `body`; no normalized app error code, field error, retryability, user message, or empty-state reason contract exists. | Define `PrismApiProblem`, `PrismFieldError`, `PrismEmptyReason`, and retry/permission/error display rules. | Anthony | Maxine | Sprint 2 | API client exposes normalized error helpers; Maxine's state-language checklist maps each error/empty reason to copy. |
+| Bulk and action responses | Mutation results are not standardized across command actions, reminders, uploads, check-in, or feedback flows. | Define `PrismActionResult`, partial-success behavior, audit reference, notification reference, and safe retry semantics. | Anthony | Francis, Ethan | Sprint 3 | PMCM, client, supplier, and guest action surfaces can show success, partial success, denied, retryable failure, and audited override outcomes consistently. |
 
 ## Owner Map
 
@@ -88,41 +104,68 @@ Sprint 3 ends on July 17, 2026 and is the feature-freeze point. After July 17, S
 - Do not add new broad sample-state reads, app-local literal `prism:*` keys, cross-role app imports, or PMCM-only data in external portals.
 - Demo only work that passes the stated verification commands. Screens that cannot run because the local database is misconfigured must show the explicit API service-unavailable message and list the database fix as a blocker.
 - AI, QR scanning, production notification adapters, external auth, and real file storage stay gated unless this plan explicitly moves them into a spike.
+- Every executable task has exactly one DRI. Feature-family rows may list support or affected owners, but sprint tasks, backlog items, and closeout decisions must name one person who owns completion evidence.
+- Frontend branches must wait for Anthony-owned shared contract changes before depending on new response fields, filters, sort options, pagination metadata, upload states, normalized errors, or action-result payloads.
+
+## Single-Owner Task Backlog
+
+This backlog turns the sprint plan into executable tasks. Each row has one DRI, named support, a concrete feature target, and evidence required for completion.
+
+| Task ID | Sprint | Task | DRI | Support | Feature families | Completion evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| T01 | Sprint 1 | Assign July treatment labels to every feature family and record disputed items in the ledger. | Maxine | Francis, Ethan, Anthony | FL-001 to FL-028 | Every row has accept/finish/thin-slice/gate/post-July treatment and no disputed item is ownerless. |
+| T02 | Sprint 1 | Finalize the UI-enabling API contract audit and cutline. | Anthony | Maxine, Francis, Ethan | FL-003, FL-004, FL-006, FL-007, FL-010, FL-012, FL-014, FL-015, FL-024 | Contract gate table is updated with current coverage, missing contracts, sprint target, and explicit frontend restrictions. |
+| T03 | Sprint 1 | Choose the first PMCM demo path and identify coupled areas to avoid in Sprint 2. | Francis | Maxine, Anthony | FL-001, FL-002, FL-003, FL-017 | PMCM demo path names route, read model, actions, gates, and verification commands. |
+| T04 | Sprint 1 | Choose the first portal demo path and portal surfaces for Sprint 3. | Ethan | Maxine, Anthony | FL-004, FL-020, FL-022, FL-012 | Portal demo path names client, supplier, and guest route targets with role-boundary notes. |
+| T05 | Sprint 2 | Define normalized error, empty-state, pagination, and filter/sort contracts before advanced frontend patterns. | Anthony | Maxine, Francis, Ethan | FL-003, FL-004, FL-006, FL-007, FL-010, FL-015, FL-024 | Shared types/API-client changes or documented gates exist; typecheck and focused API-client tests pass. |
+| T06 | Sprint 2 | Deliver shared shell/state-language rules through the first PMCM and client surfaces. | Maxine | Francis, Ethan | FL-016, FL-017, FL-020 | UX brief is updated; banned visual patterns are checked; PMCM/client surfaces use the agreed hierarchy. |
+| T07 | Sprint 2 | Ship the PMCM Event Command Inbox and selected-event summary slice. | Francis | Anthony, Maxine | FL-001, FL-002, FL-003, FL-017 | `/dashboard`, `/dashboard/events`, and one selected event workspace route render; PMCM-only actions remain scoped. |
+| T08 | Sprint 2 | Ship the Client Action Center thin slice. | Ethan | Anthony, Maxine | FL-004, FL-020 | Public/signed-in boundary holds; client next actions use `PrismClientActionCenter`; official floorplans remain read-only. |
+| T09 | Sprint 2 | Establish the File Requirements Matrix contract decision. | Anthony | Francis, Ethan | FL-006, FL-024 | Matrix types and endpoint behavior are verified, or real storage/upload manager work is explicitly gated. |
+| T10 | Sprint 3 | Deliver PMCM selected-event depth for supplier, risk/change, floorplan, billing, or closure based on ready contracts. | Francis | Anthony, Maxine | FL-007, FL-009, FL-010, FL-011, FL-013, FL-025 | One selected-event area is extracted or deepened; scoped data is used; PMCM-only controls stay in `apps/event`. |
+| T11 | Sprint 3 | Deliver supplier readiness portal and supplier status scope. | Ethan | Anthony, Francis, Maxine | FL-007, FL-022 | Supplier sees only assigned/application-scoped records; readiness states and event-day status are mobile-safe. |
+| T12 | Sprint 3 | Deliver guest access, consent, check-in, and moderated feedback slice without QR/camera scanning. | Ethan | Anthony, Maxine | FL-012 | `/open` and guest dashboard flows are event-code scoped; QR/camera scanning remains gated. |
+| T13 | Sprint 3 | Close upload-session, bulk-action, and action-result contract gaps or mark them as gated. | Anthony | Francis, Ethan | FL-006, FL-014, FL-024 | `PrismActionResult`/upload-session contract exists or the metadata-only file flow and storage gate are documented. |
+| T14 | Sprint 4 | Run route-by-route QA and verification evidence capture. | Anthony | Francis, Ethan, Maxine | FL-001 to FL-027 | Typecheck/boundary/API/browser evidence is recorded; database blockers have exact recovery notes. |
+| T15 | Sprint 4 | Complete final design QA and demo story. | Maxine | Francis, Ethan | FL-016 plus demo-path families | Demo follows inquiry -> PMCM command -> client action -> supplier readiness -> guest check-in -> closure evidence. |
+| T16 | Sprint 4 | Close PMCM release blockers and PMCM demo notes. | Francis | Anthony, Maxine | FL-003, FL-007, FL-008, FL-009, FL-011, FL-013, FL-017, FL-021, FL-026 | PMCM bugs are closed or gated; PMCM notes cite route, feature family, and verification evidence. |
+| T17 | Sprint 4 | Close external portal release blockers and portal demo notes. | Ethan | Anthony, Maxine | FL-004, FL-007, FL-012, FL-013, FL-014, FL-020, FL-022 | Client, supplier, and guest bugs are closed or gated; portal notes cite route, role boundary, and verification evidence. |
+| T18 | Sprint 4 | Finalize feature-ledger and July 31 scorecard closeout. | Anthony | Maxine, Francis, Ethan | FL-001 to FL-028 | Ledger, sprint plan, scorecard, screenshots, and verification notes agree on delivered/gated/post-July status. |
 
 ## Incomplete Feature Backlog Coverage
 
 This table is the sprint-level cutline for all ledger items that are live/partial, partial, planned, or newly proposed. It keeps the July 31 scope honest: not every item must become fully production-complete by July 31, but every item must have a real owner decision and an implementation or gate.
 
-| Feature family | Current state | Primary owners | Sprint target | July 31 outcome |
+| Feature family | Current state | Feature DRI | Sprint target | July 31 outcome |
 | --- | --- | --- | --- | --- |
-| FL-001 Inquiry intake and triage | Live/partial | Francis, Ethan, Anthony | Sprint 1-2 | Public inquiry remains live; PMCM log-on-behalf, referral filtering, and triage state are either implemented as a thin slice or documented as the first post-July PMCM intake task. |
-| FL-002 Onboarding and conforme gate | Live/partial | Francis, Ethan, Anthony | Sprint 1-2 | Accepted inquiry -> signed conforme -> portal access remains the enforced lifecycle gate; per-event reminder policy and visible awaiting/sent/opened/expired states are scoped. |
-| FL-003 PMCM command dashboard | Partial | Maxine, Francis, Anthony | Sprint 2 | Event Command Inbox and selected-event summary become the first redesigned PMCM operating surface, with remaining finance/files/closure/live-ops sections split into later slices. |
-| FL-004 Client portal after conforme | Partial | Maxine, Ethan, Anthony | Sprint 2-3 | Client Action Center is the primary portal slice; remaining broad state usage for briefings, activity, floorplan drafts, documents, and billing is reduced or logged as compatibility-only. |
-| FL-005 Proposal, briefing, and commercial workflow | Partial | Francis, Ethan, Anthony | Sprint 3-4 | Briefing/proposal status is visible in PMCM and client-safe views; deep commercial generation and full CE/proposal source-of-truth work can continue post-July if contracts are not ready. |
-| FL-006 Document and file operations | Partial | All owners | Sprint 2-4 | File Requirements Matrix is represented in PMCM/client UX and typed contracts; real upload storage remains gated unless Anthony confirms adapter/storage readiness. |
-| FL-007 Supplier network operations | Live/partial | Francis, Ethan, Anthony | Sprint 3 | Supplier readiness board covers quote requests, assignments, readiness, contract metadata, and event-day status; supplier application/status tracking is scoped as MVP or post-July. |
-| FL-008 Coordinator and staffing operations | Partial | Francis, Anthony | Sprint 3 | Coordinator roster, availability/staffing gaps, assignment acknowledgement, and role-safe task payloads are represented in PMCM live-ops or explicitly deferred with tests/contract gaps listed. |
-| FL-009 Compliance, risk, and change control | Live/partial | Francis, Anthony | Sprint 3-4 | Risk/change register and compliance condition visibility are present in PMCM; richer condition evaluation and seven-day recheck may remain post-July with a named gate. |
-| FL-010 Billing and payments | Partial | Francis, Ethan, Anthony | Sprint 3-4 | Client-safe billing/payment milestone visibility and PMCM dispute/correction/additional billing states are scoped; full configurable payment terms can remain post-July if data model work is too large. |
-| FL-011 Floorplan and spatial workflow | Live/partial | Francis, Ethan, Anthony | Sprint 3 | Official floorplan control remains PMCM-only; client preference/comment flow stays read-only against official layouts; table assignment eligibility rules are scoped. |
-| FL-012 Guest and lightweight access | Partial | Ethan, Anthony | Sprint 3 | Guest access-code entry, consent, check-in state, and moderated feedback are improved; QR/camera scanning stays gated unless HTTPS/masterlist readiness is confirmed. |
-| FL-013 Closure, archive, and learning loop | Partial | Francis, Ethan, Anthony | Sprint 4 | Closure/readiness evidence appears in the demo path; testimonial request and archive search get a scoped slice, while rich event comparison can remain post-July. |
-| FL-014 Notifications and communications | Partial | Ethan, Anthony | Sprint 4 | Notification queue/outbox state is visible where useful; production SendGrid/Viber adapters remain gated behind environment, retry, audit, and privacy readiness. |
+| FL-001 Inquiry intake and triage | Live/partial | Francis | Sprint 1-2 | Public inquiry remains live; PMCM log-on-behalf, referral filtering, and triage state are either implemented as a thin slice or documented as the first post-July PMCM intake task. Support: Ethan, Anthony. |
+| FL-002 Onboarding and conforme gate | Live/partial | Anthony | Sprint 1-2 | Accepted inquiry -> signed conforme -> portal access remains the enforced lifecycle gate; per-event reminder policy and visible awaiting/sent/opened/expired states are scoped. Support: Francis, Ethan. |
+| FL-003 PMCM command dashboard | Partial | Francis | Sprint 2 | Event Command Inbox and selected-event summary become the first redesigned PMCM operating surface, with remaining finance/files/closure/live-ops sections split into later slices. Support: Maxine, Anthony. |
+| FL-004 Client portal after conforme | Partial | Ethan | Sprint 2-3 | Client Action Center is the primary portal slice; remaining broad state usage for briefings, activity, floorplan drafts, documents, and billing is reduced or logged as compatibility-only. Support: Maxine, Anthony. |
+| FL-005 Proposal, briefing, and commercial workflow | Partial | Francis | Sprint 3-4 | Briefing/proposal status is visible in PMCM and client-safe views; deep commercial generation and full CE/proposal source-of-truth work can continue post-July if contracts are not ready. Support: Ethan, Anthony. |
+| FL-006 Document and file operations | Partial | Anthony | Sprint 2-4 | File Requirements Matrix is represented in PMCM/client UX and typed contracts; real upload storage remains gated unless Anthony confirms adapter/storage readiness. Support: Francis, Ethan, Maxine. |
+| FL-007 Supplier network operations | Live/partial | Ethan | Sprint 3 | Supplier readiness board covers quote requests, assignments, readiness, contract metadata, and event-day status; supplier application/status tracking is scoped as MVP or post-July. Support: Francis, Anthony. |
+| FL-008 Coordinator and staffing operations | Partial | Francis | Sprint 3 | Coordinator roster, availability/staffing gaps, assignment acknowledgement, and role-safe task payloads are represented in PMCM live-ops or explicitly deferred with tests/contract gaps listed. Support: Anthony. |
+| FL-009 Compliance, risk, and change control | Live/partial | Francis | Sprint 3-4 | Risk/change register and compliance condition visibility are present in PMCM; richer condition evaluation and seven-day recheck may remain post-July with a named gate. Support: Anthony. |
+| FL-010 Billing and payments | Partial | Anthony | Sprint 3-4 | Client-safe billing/payment milestone visibility and PMCM dispute/correction/additional billing states are scoped; full configurable payment terms can remain post-July if data model work is too large. Support: Francis, Ethan. |
+| FL-011 Floorplan and spatial workflow | Live/partial | Francis | Sprint 3 | Official floorplan control remains PMCM-only; client preference/comment flow stays read-only against official layouts; table assignment eligibility rules are scoped. Support: Ethan, Anthony. |
+| FL-012 Guest and lightweight access | Partial | Ethan | Sprint 3 | Guest access-code entry, consent, check-in state, and moderated feedback are improved; QR/camera scanning stays gated unless HTTPS/masterlist readiness is confirmed. Support: Anthony. |
+| FL-013 Closure, archive, and learning loop | Partial | Francis | Sprint 4 | Closure/readiness evidence appears in the demo path; testimonial request and archive search get a scoped slice, while rich event comparison can remain post-July. Support: Ethan, Anthony. |
+| FL-014 Notifications and communications | Partial | Anthony | Sprint 4 | Notification queue/outbox state is visible where useful; production SendGrid/Viber adapters remain gated behind environment, retry, audit, and privacy readiness. Support: Ethan. |
 | FL-015 Security, privacy, and audit | Partial | Anthony | Sprint 4 | Privacy/audit cues, retention/legal-hold decisions, and redaction gaps are documented; external auth and full privacy operations console remain gated unless separately approved. |
-| FL-016 Shared design system and shell | Partial | All owners | Sprint 2 | Shared shell/page patterns, presentation-only component candidates, state language, and banned-pattern checks are applied to the first PMCM and portal surfaces. |
-| FL-017 Event Command Inbox | Planned/add | Maxine, Francis, Anthony | Sprint 2 | Delivered as the first PMCM command-surface slice. |
-| FL-018 Event Health Score | Planned/add | Maxine, Francis, Anthony | Sprint 4 | Implement only as an explainable readiness/status summary if source signals already exist; otherwise document as post-July. |
-| FL-019 Decision Log | Planned/add | Francis, Anthony | Sprint 4 | Add a scoped PMCM decision/audit surface if backed by existing audit records; otherwise keep as post-July audit UX. |
-| FL-020 Client Action Center | Planned/add | Maxine, Ethan, Anthony | Sprint 2 | Delivered as the first client portal redesign slice. |
-| FL-021 PMCM Handoff Brief | Planned/add | Francis, Anthony | Sprint 3-4 | Produce a selected-event handoff/readiness summary if contracts already expose enough data; otherwise document contract gaps. |
-| FL-022 Supplier Readiness Board | Planned/add | Maxine, Francis, Ethan, Anthony | Sprint 3 | Delivered as the supplier portal/PMCM supplier readiness slice. |
-| FL-023 Coordinator Staffing Heatmap | Planned/add | Maxine, Francis, Anthony | Sprint 3-4 | Implement only if assignment/availability data is ready; otherwise ship roster/availability gap list as the July slice. |
-| FL-024 File Requirements Matrix | Planned/add | All owners | Sprint 2-4 | Establish typed matrix/status model and show it in PMCM/client surfaces; full storage adapter work remains gated. |
-| FL-025 Risk and Change Register | Planned/add | Francis, Anthony | Sprint 3-4 | Deliver a PMCM-scoped register slice for active risks, changes, overrides, and audit references. |
-| FL-026 Event Day Run Sheet | Planned/add | Francis, Anthony | Sprint 4 | Deliver a demo-ready event-day run sheet only if live-ops data is stable; otherwise document it as the first post-July live-ops slice. |
+| FL-016 Shared design system and shell | Partial | Maxine | Sprint 2 | Shared shell/page patterns, presentation-only component candidates, state language, and banned-pattern checks are applied to the first PMCM and portal surfaces. Support: Francis, Ethan. |
+| FL-017 Event Command Inbox | Planned/add | Francis | Sprint 2 | Delivered as the first PMCM command-surface slice. Support: Maxine, Anthony. |
+| FL-018 Event Health Score | Planned/add | Francis | Sprint 4 | Implement only as an explainable readiness/status summary if source signals already exist; otherwise document as post-July. Support: Maxine, Anthony. |
+| FL-019 Decision Log | Planned/add | Anthony | Sprint 4 | Add a scoped PMCM decision/audit surface if backed by existing audit records; otherwise keep as post-July audit UX. Support: Francis. |
+| FL-020 Client Action Center | Planned/add | Ethan | Sprint 2 | Delivered as the first client portal redesign slice. Support: Maxine, Anthony. |
+| FL-021 PMCM Handoff Brief | Planned/add | Francis | Sprint 3-4 | Produce a selected-event handoff/readiness summary if contracts already expose enough data; otherwise document contract gaps. Support: Anthony. |
+| FL-022 Supplier Readiness Board | Planned/add | Ethan | Sprint 3 | Delivered as the supplier portal/PMCM supplier readiness slice. Support: Maxine, Francis, Anthony. |
+| FL-023 Coordinator Staffing Heatmap | Planned/add | Francis | Sprint 3-4 | Implement only if assignment/availability data is ready; otherwise ship roster/availability gap list as the July slice. Support: Maxine, Anthony. |
+| FL-024 File Requirements Matrix | Planned/add | Anthony | Sprint 2-4 | Establish typed matrix/status model and show it in PMCM/client surfaces; full storage adapter work remains gated. Support: Francis, Ethan. |
+| FL-025 Risk and Change Register | Planned/add | Francis | Sprint 3-4 | Deliver a PMCM-scoped register slice for active risks, changes, overrides, and audit references. Support: Anthony. |
+| FL-026 Event Day Run Sheet | Planned/add | Francis | Sprint 4 | Deliver a demo-ready event-day run sheet only if live-ops data is stable; otherwise document it as the first post-July live-ops slice. Support: Anthony. |
 | FL-027 Privacy Operations Console | Planned/add | Anthony | Sprint 4 | Document privacy operations states and minimal audit/retention visibility; full console is post-July unless security scope is approved. |
-| FL-028 Workflow Template Builder | Planned/add | Maxine, Francis, Anthony | Post-July | Keep out of July implementation. Capture template-builder requirements during Sprint 3 only if they fall out of real workflow stabilization. |
+| FL-028 Workflow Template Builder | Planned/add | Maxine | Post-July | Keep out of July implementation. Capture template-builder requirements during Sprint 3 only if they fall out of real workflow stabilization. Support: Francis, Anthony. |
 
 ## Feature Coverage Audit Result
 
@@ -216,6 +259,7 @@ Turn readiness into execution inputs: named owner responsibilities, exact sprint
 
 - [ ] Review `docs/prism-v4/12-redesign-inventory.md` and pick the first redesigned surface template for each app: PMCM command, client action center, supplier readiness, and guest access.
 - [ ] Review every row in the Incomplete Feature Backlog Coverage table and mark each July 31 outcome as "working slice", "documented gate", or "post-July".
+- [ ] Confirm every sprint task has one DRI and that support owners are not treated as shared accountability.
 - [ ] Draft a one-page shell pattern note in `docs/prism-v4/12-redesign-inventory.md` covering page hierarchy, navigation behavior, status language, loading/empty/error states, and banned visual patterns.
 - [ ] Define the shared component candidates for Sprint 2: app header, section header, work queue row, status timeline, metric tile, notice banner, empty state, and command/action panel.
 - [ ] Produce a review checklist for redesigned pages: primary job, next action, role boundary, lifecycle status, mobile fit, no nested cards, no decorative eyebrow pills, no active underline nav.
@@ -242,6 +286,8 @@ Turn readiness into execution inputs: named owner responsibilities, exact sprint
 - [ ] Document the local database blocker and exact recovery command in `docs/prism-v4/14-redesign-readiness-foundation.md`: `npm --workspace prism-api run db:doctor:runtime`.
 - [ ] Translate incomplete feature rows from `docs/prism-v4/11-feature-ledger.md` into the Sprint 2-4 contract/test cutline, especially files, notifications, privacy, floorplan eligibility, guest access, supplier readiness, and billing.
 - [ ] Identify missing typed response shapes needed by Sprint 2: PMCM command summary, selected-event summary, client action card, shared status vocabulary.
+- [ ] Finalize the UI-enabling API contract gate: pagination/result envelopes, filtering/sorting, upload sessions/file rules, normalized errors, empty-state reasons, and bulk/action responses.
+- [ ] Mark which frontend patterns are allowed before the gate passes: bounded queues, known-small lists, simple local filters, metadata upload flows, and no generalized grid/upload/bulk manager.
 - [ ] Define the Sprint 2 verification baseline: `npm --workspace @prism/types run typecheck`, `npm --workspace @prism/api-client run typecheck`, app typecheck for touched apps, API focused tests for touched controllers/services, `git diff --check`.
 
 ### Sprint 1 Review Output
@@ -251,6 +297,8 @@ Turn readiness into execution inputs: named owner responsibilities, exact sprint
 - [ ] This agile calendar is committed or ready to commit.
 - [ ] Incomplete feature backlog cutline is reviewed and any disputed item is moved to the feature ledger with a named owner, gate, and next action.
 - [ ] July treatment labels are assigned for every feature family: accept as existing, finish, thin slice, gate, or post-July.
+- [ ] UI-enabling API contract gate is approved, and any frontend work that would violate it is moved to a later sprint or marked gated.
+- [ ] Single-owner task backlog is reviewed so every executable task has exactly one DRI and one completion evidence line.
 - [ ] Sprint 2 backlog is small enough for four people to complete in two weeks without each person owning more than one primary surface.
 
 ### Sprint 1 Scope Cuts
@@ -281,6 +329,7 @@ Implement the first reusable design and workflow foundation: shared shell rules,
 
 - [ ] Move the command inbox surface into a focused component if it still depends on broad renderer state.
 - [ ] Implement or wire the FL-017 Event Command Inbox slice using scoped PMCM data and safe selected-event actions.
+- [ ] Keep command inbox filtering bounded to the approved contract; do not add advanced filters, saved views, infinite scroll, or bulk actions until Anthony lands the shared contract.
 - [ ] Include a thin FL-001/FL-002 intake and conforme status view if the current event command data supports it; otherwise document the exact missing contract.
 - [ ] Make selected-event summary use `PrismPmcmEventWorkspace` wherever the contract already covers the needed data.
 - [ ] Keep fallback filtering only where the scoped workspace does not yet cover a tab, and label it in code as compatibility-only.
@@ -290,12 +339,14 @@ Implement the first reusable design and workflow foundation: shared shell rules,
 
 - [ ] Make the client dashboard entry prioritize `PrismClientActionCenter` action cards over broad workspace-derived cards.
 - [ ] Implement or wire the FL-020 Client Action Center slice with conforme, briefing/proposal, file, billing, floorplan preference, and next-action status cards where contracts already exist.
+- [ ] Keep file/document behavior metadata-first until upload sessions, upload errors, retry behavior, and per-requirement rules are contract-ready.
 - [ ] Redesign the client top section around one primary job: "what needs my attention next".
 - [ ] Keep official floorplans read-only and client floorplan input as preferences/comments only.
 - [ ] Verify `/`, `/inquiry`, `/sign-in`, and `/dashboard` preserve the public-to-signed-in boundary.
 
 #### Anthony: Contracts and Verification
 
+- [ ] Add shared pagination/result envelope, filter/sort, normalized error, empty-state, and action-result types if Sprint 2 UI depends on those patterns; otherwise keep the frontend bounded and document the gate.
 - [ ] Add or tighten tests around PMCM command inbox read shape, client action center read shape, and forbidden role access if a contract changes.
 - [ ] Update `packages/types` and `packages/api-client` before app code depends on new fields.
 - [ ] Establish FL-024 File Requirements Matrix types or a documented contract gap before file/document UI depends on matrix states.
@@ -307,6 +358,7 @@ Implement the first reusable design and workflow foundation: shared shell rules,
 - [ ] PMCM command surface is visibly more focused and still PMCM-only.
 - [ ] Client action center has a clear next-action hierarchy and does not expose PMCM internals.
 - [ ] Shared UI work stays presentation-only.
+- [ ] Any frontend pagination, filtering, sorting, upload, error, empty-state, or bulk/action behavior is either backed by the shared contract gate or explicitly kept out of Sprint 2.
 - [ ] FL-017 and FL-020 are real working slices, and FL-001, FL-002, FL-006, and FL-024 have a working slice or a documented gate.
 - [ ] Boundary checks catch forbidden broad sample-state and magic storage-key coupling.
 - [ ] Sprint 2 demo can show one PMCM flow and one client flow.
@@ -347,6 +399,7 @@ Deepen and complete the main role workflows before feature freeze: PMCM selected
 
 - [ ] Split one additional selected-event workspace area from `EventDashboardClient.tsx` into a focused route/component if it remains inline.
 - [ ] Prioritize live operations/readiness, files/documents, or billing/closure based on which has the clearest scoped data.
+- [ ] Use only shared query/filter/sort/action-result contracts for any selected-event table or command list; otherwise keep the view as a bounded panel.
 - [ ] Add the PMCM side of FL-007 Supplier Readiness Board, FL-008 coordinator/staffing operations, FL-009 Risk and Change Register, or FL-011 floorplan eligibility based on which contract is ready first.
 - [ ] Preserve PMCM-only controls for official floorplans, supplier decisions, audit, and closure overrides.
 - [ ] Verify selected-event refresh does not regress command inbox or event list behavior.
@@ -355,6 +408,7 @@ Deepen and complete the main role workflows before feature freeze: PMCM selected
 
 - [ ] Redesign supplier dashboard top section around quote requests, assignments, readiness, contract metadata, and event-day statuses.
 - [ ] Implement the portal side of FL-022 Supplier Readiness Board and scope supplier application/status tracking as an MVP or post-July item.
+- [ ] Keep supplier readiness and guest lists bounded unless shared pagination/filter/sort contracts are available.
 - [ ] Keep supplier data scoped to the logged-in supplier or quote token.
 - [ ] Redesign guest `/open` and `/dashboard` around event-code entry, consent, check-in state, and moderated feedback.
 - [ ] Implement the FL-012 guest access/check-in slice without QR/camera scanning.
@@ -365,6 +419,7 @@ Deepen and complete the main role workflows before feature freeze: PMCM selected
 
 - [ ] Add or harden supplier readiness/read model tests for assigned records only.
 - [ ] Add or harden guest access-code tests for valid pass, invalid pass, check-in write, and feedback moderation state.
+- [ ] Close or gate upload-session and `PrismActionResult` contracts before Sprint 3 file, supplier, guest, or notification actions present retry/progress/bulk behavior.
 - [ ] Add or harden contract/test coverage for whichever FL-008, FL-009, FL-010, FL-011, FL-023, or FL-025 slice is pulled into Sprint 3.
 - [ ] Add event workspace contract coverage for whichever Francis surface moves deeper in Sprint 3.
 - [ ] Keep `/api/sample/state` as seed/demo/reset only and reject new normal app dependencies on it.
@@ -472,7 +527,7 @@ Add `npm run build` only after local environment blockers are resolved or when a
 ## Recommended Changes Before Sprint 2 Starts
 
 1. **Fix local API database configuration.** The current local authenticated browser checks are blocked when Prisma cannot reach the configured database. Anthony should make `npm --workspace prism-api run db:doctor:runtime` green or document the exact environment variable correction before Sprint 2 demo work depends on live sample auth.
-2. **Approve the feature cutline.** All owners should review the Incomplete Feature Backlog Coverage table and decide which items are July working slices, which are gates, and which are post-July. This prevents hidden unfinished work from being mistaken for completed redesign.
+2. **Approve the feature cutline.** Maxine is the DRI for the treatment-label review, with Francis, Ethan, and Anthony supporting their owned rows. This prevents hidden unfinished work from being mistaken for completed redesign.
 3. **Choose one PMCM and one portal demo path.** Francis and Ethan should not redesign every route in parallel. Sprint 2 should show one PMCM command path and one client action path end to end.
 4. **Keep Phase 1 narrower than the full visual redesign.** Maxine should define shell/page patterns and review first surfaces, not redesign all screens at once.
 5. **Make Anthony's contract work merge first.** If app work depends on new response fields, the shared type/API-client update should merge before app UI branches.
@@ -485,11 +540,11 @@ Add `npm run build` only after local environment blockers are resolved or when a
 | --- | --- | --- |
 | Event app remains too broad to change safely. | Francis | Extract one route-owned component/hook per sprint, verify with `@prism/event` typecheck, avoid unrelated rewrites. |
 | Visual system becomes generic or decorative. | Maxine | Enforce PMCM workflow language, dense operational layouts, and banned visual-pattern checks. |
-| Portals expose PMCM-only data. | Ethan and Anthony | Keep portal reads scoped, add forbidden-role tests when contracts change, review copy for internal terms. |
+| Portals expose PMCM-only data. | Ethan | Keep portal reads scoped, add forbidden-role tests when contracts change, review copy for internal terms. Anthony supports the API/security checks. |
 | Scoped contracts lag behind UI. | Anthony | Merge type/API-client work before app branches depend on new fields. |
 | Local DB blocks demo verification. | Anthony | Fix `db:doctor:runtime` before relying on authenticated local demos; show explicit 503 behavior until fixed. |
-| July 31 becomes a feature-expansion deadline. | All owners | Treat Sprint 4 as stabilization and evidence, not new feature intake. |
-| Unfinished features hide inside vague redesign language. | All owners | Track every partial/planned ledger item as delivered, gated, deferred, or post-July before Sprint 4 closes. |
+| July 31 becomes a feature-expansion deadline. | Anthony | Treat Sprint 4 as stabilization and evidence, not new feature intake. Maxine, Francis, and Ethan support by refusing new feature intake without a release-blocker label. |
+| Unfinished features hide inside vague redesign language. | Anthony | Track every partial/planned ledger item as delivered, gated, deferred, or post-July before Sprint 4 closes. Each feature DRI owns its evidence row. |
 
 ## Definition Of Done For July 31
 
