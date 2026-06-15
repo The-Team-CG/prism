@@ -1423,6 +1423,6 @@ Phase 0 and the redesign readiness foundation are complete. The active Phase 0/r
 2. `docs/prism-v4/12-redesign-inventory.md` for app and route redesign severity.
 3. `docs/prism-v4/13-docs-cleanup-checklist.md` for canonical docs, retired artifacts, and verification commands.
 4. `docs/prism-v4/14-redesign-readiness-foundation.md` for sample-state fencing, session conventions, owner boundaries, scoped-contract direction, and legacy removal before redesign branches.
-5. `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` for the one-week kickoff sprint and three two-week sprints through July 31, 2026.
+5. `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` for Sprint 1 through Sprint 4, including the June 15-20 one-week alignment sprint, three two-week delivery/stabilization sprints, the 90% system completion scorecard, and the July 17 feature-freeze rule.
 
 The old standalone UI modernization plan has been retired because its named deliverables exist and future redesign work should flow through this capability maturity plan. The next implementation work should start at Phase 1 design system and shell foundation, using the Phase 0 ledger, route inventory, and readiness foundation as inputs. Do not reopen Phase 0 unless docs drift, route ownership changes, or a redesign branch exposes a missing contract that belongs in the readiness handoff.
