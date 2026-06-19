@@ -94,7 +94,7 @@ Severity scale:
 | Event-ops API | `apps/api/libs/modules/event-ops/src/controllers/*`, `services/*` | S2 | Continue extracting service ownership by inquiry, onboarding, billing, floorplan, supplier, coordinator, privacy, live ops, AI. | D |
 | Plans/templates/publishing modules | `apps/api/libs/modules/plans`, `templates`, `publishing` | S1/S2 | Keep if active; verify they map to real product workflows or fold into templates/document operations. | D |
 | Shared UI | `packages/ui/src/*` | S1 | Keep presentation-only; add app-specific blocks only after route inventory demands them. | A |
-| Shared contracts | `packages/types/src/*` | S2 | PMCM command inbox, selected-event workspace, client action-center, and supplier readiness-board contracts now exist; continue adding guest event pass and file matrix contracts before route redesigns depend on them. | D |
+| Shared contracts | `packages/types/src/*` | S2 | PMCM command inbox, selected-event workspace, client action-center, supplier readiness-board, guest event pass, and file matrix contracts now exist. Anthony gate: file UI can use `PrismFileRequirementsMatrix` for status and visibility, but upload-session, signed URL, and retry UI are blocked until the storage adapter contract is approved and tested. | D |
 | API client | `packages/api-client/src/*` | S1 | PMCM command inbox, selected-event workspace, client action-center, and supplier readiness-board helpers now exist; keep removing broad state usage gradually. | D |
 
 ## Redesign Sequencing

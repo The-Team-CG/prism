@@ -8,6 +8,7 @@ export {
 export {
   DEFAULT_PRISM_API_BASE_URL,
   PrismApiError,
+  normalizePrismApiProblem,
   prismRequest,
   resolvePrismApiBaseUrl,
   toQueryString,

@@ -300,14 +300,14 @@ Turn readiness into execution inputs: named owner responsibilities, exact sprint
 
 #### Anthony: Contracts, Guards, and Environment Readiness
 
-- [ ] Verify `npm run check:boundaries` and `node --test scripts\check-prism-boundaries.test.mjs` still pass after the calendar doc is added.
-- [ ] Document the local database blocker and exact recovery command in `docs/prism-v4/14-redesign-readiness-foundation.md`: `npm --workspace prism-api run db:doctor:runtime`.
-- [ ] Translate incomplete feature rows from `docs/prism-v4/11-feature-ledger.md` into the Sprint 2-4 contract/test cutline, especially files, notifications, privacy, floorplan eligibility, guest access, supplier readiness, and billing.
-- [ ] Define the first cross-app handoff contract checklist: source app, actor role, target app, event ID/access scope, fields allowed, fields forbidden, audit event, notification event, empty/error states, and verification command.
-- [ ] Identify missing typed response shapes needed by Sprint 2: PMCM command summary, selected-event summary, client action card, shared status vocabulary.
-- [ ] Finalize the UI-enabling API contract gate: pagination/result envelopes, filtering/sorting, upload sessions/file rules, normalized errors, empty-state reasons, and bulk/action responses.
-- [ ] Mark which frontend patterns are allowed before the gate passes: bounded queues, known-small lists, simple local filters, metadata upload flows, and no generalized grid/upload/bulk manager.
-- [ ] Define the Sprint 2 verification baseline: `npm --workspace @prism/types run typecheck`, `npm --workspace @prism/api-client run typecheck`, app typecheck for touched apps, API focused tests for touched controllers/services, `git diff --check`.
+- [x] Verify `npm run check:boundaries` and `node --test scripts\check-prism-boundaries.test.mjs` still pass after the calendar doc is added.
+- [x] Document the local database blocker and exact recovery command in `docs/prism-v4/14-redesign-readiness-foundation.md`: `npm --workspace prism-api run db:doctor:runtime`.
+- [x] Translate incomplete feature rows from `docs/prism-v4/11-feature-ledger.md` into the Sprint 2-4 contract/test cutline, especially files, notifications, privacy, floorplan eligibility, guest access, supplier readiness, and billing.
+- [x] Define the first cross-app handoff contract checklist in `docs/prism-v4/14-redesign-readiness-foundation.md`: source app, actor role, target app, event ID/access scope, fields allowed, fields forbidden, audit event, notification event, empty/error states, and verification command.
+- [x] Identify missing typed response shapes needed by Sprint 2: PMCM command summary, selected-event summary, client action card, shared status vocabulary.
+- [x] Finalize the UI-enabling API contract gate: pagination/result envelopes, filtering/sorting, upload sessions/file rules, normalized errors, empty-state reasons, and bulk/action responses.
+- [x] Mark which frontend patterns are allowed before the gate passes: bounded queues, known-small lists, simple local filters, metadata upload flows, and no generalized grid/upload/bulk manager.
+- [x] Define the Sprint 2 verification baseline: `npm --workspace @prism/types run typecheck`, `npm --workspace @prism/api-client run typecheck`, app typecheck for touched apps, API focused tests for touched controllers/services, `git diff --check`.
 
 ### Sprint 1 Review Output
 

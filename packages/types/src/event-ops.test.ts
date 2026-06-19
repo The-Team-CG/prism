@@ -5,6 +5,10 @@ import {
   canClientAccessPortal,
   canCreateEventWorkspace,
   nextPrismLifecycleStages,
+  type PrismActionResult,
+  type PrismApiProblem,
+  type PrismCursorPage,
+  type PrismListQuery,
   type PrismPmcmDashboardWorkspace,
   type PrismSampleState,
   type PrismEvent,
@@ -62,6 +66,51 @@ describe("P.R.I.S.M lifecycle contract", () => {
   it("allows event workspace creation only after the same gate", () => {
     expect(canCreateEventWorkspace({ inquiryStatus: "accepted", conformeStatus: "signed" })).toBe(true);
     expect(canCreateEventWorkspace({ inquiryStatus: "accepted", conformeStatus: "pending" })).toBe(false);
+  });
+  it("publishes the Sprint 2 UI contract gate types", () => {
+    const query: PrismListQuery<"severity" | "eventDate"> = {
+      limit: 25,
+      cursor: "cursor_1",
+      filters: [
+        {
+          field: "severity",
+          operator: "equals",
+          value: "blocked",
+        },
+      ],
+      sort: [
+        {
+          field: "eventDate",
+          direction: "asc",
+        },
+      ],
+    };
+
+    const page: PrismCursorPage<{ id: string }> = {
+      items: [{ id: "item_1" }],
+      limit: query.limit ?? 25,
+      nextCursor: null,
+      hasMore: false,
+    };
+
+    const problem: PrismApiProblem = {
+      code: "blocked_by_gate",
+      message: "Real uploads are gated until storage is approved.",
+      status: 409,
+      retryable: false,
+      emptyReason: "blocked_by_gate",
+      fieldErrors: [{ field: "file", message: "Storage adapter is not configured." }],
+    };
+
+    const result: PrismActionResult = {
+      status: "denied",
+      message: problem.message,
+      problem,
+      auditReference: "audit_1",
+    };
+
+    expect(page.items[0]?.id).toBe("item_1");
+    expect(result.problem?.emptyReason).toBe("blocked_by_gate");
   });
 });
 

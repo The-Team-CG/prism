@@ -1,18 +1,69 @@
+import type { PrismApiProblem, PrismEmptyReason } from "@prism/types";
+
 export const DEFAULT_PRISM_API_BASE_URL = "http://localhost:4000/api";
 
 declare const process: {
   env: Record<string, string | undefined>;
 };
 
+const PRISM_EMPTY_REASONS = new Set<PrismEmptyReason>([
+  "no_data",
+  "not_ready",
+  "permission_denied",
+  "not_configured",
+  "blocked_by_gate",
+  "filtered_out",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isPrismEmptyReason(value: unknown): value is PrismEmptyReason {
+  return typeof value === "string" && PRISM_EMPTY_REASONS.has(value as PrismEmptyReason);
+}
+
+export function normalizePrismApiProblem(status: number, body: unknown): PrismApiProblem {
+  if (isRecord(body) && typeof body.code === "string" && typeof body.message === "string") {
+    return {
+      code: body.code,
+      message: body.message,
+      status,
+      retryable: typeof body.retryable === "boolean" ? body.retryable : status >= 500,
+      emptyReason: isPrismEmptyReason(body.emptyReason) ? body.emptyReason : undefined,
+      fieldErrors: Array.isArray(body.fieldErrors)
+        ? body.fieldErrors.filter(isRecord).map((fieldError) => ({
+            field: typeof fieldError.field === "string" ? fieldError.field : "unknown",
+            message: typeof fieldError.message === "string" ? fieldError.message : "Invalid field value.",
+            code: typeof fieldError.code === "string" ? fieldError.code : undefined,
+          }))
+        : undefined,
+      auditReference: typeof body.auditReference === "string" ? body.auditReference : undefined,
+    };
+  }
+
+  const fallbackMessage = isRecord(body) && typeof body.message === "string" ? body.message : undefined;
+
+  return {
+    code: status >= 500 ? "api_unavailable" : "api_error",
+    message: fallbackMessage ?? (typeof body === "string" ? body : `P.R.I.S.M API request failed: ${status}`),
+    status,
+    retryable: status >= 500,
+  };
+}
+
 export class PrismApiError extends Error {
   readonly status: number;
   readonly body: unknown;
+  readonly problem: PrismApiProblem;
 
   constructor(status: number, body: unknown) {
-    super(`P.R.I.S.M API request failed: ${status}`);
+    const problem = normalizePrismApiProblem(status, body);
+    super(problem.message);
     this.name = "PrismApiError";
     this.status = status;
     this.body = body;
+    this.problem = problem;
   }
 }
 
