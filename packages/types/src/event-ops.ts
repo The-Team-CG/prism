@@ -33,6 +33,76 @@ export interface PrismEventOpsActorContext {
   accessCode?: string;
 }
 
+export interface PrismPageRequest {
+  page?: number;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface PrismCursorPage<TItem> {
+  items: TItem[];
+  page?: number;
+  limit: number;
+  total?: number;
+  nextCursor?: string | null;
+  hasMore: boolean;
+}
+
+export type PrismSortDirection = "asc" | "desc";
+
+export interface PrismSortClause<TField extends string = string> {
+  field: TField;
+  direction: PrismSortDirection;
+}
+
+export type PrismFilterOperator = "equals" | "not_equals" | "contains" | "in" | "before" | "after" | "between";
+
+export interface PrismFilterClause<TField extends string = string> {
+  field: TField;
+  operator: PrismFilterOperator;
+  value: string | number | boolean | Array<string | number | boolean>;
+}
+
+export interface PrismListQuery<TField extends string = string> extends PrismPageRequest {
+  filters?: PrismFilterClause<TField>[];
+  sort?: PrismSortClause<TField>[];
+}
+
+export interface PrismFieldError {
+  field: string;
+  message: string;
+  code?: string;
+}
+
+export type PrismEmptyReason =
+  | "no_data"
+  | "not_ready"
+  | "permission_denied"
+  | "not_configured"
+  | "blocked_by_gate"
+  | "filtered_out";
+
+export interface PrismApiProblem {
+  code: string;
+  message: string;
+  status: number;
+  retryable: boolean;
+  emptyReason?: PrismEmptyReason;
+  fieldErrors?: PrismFieldError[];
+  auditReference?: string;
+}
+
+export type PrismActionResultStatus = "success" | "partial_success" | "denied" | "retryable_failure" | "failed";
+
+export interface PrismActionResult<TData = unknown> {
+  status: PrismActionResultStatus;
+  message: string;
+  data?: TData;
+  problem?: PrismApiProblem;
+  auditReference?: string;
+  notificationReference?: string;
+}
+
 export interface PrismUser {
   id: string;
   name: string;
@@ -1148,7 +1218,7 @@ type AuditLogFilters = {
   limit?: string;
 };
 
-// ─── PARE types ───────────────────────────────────────────────────────────────
+// PARE types
 
 export type PARECandidate = {
   supplierId: string;

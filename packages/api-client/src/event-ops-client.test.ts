@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismEventOpsActorContext } from "@prism/types";
-import { PrismApiError, createEventOpsClient, prismRequest, toQueryString } from "./index";
+import { PrismApiError, createEventOpsClient, normalizePrismApiProblem, prismRequest, toQueryString } from "./index";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -38,6 +38,35 @@ describe("prismRequest", () => {
     });
   });
 
+  it("normalizes API problem responses for role app empty and error states", () => {
+    const problem = normalizePrismApiProblem(409, {
+      code: "blocked_by_gate",
+      message: "Upload sessions are gated.",
+      retryable: false,
+      emptyReason: "blocked_by_gate",
+      fieldErrors: [{ field: "file", message: "Storage adapter is not configured." }],
+      auditReference: "audit_1",
+    });
+
+    expect(problem).toEqual({
+      code: "blocked_by_gate",
+      message: "Upload sessions are gated.",
+      status: 409,
+      retryable: false,
+      emptyReason: "blocked_by_gate",
+      fieldErrors: [{ field: "file", message: "Storage adapter is not configured.", code: undefined }],
+      auditReference: "audit_1",
+    });
+
+    const error = new PrismApiError(503, "Database unavailable");
+    expect(error.problem).toEqual({
+      code: "api_unavailable",
+      message: "Database unavailable",
+      status: 503,
+      retryable: true,
+    });
+  });
+
   it("throws PrismApiError with status and response body", async () => {
     vi.stubGlobal(
       "fetch",
@@ -48,6 +77,12 @@ describe("prismRequest", () => {
       name: "PrismApiError",
       status: 403,
       body: { message: "Forbidden" },
+      problem: {
+        code: "api_error",
+        message: "Forbidden",
+        status: 403,
+        retryable: false,
+      },
     });
   });
 });

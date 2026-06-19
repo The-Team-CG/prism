@@ -1,6 +1,6 @@
 # P.R.I.S.M Redesign Readiness Foundation
 
-Last updated: 2026-06-15
+Last updated: 2026-06-19
 
 This document is the handoff contract for making whole-app redesign work easier to distribute. It does not replace the capability maturity plan; it turns the current architecture cleanup into concrete rules that each owner can rely on before redesigning screens.
 
@@ -76,6 +76,20 @@ Until external auth is approved, the system still uses API-backed sample auth/RB
 - Keep role checks app-specific: client users stay in `apps/client`, supplier users stay in `apps/supplier`, guest code access stays in `apps/guest`, and PMCM/coordinator users stay in `apps/event`.
 - Treat sample auth as database-backed API behavior, not a browser-only mock. If sign-in, `/api/sample/state`, or `/api/sample/reset` fails because the configured Prisma database is unavailable, the API should return the explicit service-unavailable message that points to `npm --workspace prism-api run db:doctor:runtime`; do not redesign around localStorage bypasses or copied mock users.
 
+## Local Database Runtime Gate
+
+Anthony owns the local API database readiness gate for authenticated browser and API verification. Before Sprint 2 demo work depends on live sample auth, run:
+
+```powershell
+npm --workspace prism-api run db:doctor:runtime
+```
+
+Passing result: the command exits with code `0`, confirming Prisma can reach the configured runtime database.
+
+Current blocker captured on 2026-06-19: `SUPABASE_DB_URL` points at a Supabase pooler/pgbouncer host, and the runtime doctor failed with `(ENOTFOUND) tenant/user postgres.gfzshxndnxggssrmsccj not found` against `aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres`. Recovery is to provide a direct runtime database URL through `DIRECT_URL` or `PRISMA_DATABASE_URL`, preferably a direct `db.<project-ref>.supabase.co:5432` host, then rerun `npm --workspace prism-api run db:doctor:runtime`.
+
+Blocked result rule: record the exact failing environment variable, connection target, and remediation command in this document before relying on authenticated local demos. Do not bypass this by adding localStorage-only auth or role-app mock users.
+
 ## Scoped Contract Backlog
 
 These contracts should be completed or hardened before heavy redesign branches depend on them:
@@ -87,9 +101,86 @@ These contracts should be completed or hardened before heavy redesign branches d
 | Selected Event Workspace read model | B/D | Available through `PrismPmcmEventWorkspace` and `/api/pmcm/events/:eventId/workspace`; selected-event sections now load it through `use-pmcm-selected-event-workspace.ts` and prefer it through `event-dashboard.selectors.ts` with broad-state fallback. Live-ops/readiness refreshes now live in `use-pmcm-event-readiness.ts`, and event messages now render through `EventMessagesWorkspace`. Next work is file matrix enrichment and route decomposition. |
 | Supplier Readiness Board read model | C/D | Available through `PrismSupplierReadinessBoard` and `/api/supplier/readiness-board`; supplier dashboard now displays it. Next work is PMCM-side readiness board parity and application/status depth. |
 | Guest Event Pass read model | C/D | Available through `PrismGuestEventPass`, `/api/guest/events/:accessCode`, and `eventOpsClient.guest.eventPass`; next work is moderation/masterlist enrichment and QR gating only after HTTPS/sample constraints are solved. |
-| File Requirements Matrix | A/C/D | Role-visible document requirements, missing/received/approved states. |
+| File Requirements Matrix | A/C/D | Role-visible document requirements, missing/received/approved states. Sprint 2 file behavior is metadata-first. Role apps may show requirement status, owner role, visibility, due date, generated document reference, uploaded asset metadata, and validation state. Role apps must not claim real upload persistence, signed URL creation, multipart upload progress, or retry semantics until Anthony approves a storage adapter contract and focused API tests cover the behavior. |
 | Notification delivery state | B/C/D | Communication queues, channel status, retry/error visibility. |
 | Privacy Operations state | B/D | Consent, retention, privacy requests, redaction and legal hold. |
+
+## Anthony Sprint 2 Contract Cutline
+
+| Contract family | Sprint 2 state | Allowed UI behavior | Blocked UI behavior | Verification |
+| --- | --- | --- | --- | --- |
+| Pagination and list envelopes | Shared envelope types exist; existing endpoints can remain array-returning until a route needs paging. | Known-small queues and bounded lists. | Infinite scroll, saved views, generalized table paging. | `npm --workspace @prism/types run typecheck` |
+| Filtering and sorting | Shared query-shape types exist; endpoint-specific support must be named before use. | Simple local filters for already-loaded bounded data. | Cross-resource filter payloads invented inside role apps. | `npm --workspace @prism/api-client run typecheck` |
+| Normalized errors and empty states | Shared problem, field-error, retryability, and empty-reason types exist. | Route copy maps to known reasons. | App-local error-code strings that cannot be shared across PMCM, client, supplier, and guest surfaces. | API-client unit tests for normalization helper. |
+| File Requirements Matrix | Metadata-first matrix remains the July contract. | Requirement status, due date, owner, visibility, and metadata upload cues. | Real uploads, signed URLs, multipart progress, generalized file manager. | Types and focused file matrix tests. |
+| Upload sessions | Gated pending real storage adapter approval. | Metadata-only upload intent copy and disabled real-storage controls. | Claims of real file persistence, retry progress, or signed URL behavior. | Gate documented in readiness foundation. |
+| Bulk/action responses | Shared action-result type exists. | Single-action success, denied, retryable failure, and audit-reference display. | Bulk action manager or partial-success batch UI. | Types compile and API-client tests cover action-result shape. |
+
+## Sprint 2-4 Contract And Test Cutline
+
+| Feature family | Sprint target | Contract or gate | Required test evidence |
+| --- | --- | --- | --- |
+| FL-006 Files and documents | Sprint 2 metadata slice, Sprint 4 storage decision | `PrismFileRequirementsMatrix`; upload sessions gated until storage adapter approval. | `@prism/types` and `@prism/api-client` checks; focused file matrix or document-vault tests only when API behavior changes. |
+| FL-014 Notifications and communications | Sprint 4 visible queue/outbox state | Queue state can be shown only from existing notification records; production SendGrid/Viber adapters remain gated. | Notification service/controller tests when send/retry behavior changes. |
+| FL-015 Privacy and audit | Sprint 4 minimal privacy/audit visibility | Privacy request, retention, redaction, and audit references stay PMCM-scoped; external auth remains gated. | Privacy/audit service tests and forbidden role access tests when policy changes. |
+| FL-011 Floorplan eligibility | Sprint 3 PMCM ownership and client read-only boundary | PMCM official floorplan edits stay in `apps/event`; client inputs remain preferences/comments. | Client official mutation forbidden tests when floorplan API behavior changes. |
+| FL-012 Guest access | Sprint 3 access-code consent/check-in slice | `PrismGuestEventPass` stays access-code scoped; QR/camera remains gated. | Guest access-code and consent tests when guest mutations change. |
+| FL-007 Supplier readiness | Sprint 3 supplier readiness board depth | `PrismSupplierReadinessBoard` remains supplier-scoped; PMCM private reviews must not cross into supplier views. | Supplier access-policy and readiness-board tests when fields change. |
+| FL-010 Billing | Sprint 3-4 client-safe milestone visibility and PMCM correction state | Client billing reads expose statements, milestones, due dates, and allowed actions only; PMCM correction/dispute state needs explicit contract before UI depends on it. | Billing service/controller tests when response fields or mutation rules change. |
+
+## Missing Typed Response Shapes For Sprint 2
+
+| Shape | Current coverage | Sprint 2 decision |
+| --- | --- | --- |
+| PMCM command summary | `PrismPmcmCommandInbox` exists and feeds shell command actions. | Add fields only when Francis needs them for the command surface; otherwise keep known-small command rows. |
+| Selected-event summary | `PrismPmcmEventWorkspace` exists and selected-event sections prefer it. | Route sections may use existing event workspace fields; deeper health, files, or billing fields need shared type updates first. |
+| Client action card | `PrismClientActionCenter` exists and feeds dashboard action cards with compatibility fallback. | Ethan can use existing card fields; richer approval/file/closeout cards require shared type changes before app use. |
+| Shared status vocabulary | `PrismReadinessStatus`, lifecycle helpers, and event-ops read models exist, but no general UI-empty/error/action result vocabulary existed before this gate. | Use `PrismApiProblem`, `PrismEmptyReason`, `PrismActionResult`, and bounded list types for new Sprint 2 UI contract work. |
+
+## Frontend Patterns Allowed Before Contract Gate Completion
+
+Allowed before a route-specific backend contract is complete:
+
+- Bounded queues from shared read models.
+- Known-small lists loaded from existing scoped endpoints.
+- Simple local filters over already-loaded bounded data.
+- Metadata-only file requirement actions.
+- Route-level empty states using shared empty reasons.
+
+Blocked until Anthony's shared contracts and endpoint behavior are complete:
+
+- Infinite scroll.
+- Saved views.
+- Generalized data grids.
+- Real upload progress, signed URLs, or multipart retry UI.
+- Bulk action managers.
+- App-local normalized error taxonomies.
+
+## Cross-App Handoff Checklist
+
+Every PMCM-to-portal or portal-to-PMCM handoff must name these fields before app UI depends on it:
+
+| Field | Required answer |
+| --- | --- |
+| Source app | `apps/event`, `apps/client`, `apps/supplier`, `apps/guest`, or `apps/api` |
+| Actor role | `pmcm-admin`, `client`, `supplier`, `guest`, `coordinator`, or `system` |
+| Target app | `apps/event`, `apps/client`, `apps/supplier`, `apps/guest`, or `apps/api` |
+| Event scope | Event ID, access code, supplier ID, coordinator ID, or client session scope |
+| Allowed fields | Exact shared contract fields the target may read |
+| Forbidden fields | PMCM-only, private supplier, finance, audit, or internal coordination fields that must not cross the boundary |
+| Audit event | Audit category and action reference created by the handoff |
+| Notification event | Outbox or notification reference created by the handoff, or `none` when the handoff is read-only |
+| Empty state | Shared empty reason shown when the handoff has no work |
+| Error state | Shared problem code or retryability state shown when the handoff fails |
+| Verification command | The exact test, typecheck, route check, or browser check proving the boundary |
+
+### Sprint 2 Handoff Rows
+
+| Flow | Source app | Target app | Contract | Allowed fields | Forbidden fields | Audit or notification expectation | Verification |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| PMCM command inbox to client next action | `apps/event` | `apps/client` | `PrismPmcmCommandInbox` plus `PrismClientActionCenter` | Event ID, client-visible status, next action label, due date, requirement key | PMCM notes, supplier private review, internal cost, audit log body | PMCM action records an audit reference; client read remains scoped to own event | API-client typecheck and focused read-shape test |
+| Client file requirement status to PMCM | `apps/client` | `apps/event` | `PrismFileRequirementsMatrix` | Requirement key, status, due date, owner role, visible roles, uploaded asset reference when metadata exists | Storage path, PMCM validation notes not visible to client, other client event data | Metadata change is auditable; notification remains gated unless outbox behavior is already present | File matrix service test or documented storage gate |
+| Client conforme and onboarding status to PMCM | `apps/client` | `apps/event` | `PrismClientActionCenter` plus lifecycle helpers | Inquiry status, conforme status, portal access state, reminder due state | Internal invitation token, PMCM-only decline notes, unrelated inquiry history | Reminder send or portal activation creates audit reference when command exists | Lifecycle contract test and command-inbox read-shape test |
 
 ## Legacy Removal Queue
 
