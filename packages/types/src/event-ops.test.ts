@@ -12,6 +12,7 @@ import {
   type PrismPmcmDashboardWorkspace,
   type PrismSampleState,
   type PrismEvent,
+  type PrismFileRequirementsMatrix,
   type PrismFloorPlanDraft,
   type PrismInquiry,
   type PrismSupplier,
@@ -109,7 +110,25 @@ describe("P.R.I.S.M lifecycle contract", () => {
       auditReference: "audit_1",
     };
 
+    const matrix: PrismFileRequirementsMatrix = {
+      eventId: "evt_1",
+      items: [
+        {
+          key: "signed_conforme",
+          label: "Signed conforme",
+          ownerRole: "pmcm-admin",
+          visibleToRoles: ["pmcm-admin", "client"],
+          sourceWorkflow: "client_onboarding",
+          status: "submitted",
+          uploadedAssetId: "doc_conforme",
+          auditCategory: "documents",
+          detail: "Formal authorization file required before portal activation.",
+        },
+      ],
+    };
+
     expect(page.items[0]?.id).toBe("item_1");
+    expect(matrix.items[0]?.visibleToRoles).toContain("client");
     expect(result.problem?.emptyReason).toBe("blocked_by_gate");
   });
 });

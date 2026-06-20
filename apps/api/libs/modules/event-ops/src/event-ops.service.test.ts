@@ -2060,6 +2060,49 @@ describe('EventOpsService', () => {
     expect(matrix.items.map((item: any) => item.key)).toContain('signed_conforme');
     expect(matrix.items.map((item: any) => item.key)).not.toContain('supplier_reviews');
   });
+  it('returns PMCM-only file requirements for PMCM actors', async () => {
+    const fake = createPrisma();
+    fake.state.events.push({
+      id: 'evt_ana',
+      inquiryId: 'inq_sample',
+      clientName: 'Ana Reyes',
+      eventName: 'Ayala Summit',
+      eventDate: new Date('2026-06-18T00:00:00.000Z'),
+      status: 'planning',
+      clientPortalStatus: 'unlocked',
+      readiness: 'Planning in progress',
+      archived: false,
+      floorPlanStatus: 'approved',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    fake.state.supplierReviews.push({
+      id: 'rev_private',
+      supplierId: 'sup_sonicline',
+      eventId: 'evt_ana',
+      rating: 5,
+      notes: 'Internal private review.',
+      reviewedBy: 'PMCM Admin',
+      createdAt: new Date(),
+    });
+    const service = new EventOpsService(fake.prisma as any);
+
+    const matrix = await (service as any).getFileRequirements('evt_ana', {
+      actorRole: 'pmcm-admin',
+      actorName: 'Ms. Mys',
+      actorEmail: 'mys@pmcm.test',
+    });
+
+    expect(matrix.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'supplier_reviews',
+          visibleToRoles: ['pmcm-admin'],
+          status: 'complete',
+        }),
+      ]),
+    );
+  });
 
   it('blocks client actors from PMCM-only supplier reads and records the denial', async () => {
     const fake = createPrisma();

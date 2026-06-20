@@ -366,12 +366,12 @@ Implement the first reusable design and workflow foundation: shared shell rules,
 
 #### Anthony: Contracts and Verification
 
-- [ ] Add shared pagination/result envelope, filter/sort, normalized error, empty-state, and action-result types if Sprint 2 UI depends on those patterns; otherwise keep the frontend bounded and document the gate.
-- [ ] Add or tighten tests around PMCM command inbox read shape, client action center read shape, and forbidden role access if a contract changes.
-- [ ] Update `packages/types` and `packages/api-client` before app code depends on new fields.
-- [ ] Establish FL-024 File Requirements Matrix types or a documented contract gap before file/document UI depends on matrix states.
-- [ ] Run verification for every touched package and app.
-- [ ] Update `docs/prism-v4/07-implemented-feature-revisions.md`, `docs/prism-v4/12-redesign-inventory.md`, and `docs/prism-v4/14-redesign-readiness-foundation.md` with Sprint 2 results.
+- [x] Add shared pagination/result envelope, filter/sort, normalized error, empty-state, and action-result types if Sprint 2 UI depends on those patterns; otherwise keep the frontend bounded and document the gate.
+- [x] Add or tighten tests around PMCM command inbox read shape, client action center read shape, and forbidden role access if a contract changes.
+- [x] Update `packages/types` and `packages/api-client` before app code depends on new fields.
+- [x] Establish FL-024 File Requirements Matrix types or a documented contract gap before file/document UI depends on matrix states.
+- [x] Run verification for every touched package and app.
+- [x] Update `docs/prism-v4/07-implemented-feature-revisions.md`, `docs/prism-v4/12-redesign-inventory.md`, and `docs/prism-v4/14-redesign-readiness-foundation.md` with Sprint 2 results.
 
 ### Sprint 2 Acceptance
 

@@ -86,7 +86,7 @@ npm --workspace prism-api run db:doctor:runtime
 
 Passing result: the command exits with code `0`, confirming Prisma can reach the configured runtime database.
 
-Current blocker captured on 2026-06-19: `SUPABASE_DB_URL` points at a Supabase pooler/pgbouncer host, and the runtime doctor failed with `(ENOTFOUND) tenant/user postgres.gfzshxndnxggssrmsccj not found` against `aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres`. Recovery is to provide a direct runtime database URL through `DIRECT_URL` or `PRISMA_DATABASE_URL`, preferably a direct `db.<project-ref>.supabase.co:5432` host, then rerun `npm --workspace prism-api run db:doctor:runtime`.
+Resolution captured on 2026-06-20: the runtime blocker was a paused Supabase database plus stale local DB URLs. After resume, `apps/api/.env` uses the Supabase session-pooler host on port `5432` for `SUPABASE_DB_URL`, `DATABASE_URL`, `DIRECT_URL`, and `PRISMA_DATABASE_URL`, with `ALLOW_POOLER_FOR_PRISMA=1` because the free-tier project does not have the paid IPv4 direct connection string. `npm --workspace prism-api run db:doctor:runtime` and `npm --workspace prism-api run db:doctor` must pass before authenticated browser/API verification is used as release evidence.
 
 Blocked result rule: record the exact failing environment variable, connection target, and remediation command in this document before relying on authenticated local demos. Do not bypass this by adding localStorage-only auth or role-app mock users.
 
@@ -117,6 +117,19 @@ These contracts should be completed or hardened before heavy redesign branches d
 | Bulk/action responses | Shared action-result type exists. | Single-action success, denied, retryable failure, and audit-reference display. | Bulk action manager or partial-success batch UI. | Types compile and API-client tests cover action-result shape. |
 
 ## Sprint 2-4 Contract And Test Cutline
+
+### Sprint 2 Anthony Contract Gate Closeout
+
+- Shared bounded-list, filter/sort, normalized error, empty-state, and action-result types are present in `@prism/types`; Sprint 2 role apps must keep lists bounded unless an endpoint names those query fields explicitly.
+- `packages/api-client` exposes scoped clients for PMCM command inbox, selected-event workspace, client action center, supplier readiness board, guest event pass, and file requirements. No extra Sprint 2 client helper is needed before Francis/Ethan consume those existing contracts.
+- FL-024 File Requirements Matrix is metadata-only for Sprint 2 through `PrismFileRequirementsMatrix` and `/api/events/:eventId/file-requirements`; real storage, signed URLs, upload progress, retry, and bulk upload behavior remain gated.
+
+### Sprint 2 Anthony Verification Evidence
+
+- API runtime and Prisma database verification pass after the paused Supabase project was resumed and local `.env` was updated to the free-tier Supabase session pooler with `ALLOW_POOLER_FOR_PRISMA=1`.
+- `EventAccessPolicyService` tests cover client event scope, coordinator event scope, official floorplan mutation denial, supplier internal-cost denial, and supplier privacy-operation denial.
+- `EventReadModelsService` tests cover forbidden access to PMCM command inbox, client action center, supplier readiness board, and client action-center event scoping.
+- File requirements tests cover client-visible metadata filtering and PMCM-only supplier review requirements for FL-024.
 
 | Feature family | Sprint target | Contract or gate | Required test evidence |
 | --- | --- | --- | --- |

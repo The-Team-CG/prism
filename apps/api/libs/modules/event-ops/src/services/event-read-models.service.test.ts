@@ -247,4 +247,87 @@ describe('EventReadModelsService', () => {
       orderBy: { uploadedAt: 'desc' },
     });
   });
+  it('denies non-PMCM actors from the PMCM command inbox', async () => {
+    const { service, policy } = createPmcmReadModelService();
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    await expect(service.pmcmCommandInbox(actor)).rejects.toThrow('client cannot access PMCM command inbox');
+  });
+
+  it('denies PMCM actors from the client action center contract', async () => {
+    const { service, policy } = createPmcmReadModelService();
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    await expect(service.clientActionCenter(actor)).rejects.toThrow('pmcm-admin cannot access client action center');
+  });
+
+  it('denies clients from supplier readiness board records', async () => {
+    const { service, policy } = createSupplierWorkspaceService();
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    await expect(service.supplierReadinessBoard(actor)).rejects.toThrow('client cannot access supplier readiness board');
+  });
+
+  it('keeps client action-center work scoped to the client visible event set', async () => {
+    const eventVisible = {
+      id: 'evt_visible',
+      eventName: 'Ayala Summit',
+      clientName: 'Ana Reyes',
+      eventDate: new Date('2026-06-18T00:00:00.000Z'),
+      status: 'planning',
+      floorPlanStatus: 'not_started',
+      clientPortalStatus: 'unlocked',
+      archived: false,
+      floorPlanDrafts: [],
+    };
+    const eventOtherClient = {
+      ...eventVisible,
+      id: 'evt_other_client',
+      eventName: 'Other Summit',
+      clientName: 'Ramon Cruz',
+    };
+    const prisma = {
+      opsEvent: {
+        findMany: vi.fn(async () => [eventVisible, eventOtherClient]),
+      },
+      opsBriefing: { findMany: vi.fn(async () => []) },
+      opsDocument: { findMany: vi.fn(async () => []) },
+      opsFloorPlanDraft: { findMany: vi.fn(async () => []) },
+      opsBillingStatement: { findMany: vi.fn(async () => []) },
+      opsPaymentMilestone: {
+        findMany: vi.fn(async () => [
+          {
+            id: 'pay_visible',
+            eventId: 'evt_visible',
+            label: 'Visible balance',
+            amount: 25000,
+            status: 'pending',
+            dueDate: new Date('2026-01-01T00:00:00.000Z'),
+          },
+          {
+            id: 'pay_hidden',
+            eventId: 'evt_other_client',
+            label: 'Hidden balance',
+            amount: 25000,
+            status: 'pending',
+            dueDate: new Date('2026-01-01T00:00:00.000Z'),
+          },
+        ]),
+      },
+      opsPaymentRecord: { findMany: vi.fn(async () => []) },
+      opsPostEventDocument: { findMany: vi.fn(async () => []) },
+    };
+    const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+    const service = new EventReadModelsService(prisma as any, policy, {} as any);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    const actionCenter = await service.clientActionCenter(actor);
+
+    expect(actionCenter.items.map((item) => item.eventId)).toContain('evt_visible');
+    expect(actionCenter.items.map((item) => item.eventId)).not.toContain('evt_other_client');
+    expect(prisma.opsPaymentMilestone.findMany).toHaveBeenCalledWith({
+      where: { eventId: { in: ['evt_visible'] } },
+      orderBy: { createdAt: 'asc' },
+    });
+  });
 });
