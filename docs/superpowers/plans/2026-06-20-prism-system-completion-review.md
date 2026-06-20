@@ -31,6 +31,7 @@ P.R.I.S.M should operate PMCM's internal event lifecycle from inquiry to closure
 ## Feature Completion Review
 
 Legend: `Finish` means required for July demo completeness. `Thin` means a bounded working slice is enough. `Gate` means do not implement deeper behavior until prerequisites exist. `Post-July` means valuable but not required for July completion.
+
 | Feature family | What it should do | What it currently does | Missing before actual completion | July decision | Owner task to add or confirm |
 | --- | --- | --- | --- | --- | --- |
 | FL-001 Inquiry intake and triage | Public can submit inquiries; PMCM can triage, detect duplicates, handle referrals, accept/pend/decline, and log on behalf with audit. | Public inquiry and PMCM intake exist with duplicate/referral/log-on-behalf metadata in partial form. | Visible PMCM log-on-behalf form, richer referral filtering, clear triage queue evidence, no public spoofing proof. | Thin/Finish | Francis adds PMCM command triage evidence; Anthony confirms scoped API/audit tests; Ethan confirms public inquiry cannot jump to dashboard. |

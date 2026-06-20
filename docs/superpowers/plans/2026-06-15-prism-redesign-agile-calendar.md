@@ -1,10 +1,10 @@
-# P.R.I.S.M Redesign Agile Calendar Implementation Plan
+# P.R.I.S.M Whole-System Completion Agile Calendar
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Convert the completed redesign readiness foundation into an actionable sprint calendar through July 31, 2026. This includes the whole-app redesign and the partial, planned, or otherwise unfinished feature families from the feature ledger.
+**Goal:** Complete P.R.I.S.M as a coherent internal event operating system by July 31, 2026, using the completed redesign readiness foundation as an input rather than the finish line. The calendar includes whole-app redesign, all partial/planned/unfinished feature families from the feature ledger, and the verification evidence needed to prove which features are delivered, thin-delivered, gated, deferred, or post-July.
 
-**Architecture:** This plan divides the redesign into four numbered sprints: one one-week Sprint 1 alignment sprint and three two-week delivery/stabilization sprints. Maxine owns product UX/design system, Francis owns the PMCM/coordinator event app, Ethan owns external portals, and Anthony owns API/platform/contracts/QA/docs. Work proceeds only when the required contract, owner, feature family, and verification gates are explicit. By July 31, every incomplete feature family must be either finished, accepted as an already-working verified slice, delivered as a thin but usable slice, documented as gated, or intentionally moved to post-July.
+**Architecture:** This plan divides whole-system completion into four numbered sprints: one one-week system cutline sprint and three two-week delivery/stabilization sprints. Maxine owns product UX/design system, Francis owns the PMCM/coordinator event app, Ethan owns external portals, and Anthony owns API/platform/contracts/QA/docs. Work proceeds only when the required contract, owner, feature family, role boundary, and verification gates are explicit. By July 31, every incomplete feature family must be either finished, accepted as an already-working verified slice, delivered as a thin but usable slice, documented as gated, deferred with a named prerequisite, or intentionally moved to post-July.
 
 **Tech Stack:** Next.js role apps in `apps/client`, `apps/event`, `apps/supplier`, and `apps/guest`; NestJS API in `apps/api`; shared contracts in `packages/types` and `packages/api-client`; shared UI in `packages/ui`; canonical docs in `docs/prism-v4` and `docs/superpowers`.
 
@@ -14,10 +14,10 @@
 
 | Sprint | Dates | Working shape | Sprint outcome |
 | --- | --- | --- | --- |
-| Sprint 1 | June 15-20, 2026 | One-week alignment and completion-cutline sprint | Owners agree on the July 31 system target, existing feature credit, release blockers, scorecard, shell patterns, scoped contracts, and exact Sprint 2-4 work. |
-| Sprint 2 | June 22-July 3, 2026 | Two-week foundation delivery sprint | Shared shell/design foundations, Event Command Inbox, and Client Action Center are implemented behind verified boundaries. |
-| Sprint 3 | July 6-July 17, 2026 | Two-week workflow completion sprint | PMCM event workspace, supplier readiness, guest pass/check-in, file matrix, floorplan, billing, risk/change, and coordinator gaps reach the July feature-freeze cutline. |
-| Sprint 4 | July 20-July 31, 2026 | Two-week stabilization and release-readiness sprint | Core redesigned surfaces are integrated, QA'd, documented, screenshotted, scored against the 90% target, and ready for defense/demo review. |
+| Sprint 1 | June 15-20, 2026 | One-week system cutline sprint | Owners convert readiness inputs into a July 31 whole-system target: lifecycle demo path, existing feature credit, release blockers, scorecard, shell patterns, scoped contracts, and exact Sprint 2-4 work. |
+| Sprint 2 | June 22-July 3, 2026 | Two-week first-system-slice delivery sprint | Shared shell/design foundations, Event Command Inbox, Client Action Center, lifecycle/conforme evidence, and platform contracts land as the first whole-system operating slice behind verified boundaries. |
+| Sprint 3 | July 6-July 17, 2026 | Two-week workflow completion sprint | PMCM selected-event depth, supplier readiness, guest pass/check-in, file matrix, floorplan, billing, risk/change, and coordinator gaps reach the July feature-freeze cutline or receive explicit gates. |
+| Sprint 4 | July 20-July 31, 2026 | Two-week system stabilization and evidence sprint | The whole event operating-system path is integrated, QA'd, documented, screenshotted, scored against the 90% target, and closed with delivered/gated/post-July evidence for every feature family. |
 
 ## July Completion Strategy
 
@@ -138,8 +138,8 @@ Cross-app completion means a user action in one app changes the appropriate shar
 
 ## Operating Rules
 
-- Start each sprint with a one-hour planning review using this document, `docs/prism-v4/14-redesign-readiness-foundation.md`, and `docs/prism-v4/12-redesign-inventory.md`.
-- Use `docs/prism-v4/11-feature-ledger.md` as the source of truth for incomplete feature families. Do not treat the redesign as complete if a partial/planned feature is neither implemented, gated, nor explicitly deferred.
+- Start each sprint with a one-hour system-completion review using this document, `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md`, `docs/prism-v4/11-feature-ledger.md`, `docs/prism-v4/14-redesign-readiness-foundation.md`, and `docs/prism-v4/12-redesign-inventory.md`.
+- Use `docs/prism-v4/11-feature-ledger.md` as the source of truth for incomplete feature families. Do not treat the system as complete if a partial/planned feature is neither implemented, gated, nor explicitly deferred.
 - Keep one branch per owner per sprint when work can run independently: `codex/sprint-N-maxine`, `codex/sprint-N-francis`, `codex/sprint-N-ethan`, and `codex/sprint-N-anthony`.
 - Merge order is Anthony contracts/guards first, then Maxine shell/design rules, then Francis and Ethan app surfaces, then Anthony final verification/docs.
 - Do not add new broad sample-state reads, app-local literal `prism:*` keys, cross-role app imports, or PMCM-only data in external portals.
@@ -303,7 +303,7 @@ Sprint owners must either implement the relevant July slice, mark the feature as
 
 ### Sprint Goal
 
-Turn readiness into execution inputs: named owner responsibilities, exact sprint surfaces, agreed shell patterns, API contract gaps, release blockers, scorecard targets, and demo criteria. No broad visual redesign starts until each owner has a thin, reviewable target and every feature family has a July treatment label.
+Turn readiness inputs into a whole-system completion cutline: named owner responsibilities, exact sprint surfaces, agreed shell patterns, API contract gaps, release blockers, scorecard targets, lifecycle demo criteria, and a July outcome for every feature family. No broad visual redesign starts until each owner has a thin, reviewable target and every feature family has a July treatment label.
 
 ### Owner Tasks
 
@@ -615,10 +615,10 @@ Add `npm run build` only after local environment blockers are resolved or when a
 
 ## Definition Of Done For July 31
 
-- [ ] Phase 0/readiness remains current and does not need reopening.
-- [ ] Phase 1 shell/design foundation is represented in at least one PMCM surface and one portal surface.
-- [ ] PMCM command/event workspace work is decomposed enough for continued parallel development.
-- [ ] Client, supplier, and guest portal direction is clear and role-safe.
+- [ ] The whole event operating-system path works from public inquiry through PMCM command, client action center, supplier readiness, guest access/check-in, and closure/readiness evidence.
+- [ ] The redesign readiness foundation remains current as an input, but no task is considered done merely because readiness docs are complete.
+- [ ] PMCM command/event workspace work is decomposed enough for continued parallel development and has one July outcome for every selected-event feature family.
+- [ ] Client, supplier, and guest portals have role-safe working slices or documented gates tied to their feature families.
 - [ ] PMCM and portals demonstrably work together through shared event state, not shared dashboards or cross-role imports.
 - [ ] All partial/planned feature families from the ledger have a July 31 outcome: working slice, documented gate, deferred slice, or post-July task.
 - [ ] Shared contracts and boundary checks guard future work.
