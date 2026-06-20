@@ -97,6 +97,24 @@ Severity scale:
 | Shared contracts | `packages/types/src/*` | S2 | PMCM command inbox, selected-event workspace, client action-center, supplier readiness-board, guest event pass, and file matrix contracts now exist. Anthony Sprint 2 gate: file UI can use `PrismFileRequirementsMatrix` for metadata status and visibility, but upload-session, signed URL, retry, progress, and bulk upload UI are blocked until the storage adapter contract is approved and tested. | D |
 | API client | `packages/api-client/src/*` | S1 | PMCM command inbox, selected-event workspace, client action-center, and supplier readiness-board helpers now exist; keep removing broad state usage gradually. | D |
 
+## System Completion Gap Map
+
+This map connects the app/package inventory to the July remediation work. It should be updated whenever an owner closes a sprint task or moves a feature family to a gate/post-July outcome.
+
+| Area | Complete enough today | Remaining July work | DRI | Support | Verification |
+| --- | --- | --- | --- | --- | --- |
+| `apps/event` PMCM command | Command inbox and selected-event workspace contracts exist; root entry and several workspace components are extracted. | Make command inbox the working center, deepen one selected-event area, record which finance/files/closure/live-ops tabs remain compatibility-owned. | Francis | Maxine, Anthony | `@prism/event` typecheck; route checks for `/dashboard`, `/dashboard/events`, selected event route; screenshot. |
+| `apps/event` coordinator/live ops | Live-ops/readiness hooks and coordinator-related data exist in partial form. | Pick one Sprint 3 coordinator/staffing/live-ops slice or gate it; do not attempt heatmap, run sheet, and replacement depth together. | Francis | Anthony | Focused API/read-model tests if behavior changes; PMCM route check. |
+| `apps/client` public/auth | Public inquiry and sign-in routes exist; client session helpers are shared. | Verify public pages cannot jump to dashboard; clarify accepted inquiry/conforme requirement in copy/states. | Ethan | Anthony, Maxine | Route checks for `/`, `/inquiry`, `/sign-in`, `/dashboard`. |
+| `apps/client` dashboard/action center | `PrismClientActionCenter` feeds dashboard actions with fallback. | Make next-action hierarchy first, remove or label broad fallback, add file/billing/floorplan/closeout cards only from existing contracts. | Ethan | Maxine, Anthony | `@prism/client` typecheck; client action-center route screenshot; official floorplan read-only evidence. |
+| `apps/supplier` dashboard | Supplier readiness board is visible and supplier-scoped contracts exist. | Redesign top section around quote, assignment, readiness, contract metadata, event-day status, and application/status messaging. | Ethan | Francis, Anthony, Maxine | `@prism/supplier` typecheck; supplier readiness tests; mobile screenshot. |
+| `apps/guest` access and dashboard | Guest event pass contract exists and open-code flow is available. | Clarify code entry, consent, check-in, walk-in flag, moderated feedback, invalid code, and QR/media gates. | Ethan | Anthony, Maxine | `@prism/guest` typecheck; guest workflow tests; mobile screenshot. |
+| `apps/api` event ops | Scoped read models, policy tests, file matrix, auth/runtime DB guidance, and many workflow services exist. | Add tests only for touched Sprint 3 slices; keep extracting `EventOpsService`; reject new normal `/api/sample/state` dependencies. | Anthony | Francis, Ethan | Focused API tests; `prism-api` typecheck; boundary checks; DB doctors. |
+| `packages/types` | Shared role read models, lifecycle helpers, session helpers, action/result/error/list/file-matrix contracts exist. | Add fields only when an app surface depends on them; avoid unused speculative types. | Anthony | Francis, Ethan, Maxine | `@prism/types` typecheck/test. |
+| `packages/api-client` | Scoped helpers exist for PMCM, client, supplier, guest, billing, event file requirements, and normalized API problems. | Add endpoint helpers before app code depends on new routes; keep sample aggregate compatibility-only. | Anthony | Francis, Ethan | `@prism/api-client` typecheck/test. |
+| `packages/ui` | Shared shell/public/client blocks exist. | Classify reusable primitives and keep workflow logic out; apply shell rules to first PMCM and portal surfaces. | Maxine | Francis, Ethan | UX brief; visual QA checklist; app typechecks. |
+| Docs/evidence | v4 docs, ledger, inventory, readiness foundation, and agile calendar exist. | Keep ledger, inventory, readiness, and calendar aligned after each sprint closeout; add screenshots and command evidence. | Anthony | Maxine, Francis, Ethan | `git diff --check`; docs closeout checklist; clean branch status. |
+
 ## Redesign Sequencing
 
 1. Maxine and Anthony lock shell patterns, route inventory, typed contracts, sample-state boundaries, session/storage conventions, and the owner system goal for each branch.

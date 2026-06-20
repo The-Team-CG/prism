@@ -215,6 +215,23 @@ Every PMCM-to-portal or portal-to-PMCM handoff must name these fields before app
 | PARE/mock adapter defaults | Keep dev/test-only. | Live/test adapter modes are explicit and verified. |
 | Generated temp logs | Ignore `.tmp/`. | Dev scripts write only to ignored local output paths. |
 
+## Remediation Execution Gates
+
+The plan remediation branch makes the July work executable at system level. These gates decide whether a sprint task can start, merge, or move to the post-July queue.
+
+| Gate | Applies to | DRI | Rule | Evidence |
+| --- | --- | --- | --- | --- |
+| Owner clarity gate | Every sprint task and ledger overlay row | Maxine for UX, Francis for PMCM, Ethan for portals, Anthony for platform/docs | Every executable row has one DRI. Support owners can review or provide dependencies but cannot be listed as co-DRIs for completion. | Agile calendar owner task row names one DRI and one evidence line. |
+| Contract dependency gate | New response fields, filters, pagination, upload states, errors, or action results | Anthony | UI cannot depend on a field or behavior until it exists in `@prism/types`, `@prism/api-client`, and focused tests, or the task is explicitly bounded/local. | Typecheck/API-client tests or a documented gate in this file. |
+| App-boundary gate | PMCM, client, supplier, guest, coordinator surfaces | Anthony | Role apps do not import across app boundaries, do not use broad sample state as the normal path, and do not expose forbidden role data. | `npm run check:boundaries`, focused forbidden-role tests, route checks. |
+| Metadata-only file gate | FL-006 and FL-024 file/document UI | Anthony | July UI may show requirement metadata but must not claim real storage, signed URLs, upload progress, retry, multipart, or bulk behavior. | File-matrix tests and visible UI copy/gate. |
+| External dependency gate | AI, QR/camera, production notifications, external auth, paid direct DB/network behavior, real storage | Anthony | External dependencies remain gated unless a sprint explicitly approves credentials, environment, adapter, tests, and fallback behavior. | Ledger overlay row lists gate/post-July or approved implementation evidence. |
+| Demo evidence gate | Sprint 4 release readiness | Anthony | A demo route is not ready unless its owner records command output, route/screenshot evidence, and known gates. | Sprint closeout notes plus screenshot list. |
+
+### Remediation Branch Scope
+
+This branch updates the planning system, not app behavior. It may change `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md`, `docs/prism-v4/11-feature-ledger.md`, `docs/prism-v4/12-redesign-inventory.md`, and this readiness foundation. Code or UI changes belong on owner execution branches after this remediation plan is accepted.
+
 ## Merge Gate For Redesign Branches
 
 Before a redesign branch is ready to merge:
