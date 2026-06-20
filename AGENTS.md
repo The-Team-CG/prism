@@ -12,6 +12,7 @@ These notes preserve the product boundaries established by the project docs and 
 - The current whole-app redesign inventory is `docs/prism-v4/12-redesign-inventory.md`.
 - The current documentation cleanup checklist is `docs/prism-v4/13-docs-cleanup-checklist.md`.
 - The current redesign readiness handoff contract is `docs/prism-v4/14-redesign-readiness-foundation.md`.
+- The current architecture/current-state/future-state docs are `docs/prism-v4/15-system-architecture.md`, `docs/prism-v4/16-actual-system.md`, `docs/prism-v4/17-current-state-2026-06-20.md`, and `docs/prism-v4/18-future-state.md`.
 - The current whole-app redesign plan is `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
 - The current sprint execution calendar is `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md`.
 - The current system completion review and confidence gate audit is `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md`.

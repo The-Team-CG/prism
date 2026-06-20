@@ -19,6 +19,10 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 | `docs/prism-v4/12-redesign-inventory.md` | Active | Route/app redesign severity and ownership. |
 | `docs/prism-v4/13-docs-cleanup-checklist.md` | Active | Documentation hygiene rules. |
 | `docs/prism-v4/14-redesign-readiness-foundation.md` | Active | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
+| `docs/prism-v4/15-system-architecture.md` | Active | Canonical role-app/API/package architecture, data domains, boundaries, and stop rules. |
+| `docs/prism-v4/16-actual-system.md` | Active | Repo-grounded map of what the current system actually contains. |
+| `docs/prism-v4/17-current-state-2026-06-20.md` | Active | Dated current-state snapshot for June 20, 2026. |
+| `docs/prism-v4/18-future-state.md` | Active | July 31 and post-July future-state target for full system completion. |
 | `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan, including explicit system goals for Owner A (Maxine), Owner B (Francis), Owner C (Ethan), and Owner D (Anthony). |
 | `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Active | Whole-system completion sprint calendar through July 31, 2026 with actionable work for Maxine, Francis, Ethan, and Anthony. |
 | `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` | Active companion | Current-vs-target feature audit, confidence gates, missing completion tasks, and catalog traceability check for the July completion calendar. |
@@ -73,7 +77,7 @@ git status --short --branch
 git ls-files -s CLAUDE.md AGENTS.md
 rg -n -i "old-name-token-one|old-name-token-two" docs/prism-v4 docs/superpowers README.md AGENTS.md
 Test-Path docs/superpowers/plans
-rg -n "10-product-evolution|11-feature-ledger|12-redesign-inventory|13-docs-cleanup-checklist" docs/prism-v4 README.md AGENTS.md
+rg -n "10-product-evolution|11-feature-ledger|12-redesign-inventory|13-docs-cleanup-checklist|15-system-architecture|16-actual-system|17-current-state-2026-06-20|18-future-state" docs/prism-v4 README.md AGENTS.md
 rg -n "Owner system goal|Owner System Goals|system goal" docs/prism-v4 docs/superpowers/specs README.md AGENTS.md
 npm --workspace prism-api run db:doctor:runtime
 git diff --check

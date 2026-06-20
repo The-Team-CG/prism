@@ -1,0 +1,152 @@
+# P.R.I.S.M System Architecture
+
+Date: 2026-06-20
+Status: Canonical architecture reference for the current Prism monorepo and July completion plan
+
+This document describes the intended architecture of P.R.I.S.M as PMCM's internal event operating system. Read it with `16-actual-system.md` for repo reality, `17-current-state-2026-06-20.md` for the dated status snapshot, and `18-future-state.md` for the target state.
+
+## Architecture Principles
+
+| Principle | Rule |
+| --- | --- |
+| One internal operating system | P.R.I.S.M serves PMCM's event lifecycle. It is not a public SaaS platform and not a generic multi-tenant product. |
+| Role-specific apps | PMCM/coordinator, client, supplier, and guest experiences remain separate apps. |
+| One shared API | `apps/api` remains the shared NestJS API and owns event operations, authorization checks, workflow services, and persistence access. |
+| Scoped contracts first | New role surfaces should use scoped APIs and shared types instead of broad sample-state reads. |
+| Compatibility paths are temporary | `/api/sample/state` and local sample state remain for seed/demo/reset compatibility, not for normal feature ownership. |
+| PMCM owns official operations | PMCM owns official floorplans, supplier decisions, billing records, compliance overrides, privacy operations, and audit review. |
+| Portals are constrained views | Client, supplier, and guest portals only see role-safe event data and cannot access PMCM internals. |
+| High-risk dependencies are gated | Real storage, external auth, production notification adapters, QR/camera flows, and live AI require explicit approval, tests, and fallback behavior. |
+
+## Runtime Topology
+
+```mermaid
+flowchart LR
+  Public["Public visitor"] --> ClientApp["apps/client :3001"]
+  Client["Client"] --> ClientApp
+  Supplier["Supplier"] --> SupplierApp["apps/supplier :3002"]
+  Guest["Guest"] --> GuestApp["apps/guest :3003"]
+  PMCM["PMCM and coordinator"] --> EventApp["apps/event :3004"]
+
+  ClientApp --> Api["apps/api NestJS :4000"]
+  SupplierApp --> Api
+  GuestApp --> Api
+  EventApp --> Api
+
+  Api --> Prisma["Prisma data access"]
+  Prisma --> Postgres["Postgres or seeded sample database"]
+
+  Api --> Audit["Audit log"]
+  Api --> Notifications["Notification outbox"]
+  Api --> AiGov["AI governance records"]
+```
+
+## Application Boundaries
+
+| App | Port | Primary actors | Owns | Must not own |
+| --- | ---: | --- | --- | --- |
+| `apps/client` | 3001 | Public visitors and signed-in clients | Landing, inquiry, client sign-in, conforme-gated dashboard, client action center, client-visible billing/docs/floorplan status, layout preferences. | PMCM command center, official floorplan editing, supplier private reviews, PMCM costs, audit logs, privacy operations. |
+| `apps/event` | 3004 | PMCM, admin, coordinator role views | PMCM sign-in, command inbox, selected event workspace, official floorplans, supplier review/selection, billing operations, compliance, live ops, coordinator-safe role views, closure, privacy/audit review. | Public marketing pages, supplier self-service, guest public access, client-only dashboard ownership. |
+| `apps/supplier` | 3002 | Existing suppliers, awarded suppliers, supplier applicants | Supplier sign-in, assigned quote requests, quote submission/revision, assignment confirmation, readiness, contract metadata, event-day supplier status. | Other suppliers' bids, PMCM private reviews, client private data, internal PMCM costs. |
+| `apps/guest` | 3003 | Guests and walk-ins | Access-code entry, lightweight event pass, consented check-in, walk-in flagging, moderated feedback. | Full event planning, client/supplier dashboards, PMCM internals, cross-event guest reads. |
+| `apps/api` | 4000 | All apps through HTTP | Shared NestJS API, event operations workflows, role scoping, sample auth, Prisma access, audit, notification outbox, AI governance, compatibility seed/reset paths. | UI rendering, app-local session storage, role-specific visual decisions. |
+
+## Shared Packages
+
+| Package | Responsibility |
+| --- | --- |
+| `packages/types` | Shared role, session, lifecycle, workflow, action, and data contract types. Session and sample storage keys belong here. |
+| `packages/api-client` | Shared request helpers and typed API-client functions for role apps. |
+| `packages/ui` | Shared presentation primitives and shell components. It must not contain workflow ownership or role-specific data rules. |
+| `packages/tokens` | Shared design tokens, theme values, and Tailwind-related constants. |
+
+## Backend Layering
+
+| Layer | Current owner | Purpose |
+| --- | --- | --- |
+| Controllers | `apps/api/libs/modules/event-ops/src/controllers` | Stable HTTP routes for inquiry, events, PMCM dashboard, client workspace, supplier workspace, guest access, quote requests, billing, notifications, audit/privacy, auth, AI governance, and sample compatibility. |
+| Workflow services | `apps/api/libs/modules/event-ops/src/services` | Business logic for inquiry, onboarding, suppliers, coordinators, billing, compliance, lifecycle, closure, file matrix, live ops, privacy, notifications, audit, AI governance, and PARE foundations. |
+| Read models | Event-ops services plus shared DTOs | Actor-scoped payloads such as PMCM command inbox, selected event workspace, client action center, supplier readiness board, guest event pass, file requirements matrix, and close-gate matrix. |
+| Persistence | `apps/api/prisma/schema.prisma` | Prisma models for floorplans, events, users, inquiries, documents, suppliers, coordinators, live ops, compliance, billing, closure, notifications, guests, AI audit/approval, login history, and security alerts. |
+| Compatibility seed state | `SampleStateService` and `/api/sample/state` | Seed/demo/reset support only. New normal surfaces should not depend on it as their main read path. |
+
+## Data Domains
+
+| Domain | Representative models |
+| --- | --- |
+| Floorplans and venue templates | `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` |
+| Core event lifecycle | `OpsInquiry`, `OpsEvent`, `OpsApprovalRequest`, `OpsDocument`, `OpsBriefing`, `OpsPostEventDocument`, `OpsEventInsight` |
+| Supplier network | `OpsSupplier`, `OpsSupplierCategory`, `OpsSupplierReview`, `OpsSupplierReliabilityNote`, `OpsSupplierCertification`, `OpsSupplierQuoteRequest`, `OpsSupplierQuote` |
+| Coordinator and live ops | `OpsCoordinator`, `OpsCoordinatorAssignment`, `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog`, `OpsCoordinatorReliabilityNote` |
+| Compliance and billing | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` |
+| Trust, privacy, and audit | `OpsUser`, `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsLoginHistory`, `OpsSecurityAlert` |
+| Guest operations | `OpsGuestCheckIn`, `OpsGuestFeedback` |
+| AI governance | `OpsAiAuditLog`, `OpsAiApprovalRecord` |
+
+## Lifecycle Architecture
+
+| Lifecycle step | Primary app | API ownership | Required boundary |
+| --- | --- | --- | --- |
+| Public inquiry | `apps/client` | Inquiry controller and inquiry workflow service | Public submitters cannot set PMCM-only fields. |
+| Inquiry review | `apps/event` | PMCM dashboard, inquiries, audit | PMCM owns accept, pend, decline, duplicate/referral review, and log-on-behalf metadata. |
+| Conforme gate | `apps/event`, `apps/client` | Onboarding workflow, approval requests, documents | Client dashboard and event creation remain gated by accepted inquiry plus signed conforme. |
+| Briefing and proposal | `apps/event`, limited `apps/client` view | Commercial workflow, billing source, documents | PMCM prepares; client sees approved/client-safe artifacts only. |
+| Planning | `apps/event`, `apps/client`, `apps/supplier` | Event workspace, file matrix, floorplan, suppliers, billing, compliance | PMCM owns official records; portals receive scoped views. |
+| Event day | `apps/event`, `apps/supplier`, `apps/guest` | Live operations, coordinator workspace, supplier workspace, guest workflow | Role-safe run data only. |
+| Closure/archive | `apps/event`, limited `apps/client` view | Event closure, close gates, insights, documents, billing | Archive is blocked unless gates pass or PMCM records an override reason. |
+
+## Role-Boundary Matrix
+
+| Data or action | PMCM/event app | Client portal | Supplier portal | Guest portal |
+| --- | --- | --- | --- | --- |
+| Public inquiry submit | Review and decision | Submit only | Not applicable | Not applicable |
+| Accepted inquiry and conforme status | Full operational status | Own event status only | Not applicable | Not applicable |
+| Official floorplan | Create, edit, submit, approve, lock | Read-only review plus preference/comment actions | Event-day logistics if assigned | Not visible |
+| Supplier quotes | Create, compare, select, close | Not visible except approved client-facing proposal output | Own quote request and own submission | Not visible |
+| Supplier private review/reliability | Full PMCM access | Not visible | Not visible | Not visible |
+| Billing records | Full PMCM billing operations | Statements, milestones, receipts, client actions only | Not visible unless supplier contract metadata | Not visible |
+| Live ops | Full PMCM and coordinator-safe views | Client-safe status only if exposed | Own assignment/status | Check-in/pass only |
+| Audit and privacy operations | PMCM-only | Own privacy request path only if exposed | Own privacy request path only if exposed | Consent and own feedback only |
+| AI suggestions | PMCM approval required | No autonomous AI action | No autonomous AI action | No autonomous AI action |
+
+## State And Session Rules
+
+1. Browser session and sample storage key names belong in `@prism/types`.
+2. Role apps should use shared helpers instead of adding new literal `prism:*` keys.
+3. API-backed sample auth/RBAC is acceptable for the current pass.
+4. External auth is gated until provider, session migration, tests, and fallback behavior are approved.
+5. Local sample state is allowed for seed/demo/reset compatibility only.
+
+## Integration And Adapter Boundaries
+
+| Integration area | Architecture status |
+| --- | --- |
+| Database | Prisma-backed Postgres path exists. Free-tier Supabase pooler use requires the documented runtime guard and should not be treated as a production direct connection substitute. |
+| File storage | Metadata and file requirements matrix exist. Real storage, signed URLs, upload progress, retry, download/delete audit, and adapter tests remain gated. |
+| Notifications | Queue/retry/acknowledgement model exists. Production SendGrid/Viber adapters remain gated. |
+| AI | Data sanitizer, audit, approval, and PARE foundation exist. Live AI calls and autonomous AI actions remain gated by ZDR/provider approval and PMCM human approval. |
+| QR/camera | Guest access-code path exists. QR/camera scanning remains gated by HTTPS/device constraints and masterlist reconciliation. |
+
+## Architecture Verification
+
+| Check | Command or evidence |
+| --- | --- |
+| App/package boundaries | `npm run check:boundaries` |
+| Root type safety | `npm run typecheck` |
+| Root build | `npm run build` |
+| API event-ops tests | `npm --workspace prism-api run test:event-ops` |
+| API Prisma schema | `npm --workspace prism-api run prisma:validate` |
+| UI smoke | `npm run smoke:ui` |
+| Documentation consistency | `git diff --check` plus index/manifest updates |
+
+## Architecture Stop Rules
+
+Stop and update the plan before implementation if a change would:
+
+1. Move PMCM command ownership into `apps/client`.
+2. Let client, supplier, guest, or coordinator actors read PMCM-only records.
+3. Treat `/api/sample/state` as the main path for new role features.
+4. Add an app-local literal `prism:*` session key.
+5. Ship real storage, production notifications, external auth, QR/camera, or live AI without the required gate evidence.
+6. Put workflow ownership inside `packages/ui`.
+7. Claim a feature is complete without route, actor, contract, failure-state, and permission-boundary evidence.

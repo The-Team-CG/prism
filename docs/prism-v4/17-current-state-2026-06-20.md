@@ -1,0 +1,133 @@
+# P.R.I.S.M Current State Snapshot
+
+Date: 2026-06-20
+Branch context: `plan/remediation-calendar-system`
+Status: Current-state evidence snapshot for planning and July completion work
+
+This file records the current system state as of June 20, 2026. It is intentionally dated. Update or supersede it when a later review changes the implementation truth.
+
+## Current System Summary
+
+P.R.I.S.M currently has a role-specific monorepo architecture with one shared NestJS API and four role apps. The system can support the defense/demo story in bounded form: public inquiry, PMCM command, accepted inquiry/conforme gate, client action center, supplier readiness, guest access/check-in, event operations, privacy/audit, and closure/readiness evidence. The system is not yet complete in the production sense because several families remain partial, gated, or explicitly post-July.
+
+## Current Runtime Inventory
+
+| Runtime | Current state |
+| --- | --- |
+| `apps/api` | Shared NestJS API on port `4000`; event-ops module owns most workflows and Prisma access. |
+| `apps/client` | Client portal on port `3001`; public inquiry and signed-in client dashboard/action center. |
+| `apps/event` | PMCM/coordinator event command app on port `3004`; command inbox and selected event workspace exist, but broad dashboard sections still need decomposition. |
+| `apps/supplier` | Supplier portal on port `3002`; quote, assignment, readiness, contract metadata, status, and readiness board exist. |
+| `apps/guest` | Guest portal on port `3003`; access-code entry, pass, check-in, walk-in flag, feedback. |
+| `packages/types` | Shared role, session, lifecycle, action, and contract types. |
+| `packages/api-client` | Shared request helpers. |
+| `packages/ui` | Shared presentation components. |
+| `packages/tokens` | Shared theme tokens. |
+
+## Current Feature State By Family
+
+| Feature family | Current state on 2026-06-20 | Current completion posture |
+| --- | --- | --- |
+| FL-001 Inquiry intake and triage | Public inquiry and PMCM intake exist with duplicate/referral/log-on-behalf metadata in partial form. | Thin/finish for July. |
+| FL-002 Onboarding and conforme gate | Gate exists and remains a core boundary. Reminder/template maturity is still simple. | Finish thin slice. |
+| FL-003 PMCM command dashboard | Command inbox and selected-event contracts exist; broad dashboard behavior remains. | Finish command slice and decompose one more selected-event surface. |
+| FL-004 Client portal after conforme | Client action center exists with fallback derivation. | Finish thin slice and label/remove fallback where possible. |
+| FL-005 Proposal, briefing, commercial workflow | Proposal/billing source pieces exist; adapters and AI drafts are gated. | Gate/thin. |
+| FL-006 Documents and file operations | File Requirements Matrix metadata and visibility tests exist. | Thin; real storage gated. |
+| FL-007 Supplier network operations | Supplier directory, quotes, assignment, readiness, contract metadata, readiness board exist. Applications/PARE/reliability depth remain incomplete. | Thin. |
+| FL-008 Coordinator and staffing operations | Coordinator desk, live ops, replacement pieces exist. Staffing heatmap and availability depth incomplete. | Gate or one thin slice. |
+| FL-009 Compliance, risk, and change control | Rule-backed compliance and override audit exist. Unified risk/change workflow incomplete. | Gate/thin. |
+| FL-010 Billing and payments | Billing source, statements, milestones, and payment records exist in partial form. | Thin. |
+| FL-011 Floorplan and spatial workflow | PMCM official ownership and client read-only official snapshot boundary exist. | Finish boundary; table eligibility remains thin. |
+| FL-012 Guest and lightweight access | Access-code, guest pass, check-in, walk-in, attendance, feedback exist. | Thin; QR gated. |
+| FL-013 Closure, archive, and learning loop | Close gates, archive guard, insights, and lifecycle transition table exist. | Thin. |
+| FL-014 Notifications and communications | Queue/retry/acknowledgement model exists. | Gate production adapters; thin queue evidence. |
+| FL-015 Security, privacy, and audit | Sample auth/RBAC, privacy requests, retention reads, soft redaction, audit integrity, login/security records exist. | Finish evidence; gate external auth. |
+| FL-016 Shared design system and shell | Shared UI/tokens exist; app-local UI copies remain. | Finish shell foundation and route-review evidence. |
+| FL-017 Event Command Inbox | Shared PMCM command inbox contract exists and feeds dashboard rows. | Finish. |
+| FL-018 Event Health Score | Readiness/health cues exist, but formula and evidence surface are not complete. | Thin or post-July. |
+| FL-019 Decision Log | Audit records exist; unified decision log surface incomplete. | Thin or post-July. |
+| FL-020 Client Action Center | Shared action center exists and feeds client dashboard cards. | Finish. |
+| FL-021 PMCM Handoff Brief | Source pieces exist in selected-event workspace; unified brief incomplete. | Thin or post-July. |
+| FL-022 Supplier Readiness Board | Supplier dashboard displays readiness board. | Thin. |
+| FL-023 Coordinator Staffing Heatmap | Assignment/replacement pieces exist; heatmap incomplete. | Gate unless selected. |
+| FL-024 File Requirements Matrix | Shared metadata contract and role-filtered endpoint exist. | Thin; storage gated. |
+| FL-025 Risk and Change Register | Compliance/override pieces exist; register incomplete. | Gate unless selected. |
+| FL-026 Event Day Run Sheet | Live-ops pieces exist; unified run sheet incomplete. | Thin or post-July. |
+| FL-027 Privacy Operations Console | Privacy operations exist; full console depth incomplete. | Gate deeper scope. |
+| FL-028 Workflow Template Builder | Not July build scope. | Post-July. |
+
+## Current Completion Confidence
+
+| Gate | Current state |
+| --- | --- |
+| Catalog traceability | Passing as of the latest audit: 137 catalog IDs accounted for across ledger, calendar, and completion review. |
+| Feature-family coverage | Passing as of the latest audit: FL-001 through FL-028 appear in the ledger, calendar, and completion review. |
+| Role boundaries | Documented and partially tested. Must remain a required verification gate for any route or contract change. |
+| Route evidence | Not complete. Sprint 4 still needs route evidence packet for public inquiry, PMCM command, selected event, client action center, supplier readiness, guest check-in, and closure/readiness. |
+| External dependency decisions | Not complete. Storage, notifications, auth, QR/camera, and live AI are gated unless approved with tests and fallback behavior. |
+| UX route review | Not complete. Maxine still needs route-review evidence on touched surfaces. |
+| Doc synchronization | Current docs have been synchronized for the completion calendar/review; future changes must keep index, README, cleanup checklist, AGENTS, and manifest aligned. |
+
+## Current External Dependency State
+
+| Dependency | Current state | July rule |
+| --- | --- | --- |
+| Database | Prisma-backed Postgres path exists. Free-tier Supabase session-pooler support is a runtime workaround when direct IPv4 is unavailable. | Keep documented runtime guard; do not put secrets in docs. |
+| File storage | Metadata matrix exists. No production object storage claim. | Gate real storage. |
+| Notifications | Queue exists. No production adapter claim. | Gate SendGrid/Viber or equivalent adapters. |
+| External auth | Sample auth/RBAC exists. | Gate provider integration. |
+| QR/camera | Guest access-code flow exists. | Gate QR/camera until HTTPS/device/masterlist constraints pass. |
+| Live AI | Governance, sanitizer, audit, approval, and PARE foundation exist. | Gate live provider calls and autonomous actions. |
+
+## Current Risks
+
+| Risk | Why it matters | Current mitigation |
+| --- | --- | --- |
+| Partial features read as complete | Visible UI can hide missing contracts, failure states, or role boundaries. | Completion review requires delivered/thin/gated/deferred/post-July outcome per FL row. |
+| Broad dashboard behavior | Large PMCM dashboard ownership increases regression risk. | Sprint 3 asks Francis to decompose exactly one more selected-event surface and record remaining compatibility tabs. |
+| Portal fallback drift | Client/supplier/guest flows can remain broad-state dependent if not tracked. | Sprint 3-4 asks Anthony to record every fallback as kept, removed, or post-July. |
+| External dependency overclaiming | Storage, notifications, auth, QR, and AI can create false production-readiness claims. | All remain gated unless explicit approval, tests, fallback, and owner decision exist. |
+| UX inconsistency | Shared shell work is not enough unless real routes follow it. | Maxine route-review log is required before July closeout. |
+
+## Current Must-Do Before July 31
+
+| Priority | Task | DRI |
+| --- | --- | --- |
+| P0 | Build final feature outcome matrix for FL-001 through FL-028. | Anthony |
+| P0 | Create route evidence packet for the complete lifecycle demo path. | Anthony |
+| P0 | Record every compatibility fallback still used by PMCM/client/supplier/guest routes. | Anthony |
+| P0 | Pick exactly one PMCM depth slice for Sprint 3 and gate non-selected slices. | Francis |
+| P0 | Make supplier and guest route evidence mandatory before client polish expands. | Ethan |
+| P1 | Add UX route-review log for touched PMCM/client/supplier/guest routes. | Maxine |
+| P1 | Add storage/notification/auth/QR/AI dependency decisions to Sprint 4 closeout. | Anthony |
+| P1 | Add post-July queue grouped by PMCM, client, supplier, guest, platform, and UX. | Anthony |
+
+## Current Definition Of Done
+
+A July feature slice is not done only because UI exists. It is done only when it has:
+
+1. Actor and route evidence.
+2. Scoped API/type contract or explicit compatibility note.
+3. Permission-boundary proof.
+4. Failure/empty/loading state decision.
+5. Audit/notification decision where relevant.
+6. External dependency gate decision where relevant.
+7. Updated ledger/calendar/review docs.
+
+## Current Do-Not-Claim List
+
+As of June 20, do not claim these as complete:
+
+- Production external auth.
+- Real file storage.
+- Production notification adapters.
+- QR/camera guest check-in.
+- Live AI provider calls.
+- Autonomous PARE emergency response.
+- Full supplier application status center.
+- Full coordinator staffing heatmap.
+- Full risk/change register.
+- Full decision log.
+- Full event health formula.
+- Full workflow template builder.
