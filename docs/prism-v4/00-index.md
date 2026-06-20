@@ -40,7 +40,7 @@ The active maturity plan assigns each of the four owners an actual system goal, 
 | Docs cleanup checklist | ./13-docs-cleanup-checklist.md | Canonical docs, retired artifacts, cleanup rules, and verification commands. |
 | Redesign readiness foundation | ./14-redesign-readiness-foundation.md | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before UI redesign branches. |
 | System architecture | ./15-system-architecture.md | Canonical role-app/API/package architecture, data domains, boundaries, and stop rules. |
-| Actual system | ./16-actual-system.md | Repo-grounded map of what the current system actually contains. |
+| Actual system | ./16-actual-system.md | Full P.R.I.S.M system details: actors, lifecycle, workflows, data ownership, feature families, and completion evidence. |
 | Current state snapshot | ./17-current-state-2026-06-20.md | Dated June 20, 2026 snapshot of current feature, dependency, and confidence status. |
 | Future state | ./18-future-state.md | July 31 and post-July target state for the complete system. |
 | PMCM Admin features | ./features/admin.md | Admin-owned operating system functions. |
@@ -62,5 +62,5 @@ The active maturity plan assigns each of the four owners an actual system goal, 
 7. Use `03-ai-features-and-security.md` when the panel asks about AI, privacy, or human approval.
 8. Use `10-product-evolution-and-redesign-governance.md` before adding, revising, merging, or retiring catalog features.
 9. Use `11-feature-ledger.md`, `12-redesign-inventory.md`, `13-docs-cleanup-checklist.md`, and `14-redesign-readiness-foundation.md` before starting redesign implementation work.
-10. Use `15-system-architecture.md`, `16-actual-system.md`, `17-current-state-2026-06-20.md`, and `18-future-state.md` to separate architecture, repo reality, dated current status, and target state.
+10. Use `15-system-architecture.md`, `16-actual-system.md`, `17-current-state-2026-06-20.md`, and `18-future-state.md` to separate architecture, full system details, dated current status, and target state.
 11. Use `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` to schedule Maxine, Francis, Ethan, and Anthony through July 31, 2026, and use `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` to confirm every feature family, source ID, route, and gate is accounted for.

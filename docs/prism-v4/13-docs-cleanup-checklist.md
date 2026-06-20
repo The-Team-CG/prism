@@ -20,7 +20,7 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 | `docs/prism-v4/13-docs-cleanup-checklist.md` | Active | Documentation hygiene rules. |
 | `docs/prism-v4/14-redesign-readiness-foundation.md` | Active | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
 | `docs/prism-v4/15-system-architecture.md` | Active | Canonical role-app/API/package architecture, data domains, boundaries, and stop rules. |
-| `docs/prism-v4/16-actual-system.md` | Active | Repo-grounded map of what the current system actually contains. |
+| `docs/prism-v4/16-actual-system.md` | Active | Full P.R.I.S.M system details: actors, lifecycle, workflows, data ownership, feature families, and completion evidence. |
 | `docs/prism-v4/17-current-state-2026-06-20.md` | Active | Dated current-state snapshot for June 20, 2026. |
 | `docs/prism-v4/18-future-state.md` | Active | July 31 and post-July future-state target for full system completion. |
 | `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan, including explicit system goals for Owner A (Maxine), Owner B (Francis), Owner C (Ethan), and Owner D (Anthony). |

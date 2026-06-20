@@ -3,7 +3,7 @@
 Date: 2026-06-20
 Status: Target-state document for July 31, 2026 completion planning and post-July maturity
 
-This document describes where P.R.I.S.M should land after the July completion calendar and what remains for post-July maturity. It should be read after `15-system-architecture.md`, `16-actual-system.md`, and `17-current-state-2026-06-20.md`.
+This document describes where P.R.I.S.M should land after the July completion calendar and what remains for post-July maturity. It should be read after `15-system-architecture.md` for architecture, `16-actual-system.md` for full system details, and `17-current-state-2026-06-20.md` for the dated implementation snapshot.
 
 ## Target System Statement
 

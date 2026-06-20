@@ -1,145 +1,190 @@
 # P.R.I.S.M Actual System
 
 Date: 2026-06-20
-Status: Repo-grounded map of what the system actually contains today
+Status: Full system details for P.R.I.S.M as the complete PMCM event operating system
 
-This document describes the actual system in the repository as of June 20, 2026. It does not describe every target feature from the catalog. For dated status and gaps, use `17-current-state-2026-06-20.md`. For the target architecture, use `18-future-state.md`.
+This document describes the actual P.R.I.S.M system in product terms: what the complete system is, who uses it, what each workflow must do, and what information each role owns or can see. It is not the current implementation snapshot. For current implementation status as of June 20, 2026, use `17-current-state-2026-06-20.md`. For software architecture, app/package/API boundaries, and technical stop rules, use `15-system-architecture.md`. For target July and post-July maturity, use `18-future-state.md`.
 
-## Actual Monorepo Shape
+## System Identity
 
-| Path | Actual role |
+P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It supports the complete lifecycle of a PMCM event from inquiry intake to post-event archive. It is built around operational trust: every actor should know what needs attention, who owns the next action, what is blocked, what changed, and what evidence supports the decision.
+
+P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, supplier marketplace, or CRM product. It is a role-specific operating system for PMCM's internal event delivery model, with external portals only where clients, suppliers, and guests need constrained participation.
+
+## System Goals
+
+| Goal | What the system must make true |
 | --- | --- |
-| `apps/api` | Shared NestJS API on port `4000`, with Prisma persistence and the event-ops module. |
-| `apps/client` | Client-facing public and signed-in portal on port `3001`. |
-| `apps/event` | PMCM admin and coordinator event command app on port `3004`. |
-| `apps/supplier` | Supplier portal on port `3002`. |
-| `apps/guest` | Guest portal on port `3003`. |
-| `packages/api-client` | Shared client-side API helpers. |
-| `packages/types` | Shared Prism role, session, lifecycle, action, and DTO types. |
-| `packages/ui` | Shared UI primitives and shell blocks. |
-| `packages/tokens` | Shared tokens and theme primitives. |
+| Lifecycle continuity | A single event can move from inquiry to conforme, planning, event-day operation, closure, and archive without losing state or ownership. |
+| Role clarity | PMCM, client, supplier, coordinator, and guest users each see the right work surface for their responsibility. |
+| Operational command | PMCM can see priority work, risk, blockers, approvals, supplier status, client actions, billing state, files, floorplans, and live event issues from the event command app. |
+| Portal safety | Client, supplier, and guest portals expose only scoped information and never PMCM internal costs, private supplier notes, audit records, or unrelated event data. |
+| Evidence-backed work | Important actions produce audit, notification, status, or evidence records so decisions can be reviewed later. |
+| Human-controlled automation | AI and automation assist PMCM but cannot silently approve, send, mutate, or execute high-risk actions without human approval. |
+| Completion honesty | A feature is complete only when its route, actor, contract, boundary, failure state, and evidence are clear. |
 
-## Actual App Surfaces
+## System Actors
 
-| App | Current route folders | Actual coverage |
+| Actor | Purpose in the system | Primary app |
 | --- | --- | --- |
-| `apps/client` | `dashboard`, `inquiry`, `sign-in`, `sign-up`, `components` | Public inquiry, sign-in/sign-up surfaces, conforme-gated client dashboard, client action center, event filtering, client-visible billing/docs/floorplan/activity sections, and access approval request flow. |
-| `apps/event` | `dashboard`, `sign-in`, `components`, `lib` | PMCM sign-in, public event-command landing, PMCM dashboard, command inbox, selected event workspace, supplier directory/quotes, billing, coordinator desk, live ops, floorplan editor access, approvals, privacy/audit summary, and route/session helpers. |
-| `apps/supplier` | `dashboard`, `sign-in`, `components` | Supplier sign-in, assigned quote requests, quote submit/revise, awarded assignment confirmation, readiness, contract metadata, event-day status, privacy-consented supplier approval requests, and supplier readiness board. |
-| `apps/guest` | `open`, `dashboard`, `sign-in`, `components` | Access-code entry, lightweight guest event pass, attendance count, consented name-based check-in, walk-in flagging, and moderated feedback writes. |
-| `apps/api` | `libs/modules/event-ops`, `prisma` | Shared event operations API, Prisma schema, workflow services, controllers, DTOs, sample auth/RBAC, seed/demo compatibility, audit, notifications, privacy, AI governance, and tests. |
+| PMCM admin / Ms. Mys | Owns event decisions, inquiry acceptance, supplier selection, billing, compliance, floorplans, approvals, privacy/audit review, and closure. | `apps/event` |
+| PMCM team member | Operates event planning work, task queues, client/supplier follow-up, documents, and event-day coordination. | `apps/event` |
+| Coordinator | Receives role-safe event-day assignments, updates status, responds to tasks/issues, and supports live operations. | `apps/event` coordinator-safe views |
+| Client | Submits inquiry, signs conforme, reviews approved planning outputs, completes required actions, submits preferences, pays/acknowledges billing, and reviews closeout items. | `apps/client` |
+| Supplier | Receives quote requests, submits/revises quotes, confirms awarded assignments, uploads/records contract metadata, reports readiness, and updates event-day status. | `apps/supplier` |
+| Guest | Uses lightweight event access, checks in with consent, may be flagged as walk-in, and may submit moderated feedback. | `apps/guest` |
+| Public visitor | Views public entry points and submits inquiry or supplier application where enabled. | `apps/client` public pages and future supplier application path |
 
-## Actual API Controllers
+## System Surfaces
 
-| Controller | Actual purpose |
+| Surface | Role in the full system |
 | --- | --- |
-| `auth.controller.ts` | Sample auth and auth/security operations. |
-| `sample.controller.ts` | Compatibility state, seed/demo/reset style endpoints. |
-| `inquiries.controller.ts` | Public inquiry and inquiry workflow endpoints. |
-| `events.controller.ts` | Event reads, selected event operations, file requirements, floorplan and lifecycle-facing endpoints. |
-| `pmcm-dashboard.controller.ts` | PMCM command inbox and PMCM dashboard read models. |
-| `client-workspace.controller.ts` | Client-scoped workspace/action-center reads and client-safe actions. |
-| `supplier-workspace.controller.ts` | Supplier-scoped dashboard, quote, readiness, assignment, and status operations. |
-| `coordinator-workspace.controller.ts` | Coordinator-safe live/event-day role views. |
-| `guest.controller.ts` | Access-code guest pass, guest check-in, walk-in, and feedback operations. |
-| `suppliers.controller.ts` | PMCM supplier directory and supplier management operations. |
-| `quote-requests.controller.ts` | Supplier quote request and response lifecycle. |
-| `billing.controller.ts` | Billing source, statement, milestone, and payment-facing operations. |
-| `notifications.controller.ts` | Notification queue/outbox state. |
-| `audit-privacy.controller.ts` | Audit, privacy request, retention, redaction, and privacy operations. |
-| `ai.controller.ts` | AI governance, sanitizer, audit, approval, and PARE foundation endpoints. |
+| Public inquiry | Public event request intake with consent, event details, contact details, duplicate/referral context, and PMCM-safe triage metadata. |
+| PMCM command inbox | Priority queue for inquiries, approvals, overdue items, file gaps, supplier issues, billing risks, live operations, privacy requests, and closure blockers. |
+| Selected event workspace | PMCM's event-specific operating view: lifecycle, client, proposal, floorplan, suppliers, files, billing, compliance, live ops, audit, and closure. |
+| Client action center | Client's next-action view for conforme, documents, proposal review, billing, floorplan preferences/approval, closeout, and allowed messages/status. |
+| Supplier readiness board | Supplier and PMCM view of quote, assignment, contract, readiness, ingress/egress, concerns, and event-day supplier progress. |
+| Coordinator/live-ops workspace | Role-safe event-day task, issue, attendance, replacement, and status surfaces for PMCM/coordinators. |
+| Guest pass and check-in | Lightweight event-code access, pass display, consented name check-in, walk-in flagging, and feedback. |
+| Privacy and audit console | PMCM-only trust surface for privacy requests, redaction, retention, login/security events, audit integrity, and AI governance evidence. |
+| Archive and learning loop | Post-event closure, deliverables, feedback, insights, testimonials, archive search/comparison, and reusable learning. |
 
-## Actual Backend Service Areas
+## End-To-End Lifecycle
 
-| Service area | Actual services |
+| Step | System behavior | Primary owner | External actor involvement |
+| --- | --- | --- | --- |
+| 1. Public inquiry | Collect event request, consent, contact details, event basics, source/referral, and duplicate context. | PMCM | Public visitor submits. |
+| 2. Inquiry triage | PMCM reviews, accepts, pends, declines, merges/flags duplicates, or logs on behalf with audit. | PMCM | Client sees only appropriate status if portal access exists. |
+| 3. Conforme and onboarding | Event creation and client dashboard access are gated until accepted inquiry plus signed conforme. | PMCM | Client signs/acknowledges and sees own onboarding status. |
+| 4. Briefing and proposal | PMCM prepares event brief, commercial proposal, venue/styling options, budget/CE evidence, and client-safe review artifacts. | PMCM | Client reviews approved artifacts and gives allowed feedback/approval. |
+| 5. Planning | PMCM operates files, floorplans, suppliers, billing, compliance, risk, approvals, and schedule readiness from selected event workspace. | PMCM | Client, supplier, and coordinator interact only through scoped views. |
+| 6. Supplier procurement and readiness | PMCM sends quote requests, compares supplier responses, selects suppliers, locks quote states, tracks contracts/readiness/ingress/egress. | PMCM | Suppliers submit quotes, confirm assignments, and update readiness/status. |
+| 7. Floorplan workflow | PMCM owns official floorplan edits, submits snapshots, controls approval/versioning, and manages table/venue rules. | PMCM | Client submits preferences/comments and reviews official snapshots read-only. |
+| 8. Event-day operations | PMCM and coordinators operate tasks, urgent issues, attendance, replacements, supplier status, guest operations, and live logs. | PMCM | Coordinators, suppliers, and guests update only their scoped areas. |
+| 9. Closure | PMCM completes close gates for files, billing, supplier review, floorplan/logistics, feedback, deliverables, and archive readiness. | PMCM | Client sees closeout items and allowed deliverables/testimonial requests. |
+| 10. Archive and learning | System preserves event history, insights, decisions, supplier/coordinator reliability, feedback, and reusable patterns. | PMCM | External users see only allowed post-event artifacts. |
+
+## Functional System Areas
+
+| Area | Full system detail |
 | --- | --- |
-| Inquiry and onboarding | `inquiries.service.ts`, `inquiry-workflow.service.ts`, `client-onboarding-workflow.service.ts` |
-| Event read models and lifecycle | `event-read-models.service.ts`, `event-lifecycle.service.ts`, `workflow-command.service.ts`, `event-access-policy.service.ts` |
-| PMCM operations | `event-ops.service.ts`, `commercial-workflow.service.ts`, `compliance-workflow.service.ts`, `event-closure.service.ts` |
-| Floorplans and documents | `floor-plan-workflow.service.ts`, `document-vault.service.ts`, `file-requirements-matrix.service.ts` |
-| Supplier network | `suppliers.service.ts`, `supplier-network-workflow.service.ts` |
-| Coordinator and live ops | `coordinators.service.ts`, `live-operations.service.ts` |
-| Billing | `billing-operations.service.ts` |
-| Guest operations | `guest-workflow.service.ts` |
-| Trust and platform | `audit.service.ts`, `notification-outbox.service.ts`, `privacy-operations.service.ts`, `auth-operations.service.ts`, `auth-security.service.ts`, `sample-state.service.ts` |
-| AI governance and PARE | `ai-governance.service.ts`, `pare/pare.service.ts`, `pare/data-sanitizer.service.ts`, and PARE agent files |
+| Inquiry intake and triage | Public inquiry submission, consent, duplicate detection, referral/source capture, previous rejection flags, PMCM log-on-behalf, accept/pend/decline actions, organization merge/history cues, and audit trail. |
+| Onboarding and conforme gate | Invitation, accepted inquiry state, signed conforme validation, reminder policy, awaiting/opened/expired states, document evidence, and portal unlock rules. |
+| PMCM command dashboard | Event Command Inbox, selected-event summary, lifecycle status, urgent actions, owner visibility, blockers, approvals, overdue tasks, and event health/readiness cues. |
+| Client portal | Conforme-gated dashboard, client action center, own event status, approved proposal review, document requirements, billing statements/milestones, floorplan preference and read-only official layout review, activity/status, and closeout actions. |
+| Proposal and commercial workflow | CE/bid preparation, proposal source records, venue/styling options, client-approved proposal surfaces, billing source linkage, adapter export decisions, and PMCM-reviewed communication/AI drafts where approved. |
+| Document and file operations | File Requirements Matrix with owner, visibility, due date, required state, generated/uploaded source, validation state, audit, notification intent, and role-filtered views. |
+| Supplier network operations | Supplier directory, categories, tiering, PMCM private reviews, certifications, public application/status path, quote request lifecycle, confidential bids, quote revisions, selection, contract metadata, readiness, ingress/egress, creative sub-tickets, performance assessment, and reliability signals. |
+| Coordinator and staffing operations | Coordinator roster, roles, skills, availability, assignments, acknowledgment, attendance, replacement, role-safe event-day views, staffing heatmap, escalation, and live status feed. |
+| Compliance, risk, and change control | Event-type rules, phase rules, severity/layer, override reason audit, risk register, freeze exceptions, addendum conformes, cancellation/postponement impact, decision log, and supplier/coordinator/billing impact review. |
+| Billing and payments | Approved proposal/CE source linkage, billing statements, payment milestones, payment records, receipts, disputes, waivers, typo corrections, post-event additional billing, overdue/payment-at-risk alerts, and client-safe billing visibility. |
+| Floorplan and spatial workflow | Venue templates, official floorplan editing, layout objects, table rules, table assignments, client preferences, comments, submitted/approved official snapshots, version locks, approval/revision states, and PMCM-only mutation. |
+| Guest operations | Event access code, guest pass, consent, name check-in, attendance count, walk-in flag, guest feedback, moderation, future masterlist reconciliation, and future QR/camera path when approved. |
+| Closure, archive, and learning loop | Close gates, archive guard, override reason, event insights, feedback capture, testimonial library, archive search/comparison, post-event documents, logistics review, and reusable lessons. |
+| Notifications and communications | Queue-backed notification intent, template/version record, recipient scoping, retry/failure/acknowledgment state, role-safe messages, language preference, and PMCM approval before sensitive or AI-assisted sends. |
+| Security, privacy, and audit | Role-based access, consent, privacy requests, retention, redaction/anonymization, legal hold, audit logs, login history, security alerts, forbidden access tracking, and audit integrity checks. |
+| AI governance and PARE | Data sanitization, ZDR requirement, AI audit log, approval records, PMCM human approval, PARE emergency response planning, reliability scoring, recommendation review, and no autonomous action without approval. |
+| Shared system design | Shared shell, tokens, UI primitives, role-specific density, state language, responsive behavior, no public dashboard shortcuts, and visual consistency without merging role ownership. |
 
-## Actual Persistence Coverage
+## Full Feature Family Map
 
-The Prisma schema contains models for:
-
-- Floorplans, objects, venue templates, and published snapshots.
-- Users, approval requests, inquiries, events, privacy requests, floorplan drafts, documents, and briefings.
-- Supplier categories, supplier records, quotes, reviews, reliability notes, and certifications.
-- Coordinators, assignments, event-day tasks, urgent issues, event-day logs, and coordinator reliability notes.
-- Compliance rules/checks, billing sources/statements/milestones/payments, post-event documents, and event insights.
-- Audit logs, notification logs, guest check-ins, guest feedback, AI audit logs, AI approval records, login history, and security alerts.
-
-## Actual Working Feature Families
-
-| Area | Actual state |
+| Ledger ID | Full system role |
 | --- | --- |
-| Public inquiry | Public inquiry exists with privacy-consented submission and PMCM review support. Duplicate/referral/log-on-behalf metadata exists in partial form. |
-| Conforme and onboarding | Client portal access and event creation are gated by accepted inquiry plus signed conforme. Invitation and reminder depth is still simple. |
-| PMCM command | PMCM command inbox and selected-event workspace read models exist. The dashboard still has broad route-owned behavior and needs more decomposition. |
-| Client portal | Client action center exists and feeds dashboard cards, with fallback derivation still present for uncovered action types. |
-| Supplier portal | Supplier readiness board, quote submission/revision, assignment confirmation, readiness, contract metadata, and event-day status exist. |
-| Guest portal | Access-code lookup, guest pass, attendance count, check-in, walk-in flagging, and moderated feedback exist. |
-| Floorplan | PMCM official ownership and client read-only official snapshot boundary exist. Editor internals remain app-local and need packaging or sync strategy. |
-| Files | File Requirements Matrix metadata and role-filtered endpoint coverage exist. Real file storage remains gated. |
-| Billing | Approved billing source and milestone/statement pieces exist. Disputes, waivers, corrections, and post-event billing depth remain incomplete. |
-| Compliance | Rule-backed compliance checks and override reason audit exist. Full risk/change register remains partial. |
-| Closure | Close gates, archive guard, deterministic insights, and lifecycle transition guard exist. Archive search/comparison and testimonial workflows remain incomplete. |
-| Notifications | Queue/retry/acknowledgement mechanics exist. Production adapters remain gated. |
-| Security/privacy/audit | Sample auth/RBAC, consent persistence, privacy request operations, soft redaction, audit integrity, login/security records, and privacy inventory exist. External auth remains gated. |
-| AI | Data sanitizer, AI audit/approval records, and PARE foundation exist. Live AI calls and autonomous actions are not shipped. |
+| FL-001 | Inquiry intake and triage. |
+| FL-002 | Onboarding and conforme gate. |
+| FL-003 | PMCM command dashboard. |
+| FL-004 | Client portal after conforme. |
+| FL-005 | Proposal, briefing, and commercial workflow. |
+| FL-006 | Documents and file operations. |
+| FL-007 | Supplier network operations. |
+| FL-008 | Coordinator and staffing operations. |
+| FL-009 | Compliance, risk, and change control. |
+| FL-010 | Billing and payments. |
+| FL-011 | Floorplan and spatial workflow. |
+| FL-012 | Guest and lightweight access. |
+| FL-013 | Closure, archive, and learning loop. |
+| FL-014 | Notifications and communications. |
+| FL-015 | Security, privacy, and audit. |
+| FL-016 | Shared design system and shell. |
+| FL-017 | Event Command Inbox. |
+| FL-018 | Event Health Score. |
+| FL-019 | Decision Log. |
+| FL-020 | Client Action Center. |
+| FL-021 | PMCM Handoff Brief. |
+| FL-022 | Supplier Readiness Board. |
+| FL-023 | Coordinator Staffing Heatmap. |
+| FL-024 | File Requirements Matrix. |
+| FL-025 | Risk and Change Register. |
+| FL-026 | Event Day Run Sheet. |
+| FL-027 | Privacy Operations Console. |
+| FL-028 | Workflow Template Builder. |
 
-## Actual Compatibility And Gated Areas
+## Data Ownership Rules
 
-| Area | Actual state |
+| Data or action | PMCM | Client | Supplier | Coordinator | Guest |
+| --- | --- | --- | --- | --- | --- |
+| Inquiry decision | Full control | Own inquiry status only | Not applicable | Not applicable | Not applicable |
+| Conforme and onboarding | Full control and verification | Own status and required actions | Not applicable | Not applicable | Not applicable |
+| Official floorplan | Create/edit/submit/approve/lock | Read-only review plus preferences/comments | Assigned logistics only | Role-safe event-day logistics | Not visible |
+| Proposal/CE/internal costs | Full PMCM control | Approved client-facing proposal only | Not visible | Not visible | Not visible |
+| Supplier quotes | Create/compare/select/lock | Not visible unless approved into proposal | Own quote only | Not visible | Not visible |
+| Supplier private review | Full PMCM control | Not visible | Not visible | Not visible | Not visible |
+| File requirements | Define and manage visibility | Own visible requirements | Own visible requirements | Role-safe attachments only | Not visible unless guest-specific later |
+| Billing | Full control | Statements, receipts, milestones, required actions | Contract metadata only where relevant | Not visible | Not visible |
+| Live operations | Full control | Client-safe status only if exposed | Own assignment/status | Own role-safe tasks/status | Check-in/pass/feedback only |
+| Audit logs | Full PMCM trust surface | Not visible except own request status if exposed | Not visible except own request status if exposed | Not visible | Not visible |
+| Privacy operations | Full PMCM processing | Own privacy request path | Own privacy request path | Own privacy request path if applicable | Consent/feedback scope only |
+| AI recommendations | Review, approve, reject, audit | No autonomous effect | No autonomous effect | No autonomous effect | No autonomous effect |
+
+## Core Records The Full System Needs
+
+| Record family | Examples |
 | --- | --- |
-| `/api/sample/state` | Compatibility-only for seed/demo/reset paths. New normal features should use scoped contracts. |
-| Local sample state | Still exists where compatibility or fallback behavior is needed. It should not become the normal architecture path. |
-| Database runtime | Prisma-backed API uses Postgres. Free-tier Supabase session-pooler operation is documented as a runtime workaround when direct IPv4 is unavailable. Do not expose database secrets in docs. |
-| File storage | Metadata exists; real object storage, signed URLs, upload progress, retry behavior, and download/delete audit are not actual production features yet. |
-| Notifications | Queue exists; SendGrid/Viber or other production delivery adapters are not active production integrations yet. |
-| Auth | API-backed sample auth/RBAC exists. External auth provider integration is not complete. |
-| QR/camera | Guest code path exists. QR/camera scanning is not complete. |
-| Live AI | Governance records exist. Live provider calls, ZDR-approved provider configuration, and autonomous AI action are not complete. |
+| Identity and access | Users, roles, sessions, login history, security alerts, actor context. |
+| Inquiry and event | Inquiry, accepted status, event record, lifecycle phase, selected event workspace, approval requests. |
+| Documents and files | Requirements, generated docs, uploaded metadata, visibility, validation, due dates, audit events. |
+| Floorplans | Venue templates, draft layouts, objects, submitted snapshots, approved snapshots, comments, version locks. |
+| Suppliers | Supplier profile, category, certification, review, quote request, quote, assignment, contract metadata, readiness, reliability note. |
+| Coordinators | Coordinator profile, skills, availability, assignment, task, replacement, attendance, reliability note. |
+| Operations | Compliance rules/checks, risk/change records, live logs, urgent issues, event-day run sheet, handoff brief. |
+| Commercials | Billing source, statements, milestones, payment records, disputes, waivers, additional billing. |
+| Guests | Access code, pass data, check-in, walk-in flag, feedback, moderation. |
+| Trust | Audit logs, notification logs, privacy requests, retention policy, redaction actions, AI audit and approval records. |
 
-## Actual Owner System Boundaries
+## Completion Evidence The Actual System Requires
 
-| Owner | Actual system goal | Current repo evidence |
-| --- | --- | --- |
-| Maxine | Product/UX coherence | Shared `packages/ui`, `packages/tokens`, redesign inventory, readiness foundation, and visual rules. |
-| Francis | PMCM/coordinator operability | `apps/event`, PMCM command inbox, selected event workspace, coordinator/live-ops services. |
-| Ethan | External portal safety and usefulness | `apps/client`, `apps/supplier`, `apps/guest`, role-scoped portal read models. |
-| Anthony | Platform trust and contracts | `apps/api`, Prisma schema, `packages/types`, `packages/api-client`, audit/privacy/AI governance/file matrix/session conventions. |
-
-## Actual Stop List
-
-These are not actual delivered system capabilities as of June 20, 2026:
-
-1. Production external auth.
-2. Production file storage with signed URLs.
-3. Production notification delivery adapters.
-4. QR/camera check-in.
-5. Live AI provider calls.
-6. Autonomous AI actions.
-7. Full PMCM risk/change register.
-8. Full coordinator staffing heatmap.
-9. Full workflow template builder.
-10. Full archive search/comparison and testimonial library.
-11. Complete supplier application status center.
-12. Complete event health formula and decision log surface.
-
-## Actual Verification Surface
-
-| Evidence type | Current source |
+| Evidence | Why it matters |
 | --- | --- |
-| Boundary rules | `scripts/check-prism-boundaries.mjs`, `scripts/check-prism-boundaries.test.mjs`, root `npm run check:boundaries` |
-| API event-ops behavior | `apps/api/libs/modules/event-ops/src/**/*.test.ts`, `npm --workspace prism-api run test:event-ops` |
-| Prisma model validity | `apps/api/prisma/schema.prisma`, `npm --workspace prism-api run prisma:validate` |
-| Role app builds | Workspace build commands for `@prism/client`, `@prism/event`, `@prism/supplier`, and `@prism/guest` |
-| UI smoke | `scripts/smoke-prism-ui.mjs` |
-| Docs and traceability | `docs/prism-v4/11-feature-ledger.md`, `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md`, `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` |
+| Route and actor evidence | Proves each lifecycle step can be operated by the correct role. |
+| Scoped API/type contract | Proves portals are not relying on broad shared state or hidden PMCM data. |
+| Permission-boundary proof | Proves clients, suppliers, guests, and coordinators cannot cross role boundaries. |
+| Failure/empty/loading states | Proves operators understand what is missing, blocked, invalid, or waiting. |
+| Audit/notification decision | Proves important actions leave reviewable trace or queued communication intent. |
+| External dependency decision | Proves storage, auth, notifications, QR/camera, and AI are approved or explicitly gated. |
+| Documentation synchronization | Proves the catalog, ledger, calendar, architecture, current state, and future state agree. |
+
+## External Dependency Policy
+
+| Dependency | Full-system rule |
+| --- | --- |
+| Database | The system needs reliable database access for normal API-backed operation. Workarounds for local/free-tier connectivity must be documented without exposing secrets. |
+| File storage | Real storage must include validation, signed access, progress/retry behavior, visibility rules, audit, and failure handling before being called complete. |
+| Notifications | Production delivery must run behind queue-backed templates, retries, recipient scope, failure states, and audit. |
+| External auth | Provider integration must preserve role boundaries, session migration, local/dev fallback, tests, and rollback behavior. |
+| QR/camera | QR scanning must wait for HTTPS/device support, fallback code path, masterlist reconciliation, and consent/privacy review. |
+| AI | AI must wait for ZDR/provider approval, data sanitizer proof, prompt/data policy, audit retention, PMCM approval workflow, and no-autonomous-action enforcement. |
+
+## Owner Outcomes For The Full System
+
+| Owner | Full-system outcome |
+| --- | --- |
+| Maxine | The whole system feels like one coherent PMCM operating system across separate role apps, with usable density, clear states, route-level review, and no banned visual treatments. |
+| Francis | PMCM and coordinator workflows are operationally useful: command inbox, selected event workspace, supplier/quote/floorplan/billing/compliance/live-ops/closure evidence, and chosen depth slices. |
+| Ethan | External portals are safe and useful: clients, suppliers, and guests can complete their own work without seeing PMCM internals or unrelated event data. |
+| Anthony | Platform trust is explicit: scoped contracts, session conventions, file matrix, privacy/audit, AI governance, dependency gates, source-ID traceability, and final evidence packet. |
+
+## Actual System Completion Rule
+
+The actual P.R.I.S.M system is complete enough for the July milestone only when every lifecycle step has a working, role-safe slice or an explicit gate, every `FL-001` through `FL-028` row has an outcome, and every high-risk dependency is either approved with evidence or named as gated/post-July.
+
+Do not use this document to claim the current implementation is done. Use `17-current-state-2026-06-20.md` for current state and `18-future-state.md` for the target transition.
