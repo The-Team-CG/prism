@@ -90,6 +90,8 @@ Until this gate passes, frontend implementation must stay inside bounded work qu
 
 This section is the July remediation map. It turns the feature-ledger families into owner-specific execution units so the sprint task lists do not rely on broad phrases like "finish portal work" or "harden contracts". Every row has one DRI. Support owners may review or provide contracts, but the DRI owns completion evidence.
 
+Detailed current-vs-target feature audit: docs/superpowers/plans/2026-06-20-prism-system-completion-review.md. Use that review when a sprint task is too broad or when a feature needs a delivered/gated/post-July decision before actual system completion.
+
 | Workstream | Feature families | July treatment | DRI | Support | Primary surfaces | Granular July tasks | Completion evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Public inquiry and conforme gate | FL-001, FL-002 | Finish thin PMCM/client lifecycle slice | Francis | Ethan, Anthony, Maxine | `apps/event` inquiry routes, `apps/client` auth/action center, `apps/api` inquiry/onboarding services | Surface new/accepted/awaiting-conforme states in PMCM command; expose client-safe conforme/portal status in client action center; keep event creation gated until accepted inquiry plus signed conforme; document missing reminder/template behavior as post-July. | PMCM route check; client sign-in/dashboard gate check; lifecycle contract tests; docs row names delivered/gated remainder. |
@@ -173,6 +175,14 @@ This backlog turns the sprint plan into executable tasks. Each row has one DRI, 
 | T16 | Sprint 4 | Close PMCM release blockers and PMCM demo notes. | Francis | Anthony, Maxine | FL-003, FL-007, FL-008, FL-009, FL-011, FL-013, FL-017, FL-021, FL-026 | PMCM bugs are closed or gated; PMCM notes cite route, feature family, and verification evidence. |
 | T17 | Sprint 4 | Close external portal release blockers and portal demo notes. | Ethan | Anthony, Maxine | FL-004, FL-007, FL-012, FL-013, FL-014, FL-020, FL-022 | Client, supplier, and guest bugs are closed or gated; portal notes cite route, role boundary, and verification evidence. |
 | T18 | Sprint 4 | Finalize feature-ledger and July 31 scorecard closeout. | Anthony | Maxine, Francis, Ethan | FL-001 to FL-028 | Ledger, sprint plan, scorecard, screenshots, and verification notes agree on delivered/gated/post-July status. |
+| T19 | Sprint 4 | Complete the final feature outcome matrix for every ledger row. | Anthony | Maxine, Francis, Ethan | FL-001 to FL-028 | Each row is marked delivered, thin delivered, gated, deferred, or post-July with one DRI and evidence. |
+| T20 | Sprint 4 | Produce the lifecycle route evidence packet. | Anthony | Francis, Ethan, Maxine | FL-001, FL-002, FL-003, FL-004, FL-007, FL-012, FL-013, FL-017, FL-020, FL-022 | Evidence packet lists route, actor, command output or route-smoke result, screenshot, and known gate for each demo step. |
+| T21 | Sprint 3 | Record all compatibility fallback paths still used by PMCM/client/supplier/guest routes. | Anthony | Francis, Ethan | FL-003, FL-004, FL-007, FL-012, FL-017, FL-020, FL-022 | Every fallback is marked keep, remove, or post-July with file owner and removal condition. |
+| T22 | Sprint 3 | Force the Sprint 3 PMCM slice decision and gate unchosen PMCM depth features. | Francis | Anthony, Maxine | FL-007, FL-008, FL-009, FL-010, FL-011, FL-023, FL-025, FL-026 | One PMCM depth slice is chosen; every unchosen slice has a gated/post-July row and missing contract note. |
+| T23 | Sprint 3 | Make supplier and guest evidence a gate before extra client polish. | Ethan | Anthony, Maxine | FL-007, FL-012, FL-022 | Supplier and guest route/mobile evidence exists before client event-summary polish expands beyond existing contracts. |
+| T24 | Sprint 2-4 | Maintain a UX route-review log for redesigned surfaces. | Maxine | Francis, Ethan | FL-016 plus touched feature families | Log names route, owner, viewport, pass/fail note, banned-pattern check, and required fix or approval. |
+| T25 | Sprint 4 | Close external-dependency decisions for storage, notifications, auth, QR/camera, and AI. | Anthony | Maxine, Francis, Ethan | FL-006, FL-012, FL-014, FL-015, FL-024, FL-027 | Each dependency has approved implementation evidence or a documented gate/post-July decision. |
+| T26 | Sprint 4 | Publish the post-July queue grouped by PMCM, client, supplier, guest, platform, and UX. | Anthony | Maxine, Francis, Ethan | FL-001 to FL-028 | Deferred work is grouped by system area with DRI, reason, prerequisite, and first next action. |
 
 ## Incomplete Feature Backlog Coverage
 
