@@ -1,6 +1,6 @@
 # P.R.I.S.M Documentation Cleanup Checklist
 
-Last updated: 2026-06-15
+Last updated: 2026-06-20
 
 This checklist keeps the docs set small, current, and executable. It is the Phase 0 documentation hygiene output from the whole-app capability maturity plan.
 
@@ -20,7 +20,8 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 | `docs/prism-v4/13-docs-cleanup-checklist.md` | Active | Documentation hygiene rules. |
 | `docs/prism-v4/14-redesign-readiness-foundation.md` | Active | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
 | `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan, including explicit system goals for Owner A (Maxine), Owner B (Francis), Owner C (Ethan), and Owner D (Anthony). |
-| `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Active | Sprint calendar through July 31, 2026 with actionable work for Maxine, Francis, Ethan, and Anthony. |
+| `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Active | Whole-system completion sprint calendar through July 31, 2026 with actionable work for Maxine, Francis, Ethan, and Anthony. |
+| `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` | Active companion | Current-vs-target feature audit, confidence gates, missing completion tasks, and catalog traceability check for the July completion calendar. |
 
 ## Files To Keep
 
@@ -49,7 +50,7 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 ## Cleanup Rules
 
 1. Keep one active plan for the whole redesign: `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
-2. Do not create a new `docs/superpowers/plans/*` file unless it is a short-lived execution plan for an approved phase; the active July 31 sprint calendar is `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md`.
+2. Do not create a new `docs/superpowers/plans/*` file unless it is a short-lived execution plan for an approved phase or an active companion review for the July 31 system-completion calendar; the active calendar is `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` and its active completion review is `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md`.
 3. When a plan is completed, either convert it into a closeout note inside the active docs or remove it.
 4. Do not keep unchecked implementation checklists after the implementation exists.
 5. Do not duplicate `AGENTS.md` into `CLAUDE.md`; `CLAUDE.md` must remain a symlink.

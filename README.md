@@ -17,7 +17,8 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 | `docs/prism-v4/13-docs-cleanup-checklist.md` | Documentation hygiene rules, retired artifacts, and verification commands. |
 | `docs/prism-v4/14-redesign-readiness-foundation.md` | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
 | `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan, including Owner A-D system goals and named owners. |
-| `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Agile sprint calendar through July 31, 2026 with actionable tasks for Maxine, Francis, Ethan, and Anthony. |
+| `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Whole-system completion sprint calendar through July 31, 2026 with actionable tasks for Maxine, Francis, Ethan, and Anthony. |
+| `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` | Current-vs-target system completion audit, confidence gates, and missing-task review for the July calendar. |
 
 ## Monorepo Layout
 

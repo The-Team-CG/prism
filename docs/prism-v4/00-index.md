@@ -6,7 +6,7 @@ This document set preserves the official feature catalog for P.R.I.S.M Version 4
 
 The complete catalog is now treated as the baseline feature inventory, not a hard ceiling. The product may add, revise, merge, defer, or retire features during the whole-app redesign when that makes P.R.I.S.M better for PMCM operations. For current implementation status, needed revisions, and exact revision guidance, use `07-implemented-feature-revisions.md`. For rules on changing the feature set during redesign, use `10-product-evolution-and-redesign-governance.md`.
 
-The active maturity plan assigns each of the four owners an actual system goal, not only a file/workstream label: Owner A is Maxine, Owner B is Francis, Owner C is Ethan, and Owner D is Anthony. Use `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` before planning owner work so each branch states the product condition it is making true. Use `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` for the sprint calendar through July 31, 2026.
+The active maturity plan assigns each of the four owners an actual system goal, not only a file/workstream label: Owner A is Maxine, Owner B is Francis, Owner C is Ethan, and Owner D is Anthony. Use `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` before planning owner work so each branch states the product condition it is making true. Use `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` for the whole-system completion sprint calendar through July 31, 2026, and `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` for the current-vs-target audit and confidence gates.
 
 ## Official Count Summary
 | Persona | V3 Count | V4 Additions | V4 Total |
@@ -58,4 +58,4 @@ The active maturity plan assigns each of the four owners an actual system goal, 
 7. Use `03-ai-features-and-security.md` when the panel asks about AI, privacy, or human approval.
 8. Use `10-product-evolution-and-redesign-governance.md` before adding, revising, merging, or retiring catalog features.
 9. Use `11-feature-ledger.md`, `12-redesign-inventory.md`, `13-docs-cleanup-checklist.md`, and `14-redesign-readiness-foundation.md` before starting redesign implementation work.
-10. Use `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` to schedule Maxine, Francis, Ethan, and Anthony through July 31, 2026.
+10. Use `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` to schedule Maxine, Francis, Ethan, and Anthony through July 31, 2026, and use `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` to confirm every feature family, source ID, route, and gate is accounted for.
