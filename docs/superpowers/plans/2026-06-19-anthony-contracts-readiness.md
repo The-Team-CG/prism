@@ -725,4 +725,3 @@ The working tree should be clean after the final commit.
 - Spec coverage: The plan covers Anthony's Sprint 1 checklist, Sprint 2 contract gate, local DB runtime gate, handoff checklist, shared contract types, normalized errors, file/upload gate, and verification baseline.
 - Placeholder scan: The plan contains no `TBD` or unresolved implementation markers in executable steps.
 - Type consistency: Shared type names are defined in `packages/types/src/event-ops.ts`, exported through the existing `packages/types/src/index.ts`, and consumed by `packages/api-client/src/http.ts`.
-
