@@ -643,6 +643,8 @@ export class AuditWriterAdapter implements AuditWriter {
 
 ### Phase 7A - inquiry-onboarding
 
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-7a-inquiry-onboarding.md`.
+
 - [ ] Create `inquiry-onboarding` module.
 - [ ] Move inquiry creation and accepted inquiry to conforme gating behavior.
 - [ ] Move client onboarding workflow behavior from current services.
