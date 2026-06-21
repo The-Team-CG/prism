@@ -72,7 +72,7 @@ Out of scope:
 
 ## Task 1 - Add Focused Finance Test Before Moving
 
-- [ ] Create `apps/api/libs/modules/event-ops/src/services/billing-operations.service.test.ts` with a failing idempotency test for `recordPayment`.
+- [x] Create `apps/api/libs/modules/event-ops/src/services/billing-operations.service.test.ts` with a failing idempotency test for `recordPayment`.
 
 Use this test shape. It should initially fail because duplicate reference-number detection does not exist yet:
 
@@ -153,13 +153,13 @@ describe('BillingOperationsService', () => {
 });
 ```
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/billing-operations.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/billing-operations.service.test.ts`.
   Expected before implementation: FAIL because `recordPayment` creates a duplicate row.
 
 ## Task 2 - Create Finance-Ops Module Shell
 
-- [ ] Create directories `apps/api/libs/modules/finance-ops/src/ports` and `apps/api/libs/modules/finance-ops/src/services`.
-- [ ] Add `apps/api/libs/modules/finance-ops/tsconfig.lib.json`:
+- [x] Create directories `apps/api/libs/modules/finance-ops/src/ports` and `apps/api/libs/modules/finance-ops/src/services`.
+- [x] Add `apps/api/libs/modules/finance-ops/tsconfig.lib.json`:
 
 ```json
 {
@@ -173,20 +173,20 @@ describe('BillingOperationsService', () => {
 }
 ```
 
-- [ ] Add `@prism/modules/finance-ops` and `@prism/modules/finance-ops/*` to `apps/api/tsconfig.json`.
-- [ ] Add `@prism/modules/finance-ops` to `apps/api/vitest.config.ts`.
-- [ ] Add a `finance-ops` library project to `apps/api/nest-cli.json` with root `libs/modules/finance-ops`, entry `index`, source root `libs/modules/finance-ops/src`, and tsconfig `libs/modules/finance-ops/tsconfig.lib.json`.
+- [x] Add `@prism/modules/finance-ops` and `@prism/modules/finance-ops/*` to `apps/api/tsconfig.json`.
+- [x] Add `@prism/modules/finance-ops` to `apps/api/vitest.config.ts`.
+- [x] Add a `finance-ops` library project to `apps/api/nest-cli.json` with root `libs/modules/finance-ops`, entry `index`, source root `libs/modules/finance-ops/src`, and tsconfig `libs/modules/finance-ops/tsconfig.lib.json`.
 
 ## Task 3 - Move Billing Operations Into Finance-Ops
 
-- [ ] Run:
+- [x] Run:
 
 ```powershell
 git mv apps/api/libs/modules/event-ops/src/services/billing-operations.service.ts apps/api/libs/modules/finance-ops/src/services/billing-operations.service.ts
 git mv apps/api/libs/modules/event-ops/src/services/billing-operations.service.test.ts apps/api/libs/modules/finance-ops/src/services/billing-operations.service.test.ts
 ```
 
-- [ ] Update moved service imports:
+- [x] Update moved service imports:
 
 ```ts
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/modules/event-core';
@@ -194,18 +194,18 @@ import { AuditService } from '@prism/modules/trust-ops';
 import { NotificationOutboxService } from '@prism/modules/notification-ops';
 ```
 
-- [ ] Remove the old relative imports from `../ops.constants`, `./audit.service`, `./notification-outbox.service`, and `./workflow-command.service`.
-- [ ] Create `apps/api/libs/modules/event-ops/src/services/billing-operations.service.ts` as:
+- [x] Remove the old relative imports from `../ops.constants`, `./audit.service`, `./notification-outbox.service`, and `./workflow-command.service`.
+- [x] Create `apps/api/libs/modules/event-ops/src/services/billing-operations.service.ts` as:
 
 ```ts
 export * from '@prism/modules/finance-ops';
 ```
 
-- [ ] Update the moved test import path to keep `BillingOperationsService` from `./billing-operations.service` and `WorkflowCommandService` from `@prism/modules/event-core`.
+- [x] Update the moved test import path to keep `BillingOperationsService` from `./billing-operations.service` and `WorkflowCommandService` from `@prism/modules/event-core`.
 
 ## Task 4 - Add Finance Ports And Module
 
-- [ ] Create `apps/api/libs/modules/finance-ops/src/ports/finance-ops.tokens.ts`:
+- [x] Create `apps/api/libs/modules/finance-ops/src/ports/finance-ops.tokens.ts`:
 
 ```ts
 export const FINANCE_COMMANDS = Symbol('FINANCE_COMMANDS');
@@ -213,7 +213,7 @@ export const BILLING_READER = Symbol('BILLING_READER');
 export const PAYMENT_STATUS_READER = Symbol('PAYMENT_STATUS_READER');
 ```
 
-- [ ] Create `apps/api/libs/modules/finance-ops/src/ports/finance-commands.port.ts` with the command interface used by `EventOpsService`:
+- [x] Create `apps/api/libs/modules/finance-ops/src/ports/finance-commands.port.ts` with the command interface used by `EventOpsService`:
 
 ```ts
 import type { OpsBillingSource, OpsBillingStatement, OpsPaymentMilestone } from '@prisma/client';
@@ -259,7 +259,7 @@ export interface FinanceCommands {
 }
 ```
 
-- [ ] Create `billing-reader.port.ts`:
+- [x] Create `billing-reader.port.ts`:
 
 ```ts
 export interface BillingReader {
@@ -267,7 +267,7 @@ export interface BillingReader {
 }
 ```
 
-- [ ] Create `payment-status-reader.port.ts`:
+- [x] Create `payment-status-reader.port.ts`:
 
 ```ts
 export interface PaymentStatusReader {
@@ -275,7 +275,7 @@ export interface PaymentStatusReader {
 }
 ```
 
-- [ ] Create `apps/api/libs/modules/finance-ops/src/finance-ops.module.ts`:
+- [x] Create `apps/api/libs/modules/finance-ops/src/finance-ops.module.ts`:
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -294,11 +294,11 @@ import { BillingOperationsService } from './services/billing-operations.service'
 export class FinanceOpsModule {}
 ```
 
-- [ ] Create `apps/api/libs/modules/finance-ops/src/index.ts` exporting module, ports, tokens, and service.
+- [x] Create `apps/api/libs/modules/finance-ops/src/index.ts` exporting module, ports, tokens, and service.
 
 ## Task 5 - Implement Payment Retry Idempotency Guard
 
-- [ ] In `recordPayment`, after loading `existingHistory` and before calculating `currentPaid`, add duplicate detection for non-empty `referenceNumber`:
+- [x] In `recordPayment`, after loading `existingHistory` and before calculating `currentPaid`, add duplicate detection for non-empty `referenceNumber`:
 
 ```ts
 const requestedReference = input.referenceNumber?.trim() ?? '';
@@ -313,7 +313,7 @@ const duplicateRecord = requestedReference
   : null;
 ```
 
-- [ ] Use this control-flow shape in `recordPayment` so duplicate replay returns the current durable result without creating or auditing again:
+- [x] Use this control-flow shape in `recordPayment` so duplicate replay returns the current durable result without creating or auditing again:
 
 ```ts
 let milestone: OpsPaymentMilestone | null = null;
@@ -354,9 +354,9 @@ if (!paymentDate) paymentDate = parseDate(input.paymentDate);
 if (duplicateReplay) return;
 ```
 
-- [ ] Use `paymentDate` inside the transaction instead of parsing `input.paymentDate` a second time.
-- [ ] Do not audit or enqueue notification for duplicate replay; the original payment record is the durable evidence.
-- [ ] Add a second test proving a new reference number still creates a payment record and audits once:
+- [x] Use `paymentDate` inside the transaction instead of parsing `input.paymentDate` a second time.
+- [x] Do not audit or enqueue notification for duplicate replay; the original payment record is the durable evidence.
+- [x] Add a second test proving a new reference number still creates a payment record and audits once:
 
 ```ts
 it('records and audits a payment when the reference number is new', async () => {
@@ -381,42 +381,65 @@ it('records and audits a payment when the reference number is new', async () => 
   expect(result.remainingBalance).toBe(50000);
 });
 ```
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/finance-ops/src/services/billing-operations.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/finance-ops/src/services/billing-operations.service.test.ts`.
   Expected: PASS, 2 tests.
 
 ## Task 6 - Wire Event-Ops Compatibility To Finance-Ops
 
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.module.ts`:
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.module.ts`:
   - Import `FinanceOpsModule` from `@prism/modules/finance-ops`.
   - Remove `BillingOperationsService` from local imports and `EVENT_OPS_PROVIDERS`.
   - Add `FinanceOpsModule` to module imports.
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts` to import `BillingOperationsService` from `@prism/modules/finance-ops`.
-- [ ] Keep `EventOpsService` constructor injection unchanged so route compatibility stays stable.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/event-ops.service.test.ts`.
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts` to import `BillingOperationsService` from `@prism/modules/finance-ops`.
+- [x] Keep `EventOpsService` constructor injection unchanged so route compatibility stays stable.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/event-ops.service.test.ts`.
   Expected: PASS.
 
 ## Task 7 - Verification And Docs Closeout
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/finance-ops/src/services/billing-operations.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test:event-ops`.
-- [ ] Run `npm --workspace prism-api run build`.
-- [ ] Run `npm run check:boundaries`.
-- [ ] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/supplier-ops|modules/supplier-ops" apps/api/libs/modules/finance-ops`; expected result: no matches.
-- [ ] Run `git diff --check`.
-- [ ] Update parent Phase 5 checkboxes only for items proven by this slice. Leave read-model migration and supplier/guest read-payload hardening unchecked unless a test proves them.
-- [ ] Add verification evidence to this child plan.
-- [ ] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md` with finance extraction state and remaining read-model dependency.
-- [ ] Commit checkpoint: `refactor(api): extract finance operations module`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/finance-ops/src/services/billing-operations.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test:event-ops`.
+- [x] Run `npm --workspace prism-api run build`.
+- [x] Run `npm run check:boundaries`.
+- [x] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/supplier-ops|modules/supplier-ops" apps/api/libs/modules/finance-ops`; result: no matches.
+- [x] Run `git diff --check`.
+- [x] Update parent Phase 5 checkboxes only for items proven by this slice. Read-model migration and supplier/guest read-payload hardening remain unchecked.
+- [x] Add verification evidence to this child plan.
+- [x] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md` with finance extraction state and remaining read-model dependency.
+- [x] Commit checkpoint: `refactor(api): extract finance operations module`.
 
 ## Acceptance Criteria
 
-- [ ] `BillingOperationsService` lives under `finance-ops` and is provided/exported by `FinanceOpsModule`.
-- [ ] Existing billing routes stay compatible through `EventOpsService`.
-- [ ] Payment record replay with the same non-empty reference number does not duplicate payment records, milestone totals, or audit rows.
-- [ ] Full event-ops tests, API build, boundary check, finance no-private-import scan, and diff check pass.
-- [ ] No billing read-model, commercial proposal, file/document-vault, or controller behavior is moved accidentally.
-- [ ] Remaining finance hardening is clear: dispute/waiver/correction/additional billing and read-model extraction need separate child plans.
+- [x] `BillingOperationsService` lives under `finance-ops` and is provided/exported by `FinanceOpsModule`.
+- [x] Existing billing routes stay compatible through `EventOpsService`.
+- [x] Payment record replay with the same non-empty reference number does not duplicate payment records, milestone totals, or audit rows.
+- [x] Full event-ops tests, API build, boundary check, finance no-private-import scan, and diff check pass.
+- [x] No billing read-model, commercial proposal, file/document-vault, or controller behavior is moved accidentally.
+- [x] Remaining finance hardening is clear: dispute/waiver/correction/additional billing and read-model extraction need separate child plans.
 
+
+## Verification Evidence
+
+| Command | Result |
+| --- | --- |
+| `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/billing-operations.service.test.ts` | Failed before implementation as expected: duplicate payment reference created a second row. Initial sandbox run hit Vite `spawn EPERM`; escalated run showed the intended assertion failure. |
+| `npm --workspace prism-api run test -- libs/modules/finance-ops/src/services/billing-operations.service.test.ts` | Passed: 1 file, 2 tests. |
+| 
+pm --workspace prism-api run test -- billing | Passed: 1 file, 2 tests. |
+| `npm --workspace prism-api run test -- libs/modules/event-ops/src/event-ops.service.test.ts` | Passed: 1 file, 61 tests. |
+| `npm --workspace prism-api run test:event-ops` | Passed: 12 files, 88 tests. |
+| `npm --workspace prism-api run build` | Passed. |
+| `npm run check:boundaries` | Passed for 458 files. |
+| `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/supplier-ops|modules/supplier-ops" apps/api/libs/modules/finance-ops` | No matches. |
+| `git diff --check` | Passed with line-ending warnings only. |
+
+## Implementation Notes
+
+- `BillingOperationsService` and its focused tests now live in `apps/api/libs/modules/finance-ops`.
+- `FinanceOpsModule` is a real runtime module that imports database, event-core, trust-ops, and notification-ops, then exports `BillingOperationsService` plus `FINANCE_COMMANDS`.
+- `event-ops/src/services/billing-operations.service.ts` is now a compatibility re-export so existing route facade imports keep resolving.
+- `recordPayment` now treats a retried payment with the same non-empty reference number, amount, date, and method as a replay. It returns the durable milestone/history state without creating another payment record or audit row.
+- Billing read-model composition remains in `event-ops`; the future `BILLING_READER` and `PAYMENT_STATUS_READER` tokens are contracts only in this slice.
 ## Stop Rules
 
 Stop and revise before implementation if:

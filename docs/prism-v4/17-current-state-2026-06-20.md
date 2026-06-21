@@ -155,3 +155,9 @@ Phase 3 extracted the first cross-cutting backend modules without changing publi
 Phase 4 extracted the first supplier vertical slice without changing public route paths. `SupplierNetworkWorkflowService` and its focused supplier status-transition test now live under `apps/api/libs/modules/supplier-ops`. The old `event-ops` service path remains a compatibility re-export, and `EventOpsModule` still provides the moved service by binding supplier-owned ports to existing supplier directory, PARE, live-operations, and document-vault services.
 
 Current limitation: `SupplierOpsModule` is a capability marker in this slice, not the final runtime provider owner. Full independence requires later extraction of `SuppliersService`, supplier readiness/read-model ports, PARE automation ownership, live-operations logging ownership, and file/document-vault ports. Boundary evidence is stronger than before because `supplier-ops` has no import back to `event-ops`.
+
+## Post-Snapshot Finance-Ops Slice: 2026-06-22
+
+Phase 5 extracted finance command ownership without changing public route paths. `BillingOperationsService` and focused payment replay tests now live under `apps/api/libs/modules/finance-ops`. `FinanceOpsModule` imports the public cross-cutting modules and exports the billing provider; the old `event-ops` service path remains a compatibility re-export for the route facade.
+
+Current limitation: billing read-model composition, client-safe billing payload hardening, disputes, waivers, corrections, additional billing, and payment status/event-health readers remain future child-plan work. The implemented guard prevents duplicate payment rows and duplicate audit rows when a payment record request is retried with the same non-empty reference number, amount, date, and method.

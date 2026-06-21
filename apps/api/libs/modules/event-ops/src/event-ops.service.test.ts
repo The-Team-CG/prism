@@ -5,7 +5,7 @@ import { EventOpsService } from './event-ops.service';
 import { AiGovernanceService } from './services/ai-governance.service';
 import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/modules/trust-ops';
 import { AuthOperationsService } from './services/auth-operations.service';
-import { BillingOperationsService } from './services/billing-operations.service';
+import { BillingOperationsService } from '@prism/modules/finance-ops';
 import { ClientOnboardingWorkflowService } from './services/client-onboarding-workflow.service';
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { ComplianceWorkflowService } from './services/compliance-workflow.service';

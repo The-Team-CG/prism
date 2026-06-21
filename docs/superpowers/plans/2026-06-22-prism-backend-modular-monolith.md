@@ -581,26 +581,26 @@ export class AuditWriterAdapter implements AuditWriter {
 
 **Edits:**
 
-- [ ] Create `finance-ops` module.
-- [ ] Move `BillingOperationsService` into `finance-ops`.
-- [ ] Add `FinanceCommands`, `BillingReader`, and `PaymentStatusReader` ports.
-- [ ] Add transaction tests for payment/billing state changes.
-- [ ] Add idempotency behavior for retryable payment record commands if not already present.
+- [x] Create `finance-ops` module.
+- [x] Move `BillingOperationsService` into `finance-ops`.
+- [x] Add `FinanceCommands`, `BillingReader`, and `PaymentStatusReader` ports.
+- [x] Add transaction tests for payment/billing state changes.
+- [x] Add idempotency behavior for retryable payment record commands if not already present.
 - [ ] Keep supplier assignment reads through `SupplierReadinessReader`, not private supplier services.
 - [ ] Update read models to use finance reader ports or approved finance query builders.
 
 **Tests:**
 
-- [ ] Billing command mutation test.
+- [x] Billing command mutation test.
 - [ ] Payment status read test.
 - [ ] Forbidden-role test: supplier or guest cannot read PMCM finance payload.
-- [ ] Boundary test: `finance-ops` does not import supplier private services.
-- [ ] `npm --workspace prism-api run test -- billing`.
+- [x] Boundary test: `finance-ops` does not import supplier private services.
+- [x] `npm --workspace prism-api run test -- billing`.
 - [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
 
-- [ ] Finance writes live in `finance-ops`.
+- [x] Finance writes live in `finance-ops`.
 - [ ] Supplier and guest payloads do not expose PMCM finance details.
 - [ ] Billing audit rows include correlation id and actor.
 

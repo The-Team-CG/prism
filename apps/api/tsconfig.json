@@ -96,7 +96,13 @@
                                                                           ],
                                           "@prism/modules/supplier-ops/*":  [
                                                                                 "libs/modules/supplier-ops/src/*"
-                                                                            ]
+                                                                            ],
+                                          "@prism/modules/finance-ops":  [
+                                                                             "libs/modules/finance-ops/src/index"
+                                                                         ],
+                                          "@prism/modules/finance-ops/*":  [
+                                                                               "libs/modules/finance-ops/src/*"
+                                                                           ]
                                       }
                         }
 }

@@ -105,6 +105,8 @@ Phase 3 infrastructure modules are now active: `event-core` owns workflow comman
 
 Phase 4 supplier extraction is now partially active: `SupplierNetworkWorkflowService` and its focused status-transition test live in `supplier-ops`, and `event-ops` keeps route compatibility through a re-export plus provider bindings. `supplier-ops` does not import `event-ops`; it consumes supplier directory, PARE, live-operations, and document-vault behavior through supplier-owned ports until those dependencies are extracted.
 
+Phase 5 finance extraction is now active for command ownership: BillingOperationsService and its payment replay tests live in inance-ops, FinanceOpsModule owns the runtime provider, and event-ops keeps route compatibility through a re-export and imported module provider. Billing read-model composition still stays in event-ops until BILLING_READER and PAYMENT_STATUS_READER are implemented.
+
 ## Data Domains
 
 | Domain | Representative models |
