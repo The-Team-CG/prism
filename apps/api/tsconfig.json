@@ -66,7 +66,31 @@
                                                                     ],
                                           "@prism/modules/health/*":  [
                                                                           "libs/modules/health/src/*"
-                                                                      ]
+                                                                      ],
+                                          "@prism/modules/event-core":  [
+                                                                            "libs/modules/event-core/src/index"
+                                                                        ],
+                                          "@prism/modules/event-core/*":  [
+                                                                              "libs/modules/event-core/src/*"
+                                                                          ],
+                                          "@prism/modules/trust-ops":  [
+                                                                           "libs/modules/trust-ops/src/index"
+                                                                       ],
+                                          "@prism/modules/trust-ops/*":  [
+                                                                             "libs/modules/trust-ops/src/*"
+                                                                         ],
+                                          "@prism/modules/notification-ops":  [
+                                                                                  "libs/modules/notification-ops/src/index"
+                                                                              ],
+                                          "@prism/modules/notification-ops/*":  [
+                                                                                    "libs/modules/notification-ops/src/*"
+                                                                                ],
+                                          "@prism/modules/access-control":  [
+                                                                                "libs/modules/access-control/src/index"
+                                                                            ],
+                                          "@prism/modules/access-control/*":  [
+                                                                                  "libs/modules/access-control/src/*"
+                                                                              ]
                                       }
                         }
 }
