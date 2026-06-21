@@ -654,6 +654,8 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ### Phase 7B - commercial-ops
 
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-7b-commercial-ops.md`.
+
 - [ ] Create `commercial-ops` module.
 - [ ] Move `CommercialWorkflowService`.
 - [ ] Add proposal/briefing reader ports.
