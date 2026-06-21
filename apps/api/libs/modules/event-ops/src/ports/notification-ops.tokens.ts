@@ -1,1 +1,1 @@
-export const NOTIFICATION_OUTBOX_WRITER = Symbol.for('prism.notificationOps.outboxWriter');
+export * from '@prism/modules/notification-ops';
