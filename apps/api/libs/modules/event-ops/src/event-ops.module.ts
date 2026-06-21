@@ -5,6 +5,7 @@ import { CommercialOpsModule, CommercialWorkflowService } from '@prism/modules/c
 import { ComplianceOpsModule, ComplianceWorkflowService } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FloorplanModule } from '@prism/modules/floorplan';
+import { GuestOpsModule } from '@prism/modules/guest-ops';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
@@ -27,7 +28,6 @@ import { CoordinatorsService } from './services/coordinators.service';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { EventReadModelsService } from './services/event-read-models.service';
-import { GuestWorkflowService } from './services/guest-workflow.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
@@ -46,7 +46,6 @@ const EVENT_OPS_PROVIDERS = [
   EventReadModelsService,
   EventClosureService,
   ComplianceWorkflowService,
-  GuestWorkflowService,
   { provide: SUPPLIER_DIRECTORY, useExisting: SuppliersService },
   { provide: SUPPLIER_PARE_AUTOMATION, useExisting: PAREService },
   { provide: SUPPLIER_LIVE_OPERATIONS, useExisting: LiveOperationsService },
@@ -57,7 +56,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })

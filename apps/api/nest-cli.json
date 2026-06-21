@@ -185,6 +185,15 @@
                                        "compilerOptions":  {
                                                                "tsConfigPath":  "libs/modules/floorplan/tsconfig.lib.json"
                                                            }
-                                   }
+                                   },
+                     "guest-ops":  {
+                                      "type":  "library",
+                                      "root":  "libs/modules/guest-ops",
+                                      "entryFile":  "index",
+                                      "sourceRoot":  "libs/modules/guest-ops/src",
+                                      "compilerOptions":  {
+                                                              "tsConfigPath":  "libs/modules/guest-ops/tsconfig.lib.json"
+                                                          }
+                                  }
                  }
 }

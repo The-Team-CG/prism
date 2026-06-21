@@ -20,7 +20,7 @@ import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { EventReadModelsService } from './services/event-read-models.service';
 import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
-import { GuestWorkflowService } from './services/guest-workflow.service';
+import { GuestWorkflowService } from '@prism/modules/guest-ops';
 import { LiveOperationsService } from './services/live-operations.service';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from './services/pare/pare.service';
@@ -998,7 +998,21 @@ function createEventOpsService(prisma: any) {
     notificationOutboxService,
     workflowCommandService,
   );
-  const eventReadModelsService = new EventReadModelsService(prisma, eventAccessPolicyService, suppliersService);
+  const guestWorkflowService = new GuestWorkflowService(
+    prisma,
+    auditService,
+    workflowCommandService,
+    documentVaultService,
+  );
+  const guestReader = {
+    listCheckInsForEvent: async (eventId: string) =>
+      prisma.opsGuestCheckIn.findMany({ where: { eventId }, orderBy: { checkedInAt: 'desc' } }),
+    listFeedbackForEvent: async (eventId: string) =>
+      prisma.opsGuestFeedback.findMany({ where: { eventId }, orderBy: { submittedAt: 'desc' } }),
+    mapGuestCheckIn: (checkIn: any) => guestWorkflowService.mapGuestCheckIn(checkIn),
+    mapGuestFeedback: (feedback: any) => guestWorkflowService.mapGuestFeedback(feedback),
+  } as any;
+  const eventReadModelsService = new EventReadModelsService(prisma, eventAccessPolicyService, suppliersService, guestReader);
   const commercialWorkflowService = new CommercialWorkflowService(
     prisma,
     auditService,
@@ -1026,12 +1040,6 @@ function createEventOpsService(prisma: any) {
     auditService,
     notificationOutboxService,
     workflowCommandService,
-  );
-  const guestWorkflowService = new GuestWorkflowService(
-    prisma,
-    auditService,
-    workflowCommandService,
-    documentVaultService,
   );
   const supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
     prisma,
@@ -3682,6 +3690,9 @@ describe('EventOpsService', () => {
 
     await expect(
       (service as any).getDefenseReadiness('evt_sample', { actorRole: 'client', clientName: 'Ana Reyes' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      (service as any).getDefenseReadiness('evt_sample', { actorRole: 'guest', actorName: 'Guest User' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

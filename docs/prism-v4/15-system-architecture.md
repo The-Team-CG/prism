@@ -117,6 +117,8 @@ Phase 7C compliance extraction is now active: `ComplianceWorkflowService` lives 
 
 Phase 8 floorplan extraction is now active: `FloorPlanWorkflowService` lives in `floorplan`, `FloorplanModule` owns floorplan command/read tokens, and the workflow uses public `event-core`, `trust-ops`, and `notification-ops` providers. `event-ops` keeps route compatibility and actor-policy checks, while the persisted canvas/editor shape remains `floorPlan`, `floorPlanObject`, and `opsFloorPlanDraft`.
 
+Phase 9 guest extraction is now active: `GuestWorkflowService` lives in `guest-ops`, `GuestOpsModule` owns `GUEST_COMMANDS` and `GUEST_READER`, and guest access-code resolution, check-in writes, feedback writes, attendance reads, and guest payload mapping now sit behind public guest ports. `event-ops` keeps public guest route compatibility, privacy/readiness/live-ops facade methods delegate guest reads through the guest service, and the selected PMCM event workspace consumes the `GUEST_READER` port for attendance and feedback payloads.
+
 ## Data Domains
 
 | Domain | Representative models |

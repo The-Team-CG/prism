@@ -149,7 +149,7 @@ The July 31 execution boundary remains: backend work before July should prioriti
 
 ## Post-Snapshot Backend Infrastructure Modules: 2026-06-22
 
-Phase 3 extracted the first cross-cutting backend modules without changing public route paths. `event-core`, `trust-ops`, `notification-ops`, and `access-control` now provide workflow command execution, audit/privacy, outbox writing, and access policy through public module exports and provider tokens. Capability workflows such as floorplan, guest, closure, and read models remain in `event-ops` until their own child plans execute. Supplier, finance, file, inquiry-onboarding, and commercial slices are covered by the Phase 4, Phase 5, Phase 6, Phase 7A, and Phase 7B notes below.
+Phase 3 extracted the first cross-cutting backend modules without changing public route paths. `event-core`, `trust-ops`, `notification-ops`, and `access-control` now provide workflow command execution, audit/privacy, outbox writing, and access policy through public module exports and provider tokens. Capability workflows such as closure and remaining read models remain in `event-ops` until their own child plans execute. Supplier, finance, file, inquiry-onboarding, commercial, floorplan, and guest slices are covered by the Phase 4 through Phase 9 notes below.
 ## Post-Snapshot Supplier-Ops Slice: 2026-06-22
 
 Phase 4 extracted the first supplier vertical slice without changing public route paths. `SupplierNetworkWorkflowService` and its focused supplier status-transition test now live under `apps/api/libs/modules/supplier-ops`. The old `event-ops` service path remains a compatibility re-export, and `EventOpsModule` still provides the moved service by binding supplier-owned ports to existing supplier directory, PARE, live-operations, and document-vault services.
@@ -191,3 +191,11 @@ Audit storage remains in `trust-ops`; compliance-ops imports public trust, acces
 Phase 8 extracted PMCM official floorplan draft, submit, approve, snapshot read, and client layout preference behavior without changing public route paths. `FloorPlanWorkflowService` now lives under `apps/api/libs/modules/floorplan`, and `FloorplanModule` exports the runtime service plus `FLOORPLAN_COMMANDS` and `FLOORPLAN_READER`.
 
 The AGENTS floorplan rule remains enforced in `EventOpsService` compatibility methods: PMCM/system actors mutate official floorplans, clients submit preferences only for readable events, and readable clients can fetch submitted/approved official snapshots read-only. Existing canvas/editor persistence remains on `floorPlan`, `floorPlanObject`, and `opsFloorPlanDraft`.
+
+## Post-Snapshot Guest-Ops Slice: 2026-06-22
+
+Phase 9 extracted guest access-code resolution, guest check-in writes, guest feedback writes, attendance reads, and guest payload mapping without changing public guest route paths. `GuestWorkflowService` now lives under `apps/api/libs/modules/guest-ops`, and `GuestOpsModule` exports the runtime service plus `GUEST_COMMANDS` and `GUEST_READER`.
+
+`EventOpsService` remains the compatibility facade for `/guest/events/:accessCode`, privacy inventory, defense readiness, and live-ops attendance surfaces, but those guest reads now delegate through the guest service instead of direct guest Prisma reads. `EventReadModelsService.pmcmEventWorkspace` consumes `GUEST_READER` for PMCM-scoped attendance and feedback payloads. The Phase 9 regression suite covers access-code payloads, consent-gated check-in/feedback commands, guest payload mapping, and the forbidden-role rule that guest actors cannot read PMCM planning/readiness payloads.
+
+Current limitation: QR/camera check-in remains gated, and full guest-masterlist/RSVP import behavior is not claimed. Controller ownership and complete guest read-model extraction remain future child-plan work.

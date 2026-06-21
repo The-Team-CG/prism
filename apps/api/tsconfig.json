@@ -132,7 +132,13 @@
                                                                         ],
                                           "@prism/modules/floorplan/*":  [
                                                                               "libs/modules/floorplan/src/*"
-                                                                          ]
+                                                                          ],
+                                          "@prism/modules/guest-ops":  [
+                                                                               "libs/modules/guest-ops/src/index"
+                                                                           ],
+                                          "@prism/modules/guest-ops/*":  [
+                                                                                 "libs/modules/guest-ops/src/*"
+                                                                             ]
                                       }
                         }
 }

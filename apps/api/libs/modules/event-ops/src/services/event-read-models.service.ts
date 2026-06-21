@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   OpsAuditLog,
   OpsBillingSource,
@@ -23,6 +23,7 @@ import type {
 } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
+import { GUEST_READER, type GuestReader } from '@prism/modules/guest-ops';
 import { AuditCategory, OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '../ops.constants';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from './event-access-policy.service';
 import { SuppliersService } from './suppliers.service';
@@ -82,6 +83,7 @@ export class EventReadModelsService {
     private readonly prisma: PrismaService,
     private readonly policy: EventAccessPolicyService,
     private readonly suppliersService: SuppliersService,
+    @Inject(GUEST_READER) private readonly guestReader: GuestReader,
   ) {}
 
   async billing(actor: ResolvedEventOpsActor, mappers: BillingReadModelMappers) {
@@ -709,6 +711,8 @@ export class EventReadModelsService {
       floorPlanDrafts,
       auditLogs,
       notificationLogs,
+      guestCheckIns,
+      guestFeedback,
     ] = await Promise.all([
       this.prisma.opsDocument.findMany({ where: { eventId }, orderBy: { uploadedAt: 'desc' } }),
       this.prisma.opsBriefing.findMany({ where: { eventId }, orderBy: { submittedAt: 'desc' } }),
@@ -725,6 +729,8 @@ export class EventReadModelsService {
       this.prisma.opsFloorPlanDraft.findMany({ where: { eventId }, orderBy: { updatedAt: 'desc' } }),
       this.prisma.opsAuditLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.prisma.opsNotificationLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.guestReader.listCheckInsForEvent(eventId),
+      this.guestReader.listFeedbackForEvent(eventId),
     ]);
 
     return {
@@ -749,6 +755,9 @@ export class EventReadModelsService {
       floorPlanDrafts: floorPlanDrafts.map(mappers.mapFloorPlanDraft),
       auditLogs: auditLogs.map(mappers.mapAuditLog),
       notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
+      guestAttendanceCount: guestCheckIns.length,
+      guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
+      guestFeedback: guestFeedback.map((feedback) => this.guestReader.mapGuestFeedback(feedback)),
     };
   }
 

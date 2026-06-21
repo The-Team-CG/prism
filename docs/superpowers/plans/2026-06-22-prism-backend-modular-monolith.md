@@ -717,26 +717,26 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 **Edits:**
 
-- [ ] Create `guest-ops` module.
-- [ ] Move `GuestWorkflowService`.
-- [ ] Add guest command and reader ports.
-- [ ] Keep guest portal route contracts stable.
-- [ ] Add guest event access policy checks.
-- [ ] Update read models to consume guest reader ports.
+- [x] Create `guest-ops` module.
+- [x] Move `GuestWorkflowService`.
+- [x] Add guest command and reader ports.
+- [x] Keep guest portal route contracts stable.
+- [x] Add guest event access policy checks.
+- [x] Update read models to consume guest reader ports.
 
 **Tests:**
 
-- [ ] Guest RSVP/check-in state command test if current behavior exists.
-- [ ] Guest portal payload test.
-- [ ] Forbidden-role test: guest cannot read PMCM planning payload.
-- [ ] `npm --workspace prism-api run test -- guest`.
+- [x] Guest RSVP/check-in state command test if current behavior exists.
+- [x] Guest portal payload test.
+- [x] Forbidden-role test: guest cannot read PMCM planning payload.
+- [x] `npm --workspace prism-api run test -- guest`.
 
 **Acceptance criteria:**
 
-- [ ] Guest writes live in `guest-ops`.
-- [ ] Guest payloads are role-scoped and do not expose PMCM private data.
+- [x] Guest writes live in `guest-ops`.
+- [x] Guest payloads are role-scoped and do not expose PMCM private data.
 
-**Commit checkpoint:** `refactor(api): extract guest operations module`
+**Commit checkpoint:** [x] `refactor(api): extract guest operations module`
 
 ## Phase 10 - Extract staffing-ops
 

@@ -119,7 +119,7 @@ import {
   GuestWorkflowService,
   type GuestCheckInInput,
   type GuestFeedbackInput,
-} from './services/guest-workflow.service';
+} from '@prism/modules/guest-ops';
 import { AiGovernanceService } from './services/ai-governance.service';
 
 type CreateInquiryInput = {
@@ -758,19 +758,18 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   async getPrivacyInventory(input: PrivacyInventoryInput = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy inventory');
-    const [events, inquiries, approvalRequests, guestCheckIns, guestFeedback] = await Promise.all([
+    const [events, inquiries, approvalRequests] = await Promise.all([
       this.prisma.opsEvent.findMany({
         where: input.eventId ? { id: input.eventId } : {},
         orderBy: { eventDate: 'asc' },
       }),
       this.prisma.opsInquiry.findMany(),
       this.prisma.opsApprovalRequest.findMany(),
-      this.prisma.opsGuestCheckIn.findMany({
-        where: input.eventId ? { eventId: input.eventId } : {},
-      }),
-      this.prisma.opsGuestFeedback.findMany({
-        where: input.eventId ? { eventId: input.eventId } : {},
-      }),
+    ]);
+    const eventIds = events.map((event: OpsEvent) => event.id);
+    const [guestCheckIns, guestFeedback] = await Promise.all([
+      this.guestWorkflowService.listCheckInsForEvents(eventIds),
+      this.guestWorkflowService.listFeedbackForEvents(eventIds),
     ]);
 
     const eventsInventory = events.map((event: OpsEvent) => {
@@ -988,8 +987,8 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: { generatedAt: 'desc' } }),
       this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsGuestCheckIn.findMany({ where: { eventId }, orderBy: { checkedInAt: 'desc' } }),
-      this.prisma.opsGuestFeedback.findMany({ where: { eventId }, orderBy: { submittedAt: 'desc' } }),
+      this.guestWorkflowService.listCheckInsForEvent(eventId),
+      this.guestWorkflowService.listFeedbackForEvent(eventId),
       this.getCloseGates(eventId),
     ]);
 
@@ -1161,19 +1160,19 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async getGuestEventByAccessCode(accessCode: string) {
     const event = await this.guestWorkflowService.getEventByAccessCode(accessCode);
-    const attendanceCount = await this.prisma.opsGuestCheckIn.count({ where: { eventId: event.id } });
+    const attendanceCount = await this.guestWorkflowService.countCheckInsForEvent(event.id);
 
-    return this.mapGuestEvent(event, attendanceCount);
+    return this.guestWorkflowService.mapGuestEvent(event, attendanceCount);
   }
 
   async checkInGuestByAccessCode(accessCode: string, input: GuestCheckInInput) {
     const checkIn = await this.guestWorkflowService.checkInByAccessCode(accessCode, input);
-    return this.mapGuestCheckIn(checkIn);
+    return this.guestWorkflowService.mapGuestCheckIn(checkIn);
   }
 
   async submitGuestFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput) {
     const feedback = await this.guestWorkflowService.submitFeedbackByAccessCode(accessCode, input);
-    return this.mapGuestFeedback(feedback);
+    return this.guestWorkflowService.mapGuestFeedback(feedback);
   }
 
   async getEventLiveOps(eventId: string, actorInput: SampleActorInput = {}) {
@@ -1197,7 +1196,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
         this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
         this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
-        this.prisma.opsGuestCheckIn.findMany({ where: { eventId }, orderBy: { checkedInAt: 'desc' } }),
+        this.guestWorkflowService.listCheckInsForEvent(eventId),
         this.prisma.opsEventDayLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 50 }),
       ]);
 
@@ -1234,7 +1233,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         (assignment: any) => this.mapCoordinatorAssignmentForEventDay(assignment),
       ),
       guestAttendanceCount: guestCheckIns.length,
-      guestCheckIns: guestCheckIns.map((checkIn: any) => this.mapGuestCheckIn(checkIn)),
+      guestCheckIns: guestCheckIns.map((checkIn: any) => this.guestWorkflowService.mapGuestCheckIn(checkIn)),
       eventDayLogs: eventDayLogs.map((log: any) => this.mapEventDayLog(log)),
     };
 
@@ -2923,40 +2922,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       archived: event.archived,
       floorPlanStatus: event.floorPlanStatus,
       floorPlanId: event.floorPlanId,
-      guestAccessCode: this.guestAccessCode(event),
+      guestAccessCode: this.guestWorkflowService.guestAccessCode(event),
       activeFloorPlanDraftId: activeDraft?.id,
       floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft)),
     };
-  }
-
-  private mapGuestEvent(event: EventWithDrafts, attendanceCount = 0) {
-    const mapped = this.mapEvent(event);
-
-    return {
-      id: mapped.id,
-      eventName: mapped.eventName,
-      eventDate: mapped.eventDate,
-      clientName: mapped.clientName,
-      readiness: mapped.readiness,
-      floorPlanStatus: mapped.floorPlanStatus,
-      activeFloorPlanDraftId: mapped.activeFloorPlanDraftId,
-      guestAccessCode: mapped.guestAccessCode,
-      attendanceCount,
-    };
-  }
-
-  private guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>) {
-    const namePart =
-      event.eventName
-        .toUpperCase()
-        .replace(/[^A-Z0-9]+/g, '-')
-        .split('-')
-        .filter(Boolean)
-        .slice(0, 2)
-        .join('-') || 'PRISM';
-    const idPart = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase() || 'EVNT';
-
-    return `${namePart}-${idPart}`;
   }
 
   private mapDocument(document: OpsDocument) {
@@ -3249,39 +3218,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       failedAt: expanded.failedAt ? timestamp(expanded.failedAt) : null,
       acknowledgedAt: expanded.acknowledgedAt ? timestamp(expanded.acknowledgedAt) : null,
       createdAt: timestamp(log.createdAt),
-    };
-  }
-
-  private mapGuestCheckIn(checkIn: OpsGuestCheckIn) {
-    return {
-      id: checkIn.id,
-      eventId: checkIn.eventId,
-      guestName: checkIn.guestName,
-      checkInMode: checkIn.checkInMode,
-      status: checkIn.status,
-      walkIn: checkIn.walkIn,
-      verificationStatus: checkIn.verificationStatus,
-      privacyConsentAccepted: (checkIn as any).privacyConsentAccepted ?? false,
-      privacyNoticeVersion: (checkIn as any).privacyNoticeVersion ?? '',
-      marketingConsentAccepted: (checkIn as any).marketingConsentAccepted ?? false,
-      checkedInAt: timestamp(checkIn.checkedInAt),
-    };
-  }
-
-  private mapGuestFeedback(feedback: OpsGuestFeedback) {
-    return {
-      id: feedback.id,
-      eventId: feedback.eventId,
-      guestName: feedback.guestName,
-      rating: feedback.rating,
-      comment: feedback.comment,
-      photoFileName: feedback.photoFileName ?? null,
-      videoFileName: feedback.videoFileName ?? null,
-      privacyConsentAccepted: (feedback as any).privacyConsentAccepted ?? false,
-      privacyNoticeVersion: (feedback as any).privacyNoticeVersion ?? '',
-      marketingConsentAccepted: (feedback as any).marketingConsentAccepted ?? false,
-      moderationStatus: feedback.moderationStatus,
-      submittedAt: timestamp(feedback.submittedAt),
     };
   }
 

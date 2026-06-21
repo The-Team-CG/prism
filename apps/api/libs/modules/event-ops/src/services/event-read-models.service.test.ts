@@ -3,6 +3,14 @@ import { OpsUserRole } from '../ops.constants';
 import { EventAccessPolicyService } from './event-access-policy.service';
 import { EventReadModelsService } from './event-read-models.service';
 
+function createGuestReader() {
+  return {
+    listCheckInsForEvent: vi.fn(async () => []),
+    listFeedbackForEvent: vi.fn(async () => []),
+    mapGuestCheckIn: vi.fn((checkIn) => checkIn),
+    mapGuestFeedback: vi.fn((feedback) => feedback),
+  };
+}
 function createSupplierWorkspaceService() {
   const requests = [
     {
@@ -71,8 +79,9 @@ function createSupplierWorkspaceService() {
       },
     ]),
   };
-  const service = new EventReadModelsService(prisma as any, policy, suppliersService as any);
-  return { service, prisma, policy };
+  const guestReader = createGuestReader();
+  const service = new EventReadModelsService(prisma as any, policy, suppliersService as any, guestReader as any);
+  return { service, prisma, policy, guestReader };
 }
 
 function createPmcmReadModelService() {
@@ -133,8 +142,9 @@ function createPmcmReadModelService() {
     opsNotificationLog: { findMany: vi.fn(async () => []) },
   };
   const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
-  const service = new EventReadModelsService(prisma as any, policy, {} as any);
-  return { service, prisma, policy };
+  const guestReader = createGuestReader();
+  const service = new EventReadModelsService(prisma as any, policy, {} as any, guestReader as any);
+  return { service, prisma, policy, guestReader };
 }
 
 describe('EventReadModelsService', () => {
@@ -213,7 +223,7 @@ describe('EventReadModelsService', () => {
   });
 
   it('builds a selected PMCM event workspace from event-scoped records', async () => {
-    const { service, policy, prisma } = createPmcmReadModelService();
+    const { service, policy, prisma, guestReader } = createPmcmReadModelService();
     const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     const workspace = await service.pmcmEventWorkspace(actor, 'evt_visible', {
@@ -242,6 +252,9 @@ describe('EventReadModelsService', () => {
 
     expect(workspace.event).toEqual({ id: 'evt_visible', eventName: 'Ayala Summit' });
     expect(workspace.documents).toEqual([{ id: 'doc_1', eventId: 'evt_visible' }]);
+    expect((workspace as any).guestAttendanceCount).toBe(0);
+    expect(guestReader.listCheckInsForEvent).toHaveBeenCalledWith('evt_visible');
+    expect(guestReader.listFeedbackForEvent).toHaveBeenCalledWith('evt_visible');
     expect(prisma.opsDocument.findMany).toHaveBeenCalledWith({
       where: { eventId: 'evt_visible' },
       orderBy: { uploadedAt: 'desc' },
@@ -318,7 +331,8 @@ describe('EventReadModelsService', () => {
       opsPostEventDocument: { findMany: vi.fn(async () => []) },
     };
     const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
-    const service = new EventReadModelsService(prisma as any, policy, {} as any);
+    const guestReader = createGuestReader();
+    const service = new EventReadModelsService(prisma as any, policy, {} as any, guestReader as any);
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
 
     const actionCenter = await service.clientActionCenter(actor);
