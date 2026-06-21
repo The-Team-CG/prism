@@ -87,6 +87,15 @@
                                                             "tsConfigPath":  "libs/modules/health/tsconfig.lib.json"
                                                         }
                                 },
+                     "closure-ops":  {
+                                        "type":  "library",
+                                        "root":  "libs/modules/closure-ops",
+                                        "entryFile":  "index",
+                                        "sourceRoot":  "libs/modules/closure-ops/src",
+                                        "compilerOptions":  {
+                                                                "tsConfigPath":  "libs/modules/closure-ops/tsconfig.lib.json"
+                                                            }
+                                    },
                      "event-read-models":  {
                                            "type":  "library",
                                            "root":  "libs/modules/event-read-models",

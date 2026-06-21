@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
+import { ClosureOpsModule } from '@prism/modules/closure-ops';
 import { CommercialOpsModule, CommercialWorkflowService } from '@prism/modules/commercial-ops';
 import { ComplianceOpsModule, ComplianceWorkflowService } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
@@ -26,8 +27,6 @@ import { EVENT_OPS_CONTROLLERS } from './controllers';
 import { EventOpsService } from './event-ops.service';
 import { AiGovernanceService } from './services/ai-governance.service';
 import { AuthOperationsService } from './services/auth-operations.service';
-import { EventClosureService } from './services/event-closure.service';
-import { EventLifecycleService } from './services/event-lifecycle.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
@@ -35,14 +34,12 @@ import { SuppliersService } from './services/suppliers.service';
 
 
 const EVENT_OPS_PROVIDERS = [
-  EventLifecycleService,
   SampleStateService,
   AiGovernanceService,
   SuppliersService,
   PAREService,
   AuthOperationsService,
   LiveOperationsService,
-  EventClosureService,
   ComplianceWorkflowService,
   { provide: SUPPLIER_DIRECTORY, useExisting: SuppliersService },
   { provide: SUPPLIER_PARE_AUTOMATION, useExisting: PAREService },
@@ -54,7 +51,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule, ClosureOpsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })

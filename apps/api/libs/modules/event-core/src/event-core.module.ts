@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { PrismTransactionRunner } from '../../../core/shared-kernel/src';
 import { WORKFLOW_COMMAND_LOG } from './ports/workflow-command-log.tokens';
+import { EventLifecycleService } from './services/event-lifecycle.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
 
 const workflowCommandLogProvider = {
@@ -11,7 +12,7 @@ const workflowCommandLogProvider = {
 
 @Module({
   imports: [DatabaseModule],
-  providers: [PrismTransactionRunner, WorkflowCommandService, workflowCommandLogProvider],
-  exports: [PrismTransactionRunner, WorkflowCommandService, workflowCommandLogProvider],
+  providers: [PrismTransactionRunner, EventLifecycleService, WorkflowCommandService, workflowCommandLogProvider],
+  exports: [PrismTransactionRunner, EventLifecycleService, WorkflowCommandService, workflowCommandLogProvider],
 })
 export class EventCoreModule {}

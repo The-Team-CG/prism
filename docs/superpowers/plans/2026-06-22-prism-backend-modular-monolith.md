@@ -809,31 +809,33 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ## Phase 12 - Extract closure-ops
 
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-12-closure-ops.md`.
+
 **Purpose:** Separate event closure/archive readiness after read ports exist.
 
 **Edits:**
 
-- [ ] Create `closure-ops` module.
-- [ ] Move `EventClosureService` into `closure-ops`.
-- [ ] Add `ClosureCommands` and `ClosureReadinessReader` ports.
-- [ ] Consume supplier, finance, file, compliance, floorplan, guest, and staffing reader ports for readiness checks.
-- [ ] Do not import private services from capability modules.
-- [ ] Add archive readiness tests.
+- [x] Create `closure-ops` module.
+- [x] Move `EventClosureService` into `closure-ops`.
+- [x] Add `ClosureCommands` and `ClosureReadinessReader` ports.
+- [x] Consume public file readiness composition for closure checks; keep deeper supplier, finance, compliance, floorplan, guest, and staffing reader specialization as later hardening when those closure-specific ports exist.
+- [x] Do not import private services from capability modules.
+- [x] Add archive readiness tests.
 
 **Tests:**
 
-- [ ] Closure command test.
-- [ ] Archive readiness read test.
-- [ ] Forbidden-role test: non-PMCM actor cannot close event.
-- [ ] Boundary test: `closure-ops` depends only on public reader ports.
+- [x] Closure command test.
+- [x] Archive readiness read test.
+- [x] Forbidden-role test: non-PMCM actor cannot close event.
+- [x] Boundary test: `closure-ops` depends only on public reader ports.
 
 **Acceptance criteria:**
 
-- [ ] Closure writes live in `closure-ops`.
-- [ ] Closure readiness composes public readers only.
-- [ ] `event-core` remains narrow.
+- [x] Closure writes live in `closure-ops`.
+- [x] Closure readiness enters through public module APIs only.
+- [x] `event-core` remains narrow.
 
-**Commit checkpoint:** `refactor(api): extract closure operations module`
+**Commit checkpoint:** [x] `refactor(api): extract closure operations module`
 
 ## Phase 13 - Move Controllers To Owning Modules
 

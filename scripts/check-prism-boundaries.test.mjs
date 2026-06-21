@@ -60,6 +60,8 @@ describe("findBoundaryViolations", () => {
         'import { BillingOperationsService } from "@prism/modules/finance-ops/src/services/billing-operations.service";',
       "apps/api/libs/modules/finance-ops/src/services/payment.service.ts":
         'import { EventOpsService } from "@prism/modules/event-ops";',
+      "apps/api/libs/modules/closure-ops/src/services/archive.service.ts":
+        'import { EventClosureService } from "@prism/modules/event-ops/src/services/event-closure.service";',
       "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts":
         "await this.prisma.opsEvent.update({ where: { id }, data: input });",
       "apps/api/libs/modules/event-read-models/src/services/raw-dashboard.service.ts":
@@ -72,6 +74,8 @@ describe("findBoundaryViolations", () => {
     assert.deepEqual(violations, [
       "apps/api/libs/modules/supplier-ops/src/services/supplier.service.ts: backend capability modules must not import private services from other capability modules",
       "apps/api/libs/modules/finance-ops/src/services/payment.service.ts: backend capability modules must not import event-ops compatibility internals",
+      "apps/api/libs/modules/closure-ops/src/services/archive.service.ts: backend capability modules must not import private services from other capability modules",
+      "apps/api/libs/modules/closure-ops/src/services/archive.service.ts: backend capability modules must not import event-ops compatibility internals",
       "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts: event-read-models must not mutate Prisma state",
       "apps/api/libs/modules/event-read-models/src/services/raw-dashboard.service.ts: event-read-models raw queries require an approved query builder with a query budget",
       "apps/api/libs/modules/event-ops/src/services/new-risk-workflow.service.ts: event-ops must not add new business service files after modularization starts",

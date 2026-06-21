@@ -123,6 +123,8 @@ Phase 10 staffing extraction is now active: `CoordinatorsService` lives in `staf
 
 Phase 11 event-read-models extraction is now active: `EventReadModelsService` lives in `event-read-models`, `EventReadModelsModule` owns PMCM/client/supplier/billing read-model provider tokens, read-model mapper factories live under `event-read-models/src/mappers`, and cross-domain dashboard reads now run through read-only query builders with explicit query-budget comments plus query-budget regression tests. The module imports public access-control, guest, and staffing ports only; `event-ops` keeps route compatibility through a re-export and controller facade methods until controller ownership moves in Phase 13.
 
+Phase 12 closure-ops extraction is now active: `EventClosureService` lives in `closure-ops`, `ClosureOpsModule` owns `CLOSURE_COMMANDS` and `CLOSURE_READINESS_READER`, and `EventLifecycleService` now lives in `event-core` as a narrow lifecycle invariant service. Archive commands require PMCM/system actor scope before writes, and `event-ops` keeps route compatibility through re-exports and facade methods until controller ownership moves in Phase 13.
+
 ## Data Domains
 
 | Domain | Representative models |

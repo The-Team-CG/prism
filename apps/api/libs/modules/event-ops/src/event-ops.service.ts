@@ -91,7 +91,7 @@ import {
   type EventOpsActorInput,
   type ResolvedEventOpsActor,
 } from './services/event-access-policy.service';
-import { EventLifecycleService } from './services/event-lifecycle.service';
+import { EventLifecycleService } from '@prism/modules/event-core';
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
 import {
@@ -105,7 +105,7 @@ import {
   type PmcmDashboardMappers,
   type SupplierWorkspaceMappers,
 } from '@prism/modules/event-read-models';
-import { EventClosureService } from './services/event-closure.service';
+import { EventClosureService, type ArchiveEventInput } from '@prism/modules/closure-ops';
 import { PAREService } from './services/pare/pare.service';
 import {
   type ApproveBillingSourceInput,
@@ -160,11 +160,6 @@ type RequestApprovalInput = {
 type UpdateInquiryStatusInput = {
   status: string;
   declineReason?: string;
-};
-
-type ArchiveEventInput = {
-  overrideReason?: string;
-  actorName?: string;
 };
 
 type VerifySupplierStatusInput = {

@@ -213,4 +213,12 @@ Phase 11 extracted role-scoped PMCM, client, supplier, and billing read-model co
 
 The moved service uses `EventReadModelQueries` for bounded read-only Prisma access with query-budget comments, consumes public access-control policy, owns mapper factories under `event-read-models/src/mappers`, and delegates guest attendance/feedback and selected-event staffing reads through public reader ports. `EventOpsService` remains the compatibility facade for the existing controllers and route methods, while the old event-ops read-model service path remains a re-export for compatibility tests.
 
-Current limitation: controller ownership remains in `event-ops` until Phase 13, and closure/archive readiness still awaits the Phase 12 `closure-ops` extraction. Read-model query budgets are documented, statically guarded, and covered by focused PMCM dashboard query-budget regression tests; deeper runtime database telemetry remains a later observability enhancement.
+Current limitation: read-model controller ownership remains in `event-ops` until Phase 13. Read-model query budgets are documented, statically guarded, and covered by focused PMCM dashboard query-budget regression tests; deeper runtime database telemetry remains a later observability enhancement.
+
+## Post-Snapshot Closure-Ops Slice: 2026-06-22
+
+Phase 12 extracted archive command ownership, post-event document completion, event-insight reads/writes, and close-gate readiness into `apps/api/libs/modules/closure-ops`. `ClosureOpsModule` exports the runtime service plus `CLOSURE_COMMANDS` and `CLOSURE_READINESS_READER`, while old event-ops closure paths remain compatibility re-exports.
+
+`EventLifecycleService` now lives in `event-core`, keeping lifecycle/archive invariants narrow and public. Archive commands resolve actor context and require PMCM/system scope before writes; the event-ops facade preserves current route compatibility until Phase 13 controller ownership work.
+
+Current limitation: closure controller ownership still lives in `event-ops`, and richer closure-readiness composition can later consume more specific supplier, finance, file, compliance, floorplan, guest, and staffing reader ports as those ports mature.

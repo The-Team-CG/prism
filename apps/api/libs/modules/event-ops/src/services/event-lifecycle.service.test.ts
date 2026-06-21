@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { EventLifecycleService, EventLifecycleStage } from './event-lifecycle.service';
+import { EventLifecycleService, EventLifecycleStage } from '@prism/modules/event-core';
 
 describe('EventLifecycleService', () => {
   const service = new EventLifecycleService();

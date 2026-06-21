@@ -73,6 +73,12 @@
                                           "@prism/modules/event-read-models/*":  [
                                                                                       "libs/modules/event-read-models/src/*"
                                                                                   ],
+                                          "@prism/modules/closure-ops":  [
+                                                                              "libs/modules/closure-ops/src/index"
+                                                                          ],
+                                          "@prism/modules/closure-ops/*":  [
+                                                                                "libs/modules/closure-ops/src/*"
+                                                                            ],
                                           "@prism/modules/event-core":  [
                                                                             "libs/modules/event-core/src/index"
                                                                         ],

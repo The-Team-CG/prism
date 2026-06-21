@@ -16,8 +16,8 @@ import { ComplianceWorkflowService } from '@prism/modules/compliance-ops';
 import { CoordinatorsService } from '@prism/modules/staffing-ops';
 import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modules/file-ops';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
-import { EventClosureService } from './services/event-closure.service';
-import { EventLifecycleService } from './services/event-lifecycle.service';
+import { EventClosureService } from '@prism/modules/closure-ops';
+import { EventLifecycleService } from '@prism/modules/event-core';
 import { EventReadModelQueries, EventReadModelsService } from '@prism/modules/event-read-models';
 import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
 import { GuestWorkflowService } from '@prism/modules/guest-ops';
@@ -2548,6 +2548,28 @@ describe('EventOpsService', () => {
     expect(archived.archived).toBe(true);
   });
 
+  it('denies non-PMCM actors from archiving an event', async () => {
+    const fake = createPrisma();
+    fake.state.events.push({
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
+      clientName: 'Ana Reyes',
+      eventName: 'Ayala Summit',
+      eventDate: new Date('2026-06-18T00:00:00.000Z'),
+      status: 'event_day',
+      clientPortalStatus: 'unlocked',
+      readiness: 'Close pending',
+      archived: false,
+      floorPlanStatus: 'approved',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const service = createEventOpsService(fake.prisma as any);
+
+    await expect(
+      (service as any).archiveEvent('evt_sample', { actorRole: 'client', clientName: 'Ana Reyes' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
   it('allows archive override only with a documented PMCM reason', async () => {
     const fake = createPrisma();
     fake.state.events.push({
