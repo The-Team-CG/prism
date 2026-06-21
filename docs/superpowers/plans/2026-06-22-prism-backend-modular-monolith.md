@@ -371,29 +371,29 @@ Every extraction must include before/after tests proving route payloads and auth
 
 **Edits:**
 
-- [ ] Keep this plan as the master source for backend modularization.
-- [ ] Add or update a short backend module map in `docs/prism-v4/15-system-architecture.md`.
-- [ ] Add a current-state note in `docs/prism-v4/17-current-state-2026-06-20.md` that `event-ops` is still the runtime hub before implementation begins.
-- [ ] Add a target-state note in `docs/prism-v4/18-future-state.md` that the API remains one modular monolith.
-- [ ] Add Anthony/Owner D traceability in `docs/prism-v4/12-redesign-inventory.md` only if the inventory has an Owner D backend row that needs this architecture pointer.
-- [ ] Add backend boundary rules to `scripts/check-prism-boundaries.mjs` using the current script style.
-- [ ] Add a boundary-check fixture or sample path for each new backend rule.
+- [x] Keep this plan as the master source for backend modularization.
+- [x] Add or update a short backend module map in `docs/prism-v4/15-system-architecture.md`.
+- [x] Add a current-state note in `docs/prism-v4/17-current-state-2026-06-20.md` that `event-ops` is still the runtime hub before implementation begins.
+- [x] Add a target-state note in `docs/prism-v4/18-future-state.md` that the API remains one modular monolith.
+- [x] Add Anthony/Owner D traceability in `docs/prism-v4/12-redesign-inventory.md` only if the inventory has an Owner D backend row that needs this architecture pointer.
+- [x] Add backend boundary rules to `scripts/check-prism-boundaries.mjs` using the current script style.
+- [x] Add a boundary-check fixture or sample path for each new backend rule.
 
 **Boundary checks to add:**
 
-- [ ] `event-read-models` cannot call Prisma mutation methods: `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`, `$executeRaw`, or `$executeRawUnsafe`.
-- [ ] `$queryRaw` and `$queryRawUnsafe` are allowed in read models only through approved query-builder files with a query-budget comment.
-- [ ] Capability modules cannot import another capability module's `src/services/*` internals.
-- [ ] Capability modules cannot import `event-ops`.
-- [ ] `event-ops` cannot add new business service files after the first owning module exists.
-- [ ] UI packages cannot import backend module paths.
+- [x] `event-read-models` cannot call Prisma mutation methods: `create`, `createMany`, `update`, `updateMany`, `upsert`, `delete`, `deleteMany`, `$executeRaw`, or `$executeRawUnsafe`.
+- [x] `$queryRaw` and `$queryRawUnsafe` are allowed in read models only through approved query-builder files with a query-budget comment.
+- [x] Capability modules cannot import another capability module's `src/services/*` internals.
+- [x] Capability modules cannot import `event-ops`.
+- [x] `event-ops` cannot add new business service files after the first owning module exists.
+- [x] UI packages cannot import backend module paths.
 
 **Tests:**
 
-- [ ] Add a failing fixture for an illegal read-model mutation, then make the boundary checker fail on it.
-- [ ] Add a passing fixture for an approved read query builder.
-- [ ] Run `npm run check:boundaries` from the repo root.
-- [ ] Run `git diff --check`.
+- [x] Add a failing fixture for an illegal read-model mutation, then make the boundary checker fail on it.
+- [x] Add a passing fixture for an approved read query builder.
+- [x] Run `npm run check:boundaries` from the repo root.
+- [x] Run `git diff --check`.
 
 **Commit checkpoint:** `docs: define backend modular monolith guardrails`
 

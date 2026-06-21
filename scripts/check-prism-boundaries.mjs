@@ -3,6 +3,65 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+const backendCapabilityModules = [
+  "access-control",
+  "identity-ops",
+  "trust-ops",
+  "notification-ops",
+  "event-core",
+  "inquiry-onboarding",
+  "commercial-ops",
+  "supplier-ops",
+  "staffing-ops",
+  "finance-ops",
+  "compliance-ops",
+  "floorplan",
+  "file-ops",
+  "guest-ops",
+  "closure-ops",
+  "ai-governance",
+  "event-read-models",
+];
+
+const backendCapabilityPattern = new RegExp(
+  `^apps/api/libs/modules/(?:${backendCapabilityModules.join("|")})/src/`,
+);
+
+const eventReadModelsPattern = /^apps\/api\/libs\/modules\/event-read-models\/src\//;
+const eventReadModelsQueriesPattern = /^apps\/api\/libs\/modules\/event-read-models\/src\/queries\/.*\.ts$/;
+const prismaMutationPattern =
+  /(?:\b(?:this\.)?prisma(?:\.[A-Za-z_$][\w$]*)*|\btx(?:\.[A-Za-z_$][\w$]*)*)\.(?:createMany|create|updateMany|update|upsert|deleteMany|delete|\$executeRawUnsafe|\$executeRaw)\s*\(/;
+const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
+
+const legacyEventOpsServiceFiles = new Set([
+  "apps/api/libs/modules/event-ops/src/services/ai-governance.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/audit.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/auth-operations.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/auth-security.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/billing-operations.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/client-onboarding-workflow.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/commercial-workflow.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/compliance-workflow.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/coordinators.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/document-vault.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/event-access-policy.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/event-closure.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/event-lifecycle.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/event-read-models.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/file-requirements-matrix.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/floor-plan-workflow.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/guest-workflow.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/inquiries.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/inquiry-workflow.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/live-operations.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/notification-outbox.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/privacy-operations.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/sample-state.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/supplier-network-workflow.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/suppliers.service.ts",
+  "apps/api/libs/modules/event-ops/src/services/workflow-command.service.ts",
+]);
+
 export const boundaryRules = [
   {
     name: "client app must not import event app internals",
@@ -18,6 +77,11 @@ export const boundaryRules = [
     name: "shared ui must not import app-local modules",
     filePattern: /^packages\/ui\//,
     importPattern: /from\s+["'](?:@\/|apps\/)/,
+  },
+  {
+    name: "shared ui must not import backend modules",
+    filePattern: /^packages\/ui\//,
+    importPattern: /from\s+["'](?:@prism\/modules|apps\/api\/libs\/modules)/,
   },
   {
     name: "shared types must not import React or app modules",
@@ -51,6 +115,48 @@ export const boundaryRules = [
     filePattern: /^apps\/api\/libs\/modules\/.*\/src\/.*service\.ts$/,
     importPattern: /(?:private\s+readonly\s+)?prisma\s*:\s*any\b/,
   },
+  {
+    name: "backend capability modules must not import private services from other capability modules",
+    filePattern: backendCapabilityPattern,
+    check(normalized, source) {
+      const moduleName = normalized.match(/^apps\/api\/libs\/modules\/([^/]+)\//)?.[1];
+      if (!moduleName) return false;
+
+      const privateServiceImport = source.match(
+        /from\s+["'](?:@prism\/modules\/|apps\/api\/libs\/modules\/)([^/"']+)\/src\/services\//,
+      );
+
+      return Boolean(privateServiceImport && privateServiceImport[1] !== moduleName);
+    },
+  },
+  {
+    name: "backend capability modules must not import event-ops compatibility internals",
+    filePattern: backendCapabilityPattern,
+    importPattern: /from\s+["'](?:@prism\/modules\/event-ops|apps\/api\/libs\/modules\/event-ops)/,
+  },
+  {
+    name: "event-read-models must not mutate Prisma state",
+    filePattern: eventReadModelsPattern,
+    check(_normalized, source) {
+      return prismaMutationPattern.test(source);
+    },
+  },
+  {
+    name: "event-read-models raw queries require an approved query builder with a query budget",
+    filePattern: eventReadModelsPattern,
+    check(normalized, source) {
+      if (!rawQueryPattern.test(source)) return false;
+      return !eventReadModelsQueriesPattern.test(normalized) || !source.includes("Query budget:");
+    },
+  },
+  {
+    name: "event-ops must not add new business service files after modularization starts",
+    filePattern: /^apps\/api\/libs\/modules\/event-ops\/src\/services\/[^/]+\.ts$/,
+    check(normalized) {
+      if (normalized.endsWith(".test.ts")) return false;
+      return !legacyEventOpsServiceFiles.has(normalized);
+    },
+  },
 ];
 
 export function listTrackedSourceFiles(root = process.cwd()) {
@@ -74,7 +180,7 @@ export function findBoundaryViolations(fileSources, rules = boundaryRules) {
       if (
         rule.filePattern.test(normalized) &&
         !(rule.allowedFilePattern && rule.allowedFilePattern.test(normalized)) &&
-        rule.importPattern.test(source)
+        ((rule.importPattern && rule.importPattern.test(source)) || (rule.check && rule.check(normalized, source)))
       ) {
         violations.push(`${normalized}: ${rule.name}`);
       }

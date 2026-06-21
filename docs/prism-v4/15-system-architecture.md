@@ -70,6 +70,37 @@ flowchart LR
 | Persistence | `apps/api/prisma/schema.prisma` | Prisma models for floorplans, events, users, inquiries, documents, suppliers, coordinators, live ops, compliance, billing, closure, notifications, guests, AI audit/approval, login history, and security alerts. |
 | Compatibility seed state | `SampleStateService` and `/api/sample/state` | Seed/demo/reset support only. New normal surfaces should not depend on it as their main read path. |
 
+
+## Backend Modular Monolith Direction
+
+Anthony's active backend implementation plan is `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith.md`. It keeps one NestJS API and one Prisma client, but changes backend ownership from a centralized `event-ops` hub toward capability modules with explicit public ports, transaction semantics, and role-scoped read models.
+
+July execution is intentionally bounded. Through July 31, 2026, the default backend architecture scope is guardrails, dependency-injection foundation, and transaction/side-effect ports. Capability extraction beyond that requires a child plan that names the affected feature-ledger row, route/app/actor, contract, fallback state, forbidden-role test, route-smoke evidence, and docs updates.
+
+Target backend module ownership:
+
+| Module | Long-term ownership |
+| --- | --- |
+| `access-control` | Actor resolution, event-scope checks, role and mutation policies. |
+| `identity-ops` | Sample auth compatibility, account approval, actor mapping, and future external-auth adapter boundary. |
+| `trust-ops` | Audit, privacy operations, login/security evidence, and approved retention/legal-hold behavior. |
+| `notification-ops` | Notification outbox rows, retry metadata, template key validation, and send-intent records. |
+| `event-core` | Event identity, lifecycle invariants, core status transitions, and workflow command history. |
+| `inquiry-onboarding` | Public inquiry, accepted-inquiry gate, conforme path, and client onboarding workflow. |
+| `commercial-ops` | Briefing, proposal, package pricing, and conforme-ready commercial workflow. |
+| `supplier-ops` | Supplier assignments, quote/readiness workflow, supplier portal actions, and supplier readiness reads. |
+| `staffing-ops` | Coordinator staffing, task assignment, and internal staffing views. |
+| `finance-ops` | Billing, payments, invoices, adjustments, and finance approval workflow. |
+| `compliance-ops` | Compliance workflow, evidence status, and policy-gated event checks. |
+| `floorplan` | Official PMCM floorplan workflow and client layout preference/read-only views. |
+| `file-ops` | File requirement matrix, upload metadata, document requirement workflow, and signed URL preparation. |
+| `guest-ops` | Guest list, access-code scope, RSVP/check-in state, and guest portal payloads. |
+| `closure-ops` | Event closure, archive readiness, and post-event evidence assembled from public reader ports. |
+| `ai-governance` | AI policy, prompt/template records, review state, and disabled-provider guardrails. |
+| `event-read-models` | Role-scoped PMCM/client/supplier/guest payload composition with no writes. |
+| `event-ops` | Compatibility facade only while existing routes migrate. |
+
+Executable backend guardrails live in `scripts/check-prism-boundaries.mjs`. The checker now blocks future capability modules from importing other modules' private service internals, prevents new capability modules from importing `event-ops`, prevents `event-read-models` from mutating Prisma state, requires raw read-model queries to live in approved query-builder files with a query budget, and prevents new top-level business service files from being added to the legacy `event-ops` service hub.
 ## Data Domains
 
 | Domain | Representative models |
