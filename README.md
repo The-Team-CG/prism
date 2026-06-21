@@ -109,7 +109,7 @@ npm run db:audit:indexes
 npm run db:perf:report
 ```
 
-`db:verify:offline` and `db:audit:queries` are safe local checks. The live schema, naming, and index audits require a reachable migrated database; on branch `db/schema-migration-plan`, the shared Supabase target has passed those audits after migration deployment. `db:perf:report` reads `pg_stat_statements` with credential redaction; re-run it after representative app traffic before treating the ranking as an event-ops workload profile.
+`db:verify:offline` and `db:audit:queries` are safe local checks. The live schema, naming, and index audits require a reachable migrated database; as of the 2026-06-22 DB migration review, the shared Supabase target has passed those audits after migration deployment. `db:perf:report` reads `pg_stat_statements` with credential redaction; re-run it after representative app traffic before treating the ranking as an event-ops workload profile.
 Useful event portal command:
 
 ```bash

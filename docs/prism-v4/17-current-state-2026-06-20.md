@@ -132,8 +132,8 @@ As of June 20, do not claim these as complete:
 - Full event health formula.
 - Full workflow template builder.
 
-## Post-Snapshot Branch Update: 2026-06-21
+## Post-Snapshot DB Update: 2026-06-22
 
-On branch `db/schema-migration-plan`, the database schema separation and query-optimization implementation has been deployed to the shared Supabase target after a JSON backup export. The branch adds Prisma multi-schema mappings, schema/table rename migrations, normalized index and constraint naming, FK/hot-path index SQL, database audit scripts, static query discipline checks, selected N+1 fixes, function-name cleanup, cursor page-limit contracts, and transaction-scope comments.
+The database schema separation and query-optimization implementation has been deployed to the shared Supabase target after a JSON backup export. The implementation adds Prisma multi-schema mappings, schema/table rename migrations, normalized index and constraint naming, FK/hot-path index SQL, database audit scripts, static query discipline checks, selected N+1 fixes, function-name cleanup, cursor page-limit contracts, and transaction-scope comments.
 
-Verified in the branch: Prisma validation, offline migration diff, static query audit, API typecheck, `@prism/types` tests, `@prism/api-client` tests, the event-ops test suite, role boundary check, live schema audit, live naming audit, live FK-index audit, live migration status, and redacted live performance report. Re-run the performance report after representative app traffic because the current top rows are mostly migration/admin/catalog queries.
+Verified in the 2026-06-22 review: Prisma validation, offline migration diff, static query audit, API typecheck, `@prism/types` tests, `@prism/api-client` tests, the event-ops test suite, role boundary check, live schema audit, live naming audit, live FK-index audit, live migration status, and redacted live performance report. Re-run the performance report after representative app traffic because the current top rows are mostly migration/admin/catalog queries.

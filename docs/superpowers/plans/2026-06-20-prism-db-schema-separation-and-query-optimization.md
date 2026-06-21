@@ -12,7 +12,7 @@
 
 ## Implementation Status: 2026-06-21
 
-Implemented on branch `db/schema-migration-plan`:
+Implemented in the 2026-06-22 DB migration review:
 
 - Prisma multi-schema mapping across 42 models with stable Prisma model names and normalized physical table names.
 - Domain schema migrations for `floorplan`, `identity`, `event_core`, `supplier_ops`, `staffing_ops`, `finance_ops`, `compliance_ops`, `guest_ops`, and `trust_ops`.
