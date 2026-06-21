@@ -147,6 +147,15 @@ describe('GuestWorkflowService', () => {
     );
     expect(service.mapGuestCheckIn(state.guestCheckIns[0] as any)).toMatchObject({ guestName: 'Existing Guest' });
     expect(service.mapGuestFeedback(feedback)).toMatchObject({ guestName: 'Sofia Lim', moderationStatus: 'pending_review' });
-    expect(JSON.stringify(service.mapGuestEvent(state.events[0] as any, 1))).not.toContain('privateNotes');
+    const guestEventPayload = service.mapGuestEvent(state.events[0] as any, 1);
+    const guestEventJson = JSON.stringify(guestEventPayload);
+    expect(guestEventPayload).not.toHaveProperty('clientPortalStatus');
+    expect(guestEventPayload).not.toHaveProperty('status');
+    expect(guestEventPayload).not.toHaveProperty('archived');
+    expect(guestEventPayload).not.toHaveProperty('floorPlanId');
+    expect(guestEventPayload).not.toHaveProperty('floorPlanDrafts');
+    expect(guestEventJson).not.toContain('budgetRange');
+    expect(guestEventJson).not.toContain('serviceRequirements');
+    expect(guestEventJson).not.toContain('privateNotes');
   });
 });

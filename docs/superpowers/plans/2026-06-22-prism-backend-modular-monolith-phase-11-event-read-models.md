@@ -37,6 +37,7 @@
 - Create: `apps/api/libs/modules/event-read-models/src/ports/supplier-event-read-model.port.ts` - supplier workspace/readiness contract.
 - Create: `apps/api/libs/modules/event-read-models/src/ports/billing-read-model.port.ts` - billing read contract.
 - Create: `apps/api/libs/modules/event-read-models/src/queries/event-read-models.queries.ts` - read-only Prisma query builder with query-budget comments.
+- Create: `apps/api/libs/modules/event-read-models/src/mappers/event-read-model.mappers.ts` - read-model mapper factory ownership.
 - Create: `apps/api/libs/modules/event-read-models/src/services/event-read-models.service.ts` - moved service.
 - Create: `apps/api/libs/modules/event-read-models/src/services/event-read-models.service.test.ts` - moved and expanded tests.
 - Create: `apps/api/libs/modules/event-read-models/tsconfig.lib.json` - Nest library build config.
@@ -339,7 +340,7 @@ Remove `EventReadModelsService` from `EVENT_OPS_PROVIDERS`; Nest must resolve it
 
 - [x] **Step 3: Update service and test imports**
 
-Import `EventReadModelsService`, `EventReadModelQueries`, and mapper types from `@prism/modules/event-read-models`.
+Import `EventReadModelsService`, `EventReadModelQueries`, mapper factories, and mapper types from `@prism/modules/event-read-models`. Route facade methods should call mapper factory helpers instead of assembling read-model callback objects inline.
 
 - [x] **Step 4: Update event-ops test helper**
 
@@ -424,7 +425,7 @@ Only check Phase 11 boxes after all Task 6 commands pass.
 
 - [x] **Step 2: Update architecture/current-state docs**
 
-Record that `event-read-models` owns role-scoped PMCM/client/supplier/billing read models through read-only query builders and public guest/staffing reader ports. Record that controller ownership remains in `event-ops` until Phase 13.
+Record that `event-read-models` owns role-scoped PMCM/client/supplier/billing read models through mapper factories, read-only query builders, query-budget tests, and public guest/staffing reader ports. Record that controller ownership remains in `event-ops` until Phase 13.
 
 - [x] **Step 3: Run final verification**
 
@@ -450,14 +451,14 @@ Commit message:
 
 ```bash
 git add apps/api docs
-git commit -m "refactor(api): extract event read models module"
+git commit -m "refactor(api): harden event read model boundaries"
 ```
 
 ---
 
 ## Self-Review
 
-- Spec coverage: Covers the behavior-preserving service extraction, no event-ops imports, public read-model tokens, role-scoped PMCM/client/supplier payloads, read-only query builders, guest/staffing reader ports, tests, build, boundary checks, and docs. Mapper-function relocation and high-volume query-count instrumentation remain tracked in the master Phase 11 checklist.
+- Spec coverage: Covers the behavior-preserving service extraction, mapper factory ownership, no event-ops imports, public read-model tokens, role-scoped PMCM/client/supplier payloads, guest payload PMCM-field exclusion, read-only query builders, guest/staffing reader ports, high-volume query-budget tests, build, boundary checks, and docs.
 - Boundary clarity: The plan intentionally keeps controllers in `event-ops` until Phase 13 and does not create generic repositories. Query builders are read-model-specific and include query-budget comments.
 - Placeholder scan: No unfinished-marker or generic test instructions remain; every task names files, code shape, commands, and expected results.
 - Type consistency: `EventReadModelsService`, `EventReadModelQueries`, `PmcmDashboardMappers`, `ClientWorkspaceMappers`, `SupplierWorkspaceMappers`, `BillingReadModelMappers`, `PMCM_EVENT_READ_MODEL`, `CLIENT_EVENT_READ_MODEL`, `SUPPLIER_EVENT_READ_MODEL`, and `BILLING_READ_MODEL` are used consistently.

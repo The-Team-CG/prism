@@ -94,7 +94,17 @@ import {
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
-import { EventReadModelsService, type PmcmDashboardMappers } from '@prism/modules/event-read-models';
+import {
+  createBillingReadModelMappers,
+  createClientWorkspaceMappers,
+  createPmcmDashboardMappers,
+  createSupplierWorkspaceMappers,
+  EventReadModelsService,
+  type BillingReadModelMappers,
+  type ClientWorkspaceMappers,
+  type PmcmDashboardMappers,
+  type SupplierWorkspaceMappers,
+} from '@prism/modules/event-read-models';
 import { EventClosureService } from './services/event-closure.service';
 import { PAREService } from './services/pare/pare.service';
 import {
@@ -626,29 +636,29 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private pmcmReadModelMappers(): PmcmDashboardMappers {
-    return {
+    return createPmcmDashboardMappers({
       coordinatorRoleRequirements: COORDINATOR_ROLE_REQUIREMENTS,
-      mapUser: (user) => this.mapUser(user),
-      mapInquiry: (inquiry) => this.mapInquiry(inquiry),
-      mapEvent: (event) => this.mapEvent(event),
-      mapDocument: (document) => this.mapDocument(document),
-      mapBriefing: (briefing) => this.mapBriefing(briefing),
-      mapSupplierQuoteRequest: (request) => this.mapSupplierQuoteRequest(request),
-      mapSupplierQuote: (quote) => this.mapSupplierQuote(quote),
-      mapCoordinator: (coordinator) => this.coordinatorsService.mapCoordinator(coordinator),
-      mapCoordinatorAssignment: (assignment) => this.coordinatorsService.mapCoordinatorAssignment(assignment),
-      mapComplianceRule: (rule) => this.mapComplianceRule(rule),
-      mapComplianceCheck: (check) => this.mapComplianceCheck(check),
-      mapBillingSource: (source) => this.billingOperationsService.mapBillingSource(source),
-      mapBillingStatement: (statement) => this.billingOperationsService.mapBillingStatement(statement),
-      mapPaymentMilestone: (payment, history) => this.billingOperationsService.mapPaymentMilestone(payment, history),
-      mapPaymentRecord: (record) => this.billingOperationsService.mapPaymentRecord(record),
-      mapPostEventDocument: (document) => this.mapPostEventDocument(document),
-      mapEventInsight: (insight) => this.mapEventInsight(insight),
-      mapFloorPlanDraft: (draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft),
-      mapAuditLog: (log) => this.auditService.mapAuditLog(log),
-      mapNotificationLog: (log) => this.mapNotificationLog(log),
-    };
+      mapUser: this.mapUser.bind(this),
+      mapInquiry: this.mapInquiry.bind(this),
+      mapEvent: this.mapEvent.bind(this),
+      mapDocument: this.mapDocument.bind(this),
+      mapBriefing: this.mapBriefing.bind(this),
+      mapSupplierQuoteRequest: this.mapSupplierQuoteRequest.bind(this),
+      mapSupplierQuote: this.mapSupplierQuote.bind(this),
+      mapCoordinator: this.coordinatorsService.mapCoordinator.bind(this.coordinatorsService),
+      mapCoordinatorAssignment: this.coordinatorsService.mapCoordinatorAssignment.bind(this.coordinatorsService),
+      mapComplianceRule: this.mapComplianceRule.bind(this),
+      mapComplianceCheck: this.mapComplianceCheck.bind(this),
+      mapBillingSource: this.billingOperationsService.mapBillingSource.bind(this.billingOperationsService),
+      mapBillingStatement: this.billingOperationsService.mapBillingStatement.bind(this.billingOperationsService),
+      mapPaymentMilestone: this.billingOperationsService.mapPaymentMilestone.bind(this.billingOperationsService),
+      mapPaymentRecord: this.billingOperationsService.mapPaymentRecord.bind(this.billingOperationsService),
+      mapPostEventDocument: this.mapPostEventDocument.bind(this),
+      mapEventInsight: this.mapEventInsight.bind(this),
+      mapFloorPlanDraft: this.floorPlanWorkflowService.mapFloorPlanDraft.bind(this.floorPlanWorkflowService),
+      mapAuditLog: this.auditService.mapAuditLog.bind(this.auditService),
+      mapNotificationLog: this.mapNotificationLog.bind(this),
+    });
   }
 
   async state() {
@@ -1131,25 +1141,33 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async listBilling(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    return this.eventReadModelsService.billing(actor, {
-      mapEvent: (event) => this.mapEvent(event),
-      mapBillingSource: (source) => this.billingOperationsService.mapBillingSource(source),
-      mapBillingStatement: (statement) => this.billingOperationsService.mapBillingStatement(statement),
-      mapPaymentMilestone: (payment, history) => this.billingOperationsService.mapPaymentMilestone(payment, history),
-      mapPaymentRecord: (record) => this.billingOperationsService.mapPaymentRecord(record),
-    });
+    return this.eventReadModelsService.billing(actor, this.billingReadModelMappers());
   }
 
   async listClientWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    return this.eventReadModelsService.clientWorkspace(actor, {
-      mapEvent: (event) => this.mapEvent(event),
-      mapDocument: (document) => this.mapDocument(document),
-      mapBriefing: (briefing) => this.mapBriefing(briefing),
-      mapBillingStatement: (statement) => this.billingOperationsService.mapBillingStatement(statement),
-      mapPaymentMilestone: (payment, history) => this.billingOperationsService.mapPaymentMilestone(payment, history),
-      mapFloorPlanDraft: (draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft),
-      mapAuditLog: (log) => this.auditService.mapAuditLog(log),
+    return this.eventReadModelsService.clientWorkspace(actor, this.clientWorkspaceMappers());
+  }
+
+  private billingReadModelMappers(): BillingReadModelMappers {
+    return createBillingReadModelMappers({
+      mapEvent: this.mapEvent.bind(this),
+      mapBillingSource: this.billingOperationsService.mapBillingSource.bind(this.billingOperationsService),
+      mapBillingStatement: this.billingOperationsService.mapBillingStatement.bind(this.billingOperationsService),
+      mapPaymentMilestone: this.billingOperationsService.mapPaymentMilestone.bind(this.billingOperationsService),
+      mapPaymentRecord: this.billingOperationsService.mapPaymentRecord.bind(this.billingOperationsService),
+    });
+  }
+
+  private clientWorkspaceMappers(): ClientWorkspaceMappers {
+    return createClientWorkspaceMappers({
+      mapEvent: this.mapEvent.bind(this),
+      mapDocument: this.mapDocument.bind(this),
+      mapBriefing: this.mapBriefing.bind(this),
+      mapBillingStatement: this.billingOperationsService.mapBillingStatement.bind(this.billingOperationsService),
+      mapPaymentMilestone: this.billingOperationsService.mapPaymentMilestone.bind(this.billingOperationsService),
+      mapFloorPlanDraft: this.floorPlanWorkflowService.mapFloorPlanDraft.bind(this.floorPlanWorkflowService),
+      mapAuditLog: this.auditService.mapAuditLog.bind(this.auditService),
     });
   }
 
@@ -1580,9 +1598,13 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async listSupplierWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    return this.eventReadModelsService.supplierWorkspace(actor, {
-      mapSupplierQuoteRequest: (request) => this.mapSupplierQuoteRequest(request),
-      mapSupplierQuoteForSupplier: (quote) => this.mapSupplierQuoteForSupplier(quote),
+    return this.eventReadModelsService.supplierWorkspace(actor, this.supplierWorkspaceMappers());
+  }
+
+  private supplierWorkspaceMappers(): SupplierWorkspaceMappers {
+    return createSupplierWorkspaceMappers({
+      mapSupplierQuoteRequest: this.mapSupplierQuoteRequest.bind(this),
+      mapSupplierQuoteForSupplier: this.mapSupplierQuoteForSupplier.bind(this),
     });
   }
 

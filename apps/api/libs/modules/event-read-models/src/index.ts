@@ -1,4 +1,5 @@
 export * from './event-read-models.module';
+export * from './mappers/event-read-model.mappers';
 export * from './ports/billing-read-model.port';
 export * from './ports/client-event-read-model.port';
 export * from './ports/event-read-models.tokens';

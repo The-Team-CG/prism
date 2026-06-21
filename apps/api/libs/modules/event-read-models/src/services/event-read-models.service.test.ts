@@ -152,6 +152,18 @@ function createPmcmReadModelService() {
     floorPlanDrafts: [],
   };
   const prisma = {
+    opsUser: {
+      findMany: vi.fn(async () => [
+        {
+          id: 'usr_pmcm',
+          name: 'Ms. Mys',
+          email: 'pmcm@example.com',
+          role: OpsUserRole.PmcmAdmin,
+          organization: 'PMCM',
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        },
+      ]),
+    },
     opsInquiry: {
       findMany: vi.fn(async () => [
         {
@@ -188,6 +200,21 @@ function createPmcmReadModelService() {
     opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', eventId: 'evt_visible' }]) },
     opsBriefing: { findMany: vi.fn(async () => []) },
     opsSupplierQuote: { findMany: vi.fn(async () => []) },
+    opsCoordinator: {
+      findMany: vi.fn(async () => [
+        {
+          id: 'coord_lead',
+          name: 'Lead Coordinator',
+          role: 'Event Lead',
+          email: 'lead@example.com',
+          phone: '+63 917 555 0188',
+          active: true,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        },
+      ]),
+    },
+    opsComplianceRule: { findMany: vi.fn(async () => []) },
     opsComplianceCheck: { findMany: vi.fn(async () => []) },
     opsBillingSource: { findMany: vi.fn(async () => []) },
     opsBillingStatement: { findMany: vi.fn(async () => []) },
@@ -195,6 +222,52 @@ function createPmcmReadModelService() {
     opsEventInsight: { findMany: vi.fn(async () => []) },
     opsAuditLog: { findMany: vi.fn(async () => []) },
     opsNotificationLog: { findMany: vi.fn(async () => []) },
+    opsSupplierCategory: {
+      findMany: vi.fn(async () => [
+        {
+          id: 'supcat_technicals',
+          slug: 'technicals',
+          name: 'Technicals',
+          sortOrder: 1,
+          active: true,
+          acceptableMin: 120000,
+          acceptableMax: 180000,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        },
+      ]),
+    },
+    opsSupplier: {
+      findMany: vi.fn(async () => [
+        {
+          id: 'sup_sonicline',
+          categoryId: 'supcat_technicals',
+          name: 'Sonic Line Events',
+          contactName: 'Dane Villanueva',
+          email: 'supplier@example.com',
+          phone: '+63 917 555 0103',
+          tier: 'tier_1',
+          bniMember: false,
+          serviceInclusions: 'Audio, lights, LED wall',
+          performanceNotes: '',
+          applicationDate: new Date('2026-01-01T00:00:00.000Z'),
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+          category: {
+            id: 'supcat_technicals',
+            slug: 'technicals',
+            name: 'Technicals',
+            sortOrder: 1,
+            active: true,
+            acceptableMin: 120000,
+            acceptableMax: 180000,
+            createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          },
+          reviews: [],
+          reliabilityNotes: [],
+          certifications: [],
+        },
+      ]),
+    },
   };
   const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
   const guestReader = createGuestReader();
@@ -372,6 +445,68 @@ describe('EventReadModelsService', () => {
     );
   });
 
+  it('builds PMCM dashboard payloads with operational fields from bounded read models', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const dashboard = await service.pmcmDashboard(actor, createPassthroughPmcmMappers());
+
+    expect((dashboard as any).users).toEqual([expect.objectContaining({ id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin })]);
+    expect((dashboard as any).events).toEqual([expect.objectContaining({ id: 'evt_visible', eventName: 'Ayala Summit' })]);
+    expect((dashboard as any).documents).toEqual([{ id: 'doc_1', eventId: 'evt_visible' }]);
+    expect((dashboard as any).paymentMilestones).toEqual([expect.objectContaining({ id: 'pay_overdue' })]);
+    expect((dashboard as any).coordinators).toEqual([expect.objectContaining({ id: 'coord_lead' })]);
+    expect((dashboard as any).coordinatorAssignments).toEqual([]);
+    expect((dashboard as any).supplierCategories).toEqual([
+      expect.objectContaining({ id: 'supcat_technicals', acceptableMin: 120000, acceptableMax: 180000 }),
+    ]);
+    expect((dashboard as any).suppliers).toEqual([expect.objectContaining({ id: 'sup_sonicline', categoryName: 'Technicals' })]);
+    expect(prisma.opsUser.findMany).toHaveBeenCalledWith({ take: 500, orderBy: { createdAt: 'asc' } });
+    expect(prisma.opsSupplierCategory.findMany).toHaveBeenCalledWith({ where: { active: true }, orderBy: { sortOrder: 'asc' } });
+  });
+
+  it('uses one bounded query-builder pass for high-volume PMCM dashboard records', async () => {
+    const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+    const queries = {
+      pmcmDashboard: vi.fn(async () => [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+      ]),
+      activeCoordinators: vi.fn(async () => []),
+      boundedCoordinatorAssignments: vi.fn(async () => []),
+    };
+    const service = new EventReadModelsService(
+      queries as any,
+      policy,
+      createGuestReader() as any,
+      createStaffingReader() as any,
+    );
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    await service.pmcmDashboard(actor, createPassthroughPmcmMappers());
+
+    expect(queries.pmcmDashboard).toHaveBeenCalledTimes(1);
+    expect(queries.activeCoordinators).toHaveBeenCalledTimes(1);
+    expect(queries.boundedCoordinatorAssignments).toHaveBeenCalledTimes(1);
+  });
   it('keeps client action-center work scoped to the client visible event set', async () => {
     const eventVisible = {
       id: 'evt_visible',
