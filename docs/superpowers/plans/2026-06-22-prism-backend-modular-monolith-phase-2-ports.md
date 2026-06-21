@@ -59,34 +59,34 @@ Out of scope:
 
 ## Steps
 
-- [ ] Add shared-kernel command/transaction context primitives.
-- [ ] Add stable `Symbol.for(...)` provider tokens in one public file per concern.
-- [ ] Add `AuditWriter` and `NotificationOutboxWriter` ports.
-- [ ] Add adapters that wrap existing `AuditService.audit` and `NotificationOutboxService.queue` methods.
-- [ ] Register `AUDIT_WRITER`, `NOTIFICATION_OUTBOX_WRITER`, `EVENT_ACCESS_POLICY`, and `WORKFLOW_COMMAND_LOG` providers in `EventOpsModule`.
-- [ ] Update `WorkflowCommandService` to support `same_tx`, `after_commit`, `durable_outbox`, and `read_only` labels without introducing a domain-event bus.
-- [ ] Update coordinator assignment and acknowledgement to use command context and side-effect ports.
-- [ ] Add transaction-context and notification-idempotency tests.
-- [ ] Run verification commands.
-- [ ] Update parent and child plan checkboxes after verification passes.
+- [x] Add shared-kernel command/transaction context primitives.
+- [x] Add stable `Symbol.for(...)` provider tokens in one public file per concern.
+- [x] Add `AuditWriter` and `NotificationOutboxWriter` ports.
+- [x] Add adapters that wrap existing `AuditService.audit` and `NotificationOutboxService.queue` methods.
+- [x] Register `AUDIT_WRITER`, `NOTIFICATION_OUTBOX_WRITER`, `EVENT_ACCESS_POLICY`, and `WORKFLOW_COMMAND_LOG` providers in `EventOpsModule`.
+- [x] Update `WorkflowCommandService` to support `same_tx`, `after_commit`, `durable_outbox`, and `read_only` labels without introducing a domain-event bus.
+- [x] Update coordinator assignment and acknowledgement to use command context and side-effect ports.
+- [x] Add transaction-context and notification-idempotency tests.
+- [x] Run verification commands.
+- [x] Update parent and child plan checkboxes after verification passes.
 
 ## Verification
 
-- [ ] `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/coordinators.service.test.ts libs/modules/event-ops/src/services/notification-outbox.service.test.ts libs/modules/event-ops/src/services/workflow-command.service.test.ts`
-- [ ] `npm --workspace prism-api run test:event-ops`
-- [ ] `npm --workspace prism-api run build`
-- [ ] `npm run check:boundaries`
-- [ ] `git diff --check`
+- [x] `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/coordinators.service.test.ts libs/modules/event-ops/src/services/notification-outbox.service.test.ts libs/modules/event-ops/src/services/workflow-command.service.test.ts`
+- [x] `npm --workspace prism-api run test:event-ops`
+- [x] `npm --workspace prism-api run build`
+- [x] `npm run check:boundaries`
+- [x] `git diff --check`
 
 ## Acceptance Criteria
 
-- [ ] Representative coordinator commands no longer call audit/outbox concrete services directly.
-- [ ] Coordinator assignment and acknowledgement name `same_tx` in code/tests.
-- [ ] Audit and outbox writers can use a transaction-scoped Prisma client.
-- [ ] Notification outbox idempotency key prevents duplicate queued work.
-- [ ] Provider tokens are exported from exactly one file per concern under `event-ops/src/ports` until Phase 3 moves them.
-- [ ] No domain-event bus is introduced.
-- [ ] Event-ops tests, API build, boundary check, and diff check pass.
+- [x] Representative coordinator commands no longer call audit/outbox concrete services directly.
+- [x] Coordinator assignment and acknowledgement name `same_tx` in code/tests.
+- [x] Audit and outbox writers can use a transaction-scoped Prisma client.
+- [x] Notification outbox idempotency key prevents duplicate queued work.
+- [x] Provider tokens are exported from exactly one file per concern under `event-ops/src/ports` until Phase 3 moves them.
+- [x] No domain-event bus is introduced.
+- [x] Event-ops tests, API build, boundary check, and diff check pass.
 
 ## Stop Rules
 

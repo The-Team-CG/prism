@@ -143,4 +143,6 @@ The active backend modular-monolith implementation plan now exists at `docs/supe
 
 Phase 0 guardrails are active in the boundary checker. Future backend work must not add new top-level business service files under `apps/api/libs/modules/event-ops/src/services`, must not let new capability modules import `event-ops` compatibility internals, must not import another capability module's private `src/services` path, and must keep `event-read-models` read-only. Raw read-model SQL is allowed only in approved query-builder files with an explicit query budget.
 
+Phase 2 is now implemented as a representative runtime slice: command/transaction context primitives live in `apps/api/libs/core/shared-kernel`, audit/outbox/access/workflow tokens and adapters live under `event-ops/src/ports`, and coordinator assignment plus acknowledgement run as `same_tx` commands with transaction-scoped audit/outbox side effects. `event-ops` remains the compatibility facade; no capability modules have been extracted yet.
+
 The July 31 execution boundary remains: backend work before July should prioritize guardrails, dependency-injection foundation, transaction/side-effect ports, role-boundary evidence, and stable app contracts. Larger capability extraction is post-July by default unless a child plan ties the extraction to a feature-ledger row and route evidence.

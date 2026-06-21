@@ -1,0 +1,1 @@
+export const AUDIT_WRITER = Symbol.for('prism.trustOps.auditWriter');

@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
+import { PrismTransactionRunner } from '../../../core/shared-kernel/src';
 import { EventOpsService } from './event-ops.service';
 import { AiGovernanceService } from './services/ai-governance.service';
 import { AuditService } from './services/audit.service';
@@ -26,7 +27,10 @@ import { PrivacyOperationsService } from './services/privacy-operations.service'
 import { SampleStateService } from './services/sample-state.service';
 import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
 import { SuppliersService } from './services/suppliers.service';
-import { WorkflowCommandService } from './services/workflow-command.service';import { AuthSecurityService } from './services/auth-security.service';
+import { WorkflowCommandService } from './services/workflow-command.service';
+import { AuthSecurityService } from './services/auth-security.service';
+import { AuditWriterAdapter } from './ports/audit-writer.adapter';
+import { NotificationOutboxWriterAdapter } from './ports/notification-outbox-writer.adapter';
 
 function inquiry(overrides: Record<string, unknown> = {}) {
   const createdAt = new Date('2026-04-29T00:00:00.000Z');
@@ -952,7 +956,9 @@ function createPrisma(seedInquiry: any = inquiry()) {
 function createEventOpsService(prisma: any) {
   const auditService = new AuditService(prisma);
   const notificationOutboxService = new NotificationOutboxService(prisma);
-  const workflowCommandService = new WorkflowCommandService();
+  const auditWriter = new AuditWriterAdapter(auditService);
+  const notificationOutboxWriter = new NotificationOutboxWriterAdapter(notificationOutboxService);
+  const workflowCommandService = new WorkflowCommandService(new PrismTransactionRunner(prisma));
   const documentVaultService = new DocumentVaultService();
   const eventLifecycleService = new EventLifecycleService();
   const sampleStateService = new SampleStateService(prisma);
@@ -971,8 +977,8 @@ function createEventOpsService(prisma: any) {
   const privacyOperationsService = new PrivacyOperationsService(prisma, auditService);
   const coordinatorsService = new CoordinatorsService(
     prisma,
-    auditService,
-    notificationOutboxService,
+    auditWriter,
+    notificationOutboxWriter,
     workflowCommandService,
   );
   const liveOperationsService = new LiveOperationsService(

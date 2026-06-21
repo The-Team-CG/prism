@@ -101,6 +101,8 @@ Target backend module ownership:
 | `event-ops` | Compatibility facade only while existing routes migrate. |
 
 Executable backend guardrails live in `scripts/check-prism-boundaries.mjs`. The checker now blocks future capability modules from importing other modules' private service internals, prevents new capability modules from importing `event-ops`, prevents `event-read-models` from mutating Prisma state, requires raw read-model queries to live in approved query-builder files with a query budget, and prevents new top-level business service files from being added to the legacy `event-ops` service hub.
+Phase 2 runtime foundation is now active inside `event-ops`: `core/shared-kernel` provides `PrismTransactionRunner` plus command and transaction context types, `event-ops/src/ports` exports the first audit/outbox/access/workflow provider tokens, and coordinator assignment/acknowledgement use `same_tx` command execution through audit and notification writer ports. This is still a compatibility-stage implementation; `trust-ops`, `notification-ops`, `access-control`, and `event-core` are not separate runtime modules until Phase 3.
+
 ## Data Domains
 
 | Domain | Representative models |

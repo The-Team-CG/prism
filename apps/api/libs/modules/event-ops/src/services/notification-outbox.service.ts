@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsNotificationLog } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
+import type { PrismTransactionContext } from '../../../../core/shared-kernel/src';
 import { NotificationChannel } from '../ops.constants';
 
 export type NotificationOutboxChannel = 'email' | 'viber' | 'zoom' | 'canva' | 'storage' | 'ai';
@@ -9,18 +10,34 @@ export type NotificationOutboxChannel = 'email' | 'viber' | 'zoom' | 'canva' | '
 const DEFAULT_MAX_ATTEMPTS = 3;
 const FORCE_FAIL_MARKER = 'FORCE_FAIL';
 
+type NotificationLogDelegateWithCorrelationLookup = {
+  findFirst(args: { where: { correlationId: string } }): Promise<OpsNotificationLog | null>;
+};
+
 @Injectable()
 export class NotificationOutboxService {
   constructor(private readonly prisma: PrismaService) {}
 
-  queue(
+  async queue(
     eventId: string | undefined,
     recipient: string,
     message: string,
     channel: NotificationOutboxChannel = NotificationChannel.Email,
-    options: { forceFail?: boolean; correlationId?: string } = {},
+    options: { forceFail?: boolean; correlationId?: string; idempotencyKey?: string } = {},
+    context?: PrismTransactionContext,
   ) {
-    return this.prisma.opsNotificationLog.create({
+    const prisma = context?.prisma ?? this.prisma;
+    const correlationId = options.correlationId ?? options.idempotencyKey ?? null;
+
+    if (options.idempotencyKey) {
+      const notificationLog = prisma.opsNotificationLog as unknown as NotificationLogDelegateWithCorrelationLookup;
+      const existing = await notificationLog.findFirst({
+        where: { correlationId: options.idempotencyKey },
+      });
+      if (existing) return existing;
+    }
+
+    return prisma.opsNotificationLog.create({
       data: {
         id: `not_${randomUUID()}`,
         eventId,
@@ -29,7 +46,7 @@ export class NotificationOutboxService {
         message,
         status: 'queued',
         attempts: 0,
-        correlationId: options.correlationId ?? null,
+        correlationId,
         failureReason: options.forceFail ? FORCE_FAIL_MARKER : null,
       },
     });

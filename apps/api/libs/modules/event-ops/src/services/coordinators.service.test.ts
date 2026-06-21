@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
+import { PrismTransactionRunner } from '../../../../core/shared-kernel/src';
+import { AuditWriterAdapter } from '../ports/audit-writer.adapter';
+import { NotificationOutboxWriterAdapter } from '../ports/notification-outbox-writer.adapter';
 import { AuditService } from './audit.service';
 import { CoordinatorsService } from './coordinators.service';
 import { NotificationOutboxService } from './notification-outbox.service';
@@ -41,54 +44,64 @@ function createPrisma() {
       event: { id: 'evt_conflict', eventName: 'Other Event' },
     },
   ];
-  const notifications: unknown[] = [];
-  const audits: unknown[] = [];
+  const notifications: any[] = [];
+  const audits: any[] = [];
+  const transactionCalls: string[] = [];
+
+  const prisma = {
+    opsEvent: { findUnique: async () => event },
+    opsCoordinator: {
+      findUnique: async () => coordinator,
+      findMany: async () => [coordinator],
+    },
+    opsCoordinatorAssignment: {
+      findFirst: async () => assignments[0],
+      create: async ({ data }: { data: any }) => {
+        const row = { ...data, createdAt: new Date(), event };
+        assignments.push(row);
+        return row;
+      },
+      update: async ({ data }: { data: any }) => {
+        assignments[1] = { ...assignments[1], ...data };
+        return assignments[1];
+      },
+    },
+    opsAuditLog: {
+      findFirst: async () => null,
+      create: async ({ data }: { data: unknown }) => {
+        audits.push(data);
+        return data;
+      },
+    },
+    opsNotificationLog: {
+      findFirst: async ({ where }: { where: { correlationId?: string } }) =>
+        notifications.find((notification) => notification.correlationId === where.correlationId) ?? null,
+      create: async ({ data }: { data: unknown }) => {
+        notifications.push(data);
+        return data;
+      },
+    },
+    $transaction: async (callback: (tx: unknown) => unknown) => {
+      transactionCalls.push('same_tx');
+      return callback(prisma);
+    },
+  };
 
   return {
     assignments,
     notifications,
     audits,
-    prisma: {
-      opsEvent: { findUnique: async () => event },
-      opsCoordinator: {
-        findUnique: async () => coordinator,
-        findMany: async () => [coordinator],
-      },
-      opsCoordinatorAssignment: {
-        findFirst: async () => assignments[0],
-        create: async ({ data }: { data: any }) => {
-          const row = { ...data, createdAt: new Date(), event };
-          assignments.push(row);
-          return row;
-        },
-        update: async ({ data }: { data: any }) => {
-          assignments[1] = { ...assignments[1], ...data };
-          return assignments[1];
-        },
-      },
-      opsAuditLog: {
-        findFirst: async () => null,
-        create: async ({ data }: { data: unknown }) => {
-          audits.push(data);
-          return data;
-        },
-      },
-      opsNotificationLog: {
-        create: async ({ data }: { data: unknown }) => {
-          notifications.push(data);
-          return data;
-        },
-      },
-    },
+    transactionCalls,
+    prisma,
   };
 }
 
 function createService(prisma: any) {
   return new CoordinatorsService(
     prisma,
-    new AuditService(prisma),
-    new NotificationOutboxService(prisma),
-    new WorkflowCommandService(),
+    new AuditWriterAdapter(new AuditService(prisma)),
+    new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma)),
+    new WorkflowCommandService(new PrismTransactionRunner(prisma)),
   );
 }
 describe('CoordinatorsService', () => {
@@ -109,6 +122,8 @@ describe('CoordinatorsService', () => {
     expect(assignment.doubleBookingWarning).toBe(true);
     expect(assignment.conflictEventName).toBe('Other Event');
     expect(fake.notifications).toHaveLength(2);
+    expect(fake.audits).toHaveLength(1);
+    expect(fake.transactionCalls).toEqual(['same_tx']);
   });
 
   it('acknowledges a pending coordinator assignment', async () => {
@@ -124,6 +139,7 @@ describe('CoordinatorsService', () => {
 
     expect(acknowledged.status).toBe('acknowledged');
     expect(acknowledged.acknowledgedAt).toBeTruthy();
+    expect(fake.transactionCalls).toEqual(['same_tx', 'same_tx']);
   });
 });
 

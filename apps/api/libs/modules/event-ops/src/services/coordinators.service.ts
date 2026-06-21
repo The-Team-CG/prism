@@ -1,10 +1,14 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
+import type { PrismCommandContext } from '../../../../core/shared-kernel/src';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus } from '../ops.constants';
-import { AuditService } from './audit.service';
-import { NotificationOutboxService } from './notification-outbox.service';
+import type { AuditWriter } from '../ports/audit-writer.port';
+import { AUDIT_WRITER } from '../ports/trust-ops.tokens';
+import type { NotificationOutboxWriter } from '../ports/notification-outbox-writer.port';
+import { NOTIFICATION_OUTBOX_WRITER } from '../ports/notification-ops.tokens';
+import { WORKFLOW_COMMAND_LOG } from '../ports/event-core.tokens';
 import { WorkflowCommandService } from './workflow-command.service';
 
 export type CreateCoordinatorAssignmentInput = {
@@ -32,9 +36,9 @@ function timestamp(value: Date) {
 export class CoordinatorsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly notificationOutboxService: NotificationOutboxService,
-    private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
+    @Inject(WORKFLOW_COMMAND_LOG) private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
   async listCoordinators() {
@@ -50,6 +54,13 @@ export class CoordinatorsService {
     let coordinator: OpsCoordinator | null = null;
     let role = '';
     let conflict: CoordinatorConflict | null = null;
+    const commandContext: PrismCommandContext = {
+      actorId: 'pmcm_admin',
+      actorRole: 'pmcm_admin',
+      eventId,
+      correlationId: `coord_assign_${eventId}_${input.coordinatorId ?? input.coordinatorName ?? input.role ?? 'unassigned'}`,
+      idempotencyKey: `coord-assign:${eventId}:${input.coordinatorId ?? input.coordinatorName ?? input.role ?? 'unassigned'}`,
+    };
 
     return this.workflowCommandService.execute<
       OpsCoordinatorAssignment,
@@ -57,6 +68,8 @@ export class CoordinatorsService {
     >({
       name: 'assign_coordinator',
       eventId,
+      context: commandContext,
+      sideEffectMode: 'same_tx',
       validateState: async () => {
         event = await this.requireEvent(eventId);
         coordinator = await this.resolveCoordinator(input);
@@ -83,9 +96,10 @@ export class CoordinatorsService {
           );
         }
       },
-      write: () => {
+      write: (transactionContext) => {
         if (!event || !coordinator) throw new NotFoundException('Coordinator not found');
-        return this.prisma.opsCoordinatorAssignment.create({
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        return prisma.opsCoordinatorAssignment.create({
           data: {
             id: `coord_asg_${randomUUID()}`,
             eventId,
@@ -100,10 +114,13 @@ export class CoordinatorsService {
           },
         });
       },
-      sideEffects: async (assignment) => {
+      sideEffects: async (assignment, transactionContext) => {
         if (!event || !coordinator) return;
         await Promise.all([
-          this.auditService.audit(eventId, 'PMCM Admin', `Assigned ${coordinator.name} as ${role}`, {
+          this.auditWriter.write({
+            eventId,
+            actor: 'PMCM Admin',
+            action: `Assigned ${coordinator.name} as ${role}`,
             actionType: AuditActionType.Assign,
             category: AuditCategory.Events,
             affectedType: 'coordinator_assignment',
@@ -114,13 +131,22 @@ export class CoordinatorsService {
               conflictEventId: conflict?.eventId ?? null,
               conflictEventName: conflict?.event.eventName ?? null,
             },
-          }),
-          this.notificationOutboxService.queue(
+          }, transactionContext),
+          this.notificationOutboxWriter.write({
             eventId,
-            coordinator.email,
-            `Coordinator assignment issued: ${event.eventName} (${role})`,
-          ),
-          this.notificationOutboxService.queue(eventId, assignment.coordinatorName, 'Coordinator assignment issued', 'viber'),
+            recipient: coordinator.email,
+            message: `Coordinator assignment issued: ${event.eventName} (${role})`,
+            correlationId: commandContext.correlationId,
+            idempotencyKey: `${commandContext.idempotencyKey}:email`,
+          }, transactionContext),
+          this.notificationOutboxWriter.write({
+            eventId,
+            recipient: assignment.coordinatorName,
+            message: 'Coordinator assignment issued',
+            channel: 'viber',
+            correlationId: commandContext.correlationId,
+            idempotencyKey: `${commandContext.idempotencyKey}:viber`,
+          }, transactionContext),
         ]);
       },
       project: (assignment) => this.mapCoordinatorAssignment(assignment),
@@ -128,32 +154,47 @@ export class CoordinatorsService {
   }
 
   async acknowledgeCoordinator(eventId: string, assignmentId: string) {
+    const commandContext: PrismCommandContext = {
+      actorId: 'coordinator',
+      actorRole: 'coordinator',
+      eventId,
+      correlationId: `coord_ack_${eventId}_${assignmentId}`,
+      idempotencyKey: `coord-ack:${eventId}:${assignmentId}`,
+    };
+
     return this.workflowCommandService.execute<
       OpsCoordinatorAssignment,
       ReturnType<CoordinatorsService['mapCoordinatorAssignment']>
     >({
       name: 'acknowledge_coordinator_assignment',
       eventId,
+      context: commandContext,
+      sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
       },
-      write: () =>
-        this.prisma.opsCoordinatorAssignment
+      write: (transactionContext) => {
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        return prisma.opsCoordinatorAssignment
           .update({
             where: { id: assignmentId },
             data: { status: CoordinatorAssignmentStatus.Acknowledged, acknowledgedAt: new Date() },
           })
           .catch(() => {
             throw new NotFoundException('Coordinator assignment not found');
-          }),
-      sideEffects: async (assignment) => {
-        await this.auditService.audit(eventId, assignment.coordinatorName, 'Acknowledged coordinator assignment', {
+          });
+      },
+      sideEffects: async (assignment, transactionContext) => {
+        await this.auditWriter.write({
+          eventId,
+          actor: assignment.coordinatorName,
+          action: 'Acknowledged coordinator assignment',
           actionType: AuditActionType.Update,
           category: AuditCategory.Events,
           affectedType: 'coordinator_assignment',
           affectedId: assignment.id,
           affectedLabel: assignment.coordinatorName,
-        });
+        }, transactionContext);
       },
       project: (assignment) => this.mapCoordinatorAssignment(assignment),
     });
@@ -214,7 +255,6 @@ export class CoordinatorsService {
     if (!coordinator.active) throw new BadRequestException('Coordinator is inactive');
     return coordinator as OpsCoordinator;
   }
-
   private async requireEvent(eventId: string) {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');

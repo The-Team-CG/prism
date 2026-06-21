@@ -458,15 +458,15 @@ The real provider list must include every service currently constructed inside `
 
 **Edits:**
 
-- [ ] Add `PrismTransactionRunner` and command context types under `core/shared-kernel` only if a real mutating command uses them in this phase.
-- [ ] Add stable provider tokens in single public files: `trust-ops.tokens.ts`, `notification-ops.tokens.ts`, `access-control.tokens.ts`, and `event-core.tokens.ts`.
-- [ ] Use string tokens or `Symbol.for(...)`; do not rely on TypeScript interfaces as runtime tokens.
-- [ ] Add adapter providers when existing method names do not match port names, for example `AuditWriterAdapter` wrapping `AuditService.audit`.
-- [ ] Add `AUDIT_WRITER` provider through `useExisting` only when the service already implements the exact port method names.
-- [ ] Add `NOTIFICATION_OUTBOX_WRITER` provider through an adapter if the existing service method is `queue` or another domain-specific method.
-- [ ] Add `EVENT_ACCESS_POLICY` provider for access checks.
-- [ ] Add `WORKFLOW_COMMAND_LOG` provider for command history.
-- [ ] Update two or three representative commands to use the injected ports and command context.
+- [x] Add `PrismTransactionRunner` and command context types under `core/shared-kernel` only if a real mutating command uses them in this phase.
+- [x] Add stable provider tokens in single public files: `trust-ops.tokens.ts`, `notification-ops.tokens.ts`, `access-control.tokens.ts`, and `event-core.tokens.ts`.
+- [x] Use string tokens or `Symbol.for(...)`; do not rely on TypeScript interfaces as runtime tokens.
+- [x] Add adapter providers when existing method names do not match port names, for example `AuditWriterAdapter` wrapping `AuditService.audit`.
+- [x] Add `AUDIT_WRITER` provider through `useExisting` only when the service already implements the exact port method names.
+- [x] Add `NOTIFICATION_OUTBOX_WRITER` provider through an adapter if the existing service method is `queue` or another domain-specific method.
+- [x] Add `EVENT_ACCESS_POLICY` provider for access checks.
+- [x] Add `WORKFLOW_COMMAND_LOG` provider for command history.
+- [x] Update two or three representative commands to use the injected ports and command context.
 
 **Provider examples:**
 
@@ -492,17 +492,17 @@ export class AuditWriterAdapter implements AuditWriter {
 
 **Tests:**
 
-- [ ] Add a command test proving workflow mutation and audit write use the same transaction context for a `same_tx` command.
-- [ ] Add an outbox test proving an idempotency key prevents duplicate queued notifications for a retryable command.
-- [ ] Run `npm --workspace prism-api run test -- audit` or the closest matching API test slice.
-- [ ] Run `npm --workspace prism-api run build`.
+- [x] Add a command test proving workflow mutation and audit write use the same transaction context for a `same_tx` command.
+- [x] Add an outbox test proving an idempotency key prevents duplicate queued notifications for a retryable command.
+- [x] Run `npm --workspace prism-api run test -- audit` or the closest matching API test slice.
+- [x] Run `npm --workspace prism-api run build`.
 
 **Acceptance criteria:**
 
-- [ ] Representative commands no longer call audit/outbox concrete services directly.
-- [ ] Side-effect mode is named in test descriptions or command comments.
-- [ ] Provider tokens are exported from exactly one public module path each.
-- [ ] No new generic event bus exists unless a command actually emits and consumes a domain event.
+- [x] Representative commands no longer call audit/outbox concrete services directly.
+- [x] Side-effect mode is named in test descriptions or command comments.
+- [x] Provider tokens are exported from exactly one public module path each.
+- [x] No new generic event bus exists unless a command actually emits and consumes a domain event.
 
 **Commit checkpoint:** `refactor(api): add transaction and side-effect ports`
 
@@ -527,7 +527,7 @@ export class AuditWriterAdapter implements AuditWriter {
 
 **Tests:**
 
-- [ ] Run `npm --workspace prism-api run build`.
+- [x] Run `npm --workspace prism-api run build`.
 - [ ] Run `npm --workspace prism-api run test -- event-ops`.
 - [ ] Run `npm run check:boundaries`.
 - [ ] Run `git diff --check`.

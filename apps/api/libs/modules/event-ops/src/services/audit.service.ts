@@ -3,6 +3,7 @@ import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } 
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { createHash, randomUUID } from 'node:crypto';
+import type { PrismTransactionContext } from '../../../../core/shared-kernel/src';
 import {
   AuditActionType,
   AuditCategory,
@@ -24,7 +25,7 @@ type AuditLogFilters = {
   limit?: string;
 };
 
-type AuditLogInput = {
+export type AuditLogInput = {
   eventId?: string;
   actor: string;
   actorRole?: string;
@@ -180,13 +181,15 @@ export class AuditService {
     actor: string,
     action: string,
     options: Omit<AuditLogInput, 'eventId' | 'actor' | 'action'> = {},
+    context?: PrismTransactionContext,
   ) {
-    const previous = await this.prisma.opsAuditLog.findFirst({
+    const prisma = context?.prisma ?? this.prisma;
+    const previous = await prisma.opsAuditLog.findFirst({
       orderBy: { createdAt: 'desc' },
       select: { immutableHash: true },
     });
 
-    return this.prisma.opsAuditLog.create({
+    return prisma.opsAuditLog.create({
       data: this.buildAuditData({
         eventId,
         actor,

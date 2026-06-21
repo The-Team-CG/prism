@@ -5,6 +5,9 @@ function createService() {
   const notifications: Array<Record<string, unknown>> = [];
   const prisma = {
     opsNotificationLog: {
+      findFirst: vi.fn(async ({ where }: { where: { correlationId?: string } }) =>
+        notifications.find((notification) => notification.correlationId === where.correlationId) ?? null,
+      ),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
         const record = { ...data, createdAt: new Date('2026-05-01T08:00:00.000Z') };
         notifications.push(record);
@@ -74,5 +77,22 @@ describe('NotificationOutboxService', () => {
       failureReason: 'FORCE_FAIL: Sample adapter forced failure (2/2)',
     });
     expect(thirdAttempt).toEqual([]);
+  });
+  it('uses an idempotency key to avoid duplicate queued notification work', async () => {
+    const { notifications, prisma, service } = createService();
+
+    const first = await service.queue('evt_1', 'client@example.test', 'Conforme ready', 'email', {
+      idempotencyKey: 'notif-key-1',
+    });
+    const second = await service.queue('evt_1', 'client@example.test', 'Conforme ready', 'email', {
+      idempotencyKey: 'notif-key-1',
+    });
+
+    expect(second).toBe(first);
+    expect(notifications).toHaveLength(1);
+    expect(prisma.opsNotificationLog.findFirst).toHaveBeenCalledWith({
+      where: { correlationId: 'notif-key-1' },
+    });
+    expect(prisma.opsNotificationLog.create).toHaveBeenCalledTimes(1);
   });
 });
