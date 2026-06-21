@@ -111,6 +111,8 @@ Phase 6 file extraction is now active: `FileRequirementsMatrixService` and `Docu
 
 Phase 7A inquiry-onboarding extraction is now active: `InquiriesService`, `InquiryWorkflowService`, and `ClientOnboardingWorkflowService` live in `inquiry-onboarding`, `InquiryOnboardingModule` owns the runtime providers and public inquiry/client-onboarding command tokens, and `event-ops` keeps route compatibility through old-path re-exports plus imported module providers. Cross-domain PMCM onboarding reads remain in `event-ops` until read-model extraction.
 
+Phase 7B commercial extraction is now active: `CommercialWorkflowService` lives in `commercial-ops`, `CommercialOpsModule` owns quote workflow command/read tokens, and a local `PrismaQuoteSupplierResolver` keeps manual quote supplier resolution out of `event-ops`. `event-ops` keeps route compatibility through an old-path re-export and imported module provider.
+
 ## Data Domains
 
 | Domain | Representative models |

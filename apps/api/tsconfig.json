@@ -114,7 +114,13 @@
                                                                                 ],
                                           "@prism/modules/inquiry-onboarding/*":  [
                                                                                       "libs/modules/inquiry-onboarding/src/*"
-                                                                                  ]
+                                                                                  ],
+                                          "@prism/modules/commercial-ops":  [
+                                                                                "libs/modules/commercial-ops/src/index"
+                                                                            ],
+                                          "@prism/modules/commercial-ops/*":  [
+                                                                                  "libs/modules/commercial-ops/src/*"
+                                                                              ]
                                       }
                         }
 }

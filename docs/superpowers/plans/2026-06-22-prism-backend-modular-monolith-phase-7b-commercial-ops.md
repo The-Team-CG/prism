@@ -1,6 +1,6 @@
 # Prism Backend Modular Monolith Phase 7B Commercial Ops Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extract supplier quote request, quote submission/revision, quote selection, and quote-request read behavior into `commercial-ops` while preserving existing event and supplier quote route contracts.
 
@@ -75,7 +75,7 @@ Out of scope:
 
 ## Task 1 - Strengthen Focused Commercial Tests Before Moving
 
-- [ ] Extend `apps/api/libs/modules/event-ops/src/services/commercial-workflow.service.test.ts` with a second test that verifies quote selection marks competing quotes and requests correctly. Use the existing file and append this test case:
+- [x] Extend `apps/api/libs/modules/event-ops/src/services/commercial-workflow.service.test.ts` with a second test that verifies quote selection marks competing quotes and requests correctly. Use the existing file and append this test case:
 
 ```ts
   it('selects one quote, closes competing requests, and queues PMCM side effects', async () => {
@@ -168,51 +168,74 @@ Out of scope:
   });
 ```
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/commercial-workflow.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/commercial-workflow.service.test.ts`.
   Expected before move: PASS.
 
 ## Task 2 - Create Commercial-Ops Module Shell
 
-- [ ] Create directories `apps/api/libs/modules/commercial-ops/src/ports` and `apps/api/libs/modules/commercial-ops/src/services`.
-- [ ] Add aliases and Nest metadata for `@prism/modules/commercial-ops` in `apps/api/tsconfig.json`, `apps/api/vitest.config.ts`, and `apps/api/nest-cli.json`.
-- [ ] Create `commercial-ops.tokens.ts`, `commercial-workflow-commands.port.ts`, `proposal-reader.port.ts`, `quote-supplier-resolver.port.ts`, `commercial-ops.module.ts`, `index.ts`, and `tsconfig.lib.json` using the same module style as `finance-ops` and `inquiry-onboarding`.
+- [x] Create directories `apps/api/libs/modules/commercial-ops/src/ports` and `apps/api/libs/modules/commercial-ops/src/services`.
+- [x] Add aliases and Nest metadata for `@prism/modules/commercial-ops` in `apps/api/tsconfig.json`, `apps/api/vitest.config.ts`, and `apps/api/nest-cli.json`.
+- [x] Create `commercial-ops.tokens.ts`, `commercial-workflow-commands.port.ts`, `proposal-reader.port.ts`, `quote-supplier-resolver.port.ts`, `commercial-ops.module.ts`, `index.ts`, and `tsconfig.lib.json` using the same module style as `finance-ops` and `inquiry-onboarding`.
 
 ## Task 3 - Move Commercial Workflow And Add Resolver
 
-- [ ] Move `CommercialWorkflowService` and its test into `commercial-ops`.
-- [ ] Replace old service path with `export * from '@prism/modules/commercial-ops';`.
-- [ ] Update moved service imports to use `@prism/modules/event-core`, `@prism/modules/trust-ops`, `@prism/modules/notification-ops`, and `QuoteSupplierResolver` from the new port.
-- [ ] Add `PrismaQuoteSupplierResolver` that implements the old `resolveQuoteSupplier` behavior with Prisma and `SupplierTier.Tier1` from `@prism/modules/event-core`.
+- [x] Move `CommercialWorkflowService` and its test into `commercial-ops`.
+- [x] Replace old service path with `export * from '@prism/modules/commercial-ops';`.
+- [x] Update moved service imports to use `@prism/modules/event-core`, `@prism/modules/trust-ops`, `@prism/modules/notification-ops`, and `QuoteSupplierResolver` from the new port.
+- [x] Add `PrismaQuoteSupplierResolver` that implements the old `resolveQuoteSupplier` behavior with Prisma and `SupplierTier.Tier1` from `@prism/modules/event-core`.
 
 ## Task 4 - Wire Event-Ops Compatibility
 
-- [ ] Update `EventOpsModule` to import `CommercialOpsModule`, remove `CommercialWorkflowService` from local providers, and import the class from `@prism/modules/commercial-ops`.
-- [ ] Update `EventOpsService` to import `CommercialWorkflowService`, `RequestSupplierQuotesInput`, `SubmitSupplierQuoteInput`, and `AddSupplierQuoteInput` from `@prism/modules/commercial-ops`.
-- [ ] Update `event-ops.service.test.ts` to import `CommercialWorkflowService` from `@prism/modules/commercial-ops`.
+- [x] Update `EventOpsModule` to import `CommercialOpsModule`, remove `CommercialWorkflowService` from local providers, and import the class from `@prism/modules/commercial-ops`.
+- [x] Update `EventOpsService` to import `CommercialWorkflowService`, `RequestSupplierQuotesInput`, `SubmitSupplierQuoteInput`, and `AddSupplierQuoteInput` from `@prism/modules/commercial-ops`.
+- [x] Update `event-ops.service.test.ts` to import `CommercialWorkflowService` from `@prism/modules/commercial-ops`.
 
 ## Task 5 - Verification And Docs Closeout
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/commercial-ops/src/services/commercial-workflow.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test -- commercial quote`.
-- [ ] Run `npm --workspace prism-api run test:event-ops`.
-- [ ] Run `npm --workspace prism-api run build`.
-- [ ] Run `npm run check:boundaries`.
-- [ ] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops|@prism/modules/inquiry-onboarding|modules/inquiry-onboarding" apps/api/libs/modules/commercial-ops`; expected result: no matches.
-- [ ] Run `git diff --check`.
-- [ ] Update parent Phase 7B checklist only for items proven by this slice.
-- [ ] Add verification evidence to this child plan.
-- [ ] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md`.
-- [ ] Commit checkpoint: `refactor(api): extract commercial operations module`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/commercial-ops/src/services/commercial-workflow.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- commercial quote`.
+- [x] Run `npm --workspace prism-api run test:event-ops`.
+- [x] Run `npm --workspace prism-api run build`.
+- [x] Run `npm run check:boundaries`.
+- [x] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops|@prism/modules/inquiry-onboarding|modules/inquiry-onboarding" apps/api/libs/modules/commercial-ops`; expected result: no matches.
+- [x] Run `git diff --check`.
+- [x] Update parent Phase 7B checklist only for items proven by this slice.
+- [x] Add verification evidence to this child plan.
+- [x] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md`.
+- [x] Commit checkpoint: `refactor(api): extract commercial operations module`.
 
 ## Acceptance Criteria
 
-- [ ] `CommercialWorkflowService` lives under `commercial-ops` and is provided/exported by `CommercialOpsModule`.
-- [ ] `CommercialWorkflowService` no longer imports `SuppliersService` or any private `event-ops` service.
-- [ ] `PrismaQuoteSupplierResolver` preserves supplier resolution for manual PMCM quote entry.
-- [ ] Quote request, supplier token submission/revision, quote selection, and token expiry tests pass.
-- [ ] Existing route behavior remains reachable through `EventOpsService` compatibility methods.
-- [ ] `commercial-ops` has no forbidden imports to event-ops, supplier-ops, finance-ops, file-ops, or inquiry-onboarding internals.
-- [ ] API build, event-ops compatibility tests, boundary check, no-private-import scan, and diff check pass.
+- [x] `CommercialWorkflowService` lives under `commercial-ops` and is provided/exported by `CommercialOpsModule`.
+- [x] `CommercialWorkflowService` no longer imports `SuppliersService` or any private `event-ops` service.
+- [x] `PrismaQuoteSupplierResolver` preserves supplier resolution for manual PMCM quote entry.
+- [x] Quote request, supplier token submission/revision, quote selection, and token expiry tests pass.
+- [x] Existing route behavior remains reachable through `EventOpsService` compatibility methods.
+- [x] `commercial-ops` has no forbidden imports to event-ops, supplier-ops, finance-ops, file-ops, or inquiry-onboarding internals.
+- [x] API build, event-ops compatibility tests, boundary check, no-private-import scan, and diff check pass.
+
+## Verification Evidence
+
+| Command | Result |
+| --- | --- |
+| `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/commercial-workflow.service.test.ts` | Passed before move: 1 file, 2 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- libs/modules/commercial-ops/src/services/commercial-workflow.service.test.ts` | Passed after move: 1 file, 2 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- commercial quote` | Passed: 1 file, 2 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test:event-ops` | Passed: 10 files, 84 tests. The event-ops focused commercial test moved into commercial-ops, which explains the lower event-ops count. |
+| `npm --workspace prism-api run build` | Passed after escalated rerun because sandbox blocked `dist` cleanup with `EPERM`. |
+| `npm run check:boundaries` | Passed for 485 files. Initial sandbox run failed on `spawnSync git EPERM`; escalated rerun passed. |
+| `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops|@prism/modules/inquiry-onboarding|modules/inquiry-onboarding" apps/api/libs/modules/commercial-ops` | Passed with no matches; `rg` exited 1 as expected for no results. |
+| `git diff --check` | Passed; remaining output was line-ending normalization warnings only. |
+
+## Implementation Notes
+
+- `CommercialWorkflowService` now lives under `apps/api/libs/modules/commercial-ops/src/services` and is provided/exported by `CommercialOpsModule`.
+- `CommercialOpsModule` exports `COMMERCIAL_WORKFLOW_COMMANDS`, `PROPOSAL_READER`, and `QUOTE_SUPPLIER_RESOLVER`.
+- `PrismaQuoteSupplierResolver` preserves the old manual quote supplier resolution behavior without importing `SuppliersService` or `event-ops` internals.
+- The old `event-ops` commercial workflow path is a one-line compatibility re-export.
+- `EventOpsModule` imports `CommercialOpsModule`; it no longer provides `CommercialWorkflowService` locally.
+- Existing event and supplier quote routes continue through `EventOpsService` compatibility methods.
+- Remaining commercial hardening is separate: controller moves, full proposal document generation, briefing reader ownership, and a dedicated supplier/guest forbidden-role proposal-detail route smoke.
 
 ## Stop Rules
 

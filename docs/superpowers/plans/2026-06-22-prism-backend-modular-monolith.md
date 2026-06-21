@@ -656,8 +656,8 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-7b-commercial-ops.md`.
 
-- [ ] Create `commercial-ops` module.
-- [ ] Move `CommercialWorkflowService`.
+- [x] Create `commercial-ops` module.
+- [x] Move `CommercialWorkflowService`.
 - [ ] Add proposal/briefing reader ports.
 - [ ] Test proposal workflow status changes and conforme readiness.
 - [ ] Add forbidden-role test for supplier/guest access to proposal details.

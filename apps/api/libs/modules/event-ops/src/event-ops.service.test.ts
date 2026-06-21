@@ -11,7 +11,7 @@ import {
   InquiriesService,
   InquiryWorkflowService,
 } from '@prism/modules/inquiry-onboarding';
-import { CommercialWorkflowService } from './services/commercial-workflow.service';
+import { CommercialWorkflowService } from '@prism/modules/commercial-ops';
 import { ComplianceWorkflowService } from './services/compliance-workflow.service';
 import { CoordinatorsService } from './services/coordinators.service';
 import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modules/file-ops';

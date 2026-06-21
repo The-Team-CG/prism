@@ -28,6 +28,12 @@ import type {
   OpsUser,
 } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/database';
+import {
+  CommercialWorkflowService,
+  type AddSupplierQuoteInput,
+  type RequestSupplierQuotesInput,
+  type SubmitSupplierQuoteInput,
+} from '@prism/modules/commercial-ops';
 import { DocumentVaultService, FileRequirementsMatrixService, type UploadMetadataInput } from '@prism/modules/file-ops';
 import {
   ClientOnboardingWorkflowService,
@@ -41,7 +47,6 @@ import { AuditService } from './services/audit.service';
 import { AuthOperationsService } from './services/auth-operations.service';
 import { AuthSecurityService } from './services/auth-security.service';
 import {
-  type AddSupplierQuoteInput,
   type ChangeSupplierTierInput,
   type CreateSupplierCertificationInput,
   type CreateSupplierInput,
@@ -90,11 +95,6 @@ import { EventLifecycleService } from './services/event-lifecycle.service';
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
 import { EventReadModelsService, type PmcmDashboardMappers } from './services/event-read-models.service';
-import {
-  CommercialWorkflowService,
-  type RequestSupplierQuotesInput,
-  type SubmitSupplierQuoteInput,
-} from './services/commercial-workflow.service';
 import { EventClosureService } from './services/event-closure.service';
 import { PAREService } from './services/pare/pare.service';
 import {
@@ -1999,7 +1999,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     const dueDate = addDays(now, 14);
 
     await this.prisma.$transaction(async (tx) => {
-      // Harvest Table Ã¢â‚¬â€ assigned (this is the one PARE will replace when withdrawn)
+      // Harvest Table ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â assigned (this is the one PARE will replace when withdrawn)
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_harvesttable',
@@ -2035,7 +2035,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      // LensCraft Ã¢â‚¬â€ assigned (second assigned supplier to give more sample options)
+      // LensCraft ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â assigned (second assigned supplier to give more sample options)
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_lenscraft',

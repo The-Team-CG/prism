@@ -158,6 +158,15 @@
                                                 "compilerOptions":  {
                                                                         "tsConfigPath":  "libs/modules/inquiry-onboarding/tsconfig.lib.json"
                                                                     }
-                                            }
+                                            },
+                     "commercial-ops":  {
+                                            "type":  "library",
+                                            "root":  "libs/modules/commercial-ops",
+                                            "entryFile":  "index",
+                                            "sourceRoot":  "libs/modules/commercial-ops/src",
+                                            "compilerOptions":  {
+                                                                    "tsConfigPath":  "libs/modules/commercial-ops/tsconfig.lib.json"
+                                                                }
+                                        }
                  }
 }
