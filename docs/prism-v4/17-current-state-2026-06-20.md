@@ -146,3 +146,7 @@ Phase 0 guardrails are active in the boundary checker. Future backend work must 
 Phase 2 is now implemented as a representative runtime slice: command/transaction context primitives live in `apps/api/libs/core/shared-kernel`, audit/outbox/access/workflow tokens and adapters live under `event-ops/src/ports`, and coordinator assignment plus acknowledgement run as `same_tx` commands with transaction-scoped audit/outbox side effects. `event-ops` remains the compatibility facade; no capability modules have been extracted yet.
 
 The July 31 execution boundary remains: backend work before July should prioritize guardrails, dependency-injection foundation, transaction/side-effect ports, role-boundary evidence, and stable app contracts. Larger capability extraction is post-July by default unless a child plan ties the extraction to a feature-ledger row and route evidence.
+
+## Post-Snapshot Backend Infrastructure Modules: 2026-06-22
+
+Phase 3 extracted the first cross-cutting backend modules without changing public route paths. `event-core`, `trust-ops`, `notification-ops`, and `access-control` now provide workflow command execution, audit/privacy, outbox writing, and access policy through public module exports and provider tokens. Capability workflows such as supplier, billing, floorplan, guest, files, closure, and read models remain in `event-ops` until their own child plans execute.

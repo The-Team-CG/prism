@@ -1,6 +1,6 @@
 # Prism Backend Modular Monolith Phase 3 Infrastructure Modules Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extract Prism cross-cutting backend services from the legacy `event-ops` folder into first-class `event-core`, `trust-ops`, `notification-ops`, and `access-control` modules without changing public HTTP routes or shared app contracts.
 
@@ -61,80 +61,80 @@ Keep compatibility re-export files under `event-ops` during this phase. Existing
 
 ## Task 1 - Extract Event-Core Foundation
 
-- [ ] Create `apps/api/libs/modules/event-core/src`, `ports`, and `services` directories.
-- [ ] `git mv apps/api/libs/modules/event-ops/src/ops.constants.ts apps/api/libs/modules/event-core/src/ops.constants.ts`.
-- [ ] `git mv apps/api/libs/modules/event-ops/src/services/workflow-command.service.ts apps/api/libs/modules/event-core/src/services/workflow-command.service.ts`.
-- [ ] `git mv apps/api/libs/modules/event-ops/src/services/workflow-command.service.test.ts apps/api/libs/modules/event-core/src/services/workflow-command.service.test.ts`.
-- [ ] Create `apps/api/libs/modules/event-core/src/ports/workflow-command-log.tokens.ts` with `export const WORKFLOW_COMMAND_LOG = Symbol.for('prism.eventCore.workflowCommandLog');`.
-- [ ] Create `EventCoreModule` that imports `DatabaseModule`, provides `PrismTransactionRunner`, `WorkflowCommandService`, and a `{ provide: WORKFLOW_COMMAND_LOG, useExisting: WorkflowCommandService }` provider, and exports all three provider entries.
-- [ ] Create `apps/api/libs/modules/event-core/src/index.ts` exporting the module, constants, workflow token, and workflow command service.
-- [ ] Recreate `apps/api/libs/modules/event-ops/src/ops.constants.ts` as `export * from '@prism/modules/event-core';`.
-- [ ] Update moved workflow service and test shared-kernel relative imports to `../../../../core/shared-kernel/src`.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-core/src/services/workflow-command.service.test.ts`.
-- [ ] Commit checkpoint: `refactor(api): create event core module`.
+- [x] Create `apps/api/libs/modules/event-core/src`, `ports`, and `services` directories.
+- [x] `git mv apps/api/libs/modules/event-ops/src/ops.constants.ts apps/api/libs/modules/event-core/src/ops.constants.ts`.
+- [x] `git mv apps/api/libs/modules/event-ops/src/services/workflow-command.service.ts apps/api/libs/modules/event-core/src/services/workflow-command.service.ts`.
+- [x] `git mv apps/api/libs/modules/event-ops/src/services/workflow-command.service.test.ts apps/api/libs/modules/event-core/src/services/workflow-command.service.test.ts`.
+- [x] Create `apps/api/libs/modules/event-core/src/ports/workflow-command-log.tokens.ts` with `export const WORKFLOW_COMMAND_LOG = Symbol.for('prism.eventCore.workflowCommandLog');`.
+- [x] Create `EventCoreModule` that imports `DatabaseModule`, provides `PrismTransactionRunner`, `WorkflowCommandService`, and a `{ provide: WORKFLOW_COMMAND_LOG, useExisting: WorkflowCommandService }` provider, and exports all three provider entries.
+- [x] Create `apps/api/libs/modules/event-core/src/index.ts` exporting the module, constants, workflow token, and workflow command service.
+- [x] Recreate `apps/api/libs/modules/event-ops/src/ops.constants.ts` as `export * from '@prism/modules/event-core';`.
+- [x] Update moved workflow service and test shared-kernel relative imports to `../../../../core/shared-kernel/src`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-core/src/services/workflow-command.service.test.ts`.
+- [x] Commit checkpoint: `refactor(api): create event core module`.
 
 ## Task 2 - Extract Notification-Ops
 
-- [ ] Create `apps/api/libs/modules/notification-ops/src`, `ports`, and `services` directories.
-- [ ] Move `notification-outbox.service.ts`, `notification-outbox.service.test.ts`, `notification-ops.tokens.ts`, `notification-outbox-writer.port.ts`, and `notification-outbox-writer.adapter.ts` from `event-ops` to `notification-ops` with `git mv`.
-- [ ] Update moved notification imports so `NotificationChannel` comes from `@prism/modules/event-core` and `PrismTransactionContext` comes from `../../../../core/shared-kernel/src`.
-- [ ] Create `NotificationOpsModule` that imports `DatabaseModule`, provides `NotificationOutboxService`, `NotificationOutboxWriterAdapter`, and `{ provide: NOTIFICATION_OUTBOX_WRITER, useExisting: NotificationOutboxWriterAdapter }`, and exports those provider entries.
-- [ ] Create `apps/api/libs/modules/notification-ops/src/index.ts` exporting the module, token, port, adapter, and service.
-- [ ] Recreate the moved `event-ops/src/ports/notification*.ts` files as `export * from '@prism/modules/notification-ops';` compatibility shims.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/notification-ops/src/services/notification-outbox.service.test.ts`.
-- [ ] Commit checkpoint: `refactor(api): extract notification operations module`.
+- [x] Create `apps/api/libs/modules/notification-ops/src`, `ports`, and `services` directories.
+- [x] Move `notification-outbox.service.ts`, `notification-outbox.service.test.ts`, `notification-ops.tokens.ts`, `notification-outbox-writer.port.ts`, and `notification-outbox-writer.adapter.ts` from `event-ops` to `notification-ops` with `git mv`.
+- [x] Update moved notification imports so `NotificationChannel` comes from `@prism/modules/event-core` and `PrismTransactionContext` comes from `../../../../core/shared-kernel/src`.
+- [x] Create `NotificationOpsModule` that imports `DatabaseModule`, provides `NotificationOutboxService`, `NotificationOutboxWriterAdapter`, and `{ provide: NOTIFICATION_OUTBOX_WRITER, useExisting: NotificationOutboxWriterAdapter }`, and exports those provider entries.
+- [x] Create `apps/api/libs/modules/notification-ops/src/index.ts` exporting the module, token, port, adapter, and service.
+- [x] Recreate the moved `event-ops/src/ports/notification*.ts` files as `export * from '@prism/modules/notification-ops';` compatibility shims.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/notification-ops/src/services/notification-outbox.service.test.ts`.
+- [x] Commit checkpoint: `refactor(api): extract notification operations module`.
 
 ## Task 3 - Extract Trust-Ops
 
-- [ ] Create `apps/api/libs/modules/trust-ops/src`, `ports`, and `services` directories.
-- [ ] Move `audit.service.ts`, `audit.service.test.ts`, `privacy-operations.service.ts`, `trust-ops.tokens.ts`, `audit-writer.port.ts`, and `audit-writer.adapter.ts` from `event-ops` to `trust-ops` with `git mv`.
-- [ ] Update moved trust imports so audit/privacy constants come from `@prism/modules/event-core` and `AuditService` local imports use `./audit.service`.
-- [ ] Create `TrustOpsModule` that imports `DatabaseModule`, provides `AuditService`, `PrivacyOperationsService`, `AuditWriterAdapter`, and `{ provide: AUDIT_WRITER, useExisting: AuditWriterAdapter }`, and exports those provider entries.
-- [ ] Create `apps/api/libs/modules/trust-ops/src/index.ts` exporting the module, audit writer token/port/adapter, `AuditService`, and `PrivacyOperationsService`.
-- [ ] Recreate moved `event-ops/src/services/audit.service.ts`, `privacy-operations.service.ts`, and audit/trust port files as `export * from '@prism/modules/trust-ops';` compatibility shims.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/trust-ops/src/services/audit.service.test.ts`.
-- [ ] Commit checkpoint: `refactor(api): extract trust operations module`.
+- [x] Create `apps/api/libs/modules/trust-ops/src`, `ports`, and `services` directories.
+- [x] Move `audit.service.ts`, `audit.service.test.ts`, `privacy-operations.service.ts`, `trust-ops.tokens.ts`, `audit-writer.port.ts`, and `audit-writer.adapter.ts` from `event-ops` to `trust-ops` with `git mv`.
+- [x] Update moved trust imports so audit/privacy constants come from `@prism/modules/event-core` and `AuditService` local imports use `./audit.service`.
+- [x] Create `TrustOpsModule` that imports `DatabaseModule`, provides `AuditService`, `PrivacyOperationsService`, `AuditWriterAdapter`, and `{ provide: AUDIT_WRITER, useExisting: AuditWriterAdapter }`, and exports those provider entries.
+- [x] Create `apps/api/libs/modules/trust-ops/src/index.ts` exporting the module, audit writer token/port/adapter, `AuditService`, and `PrivacyOperationsService`.
+- [x] Recreate moved `event-ops/src/services/audit.service.ts`, `privacy-operations.service.ts`, and audit/trust port files as `export * from '@prism/modules/trust-ops';` compatibility shims.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/trust-ops/src/services/audit.service.test.ts`.
+- [x] Commit checkpoint: `refactor(api): extract trust operations module`.
 
 ## Task 4 - Extract Access-Control
 
-- [ ] Create `apps/api/libs/modules/access-control/src`, `ports`, and `services` directories.
-- [ ] Move `event-access-policy.service.ts`, `event-access-policy.service.test.ts`, and `access-control.tokens.ts` from `event-ops` to `access-control` with `git mv`.
-- [ ] Update moved access policy imports so constants come from `@prism/modules/event-core` and `AuditService` comes from `@prism/modules/trust-ops`.
-- [ ] Create `AccessControlModule` that imports `TrustOpsModule`, provides `EventAccessPolicyService` and `{ provide: EVENT_ACCESS_POLICY, useExisting: EventAccessPolicyService }`, and exports both provider entries.
-- [ ] Create `apps/api/libs/modules/access-control/src/index.ts` exporting the module, token, and `EventAccessPolicyService`.
-- [ ] Recreate moved `event-ops/src/services/event-access-policy.service.ts` and access-control token files as `export * from '@prism/modules/access-control';` compatibility shims.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/access-control/src/services/event-access-policy.service.test.ts`.
-- [ ] Commit checkpoint: `refactor(api): extract access control module`.
+- [x] Create `apps/api/libs/modules/access-control/src`, `ports`, and `services` directories.
+- [x] Move `event-access-policy.service.ts`, `event-access-policy.service.test.ts`, and `access-control.tokens.ts` from `event-ops` to `access-control` with `git mv`.
+- [x] Update moved access policy imports so constants come from `@prism/modules/event-core` and `AuditService` comes from `@prism/modules/trust-ops`.
+- [x] Create `AccessControlModule` that imports `TrustOpsModule`, provides `EventAccessPolicyService` and `{ provide: EVENT_ACCESS_POLICY, useExisting: EventAccessPolicyService }`, and exports both provider entries.
+- [x] Create `apps/api/libs/modules/access-control/src/index.ts` exporting the module, token, and `EventAccessPolicyService`.
+- [x] Recreate moved `event-ops/src/services/event-access-policy.service.ts` and access-control token files as `export * from '@prism/modules/access-control';` compatibility shims.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/access-control/src/services/event-access-policy.service.test.ts`.
+- [x] Commit checkpoint: `refactor(api): extract access control module`.
 
 ## Task 5 - Wire API Metadata And Event-Ops
 
-- [ ] Add `@prism/modules/event-core`, `@prism/modules/trust-ops`, `@prism/modules/notification-ops`, and `@prism/modules/access-control` path aliases plus wildcard aliases to `apps/api/tsconfig.json`.
-- [ ] Add matching aliases to `apps/api/vitest.config.ts`.
-- [ ] Add `event-core`, `trust-ops`, `notification-ops`, and `access-control` project entries to `apps/api/nest-cli.json` using the existing library project shape.
-- [ ] Add `tsconfig.lib.json` for each new module with `extends: ../../../tsconfig.json`, `include: ["src/**/*"]`, and an `outDir` under `../../../dist/libs/modules/<module-name>`.
-- [ ] Update `event-ops.module.ts` to import `EventCoreModule`, `TrustOpsModule`, `NotificationOpsModule`, and `AccessControlModule`.
-- [ ] Remove moved local providers from `EVENT_OPS_PROVIDERS`: `AuditService`, `PrivacyOperationsService`, `NotificationOutboxService`, `PrismTransactionRunner`, `WorkflowCommandService`, `EventAccessPolicyService`, adapters, and token provider constants.
-- [ ] Update direct-construction tests, especially `event-ops.service.test.ts`, to import moved service classes and adapters from public module aliases.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/event-ops.service.test.ts`.
-- [ ] Commit checkpoint: `refactor(api): wire event ops to infrastructure modules`.
+- [x] Add `@prism/modules/event-core`, `@prism/modules/trust-ops`, `@prism/modules/notification-ops`, and `@prism/modules/access-control` path aliases plus wildcard aliases to `apps/api/tsconfig.json`.
+- [x] Add matching aliases to `apps/api/vitest.config.ts`.
+- [x] Add `event-core`, `trust-ops`, `notification-ops`, and `access-control` project entries to `apps/api/nest-cli.json` using the existing library project shape.
+- [x] Add `tsconfig.lib.json` for each new module with `extends: ../../../tsconfig.json`, `include: ["src/**/*"]`, and an `outDir` under `../../../dist/libs/modules/<module-name>`.
+- [x] Update `event-ops.module.ts` to import `EventCoreModule`, `TrustOpsModule`, `NotificationOpsModule`, and `AccessControlModule`.
+- [x] Remove moved local providers from `EVENT_OPS_PROVIDERS`: `AuditService`, `PrivacyOperationsService`, `NotificationOutboxService`, `PrismTransactionRunner`, `WorkflowCommandService`, `EventAccessPolicyService`, adapters, and token provider constants.
+- [x] Update direct-construction tests, especially `event-ops.service.test.ts`, to import moved service classes and adapters from public module aliases.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/event-ops.service.test.ts`.
+- [x] Commit checkpoint: `refactor(api): wire event ops to infrastructure modules`.
 
 ## Task 6 - Full Verification And Docs Closeout
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-core/src/services/workflow-command.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/notification-ops/src/services/notification-outbox.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/trust-ops/src/services/audit.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/access-control/src/services/event-access-policy.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test:event-ops`.
-- [ ] Run `npm --workspace prism-api run build`.
-- [ ] Run `npm run check:boundaries`.
-- [ ] Run `rg -n "@prism/modules/event-ops|modules/event-ops" apps/api/libs/modules/event-core apps/api/libs/modules/trust-ops apps/api/libs/modules/notification-ops apps/api/libs/modules/access-control`; expected result is no matches.
-- [ ] Run `rg -n "BillingOperationsService|SupplierNetworkWorkflowService|FloorPlanWorkflowService|EventClosureService|EventReadModelsService|GuestWorkflowService|FileRequirementsMatrixService|InquiriesService" apps/api/libs/modules/event-core`; expected result is no matches.
-- [ ] Run `git diff --check`.
-- [ ] Update parent Phase 3 checkboxes only after all verification commands pass.
-- [ ] Add verification evidence to this child plan with exact command names and pass results.
-- [ ] Update `docs/prism-v4/15-system-architecture.md` to say Phase 3 infrastructure modules are active and `event-ops` remains route compatibility only.
-- [ ] Update `docs/prism-v4/17-current-state-2026-06-20.md` with a post-snapshot Phase 3 note stating no capability modules were extracted.
-- [ ] Commit checkpoint: `docs: close phase 3 backend infrastructure modules`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-core/src/services/workflow-command.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/notification-ops/src/services/notification-outbox.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/trust-ops/src/services/audit.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/access-control/src/services/event-access-policy.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test:event-ops`.
+- [x] Run `npm --workspace prism-api run build`.
+- [x] Run `npm run check:boundaries`.
+- [x] Run `rg -n "@prism/modules/event-ops|modules/event-ops" apps/api/libs/modules/event-core apps/api/libs/modules/trust-ops apps/api/libs/modules/notification-ops apps/api/libs/modules/access-control`; expected result is no matches.
+- [x] Run `rg -n "BillingOperationsService|SupplierNetworkWorkflowService|FloorPlanWorkflowService|EventClosureService|EventReadModelsService|GuestWorkflowService|FileRequirementsMatrixService|InquiriesService" apps/api/libs/modules/event-core`; expected result is no matches.
+- [x] Run `git diff --check`.
+- [x] Update parent Phase 3 checkboxes only after all verification commands pass.
+- [x] Add verification evidence to this child plan with exact command names and pass results.
+- [x] Update `docs/prism-v4/15-system-architecture.md` to say Phase 3 infrastructure modules are active and `event-ops` remains route compatibility only.
+- [x] Update `docs/prism-v4/17-current-state-2026-06-20.md` with a post-snapshot Phase 3 note stating no capability modules were extracted.
+- [x] Commit checkpoint: `docs: close phase 3 backend infrastructure modules`.
 
 ## Verification Commands
 
@@ -152,16 +152,25 @@ rg -n "BillingOperationsService|SupplierNetworkWorkflowService|FloorPlanWorkflow
 git diff --check
 ```
 
+## Verification Evidence
+
+- Focused moved-module tests: `npm --workspace prism-api run test -- libs/modules/event-core/src/services/workflow-command.service.test.ts libs/modules/notification-ops/src/services/notification-outbox.service.test.ts libs/modules/trust-ops/src/services/audit.service.test.ts libs/modules/access-control/src/services/event-access-policy.service.test.ts libs/modules/event-ops/src/event-ops.service.test.ts` passed on 2026-06-22 with 5 files and 72 tests.
+- Full event-ops suite: `npm --workspace prism-api run test:event-ops` passed on 2026-06-22 with 13 files and 90 tests.
+- API build: `npm --workspace prism-api run build` passed on 2026-06-22.
+- Boundary check: `npm run check:boundaries` passed on 2026-06-22 for 448 files.
+- Diff check: `git diff --check` passed on 2026-06-22.
+- Infrastructure-module import scan: `rg -n "@prism/modules/event-ops|modules/event-ops" apps/api/libs/modules/event-core apps/api/libs/modules/trust-ops apps/api/libs/modules/notification-ops apps/api/libs/modules/access-control` returned no matches.
+- Event-core narrowness scan: `rg -n "BillingOperationsService|SupplierNetworkWorkflowService|FloorPlanWorkflowService|EventClosureService|EventReadModelsService|GuestWorkflowService|FileRequirementsMatrixService|InquiriesService" apps/api/libs/modules/event-core` returned no matches.
 ## Acceptance Criteria
 
-- [ ] New infrastructure modules compile through the workspace build.
-- [ ] `event-ops` imports cross-cutting behavior through public module exports or provider tokens.
-- [ ] `event-ops` still owns compatibility routes and non-cross-cutting workflow services.
-- [ ] No infrastructure module imports `event-ops`.
-- [ ] `event-core` remains narrow and does not absorb closure, billing, supplier, floorplan, dashboard, file, guest, inquiry, or read-model behavior.
-- [ ] Existing event-ops tests still pass.
-- [ ] API build, boundary check, and diff check pass.
-- [ ] Parent and child plans plus architecture/current-state docs are updated after verification.
+- [x] New infrastructure modules compile through the workspace build.
+- [x] `event-ops` imports cross-cutting behavior through public module exports or provider tokens.
+- [x] `event-ops` still owns compatibility routes and non-cross-cutting workflow services.
+- [x] No infrastructure module imports `event-ops`.
+- [x] `event-core` remains narrow and does not absorb closure, billing, supplier, floorplan, dashboard, file, guest, inquiry, or read-model behavior.
+- [x] Existing event-ops tests still pass.
+- [x] API build, boundary check, and diff check pass.
+- [x] Parent and child plans plus architecture/current-state docs are updated after verification.
 
 ## Stop Rules
 

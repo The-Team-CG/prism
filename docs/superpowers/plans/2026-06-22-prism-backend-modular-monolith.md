@@ -512,32 +512,32 @@ export class AuditWriterAdapter implements AuditWriter {
 
 **Edits:**
 
-- [ ] Create `trust-ops`, `notification-ops`, `access-control`, and narrow `event-core` libs.
-- [ ] Move `AuditService` and `PrivacyOperationsService` into `trust-ops`.
-- [ ] Move `NotificationOutboxService` into `notification-ops`.
-- [ ] Move `EventAccessPolicyService` into `access-control`.
-- [ ] Move `WorkflowCommandService` into `event-core`.
-- [ ] Do not move `EventClosureService` into `event-core`; keep closure behavior in `event-ops` until `closure-ops` can depend on reader ports.
-- [ ] Update import paths in `event-ops` to consume public module exports.
-- [ ] Add path aliases to `apps/api/tsconfig.json`.
-- [ ] Update `apps/api/vitest.config.ts` aliases if it has separate alias config.
-- [ ] Update `apps/api/nest-cli.json` if Nest library metadata is used for builds.
-- [ ] Add `tsconfig.lib.json` for each new lib if the existing API library pattern requires it.
-- [ ] Update barrel exports and avoid exporting private service internals.
+- [x] Create `trust-ops`, `notification-ops`, `access-control`, and narrow `event-core` libs.
+- [x] Move `AuditService` and `PrivacyOperationsService` into `trust-ops`.
+- [x] Move `NotificationOutboxService` into `notification-ops`.
+- [x] Move `EventAccessPolicyService` into `access-control`.
+- [x] Move `WorkflowCommandService` into `event-core`.
+- [x] Do not move `EventClosureService` into `event-core`; keep closure behavior in `event-ops` until `closure-ops` can depend on reader ports.
+- [x] Update import paths in `event-ops` to consume public module exports.
+- [x] Add path aliases to `apps/api/tsconfig.json`.
+- [x] Update `apps/api/vitest.config.ts` aliases if it has separate alias config.
+- [x] Update `apps/api/nest-cli.json` if Nest library metadata is used for builds.
+- [x] Add `tsconfig.lib.json` for each new lib if the existing API library pattern requires it.
+- [x] Update barrel exports and avoid exporting private service internals.
 
 **Tests:**
 
 - [x] Run `npm --workspace prism-api run build`.
-- [ ] Run `npm --workspace prism-api run test -- event-ops`.
-- [ ] Run `npm run check:boundaries`.
-- [ ] Run `git diff --check`.
+- [x] Run `npm --workspace prism-api run test -- event-ops`.
+- [x] Run `npm run check:boundaries`.
+- [x] Run `git diff --check`.
 
 **Acceptance criteria:**
 
-- [ ] New modules compile through the workspace build.
-- [ ] `event-ops` imports cross-cutting behavior through public module exports or provider tokens.
-- [ ] No capability behavior moves in this phase except command history.
-- [ ] `event-core` remains narrow and does not absorb closure, billing, supplier, floorplan, or dashboards.
+- [x] New modules compile through the workspace build.
+- [x] `event-ops` imports cross-cutting behavior through public module exports or provider tokens.
+- [x] No capability behavior moves in this phase except command history.
+- [x] `event-core` remains narrow and does not absorb closure, billing, supplier, floorplan, or dashboards.
 
 **Commit checkpoint:** `refactor(api): extract cross cutting backend modules`
 
