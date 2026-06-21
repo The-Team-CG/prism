@@ -6,6 +6,7 @@ import { ComplianceOpsModule, ComplianceWorkflowService } from '@prism/modules/c
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FloorplanModule } from '@prism/modules/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
+import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
@@ -24,7 +25,6 @@ import { EVENT_OPS_CONTROLLERS } from './controllers';
 import { EventOpsService } from './event-ops.service';
 import { AiGovernanceService } from './services/ai-governance.service';
 import { AuthOperationsService } from './services/auth-operations.service';
-import { CoordinatorsService } from './services/coordinators.service';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { EventReadModelsService } from './services/event-read-models.service';
@@ -41,7 +41,6 @@ const EVENT_OPS_PROVIDERS = [
   SuppliersService,
   PAREService,
   AuthOperationsService,
-  CoordinatorsService,
   LiveOperationsService,
   EventReadModelsService,
   EventClosureService,
@@ -56,7 +55,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })

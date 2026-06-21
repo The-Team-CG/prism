@@ -60,7 +60,7 @@
 - Create: `apps/api/libs/modules/staffing-ops/src/services/coordinators.service.test.ts`
 - Read: `apps/api/libs/modules/event-ops/src/services/coordinators.service.test.ts`
 
-- [ ] **Step 1: Move the focused coordinator service test into the new module path**
+- [x] **Step 1: Move the focused coordinator service test into the new module path**
 
 Copy the existing test shape and update imports so it targets:
 
@@ -88,7 +88,7 @@ expect(fake.audits).toHaveLength(1);
 expect(fake.transactionCalls).toEqual(['same_tx']);
 ```
 
-- [ ] **Step 2: Add internal staffing read coverage**
+- [x] **Step 2: Add internal staffing read coverage**
 
 Add a read test:
 
@@ -111,7 +111,7 @@ it('reads active coordinator directory and coordinator assignments for workspace
 });
 ```
 
-- [ ] **Step 3: Run baseline test and accept expected failure before the module exists**
+- [x] **Step 3: Run baseline test and accept expected failure before the module exists**
 
 Run:
 
@@ -135,14 +135,14 @@ Expected before implementation: FAIL because `staffing-ops` paths do not exist.
 - Create: `apps/api/libs/modules/staffing-ops/tsconfig.lib.json`
 - Modify: `apps/api/libs/modules/event-ops/src/services/coordinators.service.ts`
 
-- [ ] **Step 1: Add staffing tokens**
+- [x] **Step 1: Add staffing tokens**
 
 ```ts
 export const STAFFING_COMMANDS = Symbol('STAFFING_COMMANDS');
 export const STAFFING_READER = Symbol('STAFFING_READER');
 ```
 
-- [ ] **Step 2: Add command interface**
+- [x] **Step 2: Add command interface**
 
 ```ts
 import type { CreateCoordinatorAssignmentInput } from '../services/coordinators.service';
@@ -153,7 +153,7 @@ export interface StaffingCommands {
 }
 ```
 
-- [ ] **Step 3: Add reader interface**
+- [x] **Step 3: Add reader interface**
 
 ```ts
 import type { OpsCoordinator, OpsCoordinatorAssignment } from '@prisma/client';
@@ -169,7 +169,7 @@ export interface StaffingReader {
 }
 ```
 
-- [ ] **Step 4: Move and extend `CoordinatorsService`**
+- [x] **Step 4: Move and extend `CoordinatorsService`**
 
 Move the current implementation from:
 
@@ -212,7 +212,7 @@ listAssignmentsForEvent(eventId: string) {
 }
 ```
 
-- [ ] **Step 5: Keep legacy import path stable**
+- [x] **Step 5: Keep legacy import path stable**
 
 Replace the old event-ops service file with:
 
@@ -220,11 +220,11 @@ Replace the old event-ops service file with:
 export * from '@prism/modules/staffing-ops';
 ```
 
-- [ ] **Step 6: Register `StaffingOpsModule`**
+- [x] **Step 6: Register `StaffingOpsModule`**
 
 The module must import `DatabaseModule`, `EventCoreModule`, `TrustOpsModule`, and `NotificationOpsModule`; provide `CoordinatorsService`; bind `STAFFING_COMMANDS` and `STAFFING_READER`; export service and tokens.
 
-- [ ] **Step 7: Run focused staffing service tests**
+- [x] **Step 7: Run focused staffing service tests**
 
 Run:
 
@@ -243,15 +243,15 @@ Expected: PASS.
 - Modify: `apps/api/libs/modules/event-ops/src/event-ops.service.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts`
 
-- [ ] **Step 1: Import `StaffingOpsModule` in event-ops**
+- [x] **Step 1: Import `StaffingOpsModule` in event-ops**
 
 Add `StaffingOpsModule` to `EventOpsModule.imports`, and import `CoordinatorsService` from `@prism/modules/staffing-ops` in `event-ops.service.ts` and tests.
 
-- [ ] **Step 2: Remove local staffing provider ownership**
+- [x] **Step 2: Remove local staffing provider ownership**
 
 Remove local `CoordinatorsService` from `EVENT_OPS_PROVIDERS`; Nest should resolve the exported provider from `StaffingOpsModule`.
 
-- [ ] **Step 3: Delegate coordinator workspace reads to staffing service methods**
+- [x] **Step 3: Delegate coordinator workspace reads to staffing service methods**
 
 Update:
 
@@ -263,7 +263,7 @@ requireCoordinatorAssignmentForEvent(eventId: string, actor: ResolvedSampleActor
 
 so assignment reads and coordinator resolution use `CoordinatorsService` reader methods rather than direct Prisma reads.
 
-- [ ] **Step 4: Keep event-day operations in live ops**
+- [x] **Step 4: Keep event-day operations in live ops**
 
 Do not move these methods in Phase 10:
 
@@ -282,7 +282,7 @@ buildStatusFeed
 
 They remain event-day operations until a later live-ops child plan creates a proper owner.
 
-- [ ] **Step 5: Add forbidden-role staffing regression**
+- [x] **Step 5: Add forbidden-role staffing regression**
 
 Add event-ops test assertions:
 
@@ -292,7 +292,7 @@ await expect((service as any).listCoordinators({ actorRole: 'supplier', supplier
 await expect((service as any).listCoordinators({ actorRole: 'guest', actorName: 'Guest User' })).rejects.toBeInstanceOf(ForbiddenException);
 ```
 
-- [ ] **Step 6: Run coordinator/event-ops tests**
+- [x] **Step 6: Run coordinator/event-ops tests**
 
 Run:
 
@@ -312,24 +312,24 @@ Expected: PASS.
 - Modify: `apps/api/vitest.config.ts`
 - Modify: `apps/api/nest-cli.json`
 
-- [ ] **Step 1: Add TypeScript aliases**
+- [x] **Step 1: Add TypeScript aliases**
 
 ```json
 "@prism/modules/staffing-ops": ["libs/modules/staffing-ops/src/index"],
 "@prism/modules/staffing-ops/*": ["libs/modules/staffing-ops/src/*"]
 ```
 
-- [ ] **Step 2: Add Vitest alias**
+- [x] **Step 2: Add Vitest alias**
 
 ```ts
 '@prism/modules/staffing-ops': resolve(__dirname, './libs/modules/staffing-ops/src/index.ts'),
 ```
 
-- [ ] **Step 3: Add Nest project**
+- [x] **Step 3: Add Nest project**
 
 Add a `staffing-ops` library project pointing to `libs/modules/staffing-ops/tsconfig.lib.json`.
 
-- [ ] **Step 4: Run build**
+- [x] **Step 4: Run build**
 
 Run:
 
@@ -348,15 +348,15 @@ Expected: PASS.
 - Modify: `docs/prism-v4/15-system-architecture.md`
 - Modify: `docs/prism-v4/17-current-state-2026-06-20.md`
 
-- [ ] **Step 1: Mark Phase 10 complete in the master plan**
+- [x] **Step 1: Mark Phase 10 complete in the master plan**
 
 Only check Phase 10 boxes after implementation and verification pass.
 
-- [ ] **Step 2: Update architecture/current-state docs**
+- [x] **Step 2: Update architecture/current-state docs**
 
 Record that `staffing-ops` owns coordinator directory reads, assignment commands, acknowledgement, and assignment reader ports. Record that event-day attendance and replacement remain in live operations pending a later live-ops owner extraction.
 
-- [ ] **Step 3: Run final verification**
+- [x] **Step 3: Run final verification**
 
 Run:
 
@@ -373,7 +373,7 @@ git diff --check
 
 Expected: targeted tests, full event-ops tests, build, boundary check, and diff check pass. Private coordinator service imports may appear inside `staffing-ops` itself, but not across module boundaries.
 
-- [ ] **Step 4: Commit implementation**
+- [x] **Step 4: Commit implementation**
 
 Commit message:
 

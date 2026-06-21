@@ -13,7 +13,7 @@ import {
 } from '@prism/modules/inquiry-onboarding';
 import { CommercialWorkflowService } from '@prism/modules/commercial-ops';
 import { ComplianceWorkflowService } from '@prism/modules/compliance-ops';
-import { CoordinatorsService } from './services/coordinators.service';
+import { CoordinatorsService } from '@prism/modules/staffing-ops';
 import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modules/file-ops';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventClosureService } from './services/event-closure.service';
@@ -3079,6 +3079,20 @@ describe('EventOpsService', () => {
     expect(result.approval.humanApproved).toBe(false);
   });
 
+  it('blocks client, supplier, and guest actors from internal staffing directory payloads', async () => {
+    const fake = createPrisma();
+    const service = createEventOpsService(fake.prisma as any);
+
+    await expect(
+      (service as any).listCoordinators({ actorRole: 'client', clientName: 'Ana Reyes' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      (service as any).listCoordinators({ actorRole: 'supplier', supplierId: 'sup_sonicline' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      (service as any).listCoordinators({ actorRole: 'guest', actorName: 'Guest User' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
   it('returns PMCM live ops and role-safe coordinator live ops without private data leakage', async () => {
     const fake = createPrisma();
     fake.state.events.push({

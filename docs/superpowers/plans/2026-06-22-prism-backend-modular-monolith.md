@@ -746,25 +746,25 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 **Edits:**
 
-- [ ] Create `staffing-ops` module.
-- [ ] Move coordinator/staffing behavior from `CoordinatorsService` and `LiveOperationsService` where ownership is internal staffing rather than event-day operations.
-- [ ] Add staffing commands and reader ports.
-- [ ] Keep event-day operational behavior in the owning module named by the child plan when the behavior is not staffing-specific.
-- [ ] Add PMCM/coordinator role tests.
+- [x] Create `staffing-ops` module.
+- [x] Move coordinator/staffing behavior from `CoordinatorsService` and `LiveOperationsService` where ownership is internal staffing rather than event-day operations.
+- [x] Add staffing commands and reader ports.
+- [x] Keep event-day operational behavior in the owning module named by the child plan when the behavior is not staffing-specific.
+- [x] Add PMCM/coordinator role tests.
 
 **Tests:**
 
-- [ ] Coordinator assignment command test.
-- [ ] Internal staffing read test.
-- [ ] Forbidden-role test: client/supplier/guest cannot access internal staffing payload.
-- [ ] `npm --workspace prism-api run test -- coordinator` or narrowest matching test command.
+- [x] Coordinator assignment command test.
+- [x] Internal staffing read test.
+- [x] Forbidden-role test: client/supplier/guest cannot access internal staffing payload.
+- [x] `npm --workspace prism-api run test -- coordinator` or narrowest matching test command.
 
 **Acceptance criteria:**
 
-- [ ] Staffing writes live in `staffing-ops`.
-- [ ] Internal staffing payloads remain PMCM/coordinator scoped.
+- [x] Staffing writes live in `staffing-ops`.
+- [x] Internal staffing payloads remain PMCM/coordinator scoped.
 
-**Commit checkpoint:** `refactor(api): extract staffing operations module`
+**Commit checkpoint:** [x] `refactor(api): extract staffing operations module`
 
 ## Phase 11 - Prepare And Extract event-read-models
 

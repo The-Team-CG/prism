@@ -138,7 +138,13 @@
                                                                            ],
                                           "@prism/modules/guest-ops/*":  [
                                                                                  "libs/modules/guest-ops/src/*"
-                                                                             ]
+                                                                             ],
+                                          "@prism/modules/staffing-ops":  [
+                                                                                 "libs/modules/staffing-ops/src/index"
+                                                                             ],
+                                          "@prism/modules/staffing-ops/*":  [
+                                                                                   "libs/modules/staffing-ops/src/*"
+                                                                               ]
                                       }
                         }
 }

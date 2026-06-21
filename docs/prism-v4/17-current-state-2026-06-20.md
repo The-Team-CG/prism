@@ -199,3 +199,11 @@ Phase 9 extracted guest access-code resolution, guest check-in writes, guest fee
 `EventOpsService` remains the compatibility facade for `/guest/events/:accessCode`, privacy inventory, defense readiness, and live-ops attendance surfaces, but those guest reads now delegate through the guest service instead of direct guest Prisma reads. `EventReadModelsService.pmcmEventWorkspace` consumes `GUEST_READER` for PMCM-scoped attendance and feedback payloads. The Phase 9 regression suite covers access-code payloads, consent-gated check-in/feedback commands, guest payload mapping, and the forbidden-role rule that guest actors cannot read PMCM planning/readiness payloads.
 
 Current limitation: QR/camera check-in remains gated, and full guest-masterlist/RSVP import behavior is not claimed. Controller ownership and complete guest read-model extraction remain future child-plan work.
+
+## Post-Snapshot Staffing-Ops Slice: 2026-06-22
+
+Phase 10 extracted coordinator directory reads, coordinator assignment writes, coordinator acknowledgement writes, event assignment reads, and coordinator actor assignment resolution without changing public route paths. `CoordinatorsService` now lives under `apps/api/libs/modules/staffing-ops`, and `StaffingOpsModule` exports the runtime service plus `STAFFING_COMMANDS` and `STAFFING_READER`.
+
+`EventOpsService` remains the compatibility facade for coordinator directory, assignment, acknowledgement, and coordinator workspace surfaces, but those reads and writes now delegate through the staffing service instead of direct event-ops coordinator ownership. The Phase 10 regression suite covers conflict-gated coordinator assignment, same-transaction audit/outbox side effects, acknowledgement, internal staffing reads, and the forbidden-role rule that client, supplier, and guest actors cannot access internal staffing directory payloads.
+
+Current limitation: event-day tasks, urgent issues, coordinator attendance, coordinator replacement, event-day logs, and status feed behavior remain in live operations pending a later live-ops owner extraction. Full coordinator staffing heatmap behavior remains on the do-not-claim list.

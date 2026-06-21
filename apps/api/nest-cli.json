@@ -194,6 +194,15 @@
                                       "compilerOptions":  {
                                                               "tsConfigPath":  "libs/modules/guest-ops/tsconfig.lib.json"
                                                           }
-                                  }
+                                  },
+                     "staffing-ops":  {
+                                        "type":  "library",
+                                        "root":  "libs/modules/staffing-ops",
+                                        "entryFile":  "index",
+                                        "sourceRoot":  "libs/modules/staffing-ops/src",
+                                        "compilerOptions":  {
+                                                                "tsConfigPath":  "libs/modules/staffing-ops/tsconfig.lib.json"
+                                                            }
+                                    }
                  }
 }

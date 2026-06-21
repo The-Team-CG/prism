@@ -1,0 +1,2 @@
+export const STAFFING_COMMANDS = Symbol('STAFFING_COMMANDS');
+export const STAFFING_READER = Symbol('STAFFING_READER');

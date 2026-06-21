@@ -119,6 +119,8 @@ Phase 8 floorplan extraction is now active: `FloorPlanWorkflowService` lives in 
 
 Phase 9 guest extraction is now active: `GuestWorkflowService` lives in `guest-ops`, `GuestOpsModule` owns `GUEST_COMMANDS` and `GUEST_READER`, and guest access-code resolution, check-in writes, feedback writes, attendance reads, and guest payload mapping now sit behind public guest ports. `event-ops` keeps public guest route compatibility, privacy/readiness/live-ops facade methods delegate guest reads through the guest service, and the selected PMCM event workspace consumes the `GUEST_READER` port for attendance and feedback payloads.
 
+Phase 10 staffing extraction is now active: `CoordinatorsService` lives in `staffing-ops`, `StaffingOpsModule` owns `STAFFING_COMMANDS` and `STAFFING_READER`, and coordinator directory reads, assignment commands, acknowledgement commands, event assignment reads, and coordinator actor assignment resolution now sit behind the staffing module. `event-ops` keeps route compatibility and delegates coordinator workspace reads through `CoordinatorsService`; event-day tasks, urgent issues, attendance, replacement, and status feed behavior remain in live operations until a later live-ops owner extraction.
+
 ## Data Domains
 
 | Domain | Representative models |

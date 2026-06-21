@@ -62,7 +62,7 @@ import {
 import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,
-} from './services/coordinators.service';
+} from '@prism/modules/staffing-ops';
 import {
   AuditActionType,
   AuditCategory,
@@ -982,7 +982,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       this.prisma.opsFloorPlanDraft.findMany({ where: { eventId }, orderBy: { updatedAt: 'desc' } }),
       this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.opsSupplierQuote.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
+      this.coordinatorsService.listAssignmentsForEvent(eventId),
       this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: { generatedAt: 'desc' } }),
@@ -1195,7 +1195,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
         this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
         this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-        this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
+        this.coordinatorsService.listAssignmentsForEvent(eventId),
         this.guestWorkflowService.listCheckInsForEvent(eventId),
         this.prisma.opsEventDayLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 50 }),
       ]);
@@ -1268,18 +1268,10 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator workspace');
     const coordinator = await this.resolveCoordinatorForActor(actor);
-    const assignments = await this.prisma.opsCoordinatorAssignment.findMany({
-      where: { coordinatorId: coordinator.id },
-      orderBy: { eventDate: 'asc' },
-    });
-    const fallbackAssignments =
-      assignments.length > 0
-        ? []
-        : await this.prisma.opsCoordinatorAssignment.findMany({
-            where: { coordinatorName: coordinator.name },
-            orderBy: { eventDate: 'asc' },
-          });
-    const visibleAssignments = [...assignments, ...fallbackAssignments];
+    const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(
+      coordinator.id,
+      coordinator.name,
+    );
     const eventIds = new Set(visibleAssignments.map((assignment: any) => assignment.eventId));
     const events = await this.prisma.opsEvent.findMany({
       where: { archived: false },
@@ -2732,29 +2724,11 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async resolveCoordinatorForActor(actor: ResolvedSampleActor) {
-    const coordinators = await this.prisma.opsCoordinator.findMany({
-      where: { active: true },
-      orderBy: { name: 'asc' },
-    });
-    const coordinator = coordinators.find(
-      (item: any) =>
-        this.sameText(actor.coordinatorId, item.id) ||
-        this.sameText(actor.email, item.email) ||
-        this.sameText(actor.name, item.name),
-    );
-    if (!coordinator) throw new NotFoundException('Coordinator profile not found for actor');
-    return coordinator;
+    return this.coordinatorsService.resolveCoordinatorForActor(actor);
   }
 
   private async requireCoordinatorAssignmentForEvent(eventId: string, actor: ResolvedSampleActor) {
-    const coordinator = await this.resolveCoordinatorForActor(actor);
-    const assignments = await this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId } });
-    const assignment = assignments.find(
-      (item: any) =>
-        this.sameText(item.coordinatorId, coordinator.id) ||
-        this.sameText(item.coordinatorName, coordinator.name) ||
-        this.sameText(item.coordinatorName, actor.name),
-    );
+    const assignment = await this.coordinatorsService.findAssignmentForEventActor(eventId, actor);
     if (!assignment) {
       await this.recordForbiddenAccess(actor, 'assigned event-day operations', eventId);
       throw new ForbiddenException('Coordinator is not assigned to this event');
