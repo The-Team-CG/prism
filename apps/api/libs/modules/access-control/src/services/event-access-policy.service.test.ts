@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { OpsUserRole } from '../ops.constants';
+import { OpsUserRole } from '@prism/modules/event-core';
 import { EventAccessPolicyService } from './event-access-policy.service';
 
 function createPolicy() {
