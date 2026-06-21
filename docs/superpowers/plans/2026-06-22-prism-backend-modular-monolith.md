@@ -666,17 +666,19 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ### Phase 7C - compliance-ops
 
-- [ ] Create `compliance-ops` module.
-- [ ] Move `ComplianceWorkflowService`.
-- [ ] Add compliance command and reader ports.
-- [ ] Test compliance approval/check behavior.
-- [ ] Ensure audit storage remains in `trust-ops`, not `compliance-ops`.
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-7c-compliance-ops.md`.
+
+- [x] Create `compliance-ops` module.
+- [x] Move `ComplianceWorkflowService`.
+- [x] Add compliance command and reader ports.
+- [x] Test compliance approval/check behavior.
+- [x] Ensure audit storage remains in `trust-ops`, not `compliance-ops`.
 
 **Commit checkpoints:**
 
-- [ ] `refactor(api): extract inquiry onboarding module`
+- [x] `refactor(api): extract inquiry onboarding module`
 - [x] `refactor(api): extract commercial operations module`
-- [ ] `refactor(api): extract compliance operations module`
+- [x] `refactor(api): extract compliance operations module`
 
 ## Phase 8 - Extract floorplan
 

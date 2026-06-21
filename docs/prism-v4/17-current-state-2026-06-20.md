@@ -179,3 +179,9 @@ Current limitation: `EventOpsService.listOnboarding` remains in `event-ops` beca
 Phase 7B extracted supplier quote request, supplier quote submission/revision, quote selection, and token-scoped quote-request read behavior without changing public route paths. `CommercialWorkflowService` now lives under `apps/api/libs/modules/commercial-ops`, and `CommercialOpsModule` exports the runtime service plus `COMMERCIAL_WORKFLOW_COMMANDS`, `PROPOSAL_READER`, and `QUOTE_SUPPLIER_RESOLVER`. PMCM commercial decision facade methods now accept optional actor query context and deny supplier/guest actors before quote request, quote detail, or quote selection writes run.
 
 Current limitation: this is the implemented quote/commercial workflow slice, not full proposal document generation. Controller ownership, briefing reader ownership, proposal document generation, API client generation, and proposal-document route smoke remain future child-plan work.
+
+## Post-Snapshot Compliance-Ops Slice: 2026-06-22
+
+Phase 7C extracted compliance rule listing, compliance rule create/update, compliance check generation, and compliance resolution behavior without changing public route paths. `ComplianceWorkflowService` now lives under `apps/api/libs/modules/compliance-ops`, and `ComplianceOpsModule` exports the runtime service plus `COMPLIANCE_COMMANDS` and `COMPLIANCE_READER`.
+
+Audit storage remains in `trust-ops`; compliance-ops imports public trust, access-control, and event-core providers. Controller ownership, role-scoped read-model extraction, and compliance payload field allowlists remain future child-plan work.

@@ -167,6 +167,15 @@
                                             "compilerOptions":  {
                                                                     "tsConfigPath":  "libs/modules/commercial-ops/tsconfig.lib.json"
                                                                 }
+                                        },
+                     "compliance-ops":  {
+                                            "type":  "library",
+                                            "root":  "libs/modules/compliance-ops",
+                                            "entryFile":  "index",
+                                            "sourceRoot":  "libs/modules/compliance-ops/src",
+                                            "compilerOptions":  {
+                                                                    "tsConfigPath":  "libs/modules/compliance-ops/tsconfig.lib.json"
+                                                                }
                                         }
                  }
 }

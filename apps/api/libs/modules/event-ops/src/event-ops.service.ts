@@ -114,7 +114,7 @@ import {
   type CreateComplianceRuleInput,
   type ResolveComplianceInput,
   type UpdateComplianceRuleInput,
-} from './services/compliance-workflow.service';
+} from '@prism/modules/compliance-ops';
 import {
   GuestWorkflowService,
   type GuestCheckInInput,

@@ -113,6 +113,8 @@ Phase 7A inquiry-onboarding extraction is now active: `InquiriesService`, `Inqui
 
 Phase 7B commercial extraction is now active: `CommercialWorkflowService` lives in `commercial-ops`, `CommercialOpsModule` owns quote workflow command/read tokens, and a local `PrismaQuoteSupplierResolver` keeps manual quote supplier resolution out of `event-ops`. `event-ops` keeps route compatibility through an old-path re-export and imported module provider, while PMCM commercial decision facade methods enforce PMCM/system actor scope before delegating to commercial writes.
 
+Phase 7C compliance extraction is now active: `ComplianceWorkflowService` lives in `compliance-ops`, `ComplianceOpsModule` owns compliance command/read tokens, and the workflow uses public `event-core`, `access-control`, and `trust-ops` providers. Audit persistence remains in `trust-ops`; `event-ops` keeps route compatibility through an old-path re-export and imported module provider.
+
 ## Data Domains
 
 | Domain | Representative models |

@@ -12,7 +12,7 @@ import {
   InquiryWorkflowService,
 } from '@prism/modules/inquiry-onboarding';
 import { CommercialWorkflowService } from '@prism/modules/commercial-ops';
-import { ComplianceWorkflowService } from './services/compliance-workflow.service';
+import { ComplianceWorkflowService } from '@prism/modules/compliance-ops';
 import { CoordinatorsService } from './services/coordinators.service';
 import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modules/file-ops';
 import { EventAccessPolicyService } from '@prism/modules/access-control';

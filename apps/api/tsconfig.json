@@ -120,6 +120,12 @@
                                                                             ],
                                           "@prism/modules/commercial-ops/*":  [
                                                                                   "libs/modules/commercial-ops/src/*"
+                                                                              ],
+                                          "@prism/modules/compliance-ops":  [
+                                                                                "libs/modules/compliance-ops/src/index"
+                                                                            ],
+                                          "@prism/modules/compliance-ops/*":  [
+                                                                                  "libs/modules/compliance-ops/src/*"
                                                                               ]
                                       }
                         }

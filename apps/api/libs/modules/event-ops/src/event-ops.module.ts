@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { CommercialOpsModule, CommercialWorkflowService } from '@prism/modules/commercial-ops';
+import { ComplianceOpsModule, ComplianceWorkflowService } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
@@ -21,7 +22,6 @@ import { EVENT_OPS_CONTROLLERS } from './controllers';
 import { EventOpsService } from './event-ops.service';
 import { AiGovernanceService } from './services/ai-governance.service';
 import { AuthOperationsService } from './services/auth-operations.service';
-import { ComplianceWorkflowService } from './services/compliance-workflow.service';
 import { CoordinatorsService } from './services/coordinators.service';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
@@ -58,7 +58,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })
