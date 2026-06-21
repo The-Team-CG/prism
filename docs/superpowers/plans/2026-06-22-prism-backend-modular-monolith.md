@@ -740,6 +740,8 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ## Phase 10 - Extract staffing-ops
 
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-10-staffing-ops.md`
+
 **Purpose:** Separate coordinator staffing and internal task assignment from general event operations.
 
 **Edits:**
