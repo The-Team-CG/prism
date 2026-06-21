@@ -1,1 +1,1 @@
-export const WORKFLOW_COMMAND_LOG = Symbol.for('prism.eventCore.workflowCommandLog');
+export * from '@prism/modules/event-core';

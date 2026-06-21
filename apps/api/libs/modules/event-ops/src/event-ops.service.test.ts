@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PrismTransactionRunner } from '../../../core/shared-kernel/src';
 import { EventOpsService } from './event-ops.service';
 import { AiGovernanceService } from './services/ai-governance.service';
-import { AuditService } from './services/audit.service';
+import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/modules/trust-ops';
 import { AuthOperationsService } from './services/auth-operations.service';
 import { BillingOperationsService } from './services/billing-operations.service';
 import { ClientOnboardingWorkflowService } from './services/client-onboarding-workflow.service';
@@ -11,7 +11,7 @@ import { CommercialWorkflowService } from './services/commercial-workflow.servic
 import { ComplianceWorkflowService } from './services/compliance-workflow.service';
 import { CoordinatorsService } from './services/coordinators.service';
 import { DocumentVaultService } from './services/document-vault.service';
-import { EventAccessPolicyService } from './services/event-access-policy.service';
+import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { EventReadModelsService } from './services/event-read-models.service';
@@ -21,16 +21,13 @@ import { GuestWorkflowService } from './services/guest-workflow.service';
 import { InquiriesService } from './services/inquiries.service';
 import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 import { LiveOperationsService } from './services/live-operations.service';
-import { NotificationOutboxService } from './services/notification-outbox.service';
+import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from './services/pare/pare.service';
-import { PrivacyOperationsService } from './services/privacy-operations.service';
 import { SampleStateService } from './services/sample-state.service';
 import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
 import { SuppliersService } from './services/suppliers.service';
-import { WorkflowCommandService } from './services/workflow-command.service';
+import { WorkflowCommandService } from '@prism/modules/event-core';
 import { AuthSecurityService } from './services/auth-security.service';
-import { AuditWriterAdapter } from './ports/audit-writer.adapter';
-import { NotificationOutboxWriterAdapter } from './ports/notification-outbox-writer.adapter';
 
 function inquiry(overrides: Record<string, unknown> = {}) {
   const createdAt = new Date('2026-04-29T00:00:00.000Z');
