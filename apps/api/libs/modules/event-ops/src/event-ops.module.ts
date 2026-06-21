@@ -4,6 +4,7 @@ import { AccessControlModule } from '@prism/modules/access-control';
 import { CommercialOpsModule, CommercialWorkflowService } from '@prism/modules/commercial-ops';
 import { ComplianceOpsModule, ComplianceWorkflowService } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
+import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { FloorplanModule } from '@prism/modules/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
@@ -27,7 +28,6 @@ import { AiGovernanceService } from './services/ai-governance.service';
 import { AuthOperationsService } from './services/auth-operations.service';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
-import { EventReadModelsService } from './services/event-read-models.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
@@ -42,7 +42,6 @@ const EVENT_OPS_PROVIDERS = [
   PAREService,
   AuthOperationsService,
   LiveOperationsService,
-  EventReadModelsService,
   EventClosureService,
   ComplianceWorkflowService,
   { provide: SUPPLIER_DIRECTORY, useExisting: SuppliersService },
@@ -55,7 +54,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })

@@ -121,6 +121,8 @@ Phase 9 guest extraction is now active: `GuestWorkflowService` lives in `guest-o
 
 Phase 10 staffing extraction is now active: `CoordinatorsService` lives in `staffing-ops`, `StaffingOpsModule` owns `STAFFING_COMMANDS` and `STAFFING_READER`, and coordinator directory reads, assignment commands, acknowledgement commands, event assignment reads, and coordinator actor assignment resolution now sit behind the staffing module. `event-ops` keeps route compatibility and delegates coordinator workspace reads through `CoordinatorsService`; event-day tasks, urgent issues, attendance, replacement, and status feed behavior remain in live operations until a later live-ops owner extraction.
 
+Phase 11 event-read-models extraction is now active: `EventReadModelsService` lives in `event-read-models`, `EventReadModelsModule` owns PMCM/client/supplier/billing read-model provider tokens, and cross-domain dashboard reads now run through read-only query builders with explicit query-budget comments. The module imports public access-control, guest, and staffing ports only; `event-ops` keeps route compatibility through a re-export and controller facade methods until controller ownership moves in Phase 13.
+
 ## Data Domains
 
 | Domain | Representative models |

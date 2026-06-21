@@ -207,3 +207,10 @@ Phase 10 extracted coordinator directory reads, coordinator assignment writes, c
 `EventOpsService` remains the compatibility facade for coordinator directory, assignment, acknowledgement, and coordinator workspace surfaces, but those reads and writes now delegate through the staffing service instead of direct event-ops coordinator ownership. The Phase 10 regression suite covers conflict-gated coordinator assignment, same-transaction audit/outbox side effects, acknowledgement, internal staffing reads, and the forbidden-role rule that client, supplier, and guest actors cannot access internal staffing directory payloads.
 
 Current limitation: event-day tasks, urgent issues, coordinator attendance, coordinator replacement, event-day logs, and status feed behavior remain in live operations pending a later live-ops owner extraction. Full coordinator staffing heatmap behavior remains on the do-not-claim list.
+## Post-Snapshot Event-Read-Models Slice: 2026-06-22
+
+Phase 11 extracted role-scoped PMCM, client, supplier, and billing read-model composition without changing public route paths. `EventReadModelsService` now lives under `apps/api/libs/modules/event-read-models`, and `EventReadModelsModule` exports the runtime service plus PMCM/client/supplier/billing read-model tokens.
+
+The moved service uses `EventReadModelQueries` for bounded read-only Prisma access with query-budget comments, consumes public access-control policy, and delegates guest attendance/feedback and selected-event staffing reads through public reader ports. `EventOpsService` remains the compatibility facade for the existing controllers and route methods, while the old event-ops read-model service path remains a re-export for compatibility tests.
+
+Current limitation: controller ownership remains in `event-ops` until Phase 13, and closure/archive readiness still awaits the Phase 12 `closure-ops` extraction. Read-model query budgets are documented and statically guarded, but high-volume query-count instrumentation remains a future hardening step when test infrastructure can count Prisma calls.

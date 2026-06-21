@@ -18,7 +18,7 @@ import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modu
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
-import { EventReadModelsService } from './services/event-read-models.service';
+import { EventReadModelQueries, EventReadModelsService } from '@prism/modules/event-read-models';
 import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
 import { GuestWorkflowService } from '@prism/modules/guest-ops';
 import { LiveOperationsService } from './services/live-operations.service';
@@ -1012,7 +1012,12 @@ function createEventOpsService(prisma: any) {
     mapGuestCheckIn: (checkIn: any) => guestWorkflowService.mapGuestCheckIn(checkIn),
     mapGuestFeedback: (feedback: any) => guestWorkflowService.mapGuestFeedback(feedback),
   } as any;
-  const eventReadModelsService = new EventReadModelsService(prisma, eventAccessPolicyService, suppliersService, guestReader);
+  const eventReadModelsService = new EventReadModelsService(
+    new EventReadModelQueries(prisma as any),
+    eventAccessPolicyService,
+    guestReader,
+    coordinatorsService,
+  );
   const commercialWorkflowService = new CommercialWorkflowService(
     prisma,
     auditService,

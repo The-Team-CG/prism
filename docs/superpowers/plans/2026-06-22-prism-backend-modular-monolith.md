@@ -774,13 +774,13 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 **Edits:**
 
-- [ ] Create `event-read-models` module.
-- [ ] Move `EventReadModelsService` after supplier, finance, file, floorplan, guest, and staffing reader ports exist.
+- [x] Create `event-read-models` module.
+- [x] Move `EventReadModelsService` after supplier, finance, file, floorplan, guest, and staffing reader ports exist.
 - [ ] Move DTO/read-model mapper callbacks out of capability services and into `event-read-models` mappers or shared backend mapper files.
-- [ ] Forbid `event-read-models -> event-ops` imports.
-- [ ] Replace private-service reads with reader ports.
-- [ ] Allow direct Prisma reads only through named query-builder files with field allowlists, role-scope tests, and query-budget comments.
-- [ ] Split read-model tests by actor: PMCM, client, supplier, guest.
+- [x] Forbid `event-read-models -> event-ops` imports.
+- [x] Replace private-service reads with reader ports.
+- [x] Allow direct Prisma reads only through named query-builder files with field allowlists, role-scope tests, and query-budget comments.
+- [x] Split read-model tests by actor: PMCM, client, supplier, guest.
 - [ ] Add N+1/query-budget tests for high-volume dashboard payloads where test infrastructure can count Prisma calls.
 
 **Query-builder comment shape:**
@@ -792,20 +792,20 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 **Tests:**
 
 - [ ] PMCM dashboard payload includes operational fields.
-- [ ] Client event payload excludes PMCM-only finance, staffing, and supplier-private fields.
-- [ ] Supplier payload excludes client-private fields and finance internals.
+- [x] Client event payload excludes PMCM-only finance, staffing, and supplier-private fields.
+- [x] Supplier payload excludes client-private fields and finance internals.
 - [ ] Guest payload excludes PMCM planning fields.
-- [ ] Boundary test: read model cannot call Prisma mutation methods.
-- [ ] `npm --workspace prism-api run test -- read-model`.
+- [x] Boundary test: read model cannot call Prisma mutation methods.
+- [x] `npm --workspace prism-api run test -- read-model`.
 - [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
 
-- [ ] Read-model code is read-only.
-- [ ] Role payloads are field-allowlisted.
-- [ ] Cross-domain reads are centralized and query-budgeted.
+- [x] Read-model code is read-only.
+- [x] Role payloads are field-allowlisted.
+- [x] Cross-domain reads are centralized and query-budgeted.
 
-**Commit checkpoint:** `refactor(api): extract event read models module`
+**Commit checkpoint:** [x] `refactor(api): extract event read models module`
 
 ## Phase 12 - Extract closure-ops
 

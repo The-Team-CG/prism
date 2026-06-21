@@ -67,6 +67,12 @@
                                           "@prism/modules/health/*":  [
                                                                           "libs/modules/health/src/*"
                                                                       ],
+                                          "@prism/modules/event-read-models":  [
+                                                                                    "libs/modules/event-read-models/src/index"
+                                                                                ],
+                                          "@prism/modules/event-read-models/*":  [
+                                                                                      "libs/modules/event-read-models/src/*"
+                                                                                  ],
                                           "@prism/modules/event-core":  [
                                                                             "libs/modules/event-core/src/index"
                                                                         ],

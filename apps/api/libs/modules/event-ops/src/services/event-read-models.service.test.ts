@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { OpsUserRole } from '../ops.constants';
-import { EventAccessPolicyService } from './event-access-policy.service';
+import { OpsUserRole } from '@prism/modules/event-core';
+import { EventAccessPolicyService } from '@prism/modules/access-control';
+import { EventReadModelQueries } from '@prism/modules/event-read-models';
 import { EventReadModelsService } from './event-read-models.service';
 
 function createGuestReader() {
@@ -9,6 +10,13 @@ function createGuestReader() {
     listFeedbackForEvent: vi.fn(async () => []),
     mapGuestCheckIn: vi.fn((checkIn) => checkIn),
     mapGuestFeedback: vi.fn((feedback) => feedback),
+  };
+}
+
+function createStaffingReader() {
+  return {
+    listAssignmentsForEvent: vi.fn(async () => []),
+    listCoordinators: vi.fn(async () => []),
   };
 }
 function createSupplierWorkspaceService() {
@@ -64,26 +72,73 @@ function createSupplierWorkspaceService() {
     },
   };
   const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
-  const suppliersService = {
-    listSuppliers: vi.fn(async () => [
-      {
-        id: 'sup_sonicline',
-        name: 'Sonic Line Events',
-        email: 'supplier@example.com',
-        reviews: [],
-        reliabilityNotes: [],
-        performanceNotes: '',
-        aggregateRating: null,
-        lastEventDate: null,
-        pastEvents: [],
+  const supplierRows = [
+    {
+      id: 'sup_sonicline',
+      categoryId: 'supcat_technicals',
+      name: 'Sonic Line Events',
+      contactName: 'Dane Villanueva',
+      email: 'supplier@example.com',
+      phone: '+63 917 555 0103',
+      tier: 'tier_1',
+      bniMember: false,
+      serviceInclusions: 'Audio, lights, LED wall',
+      performanceNotes: '',
+      applicationDate: new Date('2026-01-01T00:00:00.000Z'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      category: {
+        id: 'supcat_technicals',
+        slug: 'technicals',
+        name: 'Technicals',
+        sortOrder: 1,
+        active: true,
+        acceptableMin: 120000,
+        acceptableMax: 180000,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
       },
-    ]),
-  };
+      reviews: [],
+      reliabilityNotes: [],
+      certifications: [],
+    },
+  ];
+  (prisma as any).opsSupplier = { findMany: vi.fn(async () => supplierRows) };
   const guestReader = createGuestReader();
-  const service = new EventReadModelsService(prisma as any, policy, suppliersService as any, guestReader as any);
-  return { service, prisma, policy, guestReader };
+  const staffingReader = createStaffingReader();
+  const service = new EventReadModelsService(
+    new EventReadModelQueries(prisma as any),
+    policy,
+    guestReader as any,
+    staffingReader as any,
+  );
+  return { service, prisma, policy, guestReader, staffingReader };
 }
 
+function createPassthroughPmcmMappers() {
+  return {
+    coordinatorRoleRequirements: [],
+    mapUser: (user: any) => user,
+    mapInquiry: (inquiry: any) => inquiry,
+    mapEvent: (event: any) => event,
+    mapDocument: (document: any) => document,
+    mapBriefing: (briefing: any) => briefing,
+    mapSupplierQuoteRequest: (request: any) => request,
+    mapSupplierQuote: (quote: any) => quote,
+    mapCoordinator: (coordinator: any) => coordinator,
+    mapCoordinatorAssignment: (assignment: any) => assignment,
+    mapComplianceRule: (rule: any) => rule,
+    mapComplianceCheck: (check: any) => check,
+    mapBillingSource: (source: any) => source,
+    mapBillingStatement: (statement: any) => statement,
+    mapPaymentMilestone: (payment: any) => payment,
+    mapPaymentRecord: (record: any) => record,
+    mapPostEventDocument: (document: any) => document,
+    mapEventInsight: (insight: any) => insight,
+    mapFloorPlanDraft: (draft: any) => draft,
+    mapAuditLog: (log: any) => log,
+    mapNotificationLog: (log: any) => log,
+  };
+}
 function createPmcmReadModelService() {
   const event = {
     id: 'evt_visible',
@@ -143,7 +198,13 @@ function createPmcmReadModelService() {
   };
   const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
   const guestReader = createGuestReader();
-  const service = new EventReadModelsService(prisma as any, policy, {} as any, guestReader as any);
+  const staffingReader = createStaffingReader();
+  const service = new EventReadModelsService(
+    new EventReadModelQueries(prisma as any),
+    policy,
+    guestReader as any,
+    staffingReader as any,
+  );
   return { service, prisma, policy, guestReader };
 }
 
@@ -281,6 +342,36 @@ describe('EventReadModelsService', () => {
     await expect(service.supplierReadinessBoard(actor)).rejects.toThrow('client cannot access supplier readiness board');
   });
 
+  it('denies suppliers from client workspace records', async () => {
+    const { service, policy } = createPmcmReadModelService();
+    const actor = policy.resolveActor({
+      actorRole: OpsUserRole.Supplier,
+      supplierId: 'sup_sonicline',
+      actorEmail: 'supplier@example.com',
+    });
+
+    await expect(
+      service.clientWorkspace(actor, {
+        mapEvent: (event) => event,
+        mapDocument: (document) => document,
+        mapBriefing: (briefing) => briefing,
+        mapBillingStatement: (statement) => statement,
+        mapPaymentMilestone: (payment) => payment,
+        mapFloorPlanDraft: (draft) => draft,
+        mapAuditLog: (log) => log,
+      }),
+    ).rejects.toThrow('supplier cannot access client workspace');
+  });
+
+  it('denies clients from PMCM selected event workspace records', async () => {
+    const { service, policy } = createPmcmReadModelService();
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    await expect(service.pmcmEventWorkspace(actor, 'evt_visible', createPassthroughPmcmMappers())).rejects.toThrow(
+      'client cannot access PMCM event workspace',
+    );
+  });
+
   it('keeps client action-center work scoped to the client visible event set', async () => {
     const eventVisible = {
       id: 'evt_visible',
@@ -332,7 +423,8 @@ describe('EventReadModelsService', () => {
     };
     const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
     const guestReader = createGuestReader();
-    const service = new EventReadModelsService(prisma as any, policy, {} as any, guestReader as any);
+    const staffingReader = createStaffingReader();
+    const service = new EventReadModelsService(new EventReadModelQueries(prisma as any), policy, guestReader as any, staffingReader as any);
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
 
     const actionCenter = await service.clientActionCenter(actor);

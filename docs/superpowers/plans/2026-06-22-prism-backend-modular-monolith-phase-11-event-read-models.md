@@ -54,7 +54,7 @@
 **Files:**
 - Modify: `apps/api/libs/modules/event-ops/src/services/event-read-models.service.test.ts`
 
-- [ ] **Step 1: Add supplier-forbidden client workspace regression**
+- [x] **Step 1: Add supplier-forbidden client workspace regression**
 
 Add this test near the existing forbidden-role tests:
 
@@ -81,7 +81,7 @@ it('denies suppliers from client workspace records', async () => {
 });
 ```
 
-- [ ] **Step 2: Add PMCM selected-workspace forbidden-role regression**
+- [x] **Step 2: Add PMCM selected-workspace forbidden-role regression**
 
 Add this test near the PMCM workspace test:
 
@@ -126,7 +126,7 @@ function createPassthroughPmcmMappers() {
 }
 ```
 
-- [ ] **Step 3: Run baseline read-model tests**
+- [x] **Step 3: Run baseline read-model tests**
 
 Run:
 
@@ -146,7 +146,7 @@ Expected: PASS before extraction. These tests prove current behavior that must s
 - Create: `apps/api/libs/modules/event-read-models/src/ports/*.ts`
 - Create: `apps/api/libs/modules/event-read-models/tsconfig.lib.json`
 
-- [ ] **Step 1: Add public provider tokens**
+- [x] **Step 1: Add public provider tokens**
 
 Create `event-read-models.tokens.ts`:
 
@@ -157,7 +157,7 @@ export const SUPPLIER_EVENT_READ_MODEL = Symbol('SUPPLIER_EVENT_READ_MODEL');
 export const BILLING_READ_MODEL = Symbol('BILLING_READ_MODEL');
 ```
 
-- [ ] **Step 2: Add port interfaces**
+- [x] **Step 2: Add port interfaces**
 
 Create the four port files using these signatures:
 
@@ -185,7 +185,7 @@ export interface BillingReadModel {
 
 Import `ResolvedEventOpsActor` from `@prism/modules/access-control`, and import mapper types from `../services/event-read-models.service`.
 
-- [ ] **Step 3: Add module shell**
+- [x] **Step 3: Add module shell**
 
 Create `event-read-models.module.ts`:
 
@@ -214,7 +214,7 @@ import { EventReadModelsService } from './services/event-read-models.service';
 export class EventReadModelsModule {}
 ```
 
-- [ ] **Step 4: Add barrel and tsconfig**
+- [x] **Step 4: Add barrel and tsconfig**
 
 Create `index.ts` exporting module, ports, tokens, queries, and service. Create `tsconfig.lib.json` with `outDir` set to `../../../../dist/libs/modules/event-read-models`, include `src/**/*`, and exclude `**/*.test.ts`.
 
@@ -226,7 +226,7 @@ Create `index.ts` exporting module, ports, tokens, queries, and service. Create 
 - Create: `apps/api/libs/modules/event-read-models/src/queries/event-read-models.queries.ts`
 - Modify after move: `apps/api/libs/modules/event-read-models/src/services/event-read-models.service.ts`
 
-- [ ] **Step 1: Add the query builder class**
+- [x] **Step 1: Add the query builder class**
 
 Create `EventReadModelQueries` with a constructor that injects `PrismaService`. Every method must have a `Query budget:` comment immediately above it.
 
@@ -248,11 +248,11 @@ supplierCategories()
 boundedCoordinatorAssignments()
 ```
 
-- [ ] **Step 2: Keep query builders read-only**
+- [x] **Step 2: Keep query builders read-only**
 
 The query builder may use `findMany`, `findUnique`, `count`, `Promise.all`, and `$queryRaw` only when the file contains `Query budget:`. It must not use `create`, `update`, `upsert`, `delete`, `createMany`, `updateMany`, `deleteMany`, `$executeRaw`, `$transaction`, audit writers, or outbox writers.
 
-- [ ] **Step 3: Replace direct Prisma calls in the moved service**
+- [x] **Step 3: Replace direct Prisma calls in the moved service**
 
 After Task 4 copies the service, replace direct `this.prisma.*` reads with `this.queries.*` calls. Keep mapping and role checks in `EventReadModelsService`; keep read mechanics in `EventReadModelQueries`.
 
@@ -265,11 +265,11 @@ After Task 4 copies the service, replace direct `this.prisma.*` reads with `this
 - Create from existing: `apps/api/libs/modules/event-read-models/src/services/event-read-models.service.test.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/services/event-read-models.service.ts`
 
-- [ ] **Step 1: Copy service and test to the new module path**
+- [x] **Step 1: Copy service and test to the new module path**
 
 Copy the current implementation and test files into `event-read-models/src/services`. Do not delete the old files in this step.
 
-- [ ] **Step 2: Update moved service imports**
+- [x] **Step 2: Update moved service imports**
 
 Use public module imports:
 
@@ -283,7 +283,7 @@ import { EventReadModelQueries } from '../queries/event-read-models.queries';
 
 Remove private imports from `../ops.constants`, `./event-access-policy.service`, and `./suppliers.service`.
 
-- [ ] **Step 3: Update constructor dependencies**
+- [x] **Step 3: Update constructor dependencies**
 
 Use this constructor:
 
@@ -298,11 +298,11 @@ constructor(
 
 `EventReadModelsService` must not inject `PrismaService` directly after the query builder exists.
 
-- [ ] **Step 4: Replace supplier and staffing reads**
+- [x] **Step 4: Replace supplier and staffing reads**
 
 Use `this.queries.activeSuppliers()` for supplier profile resolution, `this.queries.supplierCategories()` for PMCM dashboard categories, `this.staffingReader.listAssignmentsForEvent(eventId)` for selected-event coordinator assignments, and `this.staffingReader.listCoordinators()` for dashboard coordinator cards. Use `this.queries.boundedCoordinatorAssignments()` for the PMCM dashboard all-assignment list until a dedicated staffing dashboard reader exists.
 
-- [ ] **Step 5: Keep legacy import path stable**
+- [x] **Step 5: Keep legacy import path stable**
 
 Replace `apps/api/libs/modules/event-ops/src/services/event-read-models.service.ts` with:
 
@@ -310,7 +310,7 @@ Replace `apps/api/libs/modules/event-ops/src/services/event-read-models.service.
 export * from '@prism/modules/event-read-models';
 ```
 
-- [ ] **Step 6: Run moved service tests**
+- [x] **Step 6: Run moved service tests**
 
 Run:
 
@@ -329,19 +329,19 @@ Expected: PASS.
 - Modify: `apps/api/libs/modules/event-ops/src/event-ops.service.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts`
 
-- [ ] **Step 1: Import `EventReadModelsModule` in event-ops**
+- [x] **Step 1: Import `EventReadModelsModule` in event-ops**
 
 Add `EventReadModelsModule` from `@prism/modules/event-read-models` to `EventOpsModule.imports`.
 
-- [ ] **Step 2: Remove local read-model provider ownership**
+- [x] **Step 2: Remove local read-model provider ownership**
 
 Remove `EventReadModelsService` from `EVENT_OPS_PROVIDERS`; Nest must resolve it from `EventReadModelsModule`.
 
-- [ ] **Step 3: Update service and test imports**
+- [x] **Step 3: Update service and test imports**
 
 Import `EventReadModelsService`, `EventReadModelQueries`, and mapper types from `@prism/modules/event-read-models`.
 
-- [ ] **Step 4: Update event-ops test helper**
+- [x] **Step 4: Update event-ops test helper**
 
 Instantiate the moved service like this:
 
@@ -355,7 +355,7 @@ const eventReadModelsService = new EventReadModelsService(
 );
 ```
 
-- [ ] **Step 5: Run facade tests**
+- [x] **Step 5: Run facade tests**
 
 Run:
 
@@ -375,7 +375,7 @@ Expected: PASS.
 - Modify: `apps/api/vitest.config.ts`
 - Modify: `apps/api/nest-cli.json`
 
-- [ ] **Step 1: Add TypeScript aliases**
+- [x] **Step 1: Add TypeScript aliases**
 
 Add:
 
@@ -384,7 +384,7 @@ Add:
 "@prism/modules/event-read-models/*": ["libs/modules/event-read-models/src/*"]
 ```
 
-- [ ] **Step 2: Add Vitest alias**
+- [x] **Step 2: Add Vitest alias**
 
 Add this alias:
 
@@ -392,11 +392,11 @@ Add this alias:
       '@prism/modules/event-read-models': resolve(__dirname, './libs/modules/event-read-models/src/index.ts'),
 ```
 
-- [ ] **Step 3: Add Nest library project**
+- [x] **Step 3: Add Nest library project**
 
 Add an `event-read-models` library project pointing to `libs/modules/event-read-models/tsconfig.lib.json`.
 
-- [ ] **Step 4: Run build and boundary checks**
+- [x] **Step 4: Run build and boundary checks**
 
 Run:
 
@@ -418,15 +418,15 @@ Expected: build and boundary check pass. The first `rg` must not report event-re
 - Modify: `docs/prism-v4/15-system-architecture.md`
 - Modify: `docs/prism-v4/17-current-state-2026-06-20.md`
 
-- [ ] **Step 1: Mark Phase 11 complete in the master plan**
+- [x] **Step 1: Mark Phase 11 complete in the master plan**
 
 Only check Phase 11 boxes after all Task 6 commands pass.
 
-- [ ] **Step 2: Update architecture/current-state docs**
+- [x] **Step 2: Update architecture/current-state docs**
 
 Record that `event-read-models` owns role-scoped PMCM/client/supplier/billing read models through read-only query builders and public guest/staffing reader ports. Record that controller ownership remains in `event-ops` until Phase 13.
 
-- [ ] **Step 3: Run final verification**
+- [x] **Step 3: Run final verification**
 
 Run:
 
@@ -444,7 +444,7 @@ git diff --check
 
 Expected: targeted read-model tests, facade tests, full event-ops tests, build, boundary check, no event-ops imports from `event-read-models`, no Prisma mutations in `event-read-models`, and diff check pass.
 
-- [ ] **Step 4: Commit implementation**
+- [x] **Step 4: Commit implementation**
 
 Commit message:
 
@@ -457,7 +457,7 @@ git commit -m "refactor(api): extract event read models module"
 
 ## Self-Review
 
-- Spec coverage: Covers Phase 11 module creation, service movement, no event-ops imports, public read-model tokens, role-scoped PMCM/client/supplier payloads, read-only query builders, guest/staffing reader ports, tests, build, boundary checks, and docs.
+- Spec coverage: Covers the behavior-preserving service extraction, no event-ops imports, public read-model tokens, role-scoped PMCM/client/supplier payloads, read-only query builders, guest/staffing reader ports, tests, build, boundary checks, and docs. Mapper-function relocation and high-volume query-count instrumentation remain tracked in the master Phase 11 checklist.
 - Boundary clarity: The plan intentionally keeps controllers in `event-ops` until Phase 13 and does not create generic repositories. Query builders are read-model-specific and include query-budget comments.
 - Placeholder scan: No unfinished-marker or generic test instructions remain; every task names files, code shape, commands, and expected results.
 - Type consistency: `EventReadModelsService`, `EventReadModelQueries`, `PmcmDashboardMappers`, `ClientWorkspaceMappers`, `SupplierWorkspaceMappers`, `BillingReadModelMappers`, `PMCM_EVENT_READ_MODEL`, `CLIENT_EVENT_READ_MODEL`, `SUPPLIER_EVENT_READ_MODEL`, and `BILLING_READ_MODEL` are used consistently.

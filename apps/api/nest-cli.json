@@ -87,6 +87,15 @@
                                                             "tsConfigPath":  "libs/modules/health/tsconfig.lib.json"
                                                         }
                                 },
+                     "event-read-models":  {
+                                           "type":  "library",
+                                           "root":  "libs/modules/event-read-models",
+                                           "entryFile":  "index",
+                                           "sourceRoot":  "libs/modules/event-read-models/src",
+                                           "compilerOptions":  {
+                                                                   "tsConfigPath":  "libs/modules/event-read-models/tsconfig.lib.json"
+                                                               }
+                                       },
                      "event-core":  {
                                         "type":  "library",
                                         "root":  "libs/modules/event-core",

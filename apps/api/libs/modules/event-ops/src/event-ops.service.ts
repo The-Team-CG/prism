@@ -94,7 +94,7 @@ import {
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
-import { EventReadModelsService, type PmcmDashboardMappers } from './services/event-read-models.service';
+import { EventReadModelsService, type PmcmDashboardMappers } from '@prism/modules/event-read-models';
 import { EventClosureService } from './services/event-closure.service';
 import { PAREService } from './services/pare/pare.service';
 import {
