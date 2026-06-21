@@ -28,6 +28,7 @@ import type {
   OpsUser,
 } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/database';
+import { DocumentVaultService, FileRequirementsMatrixService, type UploadMetadataInput } from '@prism/modules/file-ops';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditService } from './services/audit.service';
@@ -47,7 +48,6 @@ import {
   type SupplierEventStatusInput,
   type SupplierReadinessInput,
 } from './services/supplier-network-workflow.service';
-import { DocumentVaultService, type UploadMetadataInput } from './services/document-vault.service';
 import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,
@@ -83,7 +83,6 @@ import {
   type ResolvedEventOpsActor,
 } from './services/event-access-policy.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
-import { FileRequirementsMatrixService } from './services/file-requirements-matrix.service';
 import { NotificationOutboxService } from './services/notification-outbox.service';
 import { WorkflowCommandService } from './services/workflow-command.service';
 import { EventReadModelsService, type PmcmDashboardMappers } from './services/event-read-models.service';
@@ -2000,7 +1999,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     const dueDate = addDays(now, 14);
 
     await this.prisma.$transaction(async (tx) => {
-      // Harvest Table — assigned (this is the one PARE will replace when withdrawn)
+      // Harvest Table â€” assigned (this is the one PARE will replace when withdrawn)
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_harvesttable',
@@ -2036,7 +2035,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      // LensCraft — assigned (second assigned supplier to give more sample options)
+      // LensCraft â€” assigned (second assigned supplier to give more sample options)
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_lenscraft',

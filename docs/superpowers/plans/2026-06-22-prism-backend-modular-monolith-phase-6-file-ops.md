@@ -79,7 +79,7 @@ Out of scope:
 
 ## Task 1 - Add File Matrix Service Test Before Moving
 
-- [ ] Create `apps/api/libs/modules/event-ops/src/services/file-requirements-matrix.service.test.ts` with this focused read/close-gate coverage:
+- [x] Create `apps/api/libs/modules/event-ops/src/services/file-requirements-matrix.service.test.ts` with this focused read/close-gate coverage:
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
@@ -134,13 +134,13 @@ describe('FileRequirementsMatrixService', () => {
 });
 ```
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/file-requirements-matrix.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/file-requirements-matrix.service.test.ts`.
   Expected: PASS before the move; this preserves current behavior.
 
 ## Task 2 - Create File-Ops Module Shell
 
-- [ ] Create directories `apps/api/libs/modules/file-ops/src/ports` and `apps/api/libs/modules/file-ops/src/services`.
-- [ ] Add `apps/api/libs/modules/file-ops/tsconfig.lib.json`:
+- [x] Create directories `apps/api/libs/modules/file-ops/src/ports` and `apps/api/libs/modules/file-ops/src/services`.
+- [x] Add `apps/api/libs/modules/file-ops/tsconfig.lib.json`:
 
 ```json
 {
@@ -154,13 +154,13 @@ describe('FileRequirementsMatrixService', () => {
 }
 ```
 
-- [ ] Add `@prism/modules/file-ops` and `@prism/modules/file-ops/*` to `apps/api/tsconfig.json`.
-- [ ] Add `@prism/modules/file-ops` to `apps/api/vitest.config.ts`.
-- [ ] Add a `file-ops` library project to `apps/api/nest-cli.json` with root `libs/modules/file-ops`, entry `index`, source root `libs/modules/file-ops/src`, and tsconfig `libs/modules/file-ops/tsconfig.lib.json`.
+- [x] Add `@prism/modules/file-ops` and `@prism/modules/file-ops/*` to `apps/api/tsconfig.json`.
+- [x] Add `@prism/modules/file-ops` to `apps/api/vitest.config.ts`.
+- [x] Add a `file-ops` library project to `apps/api/nest-cli.json` with root `libs/modules/file-ops`, entry `index`, source root `libs/modules/file-ops/src`, and tsconfig `libs/modules/file-ops/tsconfig.lib.json`.
 
 ## Task 3 - Move File Services Into File-Ops
 
-- [ ] Run:
+- [x] Move service files into `file-ops` (direct file move was denied by sandbox, so files were reconstructed from `HEAD` and current test content, then old paths became compatibility re-exports):
 
 ```powershell
 git mv apps/api/libs/modules/event-ops/src/services/file-requirements-matrix.service.ts apps/api/libs/modules/file-ops/src/services/file-requirements-matrix.service.ts
@@ -168,14 +168,14 @@ git mv apps/api/libs/modules/event-ops/src/services/document-vault.service.ts ap
 git mv apps/api/libs/modules/event-ops/src/services/document-vault.service.test.ts apps/api/libs/modules/file-ops/src/services/document-vault.service.test.ts
 ```
 
-- [ ] Move the untracked file matrix test from Task 1 into `apps/api/libs/modules/file-ops/src/services/file-requirements-matrix.service.test.ts`.
-- [ ] Create `apps/api/libs/modules/event-ops/src/services/file-requirements-matrix.service.ts`:
+- [x] Move the untracked file matrix test from Task 1 into `apps/api/libs/modules/file-ops/src/services/file-requirements-matrix.service.test.ts`.
+- [x] Create `apps/api/libs/modules/event-ops/src/services/file-requirements-matrix.service.ts`:
 
 ```ts
 export * from '@prism/modules/file-ops';
 ```
 
-- [ ] Create `apps/api/libs/modules/event-ops/src/services/document-vault.service.ts`:
+- [x] Create `apps/api/libs/modules/event-ops/src/services/document-vault.service.ts`:
 
 ```ts
 export * from '@prism/modules/file-ops';
@@ -183,7 +183,7 @@ export * from '@prism/modules/file-ops';
 
 ## Task 4 - Add File Ports And Runtime Module
 
-- [ ] Create `apps/api/libs/modules/file-ops/src/ports/file-ops.tokens.ts`:
+- [x] Create `apps/api/libs/modules/file-ops/src/ports/file-ops.tokens.ts`:
 
 ```ts
 export const FILE_REQUIREMENT_COMMANDS = Symbol('FILE_REQUIREMENT_COMMANDS');
@@ -191,7 +191,7 @@ export const FILE_REQUIREMENT_READER = Symbol('FILE_REQUIREMENT_READER');
 export const SIGNED_UPLOAD_URL_FACTORY = Symbol('SIGNED_UPLOAD_URL_FACTORY');
 ```
 
-- [ ] Create `apps/api/libs/modules/file-ops/src/ports/file-requirement-reader.port.ts`:
+- [x] Create `apps/api/libs/modules/file-ops/src/ports/file-requirement-reader.port.ts`:
 
 ```ts
 import type { FileRequirementsMatrix } from '../services/file-requirements-matrix.service';
@@ -202,7 +202,7 @@ export interface FileRequirementReader {
 }
 ```
 
-- [ ] Create `apps/api/libs/modules/file-ops/src/ports/file-requirement-commands.port.ts`:
+- [x] Create `apps/api/libs/modules/file-ops/src/ports/file-requirement-commands.port.ts`:
 
 ```ts
 export interface FileRequirementCommands {
@@ -210,7 +210,7 @@ export interface FileRequirementCommands {
 }
 ```
 
-- [ ] Create `apps/api/libs/modules/file-ops/src/ports/signed-upload-url-factory.port.ts`:
+- [x] Create `apps/api/libs/modules/file-ops/src/ports/signed-upload-url-factory.port.ts`:
 
 ```ts
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
@@ -242,7 +242,7 @@ export class MetadataOnlySignedUploadUrlFactory implements SignedUploadUrlFactor
 }
 ```
 
-- [ ] Create `apps/api/libs/modules/file-ops/src/ports/signed-upload-url-factory.port.test.ts`:
+- [x] Create `apps/api/libs/modules/file-ops/src/ports/signed-upload-url-factory.port.test.ts`:
 
 ```ts
 import { ServiceUnavailableException } from '@nestjs/common';
@@ -265,7 +265,7 @@ describe('MetadataOnlySignedUploadUrlFactory', () => {
 });
 ```
 
-- [ ] Create `apps/api/libs/modules/file-ops/src/file-ops.module.ts`:
+- [x] Create `apps/api/libs/modules/file-ops/src/file-ops.module.ts`:
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -298,43 +298,65 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
 export class FileOpsModule {}
 ```
 
-- [ ] Create `apps/api/libs/modules/file-ops/src/index.ts` exporting module, ports, and services.
+- [x] Create `apps/api/libs/modules/file-ops/src/index.ts` exporting module, ports, and services.
 
 ## Task 5 - Wire Event-Ops Compatibility To File-Ops
 
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.module.ts`:
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.module.ts`:
   - Import `FileOpsModule`, `DocumentVaultService`, and `FileRequirementsMatrixService` from `@prism/modules/file-ops`.
   - Remove local imports for those services.
   - Remove `DocumentVaultService` and `FileRequirementsMatrixService` from `EVENT_OPS_PROVIDERS`.
   - Add `FileOpsModule` to imports.
   - Keep `{ provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DocumentVaultService }` so supplier workflow keeps using the supplier-owned port.
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.service.ts` to import `DocumentVaultService`, `UploadMetadataInput`, and `FileRequirementsMatrixService` from `@prism/modules/file-ops`.
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts` to import `DocumentVaultService` and `FileRequirementsMatrixService` from `@prism/modules/file-ops`.
-- [ ] Update `apps/api/libs/modules/event-ops/src/services/event-closure.service.ts` to import `FileRequirementsMatrixService` from `@prism/modules/file-ops`.
-- [ ] Update `apps/api/libs/modules/event-ops/src/services/guest-workflow.service.ts` to import `DocumentVaultService` and `UploadMetadataInput` from `@prism/modules/file-ops`.
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.service.ts` to import `DocumentVaultService`, `UploadMetadataInput`, and `FileRequirementsMatrixService` from `@prism/modules/file-ops`.
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts` to import `DocumentVaultService` and `FileRequirementsMatrixService` from `@prism/modules/file-ops`.
+- [x] Update `apps/api/libs/modules/event-ops/src/services/event-closure.service.ts` to import `FileRequirementsMatrixService` from `@prism/modules/file-ops`.
+- [x] Update `apps/api/libs/modules/event-ops/src/services/guest-workflow.service.ts` to import `DocumentVaultService` and `UploadMetadataInput` from `@prism/modules/file-ops`.
 
 ## Task 6 - Verification And Docs Closeout
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/file-ops/src/services/file-requirements-matrix.service.test.ts libs/modules/file-ops/src/services/document-vault.service.test.ts libs/modules/file-ops/src/ports/signed-upload-url-factory.port.test.ts`.
-- [ ] Run `npm --workspace prism-api run test -- file`.
-- [ ] Run `npm --workspace prism-api run test:event-ops`.
-- [ ] Run `npm --workspace prism-api run build`.
-- [ ] Run `npm run check:boundaries`.
-- [ ] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/finance-ops|modules/finance-ops" apps/api/libs/modules/file-ops`; expected result: no matches.
-- [ ] Run `git diff --check`.
-- [ ] Update parent Phase 6 checkboxes only for items proven by this slice. Leave read-model migration and real storage tasks unchecked unless the implementation actually proves them.
-- [ ] Add verification evidence to this child plan.
-- [ ] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md` with file extraction state and storage gate.
-- [ ] Commit checkpoint: `refactor(api): extract file operations module`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/file-ops/src/services/file-requirements-matrix.service.test.ts libs/modules/file-ops/src/services/document-vault.service.test.ts libs/modules/file-ops/src/ports/signed-upload-url-factory.port.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- file`.
+- [x] Run `npm --workspace prism-api run test:event-ops`.
+- [x] Run `npm --workspace prism-api run build`.
+- [x] Run `npm run check:boundaries`.
+- [x] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/finance-ops|modules/finance-ops" apps/api/libs/modules/file-ops`; expected result: no matches.
+- [x] Run `git diff --check`.
+- [x] Update parent Phase 6 checkboxes only for items proven by this slice. Leave read-model migration and real storage tasks unchecked unless the implementation actually proves them.
+- [x] Add verification evidence to this child plan.
+- [x] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md` with file extraction state and storage gate.
+- [x] Commit checkpoint: `refactor(api): extract file operations module`.
 
 ## Acceptance Criteria
 
-- [ ] `FileRequirementsMatrixService` and `DocumentVaultService` live under `file-ops` and are provided/exported by `FileOpsModule`.
-- [ ] Existing event file requirements, closure gates, supplier contract metadata validation, guest feedback metadata validation, and EventOps compatibility tests keep passing.
-- [ ] Signed upload URLs remain explicitly disabled through `MetadataOnlySignedUploadUrlFactory`; no object-storage provider is enabled.
-- [ ] File matrix read tests prove client-visible and PMCM-only row behavior remains intact through existing event-ops route tests.
-- [ ] Full event-ops tests, API build, boundary check, file-ops no-private-import scan, and diff check pass.
-- [ ] Remaining file hardening is clear: real storage adapter, upload sessions, progress/retry, bulk upload, download/delete audit, and read-model extraction need separate child plans.
+- [x] `FileRequirementsMatrixService` and `DocumentVaultService` live under `file-ops` and are provided/exported by `FileOpsModule`.
+- [x] Existing event file requirements, closure gates, supplier contract metadata validation, guest feedback metadata validation, and EventOps compatibility tests keep passing.
+- [x] Signed upload URLs remain explicitly disabled through `MetadataOnlySignedUploadUrlFactory`; no object-storage provider is enabled.
+- [x] File matrix read tests prove client-visible and PMCM-only row behavior remains intact through existing event-ops route tests.
+- [x] Full event-ops tests, API build, boundary check, file-ops no-private-import scan, and diff check pass.
+- [x] Remaining file hardening is clear: real storage adapter, upload sessions, progress/retry, bulk upload, download/delete audit, and read-model extraction need separate child plans.
+
+## Verification Evidence
+
+| Command | Result |
+| --- | --- |
+| `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/file-requirements-matrix.service.test.ts` | Passed before move: 1 file, 1 test. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- libs/modules/file-ops/src/services/file-requirements-matrix.service.test.ts libs/modules/file-ops/src/services/document-vault.service.test.ts libs/modules/file-ops/src/ports/signed-upload-url-factory.port.test.ts` | Passed after move: 3 files, 5 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- file` | Passed: 3 files, 5 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test:event-ops` | Passed: 11 files, 85 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. The startup database-unavailable warning is the existing mocked startup path and did not fail the suite. |
+| `npm --workspace prism-api run build` | Passed after rewriting JSON metadata without BOM and rerunning escalated because sandbox blocked `dist` cleanup with `EPERM`. |
+| `npm run check:boundaries` | Passed for 465 files. Initial sandbox run failed on `spawnSync git EPERM`; escalated rerun passed. |
+| `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/finance-ops|modules/finance-ops" apps/api/libs/modules/file-ops` | Passed with no matches; `rg` exited 1 as expected for no results. |
+| `git diff --check` | Passed after removing one extra blank line at EOF in `apps/api/vitest.config.ts`; remaining output was line-ending normalization warnings only. |
+
+## Implementation Notes
+
+- `FileRequirementsMatrixService` and `DocumentVaultService` now live under `apps/api/libs/modules/file-ops/src/services` and are exported by `FileOpsModule`.
+- `FileOpsModule` owns the runtime providers for the moved services plus `FILE_REQUIREMENT_READER`, `FILE_REQUIREMENT_COMMANDS`, and `SIGNED_UPLOAD_URL_FACTORY`.
+- `MetadataOnlySignedUploadUrlFactory` intentionally throws `ServiceUnavailableException`; no object storage credentials, network calls, or production signed URLs were enabled.
+- `event-ops` keeps compatibility re-exports at the old service paths and imports `FileOpsModule` for provider ownership.
+- Event, closure, guest, and supplier compatibility paths now consume file behavior from `@prism/modules/file-ops` while keeping public route paths unchanged.
+- Remaining hardening is intentionally deferred: real storage adapter, upload sessions, progress/retry, bulk upload, download/delete audit, supplier/guest-specific file denial tests, and read-model extraction require later child plans.
 
 ## Stop Rules
 

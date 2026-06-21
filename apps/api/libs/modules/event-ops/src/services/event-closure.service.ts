@@ -7,7 +7,7 @@ import { AuditActionType, AuditCategory, OpsUserRole } from '../ops.constants';
 import { AuditService } from './audit.service';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from './event-access-policy.service';
 import { EventLifecycleService } from './event-lifecycle.service';
-import { FileRequirementsMatrixService } from './file-requirements-matrix.service';
+import { FileRequirementsMatrixService } from '@prism/modules/file-ops';
 import { NotificationOutboxService } from './notification-outbox.service';
 import { WorkflowCommandService } from './workflow-command.service';
 

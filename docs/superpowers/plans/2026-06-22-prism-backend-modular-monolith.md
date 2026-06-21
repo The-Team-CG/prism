@@ -612,26 +612,26 @@ export class AuditWriterAdapter implements AuditWriter {
 
 **Edits:**
 
-- [ ] Create `file-ops` module.
-- [ ] Move `FileRequirementsMatrixService` into `file-ops`.
-- [ ] Add `FileRequirementCommands`, `FileRequirementReader`, and `SignedUploadUrlFactory` ports.
-- [ ] Keep storage provider implementation local/mock unless a separate approved storage plan exists.
+- [x] Create `file-ops` module.
+- [x] Move `FileRequirementsMatrixService` into `file-ops`.
+- [x] Add `FileRequirementCommands`, `FileRequirementReader`, and `SignedUploadUrlFactory` ports.
+- [x] Keep storage provider implementation local/mock unless a separate approved storage plan exists.
 - [ ] Add schema and route evidence for PMCM and client file requirements.
 - [ ] Update read models to consume file reader ports.
 
 **Tests:**
 
-- [ ] File requirement matrix command test.
-- [ ] Client-visible file requirement read test.
+- [x] File requirement matrix command test.
+- [x] Client-visible file requirement read test.
 - [ ] Forbidden-role test for supplier/guest access to client-only files.
-- [ ] Signed upload URL contract test with fake adapter.
-- [ ] `npm --workspace prism-api run test -- file`.
+- [x] Signed upload URL contract test with fake adapter.
+- [x] `npm --workspace prism-api run test -- file`.
 
 **Acceptance criteria:**
 
 - [ ] File requirement writes live in `file-ops`.
-- [ ] Object storage is not enabled by accident.
-- [ ] File read payloads are role-scoped.
+- [x] Object storage is not enabled by accident.
+- [x] File read payloads are role-scoped.
 
 **Commit checkpoint:** `refactor(api): extract file operations module`
 

@@ -102,7 +102,13 @@
                                                                          ],
                                           "@prism/modules/finance-ops/*":  [
                                                                                "libs/modules/finance-ops/src/*"
-                                                                           ]
+                                                                           ],
+                                          "@prism/modules/file-ops":  [
+                                                                          "libs/modules/file-ops/src/index"
+                                                                      ],
+                                          "@prism/modules/file-ops/*":  [
+                                                                            "libs/modules/file-ops/src/*"
+                                                                        ]
                                       }
                         }
 }

@@ -10,12 +10,11 @@ import { ClientOnboardingWorkflowService } from './services/client-onboarding-wo
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { ComplianceWorkflowService } from './services/compliance-workflow.service';
 import { CoordinatorsService } from './services/coordinators.service';
-import { DocumentVaultService } from './services/document-vault.service';
+import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modules/file-ops';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { EventReadModelsService } from './services/event-read-models.service';
-import { FileRequirementsMatrixService } from './services/file-requirements-matrix.service';
 import { FloorPlanWorkflowService } from './services/floor-plan-workflow.service';
 import { GuestWorkflowService } from './services/guest-workflow.service';
 import { InquiriesService } from './services/inquiries.service';

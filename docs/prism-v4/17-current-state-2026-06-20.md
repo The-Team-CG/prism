@@ -149,15 +149,21 @@ The July 31 execution boundary remains: backend work before July should prioriti
 
 ## Post-Snapshot Backend Infrastructure Modules: 2026-06-22
 
-Phase 3 extracted the first cross-cutting backend modules without changing public route paths. `event-core`, `trust-ops`, `notification-ops`, and `access-control` now provide workflow command execution, audit/privacy, outbox writing, and access policy through public module exports and provider tokens. Capability workflows such as billing, floorplan, guest, files, closure, and read models remain in `event-ops` until their own child plans execute. Supplier workflow is now covered by the Phase 4 note below.
+Phase 3 extracted the first cross-cutting backend modules without changing public route paths. `event-core`, `trust-ops`, `notification-ops`, and `access-control` now provide workflow command execution, audit/privacy, outbox writing, and access policy through public module exports and provider tokens. Capability workflows such as floorplan, guest, closure, and read models remain in `event-ops` until their own child plans execute. Supplier, finance, and file slices are covered by the Phase 4, Phase 5, and Phase 6 notes below.
 ## Post-Snapshot Supplier-Ops Slice: 2026-06-22
 
 Phase 4 extracted the first supplier vertical slice without changing public route paths. `SupplierNetworkWorkflowService` and its focused supplier status-transition test now live under `apps/api/libs/modules/supplier-ops`. The old `event-ops` service path remains a compatibility re-export, and `EventOpsModule` still provides the moved service by binding supplier-owned ports to existing supplier directory, PARE, live-operations, and document-vault services.
 
-Current limitation: `SupplierOpsModule` is a capability marker in this slice, not the final runtime provider owner. Full independence requires later extraction of `SuppliersService`, supplier readiness/read-model ports, PARE automation ownership, live-operations logging ownership, and file/document-vault ports. Boundary evidence is stronger than before because `supplier-ops` has no import back to `event-ops`.
+Current limitation: `SupplierOpsModule` is a capability marker in this slice, not the final runtime provider owner. Full independence requires later extraction of `SuppliersService`, supplier readiness/read-model ports, PARE automation ownership, live-operations logging ownership, and tighter file-operation denial tests. Boundary evidence is stronger than before because `supplier-ops` has no import back to `event-ops`.
 
 ## Post-Snapshot Finance-Ops Slice: 2026-06-22
 
 Phase 5 extracted finance command ownership without changing public route paths. `BillingOperationsService` and focused payment replay tests now live under `apps/api/libs/modules/finance-ops`. `FinanceOpsModule` imports the public cross-cutting modules and exports the billing provider; the old `event-ops` service path remains a compatibility re-export for the route facade.
 
 Current limitation: billing read-model composition, client-safe billing payload hardening, disputes, waivers, corrections, additional billing, and payment status/event-health readers remain future child-plan work. The implemented guard prevents duplicate payment rows and duplicate audit rows when a payment record request is retried with the same non-empty reference number, amount, date, and method.
+
+## Post-Snapshot File-Ops Slice: 2026-06-22
+
+Phase 6 extracted file requirement and upload metadata ownership without changing public route paths. `FileRequirementsMatrixService` and `DocumentVaultService` now live under `apps/api/libs/modules/file-ops`, and `FileOpsModule` exports the runtime services plus `FILE_REQUIREMENT_READER`, `FILE_REQUIREMENT_COMMANDS`, and `SIGNED_UPLOAD_URL_FACTORY`. The old `event-ops` service paths remain compatibility re-exports, and `EventOpsModule` imports `FileOpsModule` so event file requirements, closure gates, supplier contract metadata validation, and guest feedback metadata validation keep their existing route behavior.
+
+Current limitation: real object storage is still disabled. `MetadataOnlySignedUploadUrlFactory` throws `ServiceUnavailableException`, and storage adapter rollout, upload sessions, progress/retry, bulk upload, download/delete audit, supplier/guest-specific file denial tests, and read-model extraction remain future child-plan work.

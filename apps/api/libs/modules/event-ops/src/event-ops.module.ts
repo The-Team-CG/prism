@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
+import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import {
@@ -22,11 +23,9 @@ import { ClientOnboardingWorkflowService } from './services/client-onboarding-wo
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { ComplianceWorkflowService } from './services/compliance-workflow.service';
 import { CoordinatorsService } from './services/coordinators.service';
-import { DocumentVaultService } from './services/document-vault.service';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { EventReadModelsService } from './services/event-read-models.service';
-import { FileRequirementsMatrixService } from './services/file-requirements-matrix.service';
 import { FloorPlanWorkflowService } from './services/floor-plan-workflow.service';
 import { GuestWorkflowService } from './services/guest-workflow.service';
 import { InquiriesService } from './services/inquiries.service';
@@ -38,7 +37,6 @@ import { SuppliersService } from './services/suppliers.service';
 
 
 const EVENT_OPS_PROVIDERS = [
-  DocumentVaultService,
   EventLifecycleService,
   SampleStateService,
   InquiryWorkflowService,
@@ -49,7 +47,6 @@ const EVENT_OPS_PROVIDERS = [
   AuthOperationsService,
   CoordinatorsService,
   LiveOperationsService,
-  FileRequirementsMatrixService,
   FloorPlanWorkflowService,
   EventReadModelsService,
   CommercialWorkflowService,
@@ -67,7 +64,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })

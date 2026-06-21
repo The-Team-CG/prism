@@ -140,6 +140,15 @@
                                          "compilerOptions":  {
                                                                  "tsConfigPath":  "libs/modules/finance-ops/tsconfig.lib.json"
                                                              }
-                                     }
+                                     },
+                     "file-ops":  {
+                                      "type":  "library",
+                                      "root":  "libs/modules/file-ops",
+                                      "entryFile":  "index",
+                                      "sourceRoot":  "libs/modules/file-ops/src",
+                                      "compilerOptions":  {
+                                                              "tsConfigPath":  "libs/modules/file-ops/tsconfig.lib.json"
+                                                          }
+                                  }
                  }
 }

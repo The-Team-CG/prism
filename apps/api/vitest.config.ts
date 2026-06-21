@@ -20,6 +20,7 @@ export default defineConfig({
       '@prism/modules/access-control': resolve(__dirname, './libs/modules/access-control/src/index.ts'),
       '@prism/modules/supplier-ops': resolve(__dirname, './libs/modules/supplier-ops/src/index.ts'),
       '@prism/modules/finance-ops': resolve(__dirname, './libs/modules/finance-ops/src/index.ts'),
+      '@prism/modules/file-ops': resolve(__dirname, './libs/modules/file-ops/src/index.ts'),
     },
   },
 });

@@ -4,7 +4,7 @@ import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole } from '../ops.constants';
 import { AuditService } from './audit.service';
-import { DocumentVaultService, type UploadMetadataInput } from './document-vault.service';
+import { DocumentVaultService, type UploadMetadataInput } from '@prism/modules/file-ops';
 import { WorkflowCommandService } from './workflow-command.service';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[] };
