@@ -90,7 +90,13 @@
                                                                             ],
                                           "@prism/modules/access-control/*":  [
                                                                                   "libs/modules/access-control/src/*"
-                                                                              ]
+                                                                              ],
+                                          "@prism/modules/supplier-ops":  [
+                                                                              "libs/modules/supplier-ops/src/index"
+                                                                          ],
+                                          "@prism/modules/supplier-ops/*":  [
+                                                                                "libs/modules/supplier-ops/src/*"
+                                                                            ]
                                       }
                         }
 }

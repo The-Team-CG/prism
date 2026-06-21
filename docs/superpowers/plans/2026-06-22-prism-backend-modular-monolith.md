@@ -547,31 +547,31 @@ export class AuditWriterAdapter implements AuditWriter {
 
 **Edits:**
 
-- [ ] Create `supplier-ops` module.
-- [ ] Move `SupplierNetworkWorkflowService` into `supplier-ops`.
-- [ ] Create `SupplierOpsModule` and public tokens.
-- [ ] Add `SupplierCommands` and `SupplierReadinessReader` ports.
-- [ ] Keep existing supplier route paths stable by delegating from current controllers or `EventOpsService`.
-- [ ] Move supplier-specific tests beside the new module.
-- [ ] Update imports in `event-ops` to call `supplier-ops` public API.
+- [x] Create `supplier-ops` module.
+- [x] Move `SupplierNetworkWorkflowService` into `supplier-ops`.
+- [x] Create `SupplierOpsModule` and public tokens.
+- [x] Add `SupplierCommands` and `SupplierReadinessReader` ports.
+- [x] Keep existing supplier route paths stable by delegating from current controllers or `EventOpsService`.
+- [x] Move supplier-specific tests beside the new module.
+- [x] Update imports in `event-ops` to call `supplier-ops` public API.
 - [ ] Add role-scope tests for PMCM and supplier portal reads.
 - [ ] Add one route-smoke evidence command for PMCM supplier assignment and supplier portal readiness.
 
 **Tests:**
 
 - [ ] Supplier assignment mutation test.
-- [ ] Supplier status transition test.
+- [x] Supplier status transition test.
 - [ ] Forbidden-role test: client or guest cannot mutate supplier assignments.
 - [ ] Read-model test: supplier payload excludes PMCM-only finance/private fields.
 - [ ] `npm --workspace prism-api run test -- supplier`.
-- [ ] `npm run check:boundaries`.
+- [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
 
-- [ ] Supplier workflow writes live in `supplier-ops`.
-- [ ] Existing API routes remain compatible.
-- [ ] Audit/outbox semantics are explicit for supplier mutations.
-- [ ] The pattern is documented before extracting another capability.
+- [x] Supplier workflow writes live in `supplier-ops`.
+- [x] Existing API routes remain compatible.
+- [x] Audit/outbox semantics are explicit for supplier mutations.
+- [x] The pattern is documented before extracting another capability.
 
 **Commit checkpoint:** `refactor(api): extract supplier operations module`
 
@@ -596,7 +596,7 @@ export class AuditWriterAdapter implements AuditWriter {
 - [ ] Forbidden-role test: supplier or guest cannot read PMCM finance payload.
 - [ ] Boundary test: `finance-ops` does not import supplier private services.
 - [ ] `npm --workspace prism-api run test -- billing`.
-- [ ] `npm run check:boundaries`.
+- [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
 
@@ -783,7 +783,7 @@ export class AuditWriterAdapter implements AuditWriter {
 - [ ] Guest payload excludes PMCM planning fields.
 - [ ] Boundary test: read model cannot call Prisma mutation methods.
 - [ ] `npm --workspace prism-api run test -- read-model`.
-- [ ] `npm run check:boundaries`.
+- [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
 
@@ -851,7 +851,7 @@ export class AuditWriterAdapter implements AuditWriter {
 - [ ] Route smoke tests for each moved controller.
 - [ ] API client type generation check if client packages are affected.
 - [ ] `npm --workspace prism-api run build`.
-- [ ] `npm run check:boundaries`.
+- [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
 
@@ -879,7 +879,7 @@ export class AuditWriterAdapter implements AuditWriter {
 - [ ] `rg "EventOpsService" apps/api` returns only allowed compatibility references or none.
 - [ ] `npm --workspace prism-api run build`.
 - [ ] `npm --workspace prism-api run test` if feasible.
-- [ ] `npm run check:boundaries`.
+- [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
 

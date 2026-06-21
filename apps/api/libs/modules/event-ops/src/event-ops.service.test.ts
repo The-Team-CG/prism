@@ -24,7 +24,7 @@ import { LiveOperationsService } from './services/live-operations.service';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
-import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
+import { SupplierNetworkWorkflowService } from '@prism/modules/supplier-ops';
 import { SuppliersService } from './services/suppliers.service';
 import { WorkflowCommandService } from '@prism/modules/event-core';
 import { AuthSecurityService } from './services/auth-security.service';

@@ -1,9 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { OpsUserRole, SupplierVerificationStatus } from '../ops.constants';
-import { DocumentVaultService } from './document-vault.service';
+import { OpsUserRole, SupplierVerificationStatus, WorkflowCommandService } from '@prism/modules/event-core';
 import { SupplierNetworkWorkflowService } from './supplier-network-workflow.service';
-import { WorkflowCommandService } from './workflow-command.service';
 
 function createService() {
   const request = {
@@ -30,6 +28,7 @@ function createService() {
     new WorkflowCommandService(),
     {} as any,
     { recordEventDayLog: eventDayLog } as any,
+    {} as any,
   );
   return { service, prisma, audit, eventDayLog, request };
 }

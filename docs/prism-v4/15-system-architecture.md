@@ -103,6 +103,8 @@ Target backend module ownership:
 Executable backend guardrails live in `scripts/check-prism-boundaries.mjs`. The checker now blocks future capability modules from importing other modules' private service internals, prevents new capability modules from importing `event-ops`, prevents `event-read-models` from mutating Prisma state, requires raw read-model queries to live in approved query-builder files with a query budget, and prevents new top-level business service files from being added to the legacy `event-ops` service hub.
 Phase 3 infrastructure modules are now active: `event-core` owns workflow command execution and shared event-operation constants, `trust-ops` owns audit/privacy and `AUDIT_WRITER`, `notification-ops` owns notification outbox and `NOTIFICATION_OUTBOX_WRITER`, and `access-control` owns event access policy and `EVENT_ACCESS_POLICY`. `event-ops` remains the compatibility facade for current routes and must not regain cross-cutting provider ownership.
 
+Phase 4 supplier extraction is now partially active: `SupplierNetworkWorkflowService` and its focused status-transition test live in `supplier-ops`, and `event-ops` keeps route compatibility through a re-export plus provider bindings. `supplier-ops` does not import `event-ops`; it consumes supplier directory, PARE, live-operations, and document-vault behavior through supplier-owned ports until those dependencies are extracted.
+
 ## Data Domains
 
 | Domain | Representative models |

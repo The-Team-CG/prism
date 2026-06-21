@@ -122,6 +122,15 @@
                                             "compilerOptions":  {
                                                                     "tsConfigPath":  "libs/modules/access-control/tsconfig.lib.json"
                                                                 }
-                                        }
+                                        },
+                     "supplier-ops":  {
+                                          "type":  "library",
+                                          "root":  "libs/modules/supplier-ops",
+                                          "entryFile":  "index",
+                                          "sourceRoot":  "libs/modules/supplier-ops/src",
+                                          "compilerOptions":  {
+                                                                  "tsConfigPath":  "libs/modules/supplier-ops/tsconfig.lib.json"
+                                                              }
+                                      }
                  }
 }

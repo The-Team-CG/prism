@@ -3,6 +3,15 @@ import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
+import {
+  SUPPLIER_COMMANDS,
+  SUPPLIER_DIRECTORY,
+  SUPPLIER_DOCUMENT_VAULT,
+  SUPPLIER_LIVE_OPERATIONS,
+  SUPPLIER_PARE_AUTOMATION,
+  SupplierNetworkWorkflowService,
+  SupplierOpsModule,
+} from '@prism/modules/supplier-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { EVENT_OPS_CONTROLLERS } from './controllers';
 import { EventOpsService } from './event-ops.service';
@@ -25,7 +34,6 @@ import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
-import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
 import { SuppliersService } from './services/suppliers.service';
 
 
@@ -50,12 +58,17 @@ const EVENT_OPS_PROVIDERS = [
   ComplianceWorkflowService,
   ClientOnboardingWorkflowService,
   GuestWorkflowService,
+  { provide: SUPPLIER_DIRECTORY, useExisting: SuppliersService },
+  { provide: SUPPLIER_PARE_AUTOMATION, useExisting: PAREService },
+  { provide: SUPPLIER_LIVE_OPERATIONS, useExisting: LiveOperationsService },
+  { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DocumentVaultService },
   SupplierNetworkWorkflowService,
+  { provide: SUPPLIER_COMMANDS, useExisting: SupplierNetworkWorkflowService },
   EventOpsService,
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })
