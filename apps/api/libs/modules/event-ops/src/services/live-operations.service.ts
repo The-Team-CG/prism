@@ -159,7 +159,8 @@ export class LiveOperationsService {
       name: 'update_event_day_task',
       eventId,
       validateState: async () => {
-        current = (await prisma.opsEventDayTask.findMany({ where: { eventId } })).find((task) => task.id === taskId) ?? null;
+        current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
+        if (current?.eventId !== eventId) current = null;
         if (!current) throw new NotFoundException('Event-day task not found');
         status = input.status?.trim();
         if (status && !isOpsConstantValue(EventDayTaskStatus, status)) {
@@ -263,7 +264,8 @@ export class LiveOperationsService {
       name: 'update_urgent_issue',
       eventId,
       validateState: async () => {
-        current = (await prisma.opsUrgentIssue.findMany({ where: { eventId } })).find((issue) => issue.id === issueId) ?? null;
+        current = await prisma.opsUrgentIssue.findUnique({ where: { id: issueId } });
+        if (current?.eventId !== eventId) current = null;
         if (!current) throw new NotFoundException('Urgent issue not found');
         status = input.status?.trim();
         if (status && !isOpsConstantValue(UrgentIssueStatus, status)) {
@@ -320,7 +322,8 @@ export class LiveOperationsService {
         escalationLevel = this.validateEscalationLevel(input.escalationLevel);
         notes = input.notes?.trim() ?? '';
         if (!notes) throw new BadRequestException('Escalation notes are required');
-        current = (await prisma.opsEventDayTask.findMany({ where: { eventId } })).find((task) => task.id === taskId) ?? null;
+        current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
+        if (current?.eventId !== eventId) current = null;
         if (!current) throw new NotFoundException('Event-day task not found');
       },
       write: () => {
@@ -379,7 +382,8 @@ export class LiveOperationsService {
         escalationLevel = this.validateEscalationLevel(input.escalationLevel);
         notes = input.notes?.trim() ?? '';
         if (!notes) throw new BadRequestException('Escalation notes are required');
-        current = (await prisma.opsUrgentIssue.findMany({ where: { eventId } })).find((issue) => issue.id === issueId) ?? null;
+        current = await prisma.opsUrgentIssue.findUnique({ where: { id: issueId } });
+        if (current?.eventId !== eventId) current = null;
         if (!current) throw new NotFoundException('Urgent issue not found');
       },
       write: () => {
@@ -457,9 +461,8 @@ export class LiveOperationsService {
         reason = input.reason?.trim();
         if (!reason) throw new BadRequestException('Replacement reason is required');
 
-        current = (await prisma.opsCoordinatorAssignment.findMany({ where: { eventId } })).find(
-          (assignment) => assignment.id === assignmentId,
-        ) ?? null;
+        current = await prisma.opsCoordinatorAssignment.findUnique({ where: { id: assignmentId } });
+        if (current?.eventId !== eventId) current = null;
         if (!current) throw new NotFoundException('Coordinator assignment not found');
 
         coordinator = await prisma.opsCoordinator.findUnique({
@@ -473,6 +476,7 @@ export class LiveOperationsService {
       write: () => {
         if (!event || !current || !coordinator) throw new NotFoundException('Coordinator assignment not found');
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const replacementAssignment = await tx.opsCoordinatorAssignment.create({
             data: {
               id: `coord_asg_${randomUUID()}`,
@@ -581,9 +585,8 @@ export class LiveOperationsService {
           throw new BadRequestException('Unsupported coordinator attendance status');
         }
         status = requestedStatus;
-        current = (await prisma.opsCoordinatorAssignment.findMany({ where: { eventId } })).find(
-          (assignment) => assignment.id === assignmentId,
-        ) ?? null;
+        current = await prisma.opsCoordinatorAssignment.findUnique({ where: { id: assignmentId } });
+        if (current?.eventId !== eventId) current = null;
         if (!current) throw new NotFoundException('Coordinator assignment not found');
       },
       write: () =>

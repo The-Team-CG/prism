@@ -48,6 +48,7 @@ export class ComplianceWorkflowService {
       'compliance rules',
     );
     return this.prisma.opsComplianceRule.findMany({
+      take: 200,
       orderBy: [{ active: 'desc' }, { phase: 'asc' }, { title: 'asc' }],
     });
   }
@@ -149,6 +150,7 @@ export class ComplianceWorkflowService {
       },
       write: () =>
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await tx.opsComplianceCheck.deleteMany({ where: { eventId } });
           if (matchingRules.length > 0) {
             await tx.opsComplianceCheck.createMany({

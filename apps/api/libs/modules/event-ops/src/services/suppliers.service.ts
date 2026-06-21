@@ -324,6 +324,7 @@ export class SuppliersService {
 
   private supplierRows() {
     return this.prisma.opsSupplier.findMany({
+      take: 500,
       include: {
         category: true,
         reviews: {

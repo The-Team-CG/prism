@@ -17,7 +17,7 @@ function createService() {
   const eventDayLog = vi.fn();
   const prisma = {
     opsSupplierQuoteRequest: {
-      findMany: vi.fn(async () => [request]),
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
     },
   };
@@ -35,7 +35,7 @@ function createService() {
 
 describe('SupplierNetworkWorkflowService', () => {
   it('verifies supplier event-day status through the supplier workflow command', async () => {
-    const { service, audit, eventDayLog } = createService();
+    const { service, prisma, audit, eventDayLog } = createService();
 
     const updated = await service.verifySupplierEventStatus(
       'evt_sample',
@@ -46,6 +46,7 @@ describe('SupplierNetworkWorkflowService', () => {
 
     expect(updated.eventDayVerificationStatus).toBe(SupplierVerificationStatus.Verified);
     expect(updated.eventDayVerifiedBy).toBe('Ms. Mys');
+    expect(prisma.opsSupplierQuoteRequest.findUnique).toHaveBeenCalledWith({ where: { id: 'qr_sonic' } });
     expect(eventDayLog).toHaveBeenCalledWith(
       'evt_sample',
       'supplier_status_verified',

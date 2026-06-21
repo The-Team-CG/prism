@@ -115,6 +115,7 @@ export class CommercialWorkflowService {
       write: () => {
         if (!event || !category) throw new NotFoundException('Supplier category not found');
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const created: OpsSupplierQuoteRequest[] = [];
           for (const supplier of suppliersToRequest) {
             const token = randomUUID();
@@ -313,6 +314,7 @@ export class CommercialWorkflowService {
         }
 
         const selected = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await tx.opsSupplierQuote.updateMany({
             where: { eventId, category: quote!.category, id: { not: quote!.id } },
             data: { status: SupplierQuoteStatus.NotSelected },
@@ -419,6 +421,7 @@ export class CommercialWorkflowService {
         if (!request) throw new NotFoundException('Quote request not found');
         const activeRequest = request;
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           if (effectiveMode === 'revise') {
             if (!quote) throw new NotFoundException('Supplier quote not found');
             const saved = await tx.opsSupplierQuote.update({

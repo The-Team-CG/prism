@@ -33,10 +33,16 @@ export interface PrismEventOpsActorContext {
   accessCode?: string;
 }
 
-export interface PrismPageRequest {
-  page?: number;
-  limit?: number;
+export const PRISM_DEFAULT_PAGE_LIMIT = 25;
+export const PRISM_MAX_PAGE_LIMIT = 100;
+
+export interface PrismCursorPageRequest {
   cursor?: string;
+  limit?: number;
+}
+
+export interface PrismPageRequest extends PrismCursorPageRequest {
+  page?: number;
 }
 
 export interface PrismCursorPage<TItem> {
@@ -44,8 +50,14 @@ export interface PrismCursorPage<TItem> {
   page?: number;
   limit: number;
   total?: number;
-  nextCursor?: string | null;
+  nextCursor: string | null;
   hasMore: boolean;
+}
+
+export function normalizePrismPageLimit(limit: unknown): number {
+  const numericLimit = typeof limit === "number" ? limit : typeof limit === "string" ? Number(limit) : NaN;
+  if (!Number.isFinite(numericLimit) || numericLimit < 1) return PRISM_DEFAULT_PAGE_LIMIT;
+  return Math.min(Math.trunc(numericLimit), PRISM_MAX_PAGE_LIMIT);
 }
 
 export type PrismSortDirection = "asc" | "desc";

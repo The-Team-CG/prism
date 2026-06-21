@@ -131,7 +131,7 @@ function executeRiskTool(toolName: string, input: Record<string, unknown>, ctx: 
 export class RiskAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
-  async run(ctx: PAREContext): Promise<PARERisk> {
+  async runPareRiskAgent(ctx: PAREContext): Promise<PARERisk> {
     if (this.mode === 'live') return this.runWithClaude(ctx);
     return mockRisk(ctx);
   }

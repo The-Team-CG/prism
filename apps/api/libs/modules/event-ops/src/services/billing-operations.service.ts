@@ -93,11 +93,24 @@ export class BillingOperationsService {
       select: { id: true, eventName: true },
     });
 
-    for (const event of events) {
-      const milestones = await this.prisma.opsPaymentMilestone.findMany({
-        where: { eventId: event.id },
-      });
-      const balance = milestones.find((milestone) => milestone.label.toLowerCase().includes('balance'));
+    const eventIds = events.map((event) => event.id);
+    const milestones = eventIds.length === 0
+      ? []
+      : await this.prisma.opsPaymentMilestone.findMany({
+          where: { eventId: { in: eventIds } },
+          orderBy: [{ eventId: 'asc' }, { dueDate: 'asc' }, { id: 'asc' }],
+        });
+    const milestonesByEventId = new Map<string, OpsPaymentMilestone[]>();
+    for (const milestone of milestones) {
+      const eventMilestones = milestonesByEventId.get(milestone.eventId) ?? [];
+      eventMilestones.push(milestone);
+      milestonesByEventId.set(milestone.eventId, eventMilestones);
+    }
+
+    for (const event of events) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: two-day payment risk window.
+      const balance = (milestonesByEventId.get(event.id) ?? []).find((milestone) =>
+        milestone.label.toLowerCase().includes('balance'),
+      );
       if (!balance || balance.status === 'paid' || balance.remainingBalance <= 0 || balance.status === 'at_risk') {
         continue;
       }
@@ -198,6 +211,7 @@ export class BillingOperationsService {
         const paymentDate = parseDate(input.paymentDate);
 
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await tx.opsPaymentRecord.create({
             data: {
               id: `payrec_${randomUUID()}`,
@@ -372,6 +386,7 @@ export class BillingOperationsService {
         if (!event || !source) throw new NotFoundException('Billing source not found');
 
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const billingDocument = await tx.opsDocument.create({
             data: {
               id: `doc_${randomUUID()}`,

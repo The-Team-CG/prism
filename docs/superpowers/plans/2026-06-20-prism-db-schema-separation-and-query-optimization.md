@@ -1,4 +1,4 @@
-﻿# Prism Database Schema Separation And Query Optimization Implementation Plan
+# Prism Database Schema Separation And Query Optimization Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -10,9 +10,46 @@
 
 ---
 
+## Implementation Status: 2026-06-21
+
+Implemented on branch `db/schema-migration-plan`:
+
+- Prisma multi-schema mapping across 42 models with stable Prisma model names and normalized physical table names.
+- Domain schema migrations for `floorplan`, `identity`, `event_core`, `supplier_ops`, `staffing_ops`, `finance_ops`, `compliance_ops`, `guest_ops`, and `trust_ops`.
+- Phase 2 physical table rename migration plus normalized index and constraint rename block for already-created databases.
+- FK/hot-path index migration for event, supplier, finance, audit, and notification paths.
+- Live audit scripts for schema placement, naming, FK indexes, and performance reporting.
+- Static query audit for N+1, unbounded reads, broad includes, offset pagination, raw SQL comments, and broad helper names.
+- Targeted query fixes in billing, supplier verification, live operations, notification processing, inquiry portal-open handling, and bounded read-model/sample reads.
+- Domain-specific function renames for generic controller handlers and PARE agent `run()` methods.
+- Shared cursor pagination limit constants and `normalizePrismPageLimit()` in `@prism/types`.
+- Transaction-scope comments across event-ops transaction callbacks to keep external IO outside DB transactions.
+
+Verified after live Supabase deployment:
+
+- `npm --workspace prism-api run prisma:validate`
+- `npm --workspace prism-api run db:verify:offline`
+- `npm --workspace prism-api run db:audit:queries`
+- `npm --workspace prism-api run db:backup:json` exported 43 tables and 779 rows before migration deployment.
+- `npm --workspace prism-api exec -- prisma migrate deploy` applied the schema, table rename, index, and corrective normalized-index migrations to the target database.
+- `npm --workspace prism-api run db:audit:schemas` passed for 42 domain tables.
+- `npm --workspace prism-api run db:audit:naming` passed for domain schemas, tables, columns, indexes, and constraints.
+- `npm --workspace prism-api run db:audit:indexes` passed FK index coverage.
+- `npm --workspace prism-api run db:status` reported the database schema is up to date with 26 migration rows.
+- `npm --workspace prism-api run db:perf:report` printed a redacted top-20 `pg_stat_statements` report.
+- `npm --workspace prism-api run typecheck`
+- `npm --workspace @prism/types run test`
+- `npm --workspace @prism/api-client run test`
+- `npm --workspace prism-api run test:event-ops`
+- `npm run check:boundaries`
+
+Remaining follow-up:
+
+- Re-run `db:perf:report` after representative app traffic; the current top rows are dominated by migration/admin/catalog queries rather than normal event-ops workload.
+
 ## Current Finding
 
-All Prisma models in `apps/api/prisma/schema.prisma` currently map tables without `@@schema(...)`, so the physical tables live in `public`. Migration history also includes `20260426000000_remove_prism_schema`, so this work must be treated as a deliberate new domain-schema design, not a casual reversal of older migrations.
+All Prisma models in `apps/api/prisma/schema.prisma` currently map tables without `@@schema(...)`, so the physical tables live in `public`. Migration history also includes `20260426000000_remove_mvp_schema`, so this work must be treated as a deliberate new domain-schema design, not a casual reversal of older migrations.
 
 ## Non-Negotiable Rules
 
@@ -21,6 +58,8 @@ All Prisma models in `apps/api/prisma/schema.prisma` currently map tables withou
 | ACID by default | Mutations that must succeed together use `prisma.$transaction` or one SQL transaction. External IO stays outside transactions. |
 | Short transactions | No HTTP, AI, storage, or notification adapter work inside transaction callbacks. |
 | Domain schemas | Runtime tables move out of `public`; `public._prisma_migrations` stays in `public`. |
+| Lowercase identifiers | New schemas, tables, columns, indexes, constraints, and database functions use unquoted lowercase `snake_case`. |
+| Phased renames | Phase 1 moves tables into schemas while keeping existing table names; Phase 2 removes redundant `ops_` table/model names after audits and tests are green. |
 | No N+1 | Backend code cannot issue Prisma queries inside item loops. Batch by IDs, use joins, or document bounded exceptions. |
 | No unbounded lists | Route-facing lists use `take`, cursor pagination, or a named bounded exception. |
 | Indexed filters | Every FK and frequent `where/orderBy` pair has a matching index or explicit reason. |
@@ -43,14 +82,67 @@ All Prisma models in `apps/api/prisma/schema.prisma` currently map tables withou
 | `trust_ops` | `ops_audit_logs`, `ops_notification_logs`, `ops_ai_audit_logs`, `ops_ai_approval_records` |
 | `public` | `_prisma_migrations` and optional temporary compatibility views only |
 
+## Naming Normalization Standard
+
+The schema move is not enough by itself. `ops_` is useful while every table lives in `public`, but it becomes redundant once ownership is expressed by schemas. Normalize in two controlled phases:
+
+| Layer | Phase 1 behavior | Phase 2 behavior |
+| --- | --- | --- |
+| Database schemas | Add domain schemas such as `event_core`, `supplier_ops`, `finance_ops`, and `trust_ops`. | Keep schemas stable. |
+| Database tables | Move current table names unchanged, for example `supplier_ops.ops_supplier_quote_requests`. | Rename redundant tables, for example `supplier_ops.quote_requests`. |
+| Prisma models | Keep current model names such as `OpsSupplierQuoteRequest` and map them with `@@schema(...)`. | Rename models only after API tests are stable, for example `SupplierQuoteRequest`. |
+| Backend functions | Keep route handlers stable unless touched. | Rename vague service helpers and exported functions when they cross domain boundaries. |
+
+### Target Table Naming Examples
+
+| Current table | Phase 1 table | Phase 2 target |
+| --- | --- | --- |
+| `public.ops_events` | `event_core.ops_events` | `event_core.events` |
+| `public.ops_inquiries` | `event_core.ops_inquiries` | `event_core.inquiries` |
+| `public.ops_briefings` | `event_core.ops_briefings` | `event_core.briefings` |
+| `public.ops_supplier_quote_requests` | `supplier_ops.ops_supplier_quote_requests` | `supplier_ops.quote_requests` |
+| `public.ops_supplier_quotes` | `supplier_ops.ops_supplier_quotes` | `supplier_ops.quotes` |
+| `public.ops_billing_statements` | `finance_ops.ops_billing_statements` | `finance_ops.billing_statements` |
+| `public.ops_payment_records` | `finance_ops.ops_payment_records` | `finance_ops.payment_records` |
+| `public.ops_audit_logs` | `trust_ops.ops_audit_logs` | `trust_ops.audit_logs` |
+| `public.ops_notification_logs` | `trust_ops.ops_notification_logs` | `trust_ops.notification_logs` |
+| `public.ops_ai_audit_logs` | `trust_ops.ops_ai_audit_logs` | `trust_ops.ai_audit_logs` |
+| `public.ops_guest_check_ins` | `guest_ops.ops_guest_check_ins` | `guest_ops.check_ins` |
+| `public.ops_guest_feedback` | `guest_ops.ops_guest_feedback` | `guest_ops.feedback` |
+
+### Function Naming Rules
+
+Use domain-specific names instead of broad Prism-wide names. The `Prism` prefix is allowed only for shared package or API-boundary contracts such as `normalizePrismApiProblem` and `normalizePrismPageLimit`.
+
+| Function purpose | Required pattern | Examples |
+| --- | --- | --- |
+| Normalizers | `normalize<DomainObject>` | `normalizeEmail`, `normalizeGuestAccessCode`, `normalizeBillingSchedule`, `normalizeSupplierQuoteStatus` |
+| Reads | `list*`, `get*`, `build*`, `map*` | `listSuppliers`, `getEventDetail`, `buildEventInsightContext`, `mapSupplierQuote` |
+| Writes | `create*`, `update*`, `submit*`, `approve*`, `reject*`, `archive*`, `execute*` | `submitBriefing`, `approveFloorPlanDraft`, `archiveEvent`, `executePrivacyRequest` |
+| Policy | `can*`, `requireCan*`, `assertCan*`, `resolve*` | `canReadEvent`, `requireCanMutateOfficialFloorplan`, `assertCanTransition`, `resolveActor` |
+| Background work | `run*Sweep`, `process*Queue` | `runConformeReminderSweep`, `runPaymentRiskSweep`, `processNotificationQueue` |
+
+Rename candidates to capture during Phase 2:
+
+| Current shape | Preferred shape |
+| --- | --- |
+| `state()` outside sample internals | `getSampleState()` |
+| generic `run()` in PARE agents | `runPareBudgetAgent()`, `runPareRiskAgent()`, `runPareMessageDraftAgent()` |
+| controller-facing `detail()` | `getEventDetail()` |
+| controller-facing `workspace()` | `getClientWorkspace()`, `getSupplierWorkspace()`, `getCoordinatorWorkspace()` |
+| broad `normalizePrism*` not crossing package/API boundaries | `normalize<SpecificThing>()` |
+
+
 ## Files To Touch
 
 | File | Purpose |
 | --- | --- |
 | `apps/api/prisma/schema.prisma` | Add Prisma multi-schema datasource list and model `@@schema(...)` mappings. |
 | `apps/api/prisma/migrations/<timestamp>_split_domain_schemas/migration.sql` | Create schemas and move tables with `ALTER TABLE ... SET SCHEMA ...`. |
+| `apps/api/prisma/migrations/<timestamp>_rename_domain_tables/migration.sql` | Optional Phase 2 physical table rename migration after schema audits are green. |
 | `apps/api/prisma/migrations/<timestamp>_add_performance_indexes/migration.sql` | Add FK and hot-path indexes. |
 | `apps/api/scripts/db-schema-audit.mjs` | Verify expected tables are in expected schemas and no runtime tables remain in `public`. |
+| `apps/api/scripts/db-naming-audit.mjs` | Verify lowercase identifiers and flag new redundant `ops_` table names after Phase 2 starts. |
 | `apps/api/scripts/db-index-audit.mjs` | Verify every FK has a supporting index. |
 | `apps/api/scripts/db-query-audit.mjs` | Fail likely N+1, unbounded `findMany`, broad `include`, undocumented raw SQL, and offset pagination. |
 | `apps/api/scripts/db-performance-report.mjs` | Report slow queries from `pg_stat_statements` when enabled. |
@@ -110,6 +202,7 @@ schemas = [
 - [ ] Add `@@schema("compliance_ops")` to `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight`.
 - [ ] Add `@@schema("guest_ops")` to `OpsGuestCheckIn`, `OpsGuestFeedback`.
 - [ ] Add `@@schema("trust_ops")` to `OpsAuditLog`, `OpsNotificationLog`, `OpsAiAuditLog`, `OpsAiApprovalRecord`.
+- [ ] Keep existing Prisma model names and `@@map("ops_*")` values in this task. Do not rename models or tables until Task 4A is complete and committed.
 - [ ] Run `npm --workspace prism-api run prisma:validate`.
 - [ ] Commit with `git commit -m "db: map Prisma models to domain schemas"`.
 
@@ -195,6 +288,53 @@ ALTER TABLE IF EXISTS public.ops_ai_approval_records SET SCHEMA trust_ops;
 - [ ] Expected after migration: `Schema audit passed for 42 domain tables.`
 - [ ] Commit with `git commit -m "test: add domain schema audit"`.
 
+
+## Task 4A: Add Naming Ledger And Naming Audit
+
+**Files:** `docs/superpowers/plans/2026-06-20-prism-db-schema-separation-and-query-optimization.md`, `apps/api/scripts/db-naming-audit.mjs`, `apps/api/package.json`
+
+- [ ] Treat the "Naming Normalization Standard" section in this plan as the naming ledger for Phase 1.
+- [ ] Add `db-naming-audit.mjs` that queries `information_schema.schemata`, `information_schema.tables`, and `information_schema.columns`.
+- [ ] Fail when any user-created schema, table, or column contains uppercase characters or requires quoted identifiers.
+- [ ] Fail when new runtime tables are created in `public`, excluding `_prisma_migrations` and explicitly named temporary compatibility views.
+- [ ] Warn, but do not fail in Phase 1, for moved tables that still have the legacy `ops_` prefix.
+- [ ] Add package script: `"db:audit:naming": "node --env-file=.env scripts/db-naming-audit.mjs"`.
+- [ ] Run `npm --workspace prism-api run db:audit:naming`.
+- [ ] Expected after Task 3: `Naming audit passed with legacy ops-prefix warnings for Phase 2.`
+- [ ] Commit with `git commit -m "test: add database naming audit"`.
+
+## Task 4B: Plan And Execute Phase 2 Table Renames
+
+**Files:** `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/<timestamp>_rename_domain_tables/migration.sql`, service tests
+
+- [ ] Do not start this task until `db:audit:schemas`, `db:audit:naming`, `db:audit:indexes`, `db:audit:queries`, API tests, and typecheck are green after Task 4A.
+- [ ] Rename physical tables only inside their new schemas, for example:
+
+```sql
+ALTER TABLE IF EXISTS event_core.ops_events RENAME TO events;
+ALTER TABLE IF EXISTS event_core.ops_inquiries RENAME TO inquiries;
+ALTER TABLE IF EXISTS supplier_ops.ops_supplier_quote_requests RENAME TO quote_requests;
+ALTER TABLE IF EXISTS supplier_ops.ops_supplier_quotes RENAME TO quotes;
+ALTER TABLE IF EXISTS finance_ops.ops_billing_statements RENAME TO billing_statements;
+ALTER TABLE IF EXISTS trust_ops.ops_audit_logs RENAME TO audit_logs;
+```
+
+- [ ] Update each Prisma model `@@map(...)` to the new table name while keeping model names stable, for example:
+
+```prisma
+model OpsEvent {
+  @@schema("event_core")
+  @@map("events")
+}
+```
+
+- [ ] Create compatibility views only if an external script or dashboard still reads the old table name. Compatibility views must be schema-qualified and documented in this plan.
+- [ ] Run `npm --workspace prism-api run prisma:validate`.
+- [ ] Run `npm --workspace prism-api run test:event-ops`.
+- [ ] Run `npm --workspace prism-api run db:audit:naming`.
+- [ ] Convert the naming audit from Phase 1 warning mode to fail any newly introduced `ops_` table names outside the approved legacy list.
+- [ ] Commit with `git commit -m "db: rename domain tables after schema split"`.
+
 ## Task 5: Add FK And Hot-Path Index Audits
 
 **Files:** `apps/api/scripts/db-index-audit.mjs`, `apps/api/package.json`, new index migration
@@ -236,6 +376,7 @@ CREATE INDEX IF NOT EXISTS ops_notification_logs_status_created_at_id_idx
 - [ ] Fail broad `include: {` without `QUERY_AUDIT_ALLOW_INCLUDE` and bounded relation explanation.
 - [ ] Fail `skip:` without `QUERY_AUDIT_ALLOW_OFFSET`.
 - [ ] Fail `$queryRaw`/`$executeRaw` without `QUERY_AUDIT_RAW_SQL` and index/EXPLAIN note.
+- [ ] Fail exported service/helper names that use broad names such as `normalizePrism`, `normalizeData`, or `handleThing`. Allow `normalizePrismApiProblem` and `normalizePrismPageLimit` because they are package/API-boundary contracts.
 - [ ] Add package script: `"db:audit:queries": "node scripts/db-query-audit.mjs"`.
 - [ ] Run `npm --workspace prism-api run db:audit:queries` and fix real findings instead of weakening the script.
 - [ ] Commit with `git commit -m "test: enforce backend query discipline"`.
@@ -340,6 +481,7 @@ if (updated.count !== 1) {
 
 ```bash
 npm --workspace prism-api run db:audit:schemas
+npm --workspace prism-api run db:audit:naming
 npm --workspace prism-api run db:audit:indexes
 npm --workspace prism-api run db:audit:queries
 npm --workspace prism-api run db:perf:report
@@ -365,6 +507,7 @@ npm --workspace @prism/api-client run test
 npm run check:boundaries
 npm --workspace prism-api run db:audit:queries
 npm --workspace prism-api run db:audit:schemas
+npm --workspace prism-api run db:audit:naming
 npm --workspace prism-api run db:audit:indexes
 git diff --check
 ```
@@ -377,14 +520,15 @@ git diff --check
 1. Validate Prisma multi-schema support locally.
 2. Implement Prisma mapping and schema-move migration.
 3. Verify against a disposable/local/shadow database.
-4. Add schema/index/query audits.
+4. Add schema/naming/index/query audits.
 5. Remove N+1 risks and add query-budget tests.
 6. Add cursor pagination contracts.
 7. Review ACID transaction scope and stale-state updates.
 8. Back up the target Supabase database.
-9. Deploy migration only after explicit approval and a viable migration URL.
-10. Run schema/index/query audits against target DB.
-11. Run API tests, typechecks, and role boundary checks.
+9. Deploy schema-move migration only after explicit approval and a viable migration URL.
+10. Run schema/naming/index/query audits against target DB.
+11. Rename physical tables only after the schema move is proven stable.
+12. Run API tests, typechecks, and role boundary checks.
 
 ## Rollback Plan
 
@@ -401,6 +545,7 @@ git diff --check
 | Requirement | Coverage |
 | --- | --- |
 | Separate tables by schema | Tasks 1-4. |
+| Normalize table/function names | Naming standard plus Tasks 4A, 4B, and 6. |
 | Apply ACID principles | Task 9 and rollback plan. |
 | No N+1 queries | Tasks 6-7. |
 | Backend query optimization beyond generic Prisma defaults | Tasks 5, 7, 8, 10. |

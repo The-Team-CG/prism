@@ -4,7 +4,7 @@ import type { PAREContext } from '../pare.types';
 export class EventContextAgent {
   constructor(private readonly prisma: PrismaService) {}
 
-  async run(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREContext> {
+  async buildPareEventContext(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREContext> {
     let request: any;
     let event: any;
 

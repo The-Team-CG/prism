@@ -41,7 +41,7 @@ export class NotificationOutboxService {
       orderBy: { createdAt: 'asc' },
     });
     const processed: OpsNotificationLog[] = [];
-    for (const notification of queued) {
+    for (const notification of queued) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: queue worker processes at most 100 notifications per run.
       const nextAttempt = (notification.attempts ?? 0) + 1;
       const shouldFail = notification.failureReason?.startsWith(FORCE_FAIL_MARKER) ?? false;
       const permanentlyFailed = shouldFail && nextAttempt >= maxAttempts;

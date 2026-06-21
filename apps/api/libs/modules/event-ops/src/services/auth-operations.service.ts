@@ -143,6 +143,7 @@ export class AuthOperationsService {
 
   async listApprovalRequests() {
     const requests = await this.prisma.opsApprovalRequest.findMany({
+      take: 100,
       orderBy: [{ status: 'asc' }, { requestedAt: 'desc' }],
     });
 

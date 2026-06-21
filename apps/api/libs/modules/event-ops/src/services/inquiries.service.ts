@@ -178,7 +178,7 @@ export class InquiriesService {
     });
 
     const now = new Date();
-    for (const inquiry of inquiries) {
+    for (const inquiry of inquiries) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: reminder sweep processes only accepted unsigned inquiries.
       const reminderBase = inquiry.lastConformeReminderAt ?? inquiry.conformeSentAt;
       if (!reminderBase) continue;
 
@@ -191,25 +191,18 @@ export class InquiriesService {
 
   async markPortalInvitationOpenedByEmail(email: string) {
     const normalizedEmail = normalizeEmail(email);
-    const inquiries = await this.prisma.opsInquiry.findMany();
     const now = new Date();
-    const openable = inquiries.filter((inquiry: InquiryWithTriage) => {
-      return (
-        sameNormalizedEmail(inquiry, normalizedEmail) &&
-        inquiry.portalInvitationStatus === 'sent' &&
-        !inquiry.portalInvitationOpenedAt
-      );
+    await this.prisma.opsInquiry.updateMany({
+      where: {
+        normalizedEmail,
+        portalInvitationStatus: 'sent',
+        portalInvitationOpenedAt: null,
+      },
+      data: {
+        portalInvitationStatus: 'opened',
+        portalInvitationOpenedAt: now,
+      },
     });
-
-    for (const inquiry of openable) {
-      await this.prisma.opsInquiry.update({
-        where: { id: inquiry.id },
-        data: {
-          portalInvitationStatus: 'opened',
-          portalInvitationOpenedAt: now,
-        },
-      });
-    }
   }
 
   async uploadConforme(
@@ -244,6 +237,7 @@ export class InquiriesService {
         if (!inquiry) throw new NotFoundException('Inquiry not found');
 
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const event =
             existingEvent ??
             (await tx.opsEvent.create({
@@ -459,6 +453,8 @@ export class InquiriesService {
       name: allowLogOnBehalf ? 'log_inquiry_on_behalf' : 'create_inquiry',
       validateState: async () => {
         const existingInquiries = (await this.prisma.opsInquiry.findMany({
+          where: { normalizedEmail },
+          take: 100,
           orderBy: { createdAt: 'asc' },
         })) as InquiryWithTriage[];
         const sameEmail = existingInquiries.filter((inquiry) => sameNormalizedEmail(inquiry, normalizedEmail));

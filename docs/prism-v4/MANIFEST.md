@@ -19,9 +19,9 @@ Generated from the official PRISM V4 DOCX feature catalog, then updated with rep
 | .\\docs\\prism-v4\\12-redesign-inventory.md | 18016 |
 | .\\docs\\prism-v4\\13-docs-cleanup-checklist.md | 7584 |
 | .\\docs\\prism-v4\\14-redesign-readiness-foundation.md | 26490 |
-| .\\docs\\prism-v4\\15-system-architecture.md | 12096 |
+| .\\docs\\prism-v4\\15-system-architecture.md | 13958 |
 | .\\docs\\prism-v4\\16-actual-system.md | 19426 |
-| .\\docs\\prism-v4\\17-current-state-2026-06-20.md | 10517 |
+| .\\docs\\prism-v4\\17-current-state-2026-06-20.md | 11944 |
 | .\\docs\\prism-v4\\18-future-state.md | 10728 |
 | .\\docs\\prism-v4\\features\\admin.md | 45100 |
 | .\\docs\\prism-v4\\features\\ai.md | 7182 |

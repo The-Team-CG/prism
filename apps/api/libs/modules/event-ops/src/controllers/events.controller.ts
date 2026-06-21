@@ -59,7 +59,7 @@ export class OpsEventsController {
   }
 
   @Get(':eventId')
-  detail(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
+  getEventDetail(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.getEventDetail(eventId, actor);
   }
 

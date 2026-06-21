@@ -96,6 +96,20 @@ npm run build
 npm run prisma:validate
 ```
 
+
+Database domain checks:
+
+```bash
+cd apps/api
+npm run db:verify:offline
+npm run db:audit:queries
+npm run db:audit:schemas
+npm run db:audit:naming
+npm run db:audit:indexes
+npm run db:perf:report
+```
+
+`db:verify:offline` and `db:audit:queries` are safe local checks. The live schema, naming, and index audits require a reachable migrated database; on branch `db/schema-migration-plan`, the shared Supabase target has passed those audits after migration deployment. `db:perf:report` reads `pg_stat_statements` with credential redaction; re-run it after representative app traffic before treating the ranking as an event-ops workload profile.
 Useful event portal command:
 
 ```bash

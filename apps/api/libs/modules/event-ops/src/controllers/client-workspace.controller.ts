@@ -64,7 +64,7 @@ export class OpsClientController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('workspace')
-  workspace(@Query() actor: SampleActorDto) {
+  getClientWorkspace(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listClientWorkspace(actor);
   }
 
