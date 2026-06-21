@@ -115,6 +115,8 @@ Phase 7B commercial extraction is now active: `CommercialWorkflowService` lives 
 
 Phase 7C compliance extraction is now active: `ComplianceWorkflowService` lives in `compliance-ops`, `ComplianceOpsModule` owns compliance command/read tokens, and the workflow uses public `event-core`, `access-control`, and `trust-ops` providers. Audit persistence remains in `trust-ops`; `event-ops` keeps route compatibility through an old-path re-export and imported module provider.
 
+Phase 8 floorplan extraction is now active: `FloorPlanWorkflowService` lives in `floorplan`, `FloorplanModule` owns floorplan command/read tokens, and the workflow uses public `event-core`, `trust-ops`, and `notification-ops` providers. `event-ops` keeps route compatibility and actor-policy checks, while the persisted canvas/editor shape remains `floorPlan`, `floorPlanObject`, and `opsFloorPlanDraft`.
+
 ## Data Domains
 
 | Domain | Representative models |

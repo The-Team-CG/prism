@@ -1,6 +1,6 @@
 # Prism Backend Modular Monolith Phase 8 Floorplan Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extract official PMCM floorplan workflow and client layout preference behavior into `floorplan` while preserving existing event route contracts and canvas/editor data shape.
 
@@ -76,70 +76,92 @@ Out of scope:
 
 ## Task 1 - Add Focused Floorplan Tests Before Moving
 
-- [ ] Create `apps/api/libs/modules/event-ops/src/services/floor-plan-workflow.service.test.ts` with focused tests for PMCM official draft creation, client preference submission, submitted/approved snapshot reads, and canvas object persistence.
-- [ ] The test must instantiate `FloorPlanWorkflowService` with mocked Prisma, `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
-- [ ] The PMCM draft test must assert `floorPlan`, `floorPlanObject`, `opsFloorPlanDraft`, and `opsEvent` are written and the mapped draft status is `pmcm_draft`.
-- [ ] The client preference test must assert `status: client_submitted`, `createdByRole: client`, event readiness `Client layout preference received`, and a PMCM notification.
-- [ ] The snapshot test must create a draft and stored submitted/approved snapshots, then assert `getFloorPlanSnapshot` returns the requested snapshot without changing objects.
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/floor-plan-workflow.service.test.ts`.
+- [x] Create `apps/api/libs/modules/event-ops/src/services/floor-plan-workflow.service.test.ts` with focused tests for PMCM official draft creation, client preference submission, submitted/approved snapshot reads, and canvas object persistence.
+- [x] The test must instantiate `FloorPlanWorkflowService` with mocked Prisma, `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
+- [x] The PMCM draft test must assert `floorPlan`, `floorPlanObject`, `opsFloorPlanDraft`, and `opsEvent` are written and the mapped draft status is `pmcm_draft`.
+- [x] The client preference test must assert `status: client_submitted`, `createdByRole: client`, event readiness `Client layout preference received`, and a PMCM notification.
+- [x] The snapshot test must create a draft and stored submitted/approved snapshots, then assert `getFloorPlanSnapshot` returns the requested snapshot without changing objects.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/floor-plan-workflow.service.test.ts`.
   Expected before move: PASS.
 
 ## Task 2 - Create Floorplan Module Shell
 
-- [ ] Create directories `apps/api/libs/modules/floorplan/src/ports` and `apps/api/libs/modules/floorplan/src/services`.
-- [ ] Add `@prism/modules/floorplan` and `@prism/modules/floorplan/*` aliases in `apps/api/tsconfig.json`.
-- [ ] Add `@prism/modules/floorplan` alias in `apps/api/vitest.config.ts`.
-- [ ] Add `floorplan` project metadata in `apps/api/nest-cli.json`.
-- [ ] Create `apps/api/libs/modules/floorplan/tsconfig.lib.json`.
-- [ ] Create `apps/api/libs/modules/floorplan/src/ports/floorplan.tokens.ts` exporting `FLOORPLAN_COMMANDS` and `FLOORPLAN_READER`.
-- [ ] Create `apps/api/libs/modules/floorplan/src/ports/floorplan-commands.port.ts` exporting the command interface for official draft, client preference, submit, and approve operations.
-- [ ] Create `apps/api/libs/modules/floorplan/src/ports/floorplan-reader.port.ts` exporting reader interface for `getFloorPlanSnapshot` and `mapFloorPlanDraft`.
-- [ ] Create `apps/api/libs/modules/floorplan/src/floorplan.module.ts` importing `[DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule]`, providing `FloorPlanWorkflowService`, and exporting service plus tokens.
-- [ ] Create `apps/api/libs/modules/floorplan/src/index.ts` exporting the module, ports, tokens, and service.
+- [x] Create directories `apps/api/libs/modules/floorplan/src/ports` and `apps/api/libs/modules/floorplan/src/services`.
+- [x] Add `@prism/modules/floorplan` and `@prism/modules/floorplan/*` aliases in `apps/api/tsconfig.json`.
+- [x] Add `@prism/modules/floorplan` alias in `apps/api/vitest.config.ts`.
+- [x] Add `floorplan` project metadata in `apps/api/nest-cli.json`.
+- [x] Create `apps/api/libs/modules/floorplan/tsconfig.lib.json`.
+- [x] Create `apps/api/libs/modules/floorplan/src/ports/floorplan.tokens.ts` exporting `FLOORPLAN_COMMANDS` and `FLOORPLAN_READER`.
+- [x] Create `apps/api/libs/modules/floorplan/src/ports/floorplan-commands.port.ts` exporting the command interface for official draft, client preference, submit, and approve operations.
+- [x] Create `apps/api/libs/modules/floorplan/src/ports/floorplan-reader.port.ts` exporting reader interface for `getFloorPlanSnapshot` and `mapFloorPlanDraft`.
+- [x] Create `apps/api/libs/modules/floorplan/src/floorplan.module.ts` importing `[DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule]`, providing `FloorPlanWorkflowService`, and exporting service plus tokens.
+- [x] Create `apps/api/libs/modules/floorplan/src/index.ts` exporting the module, ports, tokens, and service.
 
 ## Task 3 - Move Floorplan Workflow
 
-- [ ] Move `apps/api/libs/modules/event-ops/src/services/floor-plan-workflow.service.ts` to `apps/api/libs/modules/floorplan/src/services/floor-plan-workflow.service.ts`.
-- [ ] Move `apps/api/libs/modules/event-ops/src/services/floor-plan-workflow.service.test.ts` to `apps/api/libs/modules/floorplan/src/services/floor-plan-workflow.service.test.ts`.
-- [ ] Replace old service path with `export * from '@prism/modules/floorplan';`.
-- [ ] In the moved service, replace private relative imports with public imports from `@prism/modules/event-core`, `@prism/modules/trust-ops`, and `@prism/modules/notification-ops`.
-- [ ] In the moved test, replace private relative imports with public imports from `@prism/modules/trust-ops`, `@prism/modules/notification-ops`, and `@prism/modules/event-core`.
+- [x] Move `apps/api/libs/modules/event-ops/src/services/floor-plan-workflow.service.ts` to `apps/api/libs/modules/floorplan/src/services/floor-plan-workflow.service.ts`.
+- [x] Move `apps/api/libs/modules/event-ops/src/services/floor-plan-workflow.service.test.ts` to `apps/api/libs/modules/floorplan/src/services/floor-plan-workflow.service.test.ts`.
+- [x] Replace old service path with `export * from '@prism/modules/floorplan';`.
+- [x] In the moved service, replace private relative imports with public imports from `@prism/modules/event-core`, `@prism/modules/trust-ops`, and `@prism/modules/notification-ops`.
+- [x] In the moved test, replace private relative imports with public imports from `@prism/modules/trust-ops`, `@prism/modules/notification-ops`, and `@prism/modules/event-core`.
 
 ## Task 4 - Wire Event-Ops Compatibility
 
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.module.ts` to import `FloorplanModule` and `FloorPlanWorkflowService` from `@prism/modules/floorplan`.
-- [ ] Remove `FloorPlanWorkflowService` from local event-ops providers.
-- [ ] Add `FloorplanModule` to the module imports array.
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.service.ts` imports so `CreateFloorPlanDraftInput`, `CreateFloorPlanPreferenceInput`, and `FloorPlanWorkflowService` come from `@prism/modules/floorplan`.
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts` so `FloorPlanWorkflowService` imports from `@prism/modules/floorplan`.
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.module.ts` to import `FloorplanModule` and `FloorPlanWorkflowService` from `@prism/modules/floorplan`.
+- [x] Remove `FloorPlanWorkflowService` from local event-ops providers.
+- [x] Add `FloorplanModule` to the module imports array.
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.service.ts` imports so `CreateFloorPlanDraftInput`, `CreateFloorPlanPreferenceInput`, and `FloorPlanWorkflowService` come from `@prism/modules/floorplan`.
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts` so `FloorPlanWorkflowService` imports from `@prism/modules/floorplan`.
 
 ## Task 5 - Verification And Docs Closeout
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/floorplan/src/services/floor-plan-workflow.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test -- floor`.
-- [ ] Run `npm --workspace prism-api run test -- event-ops.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test:event-ops`.
-- [ ] Run `npm --workspace prism-api run build`.
-- [ ] Run `npm run check:boundaries`.
-- [ ] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/commercial-ops|modules/commercial-ops|@prism/modules/compliance-ops|modules/compliance-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops|@prism/modules/inquiry-onboarding|modules/inquiry-onboarding" apps/api/libs/modules/floorplan`; expected result: no matches.
-- [ ] Run `git diff --check`.
-- [ ] Update parent Phase 8 checklist only for items proven by this slice.
-- [ ] Add verification evidence to this child plan.
-- [ ] Update `docs/prism-v4/15-system-architecture.md` with the floorplan extraction note.
-- [ ] Update `docs/prism-v4/17-current-state-2026-06-20.md` with a post-snapshot floorplan note.
-- [ ] Commit checkpoint: `refactor(api): extract floorplan module`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/floorplan/src/services/floor-plan-workflow.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- floor`.
+- [x] Run `npm --workspace prism-api run test -- event-ops.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test:event-ops`.
+- [x] Run `npm --workspace prism-api run build`.
+- [x] Run `npm run check:boundaries`.
+- [x] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/commercial-ops|modules/commercial-ops|@prism/modules/compliance-ops|modules/compliance-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops|@prism/modules/inquiry-onboarding|modules/inquiry-onboarding" apps/api/libs/modules/floorplan`; expected result: no matches.
+- [x] Run `git diff --check`.
+- [x] Update parent Phase 8 checklist only for items proven by this slice.
+- [x] Add verification evidence to this child plan.
+- [x] Update `docs/prism-v4/15-system-architecture.md` with the floorplan extraction note.
+- [x] Update `docs/prism-v4/17-current-state-2026-06-20.md` with a post-snapshot floorplan note.
+- [x] Commit checkpoint: `refactor(api): extract floorplan module`.
 
 ## Acceptance Criteria
 
-- [ ] `FloorPlanWorkflowService` lives under `floorplan` and is provided/exported by `FloorplanModule`.
-- [ ] Floorplan writes live in `floorplan` and no longer import private `event-ops` services.
-- [ ] PMCM official draft/submit/approve behavior remains route-compatible through `EventOpsService`.
-- [ ] Client layout preference submission remains route-compatible through `EventOpsService`.
-- [ ] Clients can read submitted/approved official snapshots only when they can read the event.
-- [ ] Client actors cannot mutate PMCM official floorplans directly.
-- [ ] Canvas/editor object persistence remains unchanged through `floorPlan`, `floorPlanObject`, and `opsFloorPlanDraft` writes.
-- [ ] API build, event-ops compatibility tests, boundary check, no-private-import scan, and diff check pass.
+- [x] `FloorPlanWorkflowService` lives under `floorplan` and is provided/exported by `FloorplanModule`.
+- [x] Floorplan writes live in `floorplan` and no longer import private `event-ops` services.
+- [x] PMCM official draft/submit/approve behavior remains route-compatible through `EventOpsService`.
+- [x] Client layout preference submission remains route-compatible through `EventOpsService`.
+- [x] Clients can read submitted/approved official snapshots only when they can read the event.
+- [x] Client actors cannot mutate PMCM official floorplans directly.
+- [x] Canvas/editor object persistence remains unchanged through `floorPlan`, `floorPlanObject`, and `opsFloorPlanDraft` writes.
+- [x] API build, event-ops compatibility tests, boundary check, no-private-import scan, and diff check pass.
 
+## Verification Evidence
+
+| Command | Result |
+| --- | --- |
+| `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/floor-plan-workflow.service.test.ts` | Passed before move: 1 file, 3 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- libs/modules/floorplan/src/services/floor-plan-workflow.service.test.ts` | Passed after move: 1 file, 3 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- floor` | Passed: 1 file, 3 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- event-ops.service.test.ts` | Passed: 1 file, 62 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test:event-ops` | Passed: 10 files, 85 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run build` | Passed. Initial sandbox run failed on `dist` unlink `EPERM`; escalated rerun passed. |
+| `npm run check:boundaries` | Passed for 501 files. Initial sandbox run failed on `spawnSync git EPERM`; escalated rerun passed. |
+| `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/commercial-ops|modules/commercial-ops|@prism/modules/compliance-ops|modules/compliance-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops|@prism/modules/inquiry-onboarding|modules/inquiry-onboarding" apps/api/libs/modules/floorplan` | Passed with no matches; `rg` exited 1 as expected for no results. |
+| `git diff --check` | Passed; remaining output was line-ending normalization warnings only. |
+
+## Implementation Notes
+
+- `FloorPlanWorkflowService` now lives under `apps/api/libs/modules/floorplan/src/services` and is provided/exported by `FloorplanModule`.
+- `FloorplanModule` exports `FLOORPLAN_COMMANDS` and `FLOORPLAN_READER`.
+- The moved service imports `WorkflowCommandService`/audit constants from `event-core`, `AuditService` from `trust-ops`, and `NotificationOutboxService` from `notification-ops`.
+- The old `event-ops` floorplan workflow path is a compatibility re-export.
+- `EventOpsModule` imports `FloorplanModule`; floorplan route behavior continues through `EventOpsService` compatibility methods.
+- Canvas/editor persistence still writes through `floorPlan`, `floorPlanObject`, and `opsFloorPlanDraft`; focused tests assert object rows and snapshots remain intact.
 ## Stop Rules
 
 Stop and revise before implementation if:

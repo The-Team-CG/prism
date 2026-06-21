@@ -682,32 +682,34 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ## Phase 8 - Extract floorplan
 
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-8-floorplan.md`.
+
 **Purpose:** Align backend ownership with the floorplan rule in `AGENTS.md`.
 
 **Edits:**
 
-- [ ] Create `floorplan` module.
-- [ ] Move `FloorPlanWorkflowService`.
-- [ ] Separate client layout preference commands from PMCM official floorplan commands.
-- [ ] Add reader ports for client read-only official layouts and PMCM editable layouts.
-- [ ] Preserve existing canvas/editor internals.
-- [ ] Keep PMCM edit/approve workflow in `apps/event` via API contracts.
+- [x] Create `floorplan` module.
+- [x] Move `FloorPlanWorkflowService`.
+- [x] Separate client layout preference commands from PMCM official floorplan commands.
+- [x] Add reader ports for client read-only official layouts and PMCM editable layouts.
+- [x] Preserve existing canvas/editor internals.
+- [x] Keep PMCM edit/approve workflow in `apps/event` via API contracts.
 
 **Tests:**
 
-- [ ] PMCM can edit official floorplan.
-- [ ] Client can submit layout preference for a confirmed event.
-- [ ] Client sees submitted/approved official layout read-only.
-- [ ] Forbidden-role test: client cannot mutate PMCM official floorplan directly.
-- [ ] `npm --workspace prism-api run test -- floor`.
+- [x] PMCM can edit official floorplan.
+- [x] Client can submit layout preference for a confirmed event.
+- [x] Client sees submitted/approved official layout read-only.
+- [x] Forbidden-role test: client cannot mutate PMCM official floorplan directly.
+- [x] `npm --workspace prism-api run test -- floor`.
 
 **Acceptance criteria:**
 
-- [ ] Floorplan writes live in `floorplan`.
-- [ ] The floorplan rule is enforced by backend tests.
-- [ ] Existing canvas/editor behavior remains intact.
+- [x] Floorplan writes live in `floorplan`.
+- [x] The floorplan rule is enforced by backend tests.
+- [x] Existing canvas/editor behavior remains intact.
 
-**Commit checkpoint:** `refactor(api): extract floorplan module`
+**Commit checkpoint:** [x] `refactor(api): extract floorplan module`
 
 ## Phase 9 - Extract guest-ops
 

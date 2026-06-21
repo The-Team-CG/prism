@@ -4,6 +4,7 @@ import { AccessControlModule } from '@prism/modules/access-control';
 import { CommercialOpsModule, CommercialWorkflowService } from '@prism/modules/commercial-ops';
 import { ComplianceOpsModule, ComplianceWorkflowService } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
+import { FloorplanModule } from '@prism/modules/floorplan';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
@@ -26,7 +27,6 @@ import { CoordinatorsService } from './services/coordinators.service';
 import { EventClosureService } from './services/event-closure.service';
 import { EventLifecycleService } from './services/event-lifecycle.service';
 import { EventReadModelsService } from './services/event-read-models.service';
-import { FloorPlanWorkflowService } from './services/floor-plan-workflow.service';
 import { GuestWorkflowService } from './services/guest-workflow.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PAREService } from './services/pare/pare.service';
@@ -43,7 +43,6 @@ const EVENT_OPS_PROVIDERS = [
   AuthOperationsService,
   CoordinatorsService,
   LiveOperationsService,
-  FloorPlanWorkflowService,
   EventReadModelsService,
   EventClosureService,
   ComplianceWorkflowService,
@@ -58,7 +57,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })

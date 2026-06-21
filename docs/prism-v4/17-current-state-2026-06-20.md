@@ -185,3 +185,9 @@ Current limitation: this is the implemented quote/commercial workflow slice, not
 Phase 7C extracted compliance rule listing, compliance rule create/update, compliance check generation, and compliance resolution behavior without changing public route paths. `ComplianceWorkflowService` now lives under `apps/api/libs/modules/compliance-ops`, and `ComplianceOpsModule` exports the runtime service plus `COMPLIANCE_COMMANDS` and `COMPLIANCE_READER`.
 
 Audit storage remains in `trust-ops`; compliance-ops imports public trust, access-control, and event-core providers. Controller ownership, role-scoped read-model extraction, and compliance payload field allowlists remain future child-plan work.
+
+## Post-Snapshot Floorplan Slice: 2026-06-22
+
+Phase 8 extracted PMCM official floorplan draft, submit, approve, snapshot read, and client layout preference behavior without changing public route paths. `FloorPlanWorkflowService` now lives under `apps/api/libs/modules/floorplan`, and `FloorplanModule` exports the runtime service plus `FLOORPLAN_COMMANDS` and `FLOORPLAN_READER`.
+
+The AGENTS floorplan rule remains enforced in `EventOpsService` compatibility methods: PMCM/system actors mutate official floorplans, clients submit preferences only for readable events, and readable clients can fetch submitted/approved official snapshots read-only. Existing canvas/editor persistence remains on `floorPlan`, `floorPlanObject`, and `opsFloorPlanDraft`.

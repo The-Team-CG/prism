@@ -126,7 +126,13 @@
                                                                             ],
                                           "@prism/modules/compliance-ops/*":  [
                                                                                   "libs/modules/compliance-ops/src/*"
-                                                                              ]
+                                                                              ],
+                                          "@prism/modules/floorplan":  [
+                                                                            "libs/modules/floorplan/src/index"
+                                                                        ],
+                                          "@prism/modules/floorplan/*":  [
+                                                                              "libs/modules/floorplan/src/*"
+                                                                          ]
                                       }
                         }
 }

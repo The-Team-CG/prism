@@ -176,6 +176,15 @@
                                             "compilerOptions":  {
                                                                     "tsConfigPath":  "libs/modules/compliance-ops/tsconfig.lib.json"
                                                                 }
-                                        }
+                                        },
+                     "floorplan":  {
+                                       "type":  "library",
+                                       "root":  "libs/modules/floorplan",
+                                       "entryFile":  "index",
+                                       "sourceRoot":  "libs/modules/floorplan/src",
+                                       "compilerOptions":  {
+                                                               "tsConfigPath":  "libs/modules/floorplan/tsconfig.lib.json"
+                                                           }
+                                   }
                  }
 }

@@ -24,6 +24,7 @@ export default defineConfig({
       '@prism/modules/inquiry-onboarding': resolve(__dirname, './libs/modules/inquiry-onboarding/src/index.ts'),
       '@prism/modules/commercial-ops': resolve(__dirname, './libs/modules/commercial-ops/src/index.ts'),
       '@prism/modules/compliance-ops': resolve(__dirname, './libs/modules/compliance-ops/src/index.ts'),
+      '@prism/modules/floorplan': resolve(__dirname, './libs/modules/floorplan/src/index.ts'),
     },
   },
 });

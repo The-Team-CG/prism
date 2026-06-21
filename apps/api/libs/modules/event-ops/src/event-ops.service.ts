@@ -107,7 +107,7 @@ import {
   type CreateFloorPlanDraftInput,
   type CreateFloorPlanPreferenceInput,
   FloorPlanWorkflowService,
-} from './services/floor-plan-workflow.service';
+} from '@prism/modules/floorplan';
 import {
   ComplianceWorkflowService,
   type ComplianceRunInput,
