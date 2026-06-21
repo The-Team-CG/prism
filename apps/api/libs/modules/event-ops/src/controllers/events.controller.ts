@@ -229,19 +229,27 @@ export class OpsEventsController {
 
   @Post(':eventId/supplier-quotes')
   @HttpCode(HttpStatus.CREATED)
-  addSupplierQuote(@Param('eventId') eventId: string, @Body() dto: AddSupplierQuoteDto) {
-    return this.eventOpsService.addSupplierQuote(eventId, dto);
+  addSupplierQuote(@Param('eventId') eventId: string, @Body() dto: AddSupplierQuoteDto, @Query() actor: SampleActorDto) {
+    return this.eventOpsService.addSupplierQuote(eventId, dto, actor);
   }
 
   @Post(':eventId/quote-requests')
   @HttpCode(HttpStatus.CREATED)
-  requestSupplierQuotes(@Param('eventId') eventId: string, @Body() dto: RequestSupplierQuotesDto) {
-    return this.eventOpsService.requestSupplierQuotes(eventId, dto);
+  requestSupplierQuotes(
+    @Param('eventId') eventId: string,
+    @Body() dto: RequestSupplierQuotesDto,
+    @Query() actor: SampleActorDto,
+  ) {
+    return this.eventOpsService.requestSupplierQuotes(eventId, dto, actor);
   }
 
   @Patch(':eventId/supplier-quotes/:quoteId/select')
-  selectSupplierQuote(@Param('eventId') eventId: string, @Param('quoteId') quoteId: string) {
-    return this.eventOpsService.selectSupplierQuote(eventId, quoteId);
+  selectSupplierQuote(
+    @Param('eventId') eventId: string,
+    @Param('quoteId') quoteId: string,
+    @Query() actor: SampleActorDto,
+  ) {
+    return this.eventOpsService.selectSupplierQuote(eventId, quoteId, actor);
   }
 
   @Patch(':eventId/quote-requests/:requestId/withdraw')

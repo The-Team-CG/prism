@@ -1319,6 +1319,38 @@ describe('EventOpsService', () => {
     expect(fake.state.notifications.filter((item) => item.message.includes('token-existing'))).toHaveLength(0);
   });
 
+  it('blocks supplier and guest actors from PMCM commercial proposal decisions', async () => {
+    const fake = createPrisma();
+    const service = createEventOpsService(fake.prisma as any);
+
+    await expect(
+      (service as any).requestSupplierQuotes(
+        'evt_sample',
+        { categoryId: 'supcat_technicals', supplierIds: ['sup_sonicline'] },
+        { actorRole: 'supplier', actorName: 'SonicLine Technicals' },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await expect(
+      (service as any).addSupplierQuote(
+        'evt_sample',
+        { supplierName: 'SonicLine Technicals', category: 'Technicals', amount: 150000 },
+        { actorRole: 'guest', actorName: 'Guest User' },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await expect(
+      (service as any).selectSupplierQuote('evt_sample', 'quote_selected', {
+        actorRole: 'guest',
+        actorName: 'Guest User',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(fake.state.quoteRequests).toHaveLength(0);
+    expect(fake.state.supplierQuotes).toHaveLength(0);
+    expect(fake.state.auditLogs.filter((log) => log.actionType === 'forbidden_access')).toHaveLength(3);
+  });
+
   it('creates and edits supplier profiles with private review, certification metadata, and tier-change audit', async () => {
     const fake = createPrisma();
     fake.state.events.push({

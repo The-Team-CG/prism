@@ -176,6 +176,6 @@ Current limitation: `EventOpsService.listOnboarding` remains in `event-ops` beca
 
 ## Post-Snapshot Commercial-Ops Slice: 2026-06-22
 
-Phase 7B extracted supplier quote request, supplier quote submission/revision, quote selection, and token-scoped quote-request read behavior without changing public route paths. `CommercialWorkflowService` now lives under `apps/api/libs/modules/commercial-ops`, and `CommercialOpsModule` exports the runtime service plus `COMMERCIAL_WORKFLOW_COMMANDS`, `PROPOSAL_READER`, and `QUOTE_SUPPLIER_RESOLVER`.
+Phase 7B extracted supplier quote request, supplier quote submission/revision, quote selection, and token-scoped quote-request read behavior without changing public route paths. `CommercialWorkflowService` now lives under `apps/api/libs/modules/commercial-ops`, and `CommercialOpsModule` exports the runtime service plus `COMMERCIAL_WORKFLOW_COMMANDS`, `PROPOSAL_READER`, and `QUOTE_SUPPLIER_RESOLVER`. PMCM commercial decision facade methods now accept optional actor query context and deny supplier/guest actors before quote request, quote detail, or quote selection writes run.
 
-Current limitation: this is the implemented quote/commercial workflow slice, not full proposal document generation. Controller ownership, briefing reader ownership, proposal document generation, API client generation, and dedicated supplier/guest forbidden-role proposal-detail route smoke remain future child-plan work.
+Current limitation: this is the implemented quote/commercial workflow slice, not full proposal document generation. Controller ownership, briefing reader ownership, proposal document generation, API client generation, and proposal-document route smoke remain future child-plan work.

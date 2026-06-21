@@ -1654,12 +1654,24 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuoteRequest(updated);
   }
 
-  async requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput) {
+  async requestSupplierQuotes(
+    eventId: string,
+    input: RequestSupplierQuotesInput,
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+  ) {
+    const actor = this.resolveActor(actorInput);
+    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier quote requests', eventId);
     const requests = await this.commercialWorkflowService.requestSupplierQuotes(eventId, input);
     return requests.map((request) => this.mapSupplierQuoteRequest(request));
   }
 
-  async addSupplierQuote(eventId: string, input: AddSupplierQuoteInput) {
+  async addSupplierQuote(
+    eventId: string,
+    input: AddSupplierQuoteInput,
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+  ) {
+    const actor = this.resolveActor(actorInput);
+    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier quote details', eventId);
     const quote = await this.commercialWorkflowService.addSupplierQuote(eventId, input);
     return this.mapSupplierQuote(quote);
   }
@@ -1687,8 +1699,14 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuoteForSupplier(revised);
   }
 
-  async selectSupplierQuote(eventId: string, quoteId: string) {
-    const selected = await this.commercialWorkflowService.selectSupplierQuote(eventId, quoteId);
+  async selectSupplierQuote(
+    eventId: string,
+    quoteId: string,
+    actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
+  ) {
+    const actor = this.resolveActor(actorInput);
+    await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier quote selection', eventId);
+    const selected = await this.commercialWorkflowService.selectSupplierQuote(eventId, quoteId, actor.name);
     return this.mapSupplierQuote(selected);
   }
 
@@ -1999,7 +2017,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     const dueDate = addDays(now, 14);
 
     await this.prisma.$transaction(async (tx) => {
-      // Harvest Table ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â assigned (this is the one PARE will replace when withdrawn)
+      // Harvest Table assigned; this is the one PARE will replace when withdrawn.
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_harvesttable',
@@ -2035,7 +2053,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      // LensCraft ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â assigned (second assigned supplier to give more sample options)
+      // LensCraft assigned as the second supplier to give more sample options.
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_lenscraft',

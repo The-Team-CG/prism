@@ -658,9 +658,11 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 - [x] Create `commercial-ops` module.
 - [x] Move `CommercialWorkflowService`.
-- [ ] Add proposal/briefing reader ports.
-- [ ] Test proposal workflow status changes and conforme readiness.
-- [ ] Add forbidden-role test for supplier/guest access to proposal details.
+- [x] Add token-scoped proposal/quote reader port.
+- [ ] Add briefing reader port when briefing ownership moves out of `inquiry-onboarding`/`event-ops`.
+- [x] Test supplier quote/proposal decision status changes.
+- [ ] Test full proposal document workflow and conforme readiness when proposal generation exists.
+- [x] Add forbidden-role test for supplier/guest access to PMCM commercial proposal decisions.
 
 ### Phase 7C - compliance-ops
 
@@ -673,7 +675,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 **Commit checkpoints:**
 
 - [ ] `refactor(api): extract inquiry onboarding module`
-- [ ] `refactor(api): extract commercial operations module`
+- [x] `refactor(api): extract commercial operations module`
 - [ ] `refactor(api): extract compliance operations module`
 
 ## Phase 8 - Extract floorplan

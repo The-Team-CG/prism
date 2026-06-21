@@ -19,7 +19,7 @@
 | Route/app/actor | Existing event routes for PMCM quote requests and quote selection plus supplier quote-request token routes. PMCM requests/selects quotes; suppliers submit/revise through token-scoped routes. |
 | Contract touched | Backend module exports and API TypeScript aliases. No `packages/types` or `packages/api-client` changes unless build proves a compatibility export is missing. |
 | Fallback state | Existing `event-ops` route facade stays. Proposal document generation and briefing/commercial read-model composition remain deferred. |
-| Forbidden-role test | Existing event-ops tests for supplier-scoped quote workspace/privacy keep passing. Add focused commercial service tests for quote selection status changes and overdue token expiry. |
+| Forbidden-role test | Existing event-ops tests for supplier-scoped quote workspace/privacy keep passing. Added event-ops compatibility coverage that supplier and guest actors cannot create quote requests, add PMCM quote details, or select supplier quotes. |
 | Query budget | Quote request creation performs event lookup, category lookup, supplier selection, active duplicate request scan, then one transaction that creates one row per selected supplier. Token read performs one request lookup, optional expiry update, one event lookup, and one latest quote lookup. |
 | Side-effect mode | Quote request, quote creation/revision, and selection use the existing `WorkflowCommandService` boundary: DB writes first, then audit/outbox side effects. Multi-row quote request and selection writes stay inside Prisma transactions. Token lookup is read-mostly, with an expiry status update when overdue. |
 | Route-smoke evidence | `npm --workspace prism-api run test -- libs/modules/commercial-ops/src/services/commercial-workflow.service.test.ts`, `npm --workspace prism-api run test -- commercial quote`, `npm --workspace prism-api run test:event-ops`, `npm --workspace prism-api run build`, `npm run check:boundaries`. |
@@ -44,6 +44,7 @@ In scope:
 - Keep `event-ops` compatibility re-export at the old service path.
 - Update `EventOpsModule`, `EventOpsService`, and `event-ops.service.test.ts` to import commercial behavior from `@prism/modules/commercial-ops`.
 - Preserve public route paths and response mapping.
+- Add optional sample actor query handling to PMCM commercial route facade methods so supplier/guest actors are denied while existing callers keep PMCM defaults.
 
 Out of scope:
 
@@ -190,7 +191,14 @@ Out of scope:
 - [x] Update `EventOpsService` to import `CommercialWorkflowService`, `RequestSupplierQuotesInput`, `SubmitSupplierQuoteInput`, and `AddSupplierQuoteInput` from `@prism/modules/commercial-ops`.
 - [x] Update `event-ops.service.test.ts` to import `CommercialWorkflowService` from `@prism/modules/commercial-ops`.
 
-## Task 5 - Verification And Docs Closeout
+## Task 5 - Commercial Facade Role Hardening
+
+- [x] Add optional `SampleActorDto` query handling to PMCM commercial facade routes for quote creation, quote request creation, and quote selection.
+- [x] Require PMCM/system role before `EventOpsService` delegates PMCM commercial proposal decisions to `CommercialWorkflowService`.
+- [x] Add event-ops compatibility regression coverage that supplier and guest actors are denied before quote request, quote detail, or quote selection writes run.
+- [x] Run `npm --workspace prism-api run test -- event-ops.service.test.ts`.
+
+## Task 6 - Verification And Docs Closeout
 
 - [x] Run `npm --workspace prism-api run test -- libs/modules/commercial-ops/src/services/commercial-workflow.service.test.ts`.
 - [x] Run `npm --workspace prism-api run test -- commercial quote`.
@@ -203,6 +211,7 @@ Out of scope:
 - [x] Add verification evidence to this child plan.
 - [x] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md`.
 - [x] Commit checkpoint: `refactor(api): extract commercial operations module`.
+- [x] Commit checkpoint: `test(api): harden commercial facade role checks`.
 
 ## Acceptance Criteria
 
@@ -222,8 +231,9 @@ Out of scope:
 | `npm --workspace prism-api run test -- libs/modules/commercial-ops/src/services/commercial-workflow.service.test.ts` | Passed after move: 1 file, 2 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
 | `npm --workspace prism-api run test -- commercial quote` | Passed: 1 file, 2 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
 | `npm --workspace prism-api run test:event-ops` | Passed: 10 files, 84 tests. The event-ops focused commercial test moved into commercial-ops, which explains the lower event-ops count. |
-| `npm --workspace prism-api run build` | Passed after escalated rerun because sandbox blocked `dist` cleanup with `EPERM`. |
-| `npm run check:boundaries` | Passed for 485 files. Initial sandbox run failed on `spawnSync git EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- event-ops.service.test.ts` | Passed after role-hardening patch: 1 file, 62 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run build` | Passed after role-hardening patch. Initial sandbox run failed on `dist` unlink `EPERM`; escalated rerun passed. |
+| `npm run check:boundaries` | Passed for 494 files after role-hardening patch. Initial sandbox run failed on `spawnSync git EPERM`; escalated rerun passed. |
 | `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops|@prism/modules/inquiry-onboarding|modules/inquiry-onboarding" apps/api/libs/modules/commercial-ops` | Passed with no matches; `rg` exited 1 as expected for no results. |
 | `git diff --check` | Passed; remaining output was line-ending normalization warnings only. |
 
@@ -234,8 +244,8 @@ Out of scope:
 - `PrismaQuoteSupplierResolver` preserves the old manual quote supplier resolution behavior without importing `SuppliersService` or `event-ops` internals.
 - The old `event-ops` commercial workflow path is a one-line compatibility re-export.
 - `EventOpsModule` imports `CommercialOpsModule`; it no longer provides `CommercialWorkflowService` locally.
-- Existing event and supplier quote routes continue through `EventOpsService` compatibility methods.
-- Remaining commercial hardening is separate: controller moves, full proposal document generation, briefing reader ownership, and a dedicated supplier/guest forbidden-role proposal-detail route smoke.
+- Existing event and supplier quote routes continue through `EventOpsService` compatibility methods; PMCM commercial decision methods now accept optional actor query context and reject supplier/guest actors before writes.
+- Remaining commercial hardening is separate: controller moves, full proposal document generation, briefing reader ownership, and a dedicated proposal-document route smoke after that endpoint exists. Supplier/guest denial for current PMCM commercial proposal decisions is now covered.
 
 ## Stop Rules
 
