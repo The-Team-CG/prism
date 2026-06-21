@@ -768,6 +768,8 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ## Phase 11 - Prepare And Extract event-read-models
 
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-11-event-read-models.md`.
+
 **Purpose:** Move role payload composition into a read-only module after capability reader ports exist.
 
 **Edits:**
