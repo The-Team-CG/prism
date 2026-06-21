@@ -21,6 +21,7 @@ export default defineConfig({
       '@prism/modules/supplier-ops': resolve(__dirname, './libs/modules/supplier-ops/src/index.ts'),
       '@prism/modules/finance-ops': resolve(__dirname, './libs/modules/finance-ops/src/index.ts'),
       '@prism/modules/file-ops': resolve(__dirname, './libs/modules/file-ops/src/index.ts'),
+      '@prism/modules/inquiry-onboarding': resolve(__dirname, './libs/modules/inquiry-onboarding/src/index.ts'),
     },
   },
 });

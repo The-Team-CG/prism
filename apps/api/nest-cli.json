@@ -149,6 +149,15 @@
                                       "compilerOptions":  {
                                                               "tsConfigPath":  "libs/modules/file-ops/tsconfig.lib.json"
                                                           }
-                                  }
+                                  },
+                     "inquiry-onboarding":  {
+                                                "type":  "library",
+                                                "root":  "libs/modules/inquiry-onboarding",
+                                                "entryFile":  "index",
+                                                "sourceRoot":  "libs/modules/inquiry-onboarding/src",
+                                                "compilerOptions":  {
+                                                                        "tsConfigPath":  "libs/modules/inquiry-onboarding/tsconfig.lib.json"
+                                                                    }
+                                            }
                  }
 }

@@ -1,6 +1,6 @@
 # Prism Backend Modular Monolith Phase 7A Inquiry Onboarding Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Extract public inquiry, accepted-inquiry conforme gating, and client briefing onboarding into `inquiry-onboarding` while preserving existing inquiry and event route contracts.
 
@@ -85,7 +85,7 @@ Out of scope:
 
 - Create: `apps/api/libs/modules/event-ops/src/services/inquiries.service.test.ts`
 
-- [ ] Create a focused test file at the old path before moving the service:
+- [x] Create a focused test file at the old path before moving the service:
 
 ```ts
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
@@ -229,7 +229,7 @@ describe('InquiriesService', () => {
 });
 ```
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/inquiries.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/inquiries.service.test.ts`.
   Expected before move: PASS.
 
 ## Task 2 - Add Focused Client Briefing Test Before Moving
@@ -238,7 +238,7 @@ describe('InquiriesService', () => {
 
 - Create: `apps/api/libs/modules/event-ops/src/services/client-onboarding-workflow.service.test.ts`
 
-- [ ] Create a focused test for the briefing command and event readiness update:
+- [x] Create a focused test for the briefing command and event readiness update:
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
@@ -304,13 +304,13 @@ describe('ClientOnboardingWorkflowService', () => {
 });
 ```
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/client-onboarding-workflow.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/client-onboarding-workflow.service.test.ts`.
   Expected before move: PASS.
 
 ## Task 3 - Create Inquiry-Onboarding Module Shell
 
-- [ ] Create directories `apps/api/libs/modules/inquiry-onboarding/src/ports` and `apps/api/libs/modules/inquiry-onboarding/src/services`.
-- [ ] Add `apps/api/libs/modules/inquiry-onboarding/tsconfig.lib.json`:
+- [x] Create directories `apps/api/libs/modules/inquiry-onboarding/src/ports` and `apps/api/libs/modules/inquiry-onboarding/src/services`.
+- [x] Add `apps/api/libs/modules/inquiry-onboarding/tsconfig.lib.json`:
 
 ```json
 {
@@ -324,22 +324,22 @@ describe('ClientOnboardingWorkflowService', () => {
 }
 ```
 
-- [ ] Add `@prism/modules/inquiry-onboarding` and `@prism/modules/inquiry-onboarding/*` to `apps/api/tsconfig.json`.
-- [ ] Add the Vitest alias:
+- [x] Add `@prism/modules/inquiry-onboarding` and `@prism/modules/inquiry-onboarding/*` to `apps/api/tsconfig.json`.
+- [x] Add the Vitest alias:
 
 ```ts
   '@prism/modules/inquiry-onboarding': resolve(__dirname, './libs/modules/inquiry-onboarding/src/index.ts'),
 ```
 
-- [ ] Add `inquiry-onboarding` to `apps/api/nest-cli.json` with root `libs/modules/inquiry-onboarding`, entry `index`, source root `libs/modules/inquiry-onboarding/src`, and tsconfig `libs/modules/inquiry-onboarding/tsconfig.lib.json`.
-- [ ] Create `inquiry-onboarding.tokens.ts`:
+- [x] Add `inquiry-onboarding` to `apps/api/nest-cli.json` with root `libs/modules/inquiry-onboarding`, entry `index`, source root `libs/modules/inquiry-onboarding/src`, and tsconfig `libs/modules/inquiry-onboarding/tsconfig.lib.json`.
+- [x] Create `inquiry-onboarding.tokens.ts`:
 
 ```ts
 export const INQUIRY_COMMANDS = Symbol('INQUIRY_COMMANDS');
 export const CLIENT_ONBOARDING_COMMANDS = Symbol('CLIENT_ONBOARDING_COMMANDS');
 ```
 
-- [ ] Create `inquiry-commands.port.ts`:
+- [x] Create `inquiry-commands.port.ts`:
 
 ```ts
 import type { OpsDocument, OpsInquiry } from '@prisma/client';
@@ -360,7 +360,7 @@ export interface InquiryCommands {
 }
 ```
 
-- [ ] Create `client-onboarding-commands.port.ts`:
+- [x] Create `client-onboarding-commands.port.ts`:
 
 ```ts
 import type { OpsBriefing } from '@prisma/client';
@@ -371,7 +371,7 @@ export interface ClientOnboardingCommands {
 }
 ```
 
-- [ ] Create `inquiry-onboarding.module.ts`:
+- [x] Create `inquiry-onboarding.module.ts`:
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -404,7 +404,7 @@ import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 export class InquiryOnboardingModule {}
 ```
 
-- [ ] Create `index.ts`:
+- [x] Create `index.ts`:
 
 ```ts
 export * from './inquiry-onboarding.module';
@@ -418,10 +418,10 @@ export * from './services/inquiry-workflow.service';
 
 ## Task 4 - Move Inquiry-Onboarding Services
 
-- [ ] Move `inquiries.service.ts`, `inquiry-workflow.service.ts`, and `client-onboarding-workflow.service.ts` from `event-ops/src/services` to `inquiry-onboarding/src/services`.
-- [ ] Move the focused tests from Tasks 1 and 2 into `inquiry-onboarding/src/services`.
-- [ ] Update moved service imports to use `@prism/modules/event-core`, `@prism/modules/trust-ops`, and `@prism/modules/notification-ops` instead of local event-ops paths.
-- [ ] Create old-path compatibility re-exports:
+- [x] Move `inquiries.service.ts`, `inquiry-workflow.service.ts`, and `client-onboarding-workflow.service.ts` from `event-ops/src/services` to `inquiry-onboarding/src/services`.
+- [x] Move the focused tests from Tasks 1 and 2 into `inquiry-onboarding/src/services`.
+- [x] Update moved service imports to use `@prism/modules/event-core`, `@prism/modules/trust-ops`, and `@prism/modules/notification-ops` instead of local event-ops paths.
+- [x] Create old-path compatibility re-exports:
 
 ```ts
 export * from '@prism/modules/inquiry-onboarding';
@@ -435,13 +435,13 @@ Use that exact one-line content in each old service path:
 
 ## Task 5 - Wire Event-Ops Compatibility To Inquiry-Onboarding
 
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.module.ts`:
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.module.ts`:
   - Import `InquiryOnboardingModule`, `InquiriesService`, `InquiryWorkflowService`, and `ClientOnboardingWorkflowService` from `@prism/modules/inquiry-onboarding`.
   - Remove local imports for those three services.
   - Remove those three services from `EVENT_OPS_PROVIDERS`.
   - Add `InquiryOnboardingModule` to `imports`.
 
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.service.ts` to import moved services and types from `@prism/modules/inquiry-onboarding`:
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.service.ts` to import moved services and types from `@prism/modules/inquiry-onboarding`:
 
 ```ts
 import {
@@ -454,37 +454,60 @@ import {
 } from '@prism/modules/inquiry-onboarding';
 ```
 
-- [ ] Update `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts` to import moved services from `@prism/modules/inquiry-onboarding`:
+- [x] Update `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts` to import moved services from `@prism/modules/inquiry-onboarding`:
 
 ```ts
 import { ClientOnboardingWorkflowService, InquiriesService, InquiryWorkflowService } from '@prism/modules/inquiry-onboarding';
 ```
 
-- [ ] Leave `EventOpsService.listOnboarding` unchanged.
+- [x] Leave `EventOpsService.listOnboarding` unchanged.
 
 ## Task 6 - Verification And Docs Closeout
 
-- [ ] Run `npm --workspace prism-api run test -- libs/modules/inquiry-onboarding/src/services/inquiries.service.test.ts libs/modules/inquiry-onboarding/src/services/client-onboarding-workflow.service.test.ts`.
-- [ ] Run `npm --workspace prism-api run test -- inquiry`.
-- [ ] Run `npm --workspace prism-api run test:event-ops`.
-- [ ] Run `npm --workspace prism-api run build`.
-- [ ] Run `npm run check:boundaries`.
-- [ ] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops" apps/api/libs/modules/inquiry-onboarding`; expected result: no matches.
-- [ ] Run `git diff --check`.
-- [ ] Update the parent Phase 7A checklist only for items proven by this slice.
-- [ ] Add verification evidence to this child plan.
-- [ ] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md` with inquiry-onboarding extraction state and remaining limitations.
-- [ ] Commit checkpoint: `refactor(api): extract inquiry onboarding module`.
+- [x] Run `npm --workspace prism-api run test -- libs/modules/inquiry-onboarding/src/services/inquiries.service.test.ts libs/modules/inquiry-onboarding/src/services/client-onboarding-workflow.service.test.ts`.
+- [x] Run `npm --workspace prism-api run test -- inquiry`.
+- [x] Run `npm --workspace prism-api run test:event-ops`.
+- [x] Run `npm --workspace prism-api run build`.
+- [x] Run `npm run check:boundaries`.
+- [x] Run `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops" apps/api/libs/modules/inquiry-onboarding`; expected result: no matches.
+- [x] Run `git diff --check`.
+- [x] Update the parent Phase 7A checklist only for items proven by this slice.
+- [x] Add verification evidence to this child plan.
+- [x] Update `docs/prism-v4/15-system-architecture.md` and `docs/prism-v4/17-current-state-2026-06-20.md` with inquiry-onboarding extraction state and remaining limitations.
+- [x] Commit checkpoint: `refactor(api): extract inquiry onboarding module`.
 
 ## Acceptance Criteria
 
-- [ ] `InquiriesService`, `InquiryWorkflowService`, and `ClientOnboardingWorkflowService` live under `inquiry-onboarding` and are provided/exported by `InquiryOnboardingModule`.
-- [ ] `INQUIRY_COMMANDS` and `CLIENT_ONBOARDING_COMMANDS` resolve to the owning services.
-- [ ] Existing inquiry controller route behavior remains reachable through `EventOpsService` compatibility methods.
-- [ ] Public inquiry privacy consent, PMCM log-on-behalf authorization, duplicate/declined inquiry detection, accepted inquiry conforme gate, reminder sweep, signed conforme portal unlock, and client briefing tests pass.
-- [ ] `EventOpsService.listOnboarding` remains in `event-ops` and is documented as a cross-domain read pending read-model extraction.
-- [ ] `inquiry-onboarding` does not import `event-ops`, supplier, finance, or file module internals.
-- [ ] API build, event-ops compatibility tests, boundary check, no-private-import scan, and diff check pass.
+- [x] `InquiriesService`, `InquiryWorkflowService`, and `ClientOnboardingWorkflowService` live under `inquiry-onboarding` and are provided/exported by `InquiryOnboardingModule`.
+- [x] `INQUIRY_COMMANDS` and `CLIENT_ONBOARDING_COMMANDS` resolve to the owning services.
+- [x] Existing inquiry controller route behavior remains reachable through `EventOpsService` compatibility methods.
+- [x] Public inquiry privacy consent, PMCM log-on-behalf authorization, duplicate/declined inquiry detection, accepted inquiry conforme gate, reminder sweep, signed conforme portal unlock, and client briefing tests pass.
+- [x] `EventOpsService.listOnboarding` remains in `event-ops` and is documented as a cross-domain read pending read-model extraction.
+- [x] `inquiry-onboarding` does not import `event-ops`, supplier, finance, or file module internals.
+- [x] API build, event-ops compatibility tests, boundary check, no-private-import scan, and diff check pass.
+
+## Verification Evidence
+
+| Command | Result |
+| --- | --- |
+| `npm --workspace prism-api run test -- libs/modules/event-ops/src/services/inquiries.service.test.ts libs/modules/event-ops/src/services/client-onboarding-workflow.service.test.ts` | Passed before move: 2 files, 4 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- libs/modules/inquiry-onboarding/src/services/inquiries.service.test.ts libs/modules/inquiry-onboarding/src/services/client-onboarding-workflow.service.test.ts` | Passed after move: 2 files, 4 tests. Initial sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test -- inquiry` | Passed against final code state: 2 files, 4 tests. Earlier sandbox run failed at Vite config load with `spawn EPERM`; escalated rerun passed. |
+| `npm --workspace prism-api run test:event-ops` | Passed against final code state: 11 files, 85 tests. The startup database-unavailable warning is the existing mocked startup path and did not fail the suite. |
+| `npm --workspace prism-api run build` | Passed after resolving the public index wildcard-export ambiguity and rerunning escalated because sandbox blocked `dist` cleanup with `EPERM`. |
+| `npm run check:boundaries` | Passed for 476 files. Initial sandbox run failed on `spawnSync git EPERM`; escalated rerun passed. |
+| `rg -n "@prism/modules/event-ops|modules/event-ops|@prism/modules/finance-ops|modules/finance-ops|@prism/modules/supplier-ops|modules/supplier-ops|@prism/modules/file-ops|modules/file-ops" apps/api/libs/modules/inquiry-onboarding` | Passed with no matches; `rg` exited 1 as expected for no results. |
+| `git diff --check` | Passed; remaining output was line-ending normalization warnings only. |
+
+## Implementation Notes
+
+- `InquiriesService`, `InquiryWorkflowService`, and `ClientOnboardingWorkflowService` now live under `apps/api/libs/modules/inquiry-onboarding/src/services`.
+- `InquiryOnboardingModule` owns the runtime providers and exports `INQUIRY_COMMANDS` and `CLIENT_ONBOARDING_COMMANDS`.
+- The old `event-ops` service paths are one-line compatibility re-exports, so existing event-ops internals such as auth operations can keep using the same class token while the route facade shrinks.
+- `EventOpsModule` imports `InquiryOnboardingModule`; it no longer provides the moved services locally.
+- `EventOpsService` and its tests import inquiry/onboarding behavior from `@prism/modules/inquiry-onboarding` while keeping public route methods unchanged.
+- `EventOpsService.listOnboarding` intentionally remains in `event-ops` because it is a cross-domain read over inquiries, events, and documents. It should move with read-model work, not this command-ownership slice.
+- Remaining Phase 7 work is separate: commercial-ops, compliance-ops, controller ownership moves, and unauthenticated route-smoke hardening beyond public inquiry creation.
 
 ## Stop Rules
 

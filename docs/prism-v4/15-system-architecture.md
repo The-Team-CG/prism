@@ -109,6 +109,8 @@ Phase 5 finance extraction is now active for command ownership: `BillingOperatio
 
 Phase 6 file extraction is now active: `FileRequirementsMatrixService` and `DocumentVaultService` live in `file-ops`, `FileOpsModule` owns the runtime providers and public file tokens, and `event-ops` keeps route compatibility through old-path re-exports plus imported module providers. Signed upload URLs remain disabled through `MetadataOnlySignedUploadUrlFactory`; real object storage requires a separate approved storage plan.
 
+Phase 7A inquiry-onboarding extraction is now active: `InquiriesService`, `InquiryWorkflowService`, and `ClientOnboardingWorkflowService` live in `inquiry-onboarding`, `InquiryOnboardingModule` owns the runtime providers and public inquiry/client-onboarding command tokens, and `event-ops` keeps route compatibility through old-path re-exports plus imported module providers. Cross-domain PMCM onboarding reads remain in `event-ops` until read-model extraction.
+
 ## Data Domains
 
 | Domain | Representative models |

@@ -6,7 +6,11 @@ import { AiGovernanceService } from './services/ai-governance.service';
 import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/modules/trust-ops';
 import { AuthOperationsService } from './services/auth-operations.service';
 import { BillingOperationsService } from '@prism/modules/finance-ops';
-import { ClientOnboardingWorkflowService } from './services/client-onboarding-workflow.service';
+import {
+  ClientOnboardingWorkflowService,
+  InquiriesService,
+  InquiryWorkflowService,
+} from '@prism/modules/inquiry-onboarding';
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { ComplianceWorkflowService } from './services/compliance-workflow.service';
 import { CoordinatorsService } from './services/coordinators.service';
@@ -17,8 +21,6 @@ import { EventLifecycleService } from './services/event-lifecycle.service';
 import { EventReadModelsService } from './services/event-read-models.service';
 import { FloorPlanWorkflowService } from './services/floor-plan-workflow.service';
 import { GuestWorkflowService } from './services/guest-workflow.service';
-import { InquiriesService } from './services/inquiries.service';
-import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from './services/pare/pare.service';

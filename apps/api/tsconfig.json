@@ -108,7 +108,13 @@
                                                                       ],
                                           "@prism/modules/file-ops/*":  [
                                                                             "libs/modules/file-ops/src/*"
-                                                                        ]
+                                                                        ],
+                                          "@prism/modules/inquiry-onboarding":  [
+                                                                                    "libs/modules/inquiry-onboarding/src/index"
+                                                                                ],
+                                          "@prism/modules/inquiry-onboarding/*":  [
+                                                                                      "libs/modules/inquiry-onboarding/src/*"
+                                                                                  ]
                                       }
                         }
 }

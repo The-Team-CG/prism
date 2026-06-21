@@ -645,11 +645,11 @@ export class AuditWriterAdapter implements AuditWriter {
 
 Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-7a-inquiry-onboarding.md`.
 
-- [ ] Create `inquiry-onboarding` module.
-- [ ] Move inquiry creation and accepted inquiry to conforme gating behavior.
-- [ ] Move client onboarding workflow behavior from current services.
-- [ ] Keep public inquiry route paths stable.
-- [ ] Test public inquiry creation, accepted inquiry gate, and client portal onboarding access.
+- [x] Create `inquiry-onboarding` module.
+- [x] Move inquiry creation and accepted inquiry to conforme gating behavior.
+- [x] Move client onboarding workflow behavior from current services.
+- [x] Keep public inquiry route paths stable.
+- [x] Test public inquiry creation, accepted inquiry gate, and client portal onboarding access.
 - [ ] Add forbidden-role test for unauthenticated access beyond public inquiry creation.
 
 ### Phase 7B - commercial-ops

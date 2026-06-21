@@ -29,6 +29,12 @@ import type {
 } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/database';
 import { DocumentVaultService, FileRequirementsMatrixService, type UploadMetadataInput } from '@prism/modules/file-ops';
+import {
+  ClientOnboardingWorkflowService,
+  InquiriesService,
+  InquiryWorkflowService,
+  type SubmitBriefingInput,
+} from '@prism/modules/inquiry-onboarding';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditService } from './services/audit.service';
@@ -52,7 +58,6 @@ import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,
 } from './services/coordinators.service';
-import { InquiriesService } from './services/inquiries.service';
 import {
   AuditActionType,
   AuditCategory,
@@ -76,7 +81,6 @@ import {
 } from './services/live-operations.service';
 import { PrivacyOperationsService } from './services/privacy-operations.service';
 import { SampleStateService } from './services/sample-state.service';
-import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 import {
   EventAccessPolicyService,
   type EventOpsActorInput,
@@ -111,10 +115,6 @@ import {
   type ResolveComplianceInput,
   type UpdateComplianceRuleInput,
 } from './services/compliance-workflow.service';
-import {
-  ClientOnboardingWorkflowService,
-  type SubmitBriefingInput,
-} from './services/client-onboarding-workflow.service';
 import {
   GuestWorkflowService,
   type GuestCheckInInput,
@@ -1999,7 +1999,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     const dueDate = addDays(now, 14);
 
     await this.prisma.$transaction(async (tx) => {
-      // Harvest Table â€” assigned (this is the one PARE will replace when withdrawn)
+      // Harvest Table Ã¢â‚¬â€ assigned (this is the one PARE will replace when withdrawn)
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_harvesttable',
@@ -2035,7 +2035,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      // LensCraft â€” assigned (second assigned supplier to give more sample options)
+      // LensCraft Ã¢â‚¬â€ assigned (second assigned supplier to give more sample options)
       await tx.opsSupplierQuoteRequest.create({
         data: {
           id: 'qr_pare_lenscraft',
