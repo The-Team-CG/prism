@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
 import type { PrismLifecycleStage } from '@prism/types';
 
@@ -27,6 +27,7 @@ const NEXT_LIFECYCLE_STAGES: Record<EventLifecycleStage, EventLifecycleStage[]> 
   [EventLifecycleStage.ClosureArchive]: [],
 };
 
+@Injectable()
 export class EventLifecycleService {
   stageForEvent(event: Pick<OpsEvent, 'status' | 'clientPortalStatus' | 'archived' | 'floorPlanStatus'>): EventLifecycleStage {
     if (event.archived || event.status === 'archived') return EventLifecycleStage.ClosureArchive;

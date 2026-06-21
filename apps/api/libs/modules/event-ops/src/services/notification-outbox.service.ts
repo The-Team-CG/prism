@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsNotificationLog } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
@@ -9,6 +9,7 @@ export type NotificationOutboxChannel = 'email' | 'viber' | 'zoom' | 'canva' | '
 const DEFAULT_MAX_ATTEMPTS = 3;
 const FORCE_FAIL_MARKER = 'FORCE_FAIL';
 
+@Injectable()
 export class NotificationOutboxService {
   constructor(private readonly prisma: PrismaService) {}
 

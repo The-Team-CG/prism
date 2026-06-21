@@ -405,13 +405,13 @@ Every extraction must include before/after tests proving route payloads and auth
 
 **Edits:**
 
-- [ ] Add `@Injectable()` to each current `event-ops` service that will be Nest-constructed.
-- [ ] Register the current service classes as providers in `EventOpsModule`.
-- [ ] Replace `new AuditService(...)`, `new NotificationOutboxService(...)`, and similar default constructor fallbacks with injected dependencies.
-- [ ] Convert `EventOpsService` constructor to receive current services through DI.
-- [ ] Remove manual service construction from `EventOpsService` after all providers compile.
-- [ ] Keep method names and controller calls unchanged.
-- [ ] Do not move files in this phase.
+- [x] Add `@Injectable()` to each current `event-ops` service that will be Nest-constructed.
+- [x] Register the current service classes as providers in `EventOpsModule`.
+- [x] Replace `new AuditService(...)`, `new NotificationOutboxService(...)`, and similar default constructor fallbacks with injected dependencies.
+- [x] Convert `EventOpsService` constructor to receive current services through DI.
+- [x] Remove manual service construction from `EventOpsService` after all providers compile.
+- [x] Keep method names and controller calls unchanged.
+- [x] Do not move files in this phase.
 
 **Provider registration target:**
 
@@ -437,18 +437,18 @@ The real provider list must include every service currently constructed inside `
 
 **Tests:**
 
-- [ ] Prefer existing Vitest tests if they instantiate services directly.
-- [ ] If using Nest `TestingModule`, add `@nestjs/testing` to `apps/api/package.json` and override `PrismaService` with a fake.
-- [ ] If avoiding `@nestjs/testing`, add a Vitest-only provider construction test that verifies `EventOpsService` receives injected instances and does not default-create them.
-- [ ] Run `npm --workspace prism-api run test -- event-ops` or the narrowest existing API test command.
-- [ ] Run `npm --workspace prism-api run build` if provider metadata or Nest module wiring changes.
+- [x] Prefer existing Vitest tests if they instantiate services directly.
+- [x] Did not use Nest `TestingModule`; no `@nestjs/testing` dependency was added.
+- [x] Updated existing Vitest direct-construction tests to build the explicit dependency graph and verify `EventOpsService` no longer default-creates services.
+- [x] Run `npm --workspace prism-api run test -- event-ops` or the narrowest existing API test command.
+- [x] Run `npm --workspace prism-api run build` if provider metadata or Nest module wiring changes.
 
 **Acceptance criteria:**
 
-- [ ] No manual `new SomeWorkflowService(...)` composition remains inside `EventOpsService`.
-- [ ] Existing route methods still call the same public service methods.
-- [ ] No behavior changes appear in snapshots or route tests.
-- [ ] Audit and notification dependencies are single provider instances per module context.
+- [x] No manual `new SomeWorkflowService(...)` composition remains inside `EventOpsService`.
+- [x] Existing route methods still call the same public service methods.
+- [x] No behavior changes appear in snapshots or route tests.
+- [x] Audit and notification dependencies are single provider instances per module context.
 
 **Commit checkpoint:** `refactor(api): inject event ops services through nest providers`
 

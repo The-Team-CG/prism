@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
@@ -57,6 +58,7 @@ function addMinutes(value: Date, minutes: number) {
   return next;
 }
 
+@Injectable()
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 

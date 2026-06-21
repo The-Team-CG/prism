@@ -1,7 +1,32 @@
 import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { EventOpsService } from './event-ops.service';
-import { AuthSecurityService } from './services/auth-security.service';
+import { AiGovernanceService } from './services/ai-governance.service';
+import { AuditService } from './services/audit.service';
+import { AuthOperationsService } from './services/auth-operations.service';
+import { BillingOperationsService } from './services/billing-operations.service';
+import { ClientOnboardingWorkflowService } from './services/client-onboarding-workflow.service';
+import { CommercialWorkflowService } from './services/commercial-workflow.service';
+import { ComplianceWorkflowService } from './services/compliance-workflow.service';
+import { CoordinatorsService } from './services/coordinators.service';
+import { DocumentVaultService } from './services/document-vault.service';
+import { EventAccessPolicyService } from './services/event-access-policy.service';
+import { EventClosureService } from './services/event-closure.service';
+import { EventLifecycleService } from './services/event-lifecycle.service';
+import { EventReadModelsService } from './services/event-read-models.service';
+import { FileRequirementsMatrixService } from './services/file-requirements-matrix.service';
+import { FloorPlanWorkflowService } from './services/floor-plan-workflow.service';
+import { GuestWorkflowService } from './services/guest-workflow.service';
+import { InquiriesService } from './services/inquiries.service';
+import { InquiryWorkflowService } from './services/inquiry-workflow.service';
+import { LiveOperationsService } from './services/live-operations.service';
+import { NotificationOutboxService } from './services/notification-outbox.service';
+import { PAREService } from './services/pare/pare.service';
+import { PrivacyOperationsService } from './services/privacy-operations.service';
+import { SampleStateService } from './services/sample-state.service';
+import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
+import { SuppliersService } from './services/suppliers.service';
+import { WorkflowCommandService } from './services/workflow-command.service';import { AuthSecurityService } from './services/auth-security.service';
 
 function inquiry(overrides: Record<string, unknown> = {}) {
   const createdAt = new Date('2026-04-29T00:00:00.000Z');
@@ -924,6 +949,127 @@ function createPrisma(seedInquiry: any = inquiry()) {
   return { prisma, state };
 }
 
+function createEventOpsService(prisma: any) {
+  const auditService = new AuditService(prisma);
+  const notificationOutboxService = new NotificationOutboxService(prisma);
+  const workflowCommandService = new WorkflowCommandService();
+  const documentVaultService = new DocumentVaultService();
+  const eventLifecycleService = new EventLifecycleService();
+  const sampleStateService = new SampleStateService(prisma);
+  const inquiryWorkflowService = new InquiryWorkflowService(prisma);
+  const aiGovernanceService = new AiGovernanceService(prisma);
+  const suppliersService = new SuppliersService(prisma);
+  const pareService = new PAREService(prisma);
+  const eventAccessPolicyService = new EventAccessPolicyService(auditService);
+  const inquiriesService = new InquiriesService(
+    prisma,
+    auditService,
+    notificationOutboxService,
+    workflowCommandService,
+  );
+  const authOperationsService = new AuthOperationsService(prisma, auditService, inquiriesService);
+  const privacyOperationsService = new PrivacyOperationsService(prisma, auditService);
+  const coordinatorsService = new CoordinatorsService(
+    prisma,
+    auditService,
+    notificationOutboxService,
+    workflowCommandService,
+  );
+  const liveOperationsService = new LiveOperationsService(
+    prisma,
+    auditService,
+    notificationOutboxService,
+    workflowCommandService,
+  );
+  const fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
+  const floorPlanWorkflowService = new FloorPlanWorkflowService(
+    prisma,
+    auditService,
+    notificationOutboxService,
+    workflowCommandService,
+  );
+  const billingOperationsService = new BillingOperationsService(
+    prisma,
+    auditService,
+    notificationOutboxService,
+    workflowCommandService,
+  );
+  const eventReadModelsService = new EventReadModelsService(prisma, eventAccessPolicyService, suppliersService);
+  const commercialWorkflowService = new CommercialWorkflowService(
+    prisma,
+    auditService,
+    notificationOutboxService,
+    workflowCommandService,
+    suppliersService,
+  );
+  const eventClosureService = new EventClosureService(
+    prisma,
+    fileRequirementsMatrixService,
+    eventLifecycleService,
+    auditService,
+    eventAccessPolicyService,
+    notificationOutboxService,
+    workflowCommandService,
+  );
+  const complianceWorkflowService = new ComplianceWorkflowService(
+    prisma,
+    auditService,
+    eventAccessPolicyService,
+    workflowCommandService,
+  );
+  const clientOnboardingWorkflowService = new ClientOnboardingWorkflowService(
+    prisma,
+    auditService,
+    notificationOutboxService,
+    workflowCommandService,
+  );
+  const guestWorkflowService = new GuestWorkflowService(
+    prisma,
+    auditService,
+    workflowCommandService,
+    documentVaultService,
+  );
+  const supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
+    prisma,
+    suppliersService,
+    auditService,
+    eventAccessPolicyService,
+    workflowCommandService,
+    pareService,
+    liveOperationsService,
+    documentVaultService,
+  );
+
+  return new EventOpsService(
+    prisma,
+    auditService,
+    inquiriesService,
+    authOperationsService,
+    privacyOperationsService,
+    suppliersService,
+    supplierNetworkWorkflowService,
+    coordinatorsService,
+    billingOperationsService,
+    floorPlanWorkflowService,
+    liveOperationsService,
+    eventAccessPolicyService,
+    eventLifecycleService,
+    fileRequirementsMatrixService,
+    documentVaultService,
+    notificationOutboxService,
+    workflowCommandService,
+    eventReadModelsService,
+    commercialWorkflowService,
+    eventClosureService,
+    complianceWorkflowService,
+    clientOnboardingWorkflowService,
+    guestWorkflowService,
+    pareService,
+    aiGovernanceService,
+    sampleStateService,
+    inquiryWorkflowService,
+  );
+}
 describe('EventOpsService', () => {
   it('does not block API startup when non-production sample seeding cannot reach the database', async () => {
     const previousNodeEnv = process.env.NODE_ENV;
@@ -931,7 +1077,7 @@ describe('EventOpsService', () => {
     process.env.NODE_ENV = 'development';
     process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB = '1';
 
-    const service = new EventOpsService({
+    const service = createEventOpsService({
       opsUser: {
         count: async () => {
           throw new Error('database unavailable');
@@ -953,7 +1099,7 @@ describe('EventOpsService', () => {
 
   it('accepts an inquiry and starts the conforme workflow', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const accepted = await service.updateInquiryStatus('inq_sample', { status: 'accepted' });
 
@@ -965,7 +1111,7 @@ describe('EventOpsService', () => {
 
   it('requires a permanent decline reason', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(service.updateInquiryStatus('inq_sample', { status: 'declined' })).rejects.toBeInstanceOf(
       BadRequestException,
@@ -974,7 +1120,7 @@ describe('EventOpsService', () => {
 
   it('links duplicate inquiry submissions by normalized email and nearby event date', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const created = await (service as any).createInquiry({
       clientName: 'Ana Reyes',
@@ -1008,7 +1154,7 @@ describe('EventOpsService', () => {
         eventDate: new Date('2026-05-01T00:00:00.000Z'),
       }),
     ]);
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const created = await (service as any).createInquiry({
       clientName: 'Ana Reyes',
@@ -1031,7 +1177,7 @@ describe('EventOpsService', () => {
 
   it('rejects public attempts to spoof PMCM log-on-behalf source', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(
       (service as any).createInquiry({
@@ -1048,7 +1194,7 @@ describe('EventOpsService', () => {
 
   it('allows PMCM actors to log inquiries on behalf of clients with actor metadata', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const created = await (service as any).logInquiryOnBehalf(
       {
@@ -1071,7 +1217,7 @@ describe('EventOpsService', () => {
 
   it('uploads a signed conforme and unlocks event onboarding records', async () => {
     const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const document = await service.uploadConforme('inq_sample', {
       type: 'signed_conforme',
@@ -1108,7 +1254,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const requests = await (service as any).requestSupplierQuotes('evt_sample', {
       categoryId: 'supcat_technicals',
@@ -1154,7 +1300,7 @@ describe('EventOpsService', () => {
       status: 'open',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const requests = await (service as any).requestSupplierQuotes('evt_sample', {
       categoryId: 'supcat_technicals',
@@ -1185,7 +1331,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
     const actor = { actorRole: 'pmcm-admin', actorName: 'Ms. Mys', actorEmail: 'mys@pmcm.test' };
 
     const created = await (service as any).createSupplier(
@@ -1275,7 +1421,7 @@ describe('EventOpsService', () => {
       selectedAt: null,
       createdAt: new Date('2026-05-01T00:00:00.000Z'),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const workspace = await (service as any).listSupplierWorkspace({
       actorRole: 'supplier',
@@ -1319,7 +1465,7 @@ describe('EventOpsService', () => {
       status: 'open',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const quote = await (service as any).submitSupplierQuoteByToken('token-sample', {
       amount: 210000,
@@ -1363,7 +1509,7 @@ describe('EventOpsService', () => {
       dueDate: new Date('2026-05-05T00:00:00.000Z'),
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const request = await (service as any).getQuoteRequestByToken('token-sample');
 
@@ -1419,7 +1565,7 @@ describe('EventOpsService', () => {
       selectedAt: null,
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const revised = await (service as any).reviseSupplierQuoteByToken('token-sample', {
       amount: 160000,
@@ -1518,7 +1664,7 @@ describe('EventOpsService', () => {
         createdAt: new Date(),
       },
     );
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const selected = await (service as any).selectSupplierQuote('evt_sample', 'quote_selected');
 
@@ -1554,7 +1700,7 @@ describe('EventOpsService', () => {
       status: 'pending',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const payment = await (service as any).recordPayment('evt_sample', 'pay_balance', {
       amountReceived: 100000,
@@ -1606,7 +1752,7 @@ describe('EventOpsService', () => {
       referenceNumber: 'BPI-123',
       recordedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(
       (service as any).recordPayment('evt_sample', 'pay_balance', {
@@ -1659,7 +1805,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const submitted = await (service as any).submitFloorPlanDraft('evt_sample', 'fpd_sample', {
       actorRole: 'pmcm-admin',
@@ -1699,7 +1845,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(
       (service as any).createFloorPlanDraft(
@@ -1718,7 +1864,7 @@ describe('EventOpsService', () => {
         followUpIntervalDays: 3,
       }),
     );
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await (service as any).runConformeReminderSweep();
 
@@ -1735,7 +1881,7 @@ describe('EventOpsService', () => {
         followUpIntervalDays: 3,
       }),
     );
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await (service as any).runConformeReminderSweep();
 
@@ -1755,7 +1901,7 @@ describe('EventOpsService', () => {
         portalInvitationExpiresAt: new Date('2026-06-01T00:00:00.000Z'),
       }),
     );
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await service.login('ana@ayala.test', 'prism-client');
 
@@ -1766,7 +1912,7 @@ describe('EventOpsService', () => {
   it('accepts hashed sample passwords and keeps approval and login history behavior', async () => {
     const fake = createPrisma();
     fake.state.users[0].password = AuthSecurityService.hashPassword('prism-client', 'phase8_test_salt');
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const session = await service.login('ana@ayala.test', 'prism-client');
 
@@ -1778,7 +1924,7 @@ describe('EventOpsService', () => {
   it('upgrades legacy plain-text sample passwords after a successful login', async () => {
     const fake = createPrisma();
     expect(fake.state.users[0].password).toBe('prism-client');
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await service.login('ana@ayala.test', 'prism-client');
 
@@ -1798,7 +1944,7 @@ describe('EventOpsService', () => {
       approvalStatus: 'pending',
     };
     fake.state.users.push(pendingUser);
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(service.login('ana@ayala.test', 'wrong-password')).rejects.toBeInstanceOf(UnauthorizedException);
     await expect(service.login('pending@vendor.test', 'pending-pass')).rejects.toBeInstanceOf(ForbiddenException);
@@ -1818,7 +1964,7 @@ describe('EventOpsService', () => {
         portalInvitationExpiresAt: new Date('2026-04-02T00:00:00.000Z'),
       }),
     );
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const inquiries = await (service as any).listInquiries({ actorRole: 'pmcm-admin' });
 
@@ -1827,7 +1973,7 @@ describe('EventOpsService', () => {
 
   it('allows PMCM actors to read inquiry and supplier operational scopes', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
     const actor = { actorRole: 'pmcm-admin', actorEmail: 'mys@pmcm.test', actorName: 'Ms. Mys' };
 
     const inquiries = await (service as any).listInquiries(actor);
@@ -1930,7 +2076,7 @@ describe('EventOpsService', () => {
         createdAt: new Date(),
       },
     );
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
     const actor = { actorRole: 'client', clientName: 'Ana Reyes', actorEmail: 'ana@ayala.test' };
 
     const events = await service.listEvents(actor as any);
@@ -1977,7 +2123,7 @@ describe('EventOpsService', () => {
       { id: 'doc_ana', eventId: 'evt_ana', type: 'signed_conforme', fileName: 'ana.pdf', status: 'approved', uploadedAt: new Date() },
       { id: 'doc_other', eventId: 'evt_other', type: 'signed_conforme', fileName: 'other.pdf', status: 'approved', uploadedAt: new Date() },
     );
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const workspace = await (service as any).listClientWorkspace({
       actorRole: 'client',
@@ -2006,7 +2152,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(
       service.getEventDetail('evt_other', {
@@ -2052,7 +2198,7 @@ describe('EventOpsService', () => {
       reviewedBy: 'PMCM Admin',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const matrix = await (service as any).getFileRequirements('evt_ana', {
       actorRole: 'client',
@@ -2089,7 +2235,7 @@ describe('EventOpsService', () => {
       reviewedBy: 'PMCM Admin',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const matrix = await (service as any).getFileRequirements('evt_ana', {
       actorRole: 'pmcm-admin',
@@ -2110,7 +2256,7 @@ describe('EventOpsService', () => {
 
   it('blocks client actors from PMCM-only supplier reads and records the denial', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(
       (service as any).listSuppliers({
@@ -2193,7 +2339,7 @@ describe('EventOpsService', () => {
         updatedAt: new Date(),
       },
     );
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const checks = await (service as any).runCompliance('evt_sample', { phase: 'planning' });
 
@@ -2236,7 +2382,7 @@ describe('EventOpsService', () => {
       note: 'Attach final supplier quotation before event lock.',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(
       (service as any).resolveCompliance('evt_sample', 'chk_contract', { action: 'override' }),
@@ -2269,7 +2415,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
     const source = await (service as any).createBillingSource('evt_sample', {
       sourceLabel: 'Approved CE v1',
       lineItems: [
@@ -2336,7 +2482,7 @@ describe('EventOpsService', () => {
       generatedAt: new Date(),
     });
     fake.state.milestones.push({ id: 'pay_balance', eventId: 'evt_sample', label: 'Balance', percentage: 50, amount: 260000, amountPaid: 0, remainingBalance: 260000, dueDate: new Date(), status: 'pending', createdAt: new Date() });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const blocked = await (service as any).getCloseGates('evt_sample');
     expect(blocked.ready).toBe(false);
@@ -2369,7 +2515,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect((service as any).archiveEvent('evt_sample', { overrideReason: '' })).rejects.toBeInstanceOf(BadRequestException);
 
@@ -2403,7 +2549,7 @@ describe('EventOpsService', () => {
     fake.state.complianceChecks.push({ id: 'chk_sample', eventId: 'evt_sample', layer: 'Must-Fix', severity: 'must_fix', phase: 'planning', conditionKey: 'contracts', title: 'Supplier contracts ready', status: 'resolved', note: 'Resolved.', createdAt: new Date() });
     fake.state.billings.push({ id: 'bill_sample', eventId: 'evt_sample', number: 'BS-2026-0001', clientName: 'Ana Reyes', clientContact: 'ana@ayala.test', eventName: 'Ayala Summit', lineItems: [], paymentSchedule: [], paymentMethods: [], totalAmount: 520000, pdfUrl: '', storageKey: '', status: 'sent', generatedAt: new Date() });
     fake.state.documents.push({ id: 'doc_sample', eventId: 'evt_sample', type: 'post_event_report', fileName: 'report.pdf', status: 'submitted', uploadedAt: new Date() });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const insight = await (service as any).generateEventInsights('evt_sample');
 
@@ -2418,7 +2564,7 @@ describe('EventOpsService', () => {
 
   it('moves notifications through queued, sent, retried, failed, and acknowledged states', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await (service as any).queueNotification('evt_sample', 'client@example.test', 'Balance due', 'email');
     await (service as any).queueNotification('evt_sample', 'bad@example.test', 'Will fail', 'email', { forceFail: true });
@@ -2445,7 +2591,7 @@ describe('EventOpsService', () => {
 
   it('validates upload metadata and generates safe storage names', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const accepted = (service as any).validateUploadMetadata({
       fileName: '../../contract final.PDF',
@@ -2506,7 +2652,7 @@ describe('EventOpsService', () => {
       eventDayStatus: 'not_started',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect(
       (service as any).confirmSupplierAssignment('qr_sonic', {
@@ -2545,7 +2691,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const event = await (service as any).getGuestEventByAccessCode('AYALA-TECH-MPLE');
     expect(event.attendanceCount).toBe(0);
@@ -2593,7 +2739,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect((service as any).createInquiry({
       clientName: 'Mia Cruz',
@@ -2641,7 +2787,7 @@ describe('EventOpsService', () => {
 
   it('verifies audit integrity and reports the first tampered row', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await (service as any).audit('evt_sample', 'PMCM Admin', 'First audit row', { actionType: 'create' });
     await (service as any).audit('evt_sample', 'PMCM Admin', 'Second audit row', { actionType: 'update' });
@@ -2697,7 +2843,7 @@ describe('EventOpsService', () => {
       moderationStatus: 'pending_review',
       submittedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const inventory = await (service as any).getPrivacyInventory({ eventId: 'evt_sample' }, { actorRole: 'pmcm-admin' });
 
@@ -2710,7 +2856,7 @@ describe('EventOpsService', () => {
 
   it('exposes PMCM-only retention policies and privacy request queue', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const policies = await (service as any).listPrivacyRetentionPolicies({ actorRole: 'pmcm-admin' });
     expect(policies.map((policy: any) => policy.surface)).toEqual(
@@ -2790,7 +2936,7 @@ describe('EventOpsService', () => {
       privacyConsentAccepted: true,
       submittedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const request = await (service as any).createPrivacyRequest({
       subjectType: 'guest',
@@ -2831,7 +2977,7 @@ describe('EventOpsService', () => {
 
   it('rejects non-PMCM privacy request writes and invalid review states', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     await expect((service as any).createPrivacyRequest({
       subjectType: 'client',
@@ -2856,7 +3002,7 @@ describe('EventOpsService', () => {
 
   it('sanitizes AI payloads, blocks unconfirmed ZDR, and records audit plus approval gates', async () => {
     const fake = createPrisma();
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const sanitized = (service as any).sanitizeAiPayload({
       clientName: 'Ana Reyes',
@@ -2952,7 +3098,7 @@ describe('EventOpsService', () => {
       verificationStatus: 'verified',
       checkedInAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const pmcmLive = await (service as any).getEventLiveOps('evt_sample', { actorRole: 'pmcm-admin' });
     expect(pmcmLive.guestAttendanceCount).toBe(1);
@@ -2992,7 +3138,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const task = await (service as any).createEventDayTask('evt_sample', {
       title: 'Open registration counters',
@@ -3051,7 +3197,7 @@ describe('EventOpsService', () => {
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const late = await (service as any).updateCoordinatorAttendance('evt_sample', 'coord_asg_reg', {
       status: 'late',
@@ -3113,7 +3259,7 @@ describe('EventOpsService', () => {
       overrideReason: 'Private override reason',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const workspace = await (service as any).listCoordinatorWorkspace({
       actorRole: 'coordinator',
@@ -3177,7 +3323,7 @@ describe('EventOpsService', () => {
       reviewedBy: 'PMCM Admin',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const verified = await (service as any).verifySupplierEventStatus('evt_sample', 'qr_sonic', {
       verificationStatus: 'verified',
@@ -3235,7 +3381,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const live = await (service as any).getEventLiveOps('evt_sample', { actorRole: 'pmcm-admin' });
 
@@ -3285,7 +3431,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const task = await (service as any).escalateEventDayTask('evt_sample', 'edt_escalate', {
       escalationLevel: 'pmcm',
@@ -3334,7 +3480,7 @@ describe('EventOpsService', () => {
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const replacement = await (service as any).replaceCoordinatorAssignment('evt_sample', 'coord_asg_reg', {
       replacementCoordinatorId: 'coord_ina',
@@ -3421,7 +3567,7 @@ describe('EventOpsService', () => {
       category: 'events',
       createdAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const feed = await (service as any).getEventDayStatusFeed('evt_sample', {
       actorRole: 'coordinator',
@@ -3478,7 +3624,7 @@ describe('EventOpsService', () => {
       moderationStatus: 'pending_review',
       submittedAt: new Date(),
     });
-    const service = new EventOpsService(fake.prisma as any);
+    const service = createEventOpsService(fake.prisma as any);
 
     const readiness = await (service as any).getDefenseReadiness('evt_sample', { actorRole: 'pmcm-admin' });
 

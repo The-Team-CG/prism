@@ -56,7 +56,7 @@ export class SupplierNetworkWorkflowService {
     private readonly workflowCommandService: WorkflowCommandService,
     private readonly pareService: PAREService,
     private readonly liveOperationsService: LiveOperationsService,
-    private readonly documentVaultService = new DocumentVaultService(),
+    private readonly documentVaultService: DocumentVaultService,
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {

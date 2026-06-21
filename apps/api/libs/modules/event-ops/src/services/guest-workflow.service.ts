@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
@@ -33,12 +33,13 @@ export type GuestFeedbackInput = {
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'video/mp4'] as const;
 
+@Injectable()
 export class GuestWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly workflowCommandService: WorkflowCommandService,
-    private readonly documentVaultService = new DocumentVaultService(),
+    private readonly documentVaultService: DocumentVaultService,
   ) {}
 
   async getEventByAccessCode(accessCode: string) {

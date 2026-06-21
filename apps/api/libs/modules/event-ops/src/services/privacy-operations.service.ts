@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import {
@@ -63,6 +63,7 @@ function timestamp(value?: Date | null) {
   return value ? value.toISOString() : null;
 }
 
+@Injectable()
 export class PrivacyOperationsService {
   constructor(
     private readonly prisma: PrismaService,

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsSupplier, OpsSupplierCategory, OpsSupplierQuote, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
@@ -44,6 +44,7 @@ function parseDate(value: string) {
   return parsed;
 }
 
+@Injectable()
 export class CommercialWorkflowService {
   constructor(
     private readonly prisma: PrismaService,

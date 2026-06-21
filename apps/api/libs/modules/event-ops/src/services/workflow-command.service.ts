@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 export type WorkflowCommandDefinition<TWriteResult, TResult = TWriteResult> = {
   name: string;
   eventId?: string;
@@ -8,6 +9,7 @@ export type WorkflowCommandDefinition<TWriteResult, TResult = TWriteResult> = {
   project?: (result: TWriteResult) => TResult;
 };
 
+@Injectable()
 export class WorkflowCommandService {
   async execute<TWriteResult, TResult = TWriteResult>(
     definition: WorkflowCommandDefinition<TWriteResult, TResult>,

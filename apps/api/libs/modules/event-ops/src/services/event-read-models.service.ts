@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   OpsAuditLog,
   OpsBillingSource,
@@ -76,6 +76,7 @@ export type PmcmDashboardMappers = {
   mapNotificationLog: (log: OpsNotificationLog) => unknown;
 };
 
+@Injectable()
 export class EventReadModelsService {
   constructor(
     private readonly prisma: PrismaService,

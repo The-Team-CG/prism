@@ -515,124 +515,36 @@ function addMinutes(value: Date, minutes: number) {
 export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EventOpsService.name);
   private reminderTimer?: NodeJS.Timeout;
-  private readonly auditService: AuditService;
-  private readonly inquiriesService: InquiriesService;
-  private readonly authOperationsService: AuthOperationsService;
-  private readonly privacyOperationsService: PrivacyOperationsService;
-  private readonly suppliersService: SuppliersService;
-  private readonly supplierNetworkWorkflowService: SupplierNetworkWorkflowService;
-  private readonly coordinatorsService: CoordinatorsService;
-  private readonly billingOperationsService: BillingOperationsService;
-  private readonly floorPlanWorkflowService: FloorPlanWorkflowService;
-  private readonly liveOperationsService: LiveOperationsService;
-  private readonly eventAccessPolicyService: EventAccessPolicyService;
-  private readonly eventLifecycleService: EventLifecycleService;
-  private readonly fileRequirementsMatrixService: FileRequirementsMatrixService;
-  private readonly documentVaultService: DocumentVaultService;
-  private readonly notificationOutboxService: NotificationOutboxService;
-  private readonly workflowCommandService: WorkflowCommandService;
-  private readonly eventReadModelsService: EventReadModelsService;
-  private readonly commercialWorkflowService: CommercialWorkflowService;
-  private readonly eventClosureService: EventClosureService;
-  private readonly complianceWorkflowService: ComplianceWorkflowService;
-  private readonly clientOnboardingWorkflowService: ClientOnboardingWorkflowService;
-  private readonly guestWorkflowService: GuestWorkflowService;
-  private readonly pareService: PAREService;
-  private readonly aiGovernanceService: AiGovernanceService;
-  private readonly sampleStateService: SampleStateService;
-  private readonly inquiryWorkflowService: InquiryWorkflowService;
 
-  constructor(private readonly prisma: PrismaService) {
-    this.sampleStateService = new SampleStateService(prisma);
-    this.inquiryWorkflowService = new InquiryWorkflowService(prisma);
-    this.auditService = new AuditService(prisma);
-    this.eventAccessPolicyService = new EventAccessPolicyService(this.auditService);
-    this.notificationOutboxService = new NotificationOutboxService(prisma);
-    this.workflowCommandService = new WorkflowCommandService();
-    this.aiGovernanceService = new AiGovernanceService(prisma);
-    this.inquiriesService = new InquiriesService(
-      prisma,
-      this.auditService,
-      this.notificationOutboxService,
-      this.workflowCommandService,
-    );
-    this.authOperationsService = new AuthOperationsService(prisma, this.auditService, this.inquiriesService);
-    this.privacyOperationsService = new PrivacyOperationsService(prisma, this.auditService);
-    this.coordinatorsService = new CoordinatorsService(
-      prisma,
-      this.auditService,
-      this.notificationOutboxService,
-      this.workflowCommandService,
-    );
-    this.liveOperationsService = new LiveOperationsService(
-      prisma,
-      this.auditService,
-      this.notificationOutboxService,
-      this.workflowCommandService,
-    );
-    this.suppliersService = new SuppliersService(prisma);
-    this.pareService = new PAREService(prisma);
-    this.documentVaultService = new DocumentVaultService();
-    this.supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
-      prisma,
-      this.suppliersService,
-      this.auditService,
-      this.eventAccessPolicyService,
-      this.workflowCommandService,
-      this.pareService,
-      this.liveOperationsService,
-      this.documentVaultService,
-    );
-    this.eventLifecycleService = new EventLifecycleService();
-    this.fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
-    this.floorPlanWorkflowService = new FloorPlanWorkflowService(
-      prisma,
-      this.auditService,
-      this.notificationOutboxService,
-      this.workflowCommandService,
-    );
-    this.billingOperationsService = new BillingOperationsService(
-      prisma,
-      this.auditService,
-      this.notificationOutboxService,
-      this.workflowCommandService,
-    );
-    this.eventReadModelsService = new EventReadModelsService(prisma, this.eventAccessPolicyService, this.suppliersService);
-    this.commercialWorkflowService = new CommercialWorkflowService(
-      prisma,
-      this.auditService,
-      this.notificationOutboxService,
-      this.workflowCommandService,
-      this.suppliersService,
-    );
-    this.eventClosureService = new EventClosureService(
-      prisma,
-      this.fileRequirementsMatrixService,
-      this.eventLifecycleService,
-      this.auditService,
-      this.eventAccessPolicyService,
-      this.notificationOutboxService,
-      this.workflowCommandService,
-    );
-    this.complianceWorkflowService = new ComplianceWorkflowService(
-      prisma,
-      this.auditService,
-      this.eventAccessPolicyService,
-      this.workflowCommandService,
-    );
-    this.clientOnboardingWorkflowService = new ClientOnboardingWorkflowService(
-      prisma,
-      this.auditService,
-      this.notificationOutboxService,
-      this.workflowCommandService,
-    );
-    this.guestWorkflowService = new GuestWorkflowService(
-      prisma,
-      this.auditService,
-      this.workflowCommandService,
-    );
-  }
-
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+    private readonly inquiriesService: InquiriesService,
+    private readonly authOperationsService: AuthOperationsService,
+    private readonly privacyOperationsService: PrivacyOperationsService,
+    private readonly suppliersService: SuppliersService,
+    private readonly supplierNetworkWorkflowService: SupplierNetworkWorkflowService,
+    private readonly coordinatorsService: CoordinatorsService,
+    private readonly billingOperationsService: BillingOperationsService,
+    private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
+    private readonly liveOperationsService: LiveOperationsService,
+    private readonly eventAccessPolicyService: EventAccessPolicyService,
+    private readonly eventLifecycleService: EventLifecycleService,
+    private readonly fileRequirementsMatrixService: FileRequirementsMatrixService,
+    private readonly documentVaultService: DocumentVaultService,
+    private readonly notificationOutboxService: NotificationOutboxService,
+    private readonly workflowCommandService: WorkflowCommandService,
+    private readonly eventReadModelsService: EventReadModelsService,
+    private readonly commercialWorkflowService: CommercialWorkflowService,
+    private readonly eventClosureService: EventClosureService,
+    private readonly complianceWorkflowService: ComplianceWorkflowService,
+    private readonly clientOnboardingWorkflowService: ClientOnboardingWorkflowService,
+    private readonly guestWorkflowService: GuestWorkflowService,
+    private readonly pareService: PAREService,
+    private readonly aiGovernanceService: AiGovernanceService,
+    private readonly sampleStateService: SampleStateService,
+    private readonly inquiryWorkflowService: InquiryWorkflowService,
+  ) {}
   private resolveActor(input: SampleActorInput = {}): ResolvedSampleActor {
     return this.eventAccessPolicyService.resolveActor(input);
   }

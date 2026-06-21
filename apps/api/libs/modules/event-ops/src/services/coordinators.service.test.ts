@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
+import { AuditService } from './audit.service';
 import { CoordinatorsService } from './coordinators.service';
+import { NotificationOutboxService } from './notification-outbox.service';
+import { WorkflowCommandService } from './workflow-command.service';
 
 const event = {
   id: 'evt_main',
@@ -80,10 +83,18 @@ function createPrisma() {
   };
 }
 
+function createService(prisma: any) {
+  return new CoordinatorsService(
+    prisma,
+    new AuditService(prisma),
+    new NotificationOutboxService(prisma),
+    new WorkflowCommandService(),
+  );
+}
 describe('CoordinatorsService', () => {
   it('blocks a same-date conflict until PMCM overrides it', async () => {
     const fake = createPrisma();
-    const service = new CoordinatorsService(fake.prisma as any);
+    const service = createService(fake.prisma as any);
 
     await expect(
       service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director' }),
@@ -102,7 +113,7 @@ describe('CoordinatorsService', () => {
 
   it('acknowledges a pending coordinator assignment', async () => {
     const fake = createPrisma();
-    const service = new CoordinatorsService(fake.prisma as any);
+    const service = createService(fake.prisma as any);
     await service.assignCoordinator(event.id, {
       coordinatorId: coordinator.id,
       role: 'Floor Director',

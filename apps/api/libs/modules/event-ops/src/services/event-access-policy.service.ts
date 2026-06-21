@@ -1,4 +1,4 @@
-import { ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
 import type { PrismEventOpsActorContext } from '@prism/types';
 import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '../ops.constants';
@@ -25,6 +25,7 @@ type EventAccessScope = {
   supplierEventIds?: readonly string[];
 };
 
+@Injectable()
 export class EventAccessPolicyService {
   private readonly logger = new Logger(EventAccessPolicyService.name);
 

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type {
   OpsEvent,
   OpsSupplier,
@@ -74,6 +74,7 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
+@Injectable()
 export class SuppliersService {
   constructor(private readonly prisma: PrismaService) {}
 

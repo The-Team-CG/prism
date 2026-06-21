@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import type {
   OpsBillingStatement,
   OpsDocument,
@@ -29,6 +30,7 @@ export type FileRequirementsMatrix = {
   items: FileRequirementMatrixItem[];
 };
 
+@Injectable()
 export class FileRequirementsMatrixService {
   constructor(private readonly prisma: PrismaService) {}
 

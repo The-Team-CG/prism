@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, OpsFloorPlanDraft, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
@@ -46,12 +46,13 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
+@Injectable()
 export class FloorPlanWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService = new AuditService(prisma),
-    private readonly notificationOutboxService = new NotificationOutboxService(prisma),
-    private readonly workflowCommandService = new WorkflowCommandService(),
+    private readonly auditService: AuditService,
+    private readonly notificationOutboxService: NotificationOutboxService,
+    private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
   async createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanActor) {

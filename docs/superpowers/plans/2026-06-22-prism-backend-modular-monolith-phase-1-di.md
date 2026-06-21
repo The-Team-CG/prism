@@ -68,30 +68,30 @@
 
 ## Step 1 - Decorators And Imports
 
-- [ ] Add `import { Injectable } from '@nestjs/common';` to missing service files that Nest will construct.
-- [ ] Add `@Injectable()` directly above each missing provider class.
-- [ ] Do not add decorators to pure PARE agent classes unless they become Nest providers.
+- [x] Add `import { Injectable } from '@nestjs/common';` to missing service files that Nest will construct.
+- [x] Add `@Injectable()` directly above each missing provider class.
+- [x] Do not add decorators to pure PARE agent classes unless they become Nest providers.
 
 Missing or likely missing decorators from current inspection:
 
-- [ ] `AuditService`
-- [ ] `AuthOperationsService`
-- [ ] `BillingOperationsService`
-- [ ] `ClientOnboardingWorkflowService`
-- [ ] `CommercialWorkflowService`
-- [ ] `CoordinatorsService`
-- [ ] `EventAccessPolicyService`
-- [ ] `EventLifecycleService`
-- [ ] `EventReadModelsService`
-- [ ] `FileRequirementsMatrixService`
-- [ ] `FloorPlanWorkflowService`
-- [ ] `GuestWorkflowService`
-- [ ] `InquiriesService`
-- [ ] `LiveOperationsService`
-- [ ] `NotificationOutboxService`
-- [ ] `PrivacyOperationsService`
-- [ ] `SuppliersService`
-- [ ] `WorkflowCommandService`
+- [x] `AuditService`
+- [x] `AuthOperationsService`
+- [x] `BillingOperationsService`
+- [x] `ClientOnboardingWorkflowService`
+- [x] `CommercialWorkflowService`
+- [x] `CoordinatorsService`
+- [x] `EventAccessPolicyService`
+- [x] `EventLifecycleService`
+- [x] `EventReadModelsService`
+- [x] `FileRequirementsMatrixService`
+- [x] `FloorPlanWorkflowService`
+- [x] `GuestWorkflowService`
+- [x] `InquiriesService`
+- [x] `LiveOperationsService`
+- [x] `NotificationOutboxService`
+- [x] `PrivacyOperationsService`
+- [x] `SuppliersService`
+- [x] `WorkflowCommandService`
 
 Already decorated from current inspection:
 
@@ -106,47 +106,47 @@ Already decorated from current inspection:
 
 ## Step 2 - Remove Default-Created Shared Dependencies
 
-- [ ] `BillingOperationsService`: require injected `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
-- [ ] `CoordinatorsService`: require injected `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
-- [ ] `FloorPlanWorkflowService`: require injected `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
-- [ ] `InquiriesService`: require injected `NotificationOutboxService` and `WorkflowCommandService`.
-- [ ] `LiveOperationsService`: require injected `PrismaService`, `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
-- [ ] `GuestWorkflowService`: require injected `DocumentVaultService`.
-- [ ] `SupplierNetworkWorkflowService`: require injected `DocumentVaultService`.
+- [x] `BillingOperationsService`: require injected `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
+- [x] `CoordinatorsService`: require injected `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
+- [x] `FloorPlanWorkflowService`: require injected `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
+- [x] `InquiriesService`: require injected `NotificationOutboxService` and `WorkflowCommandService`.
+- [x] `LiveOperationsService`: require injected `PrismaService`, `AuditService`, `NotificationOutboxService`, and `WorkflowCommandService`.
+- [x] `GuestWorkflowService`: require injected `DocumentVaultService`.
+- [x] `SupplierNetworkWorkflowService`: require injected `DocumentVaultService`.
 
 Do not change audit/outbox behavior in this phase; only stop constructing duplicate dependency instances.
 
 ## Step 3 - Register Providers
 
-- [ ] Import every service provider in `event-ops.module.ts`.
-- [ ] Register providers in an order that mirrors dependencies: primitives/services first, composite workflow services later, `EventOpsService` last.
-- [ ] Keep `DatabaseModule` as the source of `PrismaService`.
-- [ ] Do not add `@nestjs/testing` unless a Nest TestingModule test is introduced.
+- [x] Import every service provider in `event-ops.module.ts`.
+- [x] Register providers in an order that mirrors dependencies: primitives/services first, composite workflow services later, `EventOpsService` last.
+- [x] Keep `DatabaseModule` as the source of `PrismaService`.
+- [x] Do not add `@nestjs/testing` unless a Nest TestingModule test is introduced.
 
 ## Step 4 - Inject EventOpsService Dependencies
 
-- [ ] Replace private field declarations with constructor parameter properties.
-- [ ] Remove all `new SomeService(...)` calls from `EventOpsService` constructor.
-- [ ] Keep `private readonly prisma: PrismaService` injected for lifecycle connect/disconnect behavior.
-- [ ] Keep all public methods and controller-facing signatures unchanged.
+- [x] Replace private field declarations with constructor parameter properties.
+- [x] Remove all `new SomeService(...)` calls from `EventOpsService` constructor.
+- [x] Keep `private readonly prisma: PrismaService` injected for lifecycle connect/disconnect behavior.
+- [x] Keep all public methods and controller-facing signatures unchanged.
 
 ## Step 5 - Tests And Verification
 
-- [ ] Run `npm --workspace prism-api run test:event-ops`.
-- [ ] Run `npm --workspace prism-api run build`.
-- [ ] Run `npm run check:boundaries`.
-- [ ] Run `git diff --check`.
+- [x] Run `npm --workspace prism-api run test:event-ops`.
+- [x] Run `npm --workspace prism-api run build`.
+- [x] Run `npm run check:boundaries`.
+- [x] Run `git diff --check`.
 
 If `test:event-ops` is too broad due pre-existing unrelated failures, run the narrow failing slice, document the exact failure, and do not claim Phase 1 complete until the broad event-ops suite is passing or the failure is proven pre-existing.
 
 ## Acceptance Criteria
 
-- [ ] `EventOpsService` has no manual `new SomeWorkflowService(...)` construction.
-- [ ] Event-ops module provider graph compiles through Nest build.
-- [ ] Existing route/controller behavior remains unchanged.
-- [ ] Tests instantiate services with explicit dependencies where defaults were removed.
-- [ ] Boundary checker still passes.
-- [ ] Parent plan Phase 1 checklist is updated only after verification passes.
+- [x] `EventOpsService` has no manual `new SomeWorkflowService(...)` construction.
+- [x] Event-ops module provider graph compiles through Nest build.
+- [x] Existing route/controller behavior remains unchanged.
+- [x] Tests instantiate services with explicit dependencies where defaults were removed.
+- [x] Boundary checker still passes.
+- [x] Parent plan Phase 1 checklist is updated only after verification passes.
 
 ## Stop Rules
 

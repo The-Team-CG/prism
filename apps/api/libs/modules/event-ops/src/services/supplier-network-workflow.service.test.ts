@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, SupplierVerificationStatus } from '../ops.constants';
+import { DocumentVaultService } from './document-vault.service';
 import { SupplierNetworkWorkflowService } from './supplier-network-workflow.service';
 import { WorkflowCommandService } from './workflow-command.service';
 

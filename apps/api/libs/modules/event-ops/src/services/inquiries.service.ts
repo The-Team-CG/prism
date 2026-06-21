@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
@@ -69,12 +69,13 @@ function daysBetween(left: Date, right: Date) {
   return Math.abs(left.getTime() - right.getTime()) / 86_400_000;
 }
 
+@Injectable()
 export class InquiriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    private readonly notificationOutboxService = new NotificationOutboxService(prisma),
-    private readonly workflowCommandService = new WorkflowCommandService(),
+    private readonly notificationOutboxService: NotificationOutboxService,
+    private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
   async createInquiry(input: CreateInquiryInput) {

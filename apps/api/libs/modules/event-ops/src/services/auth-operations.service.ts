@@ -1,3 +1,4 @@
+import { Injectable } from '@nestjs/common';
 import {
   BadRequestException,
   ForbiddenException,
@@ -22,6 +23,7 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
+@Injectable()
 export class AuthOperationsService {
   constructor(
     private readonly prisma: PrismaService,

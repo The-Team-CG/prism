@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsBriefing, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
@@ -16,6 +16,7 @@ export type SubmitBriefingInput = {
   notes: string;
 };
 
+@Injectable()
 export class ClientOnboardingWorkflowService {
   constructor(
     private readonly prisma: PrismaService,

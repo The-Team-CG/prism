@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsBillingStatement, OpsBillingSource, OpsPaymentMilestone, OpsPaymentRecord, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
@@ -71,12 +71,13 @@ function parseDate(value: string) {
   return date;
 }
 
+@Injectable()
 export class BillingOperationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService = new AuditService(prisma),
-    private readonly notificationOutboxService = new NotificationOutboxService(prisma),
-    private readonly workflowCommandService = new WorkflowCommandService(),
+    private readonly auditService: AuditService,
+    private readonly notificationOutboxService: NotificationOutboxService,
+    private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
   async runPaymentRiskSweep() {

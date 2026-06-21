@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, OpsEventDayTask, OpsUrgentIssue, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
@@ -94,12 +94,13 @@ type CoordinatorAttendanceStatusValue = (typeof CoordinatorAttendanceStatus)[key
 const CLOSED_STATUSES = new Set(['done', 'resolved', 'cancelled', 'closed']);
 const DUE_SOON_MS = 60 * 60 * 1000;
 
+@Injectable()
 export class LiveOperationsService {
   constructor(
-    private readonly prisma?: PrismaService,
-    private readonly auditService?: AuditService,
-    private readonly notificationOutboxService?: NotificationOutboxService,
-    private readonly workflowCommandService = new WorkflowCommandService(),
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+    private readonly notificationOutboxService: NotificationOutboxService,
+    private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
   async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: LiveOpsActor) {
