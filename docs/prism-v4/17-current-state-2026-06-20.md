@@ -73,7 +73,7 @@ P.R.I.S.M currently has a role-specific monorepo architecture with one shared Ne
 
 | Dependency | Current state | July rule |
 | --- | --- | --- |
-| Database | Prisma-backed Postgres path exists. Free-tier Supabase session-pooler support is a runtime workaround when direct IPv4 is unavailable. | Keep documented runtime guard; do not put secrets in docs. |
+| Database | Prisma-backed Postgres path exists. As of the 2026-06-22 branch update, the shared Supabase target has the domain-schema migration applied and verified through live schema, naming, index, migration-status, and redacted performance-report audits. Free-tier Supabase session-pooler support is a runtime workaround when direct IPv4 is unavailable. | Keep documented runtime guard; do not put secrets in docs. Re-run `db:perf:report` after representative app traffic before claiming event-ops workload rankings. |
 | File storage | Metadata matrix exists. No production object storage claim. | Gate real storage. |
 | Notifications | Queue exists. No production adapter claim. | Gate SendGrid/Viber or equivalent adapters. |
 | External auth | Sample auth/RBAC exists. | Gate provider integration. |
@@ -131,3 +131,9 @@ As of June 20, do not claim these as complete:
 - Full decision log.
 - Full event health formula.
 - Full workflow template builder.
+
+## Post-Snapshot DB Update: 2026-06-22
+
+The database schema separation and query-optimization implementation has been deployed to the shared Supabase target after a JSON backup export. The implementation adds Prisma multi-schema mappings, schema/table rename migrations, normalized index and constraint naming, FK/hot-path index SQL, database audit scripts, static query discipline checks, selected N+1 fixes, function-name cleanup, cursor page-limit contracts, and transaction-scope comments.
+
+Verified in the 2026-06-22 review: Prisma validation, offline migration diff, static query audit, API typecheck, `@prism/types` tests, `@prism/api-client` tests, the event-ops test suite, role boundary check, live schema audit, live naming audit, live FK-index audit, live migration status, and redacted live performance report. Re-run the performance report after representative app traffic because the current top rows are mostly migration/admin/catalog queries.

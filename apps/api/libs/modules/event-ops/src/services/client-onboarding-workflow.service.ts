@@ -34,6 +34,7 @@ export class ClientOnboardingWorkflowService {
       },
       write: () =>
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await tx.opsBriefing.deleteMany({ where: { eventId } });
           const saved = await tx.opsBriefing.create({
             data: {

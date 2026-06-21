@@ -115,7 +115,7 @@ function executeDrafterTool(toolName: string, ctx: PAREContext): string {
 export class MessageDrafterAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
-  async run(ctx: PAREContext): Promise<PAREDrafts> {
+  async runPareMessageDraftAgent(ctx: PAREContext): Promise<PAREDrafts> {
     if (this.mode === 'live') return this.runWithClaude(ctx);
     return mockDrafts(ctx);
   }

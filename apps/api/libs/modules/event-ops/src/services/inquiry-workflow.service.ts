@@ -47,6 +47,7 @@ export class InquiryWorkflowService {
     await context.requireActorRole(actor, context.allowedAdminRoles, 'inquiries');
 
     const inquiries = await this.prisma.opsInquiry.findMany({
+      take: 500,
       orderBy: { createdAt: 'desc' },
     });
 

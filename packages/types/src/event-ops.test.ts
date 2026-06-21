@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  PRISM_DEFAULT_PAGE_LIMIT,
   PRISM_LIFECYCLE_STAGES,
   PRISM_LIFECYCLE_TRANSITIONS,
+  PRISM_MAX_PAGE_LIMIT,
   canClientAccessPortal,
   canCreateEventWorkspace,
   nextPrismLifecycleStages,
+  normalizePrismPageLimit,
   type PrismActionResult,
   type PrismApiProblem,
   type PrismCursorPage,
@@ -67,6 +70,15 @@ describe("P.R.I.S.M lifecycle contract", () => {
   it("allows event workspace creation only after the same gate", () => {
     expect(canCreateEventWorkspace({ inquiryStatus: "accepted", conformeStatus: "signed" })).toBe(true);
     expect(canCreateEventWorkspace({ inquiryStatus: "accepted", conformeStatus: "pending" })).toBe(false);
+  });
+  it("normalizes shared cursor page limits", () => {
+    expect(PRISM_DEFAULT_PAGE_LIMIT).toBe(25);
+    expect(PRISM_MAX_PAGE_LIMIT).toBe(100);
+    expect(normalizePrismPageLimit(undefined)).toBe(25);
+    expect(normalizePrismPageLimit(0)).toBe(25);
+    expect(normalizePrismPageLimit(10.8)).toBe(10);
+    expect(normalizePrismPageLimit(250)).toBe(100);
+    expect(normalizePrismPageLimit("12")).toBe(12);
   });
   it("publishes the Sprint 2 UI contract gate types", () => {
     const query: PrismListQuery<"severity" | "eventDate"> = {

@@ -857,6 +857,8 @@ function createPrisma(seedInquiry: any = inquiry()) {
         state.eventDayTasks.push(row);
         return row;
       },
+      findUnique: async ({ where }: { where: { id: string } }) =>
+        state.eventDayTasks.find((item) => item.id === where.id) ?? null,
       findMany: async ({ where }: { where?: { eventId?: string; assignedRole?: string } } = {}) =>
         state.eventDayTasks.filter((item) => {
           if (where?.eventId && item.eventId !== where.eventId) return false;
@@ -876,6 +878,8 @@ function createPrisma(seedInquiry: any = inquiry()) {
         state.urgentIssues.push(row);
         return row;
       },
+      findUnique: async ({ where }: { where: { id: string } }) =>
+        state.urgentIssues.find((item) => item.id === where.id) ?? null,
       findMany: async ({ where }: { where?: { eventId?: string; status?: string } } = {}) =>
         state.urgentIssues.filter((item) => {
           if (where?.eventId && item.eventId !== where.eventId) return false;

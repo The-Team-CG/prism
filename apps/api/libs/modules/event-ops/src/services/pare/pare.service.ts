@@ -85,21 +85,21 @@ export class PAREService {
     const triggeredAt = new Date();
 
     // Agent 1 — event context
-    const ctx: PAREContext = await this.eventContextAgent.run(triggerId, prefetched);
+    const ctx: PAREContext = await this.eventContextAgent.buildPareEventContext(triggerId, prefetched);
 
     // Agent 2 — find replacement candidates
-    ctx.candidates = await this.supplierFinderAgent.run(ctx);
+    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx);
 
     // Agents 3 + 4 — run in parallel (independent of each other)
     const [budgetAnalysis, riskAssessment] = await Promise.all([
-      this.budgetAgent.run(ctx),
-      this.riskAgent.run(ctx),
+      this.budgetAgent.runPareBudgetAgent(ctx),
+      this.riskAgent.runPareRiskAgent(ctx),
     ]);
     ctx.budgetAnalysis = budgetAnalysis;
     ctx.riskAssessment = riskAssessment;
 
     // Agent 5 — draft messages
-    ctx.drafts = await this.messageDrafterAgent.run(ctx);
+    ctx.drafts = await this.messageDrafterAgent.runPareMessageDraftAgent(ctx);
 
     const pareResult: PAREResult = {
       requestId: ctx.triggerId,
@@ -166,6 +166,7 @@ export class PAREService {
     try {
       approvals = await this.prisma.opsAiApprovalRecord.findMany({
         where,
+        take: 100,
         orderBy: { requestedAt: 'desc' },
       });
     } catch {

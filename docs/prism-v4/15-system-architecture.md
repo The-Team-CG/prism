@@ -83,6 +83,25 @@ flowchart LR
 | Guest operations | `OpsGuestCheckIn`, `OpsGuestFeedback` |
 | AI governance | `OpsAiAuditLog`, `OpsAiApprovalRecord` |
 
+## Database Schema Domains
+
+The database domain-separation branch maps Prisma models to Postgres schemas while keeping one shared Prisma client and one NestJS API. Runtime tables are grouped by ownership domain: `floorplan`, `identity`, `event_core`, `supplier_ops`, `staffing_ops`, `finance_ops`, `compliance_ops`, `guest_ops`, and `trust_ops`. `public` is reserved for `_prisma_migrations` and explicitly approved compatibility objects only.
+
+Physical table names, index names, and constraint names are normalized to lowercase snake case without the old redundant `ops_` prefix once the table lives inside its domain schema. Prisma model names remain stable in this implementation pass to reduce API and service churn.
+
+Database review commands live in `apps/api/package.json`:
+
+```bash
+npm run prisma:validate
+npm run db:verify:offline
+npm run db:audit:queries
+npm run db:audit:schemas
+npm run db:audit:naming
+npm run db:audit:indexes
+npm run db:perf:report
+```
+
+The live schema, naming, and FK-index audits must run only against a database that has received the schema-split migrations. As of the 2026-06-22 DB migration review, those audits passed against the shared Supabase target after backup and migration deployment. `db:perf:report` reads `pg_stat_statements` with credential redaction; re-run it after representative app traffic before treating the ranking as an event-ops workload profile.
 ## Lifecycle Architecture
 
 | Lifecycle step | Primary app | API ownership | Required boundary |
@@ -121,7 +140,7 @@ flowchart LR
 
 | Integration area | Architecture status |
 | --- | --- |
-| Database | Prisma-backed Postgres path exists. Free-tier Supabase pooler use requires the documented runtime guard and should not be treated as a production direct connection substitute. |
+| Database | Prisma-backed Postgres path exists. Domain-schema separation is implemented through Prisma multi-schema mapping, schema/table/index/constraint migrations, and audit scripts; the shared Supabase target was backed up, migrated, and verified with live schema, naming, FK-index, and migration-status audits during the 2026-06-22 DB migration review. Free-tier Supabase pooler use requires the documented runtime guard and should not be treated as a production direct connection substitute. |
 | File storage | Metadata and file requirements matrix exist. Real storage, signed URLs, upload progress, retry, download/delete audit, and adapter tests remain gated. |
 | Notifications | Queue/retry/acknowledgement model exists. Production SendGrid/Viber adapters remain gated. |
 | AI | Data sanitizer, audit, approval, and PARE foundation exist. Live AI calls and autonomous AI actions remain gated by ZDR/provider approval and PMCM human approval. |

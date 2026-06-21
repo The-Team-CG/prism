@@ -102,7 +102,7 @@ function executeBudgetTool(
 export class BudgetAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
-  async run(ctx: PAREContext): Promise<PAREBudgetAnalysis> {
+  async runPareBudgetAgent(ctx: PAREContext): Promise<PAREBudgetAnalysis> {
     const top = (ctx.candidates ?? [])[0];
     if (!top) {
       return {

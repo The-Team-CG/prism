@@ -54,7 +54,7 @@ export class OpsSupplierWorkspaceController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
   @Get('workspace')
-  workspace(@Query() actor: SampleActorDto) {
+  getSupplierWorkspace(@Query() actor: SampleActorDto) {
     return this.eventOpsService.listSupplierWorkspace(actor);
   }
 

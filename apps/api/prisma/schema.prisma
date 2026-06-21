@@ -4,321 +4,336 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["public", "floorplan", "identity", "event_core", "supplier_ops", "staffing_ops", "finance_ops", "compliance_ops", "guest_ops", "trust_ops"]
 }
 
 model FloorPlan {
-  id             String            @id
+  id             String   @id
   name           String
-  venue          String            @default("")
-  width          Int               @default(1400)
-  height         Int               @default(900)
-  gridSize       Int               @default(20) @map("grid_size")
-  pax            Int               @default(0)
-  ownerId        String            @map("owner_id")
-  templateId     String?           @map("template_id")
-  eventId        String?           @map("event_id")
-  objects        Json              @default("[]")
-  guests         Json              @default("[]")
-  suppliers      Json              @default("[]")
-  seats          Json              @default("[]")
-  seatCategories Json              @default("[]") @map("seat_categories")
-  updatedAt      DateTime          @default(now()) @updatedAt @map("updated_at")
+  venue          String   @default("")
+  width          Int      @default(1400)
+  height         Int      @default(900)
+  gridSize       Int      @default(20) @map("grid_size")
+  pax            Int      @default(0)
+  ownerId        String   @map("owner_id")
+  templateId     String?  @map("template_id")
+  eventId        String?  @map("event_id")
+  objects        Json     @default("[]")
+  guests         Json     @default("[]")
+  suppliers      Json     @default("[]")
+  seats          Json     @default("[]")
+  seatCategories Json     @default("[]") @map("seat_categories")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
-  objectRows     FloorPlanObject[]
-  asTemplate     VenueTemplate?    @relation("TemplateBaseLayout")
-  asEvent        EventInstance?    @relation("EventLayout")
-  opsDraft       OpsFloorPlanDraft? @relation("OpsDraftLayout")
+  objectRows FloorPlanObject[]
+  asTemplate VenueTemplate?     @relation("TemplateBaseLayout")
+  asEvent    EventInstance?     @relation("EventLayout")
+  opsDraft   OpsFloorPlanDraft? @relation("OpsDraftLayout")
 
   @@map("floor_plans")
+  @@schema("floorplan")
 }
 
 model FloorPlanObject {
-  floorPlanId String    @map("floor_plan_id")
-  objectId    String    @map("object_id")
+  floorPlanId String   @map("floor_plan_id")
+  objectId    String   @map("object_id")
   kind        String
-  zIndex      Int       @default(0) @map("z_index")
-  objectData  Json      @map("object_data")
-  svgMarkup   String?   @map("svg_markup")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  zIndex      Int      @default(0) @map("z_index")
+  objectData  Json     @map("object_data")
+  svgMarkup   String?  @map("svg_markup")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
 
-  floorPlan   FloorPlan @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
+  floorPlan FloorPlan @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
 
   @@id([floorPlanId, objectId])
   @@map("floor_plan_objects")
+  @@schema("floorplan")
 }
 
 model VenueTemplate {
-  id                 String          @id
-  ownerId            String          @map("owner_id")
-  name               String
-  description        String          @default("")
-  venue              String          @default("")
-  venueRules         String          @default("") @map("venue_rules")
-  permanentFeatures  Json            @default("[]") @map("permanent_features")
-  floorPlanId        String          @unique @map("floor_plan_id")
-  pax                Int             @default(0)
-  includeGuests      Boolean         @default(false) @map("include_guests")
-  includeSuppliers   Boolean         @default(false) @map("include_suppliers")
-  guests             Json            @default("[]")
-  suppliers          Json            @default("[]")
-  sourceType         String          @default("custom") @map("source_type")
-  createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at")
+  id                String   @id
+  ownerId           String   @map("owner_id")
+  name              String
+  description       String   @default("")
+  venue             String   @default("")
+  venueRules        String   @default("") @map("venue_rules")
+  permanentFeatures Json     @default("[]") @map("permanent_features")
+  floorPlanId       String   @unique @map("floor_plan_id")
+  pax               Int      @default(0)
+  includeGuests     Boolean  @default(false) @map("include_guests")
+  includeSuppliers  Boolean  @default(false) @map("include_suppliers")
+  guests            Json     @default("[]")
+  suppliers         Json     @default("[]")
+  sourceType        String   @default("custom") @map("source_type")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
-  floorPlan          FloorPlan       @relation("TemplateBaseLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
-  events             EventInstance[]
+  floorPlan FloorPlan       @relation("TemplateBaseLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
+  events    EventInstance[]
 
   @@map("venue_templates")
+  @@schema("floorplan")
 }
 
 model EventInstance {
-  id          String             @id
-  ownerId     String             @map("owner_id")
-  templateId  String             @map("template_id")
-  floorPlanId String             @unique @map("floor_plan_id")
+  id          String   @id
+  ownerId     String   @map("owner_id")
+  templateId  String   @map("template_id")
+  floorPlanId String   @unique @map("floor_plan_id")
   name        String
-  startsAt    DateTime           @map("starts_at")
-  status      String             @default("draft")
-  createdAt   DateTime           @default(now()) @map("created_at")
+  startsAt    DateTime @map("starts_at")
+  status      String   @default("draft")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  template    VenueTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  floorPlan   FloorPlan          @relation("EventLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
-  snapshot    PublishedSnapshot?
+  template  VenueTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  floorPlan FloorPlan          @relation("EventLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
+  snapshot  PublishedSnapshot?
 
+  @@index([templateId], map: "event_instances_template_id_idx")
   @@map("event_instances")
+  @@schema("floorplan")
 }
 
 model PublishedSnapshot {
-  id          String        @id
-  slug        String        @unique
-  eventId     String        @unique @map("event_id")
-  floorPlan   Json          @map("floor_plan")
-  publishedAt DateTime      @default(now()) @map("published_at")
+  id          String   @id
+  slug        String   @unique
+  eventId     String   @unique @map("event_id")
+  floorPlan   Json     @map("floor_plan")
+  publishedAt DateTime @default(now()) @map("published_at")
 
-  event       EventInstance @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event EventInstance @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@map("published_snapshots")
+  @@schema("floorplan")
 }
 
 model OpsUser {
-  id             String   @id
-  name           String
-  email          String   @unique
-  password       String
-  role           String
-  organization   String
-  approvalStatus String   @default("pending") @map("approval_status")
-  failedLoginCount Int    @default(0) @map("failed_login_count")
-  lockoutCount   Int      @default(0) @map("lockout_count")
-  lockedUntil    DateTime? @map("locked_until")
-  permanentLockout Boolean @default(false) @map("permanent_lockout")
-  lastLoginAt    DateTime? @map("last_login_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id               String    @id
+  name             String
+  email            String    @unique(map: "users_email_key")
+  password         String
+  role             String
+  organization     String
+  approvalStatus   String    @default("pending") @map("approval_status")
+  failedLoginCount Int       @default(0) @map("failed_login_count")
+  lockoutCount     Int       @default(0) @map("lockout_count")
+  lockedUntil      DateTime? @map("locked_until")
+  permanentLockout Boolean   @default(false) @map("permanent_lockout")
+  lastLoginAt      DateTime? @map("last_login_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
-  loginHistory   OpsLoginHistory[]
+  loginHistory       OpsLoginHistory[]
   coordinatorProfile OpsCoordinator?
 
-  @@map("ops_users")
+  @@map("users")
+  @@schema("identity")
 }
 
 model OpsApprovalRequest {
-  id           String   @id
-  userId       String   @map("user_id")
-  name         String
-  email        String
-  role         String
-  organization String
-  status       String   @default("pending")
-  privacyConsentAccepted Boolean @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion String @default("") @map("privacy_notice_version")
-  marketingConsentAccepted Boolean @default(false) @map("marketing_consent_accepted")
-  requestedAt  DateTime @default(now()) @map("requested_at")
+  id                       String   @id
+  userId                   String   @map("user_id")
+  name                     String
+  email                    String
+  role                     String
+  organization             String
+  status                   String   @default("pending")
+  privacyConsentAccepted   Boolean  @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion     String   @default("") @map("privacy_notice_version")
+  marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
+  requestedAt              DateTime @default(now()) @map("requested_at")
 
-  @@index([status, requestedAt], map: "ops_approval_requests_status_requested_at_idx")
-  @@map("ops_approval_requests")
+  @@index([status, requestedAt], map: "approval_requests_status_requested_at_idx")
+  @@map("approval_requests")
+  @@schema("identity")
 }
 
 model OpsInquiry {
-  id                         String   @id
-  clientName                 String   @map("client_name")
-  companyName                String   @default("") @map("company_name")
-  email                      String
-  eventName                  String   @map("event_name")
-  eventType                  String   @default("Event") @map("event_type")
-  eventDate                  DateTime @map("event_date")
-    clientType                 String   @map("client_type")
-    source                     String   @default("Website")
-    normalizedEmail            String   @default("") @map("normalized_email")
-    referralDetails            String   @default("") @map("referral_details")
-    loggedByRole               String?  @map("logged_by_role")
-    loggedByName               String?  @map("logged_by_name")
-    duplicateOfInquiryId       String?  @map("duplicate_of_inquiry_id")
-    previousDeclinedInquiryId  String?  @map("previous_declined_inquiry_id")
-    previousDeclineReason      String?  @map("previous_decline_reason")
-    message                    String   @default("")
-  status                     String   @default("new")
-  declineReason              String?  @map("decline_reason")
-  acceptedAt                 DateTime? @map("accepted_at")
-  pendingAt                  DateTime? @map("pending_at")
-  declinedAt                 DateTime? @map("declined_at")
-  conformeSentAt             DateTime? @map("conforme_sent_at")
-  conformeSignedAt           DateTime? @map("conforme_signed_at")
-  portalActivatedAt          DateTime? @map("portal_activated_at")
-  followUpIntervalDays       Int      @default(3) @map("follow_up_interval_days")
-  lastConformeReminderAt     DateTime? @map("last_conforme_reminder_at")
-  portalInvitationStatus     String   @default("not_sent") @map("portal_invitation_status")
-  portalInvitationSentAt     DateTime? @map("portal_invitation_sent_at")
-  portalInvitationOpenedAt   DateTime? @map("portal_invitation_opened_at")
-  portalInvitationExpiresAt  DateTime? @map("portal_invitation_expires_at")
-  privacyConsentAccepted     Boolean  @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion       String   @default("") @map("privacy_notice_version")
-  marketingConsentAccepted   Boolean  @default(false) @map("marketing_consent_accepted")
-  createdAt                  DateTime @default(now()) @map("created_at")
+  id                        String    @id
+  clientName                String    @map("client_name")
+  companyName               String    @default("") @map("company_name")
+  email                     String
+  eventName                 String    @map("event_name")
+  eventType                 String    @default("Event") @map("event_type")
+  eventDate                 DateTime  @map("event_date")
+  clientType                String    @map("client_type")
+  source                    String    @default("Website")
+  normalizedEmail           String    @default("") @map("normalized_email")
+  referralDetails           String    @default("") @map("referral_details")
+  loggedByRole              String?   @map("logged_by_role")
+  loggedByName              String?   @map("logged_by_name")
+  duplicateOfInquiryId      String?   @map("duplicate_of_inquiry_id")
+  previousDeclinedInquiryId String?   @map("previous_declined_inquiry_id")
+  previousDeclineReason     String?   @map("previous_decline_reason")
+  message                   String    @default("")
+  status                    String    @default("new")
+  declineReason             String?   @map("decline_reason")
+  acceptedAt                DateTime? @map("accepted_at")
+  pendingAt                 DateTime? @map("pending_at")
+  declinedAt                DateTime? @map("declined_at")
+  conformeSentAt            DateTime? @map("conforme_sent_at")
+  conformeSignedAt          DateTime? @map("conforme_signed_at")
+  portalActivatedAt         DateTime? @map("portal_activated_at")
+  followUpIntervalDays      Int       @default(3) @map("follow_up_interval_days")
+  lastConformeReminderAt    DateTime? @map("last_conforme_reminder_at")
+  portalInvitationStatus    String    @default("not_sent") @map("portal_invitation_status")
+  portalInvitationSentAt    DateTime? @map("portal_invitation_sent_at")
+  portalInvitationOpenedAt  DateTime? @map("portal_invitation_opened_at")
+  portalInvitationExpiresAt DateTime? @map("portal_invitation_expires_at")
+  privacyConsentAccepted    Boolean   @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion      String    @default("") @map("privacy_notice_version")
+  marketingConsentAccepted  Boolean   @default(false) @map("marketing_consent_accepted")
+  createdAt                 DateTime  @default(now()) @map("created_at")
 
-  events                     OpsEvent[]
+  events OpsEvent[]
 
-    @@index([status, createdAt], map: "ops_inquiries_status_created_at_idx")
-    @@index([source, createdAt], map: "ops_inquiries_source_created_at_idx")
-    @@index([clientType, createdAt], map: "ops_inquiries_client_type_created_at_idx")
-    @@index([normalizedEmail, eventDate], map: "ops_inquiries_normalized_email_event_date_idx")
-    @@index([duplicateOfInquiryId], map: "ops_inquiries_duplicate_of_inquiry_id_idx")
-    @@index([previousDeclinedInquiryId], map: "ops_inquiries_previous_declined_inquiry_id_idx")
-    @@map("ops_inquiries")
-  }
+  @@index([status, createdAt], map: "inquiries_status_created_at_idx")
+  @@index([source, createdAt], map: "inquiries_source_created_at_idx")
+  @@index([clientType, createdAt], map: "inquiries_client_type_created_at_idx")
+  @@index([normalizedEmail, eventDate], map: "inquiries_normalized_email_event_date_idx")
+  @@index([duplicateOfInquiryId], map: "inquiries_duplicate_of_inquiry_id_idx")
+  @@index([previousDeclinedInquiryId], map: "inquiries_previous_declined_inquiry_id_idx")
+  @@map("inquiries")
+  @@schema("event_core")
+}
 
 model OpsEvent {
-  id                    String   @id
-  inquiryId             String   @map("inquiry_id")
-  clientName            String   @map("client_name")
-  eventName             String   @map("event_name")
-  eventDate             DateTime @map("event_date")
-  status                String   @default("planning")
-  clientPortalStatus    String   @default("locked") @map("client_portal_status")
-  readiness             String   @default("Conforme pending")
-  archived              Boolean  @default(false)
+  id                    String    @id
+  inquiryId             String    @map("inquiry_id")
+  clientName            String    @map("client_name")
+  eventName             String    @map("event_name")
+  eventDate             DateTime  @map("event_date")
+  status                String    @default("planning")
+  clientPortalStatus    String    @default("locked") @map("client_portal_status")
+  readiness             String    @default("Conforme pending")
+  archived              Boolean   @default(false)
   archivedAt            DateTime? @map("archived_at")
-  archiveOverrideReason String?  @map("archive_override_reason")
-  archiveOverrideBy     String?  @map("archive_override_by")
-  archiveChecklist      Json     @default("{}") @map("archive_checklist")
-  floorPlanStatus       String   @default("not_started") @map("floor_plan_status")
-  floorPlanId           String?  @map("floor_plan_id")
+  archiveOverrideReason String?   @map("archive_override_reason")
+  archiveOverrideBy     String?   @map("archive_override_by")
+  archiveChecklist      Json      @default("{}") @map("archive_checklist")
+  floorPlanStatus       String    @default("not_started") @map("floor_plan_status")
+  floorPlanId           String?   @map("floor_plan_id")
   floorPlanSubmittedAt  DateTime? @map("floor_plan_submitted_at")
   floorPlanReviewedAt   DateTime? @map("floor_plan_reviewed_at")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  inquiry               OpsInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
-  documents             OpsDocument[]
-  briefings             OpsBriefing[]
-  supplierQuoteRequests OpsSupplierQuoteRequest[]
-  supplierQuotes        OpsSupplierQuote[]
-  supplierReviews       OpsSupplierReview[]
-  supplierReliabilityNotes OpsSupplierReliabilityNote[]
-  coordinatorAssignments OpsCoordinatorAssignment[]
-  eventDayTasks        OpsEventDayTask[]
-  urgentIssues         OpsUrgentIssue[]
-  eventDayLogs         OpsEventDayLog[]
+  inquiry                     OpsInquiry                      @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  documents                   OpsDocument[]
+  briefings                   OpsBriefing[]
+  supplierQuoteRequests       OpsSupplierQuoteRequest[]
+  supplierQuotes              OpsSupplierQuote[]
+  supplierReviews             OpsSupplierReview[]
+  supplierReliabilityNotes    OpsSupplierReliabilityNote[]
+  coordinatorAssignments      OpsCoordinatorAssignment[]
+  eventDayTasks               OpsEventDayTask[]
+  urgentIssues                OpsUrgentIssue[]
+  eventDayLogs                OpsEventDayLog[]
   coordinatorReliabilityNotes OpsCoordinatorReliabilityNote[]
-  complianceRules       OpsComplianceRule[]
-  complianceChecks      OpsComplianceCheck[]
-  billingSources        OpsBillingSource[]
-  billingStatements     OpsBillingStatement[]
-  paymentMilestones     OpsPaymentMilestone[]
-  paymentRecords        OpsPaymentRecord[]
-  postEventDocuments    OpsPostEventDocument[]
-  eventInsights         OpsEventInsight[]
-  guestCheckIns         OpsGuestCheckIn[]
-  guestFeedback         OpsGuestFeedback[]
-  privacyRequests       OpsPrivacyRequest[]
-  auditLogs             OpsAuditLog[]
-  notificationLogs      OpsNotificationLog[]
-  securityAlerts        OpsSecurityAlert[]
-  aiAuditLogs           OpsAiAuditLog[]
-  aiApprovalRecords     OpsAiApprovalRecord[]
-  floorPlanDrafts       OpsFloorPlanDraft[]
+  complianceRules             OpsComplianceRule[]
+  complianceChecks            OpsComplianceCheck[]
+  billingSources              OpsBillingSource[]
+  billingStatements           OpsBillingStatement[]
+  paymentMilestones           OpsPaymentMilestone[]
+  paymentRecords              OpsPaymentRecord[]
+  postEventDocuments          OpsPostEventDocument[]
+  eventInsights               OpsEventInsight[]
+  guestCheckIns               OpsGuestCheckIn[]
+  guestFeedback               OpsGuestFeedback[]
+  privacyRequests             OpsPrivacyRequest[]
+  auditLogs                   OpsAuditLog[]
+  notificationLogs            OpsNotificationLog[]
+  securityAlerts              OpsSecurityAlert[]
+  aiAuditLogs                 OpsAiAuditLog[]
+  aiApprovalRecords           OpsAiApprovalRecord[]
+  floorPlanDrafts             OpsFloorPlanDraft[]
 
-  @@index([status, eventDate], map: "ops_events_status_event_date_idx")
-  @@map("ops_events")
+  @@index([inquiryId], map: "events_inquiry_id_idx")
+  @@index([status, eventDate], map: "events_status_event_date_idx")
+  @@map("events")
+  @@schema("event_core")
 }
 
 model OpsPrivacyRequest {
-  id             String   @id
-  eventId        String?  @map("event_id")
-  subjectType    String   @map("subject_type")
-  subjectEmail   String   @default("") @map("subject_email")
-  subjectName    String   @default("") @map("subject_name")
-  requestType    String   @map("request_type")
-  status         String   @default("submitted")
-  requestNotes   String   @default("") @map("request_notes")
-  reviewReason   String   @default("") @map("review_reason")
-  executionNotes String   @default("") @map("execution_notes")
-  createdBy      String   @default("PMCM Admin") @map("created_by")
-  reviewedBy     String?  @map("reviewed_by")
+  id             String    @id
+  eventId        String?   @map("event_id")
+  subjectType    String    @map("subject_type")
+  subjectEmail   String    @default("") @map("subject_email")
+  subjectName    String    @default("") @map("subject_name")
+  requestType    String    @map("request_type")
+  status         String    @default("submitted")
+  requestNotes   String    @default("") @map("request_notes")
+  reviewReason   String    @default("") @map("review_reason")
+  executionNotes String    @default("") @map("execution_notes")
+  createdBy      String    @default("PMCM Admin") @map("created_by")
+  reviewedBy     String?   @map("reviewed_by")
   reviewedAt     DateTime? @map("reviewed_at")
-  executedBy     String?  @map("executed_by")
+  executedBy     String?   @map("executed_by")
   executedAt     DateTime? @map("executed_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event          OpsEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
-  @@index([status, createdAt], map: "ops_privacy_requests_status_created_at_idx")
-  @@index([subjectEmail], map: "ops_privacy_requests_subject_email_idx")
-  @@index([eventId], map: "ops_privacy_requests_event_id_idx")
-  @@map("ops_privacy_requests")
+  @@index([status, createdAt], map: "privacy_requests_status_created_at_idx")
+  @@index([subjectEmail], map: "privacy_requests_subject_email_idx")
+  @@index([eventId], map: "privacy_requests_event_id_idx")
+  @@map("privacy_requests")
+  @@schema("event_core")
 }
 
 model OpsFloorPlanDraft {
-  id               String    @id
-  eventId          String    @map("event_id")
-  floorPlanId      String    @unique @map("floor_plan_id")
-  name             String
-  status           String    @default("pmcm_draft")
-  isActive         Boolean   @default(false) @map("is_active")
-  sourceType       String    @default("blank") @map("source_type")
-  createdByRole    String    @default("pmcm-admin") @map("created_by_role")
-  clientPreference Json?     @map("client_preference")
-  submittedSnapshot Json?    @map("submitted_snapshot")
-  approvedSnapshot  Json?    @map("approved_snapshot")
-  submittedAt      DateTime? @map("submitted_at")
-  reviewedAt       DateTime? @map("reviewed_at")
-  approvedAt       DateTime? @map("approved_at")
+  id                  String    @id
+  eventId             String    @map("event_id")
+  floorPlanId         String    @unique(map: "floor_plan_drafts_floor_plan_id_key") @map("floor_plan_id")
+  name                String
+  status              String    @default("pmcm_draft")
+  isActive            Boolean   @default(false) @map("is_active")
+  sourceType          String    @default("blank") @map("source_type")
+  createdByRole       String    @default("pmcm-admin") @map("created_by_role")
+  clientPreference    Json?     @map("client_preference")
+  submittedSnapshot   Json?     @map("submitted_snapshot")
+  approvedSnapshot    Json?     @map("approved_snapshot")
+  submittedAt         DateTime? @map("submitted_at")
+  reviewedAt          DateTime? @map("reviewed_at")
+  approvedAt          DateTime? @map("approved_at")
   submittedSnapshotAt DateTime? @map("submitted_snapshot_at")
   approvedSnapshotAt  DateTime? @map("approved_snapshot_at")
-  revisionComment  String    @default("") @map("revision_comment")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+  revisionComment     String    @default("") @map("revision_comment")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event       OpsEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  floorPlan   FloorPlan @relation("OpsDraftLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
+  event     OpsEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  floorPlan FloorPlan @relation("OpsDraftLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, status], map: "ops_floor_plan_drafts_event_id_status_idx")
-  @@index([eventId, isActive], map: "ops_floor_plan_drafts_event_id_is_active_idx")
-  @@map("ops_floor_plan_drafts")
+  @@index([eventId, status], map: "floor_plan_drafts_event_id_status_idx")
+  @@index([eventId, isActive], map: "floor_plan_drafts_event_id_is_active_idx")
+  @@map("floor_plan_drafts")
+  @@schema("floorplan")
 }
 
 model OpsDocument {
-  id             String   @id
-  eventId        String   @map("event_id")
-  type           String
-  fileName       String   @map("file_name")
-  status         String   @default("submitted")
-  mimeType       String?  @map("mime_type")
-  sizeBytes      Int?     @map("size_bytes")
-  generatedFileName String? @map("generated_file_name")
-  validationStatus String @default("accepted") @map("validation_status")
-  rejectionReason String? @map("rejection_reason")
-  storageBucket  String?  @map("storage_bucket")
-  storageKey     String?  @map("storage_key")
-  uploadedByRole String?  @map("uploaded_by_role")
-  uploadedAt     DateTime @default(now()) @map("uploaded_at")
+  id                String   @id
+  eventId           String   @map("event_id")
+  type              String
+  fileName          String   @map("file_name")
+  status            String   @default("submitted")
+  mimeType          String?  @map("mime_type")
+  sizeBytes         Int?     @map("size_bytes")
+  generatedFileName String?  @map("generated_file_name")
+  validationStatus  String   @default("accepted") @map("validation_status")
+  rejectionReason   String?  @map("rejection_reason")
+  storageBucket     String?  @map("storage_bucket")
+  storageKey        String?  @map("storage_key")
+  uploadedByRole    String?  @map("uploaded_by_role")
+  uploadedAt        DateTime @default(now()) @map("uploaded_at")
 
-  event          OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event                 OpsEvent                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   contractQuoteRequests OpsSupplierQuoteRequest[]
 
-  @@index([eventId, type], map: "ops_documents_event_id_type_idx")
-  @@map("ops_documents")
+  @@index([eventId, type], map: "documents_event_id_type_idx")
+  @@map("documents")
+  @@schema("event_core")
 }
 
 model OpsBriefing {
@@ -331,87 +346,91 @@ model OpsBriefing {
   notes               String   @default("")
   submittedAt         DateTime @default(now()) @map("submitted_at")
 
-  event               OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, submittedAt], map: "ops_briefings_event_id_submitted_at_idx")
-  @@map("ops_briefings")
+  @@index([eventId, submittedAt], map: "briefings_event_id_submitted_at_idx")
+  @@map("briefings")
+  @@schema("event_core")
 }
 
 model OpsSupplierQuoteRequest {
-  id              String   @id
-  eventId         String   @map("event_id")
-  supplierId      String?  @map("supplier_id")
-  categoryId      String?  @map("category_id")
-  supplierName    String   @map("supplier_name")
-  category        String
-  message         String   @default("")
-  dueDate         DateTime? @map("due_date")
-  accessToken     String   @unique @map("access_token")
-  confidentialBid Boolean  @default(false) @map("confidential_bid")
-  status          String   @default("open")
-  assignmentStatus String @default("pending_confirmation") @map("assignment_status")
-  assignmentConfirmedAt DateTime? @map("assignment_confirmed_at")
-  readinessStatus String @default("not_requested") @map("readiness_status")
-  readinessConfirmedAt DateTime? @map("readiness_confirmed_at")
-  readinessNotes  String @default("") @map("readiness_notes")
-  eventDayStatus  String @default("not_started") @map("event_day_status")
-  eventDayStatusAt DateTime? @map("event_day_status_at")
-  eventDayNotes   String @default("") @map("event_day_notes")
-  eventDayVerificationStatus String @default("self_reported") @map("event_day_verification_status")
-  eventDayVerifiedAt DateTime? @map("event_day_verified_at")
-  eventDayVerifiedBy String? @map("event_day_verified_by")
-  eventDayVerificationNotes String @default("") @map("event_day_verification_notes")
-  statusPhotoFileName String? @map("status_photo_file_name")
-  contractDocumentId String? @map("contract_document_id")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id                         String    @id
+  eventId                    String    @map("event_id")
+  supplierId                 String?   @map("supplier_id")
+  categoryId                 String?   @map("category_id")
+  supplierName               String    @map("supplier_name")
+  category                   String
+  message                    String    @default("")
+  dueDate                    DateTime? @map("due_date")
+  accessToken                String    @unique(map: "quote_requests_access_token_key") @map("access_token")
+  confidentialBid            Boolean   @default(false) @map("confidential_bid")
+  status                     String    @default("open")
+  assignmentStatus           String    @default("pending_confirmation") @map("assignment_status")
+  assignmentConfirmedAt      DateTime? @map("assignment_confirmed_at")
+  readinessStatus            String    @default("not_requested") @map("readiness_status")
+  readinessConfirmedAt       DateTime? @map("readiness_confirmed_at")
+  readinessNotes             String    @default("") @map("readiness_notes")
+  eventDayStatus             String    @default("not_started") @map("event_day_status")
+  eventDayStatusAt           DateTime? @map("event_day_status_at")
+  eventDayNotes              String    @default("") @map("event_day_notes")
+  eventDayVerificationStatus String    @default("self_reported") @map("event_day_verification_status")
+  eventDayVerifiedAt         DateTime? @map("event_day_verified_at")
+  eventDayVerifiedBy         String?   @map("event_day_verified_by")
+  eventDayVerificationNotes  String    @default("") @map("event_day_verification_notes")
+  statusPhotoFileName        String?   @map("status_photo_file_name")
+  contractDocumentId         String?   @map("contract_document_id")
+  createdAt                  DateTime  @default(now()) @map("created_at")
 
-  event           OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  supplier        OpsSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  categoryRef     OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  contractDocument OpsDocument? @relation(fields: [contractDocumentId], references: [id], onDelete: SetNull)
+  event            OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  supplier         OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  categoryRef      OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  contractDocument OpsDocument?         @relation(fields: [contractDocumentId], references: [id], onDelete: SetNull)
 
-  @@index([eventId, status], map: "ops_supplier_quote_requests_event_id_status_idx")
-  @@index([supplierId], map: "ops_supplier_quote_requests_supplier_id_idx")
-  @@index([categoryId], map: "ops_supplier_quote_requests_category_id_idx")
-  @@map("ops_supplier_quote_requests")
+  @@index([eventId, status], map: "quote_requests_event_id_status_idx")
+  @@index([supplierId], map: "quote_requests_supplier_id_idx")
+  @@index([categoryId], map: "quote_requests_category_id_idx")
+  @@index([contractDocumentId], map: "quote_requests_contract_document_id_idx")
+  @@map("quote_requests")
+  @@schema("supplier_ops")
 }
 
 model OpsSupplierQuote {
-  id                     String   @id
-  eventId                String   @map("event_id")
-  requestId              String?  @map("request_id")
-  supplierId             String?  @map("supplier_id")
-  categoryId             String?  @map("category_id")
-  supplierName           String   @map("supplier_name")
+  id                     String    @id
+  eventId                String    @map("event_id")
+  requestId              String?   @map("request_id")
+  supplierId             String?   @map("supplier_id")
+  categoryId             String?   @map("category_id")
+  supplierName           String    @map("supplier_name")
   category               String
   amount                 Int
-  inclusions             Json     @default("[]")
-  paymentTerms           String   @default("") @map("payment_terms")
-  notes                  String   @default("")
-  acceptableMin          Int?     @map("acceptable_min")
-  acceptableMax          Int?     @map("acceptable_max")
-  outsideAcceptableRange Boolean  @default(false) @map("outside_acceptable_range")
-  status                 String   @default("requested")
-  revisionNumber         Int      @default(1) @map("revision_number")
+  inclusions             Json      @default("[]")
+  paymentTerms           String    @default("") @map("payment_terms")
+  notes                  String    @default("")
+  acceptableMin          Int?      @map("acceptable_min")
+  acceptableMax          Int?      @map("acceptable_max")
+  outsideAcceptableRange Boolean   @default(false) @map("outside_acceptable_range")
+  status                 String    @default("requested")
+  revisionNumber         Int       @default(1) @map("revision_number")
   revisedAt              DateTime? @map("revised_at")
   selectedAt             DateTime? @map("selected_at")
   lockedAt               DateTime? @map("locked_at")
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event        OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  supplier     OpsSupplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  categoryRef  OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  event       OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  supplier    OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  categoryRef OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
-  @@index([eventId, status], map: "ops_supplier_quotes_event_id_status_idx")
-  @@index([supplierId], map: "ops_supplier_quotes_supplier_id_idx")
-  @@index([categoryId], map: "ops_supplier_quotes_category_id_idx")
-  @@map("ops_supplier_quotes")
+  @@index([eventId, status], map: "quotes_event_id_status_idx")
+  @@index([supplierId], map: "quotes_supplier_id_idx")
+  @@index([categoryId], map: "quotes_category_id_idx")
+  @@map("quotes")
+  @@schema("supplier_ops")
 }
 
 model OpsSupplierCategory {
   id            String   @id
-  slug          String   @unique
+  slug          String   @unique(map: "supplier_categories_slug_key")
   name          String
   sortOrder     Int      @default(0) @map("sort_order")
   active        Boolean  @default(true)
@@ -423,8 +442,9 @@ model OpsSupplierCategory {
   quoteRequests OpsSupplierQuoteRequest[]
   quotes        OpsSupplierQuote[]
 
-  @@index([active, sortOrder], map: "ops_supplier_categories_active_sort_order_idx")
-  @@map("ops_supplier_categories")
+  @@index([active, sortOrder], map: "supplier_categories_active_sort_order_idx")
+  @@map("supplier_categories")
+  @@schema("supplier_ops")
 }
 
 model OpsSupplier {
@@ -442,16 +462,17 @@ model OpsSupplier {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
-  category         OpsSupplierCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category         OpsSupplierCategory          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   quoteRequests    OpsSupplierQuoteRequest[]
   quotes           OpsSupplierQuote[]
   reviews          OpsSupplierReview[]
   reliabilityNotes OpsSupplierReliabilityNote[]
   certifications   OpsSupplierCertification[]
 
-  @@index([categoryId, tier], map: "ops_suppliers_category_id_tier_idx")
-  @@index([bniMember], map: "ops_suppliers_bni_member_idx")
-  @@map("ops_suppliers")
+  @@index([categoryId, tier], map: "suppliers_category_id_tier_idx")
+  @@index([bniMember], map: "suppliers_bni_member_idx")
+  @@map("suppliers")
+  @@schema("supplier_ops")
 }
 
 model OpsSupplierReview {
@@ -466,9 +487,10 @@ model OpsSupplierReview {
   supplier OpsSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   event    OpsEvent?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
-  @@index([supplierId, createdAt], map: "ops_supplier_reviews_supplier_id_created_at_idx")
-  @@index([eventId], map: "ops_supplier_reviews_event_id_idx")
-  @@map("ops_supplier_reviews")
+  @@index([supplierId, createdAt], map: "supplier_reviews_supplier_id_created_at_idx")
+  @@index([eventId], map: "supplier_reviews_event_id_idx")
+  @@map("supplier_reviews")
+  @@schema("supplier_ops")
 }
 
 model OpsSupplierReliabilityNote {
@@ -481,31 +503,33 @@ model OpsSupplierReliabilityNote {
   supplier OpsSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   event    OpsEvent?   @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
-  @@index([supplierId, createdAt], map: "ops_supplier_reliability_notes_supplier_id_created_at_idx")
-  @@index([eventId], map: "ops_supplier_reliability_notes_event_id_idx")
-  @@map("ops_supplier_reliability_notes")
+  @@index([supplierId, createdAt], map: "supplier_reliability_notes_supplier_id_created_at_idx")
+  @@index([eventId], map: "supplier_reliability_notes_event_id_idx")
+  @@map("supplier_reliability_notes")
+  @@schema("supplier_ops")
 }
 
 model OpsSupplierCertification {
-  id         String   @id
-  supplierId String   @map("supplier_id")
-  fileName   String   @map("file_name")
-  documentType String @default("") @map("document_type")
-  issuer     String   @default("")
-  expiresAt  DateTime? @map("expires_at")
-  status     String   @default("submitted")
-  notes      String   @default("")
-  uploadedAt DateTime @default(now()) @map("uploaded_at")
+  id           String    @id
+  supplierId   String    @map("supplier_id")
+  fileName     String    @map("file_name")
+  documentType String    @default("") @map("document_type")
+  issuer       String    @default("")
+  expiresAt    DateTime? @map("expires_at")
+  status       String    @default("submitted")
+  notes        String    @default("")
+  uploadedAt   DateTime  @default(now()) @map("uploaded_at")
 
   supplier OpsSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
-  @@index([supplierId, uploadedAt], map: "ops_supplier_certifications_supplier_id_uploaded_at_idx")
-  @@map("ops_supplier_certifications")
+  @@index([supplierId, uploadedAt], map: "supplier_certifications_supplier_id_uploaded_at_idx")
+  @@map("supplier_certifications")
+  @@schema("supplier_ops")
 }
 
 model OpsCoordinator {
   id         String   @id
-  userId     String?  @unique @map("user_id")
+  userId     String?  @unique(map: "coordinators_user_id_key") @map("user_id")
   name       String
   email      String
   photoUrl   String?  @map("photo_url")
@@ -514,100 +538,104 @@ model OpsCoordinator {
   active     Boolean  @default(true)
   createdAt  DateTime @default(now()) @map("created_at")
 
-  user        OpsUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  assignments OpsCoordinatorAssignment[]
+  user             OpsUser?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  assignments      OpsCoordinatorAssignment[]
   reliabilityNotes OpsCoordinatorReliabilityNote[]
 
-  @@index([active, name], map: "ops_coordinators_active_name_idx")
-  @@map("ops_coordinators")
+  @@index([active, name], map: "coordinators_active_name_idx")
+  @@map("coordinators")
+  @@schema("staffing_ops")
 }
 
 model OpsCoordinatorAssignment {
-  id                   String   @id
-  eventId              String   @map("event_id")
-  coordinatorId        String?  @map("coordinator_id")
-  coordinatorName      String   @map("coordinator_name")
-  role                 String
-  status               String   @default("pending_acknowledgement")
-  attendanceStatus     String   @default("pending") @map("attendance_status")
-  attendanceMarkedAt   DateTime? @map("attendance_marked_at")
-  attendanceNotes      String   @default("") @map("attendance_notes")
-  replacedByAssignmentId String? @map("replaced_by_assignment_id")
-  replacementReason    String   @default("") @map("replacement_reason")
-  replacedAt           DateTime? @map("replaced_at")
-  replacedBy           String?  @map("replaced_by")
-  doubleBookingWarning Boolean  @default(false) @map("double_booking_warning")
-  eventDate            DateTime? @map("event_date")
-  conflictEventId      String?  @map("conflict_event_id")
-  conflictEventName    String?  @map("conflict_event_name")
-  acknowledgedAt       DateTime? @map("acknowledged_at")
-  createdAt            DateTime @default(now()) @map("created_at")
+  id                     String    @id
+  eventId                String    @map("event_id")
+  coordinatorId          String?   @map("coordinator_id")
+  coordinatorName        String    @map("coordinator_name")
+  role                   String
+  status                 String    @default("pending_acknowledgement")
+  attendanceStatus       String    @default("pending") @map("attendance_status")
+  attendanceMarkedAt     DateTime? @map("attendance_marked_at")
+  attendanceNotes        String    @default("") @map("attendance_notes")
+  replacedByAssignmentId String?   @map("replaced_by_assignment_id")
+  replacementReason      String    @default("") @map("replacement_reason")
+  replacedAt             DateTime? @map("replaced_at")
+  replacedBy             String?   @map("replaced_by")
+  doubleBookingWarning   Boolean   @default(false) @map("double_booking_warning")
+  eventDate              DateTime? @map("event_date")
+  conflictEventId        String?   @map("conflict_event_id")
+  conflictEventName      String?   @map("conflict_event_name")
+  acknowledgedAt         DateTime? @map("acknowledged_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
 
-  event                OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  coordinator          OpsCoordinator? @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
-  reliabilityNotes     OpsCoordinatorReliabilityNote[]
+  event            OpsEvent                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  coordinator      OpsCoordinator?                 @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
+  reliabilityNotes OpsCoordinatorReliabilityNote[]
 
-  @@index([eventId, status], map: "ops_coordinator_assignments_event_id_status_idx")
-  @@index([coordinatorId, eventDate], map: "ops_coordinator_assignments_coordinator_id_event_date_idx")
-  @@index([eventId, attendanceStatus], map: "ops_coordinator_assignments_event_id_attendance_status_idx")
-  @@map("ops_coordinator_assignments")
+  @@index([eventId, status], map: "coordinator_assignments_event_id_status_idx")
+  @@index([coordinatorId, eventDate], map: "coordinator_assignments_coordinator_id_event_date_idx")
+  @@index([eventId, attendanceStatus], map: "coordinator_assignments_event_id_attendance_status_idx")
+  @@map("coordinator_assignments")
+  @@schema("staffing_ops")
 }
 
 model OpsEventDayTask {
-  id           String   @id
-  eventId      String   @map("event_id")
-  title        String
-  assignedRole String   @default("General Coordinator") @map("assigned_role")
-  ownerName    String   @default("") @map("owner_name")
-  priority     String   @default("normal")
-  status       String   @default("open")
-  notes        String   @default("")
-  dueAt        DateTime? @map("due_at")
-  slaDueAt     DateTime? @map("sla_due_at")
-  slaStatus    String   @default("on_track") @map("sla_status")
-  escalationLevel String @default("none") @map("escalation_level")
-  escalatedAt  DateTime? @map("escalated_at")
-  escalatedBy  String?  @map("escalated_by")
-  escalationNotes String @default("") @map("escalation_notes")
-  completedAt  DateTime? @map("completed_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+  id              String    @id
+  eventId         String    @map("event_id")
+  title           String
+  assignedRole    String    @default("General Coordinator") @map("assigned_role")
+  ownerName       String    @default("") @map("owner_name")
+  priority        String    @default("normal")
+  status          String    @default("open")
+  notes           String    @default("")
+  dueAt           DateTime? @map("due_at")
+  slaDueAt        DateTime? @map("sla_due_at")
+  slaStatus       String    @default("on_track") @map("sla_status")
+  escalationLevel String    @default("none") @map("escalation_level")
+  escalatedAt     DateTime? @map("escalated_at")
+  escalatedBy     String?   @map("escalated_by")
+  escalationNotes String    @default("") @map("escalation_notes")
+  completedAt     DateTime? @map("completed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event        OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, status], map: "ops_event_day_tasks_event_id_status_idx")
-  @@index([eventId, assignedRole], map: "ops_event_day_tasks_event_id_assigned_role_idx")
-  @@index([eventId, slaStatus], map: "ops_event_day_tasks_event_id_sla_status_idx")
-  @@map("ops_event_day_tasks")
+  @@index([eventId, status], map: "event_day_tasks_event_id_status_idx")
+  @@index([eventId, assignedRole], map: "event_day_tasks_event_id_assigned_role_idx")
+  @@index([eventId, slaStatus], map: "event_day_tasks_event_id_sla_status_idx")
+  @@map("event_day_tasks")
+  @@schema("staffing_ops")
 }
 
 model OpsUrgentIssue {
-  id          String   @id
-  eventId     String   @map("event_id")
-  title       String
-  description String   @default("")
-  severity    String   @default("medium")
-  status      String   @default("open")
-  ownerRole   String   @default("") @map("owner_role")
-  ownerName   String   @default("") @map("owner_name")
-  resolution  String   @default("")
-  openedBy    String   @default("PMCM Admin") @map("opened_by")
-  slaDueAt     DateTime? @map("sla_due_at")
-  slaStatus    String   @default("on_track") @map("sla_status")
-  escalationLevel String @default("none") @map("escalation_level")
-  escalatedAt  DateTime? @map("escalated_at")
-  escalatedBy  String?  @map("escalated_by")
-  escalationNotes String @default("") @map("escalation_notes")
-  resolvedAt  DateTime? @map("resolved_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  id              String    @id
+  eventId         String    @map("event_id")
+  title           String
+  description     String    @default("")
+  severity        String    @default("medium")
+  status          String    @default("open")
+  ownerRole       String    @default("") @map("owner_role")
+  ownerName       String    @default("") @map("owner_name")
+  resolution      String    @default("")
+  openedBy        String    @default("PMCM Admin") @map("opened_by")
+  slaDueAt        DateTime? @map("sla_due_at")
+  slaStatus       String    @default("on_track") @map("sla_status")
+  escalationLevel String    @default("none") @map("escalation_level")
+  escalatedAt     DateTime? @map("escalated_at")
+  escalatedBy     String?   @map("escalated_by")
+  escalationNotes String    @default("") @map("escalation_notes")
+  resolvedAt      DateTime? @map("resolved_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event       OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, status], map: "ops_urgent_issues_event_id_status_idx")
-  @@index([eventId, severity], map: "ops_urgent_issues_event_id_severity_idx")
-  @@index([eventId, slaStatus], map: "ops_urgent_issues_event_id_sla_status_idx")
-  @@map("ops_urgent_issues")
+  @@index([eventId, status], map: "urgent_issues_event_id_status_idx")
+  @@index([eventId, severity], map: "urgent_issues_event_id_severity_idx")
+  @@index([eventId, slaStatus], map: "urgent_issues_event_id_sla_status_idx")
+  @@map("urgent_issues")
+  @@schema("staffing_ops")
 }
 
 model OpsEventDayLog {
@@ -622,11 +650,12 @@ model OpsEventDayLog {
   metadata    Json     @default("{}")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  event       OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, createdAt], map: "ops_event_day_logs_event_id_created_at_idx")
-  @@index([eventId, actionType], map: "ops_event_day_logs_event_id_action_type_idx")
-  @@map("ops_event_day_logs")
+  @@index([eventId, createdAt], map: "event_day_logs_event_id_created_at_idx")
+  @@index([eventId, actionType], map: "event_day_logs_event_id_action_type_idx")
+  @@map("event_day_logs")
+  @@schema("staffing_ops")
 }
 
 model OpsCoordinatorReliabilityNote {
@@ -638,13 +667,15 @@ model OpsCoordinatorReliabilityNote {
   severity      String   @default("warning")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  event         OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  coordinator   OpsCoordinator? @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
-  assignment    OpsCoordinatorAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  event       OpsEvent?                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  coordinator OpsCoordinator?           @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
+  assignment  OpsCoordinatorAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
 
-  @@index([eventId, createdAt], map: "ops_coord_reliability_notes_event_id_created_at_idx")
-  @@index([coordinatorId, createdAt], map: "ops_coord_reliability_notes_coordinator_id_created_at_idx")
-  @@map("ops_coordinator_reliability_notes")
+  @@index([eventId, createdAt], map: "coordinator_reliability_notes_event_id_created_at_idx")
+  @@index([coordinatorId, createdAt], map: "coordinator_reliability_notes_coordinator_id_created_at_idx")
+  @@index([assignmentId], map: "coordinator_reliability_notes_assignment_id_idx")
+  @@map("coordinator_reliability_notes")
+  @@schema("staffing_ops")
 }
 
 model OpsComplianceRule {
@@ -661,92 +692,96 @@ model OpsComplianceRule {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
-  event        OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  checks       OpsComplianceCheck[]
+  event  OpsEvent?            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checks OpsComplianceCheck[]
 
-  @@index([active, phase], map: "ops_compliance_rules_active_phase_idx")
-  @@index([eventType, phase], map: "ops_compliance_rules_event_type_phase_idx")
-  @@index([eventId], map: "ops_compliance_rules_event_id_idx")
-  @@map("ops_compliance_rules")
+  @@index([active, phase], map: "compliance_rules_active_phase_idx")
+  @@index([eventType, phase], map: "compliance_rules_event_type_phase_idx")
+  @@index([eventId], map: "compliance_rules_event_id_idx")
+  @@map("compliance_rules")
+  @@schema("compliance_ops")
 }
 
 model OpsComplianceCheck {
-  id             String   @id
-  eventId        String   @map("event_id")
-  ruleId         String?  @map("rule_id")
+  id             String    @id
+  eventId        String    @map("event_id")
+  ruleId         String?   @map("rule_id")
   layer          String
-  severity       String   @default("must_fix")
-  phase          String   @default("planning")
-  conditionKey   String   @default("") @map("condition_key")
+  severity       String    @default("must_fix")
+  phase          String    @default("planning")
+  conditionKey   String    @default("") @map("condition_key")
   title          String
-  status         String   @default("open")
-  note           String   @default("")
+  status         String    @default("open")
+  note           String    @default("")
   resolvedAt     DateTime? @map("resolved_at")
-  resolvedBy     String?  @map("resolved_by")
-  overrideReason String?  @map("override_reason")
+  resolvedBy     String?   @map("resolved_by")
+  overrideReason String?   @map("override_reason")
   overrideAt     DateTime? @map("override_at")
-  overrideBy     String?  @map("override_by")
-  createdAt      DateTime @default(now()) @map("created_at")
+  overrideBy     String?   @map("override_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
-  event          OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  rule           OpsComplianceRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  event OpsEvent           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  rule  OpsComplianceRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
 
-  @@index([eventId, status], map: "ops_compliance_checks_event_id_status_idx")
-  @@index([ruleId], map: "ops_compliance_checks_rule_id_idx")
-  @@index([phase, severity], map: "ops_compliance_checks_phase_severity_idx")
-  @@map("ops_compliance_checks")
+  @@index([eventId, status], map: "compliance_checks_event_id_status_idx")
+  @@index([ruleId], map: "compliance_checks_rule_id_idx")
+  @@index([phase, severity], map: "compliance_checks_phase_severity_idx")
+  @@map("compliance_checks")
+  @@schema("compliance_ops")
 }
 
 model OpsBillingSource {
-  id               String   @id
-  eventId          String   @map("event_id")
-  sourceType       String   @default("ce_proposal") @map("source_type")
-  sourceLabel      String   @map("source_label")
-  sourceDocumentId String?  @map("source_document_id")
-  lineItems        Json     @default("[]") @map("line_items")
-  paymentSchedule  Json     @default("[]") @map("payment_schedule")
-  paymentMethods   Json     @default("[]") @map("payment_methods")
-  totalAmount      Int      @map("total_amount")
-  status           String   @default("draft")
+  id               String    @id
+  eventId          String    @map("event_id")
+  sourceType       String    @default("ce_proposal") @map("source_type")
+  sourceLabel      String    @map("source_label")
+  sourceDocumentId String?   @map("source_document_id")
+  lineItems        Json      @default("[]") @map("line_items")
+  paymentSchedule  Json      @default("[]") @map("payment_schedule")
+  paymentMethods   Json      @default("[]") @map("payment_methods")
+  totalAmount      Int       @map("total_amount")
+  status           String    @default("draft")
   approvedAt       DateTime? @map("approved_at")
-  approvedBy       String?  @map("approved_by")
-  approvalNotes    String   @default("") @map("approval_notes")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  approvedBy       String?   @map("approved_by")
+  approvalNotes    String    @default("") @map("approval_notes")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
-  event             OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event             OpsEvent              @relation(fields: [eventId], references: [id], onDelete: Cascade)
   billingStatements OpsBillingStatement[]
 
-  @@index([eventId, status], map: "ops_billing_sources_event_id_status_idx")
-  @@map("ops_billing_sources")
+  @@index([eventId, status], map: "billing_sources_event_id_status_idx")
+  @@map("billing_sources")
+  @@schema("finance_ops")
 }
 
 model OpsBillingStatement {
-  id              String   @id
-  eventId         String   @map("event_id")
-  sourceId        String?  @map("source_id")
-  number          String   @unique
-  clientName      String   @default("") @map("client_name")
-  clientContact   String   @default("") @map("client_contact")
-  eventName       String   @default("") @map("event_name")
+  id              String    @id
+  eventId         String    @map("event_id")
+  sourceId        String?   @map("source_id")
+  number          String    @unique(map: "billing_statements_number_key")
+  clientName      String    @default("") @map("client_name")
+  clientContact   String    @default("") @map("client_contact")
+  eventName       String    @default("") @map("event_name")
   eventDate       DateTime? @map("event_date")
-  lineItems       Json     @default("[]") @map("line_items")
-  paymentSchedule Json     @default("[]") @map("payment_schedule")
-  paymentMethods  Json     @default("[]") @map("payment_methods")
-  totalAmount     Int      @map("total_amount")
-  documentId      String?  @map("document_id")
-  pdfUrl          String   @default("") @map("pdf_url")
-  storageKey      String   @default("") @map("storage_key")
-  status          String   @default("issued")
+  lineItems       Json      @default("[]") @map("line_items")
+  paymentSchedule Json      @default("[]") @map("payment_schedule")
+  paymentMethods  Json      @default("[]") @map("payment_methods")
+  totalAmount     Int       @map("total_amount")
+  documentId      String?   @map("document_id")
+  pdfUrl          String    @default("") @map("pdf_url")
+  storageKey      String    @default("") @map("storage_key")
+  status          String    @default("issued")
   sentAt          DateTime? @map("sent_at")
-  generatedAt     DateTime @default(now()) @map("generated_at")
+  generatedAt     DateTime  @default(now()) @map("generated_at")
 
-  event       OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  source      OpsBillingSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  event  OpsEvent          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  source OpsBillingSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
-  @@index([eventId, generatedAt], map: "ops_billing_statements_event_id_generated_at_idx")
-  @@index([sourceId], map: "ops_billing_statements_source_id_idx")
-  @@map("ops_billing_statements")
+  @@index([eventId, generatedAt], map: "billing_statements_event_id_generated_at_idx")
+  @@index([sourceId], map: "billing_statements_source_id_idx")
+  @@map("billing_statements")
+  @@schema("finance_ops")
 }
 
 model OpsPaymentMilestone {
@@ -761,11 +796,12 @@ model OpsPaymentMilestone {
   status           String   @default("pending")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  event     OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  records   OpsPaymentRecord[]
+  event   OpsEvent           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  records OpsPaymentRecord[]
 
-  @@index([eventId, status], map: "ops_payment_milestones_event_id_status_idx")
-  @@map("ops_payment_milestones")
+  @@index([eventId, status], map: "payment_milestones_event_id_status_idx")
+  @@map("payment_milestones")
+  @@schema("finance_ops")
 }
 
 model OpsPaymentRecord {
@@ -778,12 +814,13 @@ model OpsPaymentRecord {
   referenceNumber String   @default("") @map("reference_number")
   recordedAt      DateTime @default(now()) @map("recorded_at")
 
-  event      OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  milestone  OpsPaymentMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  event     OpsEvent            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  milestone OpsPaymentMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, recordedAt], map: "ops_payment_records_event_id_recorded_at_idx")
-  @@index([milestoneId, recordedAt], map: "ops_payment_records_milestone_id_recorded_at_idx")
-  @@map("ops_payment_records")
+  @@index([eventId, recordedAt], map: "payment_records_event_id_recorded_at_idx")
+  @@index([milestoneId, recordedAt], map: "payment_records_milestone_id_recorded_at_idx")
+  @@map("payment_records")
+  @@schema("finance_ops")
 }
 
 model OpsPostEventDocument {
@@ -792,15 +829,16 @@ model OpsPostEventDocument {
   title   String
   status  String @default("pending")
 
-  event   OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, status], map: "ops_post_event_documents_event_id_status_idx")
-  @@map("ops_post_event_documents")
+  @@index([eventId, status], map: "post_event_documents_event_id_status_idx")
+  @@map("post_event_documents")
+  @@schema("compliance_ops")
 }
 
 model OpsEventInsight {
   id               String   @id
-  eventId          String   @unique @map("event_id")
+  eventId          String   @unique(map: "event_insights_event_id_key") @map("event_id")
   summary          String
   highlights       Json     @default("[]")
   risks            Json     @default("[]")
@@ -812,10 +850,11 @@ model OpsEventInsight {
   generatedAt      DateTime @default(now()) @map("generated_at")
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
-  event            OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([generatedAt], map: "ops_event_insights_generated_at_idx")
-  @@map("ops_event_insights")
+  @@index([generatedAt], map: "event_insights_generated_at_idx")
+  @@map("event_insights")
+  @@schema("compliance_ops")
 }
 
 model OpsAuditLog {
@@ -838,77 +877,81 @@ model OpsAuditLog {
   previousHash  String?  @map("previous_hash")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  event     OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, createdAt], map: "ops_audit_logs_event_id_created_at_idx")
-  @@index([actor, createdAt], map: "ops_audit_logs_actor_created_at_idx")
-  @@index([category, createdAt], map: "ops_audit_logs_category_created_at_idx")
-  @@index([actionType, createdAt], map: "ops_audit_logs_action_type_created_at_idx")
-  @@index([severity, createdAt], map: "ops_audit_logs_severity_created_at_idx")
-  @@map("ops_audit_logs")
+  @@index([eventId, createdAt], map: "audit_logs_event_id_created_at_idx")
+  @@index([actor, createdAt], map: "audit_logs_actor_created_at_idx")
+  @@index([category, createdAt], map: "audit_logs_category_created_at_idx")
+  @@index([actionType, createdAt], map: "audit_logs_action_type_created_at_idx")
+  @@index([severity, createdAt], map: "audit_logs_severity_created_at_idx")
+  @@map("audit_logs")
+  @@schema("trust_ops")
 }
 
 model OpsNotificationLog {
-  id             String   @id
-  eventId        String?  @map("event_id")
+  id             String    @id
+  eventId        String?   @map("event_id")
   channel        String
   recipient      String
   message        String
-  status         String   @default("queued")
-  attempts       Int      @default(0)
-  correlationId  String?  @map("correlation_id")
-  failureReason  String?  @map("failure_reason")
+  status         String    @default("queued")
+  attempts       Int       @default(0)
+  correlationId  String?   @map("correlation_id")
+  failureReason  String?   @map("failure_reason")
   sentAt         DateTime? @map("sent_at")
   failedAt       DateTime? @map("failed_at")
   acknowledgedAt DateTime? @map("acknowledged_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
-  event     OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, createdAt], map: "ops_notification_logs_event_id_created_at_idx")
-  @@index([status, createdAt], map: "ops_notification_logs_status_created_at_idx")
-  @@index([correlationId], map: "ops_notification_logs_correlation_id_idx")
-  @@map("ops_notification_logs")
+  @@index([eventId, createdAt], map: "notification_logs_event_id_created_at_idx")
+  @@index([status, createdAt], map: "notification_logs_status_created_at_idx")
+  @@index([correlationId], map: "notification_logs_correlation_id_idx")
+  @@map("notification_logs")
+  @@schema("trust_ops")
 }
 
 model OpsGuestCheckIn {
-  id                 String   @id
-  eventId            String   @map("event_id")
-  guestName          String   @map("guest_name")
-  checkInMode        String   @default("name_search") @map("check_in_mode")
-  status             String   @default("checked_in")
-  walkIn             Boolean  @default(false) @map("walk_in")
-  verificationStatus String   @default("verified") @map("verification_status")
-  privacyConsentAccepted Boolean @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion String @default("") @map("privacy_notice_version")
-  marketingConsentAccepted Boolean @default(false) @map("marketing_consent_accepted")
-  checkedInAt        DateTime @default(now()) @map("checked_in_at")
+  id                       String   @id
+  eventId                  String   @map("event_id")
+  guestName                String   @map("guest_name")
+  checkInMode              String   @default("name_search") @map("check_in_mode")
+  status                   String   @default("checked_in")
+  walkIn                   Boolean  @default(false) @map("walk_in")
+  verificationStatus       String   @default("verified") @map("verification_status")
+  privacyConsentAccepted   Boolean  @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion     String   @default("") @map("privacy_notice_version")
+  marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
+  checkedInAt              DateTime @default(now()) @map("checked_in_at")
 
-  event              OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, checkedInAt], map: "ops_guest_check_ins_event_id_checked_in_at_idx")
-  @@index([eventId, guestName], map: "ops_guest_check_ins_event_id_guest_name_idx")
-  @@map("ops_guest_check_ins")
+  @@index([eventId, checkedInAt], map: "check_ins_event_id_checked_in_at_idx")
+  @@index([eventId, guestName], map: "check_ins_event_id_guest_name_idx")
+  @@map("check_ins")
+  @@schema("guest_ops")
 }
 
 model OpsGuestFeedback {
-  id               String   @id
-  eventId          String   @map("event_id")
-  guestName        String   @map("guest_name")
-  rating           Int
-  comment          String   @default("")
-  photoFileName    String?  @map("photo_file_name")
-  videoFileName    String?  @map("video_file_name")
-  privacyConsentAccepted Boolean @default(false) @map("privacy_consent_accepted")
-  privacyNoticeVersion String @default("") @map("privacy_notice_version")
-  marketingConsentAccepted Boolean @default(false) @map("marketing_consent_accepted")
-  moderationStatus String   @default("pending_review") @map("moderation_status")
-  submittedAt      DateTime @default(now()) @map("submitted_at")
+  id                       String   @id
+  eventId                  String   @map("event_id")
+  guestName                String   @map("guest_name")
+  rating                   Int
+  comment                  String   @default("")
+  photoFileName            String?  @map("photo_file_name")
+  videoFileName            String?  @map("video_file_name")
+  privacyConsentAccepted   Boolean  @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion     String   @default("") @map("privacy_notice_version")
+  marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
+  moderationStatus         String   @default("pending_review") @map("moderation_status")
+  submittedAt              DateTime @default(now()) @map("submitted_at")
 
-  event            OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([eventId, moderationStatus], map: "ops_guest_feedback_event_id_moderation_status_idx")
-  @@map("ops_guest_feedback")
+  @@index([eventId, moderationStatus], map: "feedback_event_id_moderation_status_idx")
+  @@map("feedback")
+  @@schema("guest_ops")
 }
 
 model OpsAiAuditLog {
@@ -924,30 +967,34 @@ model OpsAiAuditLog {
   status                String   @default("blocked")
   createdAt             DateTime @default(now()) @map("created_at")
 
-  event                 OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([featureName, createdAt], map: "ops_ai_audit_logs_feature_name_created_at_idx")
-  @@index([status, createdAt], map: "ops_ai_audit_logs_status_created_at_idx")
-  @@map("ops_ai_audit_logs")
+  @@index([eventId], map: "ai_audit_logs_event_id_idx")
+  @@index([featureName, createdAt], map: "ai_audit_logs_feature_name_created_at_idx")
+  @@index([status, createdAt], map: "ai_audit_logs_status_created_at_idx")
+  @@map("ai_audit_logs")
+  @@schema("trust_ops")
 }
 
 model OpsAiApprovalRecord {
-  id            String   @id
-  aiAuditLogId  String   @map("ai_audit_log_id")
-  eventId       String?  @map("event_id")
-  featureName   String   @map("feature_name")
-  requestedBy   String   @default("PMCM Admin") @map("requested_by")
-  humanApproved Boolean  @default(false) @map("human_approved")
-  approvedBy    String?  @map("approved_by")
+  id            String    @id
+  aiAuditLogId  String    @map("ai_audit_log_id")
+  eventId       String?   @map("event_id")
+  featureName   String    @map("feature_name")
+  requestedBy   String    @default("PMCM Admin") @map("requested_by")
+  humanApproved Boolean   @default(false) @map("human_approved")
+  approvedBy    String?   @map("approved_by")
   approvedAt    DateTime? @map("approved_at")
-  status        String   @default("pending_human_approval")
-  requestedAt   DateTime @default(now()) @map("requested_at")
+  status        String    @default("pending_human_approval")
+  requestedAt   DateTime  @default(now()) @map("requested_at")
 
-  event         OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([aiAuditLogId], map: "ops_ai_approval_records_ai_audit_log_id_idx")
-  @@index([status, requestedAt], map: "ops_ai_approval_records_status_requested_at_idx")
-  @@map("ops_ai_approval_records")
+  @@index([aiAuditLogId], map: "ai_approval_records_ai_audit_log_id_idx")
+  @@index([eventId], map: "ai_approval_records_event_id_idx")
+  @@index([status, requestedAt], map: "ai_approval_records_status_requested_at_idx")
+  @@map("ai_approval_records")
+  @@schema("trust_ops")
 }
 
 model OpsLoginHistory {
@@ -962,32 +1009,34 @@ model OpsLoginHistory {
   failureReason String?  @map("failure_reason")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  user          OpsUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user OpsUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([userId, createdAt], map: "ops_login_history_user_id_created_at_idx")
-  @@index([email, createdAt], map: "ops_login_history_email_created_at_idx")
-  @@index([status, createdAt], map: "ops_login_history_status_created_at_idx")
-  @@map("ops_login_history")
+  @@index([userId, createdAt], map: "login_history_user_id_created_at_idx")
+  @@index([email, createdAt], map: "login_history_email_created_at_idx")
+  @@index([status, createdAt], map: "login_history_status_created_at_idx")
+  @@map("login_history")
+  @@schema("identity")
 }
 
 model OpsSecurityAlert {
-  id          String   @id
-  eventId     String?  @map("event_id")
+  id          String    @id
+  eventId     String?   @map("event_id")
   type        String
   title       String
   description String
-  severity    String   @default("warning")
-  status      String   @default("open")
-  triggeredBy String   @default("System") @map("triggered_by")
-  metadata    Json     @default("{}")
-  createdAt   DateTime @default(now()) @map("created_at")
+  severity    String    @default("warning")
+  status      String    @default("open")
+  triggeredBy String    @default("System") @map("triggered_by")
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
   resolvedAt  DateTime? @map("resolved_at")
 
-  event       OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@index([status, createdAt], map: "ops_security_alerts_status_created_at_idx")
-  @@index([type, createdAt], map: "ops_security_alerts_type_created_at_idx")
-  @@index([severity, createdAt], map: "ops_security_alerts_severity_created_at_idx")
-  @@map("ops_security_alerts")
+  @@index([eventId], map: "security_alerts_event_id_idx")
+  @@index([status, createdAt], map: "security_alerts_status_created_at_idx")
+  @@index([type, createdAt], map: "security_alerts_type_created_at_idx")
+  @@index([severity, createdAt], map: "security_alerts_severity_created_at_idx")
+  @@map("security_alerts")
+  @@schema("identity")
 }
-

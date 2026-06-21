@@ -227,6 +227,7 @@ export class SupplierNetworkWorkflowService {
       write: async () => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const [updated, event] = await Promise.all([
             tx.opsSupplierQuoteRequest.update({
               where: { id: request!.id },
@@ -381,9 +382,8 @@ export class SupplierNetworkWorkflowService {
           throw new BadRequestException('Unsupported supplier verification status');
         }
         verificationStatus = requestedStatus;
-        request = (await this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId } })).find(
-          (quoteRequest) => quoteRequest.id === requestId,
-        ) ?? null;
+        request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
+        if (request?.eventId !== eventId) request = null;
         if (!request) throw new NotFoundException('Supplier quote request not found');
         verifiedBy = input.verifiedBy?.trim() || actor.name;
       },

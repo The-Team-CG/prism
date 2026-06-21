@@ -942,12 +942,13 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'onboarding');
 
     const [inquiries, events, documents] = await Promise.all([
-      this.prisma.opsInquiry.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsInquiry.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
       this.prisma.opsEvent.findMany({
+        take: 500,
         include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
         orderBy: { eventDate: 'asc' },
       }),
-      this.prisma.opsDocument.findMany({ orderBy: { uploadedAt: 'desc' } }),
+      this.prisma.opsDocument.findMany({ take: 500, orderBy: { uploadedAt: 'desc' } }),
     ]);
 
     return {
@@ -2391,7 +2392,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    for (const inquiry of acceptedInquiries) {
+    for (const inquiry of acceptedInquiries) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: seed backfill only touches accepted inquiries missing onboarding dates.
       const event = await this.prisma.opsEvent.findFirst({ where: { inquiryId: inquiry.id } });
       const signedConforme = event
         ? await this.prisma.opsDocument.findFirst({

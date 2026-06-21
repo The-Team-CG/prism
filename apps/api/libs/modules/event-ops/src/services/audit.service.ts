@@ -123,6 +123,7 @@ export class AuditService {
 
   async verifyIntegrity() {
     const logs = await this.prisma.opsAuditLog.findMany({
+      // QUERY_AUDIT_ALLOW_UNBOUNDED: integrity verification must scan the full audit hash chain.
       orderBy: { createdAt: 'asc' },
     });
     let previousHash: string | null = null;

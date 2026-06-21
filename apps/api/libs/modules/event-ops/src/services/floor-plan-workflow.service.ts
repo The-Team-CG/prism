@@ -69,6 +69,7 @@ export class FloorPlanWorkflowService {
       write: async () => {
         if (!event) throw new NotFoundException('Event not found');
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await tx.floorPlan.create({
             data: {
               id: floorPlanId,
@@ -147,6 +148,7 @@ export class FloorPlanWorkflowService {
       write: async () => {
         if (!event) throw new NotFoundException('Event not found');
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await tx.floorPlan.create({
             data: {
               id: floorPlanId,
@@ -218,6 +220,7 @@ export class FloorPlanWorkflowService {
       eventId,
       write: () =>
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const saved = await tx.opsFloorPlanDraft.update({
             where: { id: draft.id },
             data: {
@@ -261,6 +264,7 @@ export class FloorPlanWorkflowService {
       eventId,
       write: () =>
         this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await tx.opsFloorPlanDraft.updateMany({
             where: { eventId, isActive: true },
             data: { isActive: false },
