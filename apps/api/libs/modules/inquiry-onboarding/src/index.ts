@@ -1,4 +1,7 @@
 export * from './inquiry-onboarding.module';
+export * from './controllers/inquiries.controller';
+export * from './dto/inquiry.dto';
+export * from './mappers/inquiry.mappers';
 export * from './ports/client-onboarding-commands.port';
 export * from './ports/inquiry-commands.port';
 export * from './ports/inquiry-onboarding.tokens';

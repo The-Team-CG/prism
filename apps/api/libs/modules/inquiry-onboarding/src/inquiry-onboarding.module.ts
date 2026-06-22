@@ -1,15 +1,18 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
+import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { CLIENT_ONBOARDING_COMMANDS, INQUIRY_COMMANDS } from './ports/inquiry-onboarding.tokens';
+import { OpsInquiriesController } from './controllers/inquiries.controller';
 import { ClientOnboardingWorkflowService } from './services/client-onboarding-workflow.service';
 import { InquiriesService } from './services/inquiries.service';
 import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule],
+  controllers: [OpsInquiriesController],
   providers: [
     InquiriesService,
     InquiryWorkflowService,
