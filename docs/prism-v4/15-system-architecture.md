@@ -64,11 +64,91 @@ flowchart LR
 
 | Layer | Current owner | Purpose |
 | --- | --- | --- |
-| Controllers | `apps/api/libs/modules/event-ops/src/controllers` | Stable HTTP routes for inquiry, events, PMCM dashboard, client workspace, supplier workspace, guest access, quote requests, billing, notifications, audit/privacy, auth, AI governance, and sample compatibility. |
-| Workflow services | `apps/api/libs/modules/event-ops/src/services` | Business logic for inquiry, onboarding, suppliers, coordinators, billing, compliance, lifecycle, closure, file matrix, live ops, privacy, notifications, audit, AI governance, and PARE foundations. |
-| Read models | Event-ops services plus shared DTOs | Actor-scoped payloads such as PMCM command inbox, selected event workspace, client action center, supplier readiness board, guest event pass, file requirements matrix, and close-gate matrix. |
+| Controllers | Capability modules plus `SampleController` in `sample-compatibility` | Stable HTTP routes live in owning modules. `sample-compatibility` registers only `/sample/*` demo/seed/reset routes; defense readiness is event-read-model-owned, supplier quote withdrawal and `/ai/pare/*` are supplier-owned, and PARE automation is AI-governance-owned. |
+| Workflow services | Capability modules plus `sample-compatibility` aggregate | Extracted capability modules own inquiry, commercial, supplier, staffing, finance, compliance, floorplan, file, guest, closure, read-model, trust, notification, identity, AI-governance, and live-ops behavior; `sample-compatibility` owns the public sample state/reset/seed aggregate until `/sample/*` retirement. |
+| Read models | `event-read-models` plus capability reader ports/query builders | Actor-scoped payloads such as PMCM command inbox, selected event workspace, client action center, supplier readiness board, guest event pass, file requirements matrix, and close-gate matrix. |
 | Persistence | `apps/api/prisma/schema.prisma` | Prisma models for floorplans, events, users, inquiries, documents, suppliers, coordinators, live ops, compliance, billing, closure, notifications, guests, AI audit/approval, login history, and security alerts. |
 | Compatibility seed state | `SampleStateService` and `/api/sample/state` | Seed/demo/reset support only. New normal surfaces should not depend on it as their main read path. |
+
+
+## Backend Modular Monolith Direction
+
+Anthony's active backend implementation plan is `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith.md`. It keeps one NestJS API and one Prisma client, but changes backend ownership from a centralized `event-ops` hub toward capability modules with explicit public ports, transaction semantics, and role-scoped read models.
+
+July execution is intentionally bounded. Through July 31, 2026, the default backend architecture scope is guardrails, dependency-injection foundation, and transaction/side-effect ports. Capability extraction beyond that requires a child plan that names the affected feature-ledger row, route/app/actor, contract, fallback state, forbidden-role test, route-smoke evidence, and docs updates.
+
+Target backend module ownership:
+
+| Module | Long-term ownership |
+| --- | --- |
+| `access-control` | Actor resolution, event-scope checks, role and mutation policies. |
+| `identity-ops` | Sample auth compatibility, account approval, actor mapping, and future external-auth adapter boundary. |
+| `trust-ops` | Audit, privacy operations, login/security evidence, and approved retention/legal-hold behavior. |
+| `notification-ops` | Notification outbox rows, retry metadata, template key validation, and send-intent records. |
+| `event-core` | Event identity, lifecycle invariants, core status transitions, and workflow command history. |
+| `inquiry-onboarding` | Public inquiry, accepted-inquiry gate, conforme path, and client onboarding workflow. |
+| `commercial-ops` | Briefing, proposal, package pricing, and conforme-ready commercial workflow. |
+| `supplier-ops` | Supplier assignments, quote/readiness workflow, supplier portal actions, supplier readiness reads, supplier quote-request withdrawal, and `/ai/pare/*` supplier emergency route ownership. |
+| `staffing-ops` | Coordinator staffing, task assignment, and internal staffing views. |
+| `finance-ops` | Billing, payments, invoices, adjustments, finance approval workflow, payment status reads, and correlation-aware finance audit metadata. |
+| `compliance-ops` | Compliance workflow, evidence status, and policy-gated event checks. |
+| `floorplan` | Official PMCM floorplan workflow and client layout preference/read-only views. |
+| `file-ops` | File requirement matrix, upload metadata, document requirement workflow, and signed URL preparation. |
+| `guest-ops` | Guest list, access-code scope, RSVP/check-in state, and guest portal payloads. |
+| `closure-ops` | Event closure, archive readiness, and post-event evidence assembled from public reader ports. |
+| `ai-governance` | AI policy, prompt/template records, review state, disabled-provider guardrails, and PARE automation/approval records. |
+| `event-read-models` | Role-scoped PMCM/client/supplier/guest payload composition with no writes. |
+| `sample-compatibility` | Owner for `/sample/*` demo/seed/reset routes while sample-state retirement remains deferred. |
+
+Target module folder shape:
+
+```txt
+apps/api/libs/modules/<capability>/
+  controllers/
+  dto/
+  mappers/
+  ports/
+  services/
+  <capability>.module.ts
+```
+
+Capability modules should own their own controllers, DTOs, mappers, ports, services, and tests. Cross-module access should use exported module providers or explicit token ports, not private `src/services` imports. `event-read-models` is the only normal cross-domain read composition module and remains read-only. `event-core` should stay narrow: shared lifecycle invariants, command execution, and transaction primitives only.
+
+Current `event-ops` end state:
+
+```txt
+apps/api/libs/modules/event-ops/  # deleted
+```
+
+`sample-compatibility` owns `/sample/state`, `/sample/reset`, and `/sample/seed`. Those endpoints intentionally aggregate demo/seed state across many capabilities, so they remain isolated from normal role-scoped product APIs. No app, package, script, or API config should import `@prism/modules/event-ops`, `event-ops/src`, `EventOpsModule`, `EventOpsService`, or `EVENT_OPS_CONTROLLERS`.
+
+
+Executable backend guardrails live in `scripts/check-prism-boundaries.mjs`. The checker now blocks future capability modules from importing other modules' private service internals, prevents capability modules from importing `event-ops`, fails any tracked file under `apps/api/libs/modules/event-ops`, prevents `event-read-models` from mutating Prisma state, and requires raw read-model queries to live in approved query-builder files with a query budget.
+Phase 3 infrastructure modules are now active: `event-core` owns workflow command execution and shared event-operation constants, `trust-ops` owns audit/privacy and `AUDIT_WRITER`, `notification-ops` owns notification outbox and `NOTIFICATION_OUTBOX_WRITER`, and `access-control` owns event access policy and `EVENT_ACCESS_POLICY`. `sample-compatibility` owns `/sample/*`; `event-ops` is deleted and must not regain public business route, background job, or cross-cutting provider ownership.
+
+Phase 4 supplier extraction is now partially active: `SupplierNetworkWorkflowService`, `SuppliersService`, the `SUPPLIER_DIRECTORY` provider, `SupplierProfileCommandsService`, and the supplier directory/read-write controllers live in `supplier-ops`, and `event-ops` keeps route compatibility through compatibility re-exports plus provider bindings for remaining supplier workflow dependencies. `supplier-ops` does not import `event-ops`; it owns supplier directory reads and supplier profile writes directly, consumes PARE through the public AI-governance-backed port, and consumes live-operations/document-vault behavior through public ports while those adjacent capabilities continue to harden.
+
+Phase 5 finance extraction is now active for command ownership: `BillingOperationsService` and its payment replay/status-reader tests live in `finance-ops`, and `FinanceOpsModule` owns the runtime provider plus `PAYMENT_STATUS_READER`. Billing read-model composition now lives in `event-read-models`, finance audit metadata carries actor correlation ids when provided, and Phase 13 moved event-scoped billing source, statement, and payment command routes into a finance-owned controller.
+
+Phase 6 file extraction is now active: `FileRequirementsMatrixService` and `DocumentVaultService` live in `file-ops`, `FileOpsModule` owns the runtime providers and public file tokens, and Phase 13 now registers the event file requirements route from `FileOpsModule`. Signed upload URLs remain disabled through `MetadataOnlySignedUploadUrlFactory`; real object storage requires a separate approved storage plan.
+
+Phase 7A inquiry-onboarding extraction is now active: `InquiriesService`, `InquiryWorkflowService`, `ClientOnboardingWorkflowService`, and `InquiryConformeReminderScheduler` live in `inquiry-onboarding`, `InquiryOnboardingModule` owns the runtime providers and public inquiry/client-onboarding command tokens, and `event-ops` keeps only sample compatibility through old-path re-exports plus imported module providers. PMCM onboarding reads now live behind `InquiryWorkflowService.listOnboarding`, the route-level controller moved in Phase 13, and the production conforme reminder interval is no longer started by `EventOpsService`.
+
+Phase 7B commercial extraction is now active: `CommercialWorkflowService` lives in `commercial-ops`, `CommercialOpsModule` owns quote workflow command/read tokens, and a local `PrismaQuoteSupplierResolver` keeps manual quote supplier resolution out of `event-ops`. `event-ops` keeps route compatibility through an old-path re-export and imported module provider, while Phase 13 now registers PMCM quote request creation, manual quote detail capture, and quote selection routes from `CommercialOpsModule` with PMCM/system actor scope.
+
+Phase 7C compliance extraction is now active: `ComplianceWorkflowService` lives in `compliance-ops`, `ComplianceOpsModule` owns compliance command/read tokens, and the workflow uses public `event-core`, `access-control`, and `trust-ops` providers. Audit persistence remains in `trust-ops`; `event-ops` keeps route compatibility through an old-path re-export and imported module provider.
+
+Phase 8 floorplan extraction is now active: `FloorPlanWorkflowService` lives in `floorplan`, `FloorplanModule` owns floorplan command/read tokens, and the workflow uses public `event-core`, `trust-ops`, and `notification-ops` providers. `event-ops` keeps route compatibility and actor-policy checks, while the persisted canvas/editor shape remains `floorPlan`, `floorPlanObject`, and `opsFloorPlanDraft`.
+
+Phase 9 guest extraction is now active: `GuestWorkflowService` lives in `guest-ops`, `GuestOpsModule` owns `GUEST_COMMANDS` and `GUEST_READER`, and guest access-code resolution, check-in writes, feedback writes, attendance reads, and guest payload mapping now sit behind public guest ports. `event-ops` keeps public guest route compatibility, privacy/readiness/live-ops facade methods delegate guest reads through the guest service, and the selected PMCM event workspace consumes the `GUEST_READER` port for attendance and feedback payloads.
+
+Phase 10 staffing extraction is now active: `CoordinatorsService` lives in `staffing-ops`, `StaffingOpsModule` owns `STAFFING_COMMANDS` and `STAFFING_READER`, and coordinator directory reads, assignment commands, acknowledgement commands, event assignment reads, and coordinator actor assignment resolution now sit behind the staffing module. `event-ops` keeps route compatibility and delegates coordinator workspace reads through `CoordinatorsService`; event-day tasks, urgent issues, attendance, replacement, and status feed behavior remain in live operations until a later live-ops owner extraction; Phase 13 now registers event-scoped coordinator assignment and acknowledgement routes from `StaffingOpsModule`.
+
+Phase 11 event-read-models extraction is now active: `EventReadModelsService` lives in `event-read-models`, `EventReadModelsModule` owns PMCM/client/supplier/billing read-model provider tokens, read-model mapper factories live under `event-read-models/src/mappers`, and cross-domain dashboard reads now run through read-only query builders with explicit query-budget comments plus query-budget regression tests. The module imports public access-control, guest, staffing, and closure readiness ports; `event-ops` keeps route compatibility through a re-export and controller facade methods until controller ownership moves in Phase 13.
+
+Phase 12 closure-ops extraction is now active: `EventClosureService` lives in `closure-ops`, `ClosureOpsModule` owns `CLOSURE_COMMANDS` and `CLOSURE_READINESS_READER`, and `EventLifecycleService` now lives in `event-core` as a narrow lifecycle invariant service. Archive commands require PMCM/system actor scope before writes, and Phase 13 now registers closure/archive event routes from `ClosureOpsModule`.
+
+Phase 13 controller ownership migration has started: the public guest controller is now registered by `GuestOpsModule` and calls `GuestWorkflowService` directly while keeping `/guest/events/:accessCode`, `/guest/events/:accessCode/check-ins`, and `/guest/events/:accessCode/feedback` stable. Supplier quote-token routes are now registered by `CommercialOpsModule` and call `CommercialWorkflowService` directly while keeping `/quote-requests/:token`, `/quote-requests/:token/quote`, and supplier-facing response filtering stable. Event commercial quote command routes are also registered by `CommercialOpsModule` and call `CommercialWorkflowService` directly for `/events/:eventId/supplier-quotes`, `/events/:eventId/quote-requests`, and `/events/:eventId/supplier-quotes/:quoteId/select` with PMCM/system route policy. Inquiry routes and event briefing submission are now registered by `InquiryOnboardingModule` and call `InquiryWorkflowService` / `ClientOnboardingWorkflowService` directly while keeping public inquiry, PMCM log-on-behalf, status, reminder, conforme upload, and briefing route contracts stable. Billing workspace reads are now registered by `EventReadModelsModule` and call `EventReadModelsService.billing` directly while composing billing mappers from `finance-ops`. Notification acknowledgement is now registered by `NotificationOpsModule` and calls `NotificationOutboxService.acknowledge` directly. Client workspace and action-center reads are now registered by `EventReadModelsModule` and call `EventReadModelsService.clientWorkspace` / `clientActionCenter` directly. Coordinator directory reads are now registered by `StaffingOpsModule` and call `CoordinatorsService.listCoordinators` directly. Onboarding reads are now registered by `InquiryOnboardingModule` and call `InquiryWorkflowService.listOnboarding` directly. Audit and privacy routes are now registered by `TrustOpsModule` and call `AuditService` / `PrivacyOperationsService` directly, including privacy inventory composition. The PMCM command-inbox, dashboard, event-workspace, and event list/detail reads are now registered by `EventReadModelsModule` and call `EventReadModelsService` directly with event-read-model-owned mappers. Auth routes are now registered by `IdentityOpsModule` and call `AuthOperationsService` directly while old auth service/controller paths remain compatibility re-exports. AI governance dry-run is now registered by `AiGovernanceModule` and calls `AiGovernanceService` directly, and PARE automation now lives under `AiGovernanceModule` while the `/ai/pare/*` routes are registered by `SupplierOpsModule`. Supplier directory reads, supplier profile write routes, supplier quote-request withdrawal, and supplier portal assignment/readiness/contract command routes are now registered by `SupplierOpsModule` and call supplier-owned services directly, while supplier workspace/readiness-board reads are now registered by `EventReadModelsModule`. `/ai/pare/*` routes are now registered by `SupplierOpsModule` through `OpsSupplierPareController`, delegate to `SupplierNetworkWorkflowService`, and consume `PAREService` from `AiGovernanceModule` through the public `SUPPLIER_PARE_AUTOMATION` port. Compliance rule routes and event-scoped compliance execution/resolution routes are now registered by `ComplianceOpsModule`. Event floorplan routes are now registered by `FloorplanModule` and call `FloorPlanWorkflowService` directly with route-local policy checks. Event billing command routes are now registered by `FinanceOpsModule` and call `BillingOperationsService` directly with PMCM/system route policy. Closure/archive routes are now registered by `ClosureOpsModule` and call `EventClosureService` directly for close gates, post-event document completion, archive, and insights while using public guest/floorplan reader ports for response mapping. Event file requirements are now registered by `FileOpsModule` and call `FileRequirementsMatrixService` directly with access-control policy and role-visible item filtering. Coordinator workspace reads are now registered by `StaffingOpsModule`. `LiveOpsModule` now registers event-day live-ops reads, status feed, event-day task commands, urgent-issue commands, coordinator attendance/replacement, coordinator event role-view, PMCM supplier setup verification, and supplier self-reported event-day status while preserving the existing `/events`, `/coordinator`, and `/supplier` route paths. Defense readiness is now registered by `EventReadModelsModule` as a PMCM/system-only read model. `/sample/*` compatibility routes now live in `sample-compatibility`; the `event-ops` controller registry and module have been deleted.
 
 ## Data Domains
 
@@ -143,7 +223,7 @@ The live schema, naming, and FK-index audits must run only against a database th
 | Database | Prisma-backed Postgres path exists. Domain-schema separation is implemented through Prisma multi-schema mapping, schema/table/index/constraint migrations, and audit scripts; the shared Supabase target was backed up, migrated, and verified with live schema, naming, FK-index, and migration-status audits during the 2026-06-22 DB migration review. Free-tier Supabase pooler use requires the documented runtime guard and should not be treated as a production direct connection substitute. |
 | File storage | Metadata and file requirements matrix exist. Real storage, signed URLs, upload progress, retry, download/delete audit, and adapter tests remain gated. |
 | Notifications | Queue/retry/acknowledgement model exists. Production SendGrid/Viber adapters remain gated. |
-| AI | Data sanitizer, audit, approval, and PARE foundation exist. Live AI calls and autonomous AI actions remain gated by ZDR/provider approval and PMCM human approval. |
+| AI | Data sanitizer, audit, approval, and AI-governance-owned PARE foundation exist. Live AI calls and autonomous AI actions remain gated by ZDR/provider approval and PMCM human approval. |
 | QR/camera | Guest access-code path exists. QR/camera scanning remains gated by HTTPS/device constraints and masterlist reconciliation. |
 
 ## Architecture Verification
@@ -153,7 +233,7 @@ The live schema, naming, and FK-index audits must run only against a database th
 | App/package boundaries | `npm run check:boundaries` |
 | Root type safety | `npm run typecheck` |
 | Root build | `npm run build` |
-| API event-ops tests | `npm --workspace prism-api run test:event-ops` |
+| API sample compatibility tests | `npm --workspace prism-api run test -- libs/modules/sample-compatibility/src/controllers/controller-routes.test.ts libs/modules/sample-compatibility/src/services/sample-compatibility.service.test.ts` |
 | API Prisma schema | `npm --workspace prism-api run prisma:validate` |
 | UI smoke | `npm run smoke:ui` |
 | Documentation consistency | `git diff --check` plus index/manifest updates |

@@ -1,0 +1,49 @@
+import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+
+export class ClosureActorDto {
+  @IsOptional()
+  @IsString()
+  actorId?: string;
+
+  @IsOptional()
+  @IsIn(['pmcm-admin', 'client', 'supplier', 'coordinator', 'guest', 'system', 'unknown'])
+  actorRole?: string;
+
+  @IsOptional()
+  @IsEmail()
+  actorEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  actorName?: string;
+
+  @IsOptional()
+  @IsString()
+  clientName?: string;
+
+  @IsOptional()
+  @IsString()
+  supplierId?: string;
+
+  @IsOptional()
+  @IsString()
+  coordinatorId?: string;
+
+  @IsOptional()
+  @IsString()
+  eventId?: string;
+
+  @IsOptional()
+  @IsString()
+  accessCode?: string;
+}
+
+export class ArchiveEventDto {
+  @IsOptional()
+  @IsString()
+  overrideReason?: string;
+
+  @IsOptional()
+  @IsString()
+  actorName?: string;
+}

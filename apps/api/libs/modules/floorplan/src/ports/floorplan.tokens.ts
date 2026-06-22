@@ -1,0 +1,2 @@
+export const FLOORPLAN_COMMANDS = Symbol('FLOORPLAN_COMMANDS');
+export const FLOORPLAN_READER = Symbol('FLOORPLAN_READER');

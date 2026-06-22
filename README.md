@@ -62,6 +62,34 @@ Individual app defaults:
 | Guest portal | `http://localhost:3003` |
 | Event command | `http://localhost:3004` |
 
+### Docker Local Stack
+
+For an isolated production-style local run, copy the Docker env example and provide the same database URL values used by the API:
+
+```bash
+cp .env.docker.example .env.docker
+docker compose -f compose.local.yml up --build
+```
+
+The compose stack exposes the same ports as the local scripts:
+
+- API: `http://localhost:4000`
+- Client portal: `http://localhost:3001`
+- Supplier portal: `http://localhost:3002`
+- Guest portal: `http://localhost:3003`
+- Event command: `http://localhost:3004`
+
+Use this when you want to test the complete built system without relying on local `node_modules`. The API container reads `.env.docker`; the role apps default to `http://localhost:4000`.
+
+For Docker-based hot reload while editing code, use the dev compose file:
+
+```bash
+cp .env.docker.example .env.docker
+docker compose -f compose.dev.yml up --build
+```
+
+`compose.dev.yml` uses the same `Dockerfile` with the `dev` target, bind-mounts the repository, keeps Linux `node_modules` in named volumes, and runs the API/Next dev servers with file watching enabled.
+
 ## Product Boundaries
 
 - Public pages are landing and inquiry only.

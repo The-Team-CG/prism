@@ -120,6 +120,22 @@ flowchart TD
 | AI | Provider, ZDR agreement, prompt/data policy, sanitizer proof, approval workflow, audit retention, failure mode, no-autonomous-action rule. |
 | QR/camera | HTTPS plan, device support, fallback code path, masterlist reconciliation, privacy/consent language, route tests. |
 
+
+## Future Backend Modular Monolith Target
+
+The post-July backend target is a modular monolith, not microservices. `apps/api` remains the single shared NestJS API, and Prisma remains the shared data-access layer, but workflow ownership moves out of the `event-ops` hub into capability modules with explicit public ports.
+
+Long-term backend completion requires these conditions:
+
+1. Capability modules own their writes and do not import each other's private services.
+2. `event-read-models` composes role-scoped PMCM, client, supplier, and guest payloads without mutating state.
+3. Audit, notification outbox, access policy, workflow command history, and transaction semantics are injected through stable ports.
+4. `event-core` remains narrow: event identity, lifecycle invariants, status transitions, and command history only.
+5. `closure-ops` assembles closure/archive readiness from public reader ports rather than pulling private services into a new hub.
+6. `event-ops` is retired or remains compatibility-only after routes move to owning modules.
+7. Every extraction has Owner D evidence: feature-ledger row, route/app/actor, contract touched, fallback state, forbidden-role test, query budget or command side-effect mode, route-smoke evidence, and docs updated.
+
+This target supports the July completion goal by making platform trust explicit while keeping broad extraction work out of July unless a child plan proves it is necessary and bounded.
 ## Future Evidence Packet
 
 By July 31, the completion packet should include:

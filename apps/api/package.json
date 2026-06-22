@@ -9,7 +9,7 @@
         "start": "node scripts/kill-prism-api-port.cjs && node dist/apps/api/apps/api/src/main.js",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "test": "vitest run",
-        "test:event-ops": "vitest run libs/modules/event-ops/src",
+        "test:sample-compatibility": "vitest run libs/modules/sample-compatibility/src",
         "prisma:validate": "prisma validate",
         "validate": "npm run prisma:validate && npm run typecheck && npm run build",
         "smoke": "node scripts/smoke-api.mjs",

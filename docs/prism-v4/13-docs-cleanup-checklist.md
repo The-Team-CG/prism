@@ -26,6 +26,7 @@ This checklist keeps the docs set small, current, and executable. It is the Phas
 | `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan, including explicit system goals for Owner A (Maxine), Owner B (Francis), Owner C (Ethan), and Owner D (Anthony). |
 | `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Active | Whole-system completion sprint calendar through July 31, 2026 with actionable work for Maxine, Francis, Ethan, and Anthony. |
 | `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` | Active companion | Current-vs-target feature audit, confidence gates, missing completion tasks, and catalog traceability check for the July completion calendar. |
+| `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith.md` | Active implementation plan | Anthony/Owner D backend modular-monolith path, July execution boundary, capability module contracts, and boundary-check guardrails. |
 
 ## Files To Keep
 

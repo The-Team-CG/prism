@@ -49,11 +49,11 @@
                                           "@prism/modules/events/*":  [
                                                                           "libs/modules/events/src/*"
                                                                       ],
-                                          "@prism/modules/event-ops":  [
-                                                                           "libs/modules/event-ops/src/index"
+                                          "@prism/modules/sample-compatibility":  [
+                                                                           "libs/modules/sample-compatibility/src/index"
                                                                        ],
-                                          "@prism/modules/event-ops/*":  [
-                                                                             "libs/modules/event-ops/src/*"
+                                          "@prism/modules/sample-compatibility/*":  [
+                                                                             "libs/modules/sample-compatibility/src/*"
                                                                          ],
                                           "@prism/modules/publishing":  [
                                                                             "libs/modules/publishing/src/index"
@@ -66,7 +66,115 @@
                                                                     ],
                                           "@prism/modules/health/*":  [
                                                                           "libs/modules/health/src/*"
-                                                                      ]
+                                                                      ],
+                                          "@prism/modules/event-read-models":  [
+                                                                                    "libs/modules/event-read-models/src/index"
+                                                                                ],
+                                          "@prism/modules/event-read-models/*":  [
+                                                                                      "libs/modules/event-read-models/src/*"
+                                                                                  ],
+                                          "@prism/modules/closure-ops":  [
+                                                                              "libs/modules/closure-ops/src/index"
+                                                                          ],
+                                          "@prism/modules/closure-ops/*":  [
+                                                                                "libs/modules/closure-ops/src/*"
+                                                                            ],
+                                          "@prism/modules/event-core":  [
+                                                                            "libs/modules/event-core/src/index"
+                                                                        ],
+                                          "@prism/modules/event-core/*":  [
+                                                                              "libs/modules/event-core/src/*"
+                                                                          ],
+                                          "@prism/modules/trust-ops":  [
+                                                                           "libs/modules/trust-ops/src/index"
+                                                                       ],
+                                          "@prism/modules/trust-ops/*":  [
+                                                                             "libs/modules/trust-ops/src/*"
+                                                                         ],
+                                          "@prism/modules/notification-ops":  [
+                                                                                  "libs/modules/notification-ops/src/index"
+                                                                              ],
+                                          "@prism/modules/notification-ops/*":  [
+                                                                                    "libs/modules/notification-ops/src/*"
+                                                                                ],
+                                          "@prism/modules/access-control":  [
+                                                                                "libs/modules/access-control/src/index"
+                                                                            ],
+                                          "@prism/modules/access-control/*":  [
+                                                                                  "libs/modules/access-control/src/*"
+                                                                              ],
+                                          "@prism/modules/ai-governance":  [
+                                                                                  "libs/modules/ai-governance/src/index"
+                                                                              ],
+                                          "@prism/modules/ai-governance/*":  [
+                                                                                    "libs/modules/ai-governance/src/*"
+                                                                                ],
+                                          "@prism/modules/supplier-ops":  [
+                                                                              "libs/modules/supplier-ops/src/index"
+                                                                          ],
+                                          "@prism/modules/supplier-ops/*":  [
+                                                                                "libs/modules/supplier-ops/src/*"
+                                                                            ],
+                                          "@prism/modules/finance-ops":  [
+                                                                             "libs/modules/finance-ops/src/index"
+                                                                         ],
+                                          "@prism/modules/finance-ops/*":  [
+                                                                               "libs/modules/finance-ops/src/*"
+                                                                           ],
+                                          "@prism/modules/file-ops":  [
+                                                                          "libs/modules/file-ops/src/index"
+                                                                      ],
+                                          "@prism/modules/file-ops/*":  [
+                                                                            "libs/modules/file-ops/src/*"
+                                                                        ],
+                                          "@prism/modules/inquiry-onboarding":  [
+                                                                                    "libs/modules/inquiry-onboarding/src/index"
+                                                                                ],
+                                          "@prism/modules/inquiry-onboarding/*":  [
+                                                                                      "libs/modules/inquiry-onboarding/src/*"
+                                                                                  ],
+                                          "@prism/modules/commercial-ops":  [
+                                                                                "libs/modules/commercial-ops/src/index"
+                                                                            ],
+                                          "@prism/modules/commercial-ops/*":  [
+                                                                                  "libs/modules/commercial-ops/src/*"
+                                                                              ],
+                                          "@prism/modules/compliance-ops":  [
+                                                                                "libs/modules/compliance-ops/src/index"
+                                                                            ],
+                                          "@prism/modules/compliance-ops/*":  [
+                                                                                  "libs/modules/compliance-ops/src/*"
+                                                                              ],
+                                          "@prism/modules/floorplan":  [
+                                                                            "libs/modules/floorplan/src/index"
+                                                                        ],
+                                          "@prism/modules/floorplan/*":  [
+                                                                              "libs/modules/floorplan/src/*"
+                                                                          ],
+                                          "@prism/modules/guest-ops":  [
+                                                                               "libs/modules/guest-ops/src/index"
+                                                                           ],
+                                          "@prism/modules/guest-ops/*":  [
+                                                                                 "libs/modules/guest-ops/src/*"
+                                                                             ],
+                                          "@prism/modules/identity-ops":  [
+                                                                                  "libs/modules/identity-ops/src/index"
+                                                                              ],
+                                          "@prism/modules/identity-ops/*":  [
+                                                                                    "libs/modules/identity-ops/src/*"
+                                                                                ],
+                                          "@prism/modules/staffing-ops":  [
+                                                                                 "libs/modules/staffing-ops/src/index"
+                                                                             ],
+                                          "@prism/modules/staffing-ops/*":  [
+                                                                                   "libs/modules/staffing-ops/src/*"
+                                                                               ],
+                                          "@prism/modules/live-ops":  [
+                                                                              "libs/modules/live-ops/src/index"
+                                                                          ],
+                                          "@prism/modules/live-ops/*":  [
+                                                                                "libs/modules/live-ops/src/*"
+                                                                            ]
                                       }
                         }
 }
