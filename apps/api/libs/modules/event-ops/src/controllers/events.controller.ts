@@ -21,7 +21,6 @@ import {
   ReplaceCoordinatorAssignmentDto,
   ReviewPrivacyRequestDto,
   SubmitSupplierQuoteDto,
-  SubmitBriefingDto,
   SupplierContractUploadDto,
   SupplierEventStatusDto,
   SupplierReadinessDto,
@@ -148,12 +147,6 @@ export class OpsEventsController {
     return this.eventOpsService.verifySupplierEventStatus(eventId, requestId, dto, actor);
   }
 
-
-  @Post(':eventId/briefing')
-  @HttpCode(HttpStatus.CREATED)
-  submitBriefing(@Param('eventId') eventId: string, @Body() dto: SubmitBriefingDto) {
-    return this.eventOpsService.submitBriefing(eventId, dto);
-  }
 
   @Patch(':eventId/quote-requests/:requestId/withdraw')
   withdrawSupplier(

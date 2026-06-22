@@ -1,4 +1,5 @@
 export * from './inquiry-onboarding.module';
+export * from './controllers/event-briefing.controller';
 export * from './controllers/inquiries.controller';
 export * from './dto/inquiry.dto';
 export * from './mappers/inquiry.mappers';

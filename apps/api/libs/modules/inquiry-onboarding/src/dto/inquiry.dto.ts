@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsOptional, IsString, Min } from 'class-validator';
 
 export class SampleActorDto {
   @IsOptional()
@@ -119,4 +119,23 @@ export class UploadConformeDto {
   @IsInt()
   @Min(0)
   sizeBytes?: number;
+}
+
+export class SubmitBriefingDto {
+  @IsString()
+  venue!: string;
+
+  @IsInt()
+  @Min(1)
+  guestCount!: number;
+
+  @IsString()
+  budgetRange!: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  serviceRequirements!: string[];
+
+  @IsString()
+  notes!: string;
 }

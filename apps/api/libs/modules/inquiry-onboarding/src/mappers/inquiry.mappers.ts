@@ -179,3 +179,23 @@ export function mapOnboardingEvent(event: EventWithDrafts) {
     floorPlanDrafts: floorPlanDrafts.map(mapOnboardingFloorPlanDraft),
   };
 }
+
+export function mapBriefing(briefing: {
+  eventId: string;
+  venue: string;
+  guestCount: number;
+  budgetRange: string;
+  serviceRequirements: unknown;
+  notes: string;
+  submittedAt: Date;
+}) {
+  return {
+    eventId: briefing.eventId,
+    venue: briefing.venue,
+    guestCount: briefing.guestCount,
+    budgetRange: briefing.budgetRange,
+    serviceRequirements: Array.isArray(briefing.serviceRequirements) ? (briefing.serviceRequirements as string[]) : [],
+    notes: briefing.notes,
+    submittedAt: briefing.submittedAt.toISOString(),
+  };
+}
