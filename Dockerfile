@@ -28,19 +28,35 @@ COPY . .
 RUN npm --workspace prism-api run db:generate
 RUN npm run build
 
-FROM builder AS api
+FROM builder AS prod-deps
+RUN npm prune --omit=dev
+
+FROM base AS runtime-base
 ENV NODE_ENV=production \
-    PORT=4000
+    NEXT_TELEMETRY_DISABLED=1
+COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/package.json /app/package-lock.json ./
+USER node
+
+FROM runtime-base AS api
+ENV PORT=4000
+COPY --from=builder --chown=node:node /app/apps/api/dist ./apps/api/dist
+COPY --from=builder --chown=node:node /app/apps/api/prisma ./apps/api/prisma
 EXPOSE 4000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:4000/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "apps/api/dist/apps/api/apps/api/src/main.js"]
 
-FROM builder AS web
+FROM runtime-base AS web
 ARG WORKSPACE
 ARG PORT
-ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1 \
-    WORKSPACE=${WORKSPACE} \
+ENV WORKSPACE=${WORKSPACE} \
     PORT=${PORT} \
     HOSTNAME=0.0.0.0
+COPY --from=builder --chown=node:node /app/apps ./apps
+COPY --from=builder --chown=node:node /app/packages ./packages
+COPY --from=builder --chown=node:node /app/tsconfig.base.json /app/turbo.json ./
 EXPOSE ${PORT}
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:' + process.env.PORT).then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["sh", "-c", "npm --workspace \"$WORKSPACE\" run start -- --hostname 0.0.0.0"]
