@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. In side conversations, do not use subagents.
 
-**Goal:** Move the backend from a large legacy `event-ops` compatibility folder to a consistent capability-owned module shape across `apps/api/libs/modules`, with `/sample/*` isolated in `sample-compatibility` and `event-ops` reduced to `index.ts` only or deleted.
+**Goal:** Remove the legacy `event-ops` module entirely by moving `/sample/*` into `sample-compatibility`, moving or deleting every old compatibility file, removing every `event-ops` alias/config entry, and leaving capability-owned modules as the only backend ownership shape.
 
-**Architecture:** Keep one NestJS API and one Prisma client. First audit every capability module against the target folder contract, then create a dedicated `sample-compatibility` module for demo/seed/reset routes. Remove old `event-ops` controllers, DTOs, service re-exports, tests, aliases, and module registration only after import checks prove they are unused. Capability modules keep ownership of their own controllers, DTOs, mappers, ports, services, and tests; `event-read-models` uniquely owns `queries`.
+**Architecture:** Keep one NestJS API and one Prisma client. First audit every capability module against the target folder contract, then create a dedicated `sample-compatibility` module for demo/seed/reset routes. Remove old `event-ops` controllers, DTOs, service re-exports, tests, aliases, and module registration in dependency order after import checks prove each piece is unused. Capability modules keep ownership of their own controllers, DTOs, mappers, ports, services, and tests; `event-read-models` uniquely owns `queries`. The final target is zero tracked files under `apps/api/libs/modules/event-ops` and zero active app/package/script imports of `@prism/modules/event-ops` or `event-ops/src`.
 
 **Tech Stack:** NestJS modules/providers/controllers, Prisma, Vitest, TypeScript path aliases, `scripts/check-prism-boundaries.mjs`, existing Prism API package scripts.
 
@@ -39,16 +39,28 @@ apps/api/libs/modules/sample-compatibility/
   tsconfig.lib.json
 ```
 
-and either:
+and no `apps/api/libs/modules/event-ops` module after every import is removed.
 
-```txt
-apps/api/libs/modules/event-ops/
-  src/
-    index.ts
-  tsconfig.lib.json
+## EventOps Removal Strategy
+
+Execute the removal in dependency order. Do not delete the `event-ops` folder first; delete it only after the sample routes, compatibility tests, aliases, and boundary rules no longer need it.
+
+1. **Baseline:** capture current imports, sample route behavior, API build, and boundary status before moving files.
+2. **Normalize ownership:** move any remaining DTOs, mappers, ports, and tests to the capability module that owns the route or workflow.
+3. **Create `sample-compatibility`:** add the library shell, controller registry, sample service, sample state service, config aliases, and Nest project entry.
+4. **Move `/sample/*`:** move `SampleController`, `SampleStateService`, sample orchestration, and sample-specific tests into `sample-compatibility` while preserving route paths.
+5. **Switch runtime wiring:** replace `EventOpsModule` with `SampleCompatibilityModule` in `AppModule`; use an inert `EventOpsModule` only as a temporary checkpoint if needed.
+6. **Delete compatibility shims:** remove old `event-ops` service/controller/DTO/port/test files only after import checks prove the owning modules or sample compatibility module cover them.
+7. **Remove aliases and config:** delete `event-ops` path aliases, Vitest alias, Nest CLI project entry, and package scripts that point to event-ops.
+8. **Delete the folder:** run `git rm -r apps/api/libs/modules/event-ops` after app/package/script imports are gone.
+9. **Lock the boundary:** update the boundary checker so any future tracked file under `apps/api/libs/modules/event-ops` fails.
+
+Final success means this command returns no app/package/script matches:
+
+```powershell
+rg -n "@prism/modules/event-ops|event-ops/src|EventOpsModule|EventOpsService|EVENT_OPS_CONTROLLERS" apps packages scripts -S
 ```
 
-or no `event-ops` module at all after every import is removed.
 ## Whole Backend Target Shape
 
 The plan covers the full module tree, not only the leftover `event-ops` folder. The implementation target is:
@@ -123,8 +135,6 @@ apps/api/libs/modules/
     dto/
     services/
 
-  event-ops/
-    index.ts only, or deleted
 ```
 
 Folder presence is not enough by itself. Each folder must contain only files owned by that capability, and any empty folder should include a short `.gitkeep` only if the repository needs to preserve the shape before the first file lands. Do not create empty architecture folders just for symmetry if the capability has no planned code in that layer.
@@ -142,11 +152,11 @@ Folder presence is not enough by itself. Each folder must contain only files own
 - `apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.ts`: replaces the remaining sample-facing methods from `EventOpsService` and contains only sample aggregation, seed, reset, and mapping helpers.
 - `apps/api/libs/modules/sample-compatibility/src/services/sample-state.service.ts`: keeps bounded Prisma sample read aggregation and rejects sample access when sample compatibility is disabled.
 - `apps/api/apps/api/src/app.module.ts`: imports `SampleCompatibilityModule` instead of `EventOpsModule`.
-- `apps/api/tsconfig.json`: adds `@prism/modules/sample-compatibility` path aliases, then removes `@prism/modules/event-ops` after the alias is no longer used.
+- `apps/api/tsconfig.json`: adds `@prism/modules/sample-compatibility` path aliases, then removes every `@prism/modules/event-ops` alias after the alias is no longer used.
 - `apps/api/vitest.config.ts`: adds the test alias for `sample-compatibility`, then removes the `event-ops` alias after the alias is no longer used.
-- `apps/api/nest-cli.json`: adds the `sample-compatibility` library project, then removes the `event-ops` project after the library is no longer needed.
-- `scripts/check-prism-boundaries.mjs`: changes guardrails from allowing a fixed legacy event-ops service list to allowing only sample-compatibility files for sample routes and no new event-ops business files.
-- `scripts/check-prism-boundaries.test.mjs`: proves new event-ops files fail and sample-compatibility files pass.
+- `apps/api/nest-cli.json`: adds the `sample-compatibility` library project, then removes the `event-ops` project after the module is no longer imported or built.
+- `scripts/check-prism-boundaries.mjs`: changes guardrails from allowing a fixed legacy event-ops service list to failing any tracked source file under `apps/api/libs/modules/event-ops`.
+- `scripts/check-prism-boundaries.test.mjs`: proves any event-ops file fails and sample-compatibility files pass.
 - `packages/api-client/src/event-ops-client.ts`: keeps public `/sample/*` API-client behavior stable in the first slice; optional later rename to `sample-compatibility-client.ts` requires package export compatibility.
 - `docs/prism-v4/15-system-architecture.md`, `docs/prism-v4/17-current-state-2026-06-20.md`, and this plan: document final module shape and current migration status.
 
@@ -621,7 +631,7 @@ Replace `EventOpsModule` in the imports array with `SampleCompatibilityModule`.
 
 - [ ] **Step 2: Make EventOpsModule inert if it still exists**
 
-If `EventOpsModule` still exists after Task 4, make it inert:
+As a temporary checkpoint only, if `EventOpsModule` still exists after Task 4, make it inert:
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -630,7 +640,7 @@ import { Module } from '@nestjs/common';
 export class EventOpsModule {}
 ```
 
-Do this only after import checks show no runtime provider depends on `EventOpsModule`.
+Do this only after import checks show no runtime provider depends on `EventOpsModule`. This is not an acceptable final state; Task 9 deletes the module folder entirely.
 
 - [ ] **Step 3: Build and boot-check AppModule**
 
@@ -654,7 +664,7 @@ Expected: build passes and the boot probe prints `AppModule context boot passed`
 - Delete when unused: `apps/api/libs/modules/event-ops/src/dto/event-ops.dto.ts`
 - Delete when unused: `apps/api/libs/modules/event-ops/src/event-ops.service.ts`
 - Delete when unused: `apps/api/libs/modules/event-ops/src/event-ops.module.ts`
-- Modify: `apps/api/libs/modules/event-ops/src/index.ts`
+- Delete when unused: `apps/api/libs/modules/event-ops/src/index.ts`
 
 - [ ] **Step 1: Classify every remaining event-ops file**
 
@@ -700,13 +710,9 @@ apps/api/libs/modules/event-ops/src/services/event-lifecycle.service.test.ts -> 
 
 After moving each test, update relative imports to the owning module paths and run only that test file.
 
-- [ ] **Step 5: Shrink `event-ops/src/index.ts`**
+- [ ] **Step 5: Delete `event-ops/src/index.ts` after consumers are gone**
 
-When old consumers are gone, replace `apps/api/libs/modules/event-ops/src/index.ts` with:
-
-```ts
-export {};
-```
+When old consumers are gone, remove `apps/api/libs/modules/event-ops/src/index.ts` instead of keeping an inert compatibility barrel. The final import check must prove no app/package/script import uses `@prism/modules/event-ops`.
 
 ## Task 8: Tighten Boundary Rules For The Target Shape
 
@@ -716,15 +722,13 @@ export {};
 
 - [ ] **Step 1: Update allowed event-ops files**
 
-In `scripts/check-prism-boundaries.mjs`, replace the large `legacyEventOpsServiceFiles` allowlist with a final allowlist:
+In `scripts/check-prism-boundaries.mjs`, replace the large `legacyEventOpsServiceFiles` allowlist with a hard failure for any tracked file under:
 
-```js
-const allowedEventOpsFiles = new Set([
-  'apps/api/libs/modules/event-ops/src/index.ts',
-]);
+```txt
+apps/api/libs/modules/event-ops/
 ```
 
-If `event-ops` is fully deleted, remove this allowlist and instead fail any tracked file under `apps/api/libs/modules/event-ops/`.
+Do not keep an index-only allowlist; the goal is complete folder removal.
 
 - [ ] **Step 2: Allow sample-compatibility as the only sample aggregate owner**
 
@@ -734,7 +738,7 @@ Add a rule that permits sample aggregation files only under:
 apps/api/libs/modules/sample-compatibility/src/
 ```
 
-The rule should still fail new business files under `event-ops/src/controllers`, `event-ops/src/dto`, and `event-ops/src/services`.
+The rule should fail every tracked file under `event-ops`, including controllers, DTOs, services, ports, tests, module files, and index barrels.
 
 - [ ] **Step 3: Update boundary tests**
 
@@ -770,7 +774,7 @@ Expected: both pass.
 - Modify: `apps/api/tsconfig.json`
 - Modify: `apps/api/vitest.config.ts`
 - Modify: `apps/api/nest-cli.json`
-- Delete if empty: `apps/api/libs/modules/event-ops/`
+- Delete: `apps/api/libs/modules/event-ops/`
 
 - [ ] **Step 1: Confirm no imports remain**
 
@@ -807,7 +811,7 @@ Delete this from `apps/api/vitest.config.ts`:
 
 Delete the `event-ops` project entry from `apps/api/nest-cli.json`.
 
-- [ ] **Step 5: Delete the empty module folder if no tracked files remain**
+- [ ] **Step 5: Delete the event-ops module folder**
 
 Run:
 
@@ -815,7 +819,7 @@ Run:
 git ls-files apps/api/libs/modules/event-ops
 ```
 
-If the only remaining files are `src/index.ts` and `tsconfig.lib.json`, delete them after confirming Step 1 has no active imports:
+After confirming Step 1 has no active imports, delete the entire module folder:
 
 ```powershell
 git rm -r apps/api/libs/modules/event-ops
@@ -881,7 +885,7 @@ If the package has a different script name, inspect `packages/api-client/package
 
 - [ ] **Step 1: Update architecture docs to completed state**
 
-In `docs/prism-v4/15-system-architecture.md`, change `event-ops` from compatibility owner to removed or index-only legacy alias. Keep `sample-compatibility` as the owner of `/sample/*`.
+In `docs/prism-v4/15-system-architecture.md`, change `event-ops` from compatibility owner to removed legacy module. Keep `sample-compatibility` as the owner of `/sample/*`.
 
 - [ ] **Step 2: Update current-state docs**
 
@@ -918,9 +922,9 @@ Before merging the implementation branch:
 - [ ] `apps/api/apps/api/src/app.module.ts` imports `SampleCompatibilityModule`, not `EventOpsModule`.
 - [ ] `apps/api/libs/modules/sample-compatibility/src/controllers/sample.controller.ts` owns all `/sample/*` routes.
 - [ ] `apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.ts` owns sample state/reset/seed orchestration.
-- [ ] `apps/api/libs/modules/event-ops` is either deleted or contains only an inert `src/index.ts` during final alias removal.
+- [ ] `apps/api/libs/modules/event-ops` is deleted.
 - [ ] No active app/package/script import references `@prism/modules/event-ops` or `event-ops/src`.
-- [ ] Boundary checker prevents new `event-ops/controllers`, `event-ops/dto`, and `event-ops/services` files.
+- [ ] Boundary checker fails any tracked file under `apps/api/libs/modules/event-ops`.
 - [ ] `event-core` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape, or missing folders are documented as intentionally unnecessary for current code.
 - [ ] `inquiry-onboarding` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
 - [ ] `supplier-ops` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
@@ -945,16 +949,16 @@ Use small commits so rollback is easy:
 4. `refactor(api): move sample controller to compatibility module`
 5. `refactor(api): move sample aggregate out of event ops`
 6. `refactor(api): wire sample compatibility module`
-7. `refactor(api): remove event ops <capability> compatibility exports`
-8. `test(api): enforce event ops target shape`
-9. `refactor(api): remove legacy event ops module alias`
+7. `refactor(api): remove event ops compatibility exports`
+8. `test(api): enforce event ops removal`
+9. `refactor(api): delete legacy event ops module`
 10. `refactor(api-client): name sample compatibility client`
 11. `docs(api): record event ops target shape completion`
 
 ## Self-Review
 
-Spec coverage: This plan covers the requested target shape by auditing every target capability module folder, moving controllers/DTOs/services/ports/mappers into owning modules, creating `sample-compatibility`, moving `/sample/*`, deleting or shrinking `event-ops`, updating aliases/config, tightening boundary rules, preserving public routes, and updating docs.
+Spec coverage: This plan covers the requested target shape by auditing every target capability module folder, moving controllers/DTOs/services/ports/mappers into owning modules, creating `sample-compatibility`, moving `/sample/*`, deleting `event-ops`, updating aliases/config, tightening boundary rules, preserving public routes, and updating docs.
 
-Placeholder scan: The plan contains no unresolved implementation placeholders. The `<capability>` label appears only in commit-message guidance and is explicitly explained by the surrounding deletion-wave task.
+Placeholder scan: The plan contains no unresolved implementation placeholders.
 
 Type consistency: The planned module names are consistent: `SampleCompatibilityModule`, `SampleController`, `SampleCompatibilityService`, `SampleStateService`, and `SAMPLE_COMPATIBILITY_CONTROLLERS`. The target folder names match the requested shape: `controllers`, `dto`, `services`, `ports`, `mappers`, and `queries` for `event-read-models`.
