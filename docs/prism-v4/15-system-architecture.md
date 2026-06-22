@@ -98,7 +98,7 @@ Target backend module ownership:
 | `closure-ops` | Event closure, archive readiness, and post-event evidence assembled from public reader ports. |
 | `ai-governance` | AI policy, prompt/template records, review state, disabled-provider guardrails, and PARE automation/approval records. |
 | `event-read-models` | Role-scoped PMCM/client/supplier/guest payload composition with no writes. |
-| `event-ops` | Compatibility facade only while existing routes migrate. |
+| `event-ops` | Compatibility facade for `/sample/*` demo/seed/reset routes only while sample-state retirement remains deferred. |
 
 Executable backend guardrails live in `scripts/check-prism-boundaries.mjs`. The checker now blocks future capability modules from importing other modules' private service internals, prevents new capability modules from importing `event-ops`, prevents `event-read-models` from mutating Prisma state, requires raw read-model queries to live in approved query-builder files with a query budget, and prevents new top-level business service files from being added to the legacy `event-ops` service hub.
 Phase 3 infrastructure modules are now active: `event-core` owns workflow command execution and shared event-operation constants, `trust-ops` owns audit/privacy and `AUDIT_WRITER`, `notification-ops` owns notification outbox and `NOTIFICATION_OUTBOX_WRITER`, and `access-control` owns event access policy and `EVENT_ACCESS_POLICY`. `event-ops` remains the compatibility facade for current routes and must not regain cross-cutting provider ownership.
