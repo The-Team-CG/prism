@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsBillingController } from './billing.controller';
 
@@ -88,6 +89,42 @@ describe('OpsBillingController', () => {
       { role: 'client', clientName: 'Ana Reyes', name: 'Ana Reyes' },
       expect.objectContaining({
         mapEvent: expect.any(Function),
+        mapBillingSource: expect.any(Function),
+        mapBillingStatement: expect.any(Function),
+        mapPaymentMilestone: expect.any(Function),
+        mapPaymentRecord: expect.any(Function),
+      }),
+    );
+  });
+
+  it.each(['supplier', 'guest'])('does not serve PMCM finance payloads to %s actors', async (actorRole) => {
+    const eventReadModelsService = {
+      billing: vi.fn(async (actor) => {
+        if (actor.role === 'supplier' || actor.role === 'guest') {
+          throw new ForbiddenException('Only PMCM or client actors can read billing');
+        }
+        return { events: [], billingSources: [], billingStatements: [], paymentMilestones: [], paymentRecords: [] };
+      }),
+    };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn((input) => ({ role: input.actorRole, name: input.actorRole })),
+    };
+    const billingOperationsService = {
+      mapBillingSource: vi.fn(),
+      mapBillingStatement: vi.fn(),
+      mapPaymentMilestone: vi.fn(),
+      mapPaymentRecord: vi.fn(),
+    };
+    const controller = new OpsBillingController(
+      eventReadModelsService as any,
+      eventAccessPolicyService as any,
+      billingOperationsService as any,
+    );
+
+    await expect(controller.list({ actorRole })).rejects.toThrow(ForbiddenException);
+    expect(eventReadModelsService.billing).toHaveBeenCalledWith(
+      { role: actorRole, name: actorRole },
+      expect.objectContaining({
         mapBillingSource: expect.any(Function),
         mapBillingStatement: expect.any(Function),
         mapPaymentMilestone: expect.any(Function),

@@ -61,13 +61,15 @@ describe("findBoundaryViolations", () => {
       "apps/api/libs/modules/finance-ops/src/services/payment.service.ts":
         'import { EventOpsService } from "@prism/modules/event-ops";',
       "apps/api/libs/modules/closure-ops/src/services/archive.service.ts":
-        'import { EventClosureService } from "@prism/modules/event-ops/src/services/event-closure.service";',
+        'import { LocalClosureService } from "@prism/modules/closure-ops/src/services/local-closure.service";\nimport { BillingOperationsService } from "../../finance-ops/src/services/billing-operations.service";\nimport { EventClosureService } from "@prism/modules/event-ops/src/services/event-closure.service";',
       "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts":
         "await this.prisma.opsEvent.update({ where: { id }, data: input });",
       "apps/api/libs/modules/event-read-models/src/services/raw-dashboard.service.ts":
         "await this.prisma.$queryRaw`select * from ops_event`;",
       "apps/api/libs/modules/event-ops/src/services/new-risk-workflow.service.ts":
         "export class NewRiskWorkflowService {}",
+      "apps/api/libs/modules/event-ops/src/controllers/new-risk.controller.ts":
+        "export class NewRiskController {}",
       "packages/ui/src/backend-button.tsx": 'import { EventOpsService } from "@prism/modules/event-ops";',
     });
 
@@ -79,6 +81,7 @@ describe("findBoundaryViolations", () => {
       "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts: event-read-models must not mutate Prisma state",
       "apps/api/libs/modules/event-read-models/src/services/raw-dashboard.service.ts: event-read-models raw queries require an approved query builder with a query budget",
       "apps/api/libs/modules/event-ops/src/services/new-risk-workflow.service.ts: event-ops must not add new business service files after modularization starts",
+      "apps/api/libs/modules/event-ops/src/controllers/new-risk.controller.ts: event-ops must not add local business controllers after modularization starts",
       "packages/ui/src/backend-button.tsx: shared ui must not import backend modules",
     ]);
   });

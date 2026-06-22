@@ -619,17 +619,17 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async listPmcmDashboard(actorInput: SampleActorInput = {}) {
+  private async listPmcmDashboard(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.pmcmDashboard(actor, this.pmcmReadModelMappers());
   }
 
-  async listPmcmCommandInbox(actorInput: SampleActorInput = {}) {
+  private async listPmcmCommandInbox(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.pmcmCommandInbox(actor);
   }
 
-  async getPmcmEventWorkspace(eventId: string, actorInput: SampleActorInput = {}) {
+  private async getPmcmEventWorkspace(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.pmcmEventWorkspace(actor, eventId, this.pmcmReadModelMappers());
   }
@@ -703,51 +703,51 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.sampleStateService.seedSampleState(() => this.ensureSeeded(), () => this.state());
   }
 
-  async login(email: string, password: string) {
+  private async login(email: string, password: string) {
     return this.authOperationsService.login(email, password);
   }
 
-  async requestApproval(input: string | RequestApprovalInput) {
+  private async requestApproval(input: string | RequestApprovalInput) {
     return this.authOperationsService.requestApproval(input);
   }
 
-  async listApprovalRequests() {
+  private async listApprovalRequests() {
     return this.authOperationsService.listApprovalRequests();
   }
 
-  async listLoginHistory(userId: string) {
+  private async listLoginHistory(userId: string) {
     return this.authOperationsService.listLoginHistory(userId);
   }
 
-  async listAuditLogs(input: AuditLogFilters = {}, actorInput: SampleActorInput = input) {
+  private async listAuditLogs(input: AuditLogFilters = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'audit logs');
 
     return this.auditService.listAuditLogs(input);
   }
 
-  async exportAuditLogs(input: AuditLogFilters = {}, actorInput: SampleActorInput = input) {
+  private async exportAuditLogs(input: AuditLogFilters = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'audit export');
 
     return this.auditService.exportAuditLogs(input);
   }
 
-  async listSecurityAlerts(actorInput: SampleActorInput = {}) {
+  private async listSecurityAlerts(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'security alerts');
 
     return this.auditService.listSecurityAlerts();
   }
 
-  async verifyAuditIntegrity(actorInput: SampleActorInput = {}) {
+  private async verifyAuditIntegrity(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'audit integrity');
 
     return this.auditService.verifyIntegrity();
   }
 
-  async getPrivacyInventory(input: PrivacyInventoryInput = {}, actorInput: SampleActorInput = input) {
+  private async getPrivacyInventory(input: PrivacyInventoryInput = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy inventory');
     const [events, inquiries, approvalRequests] = await Promise.all([
@@ -800,46 +800,46 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async listPrivacyRetentionPolicies(actorInput: SampleActorInput = {}) {
+  private async listPrivacyRetentionPolicies(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy retention policies');
 
     return this.privacyOperationsService.listRetentionPolicies();
   }
 
-  async listPrivacyRequests(input: PrivacyRequestListInput = {}, actorInput: SampleActorInput = input) {
+  private async listPrivacyRequests(input: PrivacyRequestListInput = {}, actorInput: SampleActorInput = input) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy requests');
 
     return this.privacyOperationsService.listRequests(input);
   }
 
-  async createPrivacyRequest(input: CreatePrivacyRequestInput, actorInput: SampleActorInput = {}) {
+  private async createPrivacyRequest(input: CreatePrivacyRequestInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy requests');
 
     return this.privacyOperationsService.createRequest(input, { name: actor.name, role: actor.role });
   }
 
-  async reviewPrivacyRequest(requestId: string, input: ReviewPrivacyRequestInput, actorInput: SampleActorInput = {}) {
+  private async reviewPrivacyRequest(requestId: string, input: ReviewPrivacyRequestInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy request review');
 
     return this.privacyOperationsService.reviewRequest(requestId, input, { name: actor.name, role: actor.role });
   }
 
-  async executePrivacyRequest(requestId: string, input: ExecutePrivacyRequestInput = {}, actorInput: SampleActorInput = {}) {
+  private async executePrivacyRequest(requestId: string, input: ExecutePrivacyRequestInput = {}, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'privacy request execution');
 
     return this.privacyOperationsService.executeRequest(requestId, input, { name: actor.name, role: actor.role });
   }
 
-  async listInquiries(actorInput: SampleActorInput = {}) {
+  private async listInquiries(actorInput: SampleActorInput = {}) {
     return this.inquiryWorkflowService.listInquiries(actorInput, this.inquiryWorkflowContext());
   }
 
-  async listOnboarding(actorInput: SampleActorInput = {}) {
+  private async listOnboarding(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'onboarding');
 
@@ -860,27 +860,27 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async approveApprovalRequest(requestId: string) {
+  private async approveApprovalRequest(requestId: string) {
     return this.authOperationsService.approveApprovalRequest(requestId);
   }
 
-  async declineApprovalRequest(requestId: string) {
+  private async declineApprovalRequest(requestId: string) {
     return this.authOperationsService.declineApprovalRequest(requestId);
   }
 
-  async createInquiry(input: CreateInquiryInput) {
+  private async createInquiry(input: CreateInquiryInput) {
     return this.inquiryWorkflowService.createInquiry(input, this.inquiryWorkflowContext());
   }
 
-  async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: SampleActorInput = {}) {
+  private async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: SampleActorInput = {}) {
     return this.inquiryWorkflowService.logInquiryOnBehalf(input, actorInput, this.inquiryWorkflowContext());
   }
 
-  async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput) {
+  private async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput) {
     return this.inquiryWorkflowService.updateInquiryStatus(inquiryId, input, this.inquiryWorkflowContext());
   }
 
-  async sendConformeReminder(inquiryId: string) {
+  private async sendConformeReminder(inquiryId: string) {
     return this.inquiryWorkflowService.sendConformeReminder(inquiryId, this.inquiryWorkflowContext());
   }
 
@@ -892,7 +892,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.billingOperationsService.runPaymentRiskSweep();
   }
 
-  async queueNotification(
+  private async queueNotification(
     eventId: string | undefined,
     recipient: string,
     message: string,
@@ -902,12 +902,12 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.notificationOutboxService.queue(eventId, recipient, message, channel, options);
   }
 
-  async processNotificationQueue() {
+  private async processNotificationQueue() {
     const processed = await this.notificationOutboxService.processQueued();
     return processed.map((item) => this.mapNotificationLog(item));
   }
 
-  async acknowledgeNotification(notificationId: string) {
+  private async acknowledgeNotification(notificationId: string) {
     const notification = await this.notificationOutboxService.acknowledge(notificationId);
     return this.mapNotificationLog(notification);
   }
@@ -916,29 +916,29 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.documentVaultService.validateUploadMetadata(input, prefix);
   }
 
-  async uploadConforme(
+  private async uploadConforme(
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
   ) {
     return this.inquiryWorkflowService.uploadConforme(inquiryId, input, this.inquiryWorkflowContext());
   }
 
-  async listEvents(actorInput: SampleActorInput = {}) {
+  private async listEvents(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.eventList(actor, { mapEvent: this.pmcmReadModelMappers().mapEvent });
   }
 
-  async getEventDetail(eventId: string, actorInput: SampleActorInput = {}) {
+  private async getEventDetail(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.eventDetail(actor, eventId, { mapEvent: this.pmcmReadModelMappers().mapEvent });
   }
 
-  async listBilling(actorInput: SampleActorInput = {}) {
+  private async listBilling(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.billing(actor, this.billingReadModelMappers());
   }
 
-  async listClientWorkspace(actorInput: SampleActorInput = {}) {
+  private async listClientWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.clientWorkspace(actor, this.clientWorkspaceMappers());
   }
@@ -965,29 +965,29 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async listClientActionCenter(actorInput: SampleActorInput = {}) {
+  private async listClientActionCenter(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.clientActionCenter(actor);
   }
 
-  async getGuestEventByAccessCode(accessCode: string) {
+  private async getGuestEventByAccessCode(accessCode: string) {
     const event = await this.guestWorkflowService.getEventByAccessCode(accessCode);
     const attendanceCount = await this.guestWorkflowService.countCheckInsForEvent(event.id);
 
     return this.guestWorkflowService.mapGuestEvent(event, attendanceCount);
   }
 
-  async checkInGuestByAccessCode(accessCode: string, input: GuestCheckInInput) {
+  private async checkInGuestByAccessCode(accessCode: string, input: GuestCheckInInput) {
     const checkIn = await this.guestWorkflowService.checkInByAccessCode(accessCode, input);
     return this.guestWorkflowService.mapGuestCheckIn(checkIn);
   }
 
-  async submitGuestFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput) {
+  private async submitGuestFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput) {
     const feedback = await this.guestWorkflowService.submitFeedbackByAccessCode(accessCode, input);
     return this.guestWorkflowService.mapGuestFeedback(feedback);
   }
 
-  async getEventLiveOps(eventId: string, actorInput: SampleActorInput = {}) {
+  private async getEventLiveOps(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -1076,7 +1076,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return base;
   }
 
-  async listCoordinatorWorkspace(actorInput: SampleActorInput = {}) {
+  private async listCoordinatorWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator workspace');
     const coordinator = await this.resolveCoordinatorForActor(actor);
@@ -1098,7 +1098,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async getCoordinatorRoleView(eventId: string, actorInput: SampleActorInput = {}) {
+  private async getCoordinatorRoleView(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator role view', eventId);
     const assignment = await this.requireCoordinatorAssignmentForEvent(eventId, actor);
@@ -1116,7 +1116,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async getEventDayStatusFeed(eventId: string, actorInput: SampleActorInput = {}) {
+  private async getEventDayStatusFeed(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -1145,7 +1145,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async createEventDayTask(
+  private async createEventDayTask(
     eventId: string,
     input: CreateEventDayTaskInput,
     actorInput: SampleActorInput = {},
@@ -1155,7 +1155,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapEventDayTask(task);
   }
 
-  async updateEventDayTask(
+  private async updateEventDayTask(
     eventId: string,
     taskId: string,
     input: UpdateEventDayTaskInput,
@@ -1166,7 +1166,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapEventDayTask(task);
   }
 
-  async createUrgentIssue(
+  private async createUrgentIssue(
     eventId: string,
     input: CreateUrgentIssueInput,
     actorInput: SampleActorInput = {},
@@ -1176,7 +1176,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapUrgentIssue(issue);
   }
 
-  async updateUrgentIssue(
+  private async updateUrgentIssue(
     eventId: string,
     issueId: string,
     input: UpdateUrgentIssueInput,
@@ -1187,7 +1187,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapUrgentIssue(issue);
   }
 
-  async escalateEventDayTask(
+  private async escalateEventDayTask(
     eventId: string,
     taskId: string,
     input: EscalateLiveOpsInput,
@@ -1198,7 +1198,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapEventDayTask(task);
   }
 
-  async escalateUrgentIssue(
+  private async escalateUrgentIssue(
     eventId: string,
     issueId: string,
     input: EscalateLiveOpsInput,
@@ -1209,7 +1209,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapUrgentIssue(issue);
   }
 
-  async replaceCoordinatorAssignment(
+  private async replaceCoordinatorAssignment(
     eventId: string,
     assignmentId: string,
     input: ReplaceCoordinatorAssignmentInput,
@@ -1226,7 +1226,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async updateCoordinatorAttendance(
+  private async updateCoordinatorAttendance(
     eventId: string,
     assignmentId: string,
     input: UpdateCoordinatorAttendanceInput,
@@ -1237,7 +1237,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapCoordinatorAssignmentForEventDay(assignment);
   }
 
-  async verifySupplierEventStatus(
+  private async verifySupplierEventStatus(
     eventId: string,
     requestId: string,
     input: VerifySupplierStatusInput,
@@ -1252,7 +1252,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.aiGovernanceService.sanitizePayload(payload);
   }
 
-  async runAiGovernanceDryRun(input: AiGovernanceInput) {
+  private async runAiGovernanceDryRun(input: AiGovernanceInput) {
     const { audit, approval } = await this.aiGovernanceService.runDryRun(input);
 
     return {
@@ -1261,7 +1261,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async createFloorPlanDraft(
+  private async createFloorPlanDraft(
     eventId: string,
     input: CreateFloorPlanDraftInput,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
@@ -1274,7 +1274,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async createFloorPlanPreference(
+  private async createFloorPlanPreference(
     eventId: string,
     input: CreateFloorPlanPreferenceInput,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.Client },
@@ -1297,7 +1297,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async submitFloorPlanDraft(
+  private async submitFloorPlanDraft(
     eventId: string,
     draftId: string,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
@@ -1310,7 +1310,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async approveFloorPlanDraft(
+  private async approveFloorPlanDraft(
     eventId: string,
     draftId: string,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
@@ -1323,7 +1323,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async getFloorPlanSnapshot(
+  private async getFloorPlanSnapshot(
     eventId: string,
     draftId: string,
     type: 'submitted' | 'approved' = 'approved',
@@ -1338,12 +1338,12 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.floorPlanWorkflowService.getFloorPlanSnapshot(eventId, draftId, type);
   }
 
-  async submitBriefing(eventId: string, input: SubmitBriefingInput) {
+  private async submitBriefing(eventId: string, input: SubmitBriefingInput) {
     const briefing = await this.clientOnboardingWorkflowService.submitBriefing(eventId, input);
     return this.mapBriefing(briefing);
   }
 
-  async listSupplierCategories(actorInput: SampleActorInput = {}) {
+  private async listSupplierCategories(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -1354,34 +1354,34 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.suppliersService.listSupplierCategories();
   }
 
-  async listSuppliers(actorInput: SampleActorInput = {}) {
+  private async listSuppliers(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'supplier directory');
 
     return this.suppliersService.listSuppliers();
   }
 
-  async createSupplier(input: CreateSupplierInput, actorInput: SampleActorInput = {}) {
+  private async createSupplier(input: CreateSupplierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.supplierNetworkWorkflowService.createSupplier(input, actor);
   }
 
-  async updateSupplier(supplierId: string, input: UpdateSupplierInput, actorInput: SampleActorInput = {}) {
+  private async updateSupplier(supplierId: string, input: UpdateSupplierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.supplierNetworkWorkflowService.updateSupplier(supplierId, input, actor);
   }
 
-  async changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput, actorInput: SampleActorInput = {}) {
+  private async changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.supplierNetworkWorkflowService.changeSupplierTier(supplierId, input, actor);
   }
 
-  async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actorInput: SampleActorInput = {}) {
+  private async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.supplierNetworkWorkflowService.addSupplierReview(supplierId, input, actor);
   }
 
-  async addSupplierCertification(
+  private async addSupplierCertification(
     supplierId: string,
     input: CreateSupplierCertificationInput,
     actorInput: SampleActorInput = {},
@@ -1390,7 +1390,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.supplierNetworkWorkflowService.addSupplierCertification(supplierId, input, actor);
   }
 
-  async listSupplierWorkspace(actorInput: SampleActorInput = {}) {
+  private async listSupplierWorkspace(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.supplierWorkspace(actor, this.supplierWorkspaceMappers());
   }
@@ -1402,36 +1402,36 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async listSupplierReadinessBoard(actorInput: SampleActorInput = {}) {
+  private async listSupplierReadinessBoard(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     return this.eventReadModelsService.supplierReadinessBoard(actor);
   }
 
-  async confirmSupplierAssignment(requestId: string, actorInput: SampleActorInput = {}) {
+  private async confirmSupplierAssignment(requestId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const updated = await this.supplierNetworkWorkflowService.confirmSupplierAssignment(requestId, actor);
     return this.mapSupplierQuoteRequest(updated);
   }
 
-  async withdrawSupplier(requestId: string, reason: string, actorInput: SampleActorInput = {}) {
+  private async withdrawSupplier(requestId: string, reason: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const updated = await this.supplierNetworkWorkflowService.withdrawSupplier(requestId, reason, actor);
     return this.mapSupplierQuoteRequest(updated);
   }
 
-  async pareGetPendingApprovals(eventId?: string) {
+  private async pareGetPendingApprovals(eventId?: string) {
     return this.supplierNetworkWorkflowService.pareGetPendingApprovals(eventId);
   }
 
-  async pareApprove(approvalRecordId: string, approvedBy: string) {
+  private async pareApprove(approvalRecordId: string, approvedBy: string) {
     return this.supplierNetworkWorkflowService.pareApprove(approvalRecordId, approvedBy);
   }
 
-  async pareReject(approvalRecordId: string, rejectedBy: string) {
+  private async pareReject(approvalRecordId: string, rejectedBy: string) {
     return this.supplierNetworkWorkflowService.pareReject(approvalRecordId, rejectedBy);
   }
 
-  async confirmSupplierReadiness(
+  private async confirmSupplierReadiness(
     requestId: string,
     input: SupplierReadinessInput = {},
     actorInput: SampleActorInput = {},
@@ -1441,7 +1441,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuoteRequest(updated);
   }
 
-  async updateSupplierEventStatus(
+  private async updateSupplierEventStatus(
     requestId: string,
     input: SupplierEventStatusInput,
     actorInput: SampleActorInput = {},
@@ -1451,7 +1451,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuoteRequest(updated);
   }
 
-  async uploadSupplierContract(
+  private async uploadSupplierContract(
     requestId: string,
     input: UploadMetadataInput,
     actorInput: SampleActorInput = {},
@@ -1461,7 +1461,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuoteRequest(updated);
   }
 
-  async requestSupplierQuotes(
+  private async requestSupplierQuotes(
     eventId: string,
     input: RequestSupplierQuotesInput,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
@@ -1472,7 +1472,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return requests.map((request) => this.mapSupplierQuoteRequest(request));
   }
 
-  async addSupplierQuote(
+  private async addSupplierQuote(
     eventId: string,
     input: AddSupplierQuoteInput,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
@@ -1483,21 +1483,21 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuote(quote);
   }
 
-  async getQuoteRequestByToken(token: string) {
+  private async getQuoteRequestByToken(token: string) {
     return mapQuoteRequestTokenDetail(await this.commercialWorkflowService.getQuoteRequestByToken(token));
   }
 
-  async submitSupplierQuoteByToken(token: string, input: SubmitSupplierQuoteInput) {
+  private async submitSupplierQuoteByToken(token: string, input: SubmitSupplierQuoteInput) {
     const quote = await this.commercialWorkflowService.submitSupplierQuoteByToken(token, input);
     return mapCommercialSupplierQuoteForSupplier(quote);
   }
 
-  async reviseSupplierQuoteByToken(token: string, input: Partial<SubmitSupplierQuoteInput>) {
+  private async reviseSupplierQuoteByToken(token: string, input: Partial<SubmitSupplierQuoteInput>) {
     const revised = await this.commercialWorkflowService.reviseSupplierQuoteByToken(token, input);
     return mapCommercialSupplierQuoteForSupplier(revised);
   }
 
-  async selectSupplierQuote(
+  private async selectSupplierQuote(
     eventId: string,
     quoteId: string,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
@@ -1508,35 +1508,35 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.mapSupplierQuote(selected);
   }
 
-  async listComplianceRules(actorInput: SampleActorInput = {}) {
+  private async listComplianceRules(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const rules = await this.complianceWorkflowService.listComplianceRules(actor);
     return rules.map((rule) => this.mapComplianceRule(rule));
   }
 
-  async createComplianceRule(input: CreateComplianceRuleInput, actorInput: SampleActorInput = {}) {
+  private async createComplianceRule(input: CreateComplianceRuleInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const rule = await this.complianceWorkflowService.createComplianceRule(input, actor);
     return this.mapComplianceRule(rule);
   }
 
-  async updateComplianceRule(ruleId: string, input: UpdateComplianceRuleInput, actorInput: SampleActorInput = {}) {
+  private async updateComplianceRule(ruleId: string, input: UpdateComplianceRuleInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const rule = await this.complianceWorkflowService.updateComplianceRule(ruleId, input, actor);
     return this.mapComplianceRule(rule);
   }
 
-  async runCompliance(eventId: string, input: ComplianceRunInput = {}) {
+  private async runCompliance(eventId: string, input: ComplianceRunInput = {}) {
     const checks = await this.complianceWorkflowService.runCompliance(eventId, input);
     return checks.map((check) => this.mapComplianceCheck(check));
   }
 
-  async resolveCompliance(eventId: string, checkId: string, input: string | ResolveComplianceInput = {}) {
+  private async resolveCompliance(eventId: string, checkId: string, input: string | ResolveComplianceInput = {}) {
     const check = await this.complianceWorkflowService.resolveCompliance(eventId, checkId, input);
     return this.mapComplianceCheck(check);
   }
 
-  async listCoordinators(actorInput: SampleActorInput = {}) {
+  private async listCoordinators(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(
       actor,
@@ -1547,15 +1547,15 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     return this.coordinatorsService.listCoordinators();
   }
 
-  async assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput) {
+  private async assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput) {
     return this.coordinatorsService.assignCoordinator(eventId, input);
   }
 
-  async acknowledgeCoordinator(eventId: string, assignmentId: string) {
+  private async acknowledgeCoordinator(eventId: string, assignmentId: string) {
     return this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId);
   }
 
-  async markPayment(
+  private async markPayment(
     eventId: string,
     milestoneId: string,
     status: string,
@@ -1570,7 +1570,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async recordPayment(
+  private async recordPayment(
     eventId: string,
     milestoneId: string,
     input: RecordPaymentInput,
@@ -1585,7 +1585,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async createBillingSource(eventId: string, input: CreateBillingSourceInput, actorInput: SampleActorInput = {}) {
+  private async createBillingSource(eventId: string, input: CreateBillingSourceInput, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'billing source', eventId);
     return this.billingOperationsService.createBillingSource(eventId, input, {
@@ -1595,7 +1595,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async approveBillingSource(
+  private async approveBillingSource(
     eventId: string,
     sourceId: string,
     input: ApproveBillingSourceInput = {},
@@ -1610,7 +1610,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async generateBillingStatement(
+  private async generateBillingStatement(
     eventId: string,
     sourceId?: string,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
@@ -1624,7 +1624,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async sendBillingStatement(
+  private async sendBillingStatement(
     eventId: string,
     billingId: string,
     actorInput: SampleActorInput = { actorRole: OpsUserRole.PmcmAdmin },
@@ -1638,16 +1638,16 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async completePostEventDocument(eventId: string, documentId: string) {
+  private async completePostEventDocument(eventId: string, documentId: string) {
     const document = await this.eventClosureService.completePostEventDocument(eventId, documentId);
     return this.mapPostEventDocument(document);
   }
 
-  async getCloseGates(eventId: string) {
+  private async getCloseGates(eventId: string) {
     return this.eventClosureService.closeGates(eventId);
   }
 
-  async getFileRequirements(eventId: string, actorInput: SampleActorInput = {}) {
+  private async getFileRequirements(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
@@ -1661,18 +1661,18 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async archiveEvent(eventId: string, input: ArchiveEventInput = {}) {
+  private async archiveEvent(eventId: string, input: ArchiveEventInput = {}) {
     const event = await this.eventClosureService.archiveEvent(eventId, input);
     return this.mapEvent(event);
   }
 
-  async listEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
+  private async listEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const insights = await this.eventClosureService.listEventInsights(eventId, actor);
     return insights.map((insight) => this.mapEventInsight(insight));
   }
 
-  async generateEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
+  private async generateEventInsights(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
     const insight = await this.eventClosureService.generateEventInsights(eventId, actor);
     return this.mapEventInsight(insight);

@@ -122,11 +122,15 @@ export const boundaryRules = [
       const moduleName = normalized.match(/^apps\/api\/libs\/modules\/([^/]+)\//)?.[1];
       if (!moduleName) return false;
 
-      const privateServiceImport = source.match(
-        /from\s+["'](?:@prism\/modules\/|apps\/api\/libs\/modules\/)([^/"']+)\/src\/services\//,
+      const privateServiceImports = source.matchAll(
+        /from\s+["'](?:@prism\/modules\/|apps\/api\/libs\/modules\/|(?:\.\.\/)+)([^/"'.]+)\/src\/services\//g,
       );
 
-      return Boolean(privateServiceImport && privateServiceImport[1] !== moduleName);
+      for (const privateServiceImport of privateServiceImports) {
+        if (privateServiceImport[1] !== moduleName) return true;
+      }
+
+      return false;
     },
   },
   {
@@ -155,6 +159,13 @@ export const boundaryRules = [
     check(normalized) {
       if (normalized.endsWith(".test.ts")) return false;
       return !legacyEventOpsServiceFiles.has(normalized);
+    },
+  },
+  {
+    name: "event-ops must not add local business controllers after modularization starts",
+    filePattern: /^apps\/api\/libs\/modules\/event-ops\/src\/controllers\/(?!sample\.controller\.ts$|index\.ts$|.*\.test\.ts$).*\.ts$/,
+    check() {
+      return true;
     },
   },
 ];

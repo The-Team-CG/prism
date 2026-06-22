@@ -1,1 +1,0 @@
-export { OpsAuthController } from '@prism/modules/identity-ops';
