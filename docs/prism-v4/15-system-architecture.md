@@ -99,6 +99,31 @@ Target backend module ownership:
 | `ai-governance` | AI policy, prompt/template records, review state, disabled-provider guardrails, and PARE automation/approval records. |
 | `event-read-models` | Role-scoped PMCM/client/supplier/guest payload composition with no writes. |
 | `event-ops` | Compatibility facade for `/sample/*` demo/seed/reset routes only while sample-state retirement remains deferred. |
+| `sample-compatibility` | Future owner for `/sample/*` demo/seed/reset routes if those routes must survive beyond the EventOps facade. |
+
+Target module folder shape:
+
+```txt
+apps/api/libs/modules/<capability>/
+  controllers/
+  dto/
+  mappers/
+  ports/
+  services/
+  <capability>.module.ts
+```
+
+Capability modules should own their own controllers, DTOs, mappers, ports, services, and tests. Cross-module access should use exported module providers or explicit token ports, not private `src/services` imports. `event-read-models` is the only normal cross-domain read composition module and remains read-only. `event-core` should stay narrow: shared lifecycle invariants, command execution, and transaction primitives only.
+
+Target `event-ops` end state:
+
+```txt
+apps/api/libs/modules/event-ops/
+  index.ts
+```
+
+or complete deletion if no compatibility imports remain. The current `event-ops/controllers`, `event-ops/dto`, and `event-ops/services` folders are transitional weight from the old backend hub. They should not receive new business files. Delete or move old controller shims and DTOs only after import checks prove no active route, package, or test still depends on the old path. Move `/sample/state`, `/sample/reset`, and `/sample/seed` into `sample-compatibility` before deleting `EventOpsService`, because those sample endpoints intentionally aggregate data across many capabilities.
+
 
 Executable backend guardrails live in `scripts/check-prism-boundaries.mjs`. The checker now blocks future capability modules from importing other modules' private service internals, prevents new capability modules from importing `event-ops`, prevents `event-read-models` from mutating Prisma state, requires raw read-model queries to live in approved query-builder files with a query budget, and prevents new top-level business service files and local business controllers from being added to the legacy `event-ops` compatibility area.
 Phase 3 infrastructure modules are now active: `event-core` owns workflow command execution and shared event-operation constants, `trust-ops` owns audit/privacy and `AUDIT_WRITER`, `notification-ops` owns notification outbox and `NOTIFICATION_OUTBOX_WRITER`, and `access-control` owns event access policy and `EVENT_ACCESS_POLICY`. `event-ops` remains the `/sample/*` compatibility aggregate and must not regain public business route, background job, or cross-cutting provider ownership.

@@ -897,7 +897,10 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 - [x] Inventory remaining `EventOpsService` methods.
 - [x] Delete methods that are no longer called from the public facade. Defense-readiness was removed; non-sample delegates are no longer public API, and remaining public calls are sample compatibility.
 - [x] Move any remaining behavior to the owning module or document why it remains compatibility-only. `/sample/*` remains a local demo/seed/reset aggregate by design; capability modules are imported by the API root for route ownership. The conforme reminder scheduler now lives in `inquiry-onboarding` instead of `EventOpsService`.
+- [ ] Move `/sample/state`, `/sample/reset`, and `/sample/seed` to a dedicated `sample-compatibility` module if the sample endpoints must remain available.
+- [ ] Move or delete old `event-ops/controllers`, `event-ops/dto`, and `event-ops/services` files after import checks prove active routes, packages, and tests no longer depend on old paths.
 - [ ] Delete `EventOpsService` only when no controller or test imports it. Not met by design: `SampleController` still imports it for compatibility-only sample state/reset/seed.
+- [ ] Reduce `event-ops` to `index.ts` only or delete the module entirely after sample compatibility has moved.
 - [x] Delete stale path aliases and exports. The local controller registry now exports/registers only `SampleController`, and stale event-ops controller shim files were removed.
 - [x] Update docs to state that `event-ops` is retired or compatibility-only.
 
