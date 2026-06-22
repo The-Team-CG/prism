@@ -579,7 +579,7 @@ Add `LiveOpsModule` to the `imports` array so the application registers the new 
 - Modify: `apps/api/libs/modules/event-ops/src/controllers/supplier-workspace.controller.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/controllers/index.ts`
 
-- [ ] **Step 1: Create event live-ops controller**
+- [x] **Step 1: Create event live-ops controller**
 
 The controller must keep the exact existing event route paths:
 
@@ -653,7 +653,7 @@ export class EventLiveOpsController {
 }
 ```
 
-- [ ] **Step 2: Create coordinator and supplier controllers**
+- [x] **Step 2: Create coordinator and supplier controllers**
 
 ```ts
 @Controller('coordinator')
@@ -677,7 +677,7 @@ export class SupplierLiveOpsController {
 }
 ```
 
-- [ ] **Step 3: Remove old handlers**
+- [x] **Step 3: Remove old handlers**
 
 Remove the moved handlers from `event-ops/src/controllers/events.controller.ts`, remove the role-view handler from `coordinator-workspace.controller.ts`, remove the supplier event-status handler from `supplier-workspace.controller.ts`, and update `EVENT_OPS_CONTROLLERS` to exclude empty compatibility controllers.
 
@@ -689,7 +689,7 @@ Remove the moved handlers from `event-ops/src/controllers/events.controller.ts`,
 - Create: `apps/api/libs/modules/live-ops/src/controllers/supplier-live-ops.controller.test.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/controllers/controller-routes.test.ts`
 
-- [ ] **Step 1: Add route metadata/delegation tests**
+- [x] **Step 1: Add route metadata/delegation tests**
 
 Each test must assert the controller base path and that the controller calls the owning live-ops read/command service with unchanged route parameters and DTO objects. For example:
 
@@ -699,7 +699,7 @@ await controller.createEventDayTask('evt_sample', { title: 'Open registration' }
 expect(commandService.createEventDayTask).toHaveBeenCalledWith('evt_sample', { title: 'Open registration' }, { actorRole: 'pmcm-admin' });
 ```
 
-- [ ] **Step 2: Update event-ops registry test**
+- [x] **Step 2: Update event-ops registry test**
 
 After moving coordinator and supplier handlers, the expected registered bases should be:
 
@@ -718,7 +718,7 @@ If `events.controller.ts` still owns defense-readiness and quote-request withdra
 **Files:**
 - Modify docs listed in the evidence gate.
 
-- [ ] **Step 1: Run focused tests**
+- [x] **Step 1: Run focused tests**
 
 Run:
 
@@ -728,7 +728,7 @@ npm --workspace prism-api run test -- event-live-ops.controller.test.ts coordina
 
 Expected: all listed test files pass.
 
-- [ ] **Step 2: Run build and boundary check**
+- [x] **Step 2: Run build and boundary check**
 
 Run:
 
@@ -739,6 +739,12 @@ npm run check:boundaries
 
 Expected: API build succeeds and boundary check passes for all tracked app/package files.
 
+Task 9 checkpoint:
+
+- [x] `npm --workspace prism-api run test -- event-live-ops.controller.test.ts coordinator-live-ops.controller.test.ts supplier-live-ops.controller.test.ts live-operations.service.test.ts event-ops.service.test.ts controller-routes.test.ts supplier-network-workflow.service.test.ts` passed after rerunning outside the sandbox for Vite `spawn EPERM`.
+- [x] `npm --workspace prism-api run build` passed after rerunning outside the sandbox for generated output unlink permissions.
+- [x] `npm run check:boundaries` passed for 642 tracked files after staging this controller move so new controller files were counted.
+- [x] Runtime docs updated in `docs/prism-v4/07-implemented-feature-revisions.md`, `docs/prism-v4/15-system-architecture.md`, and `docs/prism-v4/17-current-state-2026-06-20.md`.
 - [ ] **Step 3: Commit**
 
 ```powershell

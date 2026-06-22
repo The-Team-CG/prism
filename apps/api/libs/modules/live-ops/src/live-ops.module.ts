@@ -8,6 +8,9 @@ import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { SUPPLIER_LIVE_OPERATIONS, SupplierOpsModule } from '@prism/modules/supplier-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
+import { CoordinatorLiveOpsController } from './controllers/coordinator-live-ops.controller';
+import { EventLiveOpsController } from './controllers/event-live-ops.controller';
+import { SupplierLiveOpsController } from './controllers/supplier-live-ops.controller';
 import { EventLiveOpsCommandService } from './services/event-live-ops-command.service';
 import { EventLiveOpsReadService } from './services/event-live-ops-read.service';
 import { LiveOperationsService } from './services/live-operations.service';
@@ -24,6 +27,7 @@ import { LiveOperationsService } from './services/live-operations.service';
     GuestOpsModule,
     SupplierOpsModule,
   ],
+  controllers: [EventLiveOpsController, CoordinatorLiveOpsController, SupplierLiveOpsController],
   providers: [
     LiveOperationsService,
     EventLiveOpsReadService,

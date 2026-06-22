@@ -1,4 +1,7 @@
 export * from './live-ops.module';
+export * from './controllers/coordinator-live-ops.controller';
+export * from './controllers/event-live-ops.controller';
+export * from './controllers/supplier-live-ops.controller';
 export * from './dto/live-ops.dto';
 export * from './mappers/live-ops.mappers';
 export * from './services/live-operations.service';

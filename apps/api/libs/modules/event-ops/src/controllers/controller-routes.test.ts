@@ -12,10 +12,8 @@ describe('event-ops controller routes', () => {
     // this registry should shrink when coordinator/supplier compatibility controllers lose their last handlers.
     expect(EVENT_OPS_CONTROLLERS.map(controllerPath).sort()).toEqual([
       'ai',
-      'coordinator',
       'events',
       'sample',
-      'supplier',
     ]);
   });
 });
