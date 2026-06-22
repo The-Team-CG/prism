@@ -5,7 +5,6 @@ export { OpsNotificationsController } from './notifications.controller';
 export { OpsInquiriesController } from './inquiries.controller';
 export { OpsEventsController, OpsComplianceController } from './events.controller';
 export { OpsSuppliersController } from './suppliers.controller';
-export { OpsQuoteRequestsController } from './quote-requests.controller';
 export { OpsSupplierWorkspaceController } from './supplier-workspace.controller';
 export { OpsCoordinatorWorkspaceController, OpsCoordinatorsController } from './coordinator-workspace.controller';
 export { OpsBillingController } from './billing.controller';
@@ -20,7 +19,6 @@ import { OpsNotificationsController } from './notifications.controller';
 import { OpsInquiriesController } from './inquiries.controller';
 import { OpsEventsController, OpsComplianceController } from './events.controller';
 import { OpsSuppliersController } from './suppliers.controller';
-import { OpsQuoteRequestsController } from './quote-requests.controller';
 import { OpsSupplierWorkspaceController } from './supplier-workspace.controller';
 import { OpsCoordinatorWorkspaceController, OpsCoordinatorsController } from './coordinator-workspace.controller';
 import { OpsBillingController } from './billing.controller';
@@ -38,7 +36,6 @@ export const EVENT_OPS_CONTROLLERS = [
   OpsEventsController,
   OpsComplianceController,
   OpsSuppliersController,
-  OpsQuoteRequestsController,
   OpsSupplierWorkspaceController,
   OpsCoordinatorWorkspaceController,
   OpsCoordinatorsController,

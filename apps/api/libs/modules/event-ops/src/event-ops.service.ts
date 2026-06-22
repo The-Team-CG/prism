@@ -30,6 +30,8 @@ import type {
 import { PrismaService, toPrismaJson } from '@prism/database';
 import {
   CommercialWorkflowService,
+  mapQuoteRequestTokenDetail,
+  mapSupplierQuoteForSupplier as mapCommercialSupplierQuoteForSupplier,
   type AddSupplierQuoteInput,
   type RequestSupplierQuotesInput,
   type SubmitSupplierQuoteInput,
@@ -1685,26 +1687,17 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getQuoteRequestByToken(token: string) {
-    const { request, event, quote } = await this.commercialWorkflowService.getQuoteRequestByToken(token);
-
-    return {
-      request: this.mapSupplierQuoteRequest(request),
-      quote: quote ? this.mapSupplierQuoteForSupplier(quote) : null,
-      eventId: event.id,
-      eventName: request.confidentialBid ? 'Confidential event' : event.eventName,
-      clientName: request.confidentialBid ? null : event.clientName,
-      eventDate: request.confidentialBid ? null : isoDate(event.eventDate),
-    };
+    return mapQuoteRequestTokenDetail(await this.commercialWorkflowService.getQuoteRequestByToken(token));
   }
 
   async submitSupplierQuoteByToken(token: string, input: SubmitSupplierQuoteInput) {
     const quote = await this.commercialWorkflowService.submitSupplierQuoteByToken(token, input);
-    return this.mapSupplierQuoteForSupplier(quote);
+    return mapCommercialSupplierQuoteForSupplier(quote);
   }
 
   async reviseSupplierQuoteByToken(token: string, input: Partial<SubmitSupplierQuoteInput>) {
     const revised = await this.commercialWorkflowService.reviseSupplierQuoteByToken(token, input);
-    return this.mapSupplierQuoteForSupplier(revised);
+    return mapCommercialSupplierQuoteForSupplier(revised);
   }
 
   async selectSupplierQuote(

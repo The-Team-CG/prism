@@ -4,11 +4,13 @@ import { EventCoreModule } from '@prism/modules/event-core';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { COMMERCIAL_WORKFLOW_COMMANDS, PROPOSAL_READER, QUOTE_SUPPLIER_RESOLVER } from './ports/commercial-ops.tokens';
+import { OpsQuoteRequestsController } from './controllers/quote-requests.controller';
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { PrismaQuoteSupplierResolver } from './services/prisma-quote-supplier-resolver.service';
 
 @Module({
   imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule],
+  controllers: [OpsQuoteRequestsController],
   providers: [
     CommercialWorkflowService,
     PrismaQuoteSupplierResolver,

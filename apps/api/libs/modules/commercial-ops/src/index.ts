@@ -1,4 +1,7 @@
 export * from './commercial-ops.module';
+export * from './controllers/quote-requests.controller';
+export * from './dto/supplier-quote.dto';
+export * from './mappers/supplier-quote.mappers';
 export * from './ports/commercial-ops.tokens';
 export * from './ports/commercial-workflow-commands.port';
 export * from './ports/proposal-reader.port';
