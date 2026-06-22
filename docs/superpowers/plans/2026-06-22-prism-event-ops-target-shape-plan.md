@@ -19,6 +19,7 @@ Implemented in `backend-modular-monolith-plan`:
 - `apps/api/libs/modules/event-ops` is deleted from the backend module tree.
 - API TypeScript, Vitest, Nest CLI, and package scripts no longer expose `@prism/modules/event-ops` or an event-ops library target.
 - Boundary checks fail any tracked file under `apps/api/libs/modules/event-ops` and allow sample aggregation only under `sample-compatibility`.
+- `packages/api-client/src/event-ops-client.ts` is intentionally kept as the public API-client compatibility name because exported package consumers still import it; route paths remain `/sample/state`, `/sample/reset`, and `/sample/seed`.
 
 ## Pre-Implementation State Summary
 
