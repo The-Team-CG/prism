@@ -837,6 +837,12 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 **Commit checkpoint:** [x] `refactor(api): extract closure operations module`
 
+## Phase 4-12 Reconciliation Gate
+
+Reconciliation artifact: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-4-12-reconciliation.md`.
+
+Before claiming the full backend modular monolith goal complete, use the reconciliation artifact to resolve or explicitly defer stale unchecked items from Phases 4-12. The audit classifies each open item as `completed with evidence`, `covered by later phase`, `still missing`, or `deferred by design`. Items marked `still missing` are not proof blockers for the controller slices already committed, but they are blockers for any final completion claim unless a later commit adds evidence or changes the scope intentionally.
+
 ## Phase 13 - Move Controllers To Owning Modules
 
 Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-controller-ownership.md`. Live-ops child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-live-ops-routes.md`. PARE child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-pare-routes.md`. Supplier withdrawal child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-supplier-withdrawal-route.md`.
