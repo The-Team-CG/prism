@@ -140,3 +140,24 @@ export class CreateSupplierCertificationDto {
   @IsString()
   notes?: string;
 }
+export class UploadMetadataDto {
+  @IsString()
+  fileName!: string;
+
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sizeBytes?: number;
+}
+
+export class SupplierReadinessDto {
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class SupplierContractUploadDto extends UploadMetadataDto {}

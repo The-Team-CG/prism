@@ -10,7 +10,9 @@ export * from './services/supplier-network-workflow.service';
 export * from './services/supplier-profile-commands.service';
 
 export * from './controllers/supplier-directory.controller';
+export * from './controllers/supplier-workspace-commands.controller';
 export * from './controllers/suppliers.controller';
 export * from './dto/supplier.dto';
+export * from './mappers/supplier-quote-request.mapper';
 export { SuppliersService } from './services/suppliers.service';
 export type { AddSupplierQuoteInput } from './services/suppliers.service';
