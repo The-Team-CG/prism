@@ -11,6 +11,7 @@ import { OpsSupplierPareController } from './controllers/supplier-pare.controlle
 import { OpsSupplierWorkspaceCommandsController } from './controllers/supplier-workspace-commands.controller';
 import { OpsSuppliersController } from './controllers/suppliers.controller';
 import {
+  SUPPLIER_COMMANDS,
   SUPPLIER_DIRECTORY,
   SUPPLIER_DOCUMENT_VAULT,
   SUPPLIER_LIVE_OPERATIONS,
@@ -50,6 +51,6 @@ const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
     { provide: SUPPLIER_LIVE_OPERATIONS, useValue: unsupportedSupplierLiveOperations },
     { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
   ],
-  exports: [SuppliersService, supplierDirectoryProvider, SupplierProfileCommandsService],
+  exports: [SuppliersService, supplierDirectoryProvider, SupplierProfileCommandsService, SupplierNetworkWorkflowService, SUPPLIER_COMMANDS],
 })
 export class SupplierOpsModule {}
