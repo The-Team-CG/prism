@@ -4,6 +4,7 @@ export * from './controllers/client-workspace.controller';
 export * from './controllers/events.controller';
 export * from './controllers/pmcm-command-inbox.controller';
 export * from './controllers/pmcm-dashboard.controller';
+export * from './controllers/supplier-workspace.controller';
 export * from './dto/read-model.dto';
 export * from './mappers/billing-read-model.mappers';
 export * from './mappers/client-read-model.mappers';
