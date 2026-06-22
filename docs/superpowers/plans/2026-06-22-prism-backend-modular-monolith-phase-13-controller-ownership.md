@@ -4,18 +4,18 @@
 
 **Goal:** Move HTTP controller ownership from the `event-ops` compatibility module into owning capability modules one controller family at a time, while keeping public route paths and DTO behavior stable.
 
-**Architecture:** Capability modules should register controllers that call their owned services directly. `event-ops` may keep compatibility re-exports and facade delegates only while unmoved controllers still depend on them. This phase started with the public guest controller because `guest-ops` already owns guest access-code reads, check-ins, feedback writes, and payload mapping. The next slices moved supplier quote-token routes because `commercial-ops` already owns supplier quote request lookup, submission, revision, and supplier-facing quote decisions, then moved inquiry routes because `inquiry-onboarding` owns inquiry creation, PMCM inquiry listing, status decisions, reminders, and conforme upload workflow, then moved billing reads because `event-read-models` owns billing workspace composition while `finance-ops` owns billing formatting and finance commands.
+**Architecture:** Capability modules should register controllers that call their owned services directly. `event-ops` may keep compatibility re-exports and facade delegates only while unmoved controllers still depend on them. This phase started with the public guest controller because `guest-ops` already owns guest access-code reads, check-ins, feedback writes, and payload mapping. The next slices moved supplier quote-token routes because `commercial-ops` already owns supplier quote request lookup, submission, revision, and supplier-facing quote decisions, then moved inquiry routes because `inquiry-onboarding` owns inquiry creation, PMCM inquiry listing, status decisions, reminders, and conforme upload workflow, then moved billing reads because `event-read-models` owns billing workspace composition while `finance-ops` owns billing formatting and finance commands, then moved notification acknowledgement because `notification-ops` owns notification outbox state.
 
 ## Owner D Evidence Gate
 
 | Evidence item | Required answer |
 | --- | --- |
 | Owner D system goal | Backend controller ownership aligned to capability modules for the redesign contract foundation. |
-| Feature-ledger row | Guest portal/live attendance, role-scoped public guest payloads, supplier commercial quote submission/revision, public/PMCM inquiry onboarding, and billing workspace read models. |
-| Route/app/actor | `GET /guest/events/:accessCode`, `POST /guest/events/:accessCode/check-ins`, `POST /guest/events/:accessCode/feedback`; actor is public guest via access code. `GET /quote-requests/:token`, `POST /quote-requests/:token/quote`, and `PATCH /quote-requests/:token/quote`; actor is supplier via quote token. `GET /inquiries`, `POST /inquiries`, `POST /inquiries/log-on-behalf`, `PATCH /inquiries/:inquiryId/status`, `POST /inquiries/:inquiryId/conforme-reminders`, and `POST /inquiries/:inquiryId/conforme`; actors are public client and PMCM/system. `GET /billing`; actors are PMCM/system/client through billing read-model scope. |
-| Contract touched | Controller ownership only; route paths and DTO fields remain stable; supplier quote DTO now has a commercial-owned copy matching the legacy DTO; inquiry DTOs now have inquiry-onboarding-owned copies matching the legacy DTOs; billing read model actor DTO now has an event-read-model-owned copy matching the legacy actor query shape. |
-| Fallback state | Old `event-ops/src/controllers/guest.controller.ts`, `event-ops/src/controllers/quote-requests.controller.ts`, `event-ops/src/controllers/inquiries.controller.ts`, and `event-ops/src/controllers/billing.controller.ts` paths remain compatibility re-exports but are no longer registered by `EVENT_OPS_CONTROLLERS`. |
-| Route-smoke evidence | Guest, quote-request, inquiry, and billing controller route metadata/delegation tests, event-ops controller route registry test, guest/commercial/inquiry workflow tests, event-ops suite, build, and boundary check. |
+| Feature-ledger row | Guest portal/live attendance, role-scoped public guest payloads, supplier commercial quote submission/revision, public/PMCM inquiry onboarding, billing workspace read models, and notification acknowledgement state. |
+| Route/app/actor | `GET /guest/events/:accessCode`, `POST /guest/events/:accessCode/check-ins`, `POST /guest/events/:accessCode/feedback`; actor is public guest via access code. `GET /quote-requests/:token`, `POST /quote-requests/:token/quote`, and `PATCH /quote-requests/:token/quote`; actor is supplier via quote token. `GET /inquiries`, `POST /inquiries`, `POST /inquiries/log-on-behalf`, `PATCH /inquiries/:inquiryId/status`, `POST /inquiries/:inquiryId/conforme-reminders`, and `POST /inquiries/:inquiryId/conforme`; actors are public client and PMCM/system. `GET /billing`; actors are PMCM/system/client through billing read-model scope. `POST /notifications/:notificationId/acknowledge`; actor scope is existing notification acknowledgement behavior. |
+| Contract touched | Controller ownership only; route paths and DTO fields remain stable; supplier quote DTO now has a commercial-owned copy matching the legacy DTO; inquiry DTOs now have inquiry-onboarding-owned copies matching the legacy DTOs; billing read model actor DTO now has an event-read-model-owned copy matching the legacy actor query shape; notification acknowledgement response mapper now lives in notification-ops. |
+| Fallback state | Old `event-ops/src/controllers/guest.controller.ts`, `event-ops/src/controllers/quote-requests.controller.ts`, `event-ops/src/controllers/inquiries.controller.ts`, `event-ops/src/controllers/billing.controller.ts`, and `event-ops/src/controllers/notifications.controller.ts` paths remain compatibility re-exports but are no longer registered by `EVENT_OPS_CONTROLLERS`. |
+| Route-smoke evidence | Guest, quote-request, inquiry, billing, and notification controller route metadata/delegation tests, event-ops controller route registry test, guest/commercial/inquiry workflow tests, event-ops suite, build, and boundary check. |
 
 ## Controller Ownership Map
 
@@ -30,7 +30,7 @@
 | `pmcm-dashboard.controller.ts`, dashboard reads | `event-read-models` | Pending. |
 | `events.controller.ts` | Split across event-core, floorplan, compliance-ops, closure-ops, event-read-models | Pending. |
 | `audit-privacy.controller.ts` | `trust-ops` | Pending. |
-| `notifications.controller.ts` | `notification-ops` | Pending. |
+| `notifications.controller.ts` | `notification-ops` | Moved in notification slice. |
 | `auth.controller.ts` | identity/auth module | Pending. |
 | `ai.controller.ts` | future ai-governance module | Pending. |
 | `sample.controller.ts` | sample/demo compatibility module or final removal | Pending. |
@@ -57,11 +57,15 @@
 - [x] Create `event-read-models` billing controller that calls `EventReadModelsService.billing` directly and composes finance mappers from `finance-ops`.
 - [x] Register `OpsBillingController` in `EventReadModelsModule`; keep the old event-ops controller file as a compatibility re-export.
 - [x] Add billing controller route/delegation smoke tests.
+- [x] Create notification-ops-owned notification response mapper.
+- [x] Create `notification-ops` notifications controller that calls `NotificationOutboxService.acknowledge` directly.
+- [x] Register `OpsNotificationsController` in `NotificationOpsModule`; keep the old event-ops controller file as a compatibility re-export.
+- [x] Add notifications controller route/delegation smoke tests.
 - [ ] Move the remaining controller families one module at a time.
 - [ ] When all controllers are moved, mark the master Phase 13 checklist complete and proceed to Phase 14 facade retirement.
 
 ## Self-Review
 
-- Spec coverage: Guest, supplier quote-token, inquiry, and billing controller families moved without changing public route paths or response mapping.
-- Boundary clarity: `guest-ops`, `commercial-ops`, `inquiry-onboarding`, and `event-read-models` controllers import only local DTOs/mappers/services and public access-control; they do not import `event-ops` internals.
+- Spec coverage: Guest, supplier quote-token, inquiry, billing, and notification controller families moved without changing public route paths or response mapping.
+- Boundary clarity: `guest-ops`, `commercial-ops`, `inquiry-onboarding`, `event-read-models`, and `notification-ops` controllers import only local DTOs/mappers/services and public access-control; they do not import `event-ops` internals.
 - Remaining risk: Most controllers still live in `event-ops`; this is an incremental Phase 13 checkpoint, not full Phase 13 completion.
