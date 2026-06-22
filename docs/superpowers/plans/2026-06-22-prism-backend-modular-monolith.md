@@ -839,7 +839,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ## Phase 13 - Move Controllers To Owning Modules
 
-Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-controller-ownership.md`.
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-controller-ownership.md`. Live-ops child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-live-ops-routes.md`.
 
 **Purpose:** Move HTTP ownership after service ownership is stable.
 

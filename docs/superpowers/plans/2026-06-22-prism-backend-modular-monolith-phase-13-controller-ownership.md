@@ -55,6 +55,9 @@
 | `ai.controller.ts` / PARE routes | supplier/PARE ownership split | Pending. |
 | `sample.controller.ts` | sample/demo compatibility module or final removal | Pending. |
 
+
+Live-ops child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-live-ops-routes.md`.
+
 ## Tasks
 
 - [x] Create guest-owned DTOs for guest check-in, feedback, and upload metadata.
