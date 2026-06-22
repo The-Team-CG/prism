@@ -8,8 +8,6 @@ import {
   CreateBillingSourceDto,
   CreateCoordinatorAssignmentDto,
   CreateEventDayTaskDto,
-  CreateFloorPlanDraftDto,
-  CreateFloorPlanPreferenceDto,
   CreateInquiryDto,
   CreateSupplierCertificationDto,
   CreateSupplierDto,
@@ -20,7 +18,6 @@ import {
   ExecutePrivacyRequestDto,
   EscalateLiveOpsRecordDto,
   ExportAuditLogsDto,
-  FloorPlanSnapshotQueryDto,
   GuestCheckInDto,
   GuestFeedbackDto,
   ListAuditLogsDto,
@@ -159,55 +156,6 @@ export class OpsEventsController {
     return this.eventOpsService.verifySupplierEventStatus(eventId, requestId, dto, actor);
   }
 
-  @Post(':eventId/floorplans')
-  @HttpCode(HttpStatus.CREATED)
-  createFloorPlanDraft(
-    @Param('eventId') eventId: string,
-    @Body() dto: CreateFloorPlanDraftDto,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.createFloorPlanDraft(eventId, dto, actor);
-  }
-
-  @Post(':eventId/floorplan-preferences')
-  @HttpCode(HttpStatus.CREATED)
-  createFloorPlanPreference(
-    @Param('eventId') eventId: string,
-    @Body() dto: CreateFloorPlanPreferenceDto,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.createFloorPlanPreference(eventId, dto, actor);
-  }
-
-  @Post(':eventId/floorplans/:draftId/submit')
-  @HttpCode(HttpStatus.OK)
-  submitFloorPlanDraft(
-    @Param('eventId') eventId: string,
-    @Param('draftId') draftId: string,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.submitFloorPlanDraft(eventId, draftId, actor);
-  }
-
-  @Post(':eventId/floorplans/:draftId/approve')
-  @HttpCode(HttpStatus.OK)
-  approveFloorPlanDraft(
-    @Param('eventId') eventId: string,
-    @Param('draftId') draftId: string,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.approveFloorPlanDraft(eventId, draftId, actor);
-  }
-
-  @Get(':eventId/floorplans/:draftId/snapshot')
-  getFloorPlanSnapshot(
-    @Param('eventId') eventId: string,
-    @Param('draftId') draftId: string,
-    @Query() query: FloorPlanSnapshotQueryDto,
-  ) {
-    const { type = 'approved', ...actor } = query;
-    return this.eventOpsService.getFloorPlanSnapshot(eventId, draftId, type, actor);
-  }
 
   @Post(':eventId/briefing')
   @HttpCode(HttpStatus.CREATED)
