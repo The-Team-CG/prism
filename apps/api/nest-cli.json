@@ -60,13 +60,13 @@
                                                             "tsConfigPath":  "libs/modules/events/tsconfig.lib.json"
                                                         }
                                 },
-                     "event-ops":  {
+                     "sample-compatibility":  {
                                        "type":  "library",
-                                       "root":  "libs/modules/event-ops",
+                                       "root":  "libs/modules/sample-compatibility",
                                        "entryFile":  "index",
-                                       "sourceRoot":  "libs/modules/event-ops/src",
+                                       "sourceRoot":  "libs/modules/sample-compatibility/src",
                                        "compilerOptions":  {
-                                                               "tsConfigPath":  "libs/modules/event-ops/tsconfig.lib.json"
+                                                               "tsConfigPath":  "libs/modules/sample-compatibility/tsconfig.lib.json"
                                                            }
                                    },
                      "publishing":  {

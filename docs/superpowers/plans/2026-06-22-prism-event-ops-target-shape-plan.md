@@ -10,7 +10,17 @@
 
 ---
 
-## Current State Summary
+## Implementation Status
+
+Implemented in `backend-modular-monolith-plan`:
+
+- `/sample/state`, `/sample/reset`, and `/sample/seed` now live in `apps/api/libs/modules/sample-compatibility`.
+- `apps/api/apps/api/src/app.module.ts` imports `SampleCompatibilityModule` instead of `EventOpsModule`.
+- `apps/api/libs/modules/event-ops` is deleted from the backend module tree.
+- API TypeScript, Vitest, Nest CLI, and package scripts no longer expose `@prism/modules/event-ops` or an event-ops library target.
+- Boundary checks fail any tracked file under `apps/api/libs/modules/event-ops` and allow sample aggregation only under `sample-compatibility`.
+
+## Pre-Implementation State Summary
 
 `apps/api/libs/modules/event-ops` is still large because it contains the old backend hub shape plus compatibility files:
 

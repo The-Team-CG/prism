@@ -49,7 +49,7 @@ describe('OpsComplianceController', () => {
     await expect(controller.createRule({ conditionKey: 'new_rule', title: 'New rule' }, actorInput)).resolves.toEqual(
       expect.objectContaining({ id: 'crule_new', title: 'New rule' }),
     );
-    await expect(controller.updateRule('crule_new', { title: 'Updated rule' }, actorInput)).resolves.toEqual(
+    await expect(controller.updateRule('crule_new', { conditionKey: 'new_rule', title: 'Updated rule' }, actorInput)).resolves.toEqual(
       expect.objectContaining({ id: 'crule_new', title: 'Updated rule' }),
     );
 
@@ -61,7 +61,7 @@ describe('OpsComplianceController', () => {
     );
     expect(complianceWorkflowService.updateComplianceRule).toHaveBeenCalledWith(
       'crule_new',
-      { title: 'Updated rule' },
+      { conditionKey: 'new_rule', title: 'Updated rule' },
       actor,
     );
   });

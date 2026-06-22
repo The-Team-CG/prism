@@ -4,9 +4,9 @@
 
 **Goal:** Rework the Prism backend from a centralized `event-ops` service hub into a long-term modular monolith where business capabilities own commands, policies, persistence access, audit/outbox side effects, read models, tests, and public module contracts.
 
-**Architecture:** Keep one NestJS API and one Prisma client. Move from manual service construction inside `EventOpsService` to explicit Nest modules, dependency-injected use cases, narrow cross-module ports, transaction-scoped side effects, and read-model composition. Capability modules own writes. `event-read-models` composes cross-domain reads. `event-ops` remains only as a compatibility facade until routes move safely.
+**Architecture:** Keep one NestJS API and one Prisma client. Move from manual hub-style service construction to explicit Nest modules, dependency-injected use cases, narrow cross-module ports, transaction-scoped side effects, and read-model composition. Capability modules own writes. `event-read-models` composes cross-domain reads. `/sample/*` compatibility lives in `sample-compatibility`; the legacy `event-ops` module has been removed.
 
-**Tech Stack:** NestJS modules/providers/controllers, Prisma multi-schema Postgres, Vitest, TypeScript path aliases, existing `@prism/database`, `@prism/shared`, `@prism/modules/event-ops`, `packages/types`, `packages/api-client`, and existing Prism boundary/database audit scripts.
+**Tech Stack:** NestJS modules/providers/controllers, Prisma multi-schema Postgres, Vitest, TypeScript path aliases, existing `@prism/database`, `@prism/shared`, capability modules including `@prism/modules/sample-compatibility`, `packages/types`, `packages/api-client`, and existing Prism boundary/database audit scripts.
 
 ---
 

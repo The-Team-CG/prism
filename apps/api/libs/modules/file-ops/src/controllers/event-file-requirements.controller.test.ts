@@ -94,7 +94,7 @@ describe('OpsEventFileRequirementsController', () => {
 
   it('does not build the matrix when the event is missing or access is denied', async () => {
     const { controller, fileRequirementsMatrixService, eventAccessPolicyService, prisma } = createController();
-    prisma.opsEvent.findUnique.mockResolvedValueOnce(null);
+    prisma.opsEvent.findUnique.mockResolvedValueOnce(null as any);
 
     await expect(controller.fileRequirements('evt_missing', { actorRole: OpsUserRole.PmcmAdmin })).rejects.toBeInstanceOf(NotFoundException);
     expect(fileRequirementsMatrixService.buildForEvent).not.toHaveBeenCalled();

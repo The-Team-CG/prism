@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { PrismTransactionRunner } from '../../../core/shared-kernel/src';
-import { EventOpsService } from './event-ops.service';
+import { PrismTransactionRunner } from '../../../../core/shared-kernel/src';
+import { SampleCompatibilityService } from './sample-compatibility.service';
 import { AiGovernanceService } from '@prism/modules/ai-governance';
 import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/modules/trust-ops';
 import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
@@ -21,10 +21,10 @@ import { EventLifecycleService } from '@prism/modules/event-core';
 import { EventReadModelQueries, EventReadModelsService } from '@prism/modules/event-read-models';
 import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
 import { GuestWorkflowService } from '@prism/modules/guest-ops';
-import { LiveOperationsService } from './services/live-operations.service';
+import { LiveOperationsService } from '@prism/modules/live-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from '@prism/modules/ai-governance';
-import { SampleStateService } from './services/sample-state.service';
+import { SampleStateService } from './sample-state.service';
 import { SupplierNetworkWorkflowService, SupplierProfileCommandsService, SuppliersService } from '@prism/modules/supplier-ops';
 import { WorkflowCommandService } from '@prism/modules/event-core';
 
@@ -949,7 +949,7 @@ function createPrisma(seedInquiry: any = inquiry()) {
   return { prisma, state };
 }
 
-function createEventOpsService(prisma: any) {
+function createSampleCompatibilityService(prisma: any) {
   const auditService = new AuditService(prisma);
   const notificationOutboxService = new NotificationOutboxService(prisma);
   const auditWriter = new AuditWriterAdapter(auditService);
@@ -1062,7 +1062,7 @@ function createEventOpsService(prisma: any) {
     documentVaultService,
   );
 
-  return new EventOpsService(
+  return new SampleCompatibilityService(
     prisma,
     auditService,
     inquiriesService,
@@ -1091,14 +1091,14 @@ function createEventOpsService(prisma: any) {
     inquiryWorkflowService,
   );
 }
-describe('EventOpsService', () => {
+describe('SampleCompatibilityService', () => {
   it('does not block API startup when non-production sample seeding cannot reach the database', async () => {
     const previousNodeEnv = process.env.NODE_ENV;
     const previousReminderFlag = process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB;
     process.env.NODE_ENV = 'development';
     process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB = '1';
 
-    const service = createEventOpsService({
+    const service = createSampleCompatibilityService({
       opsUser: {
         count: async () => {
           throw new Error('database unavailable');
@@ -1120,9 +1120,9 @@ describe('EventOpsService', () => {
 
   it('accepts an inquiry and starts the conforme workflow', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
-    const accepted = await service.updateInquiryStatus('inq_sample', { status: 'accepted' });
+    const accepted = await (service as any).updateInquiryStatus('inq_sample', { status: 'accepted' });
 
     expect(accepted.status).toBe('accepted');
     expect(accepted.acceptedAt).toBeTruthy();
@@ -1132,16 +1132,16 @@ describe('EventOpsService', () => {
 
   it('requires a permanent decline reason', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
-    await expect(service.updateInquiryStatus('inq_sample', { status: 'declined' })).rejects.toBeInstanceOf(
+    await expect((service as any).updateInquiryStatus('inq_sample', { status: 'declined' })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
 
   it('links duplicate inquiry submissions by normalized email and nearby event date', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const created = await (service as any).createInquiry({
       clientName: 'Ana Reyes',
@@ -1175,7 +1175,7 @@ describe('EventOpsService', () => {
         eventDate: new Date('2026-05-01T00:00:00.000Z'),
       }),
     ]);
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const created = await (service as any).createInquiry({
       clientName: 'Ana Reyes',
@@ -1198,7 +1198,7 @@ describe('EventOpsService', () => {
 
   it('rejects public attempts to spoof PMCM log-on-behalf source', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).createInquiry({
@@ -1215,7 +1215,7 @@ describe('EventOpsService', () => {
 
   it('allows PMCM actors to log inquiries on behalf of clients with actor metadata', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const created = await (service as any).logInquiryOnBehalf(
       {
@@ -1238,9 +1238,9 @@ describe('EventOpsService', () => {
 
   it('uploads a signed conforme and unlocks event onboarding records', async () => {
     const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
-    const document = await service.uploadConforme('inq_sample', {
+    const document = await (service as any).uploadConforme('inq_sample', {
       type: 'signed_conforme',
       fileName: 'signed-conforme.pdf',
     });
@@ -1275,7 +1275,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const requests = await (service as any).requestSupplierQuotes('evt_sample', {
       categoryId: 'supcat_technicals',
@@ -1321,7 +1321,7 @@ describe('EventOpsService', () => {
       status: 'open',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const requests = await (service as any).requestSupplierQuotes('evt_sample', {
       categoryId: 'supcat_technicals',
@@ -1338,7 +1338,7 @@ describe('EventOpsService', () => {
 
   it('blocks supplier and guest actors from PMCM commercial proposal decisions', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).requestSupplierQuotes(
@@ -1384,7 +1384,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
     const actor = { actorRole: 'pmcm-admin', actorName: 'Ms. Mys', actorEmail: 'mys@pmcm.test' };
 
     const created = await (service as any).createSupplier(
@@ -1474,7 +1474,7 @@ describe('EventOpsService', () => {
       selectedAt: null,
       createdAt: new Date('2026-05-01T00:00:00.000Z'),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const workspace = await (service as any).listSupplierWorkspace({
       actorRole: 'supplier',
@@ -1518,7 +1518,7 @@ describe('EventOpsService', () => {
       status: 'open',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const quote = await (service as any).submitSupplierQuoteByToken('token-sample', {
       amount: 210000,
@@ -1562,7 +1562,7 @@ describe('EventOpsService', () => {
       dueDate: new Date('2026-05-05T00:00:00.000Z'),
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const request = await (service as any).getQuoteRequestByToken('token-sample');
 
@@ -1618,7 +1618,7 @@ describe('EventOpsService', () => {
       selectedAt: null,
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const revised = await (service as any).reviseSupplierQuoteByToken('token-sample', {
       amount: 160000,
@@ -1717,7 +1717,7 @@ describe('EventOpsService', () => {
         createdAt: new Date(),
       },
     );
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const selected = await (service as any).selectSupplierQuote('evt_sample', 'quote_selected');
 
@@ -1753,7 +1753,7 @@ describe('EventOpsService', () => {
       status: 'pending',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const payment = await (service as any).recordPayment('evt_sample', 'pay_balance', {
       amountReceived: 100000,
@@ -1805,7 +1805,7 @@ describe('EventOpsService', () => {
       referenceNumber: 'BPI-123',
       recordedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).recordPayment('evt_sample', 'pay_balance', {
@@ -1858,7 +1858,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const submitted = await (service as any).submitFloorPlanDraft('evt_sample', 'fpd_sample', {
       actorRole: 'pmcm-admin',
@@ -1898,7 +1898,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).createFloorPlanDraft(
@@ -1917,7 +1917,7 @@ describe('EventOpsService', () => {
         followUpIntervalDays: 3,
       }),
     );
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await (service as any).runConformeReminderSweep();
 
@@ -1934,7 +1934,7 @@ describe('EventOpsService', () => {
         followUpIntervalDays: 3,
       }),
     );
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await (service as any).runConformeReminderSweep();
 
@@ -1954,9 +1954,9 @@ describe('EventOpsService', () => {
         portalInvitationExpiresAt: new Date('2026-06-01T00:00:00.000Z'),
       }),
     );
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
-    await service.login('ana@ayala.test', 'prism-client');
+    await (service as any).login('ana@ayala.test', 'prism-client');
 
     expect(fake.state.inquiry.portalInvitationStatus).toBe('opened');
     expect(fake.state.inquiry.portalInvitationOpenedAt).toBeTruthy();
@@ -1965,9 +1965,9 @@ describe('EventOpsService', () => {
   it('accepts hashed sample passwords and keeps approval and login history behavior', async () => {
     const fake = createPrisma();
     fake.state.users[0].password = AuthSecurityService.hashPassword('prism-client', 'phase8_test_salt');
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
-    const session = await service.login('ana@ayala.test', 'prism-client');
+    const session = await (service as any).login('ana@ayala.test', 'prism-client');
 
     expect(session.email).toBe('ana@ayala.test');
     expect(fake.state.users[0].password).toMatch(/^scrypt\$/);
@@ -1977,9 +1977,9 @@ describe('EventOpsService', () => {
   it('upgrades legacy plain-text sample passwords after a successful login', async () => {
     const fake = createPrisma();
     expect(fake.state.users[0].password).toBe('prism-client');
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
-    await service.login('ana@ayala.test', 'prism-client');
+    await (service as any).login('ana@ayala.test', 'prism-client');
 
     expect(fake.state.users[0].password).toMatch(/^scrypt\$/);
     expect(fake.state.users[0].password).not.toContain('prism-client');
@@ -1997,10 +1997,10 @@ describe('EventOpsService', () => {
       approvalStatus: 'pending',
     };
     fake.state.users.push(pendingUser);
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
-    await expect(service.login('ana@ayala.test', 'wrong-password')).rejects.toBeInstanceOf(UnauthorizedException);
-    await expect(service.login('pending@vendor.test', 'pending-pass')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect((service as any).login('ana@ayala.test', 'wrong-password')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect((service as any).login('pending@vendor.test', 'pending-pass')).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(fake.state.users[0].failedLoginCount).toBe(1);
     expect(fake.state.loginHistory.some((entry) => entry.status === 'failed')).toBe(true);
@@ -2017,7 +2017,7 @@ describe('EventOpsService', () => {
         portalInvitationExpiresAt: new Date('2026-04-02T00:00:00.000Z'),
       }),
     );
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const inquiries = await (service as any).listInquiries({ actorRole: 'pmcm-admin' });
 
@@ -2026,7 +2026,7 @@ describe('EventOpsService', () => {
 
   it('allows PMCM actors to read inquiry and supplier operational scopes', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
     const actor = { actorRole: 'pmcm-admin', actorEmail: 'mys@pmcm.test', actorName: 'Ms. Mys' };
 
     const inquiries = await (service as any).listInquiries(actor);
@@ -2129,13 +2129,13 @@ describe('EventOpsService', () => {
         createdAt: new Date(),
       },
     );
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
     const actor = { actorRole: 'client', clientName: 'Ana Reyes', actorEmail: 'ana@ayala.test' };
 
-    const events = await service.listEvents(actor as any);
+    const events = await (service as any).listEvents(actor as any);
     const billing = await (service as any).listBilling(actor);
 
-    expect(events.map((event) => event.id)).toEqual(['evt_ana']);
+    expect(events.map((event: any) => event.id)).toEqual(['evt_ana']);
     expect(billing.billingStatements.map((statement: any) => statement.id)).toEqual(['bill_ana']);
     expect(billing.paymentMilestones.map((payment: any) => payment.id)).toEqual(['pay_ana']);
   });
@@ -2176,7 +2176,7 @@ describe('EventOpsService', () => {
       { id: 'doc_ana', eventId: 'evt_ana', type: 'signed_conforme', fileName: 'ana.pdf', status: 'approved', uploadedAt: new Date() },
       { id: 'doc_other', eventId: 'evt_other', type: 'signed_conforme', fileName: 'other.pdf', status: 'approved', uploadedAt: new Date() },
     );
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const workspace = await (service as any).listClientWorkspace({
       actorRole: 'client',
@@ -2205,10 +2205,10 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
-      service.getEventDetail('evt_other', {
+      (service as any).getEventDetail('evt_other', {
         actorRole: 'client',
         clientName: 'Ana Reyes',
         actorEmail: 'ana@ayala.test',
@@ -2251,7 +2251,7 @@ describe('EventOpsService', () => {
       reviewedBy: 'PMCM Admin',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const matrix = await (service as any).getFileRequirements('evt_ana', {
       actorRole: 'client',
@@ -2288,7 +2288,7 @@ describe('EventOpsService', () => {
       reviewedBy: 'PMCM Admin',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const matrix = await (service as any).getFileRequirements('evt_ana', {
       actorRole: 'pmcm-admin',
@@ -2309,7 +2309,7 @@ describe('EventOpsService', () => {
 
   it('blocks client actors from PMCM-only supplier reads and records the denial', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).listSuppliers({
@@ -2392,7 +2392,7 @@ describe('EventOpsService', () => {
         updatedAt: new Date(),
       },
     );
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const checks = await (service as any).runCompliance('evt_sample', { phase: 'planning' });
 
@@ -2435,7 +2435,7 @@ describe('EventOpsService', () => {
       note: 'Attach final supplier quotation before event lock.',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).resolveCompliance('evt_sample', 'chk_contract', { action: 'override' }),
@@ -2468,7 +2468,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
     const source = await (service as any).createBillingSource('evt_sample', {
       sourceLabel: 'Approved CE v1',
       lineItems: [
@@ -2535,7 +2535,7 @@ describe('EventOpsService', () => {
       generatedAt: new Date(),
     });
     fake.state.milestones.push({ id: 'pay_balance', eventId: 'evt_sample', label: 'Balance', percentage: 50, amount: 260000, amountPaid: 0, remainingBalance: 260000, dueDate: new Date(), status: 'pending', createdAt: new Date() });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const blocked = await (service as any).getCloseGates('evt_sample');
     expect(blocked.ready).toBe(false);
@@ -2568,7 +2568,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).archiveEvent('evt_sample', { actorRole: 'client', clientName: 'Ana Reyes' }),
@@ -2590,7 +2590,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect((service as any).archiveEvent('evt_sample', { overrideReason: '' })).rejects.toBeInstanceOf(BadRequestException);
 
@@ -2624,7 +2624,7 @@ describe('EventOpsService', () => {
     fake.state.complianceChecks.push({ id: 'chk_sample', eventId: 'evt_sample', layer: 'Must-Fix', severity: 'must_fix', phase: 'planning', conditionKey: 'contracts', title: 'Supplier contracts ready', status: 'resolved', note: 'Resolved.', createdAt: new Date() });
     fake.state.billings.push({ id: 'bill_sample', eventId: 'evt_sample', number: 'BS-2026-0001', clientName: 'Ana Reyes', clientContact: 'ana@ayala.test', eventName: 'Ayala Summit', lineItems: [], paymentSchedule: [], paymentMethods: [], totalAmount: 520000, pdfUrl: '', storageKey: '', status: 'sent', generatedAt: new Date() });
     fake.state.documents.push({ id: 'doc_sample', eventId: 'evt_sample', type: 'post_event_report', fileName: 'report.pdf', status: 'submitted', uploadedAt: new Date() });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const insight = await (service as any).generateEventInsights('evt_sample');
 
@@ -2639,7 +2639,7 @@ describe('EventOpsService', () => {
 
   it('moves notifications through queued, sent, retried, failed, and acknowledged states', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await (service as any).queueNotification('evt_sample', 'client@example.test', 'Balance due', 'email');
     await (service as any).queueNotification('evt_sample', 'bad@example.test', 'Will fail', 'email', { forceFail: true });
@@ -2666,7 +2666,7 @@ describe('EventOpsService', () => {
 
   it('validates upload metadata and generates safe storage names', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const accepted = (service as any).validateUploadMetadata({
       fileName: '../../contract final.PDF',
@@ -2727,7 +2727,7 @@ describe('EventOpsService', () => {
       eventDayStatus: 'not_started',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).confirmSupplierAssignment('qr_sonic', {
@@ -2766,7 +2766,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const event = await (service as any).getGuestEventByAccessCode('AYALA-TECH-MPLE');
     expect(event.attendanceCount).toBe(0);
@@ -2814,7 +2814,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect((service as any).createInquiry({
       clientName: 'Mia Cruz',
@@ -2862,7 +2862,7 @@ describe('EventOpsService', () => {
 
   it('verifies audit integrity and reports the first tampered row', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await (service as any).audit('evt_sample', 'PMCM Admin', 'First audit row', { actionType: 'create' });
     await (service as any).audit('evt_sample', 'PMCM Admin', 'Second audit row', { actionType: 'update' });
@@ -2918,7 +2918,7 @@ describe('EventOpsService', () => {
       moderationStatus: 'pending_review',
       submittedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const inventory = await (service as any).getPrivacyInventory({ eventId: 'evt_sample' }, { actorRole: 'pmcm-admin' });
 
@@ -2931,7 +2931,7 @@ describe('EventOpsService', () => {
 
   it('exposes PMCM-only retention policies and privacy request queue', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const policies = await (service as any).listPrivacyRetentionPolicies({ actorRole: 'pmcm-admin' });
     expect(policies.map((policy: any) => policy.surface)).toEqual(
@@ -3011,7 +3011,7 @@ describe('EventOpsService', () => {
       privacyConsentAccepted: true,
       submittedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const request = await (service as any).createPrivacyRequest({
       subjectType: 'guest',
@@ -3052,7 +3052,7 @@ describe('EventOpsService', () => {
 
   it('rejects non-PMCM privacy request writes and invalid review states', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect((service as any).createPrivacyRequest({
       subjectType: 'client',
@@ -3077,7 +3077,7 @@ describe('EventOpsService', () => {
 
   it('sanitizes AI payloads, blocks unconfirmed ZDR, and records audit plus approval gates', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const sanitized = (service as any).sanitizeAiPayload({
       clientName: 'Ana Reyes',
@@ -3112,7 +3112,7 @@ describe('EventOpsService', () => {
 
   it('blocks client, supplier, and guest actors from internal staffing directory payloads', async () => {
     const fake = createPrisma();
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     await expect(
       (service as any).listCoordinators({ actorRole: 'client', clientName: 'Ana Reyes' }),
@@ -3187,7 +3187,7 @@ describe('EventOpsService', () => {
       verificationStatus: 'verified',
       checkedInAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const pmcmLive = await (service as any).getEventLiveOps('evt_sample', { actorRole: 'pmcm-admin' });
     expect(pmcmLive.guestAttendanceCount).toBe(1);
@@ -3227,7 +3227,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const task = await (service as any).createEventDayTask('evt_sample', {
       title: 'Open registration counters',
@@ -3286,7 +3286,7 @@ describe('EventOpsService', () => {
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const late = await (service as any).updateCoordinatorAttendance('evt_sample', 'coord_asg_reg', {
       status: 'late',
@@ -3348,7 +3348,7 @@ describe('EventOpsService', () => {
       overrideReason: 'Private override reason',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const workspace = await (service as any).listCoordinatorWorkspace({
       actorRole: 'coordinator',
@@ -3412,7 +3412,7 @@ describe('EventOpsService', () => {
       reviewedBy: 'PMCM Admin',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const verified = await (service as any).verifySupplierEventStatus('evt_sample', 'qr_sonic', {
       verificationStatus: 'verified',
@@ -3470,7 +3470,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const live = await (service as any).getEventLiveOps('evt_sample', { actorRole: 'pmcm-admin' });
 
@@ -3520,7 +3520,7 @@ describe('EventOpsService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const task = await (service as any).escalateEventDayTask('evt_sample', 'edt_escalate', {
       escalationLevel: 'pmcm',
@@ -3569,7 +3569,7 @@ describe('EventOpsService', () => {
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const replacement = await (service as any).replaceCoordinatorAssignment('evt_sample', 'coord_asg_reg', {
       replacementCoordinatorId: 'coord_ina',
@@ -3656,7 +3656,7 @@ describe('EventOpsService', () => {
       category: 'events',
       createdAt: new Date(),
     });
-    const service = createEventOpsService(fake.prisma as any);
+    const service = createSampleCompatibilityService(fake.prisma as any);
 
     const feed = await (service as any).getEventDayStatusFeed('evt_sample', {
       actorRole: 'coordinator',

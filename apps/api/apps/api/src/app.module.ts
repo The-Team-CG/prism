@@ -7,7 +7,7 @@ import { ClosureOpsModule } from '@prism/modules/closure-ops';
 import { CommercialOpsModule } from '@prism/modules/commercial-ops';
 import { ComplianceOpsModule } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
-import { EventOpsModule } from '@prism/modules/event-ops';
+import { SampleCompatibilityModule } from '@prism/modules/sample-compatibility';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { EventsModule } from '@prism/modules/events';
 import { FileOpsModule } from '@prism/modules/file-ops';
@@ -51,7 +51,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
     LiveOpsModule,
     ClosureOpsModule,
     EventReadModelsModule,
-    EventOpsModule,
+    SampleCompatibilityModule,
     PlansModule,
     PublishingModule,
   ],

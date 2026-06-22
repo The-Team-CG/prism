@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import { findBoundaryViolations } from "./check-prism-boundaries.mjs";
 
 describe("findBoundaryViolations", () => {
+  const removedModule = "event" + "-ops";
+  const removedImport = `@prism/modules/${removedModule}`;
+  const removedSourceRoot = `apps/api/libs/modules/${removedModule}/src`;
+
   it("allows role apps to import shared packages", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { Button } from "@prism/ui";',
@@ -59,18 +63,16 @@ describe("findBoundaryViolations", () => {
       "apps/api/libs/modules/supplier-ops/src/services/supplier.service.ts":
         'import { BillingOperationsService } from "@prism/modules/finance-ops/src/services/billing-operations.service";',
       "apps/api/libs/modules/finance-ops/src/services/payment.service.ts":
-        'import { EventOpsService } from "@prism/modules/event-ops";',
+        `import { RemovedService } from "${removedImport}";`,
       "apps/api/libs/modules/closure-ops/src/services/archive.service.ts":
-        'import { LocalClosureService } from "@prism/modules/closure-ops/src/services/local-closure.service";\nimport { BillingOperationsService } from "../../finance-ops/src/services/billing-operations.service";\nimport { EventClosureService } from "@prism/modules/event-ops/src/services/event-closure.service";',
+        `import { LocalClosureService } from "@prism/modules/closure-ops/src/services/local-closure.service";\nimport { BillingOperationsService } from "../../finance-ops/src/services/billing-operations.service";\nimport { RemovedClosureService } from "${removedImport}/src/services/event-closure.service";`,
       "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts":
         "await this.prisma.opsEvent.update({ where: { id }, data: input });",
       "apps/api/libs/modules/event-read-models/src/services/raw-dashboard.service.ts":
         "await this.prisma.$queryRaw`select * from ops_event`;",
-      "apps/api/libs/modules/event-ops/src/services/new-risk-workflow.service.ts":
-        "export class NewRiskWorkflowService {}",
-      "apps/api/libs/modules/event-ops/src/controllers/new-risk.controller.ts":
-        "export class NewRiskController {}",
-      "packages/ui/src/backend-button.tsx": 'import { EventOpsService } from "@prism/modules/event-ops";',
+      [`${removedSourceRoot}/services/new-risk-workflow.service.ts`]: "export class NewRiskWorkflowService {}",
+      [`${removedSourceRoot}/controllers/new-risk.controller.ts`]: "export class NewRiskController {}",
+      "packages/ui/src/backend-button.tsx": `import { RemovedService } from "${removedImport}";`,
     });
 
     assert.deepEqual(violations, [
@@ -80,8 +82,8 @@ describe("findBoundaryViolations", () => {
       "apps/api/libs/modules/closure-ops/src/services/archive.service.ts: backend capability modules must not import event-ops compatibility internals",
       "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts: event-read-models must not mutate Prisma state",
       "apps/api/libs/modules/event-read-models/src/services/raw-dashboard.service.ts: event-read-models raw queries require an approved query builder with a query budget",
-      "apps/api/libs/modules/event-ops/src/services/new-risk-workflow.service.ts: event-ops must not add new business service files after modularization starts",
-      "apps/api/libs/modules/event-ops/src/controllers/new-risk.controller.ts: event-ops must not add local business controllers after modularization starts",
+      `${removedSourceRoot}/services/new-risk-workflow.service.ts: event-ops module must not contain tracked files after sample compatibility migration`,
+      `${removedSourceRoot}/controllers/new-risk.controller.ts: event-ops module must not contain tracked files after sample compatibility migration`,
       "packages/ui/src/backend-button.tsx: shared ui must not import backend modules",
     ]);
   });
@@ -94,7 +96,8 @@ describe("findBoundaryViolations", () => {
         "// Query budget: one event summary query plus one scoped relation query.\nawait this.prisma.$queryRaw`select id from ops_event`;",
       "apps/api/libs/modules/event-read-models/src/services/pmcm-read-model.service.ts":
         "await this.prisma.opsEvent.findMany({ where: { id } });",
-      "apps/api/libs/modules/event-ops/src/services/audit.service.ts": "export class AuditService {}",
+      "apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.ts":
+        'import { EventCoreModule } from "@prism/modules/event-core";',
     });
 
     assert.deepEqual(violations, []);

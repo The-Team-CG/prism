@@ -18,8 +18,8 @@ import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { SupplierOpsModule } from '@prism/modules/supplier-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
-import { EVENT_OPS_CONTROLLERS } from './controllers';
-import { EventOpsService } from './event-ops.service';
+import { SampleController } from './controllers/sample.controller';
+import { SampleCompatibilityService } from './services/sample-compatibility.service';
 import { SampleStateService } from './services/sample-state.service';
 
 @Module({
@@ -44,7 +44,7 @@ import { SampleStateService } from './services/sample-state.service';
     ClosureOpsModule,
     EventReadModelsModule,
   ],
-  controllers: EVENT_OPS_CONTROLLERS,
-  providers: [SampleStateService, EventOpsService],
+  controllers: [SampleController],
+  providers: [SampleStateService, SampleCompatibilityService],
 })
-export class EventOpsModule {}
+export class SampleCompatibilityModule {}

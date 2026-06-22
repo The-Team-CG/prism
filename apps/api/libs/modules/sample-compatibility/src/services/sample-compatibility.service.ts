@@ -44,7 +44,7 @@ import {
 } from '@prism/modules/inquiry-onboarding';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
-import { AuditService } from './services/audit.service';
+import { AuditService, PrivacyOperationsService } from '@prism/modules/trust-ops';
 import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
 import {
   type ChangeSupplierTierInput,
@@ -71,7 +71,7 @@ import {
   SupplierVerificationStatus,
   isOpsConstantValue,
   type OpsUserRole as OpsUserRoleValue,
-} from './ops.constants';
+} from '@prism/modules/event-core';
 import {
   type CreateEventDayTaskInput,
   type CreateUrgentIssueInput,
@@ -81,23 +81,22 @@ import {
   type UpdateCoordinatorAttendanceInput,
   type UpdateEventDayTaskInput,
   type UpdateUrgentIssueInput,
-} from './services/live-operations.service';
+} from '@prism/modules/live-ops';
 import {
   mapCoordinatorAssignmentForEventDay as mapLiveOpsCoordinatorAssignmentForEventDay,
   mapEventDayLog as mapLiveOpsEventDayLog,
   mapEventDayTask as mapLiveOpsEventDayTask,
   mapUrgentIssue as mapLiveOpsUrgentIssue,
 } from '@prism/modules/live-ops';
-import { PrivacyOperationsService } from './services/privacy-operations.service';
-import { SampleStateService } from './services/sample-state.service';
+import { SampleStateService } from './sample-state.service';
 import {
   EventAccessPolicyService,
   type EventOpsActorInput,
   type ResolvedEventOpsActor,
-} from './services/event-access-policy.service';
+} from '@prism/modules/access-control';
 import { EventLifecycleService } from '@prism/modules/event-core';
-import { NotificationOutboxService } from './services/notification-outbox.service';
-import { WorkflowCommandService } from './services/workflow-command.service';
+import { NotificationOutboxService } from '@prism/modules/notification-ops';
+import { WorkflowCommandService } from '@prism/modules/event-core';
 import {
   createBillingReadModelMappers,
   createClientWorkspaceMappers,
@@ -115,7 +114,7 @@ import {
   BillingOperationsService,
   type CreateBillingSourceInput,
   type RecordPaymentInput,
-} from './services/billing-operations.service';
+} from '@prism/modules/finance-ops';
 import {
   type CreateFloorPlanDraftInput,
   type CreateFloorPlanPreferenceInput,
@@ -519,8 +518,8 @@ function addMinutes(value: Date, minutes: number) {
 }
 
 @Injectable()
-export class EventOpsService implements OnModuleInit {
-  private readonly logger = new Logger(EventOpsService.name);
+export class SampleCompatibilityService implements OnModuleInit {
+  private readonly logger = new Logger(SampleCompatibilityService.name);
 
   constructor(
     private readonly prisma: PrismaService,

@@ -1,9 +1,9 @@
 import { Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { EventOpsService } from '../event-ops.service';
+import { SampleCompatibilityService } from '../services/sample-compatibility.service';
 
 @Controller('sample')
 export class SampleController {
-  constructor(private readonly eventOpsService: EventOpsService) {}
+  constructor(private readonly sampleCompatibilityService: SampleCompatibilityService) {}
 
   /**
    * Compatibility aggregate for local demos, seed verification, and reset flows.
@@ -12,18 +12,18 @@ export class SampleController {
    */
   @Get('state')
   state() {
-    return this.eventOpsService.state();
+    return this.sampleCompatibilityService.state();
   }
 
   @Post('reset')
   @HttpCode(HttpStatus.OK)
   reset() {
-    return this.eventOpsService.resetSample();
+    return this.sampleCompatibilityService.resetSample();
   }
 
   @Post('seed')
   @HttpCode(HttpStatus.OK)
   seed() {
-    return this.eventOpsService.seedSampleState();
+    return this.sampleCompatibilityService.seedSampleState();
   }
 }

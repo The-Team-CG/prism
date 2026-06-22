@@ -49,11 +49,11 @@
                                           "@prism/modules/events/*":  [
                                                                           "libs/modules/events/src/*"
                                                                       ],
-                                          "@prism/modules/event-ops":  [
-                                                                           "libs/modules/event-ops/src/index"
+                                          "@prism/modules/sample-compatibility":  [
+                                                                           "libs/modules/sample-compatibility/src/index"
                                                                        ],
-                                          "@prism/modules/event-ops/*":  [
-                                                                             "libs/modules/event-ops/src/*"
+                                          "@prism/modules/sample-compatibility/*":  [
+                                                                             "libs/modules/sample-compatibility/src/*"
                                                                          ],
                                           "@prism/modules/publishing":  [
                                                                             "libs/modules/publishing/src/index"

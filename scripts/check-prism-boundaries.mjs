@@ -21,6 +21,7 @@ const backendCapabilityModules = [
   "closure-ops",
   "ai-governance",
   "event-read-models",
+  "sample-compatibility",
 ];
 
 const backendCapabilityPattern = new RegExp(
@@ -32,35 +33,6 @@ const eventReadModelsQueriesPattern = /^apps\/api\/libs\/modules\/event-read-mod
 const prismaMutationPattern =
   /(?:\b(?:this\.)?prisma(?:\.[A-Za-z_$][\w$]*)*|\btx(?:\.[A-Za-z_$][\w$]*)*)\.(?:createMany|create|updateMany|update|upsert|deleteMany|delete|\$executeRawUnsafe|\$executeRaw)\s*\(/;
 const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
-
-const legacyEventOpsServiceFiles = new Set([
-  "apps/api/libs/modules/event-ops/src/services/ai-governance.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/audit.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/auth-operations.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/auth-security.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/billing-operations.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/client-onboarding-workflow.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/commercial-workflow.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/compliance-workflow.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/coordinators.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/document-vault.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/event-access-policy.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/event-closure.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/event-lifecycle.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/event-read-models.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/file-requirements-matrix.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/floor-plan-workflow.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/guest-workflow.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/inquiries.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/inquiry-workflow.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/live-operations.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/notification-outbox.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/privacy-operations.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/sample-state.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/supplier-network-workflow.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/suppliers.service.ts",
-  "apps/api/libs/modules/event-ops/src/services/workflow-command.service.ts",
-]);
 
 export const boundaryRules = [
   {
@@ -154,16 +126,8 @@ export const boundaryRules = [
     },
   },
   {
-    name: "event-ops must not add new business service files after modularization starts",
-    filePattern: /^apps\/api\/libs\/modules\/event-ops\/src\/services\/[^/]+\.ts$/,
-    check(normalized) {
-      if (normalized.endsWith(".test.ts")) return false;
-      return !legacyEventOpsServiceFiles.has(normalized);
-    },
-  },
-  {
-    name: "event-ops must not add local business controllers after modularization starts",
-    filePattern: /^apps\/api\/libs\/modules\/event-ops\/src\/controllers\/(?!sample\.controller\.ts$|index\.ts$|.*\.test\.ts$).*\.ts$/,
+    name: "event-ops module must not contain tracked files after sample compatibility migration",
+    filePattern: /^apps\/api\/libs\/modules\/event-ops\//,
     check() {
       return true;
     },

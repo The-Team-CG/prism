@@ -21,7 +21,7 @@ export interface SignedUploadUrlFactory {
 
 @Injectable()
 export class MetadataOnlySignedUploadUrlFactory implements SignedUploadUrlFactory {
-  async createSignedUploadUrl(): Promise<SignedUploadUrlResult> {
+  async createSignedUploadUrl(_request: SignedUploadUrlRequest): Promise<SignedUploadUrlResult> {
     throw new ServiceUnavailableException('Signed upload URLs require an approved storage adapter');
   }
 }

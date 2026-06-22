@@ -1,1 +1,0 @@
-export { AuthOperationsService } from '@prism/modules/identity-ops';
