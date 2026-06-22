@@ -1,4 +1,5 @@
 export * from './commercial-ops.module';
+export * from './controllers/event-commercial.controller';
 export * from './controllers/quote-requests.controller';
 export * from './dto/supplier-quote.dto';
 export * from './mappers/supplier-quote.mappers';

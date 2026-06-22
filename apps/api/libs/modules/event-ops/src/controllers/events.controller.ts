@@ -1,6 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import {
-  AddSupplierQuoteDto,
   AiGovernanceDryRunDto,
   ChangeSupplierTierDto,
   CreateCoordinatorAssignmentDto,
@@ -20,7 +19,6 @@ import {
   ListAuditLogsDto,
   LoginDto,
   RequestApprovalDto,
-  RequestSupplierQuotesDto,
   ReplaceCoordinatorAssignmentDto,
   ReviewPrivacyRequestDto,
   SubmitSupplierQuoteDto,
@@ -156,31 +154,6 @@ export class OpsEventsController {
   @HttpCode(HttpStatus.CREATED)
   submitBriefing(@Param('eventId') eventId: string, @Body() dto: SubmitBriefingDto) {
     return this.eventOpsService.submitBriefing(eventId, dto);
-  }
-
-  @Post(':eventId/supplier-quotes')
-  @HttpCode(HttpStatus.CREATED)
-  addSupplierQuote(@Param('eventId') eventId: string, @Body() dto: AddSupplierQuoteDto, @Query() actor: SampleActorDto) {
-    return this.eventOpsService.addSupplierQuote(eventId, dto, actor);
-  }
-
-  @Post(':eventId/quote-requests')
-  @HttpCode(HttpStatus.CREATED)
-  requestSupplierQuotes(
-    @Param('eventId') eventId: string,
-    @Body() dto: RequestSupplierQuotesDto,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.requestSupplierQuotes(eventId, dto, actor);
-  }
-
-  @Patch(':eventId/supplier-quotes/:quoteId/select')
-  selectSupplierQuote(
-    @Param('eventId') eventId: string,
-    @Param('quoteId') quoteId: string,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.selectSupplierQuote(eventId, quoteId, actor);
   }
 
   @Patch(':eventId/quote-requests/:requestId/withdraw')
