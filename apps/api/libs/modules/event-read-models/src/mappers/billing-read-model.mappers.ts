@@ -23,7 +23,7 @@ function guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>) {
   return `${namePart}-${idPart}`;
 }
 
-function mapFloorPlanDraft(draft: OpsFloorPlanDraft) {
+export function mapReadModelFloorPlanDraft(draft: OpsFloorPlanDraft) {
   const expanded = draft as OpsFloorPlanDraft & {
     submittedSnapshot?: unknown;
     approvedSnapshot?: unknown;
@@ -74,6 +74,6 @@ export function mapBillingEvent(event: EventWithDrafts) {
     floorPlanId: event.floorPlanId,
     guestAccessCode: guestAccessCode(event),
     activeFloorPlanDraftId: activeDraft?.id,
-    floorPlanDrafts: floorPlanDrafts.map(mapFloorPlanDraft),
+    floorPlanDrafts: floorPlanDrafts.map(mapReadModelFloorPlanDraft),
   };
 }

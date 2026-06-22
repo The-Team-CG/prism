@@ -12,7 +12,6 @@ describe('event-ops controller routes', () => {
       'ai',
       'audit',
       'auth',
-      'client',
       'compliance',
       'coordinator',
       'coordinators',
