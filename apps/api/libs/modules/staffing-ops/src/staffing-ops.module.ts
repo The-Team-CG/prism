@@ -7,6 +7,7 @@ import { GuestOpsModule } from '@prism/modules/guest-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsCoordinatorWorkspaceController } from './controllers/coordinator-workspace.controller';
+import { OpsEventCoordinatorAssignmentsController } from './controllers/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './controllers/coordinators.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './ports/staffing-ops.tokens';
 import { CoordinatorWorkspaceReadService } from './services/coordinator-workspace-read.service';
@@ -14,7 +15,7 @@ import { CoordinatorsService } from './services/coordinators.service';
 
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, FloorplanModule, GuestOpsModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController],
   providers: [
     CoordinatorsService,
     CoordinatorWorkspaceReadService,

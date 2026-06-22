@@ -2,7 +2,6 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query 
 import {
   AiGovernanceDryRunDto,
   ChangeSupplierTierDto,
-  CreateCoordinatorAssignmentDto,
   CreateEventDayTaskDto,
   CreateInquiryDto,
   CreateSupplierCertificationDto,
@@ -165,27 +164,5 @@ export class OpsEventsController {
   ) {
     return this.eventOpsService.withdrawSupplier(requestId, dto.reason ?? 'Withdrawn by PMCM Admin', actor);
   }
-
-
-
-  @Post(':eventId/coordinators')
-  @HttpCode(HttpStatus.CREATED)
-  assignCoordinator(
-    @Param('eventId') eventId: string,
-    @Body() dto: CreateCoordinatorAssignmentDto,
-  ) {
-    return this.eventOpsService.assignCoordinator(eventId, dto);
-  }
-
-  @Patch(':eventId/coordinators/:assignmentId/acknowledge')
-  acknowledgeCoordinator(
-    @Param('eventId') eventId: string,
-    @Param('assignmentId') assignmentId: string,
-  ) {
-    return this.eventOpsService.acknowledgeCoordinator(eventId, assignmentId);
-  }
-
-
-
 
 }

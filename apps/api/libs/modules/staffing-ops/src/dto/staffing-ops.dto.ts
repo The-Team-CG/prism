@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
 
 export class SampleActorDto {
   @IsOptional()
@@ -36,4 +36,22 @@ export class SampleActorDto {
   @IsOptional()
   @IsString()
   accessCode?: string;
+}
+
+export class CreateCoordinatorAssignmentDto {
+  @IsOptional()
+  @IsString()
+  coordinatorId?: string;
+
+  @IsOptional()
+  @IsString()
+  coordinatorName?: string;
+
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  overrideConflict?: boolean;
 }

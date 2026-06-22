@@ -6,4 +6,5 @@ export * from './services/coordinators.service';
 export * from './services/coordinator-workspace-read.service';
 export * from './controllers/coordinators.controller';
 export * from './controllers/coordinator-workspace.controller';
+export * from './controllers/event-coordinator-assignments.controller';
 export * from './dto/staffing-ops.dto';
