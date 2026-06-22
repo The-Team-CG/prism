@@ -2,10 +2,8 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query 
 import {
   AddSupplierQuoteDto,
   AiGovernanceDryRunDto,
-  ApproveBillingSourceDto,
   ArchiveEventDto,
   ChangeSupplierTierDto,
-  CreateBillingSourceDto,
   CreateCoordinatorAssignmentDto,
   CreateEventDayTaskDto,
   CreateInquiryDto,
@@ -22,8 +20,6 @@ import {
   GuestFeedbackDto,
   ListAuditLogsDto,
   LoginDto,
-  MarkPaymentDto,
-  RecordPaymentDto,
   RequestApprovalDto,
   RequestSupplierQuotesDto,
   ReplaceCoordinatorAssignmentDto,
@@ -199,35 +195,6 @@ export class OpsEventsController {
   }
 
 
-  @Post(':eventId/billing-source')
-  @HttpCode(HttpStatus.CREATED)
-  createBillingSource(
-    @Param('eventId') eventId: string,
-    @Body() dto: CreateBillingSourceDto,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.createBillingSource(eventId, dto, actor);
-  }
-
-  @Patch(':eventId/billing-source/:sourceId/approve')
-  approveBillingSource(
-    @Param('eventId') eventId: string,
-    @Param('sourceId') sourceId: string,
-    @Body() dto: ApproveBillingSourceDto,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.approveBillingSource(eventId, sourceId, dto, actor);
-  }
-
-  @Post(':eventId/billing-statements/generate')
-  @HttpCode(HttpStatus.CREATED)
-  generateBillingStatement(
-    @Param('eventId') eventId: string,
-    @Body() dto: { sourceId?: string } = {},
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.generateBillingStatement(eventId, dto.sourceId, actor);
-  }
 
   @Post(':eventId/coordinators')
   @HttpCode(HttpStatus.CREATED)
@@ -246,36 +213,6 @@ export class OpsEventsController {
     return this.eventOpsService.acknowledgeCoordinator(eventId, assignmentId);
   }
 
-  @Patch(':eventId/payments/:milestoneId')
-  markPayment(
-    @Param('eventId') eventId: string,
-    @Param('milestoneId') milestoneId: string,
-    @Body() dto: MarkPaymentDto,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.markPayment(eventId, milestoneId, dto.status, actor);
-  }
-
-  @Post(':eventId/payments/:milestoneId/records')
-  @HttpCode(HttpStatus.CREATED)
-  recordPayment(
-    @Param('eventId') eventId: string,
-    @Param('milestoneId') milestoneId: string,
-    @Body() dto: RecordPaymentDto,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.recordPayment(eventId, milestoneId, dto, actor);
-  }
-
-  @Post(':eventId/billing-statements/:billingId/send')
-  @HttpCode(HttpStatus.OK)
-  sendBillingStatement(
-    @Param('eventId') eventId: string,
-    @Param('billingId') billingId: string,
-    @Query() actor: SampleActorDto,
-  ) {
-    return this.eventOpsService.sendBillingStatement(eventId, billingId, actor);
-  }
 
   @Patch(':eventId/post-event-documents/:documentId/complete')
   completePostEventDocument(
