@@ -6,7 +6,6 @@ import {
   ArchiveEventDto,
   ChangeSupplierTierDto,
   CreateBillingSourceDto,
-  CreateComplianceRuleDto,
   CreateCoordinatorAssignmentDto,
   CreateEventDayTaskDto,
   CreateFloorPlanDraftDto,
@@ -39,7 +38,6 @@ import {
   SupplierEventStatusDto,
   SupplierReadinessDto,
   UpdateCoordinatorAttendanceDto,
-  UpdateComplianceRuleDto,
   UpdateEventDayTaskDto,
   UpdateUrgentIssueDto,
   UpdateSupplierDto,
@@ -390,25 +388,3 @@ export class OpsEventsController {
     return this.eventOpsService.generateEventInsights(eventId);
   }
 }
-
-@Controller('compliance')
-export class OpsComplianceController {
-  constructor(private readonly eventOpsService: EventOpsService) {}
-
-  @Get('rules')
-  listRules(@Query() actor: SampleActorDto) {
-    return this.eventOpsService.listComplianceRules(actor);
-  }
-
-  @Post('rules')
-  @HttpCode(HttpStatus.CREATED)
-  createRule(@Body() dto: CreateComplianceRuleDto, @Query() actor: SampleActorDto) {
-    return this.eventOpsService.createComplianceRule(dto, actor);
-  }
-
-  @Patch('rules/:ruleId')
-  updateRule(@Param('ruleId') ruleId: string, @Body() dto: UpdateComplianceRuleDto, @Query() actor: SampleActorDto) {
-    return this.eventOpsService.updateComplianceRule(ruleId, dto, actor);
-  }
-}
-
