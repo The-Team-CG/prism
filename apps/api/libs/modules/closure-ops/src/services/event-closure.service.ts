@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsComplianceCheck, OpsEvent, OpsEventInsight, OpsPostEventDocument } from '@prisma/client';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';

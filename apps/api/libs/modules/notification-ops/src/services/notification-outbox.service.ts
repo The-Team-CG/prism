@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsNotificationLog } from '@prisma/client';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '../../../../core/shared-kernel/src';
 import { NotificationChannel } from '@prism/modules/event-core';

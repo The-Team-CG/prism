@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 
 type Mapper<TInput = unknown, TOutput = unknown> = (input: TInput) => TOutput;
 

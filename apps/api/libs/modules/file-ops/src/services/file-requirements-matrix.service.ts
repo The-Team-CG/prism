@@ -7,7 +7,7 @@ import type {
   OpsPostEventDocument,
   OpsSupplierReview,
 } from '@prisma/client';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 
 export type FileRequirementStatus = 'missing' | 'pending' | 'submitted' | 'generated' | 'approved' | 'complete';
 

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import type { PrismEventOpsActorContext } from '@prism/types';
 import { OpsUserRole } from '@prism/modules/event-core';
 import type { InquiriesService } from './inquiries.service';

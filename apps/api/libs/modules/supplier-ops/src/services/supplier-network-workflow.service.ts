@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import {
   AuditActionType,

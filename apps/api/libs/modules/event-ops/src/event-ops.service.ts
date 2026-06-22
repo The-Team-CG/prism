@@ -4,7 +4,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import type {
@@ -520,9 +519,8 @@ function addMinutes(value: Date, minutes: number) {
 }
 
 @Injectable()
-export class EventOpsService implements OnModuleInit, OnModuleDestroy {
+export class EventOpsService implements OnModuleInit {
   private readonly logger = new Logger(EventOpsService.name);
-  private reminderTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -593,17 +591,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
         );
       });
     }
-
-    if (process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB === '1') return;
-
-    this.reminderTimer = setInterval(() => {
-      this.runConformeReminderSweep().catch(() => undefined);
-    }, 60_000);
-    this.reminderTimer.unref?.();
-  }
-
-  onModuleDestroy() {
-    if (this.reminderTimer) clearInterval(this.reminderTimer);
   }
 
   private inquiryWorkflowContext() {

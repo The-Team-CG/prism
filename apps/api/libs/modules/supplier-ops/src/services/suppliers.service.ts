@@ -7,7 +7,7 @@ import type {
   OpsSupplierReliabilityNote,
   OpsSupplierReview,
 } from '@prisma/client';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { SupplierTier } from '@prism/modules/event-core';
 

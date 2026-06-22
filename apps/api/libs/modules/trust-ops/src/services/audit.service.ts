@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '../../../../core/shared-kernel/src';

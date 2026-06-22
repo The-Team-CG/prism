@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { SupplierTier } from '@prism/modules/event-core';
 import type { AddSupplierQuoteInput } from '../ports/commercial-workflow-commands.port';
 import type { QuoteSupplierProfile, QuoteSupplierResolver } from '../ports/quote-supplier-resolver.port';

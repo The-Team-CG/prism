@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import type { PrismCommandContext, PrismTransactionContext } from './prism-command-context';
 
 @Injectable()

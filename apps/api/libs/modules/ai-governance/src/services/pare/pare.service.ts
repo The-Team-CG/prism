@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { EventContextAgent } from './agents/event-context.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';

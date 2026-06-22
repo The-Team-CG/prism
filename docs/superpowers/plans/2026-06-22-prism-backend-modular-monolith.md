@@ -896,7 +896,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 - [x] Inventory remaining `EventOpsService` methods.
 - [x] Delete methods that are no longer called from the public facade. Defense-readiness was removed; non-sample delegates are no longer public API, and remaining public calls are sample compatibility.
-- [x] Move any remaining behavior to the owning module or document why it remains compatibility-only. `/sample/*` remains a local demo/seed/reset aggregate by design; capability modules are imported by the API root for route ownership.
+- [x] Move any remaining behavior to the owning module or document why it remains compatibility-only. `/sample/*` remains a local demo/seed/reset aggregate by design; capability modules are imported by the API root for route ownership. The conforme reminder scheduler now lives in `inquiry-onboarding` instead of `EventOpsService`.
 - [ ] Delete `EventOpsService` only when no controller or test imports it. Not met by design: `SampleController` still imports it for compatibility-only sample state/reset/seed.
 - [x] Delete stale path aliases and exports. The local controller registry now exports/registers only `SampleController`, and stale event-ops controller shim files were removed.
 - [x] Update docs to state that `event-ops` is retired or compatibility-only.
@@ -907,10 +907,11 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 - [x] `npm --workspace prism-api run build`.
 - [x] `npm --workspace prism-api run test` if feasible. Focused route/read-model tests passed; full suite remains expensive for this branch.
 - [x] `npm run check:boundaries`.
+- [x] AppModule production context boot check with `PRISM_DISABLE_CONFORME_REMINDER_JOB=1` to catch invalid provider exports and runtime DI metadata issues.
 
 **Acceptance criteria:**
 
-- [x] No business route module depends on `event-ops`; the API root imports capability modules directly. `event-ops` still imports capability modules only to assemble the deferred `/sample/*` compatibility aggregate.
+- [x] No business route module depends on `event-ops`; the API root imports capability modules directly. `event-ops` still imports capability modules only to assemble the deferred `/sample/*` compatibility aggregate, and it no longer owns the conforme reminder background interval.
 - [x] Docs and architecture diagrams match runtime structure.
 - [x] Deletion does not break app clients. API route contracts stayed stable and API build passed.
 

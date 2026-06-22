@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/modules/event-core';
 import { AuditService } from '@prism/modules/trust-ops';
 import { AuthSecurityService } from './auth-security.service';

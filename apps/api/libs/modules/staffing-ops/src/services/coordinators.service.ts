@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment } from '@prisma/client';
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import type { PrismCommandContext } from '../../../../core/shared-kernel/src';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/modules/event-core';

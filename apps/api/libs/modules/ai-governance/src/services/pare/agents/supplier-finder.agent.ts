@@ -1,4 +1,4 @@
-import type { PrismaService } from '@prism/database';
+import { PrismaService } from '@prism/database';
 import type { PARECandidate, PAREContext } from '../pare.types';
 
 export class SupplierFinderAgent {

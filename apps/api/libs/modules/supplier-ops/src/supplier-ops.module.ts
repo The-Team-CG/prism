@@ -27,6 +27,11 @@ const supplierDirectoryProvider = {
   useExisting: SuppliersService,
 };
 
+const supplierCommandsProvider = {
+  provide: SUPPLIER_COMMANDS,
+  useExisting: SupplierNetworkWorkflowService,
+};
+
 const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
   recordEventDayLog: async () => {
     throw new Error('Supplier live operations are still owned by event-ops until the live-ops split moves.');
@@ -47,10 +52,18 @@ const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
     supplierDirectoryProvider,
     SupplierProfileCommandsService,
     SupplierNetworkWorkflowService,
+    supplierCommandsProvider,
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DocumentVaultService },
     { provide: SUPPLIER_LIVE_OPERATIONS, useValue: unsupportedSupplierLiveOperations },
     { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
   ],
-  exports: [SuppliersService, supplierDirectoryProvider, SupplierProfileCommandsService, SupplierNetworkWorkflowService, SUPPLIER_COMMANDS],
+  exports: [
+    SuppliersService,
+    supplierDirectoryProvider,
+    supplierCommandsProvider,
+    SupplierProfileCommandsService,
+    SupplierNetworkWorkflowService,
+    SUPPLIER_COMMANDS,
+  ],
 })
 export class SupplierOpsModule {}
