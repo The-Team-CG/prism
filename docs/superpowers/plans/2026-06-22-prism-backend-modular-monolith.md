@@ -890,6 +890,8 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ## Phase 14 - Retire EventOps Facade
 
+Child plan: docs/superpowers/plans/2026-06-22-prism-event-ops-target-shape-plan.md.
+
 **Purpose:** Remove the old hub after routes and clients no longer need it.
 
 **Edits:**
