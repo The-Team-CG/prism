@@ -1,6 +1,7 @@
 export * from './event-read-models.module';
 export * from './controllers/billing.controller';
 export * from './controllers/client-workspace.controller';
+export * from './controllers/defense-readiness.controller';
 export * from './controllers/events.controller';
 export * from './controllers/pmcm-command-inbox.controller';
 export * from './controllers/pmcm-dashboard.controller';

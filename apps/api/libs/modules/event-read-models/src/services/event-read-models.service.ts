@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type {
   OpsAuditLog,
   OpsBillingSource,
@@ -22,6 +22,7 @@ import type {
   OpsUser,
 } from '@prisma/client';
 import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
+import { CLOSURE_READINESS_READER, type ClosureReadinessReader } from '@prism/modules/closure-ops';
 import { GUEST_READER, type GuestReader } from '@prism/modules/guest-ops';
 import { AuditCategory, OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '@prism/modules/event-core';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
@@ -94,11 +95,174 @@ export class EventReadModelsService {
     await this.policy.requireCanReadEvent(actor, event, 'event detail');
     return mappers.mapEvent(event);
   }
+
+  async defenseReadiness(actor: ResolvedEventOpsActor, eventId: string) {
+    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'defense readiness', eventId);
+    if (!this.closureReadinessReader) throw new Error('Closure readiness reader is not configured');
+
+    const [
+      event,
+      briefings,
+      quoteRequests,
+      supplierQuotes,
+      eventDayTasks,
+      urgentIssues,
+      billingStatements,
+      paymentMilestones,
+    ] = await this.queries.defenseReadiness(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+
+    const [coordinatorAssignments, guestCheckIns, guestFeedback, closeGatesResult] = await Promise.all([
+      this.staffingReader.listAssignmentsForEvent(eventId),
+      this.guestReader.listCheckInsForEvent(eventId),
+      this.guestReader.listFeedbackForEvent(eventId),
+      this.closureReadinessReader.closeGates(eventId),
+    ]);
+    const closeGates = closeGatesResult as { ready: boolean; missingKeys: string[] };
+    const floorPlanDrafts = event.floorPlanDrafts ?? [];
+
+    const approvedFloorplan = floorPlanDrafts.find((draft: any) => draft.status === 'approved');
+    const selectedSupplierCount = supplierQuotes.filter((quote: any) => ['selected', 'locked'].includes(quote.status)).length;
+    const pendingCoordinatorCount = coordinatorAssignments.filter((assignment: any) =>
+      ['pending', 'pending_acknowledgement'].includes(assignment.status),
+    ).length;
+    const openTaskCount = eventDayTasks.filter((task: any) => !['done', 'cancelled'].includes(task.status)).length;
+    const openIssueCount = urgentIssues.filter((issue: any) => !['resolved', 'closed'].includes(issue.status)).length;
+    const unpaidMilestoneCount = paymentMilestones.filter((milestone: any) =>
+      milestone.status !== 'paid' || milestone.remainingBalance > 0,
+    ).length;
+    const pendingFeedbackCount = guestFeedback.filter((feedback: any) => feedback.moderationStatus === 'pending_review').length;
+
+    const nextActions = [
+      {
+        key: 'briefing',
+        label: 'Client briefing',
+        detail: briefings.length > 0 ? 'Briefing is on file for planning.' : 'Submit the confirmed venue, pax, budget, and service notes.',
+        status: briefings.length > 0 ? 'done' : 'blocked',
+        targetTab: 'briefing',
+      },
+      {
+        key: 'floorplan',
+        label: 'Official floorplan',
+        detail: approvedFloorplan ? 'Approved PMCM floorplan is ready for client review.' : 'Create, submit, and approve the official PMCM layout.',
+        status: approvedFloorplan ? 'done' : floorPlanDrafts.length > 0 ? 'attention' : 'blocked',
+        targetTab: 'floorplans',
+      },
+      {
+        key: 'suppliers',
+        label: 'Supplier selection',
+        detail:
+          selectedSupplierCount > 0
+            ? `${selectedSupplierCount} selected supplier quote(s) are locked.`
+            : quoteRequests.length > 0
+              ? 'Quote requests are out; select winning supplier quotes.'
+              : 'Send scoped quote requests to Tier 1 or backup suppliers.',
+        status: selectedSupplierCount > 0 ? 'done' : quoteRequests.length > 0 ? 'attention' : 'blocked',
+        targetTab: 'suppliers',
+      },
+      {
+        key: 'coordinators',
+        label: 'Coordinator readiness',
+        detail:
+          coordinatorAssignments.length === 0
+            ? 'Assign event-day roles before the live run.'
+            : pendingCoordinatorCount > 0
+              ? `${pendingCoordinatorCount} coordinator assignment(s) still need acknowledgment.`
+              : 'Coordinator assignments are acknowledged.',
+        status: coordinatorAssignments.length === 0 ? 'blocked' : pendingCoordinatorCount > 0 ? 'attention' : 'done',
+        targetTab: 'coordinators',
+      },
+      {
+        key: 'billing',
+        label: 'Billing and payments',
+        detail:
+          billingStatements.length === 0
+            ? 'Generate a billing statement from the approved CE/proposal source.'
+            : unpaidMilestoneCount > 0
+              ? `${unpaidMilestoneCount} payment milestone(s) still need recording.`
+              : 'Billing statement and payment schedule are closed.',
+        status: billingStatements.length === 0 ? 'attention' : unpaidMilestoneCount > 0 ? 'attention' : 'done',
+        targetTab: 'billing',
+      },
+      {
+        key: 'live-ops',
+        label: 'Event-day operations',
+        detail:
+          openTaskCount + openIssueCount > 0
+            ? `${openTaskCount} open task(s) and ${openIssueCount} urgent issue(s) need attention.`
+            : 'Live-ops board is ready for supplier, coordinator, and attendance signals.',
+        status: openIssueCount > 0 ? 'attention' : 'done',
+        targetTab: 'live-ops',
+      },
+      {
+        key: 'closure',
+        label: 'Closure and archive',
+        detail: closeGates.ready
+          ? 'Close gates are complete; archive can proceed.'
+          : `Close gate(s) still open: ${closeGates.missingKeys.join(', ') || 'none'}.`,
+        status: closeGates.ready ? 'done' : 'attention',
+        targetTab: 'closure',
+      },
+    ];
+    const doneCount = nextActions.filter((action) => action.status === 'done').length;
+    const overallStatus = nextActions.some((action) => action.status === 'blocked')
+      ? 'blocked'
+      : nextActions.some((action) => action.status === 'attention')
+        ? 'attention'
+        : 'ready';
+    const lifecycleStage =
+      event.archived
+        ? 'archive'
+        : !briefings.length
+          ? 'briefing'
+          : !approvedFloorplan
+            ? 'planning'
+            : selectedSupplierCount === 0 || pendingCoordinatorCount > 0
+              ? 'supplier-coordinator-setup'
+              : openTaskCount + openIssueCount > 0
+                ? 'event-day'
+                : closeGates.ready
+                  ? 'closure-ready'
+                  : 'closure';
+
+    return {
+      eventId,
+      eventName: event.eventName,
+      overallStatus,
+      lifecycleStage,
+      score: Math.round((doneCount / nextActions.length) * 100),
+      summary: {
+        briefingSubmitted: briefings.length > 0,
+        officialFloorplanApproved: Boolean(approvedFloorplan),
+        quoteRequests: quoteRequests.length,
+        selectedSuppliers: selectedSupplierCount,
+        coordinatorAssignments: coordinatorAssignments.length,
+        pendingCoordinatorAcknowledgments: pendingCoordinatorCount,
+        openLiveOpsItems: openTaskCount + openIssueCount,
+        billingStatements: billingStatements.length,
+        unpaidMilestones: unpaidMilestoneCount,
+        guestAttendanceCount: guestCheckIns.length,
+        pendingFeedbackModeration: pendingFeedbackCount,
+        closureReady: closeGates.ready,
+      },
+      nextActions,
+      liveAiBlocked: true,
+      deferredScope: [
+        'Live AI calls',
+        'QR scanning',
+        'Production notification adapters',
+        'External auth',
+        'Canva/Zoom integrations',
+      ],
+      generatedAt: new Date().toISOString(),
+    };
+  }
   constructor(
     private readonly queries: EventReadModelQueries,
     private readonly policy: EventAccessPolicyService,
     @Inject(GUEST_READER) private readonly guestReader: GuestReader,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
+    @Optional() @Inject(CLOSURE_READINESS_READER) private readonly closureReadinessReader?: ClosureReadinessReader,
   ) {}
 
   async billing(actor: ResolvedEventOpsActor, mappers: BillingReadModelMappers) {

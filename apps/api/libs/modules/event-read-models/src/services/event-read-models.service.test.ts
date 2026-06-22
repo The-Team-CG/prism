@@ -324,6 +324,101 @@ describe('EventReadModelsService', () => {
     expect(board.counts.warning).toBe(1);
   });
 
+  it('builds a PMCM-only defense readiness checklist through reader ports', async () => {
+    const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+    const event = {
+      id: 'evt_sample',
+      eventName: 'Ayala Summit',
+      archived: false,
+      floorPlanDrafts: [{ id: 'fpd_approved', status: 'approved' }],
+    };
+    const queries = {
+      defenseReadiness: vi.fn(async () => [
+        event,
+        [{ id: 'briefing_1' }],
+        [{ id: 'qr_1' }],
+        [{ id: 'quote_1', status: 'selected' }],
+        [],
+        [],
+        [],
+        [{ id: 'pay_1', status: 'pending', remainingBalance: 5000 }],
+      ]),
+    };
+    const guestReader = {
+      ...createGuestReader(),
+      listCheckInsForEvent: vi.fn(async () => [{ id: 'checkin_1' }]),
+      listFeedbackForEvent: vi.fn(async () => [{ id: 'feedback_1', moderationStatus: 'pending_review' }]),
+    };
+    const staffingReader = {
+      ...createStaffingReader(),
+      listAssignmentsForEvent: vi.fn(async () => [{ id: 'asg_1', status: 'pending_acknowledgement' }]),
+    };
+    const closureReadinessReader = {
+      closeGates: vi.fn(async () => ({ ready: false, missingKeys: ['post_event_report'] })),
+    };
+    const service = new EventReadModelsService(
+      queries as any,
+      policy,
+      guestReader as any,
+      staffingReader as any,
+      closureReadinessReader as any,
+    );
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine' });
+
+    const readiness = await service.defenseReadiness(actor, 'evt_sample');
+
+    expect(readiness).toMatchObject({
+      eventId: 'evt_sample',
+      eventName: 'Ayala Summit',
+      overallStatus: 'attention',
+      lifecycleStage: 'supplier-coordinator-setup',
+      liveAiBlocked: true,
+      summary: expect.objectContaining({
+        briefingSubmitted: true,
+        officialFloorplanApproved: true,
+        quoteRequests: 1,
+        selectedSuppliers: 1,
+        pendingCoordinatorAcknowledgments: 1,
+        guestAttendanceCount: 1,
+        pendingFeedbackModeration: 1,
+        closureReady: false,
+      }),
+    });
+    expect(readiness.nextActions.map((action: any) => action.key)).toEqual([
+      'briefing',
+      'floorplan',
+      'suppliers',
+      'coordinators',
+      'billing',
+      'live-ops',
+      'closure',
+    ]);
+    expect(queries.defenseReadiness).toHaveBeenCalledWith('evt_sample');
+    expect(staffingReader.listAssignmentsForEvent).toHaveBeenCalledWith('evt_sample');
+    expect(guestReader.listCheckInsForEvent).toHaveBeenCalledWith('evt_sample');
+    expect(guestReader.listFeedbackForEvent).toHaveBeenCalledWith('evt_sample');
+    expect(closureReadinessReader.closeGates).toHaveBeenCalledWith('evt_sample');
+  });
+
+  it('denies non-PMCM actors from defense readiness before querying', async () => {
+    const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+    const queries = { defenseReadiness: vi.fn() };
+    const service = new EventReadModelsService(
+      queries as any,
+      policy,
+      createGuestReader() as any,
+      createStaffingReader() as any,
+      { closeGates: vi.fn() } as any,
+    );
+
+    await expect(
+      service.defenseReadiness(policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' }), 'evt_sample'),
+    ).rejects.toThrow('client cannot access defense readiness');
+    await expect(
+      service.defenseReadiness(policy.resolveActor({ actorRole: OpsUserRole.Guest, actorName: 'Guest User' }), 'evt_sample'),
+    ).rejects.toThrow('guest cannot access defense readiness');
+    expect(queries.defenseReadiness).not.toHaveBeenCalled();
+  });
   it('builds a PMCM command inbox ordered by operational severity', async () => {
     const { service, policy } = createPmcmReadModelService();
     const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });

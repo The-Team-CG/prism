@@ -46,6 +46,20 @@ export class EventReadModelQueries {
     });
   }
 
+  // Query budget: one selected event query plus seven event-scoped readiness queries, no per-row Prisma loop.
+  defenseReadiness(eventId: string) {
+    return Promise.all([
+      this.eventWithDrafts(eventId),
+      this.prisma.opsBriefing.findMany({ where: { eventId }, orderBy: { submittedAt: 'desc' } }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsSupplierQuote.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: { generatedAt: 'desc' } }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
+    ]);
+  }
+
   // Query budget: four finance queries for a bounded actor-visible event id set, no per-row Prisma loop.
   billingForEvents(eventIds: string[], includeInternalCosts: boolean) {
     return Promise.all([

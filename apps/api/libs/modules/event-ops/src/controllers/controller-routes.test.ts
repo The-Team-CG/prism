@@ -9,9 +9,6 @@ function controllerPath(controller: Function): string {
 describe('event-ops controller routes', () => {
   it('keeps public controller base paths stable', () => {
     // Controller ownership now lives in capability modules; event-ops only keeps compatibility controllers.
-    expect(EVENT_OPS_CONTROLLERS.map(controllerPath).sort()).toEqual([
-      'events',
-      'sample',
-    ]);
+    expect(EVENT_OPS_CONTROLLERS.map(controllerPath).sort()).toEqual(['sample']);
   });
 });

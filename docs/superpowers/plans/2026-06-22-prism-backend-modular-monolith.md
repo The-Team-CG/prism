@@ -845,17 +845,17 @@ Before claiming the full backend modular monolith goal complete, use the reconci
 
 ## Phase 13 - Move Controllers To Owning Modules
 
-Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-controller-ownership.md`. Live-ops child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-live-ops-routes.md`. PARE child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-pare-routes.md`. Supplier withdrawal child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-supplier-withdrawal-route.md`.
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-controller-ownership.md`. Live-ops child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-live-ops-routes.md`. PARE child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-pare-routes.md`. Supplier withdrawal child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-supplier-withdrawal-route.md`. Defense readiness child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-defense-readiness-route.md`.
 
 **Purpose:** Move HTTP ownership after service ownership is stable.
 
 **Edits:**
 
-- [ ] Map every current controller method to an owning module.
-- [ ] Move controller files one module at a time.
-- [ ] Keep public route paths and request/response DTOs stable.
-- [ ] Update API client contracts only when the route contract intentionally changes.
-- [ ] Keep compatibility delegates if an app branch still depends on an old controller grouping.
+- [x] Map every current controller method to an owning module.
+- [x] Move controller files one module at a time.
+- [x] Keep public route paths and request/response DTOs stable.
+- [x] Update API client contracts only when the route contract intentionally changes. No route contract changed in the defense-readiness slice.
+- [x] Keep compatibility delegates if an app branch still depends on an old controller grouping.
 
 **Controller ownership target:**
 
@@ -873,19 +873,19 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 **Tests:**
 
-- [ ] Route smoke tests for each moved controller.
-- [ ] API client type generation check if client packages are affected.
-- [ ] `npm --workspace prism-api run build`.
+- [x] Route smoke tests for each moved controller.
+- [x] API client type generation check if client packages are affected. Not affected by the defense-readiness route move because path and response shape stayed stable.
+- [x] `npm --workspace prism-api run build`.
 - [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
 
-- [ ] Route behavior stays stable.
-- [ ] Controllers no longer route all business behavior through `EventOpsService`.
-- [ ] App clients continue to build.
+- [x] Route behavior stays stable.
+- [x] Controllers no longer route all business behavior through `EventOpsService`.
+- [x] App clients continue to build. API route contract stayed stable and API build passed; no client package changes were required.
 
 
-> Progress: `guest.controller.ts` has moved to `guest-ops`; `quote-requests.controller.ts` has moved to `commercial-ops`; `inquiries.controller.ts` has moved to `inquiry-onboarding`; `billing.controller.ts` has moved to `event-read-models`; `notifications.controller.ts` has moved to `notification-ops`; `OpsClientController` has moved to `event-read-models`; `OpsCoordinatorsController` has moved to `staffing-ops`; `OpsPmcmCommandInboxController` has moved to `event-read-models`; `OpsOnboardingController` has moved to `inquiry-onboarding`; `OpsAuditController` and `OpsPrivacyController` have moved to `trust-ops`; `OpsAuthController` has moved to `identity-ops`; `OpsAiGovernanceController` has moved AI governance dry-run to `ai-governance`; supplier directory reads have moved to `supplier-ops`; event billing command routes have moved to `finance-ops`; event closure/archive routes have moved to `closure-ops`; event file requirements route has moved to `file-ops`; event commercial quote request/add/select routes have moved to `commercial-ops`; coordinator assignment/acknowledgement routes have moved to `staffing-ops`; supplier portal assignment/readiness/contract commands have moved to `supplier-ops`; event briefing has moved to `inquiry-onboarding`; supplier workspace/readiness-board reads have moved to `event-read-models`; event-day live-ops reads, status feed, event-day task/urgent-issue commands, coordinator attendance/replacement, coordinator role-view, PMCM supplier setup verification, and supplier event-status have moved to `live-ops`; PARE automation has moved to `ai-governance`; `/ai/pare/*` routes and supplier quote-request withdrawal have moved to `supplier-ops`; remaining controller families are still pending.
+> Progress: `guest.controller.ts` has moved to `guest-ops`; `quote-requests.controller.ts` has moved to `commercial-ops`; `inquiries.controller.ts` has moved to `inquiry-onboarding`; `billing.controller.ts` has moved to `event-read-models`; `notifications.controller.ts` has moved to `notification-ops`; `OpsClientController` has moved to `event-read-models`; `OpsCoordinatorsController` has moved to `staffing-ops`; `OpsPmcmCommandInboxController` has moved to `event-read-models`; `OpsOnboardingController` has moved to `inquiry-onboarding`; `OpsAuditController` and `OpsPrivacyController` have moved to `trust-ops`; `OpsAuthController` has moved to `identity-ops`; `OpsAiGovernanceController` has moved AI governance dry-run to `ai-governance`; supplier directory reads have moved to `supplier-ops`; event billing command routes have moved to `finance-ops`; event closure/archive routes have moved to `closure-ops`; event file requirements route has moved to `file-ops`; event commercial quote request/add/select routes have moved to `commercial-ops`; coordinator assignment/acknowledgement routes have moved to `staffing-ops`; supplier portal assignment/readiness/contract commands have moved to `supplier-ops`; event briefing has moved to `inquiry-onboarding`; supplier workspace/readiness-board reads have moved to `event-read-models`; event-day live-ops reads, status feed, event-day task/urgent-issue commands, coordinator attendance/replacement, coordinator role-view, PMCM supplier setup verification, and supplier event-status have moved to `live-ops`; PARE automation has moved to `ai-governance`; `/ai/pare/*` routes and supplier quote-request withdrawal have moved to `supplier-ops`; defense readiness has moved to `event-read-models`; only `/sample/*` compatibility routes remain local to `event-ops`.
 **Commit checkpoint:** `refactor(api): move controllers to owning modules`
 
 ## Phase 14 - Retire EventOps Facade
@@ -904,7 +904,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 **Tests:**
 
 - [ ] `rg "EventOpsService" apps/api` returns only allowed compatibility references or none.
-- [ ] `npm --workspace prism-api run build`.
+- [x] `npm --workspace prism-api run build`.
 - [ ] `npm --workspace prism-api run test` if feasible.
 - [x] `npm run check:boundaries`.
 
