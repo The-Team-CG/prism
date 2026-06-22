@@ -23,6 +23,7 @@ function createService() {
   const service = new SupplierNetworkWorkflowService(
     prisma as any,
     {} as any,
+    {} as any,
     { audit } as any,
     {} as any,
     new WorkflowCommandService(),

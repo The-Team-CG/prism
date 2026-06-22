@@ -25,8 +25,7 @@ import { LiveOperationsService } from './services/live-operations.service';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
-import { SupplierNetworkWorkflowService } from '@prism/modules/supplier-ops';
-import { SuppliersService } from '@prism/modules/supplier-ops';
+import { SupplierNetworkWorkflowService, SupplierProfileCommandsService, SuppliersService } from '@prism/modules/supplier-ops';
 import { WorkflowCommandService } from '@prism/modules/event-core';
 
 function inquiry(overrides: Record<string, unknown> = {}) {
@@ -1045,9 +1044,16 @@ function createEventOpsService(prisma: any) {
     notificationOutboxService,
     workflowCommandService,
   );
+  const supplierProfileCommandsService = new SupplierProfileCommandsService(
+    suppliersService,
+    auditService,
+    eventAccessPolicyService,
+    workflowCommandService,
+  );
   const supplierNetworkWorkflowService = new SupplierNetworkWorkflowService(
     prisma,
     suppliersService,
+    supplierProfileCommandsService,
     auditService,
     eventAccessPolicyService,
     workflowCommandService,

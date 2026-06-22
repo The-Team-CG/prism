@@ -16,7 +16,6 @@ describe('event-ops controller routes', () => {
       'pmcm',
       'sample',
       'supplier',
-      'suppliers',
     ]);
   });
 });

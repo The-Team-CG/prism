@@ -18,7 +18,6 @@ import {
   type CreateSupplierInput,
   type CreateSupplierReviewInput,
   type SupplierDirectory,
-  type SupplierProfile,
   type UpdateSupplierInput,
 } from '../ports/supplier-directory.port';
 import type { SupplierEventStatusInput, SupplierReadinessInput, VerifySupplierEventStatusInput } from '../ports/supplier-commands.port';
@@ -31,8 +30,7 @@ import {
   SUPPLIER_LIVE_OPERATIONS,
   SUPPLIER_PARE_AUTOMATION,
 } from '../ports/supplier-ops.tokens';
-type SupplierResult = SupplierProfile;
-type ChangeSupplierTierResult = Awaited<ReturnType<SupplierDirectory['changeSupplierTier']>>;
+import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 
 @Injectable()
 export class SupplierNetworkWorkflowService {
@@ -41,6 +39,7 @@ export class SupplierNetworkWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(SUPPLIER_DIRECTORY) private readonly suppliersService: SupplierDirectory,
+    private readonly supplierProfileCommandsService: SupplierProfileCommandsService,
     private readonly auditService: AuditService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
@@ -50,92 +49,19 @@ export class SupplierNetworkWorkflowService {
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {
-    return this.workflowCommandService.execute<SupplierResult>({
-      name: 'create_supplier',
-      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier creation'),
-      write: () => this.suppliersService.createSupplier(input),
-      sideEffects: async (supplier) => {
-        await this.auditService.audit(undefined, actor.name, `Created supplier profile: ${supplier.name}`, {
-          actorRole: actor.role,
-          actorEmail: actor.email,
-          category: AuditCategory.Suppliers,
-          actionType: AuditActionType.Create,
-          affectedType: 'supplier',
-          affectedId: supplier.id,
-          affectedLabel: supplier.name,
-        });
-      },
-    });
+    return this.supplierProfileCommandsService.createSupplier(input, actor);
   }
 
   async updateSupplier(supplierId: string, input: UpdateSupplierInput, actor: ResolvedEventOpsActor) {
-    return this.workflowCommandService.execute<SupplierResult>({
-      name: 'update_supplier',
-      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier update'),
-      write: () => this.suppliersService.updateSupplier(supplierId, input),
-      sideEffects: async (supplier) => {
-        await this.auditService.audit(undefined, actor.name, `Updated supplier profile: ${supplier.name}`, {
-          actorRole: actor.role,
-          actorEmail: actor.email,
-          category: AuditCategory.Suppliers,
-          actionType: AuditActionType.Update,
-          affectedType: 'supplier',
-          affectedId: supplier.id,
-          affectedLabel: supplier.name,
-          metadata: input,
-        });
-      },
-    });
+    return this.supplierProfileCommandsService.updateSupplier(supplierId, input, actor);
   }
 
   async changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput, actor: ResolvedEventOpsActor) {
-    return this.workflowCommandService.execute<ChangeSupplierTierResult, SupplierResult>({
-      name: 'change_supplier_tier',
-      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier tier change'),
-      write: () => this.suppliersService.changeSupplierTier(supplierId, input),
-      sideEffects: async (result) => {
-        await this.auditService.audit(undefined, actor.name, `Changed supplier tier: ${result.supplier.name}`, {
-          actorRole: actor.role,
-          actorEmail: actor.email,
-          category: AuditCategory.Suppliers,
-          actionType: AuditActionType.Update,
-          affectedType: 'supplier',
-          affectedId: result.supplier.id,
-          affectedLabel: result.supplier.name,
-          metadata: {
-            oldTier: result.oldTier,
-            newTier: input.tier,
-            reason: input.reason,
-          },
-        });
-      },
-      project: (result) => result.supplier,
-    });
+    return this.supplierProfileCommandsService.changeSupplierTier(supplierId, input, actor);
   }
 
   async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actor: ResolvedEventOpsActor) {
-    return this.workflowCommandService.execute<SupplierResult>({
-      name: 'add_supplier_review',
-      eventId: input.eventId,
-      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier private review', input.eventId),
-      write: () =>
-        this.suppliersService.addSupplierReview(supplierId, {
-          ...input,
-          reviewedBy: input.reviewedBy ?? actor.name,
-        }),
-      sideEffects: async (supplier) => {
-        await this.auditService.audit(input.eventId, actor.name, `Added private supplier review: ${supplier.name}`, {
-          actorRole: actor.role,
-          actorEmail: actor.email,
-          category: AuditCategory.Suppliers,
-          actionType: AuditActionType.Create,
-          affectedType: 'supplier_review',
-          affectedId: supplier.id,
-          affectedLabel: supplier.name,
-          metadata: { rating: input.rating },
-        });
-      },
-    });
+    return this.supplierProfileCommandsService.addSupplierReview(supplierId, input, actor);
   }
 
   async addSupplierCertification(
@@ -143,28 +69,7 @@ export class SupplierNetworkWorkflowService {
     input: CreateSupplierCertificationInput,
     actor: ResolvedEventOpsActor,
   ) {
-    return this.workflowCommandService.execute<SupplierResult>({
-      name: 'add_supplier_certification',
-      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier certification'),
-      write: () => this.suppliersService.addSupplierCertification(supplierId, input),
-      sideEffects: async (supplier) => {
-        await this.auditService.audit(undefined, actor.name, `Added supplier certification: ${supplier.name}`, {
-          actorRole: actor.role,
-          actorEmail: actor.email,
-          category: AuditCategory.Suppliers,
-          actionType: AuditActionType.Upload,
-          affectedType: 'supplier_certification',
-          affectedId: supplier.id,
-          affectedLabel: input.fileName,
-          metadata: {
-            documentType: input.documentType,
-            issuer: input.issuer ?? '',
-            expiresAt: input.expiresAt ?? null,
-            status: input.status ?? 'submitted',
-          },
-        });
-      },
-    });
+    return this.supplierProfileCommandsService.addSupplierCertification(supplierId, input, actor);
   }
 
   async confirmSupplierAssignment(requestId: string, actor: ResolvedEventOpsActor) {
