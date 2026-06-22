@@ -55,3 +55,27 @@ export class CreateComplianceRuleDto {
 }
 
 export class UpdateComplianceRuleDto extends CreateComplianceRuleDto {}
+
+export class RunComplianceDto {
+  @IsOptional()
+  @IsString()
+  phase?: string;
+}
+
+export class ResolveComplianceDto {
+  @IsOptional()
+  @IsIn(['resolve', 'override'])
+  action?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
+  @IsString()
+  overrideReason?: string;
+
+  @IsOptional()
+  @IsString()
+  actorName?: string;
+}

@@ -29,7 +29,6 @@ import {
   RecordPaymentDto,
   RequestApprovalDto,
   RequestSupplierQuotesDto,
-  ResolveComplianceDto,
   ReplaceCoordinatorAssignmentDto,
   ReviewPrivacyRequestDto,
   SubmitSupplierQuoteDto,
@@ -260,20 +259,6 @@ export class OpsEventsController {
     return this.eventOpsService.withdrawSupplier(requestId, dto.reason ?? 'Withdrawn by PMCM Admin', actor);
   }
 
-  @Post(':eventId/compliance')
-  @HttpCode(HttpStatus.CREATED)
-  runCompliance(@Param('eventId') eventId: string, @Body() dto: { phase?: string } = {}) {
-    return this.eventOpsService.runCompliance(eventId, dto);
-  }
-
-  @Patch(':eventId/compliance/:checkId')
-  resolveCompliance(
-    @Param('eventId') eventId: string,
-    @Param('checkId') checkId: string,
-    @Body() dto: ResolveComplianceDto,
-  ) {
-    return this.eventOpsService.resolveCompliance(eventId, checkId, dto);
-  }
 
   @Post(':eventId/billing-source')
   @HttpCode(HttpStatus.CREATED)
