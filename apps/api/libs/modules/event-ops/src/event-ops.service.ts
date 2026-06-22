@@ -923,31 +923,12 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
 
   async listEvents(actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    const events = await this.prisma.opsEvent.findMany({
-      where: { archived: false },
-      include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-      orderBy: { eventDate: 'asc' },
-    });
-
-    return this.filterEventsForActor(actor, events).map((event) => this.mapEvent(event));
+    return this.eventReadModelsService.eventList(actor, { mapEvent: this.pmcmReadModelMappers().mapEvent });
   }
 
   async getEventDetail(eventId: string, actorInput: SampleActorInput = {}) {
     const actor = this.resolveActor(actorInput);
-    const event = await this.prisma.opsEvent
-      .findUnique({
-        where: { id: eventId },
-        include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-      })
-      .catch(() => null);
-
-    if (!event) throw new NotFoundException('Event not found');
-    if (!this.canReadEvent(actor, event)) {
-      await this.recordForbiddenAccess(actor, 'event detail', event.id);
-      throw new ForbiddenException(`${actor.role} cannot access this event`);
-    }
-
-    return this.mapEvent(event);
+    return this.eventReadModelsService.eventDetail(actor, eventId, { mapEvent: this.pmcmReadModelMappers().mapEvent });
   }
 
   async getDefenseReadiness(eventId: string, actorInput: SampleActorInput = {}) {

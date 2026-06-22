@@ -50,15 +50,6 @@ import { EventOpsService } from '../event-ops.service';
 export class OpsEventsController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
-  @Get()
-  list(@Query() actor: SampleActorDto) {
-    return this.eventOpsService.listEvents(actor);
-  }
-
-  @Get(':eventId')
-  getEventDetail(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
-    return this.eventOpsService.getEventDetail(eventId, actor);
-  }
 
   @Get(':eventId/defense-readiness')
   defenseReadiness(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {

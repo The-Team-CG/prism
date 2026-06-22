@@ -862,7 +862,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 | `files.controller.ts` or file route group | `file-ops` |
 | `floor-plan.controller.ts` | `floorplan` |
 | `guest.controller.ts` | `guest-ops` |
-| `events.controller.ts` | split between `event-core`, `floorplan`, `compliance-ops`, closure/readiness, and read models; compliance execution/resolution now moved to `compliance-ops` |
+| `events.controller.ts` | split between `event-core`, `floorplan`, `compliance-ops`, closure/readiness, and read models; event list/detail now moved to `event-read-models` and compliance execution/resolution now moved to `compliance-ops` |
 | dashboard/read endpoints | `event-read-models` |
 
 **Tests:**

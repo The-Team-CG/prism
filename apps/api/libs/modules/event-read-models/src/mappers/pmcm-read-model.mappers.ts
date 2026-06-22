@@ -45,12 +45,15 @@ function addDays(value: Date, days: number) {
   return next;
 }
 
-export type PmcmReadModelMapperDependencies = {
+export type EventReadModelMapperDependencies = {
+  floorPlanWorkflowService: FloorPlanWorkflowService;
+  guestWorkflowService: GuestWorkflowService;
+};
+
+export type PmcmReadModelMapperDependencies = EventReadModelMapperDependencies & {
   auditService: AuditService;
   billingOperationsService: BillingOperationsService;
   coordinatorsService: CoordinatorsService;
-  floorPlanWorkflowService: FloorPlanWorkflowService;
-  guestWorkflowService: GuestWorkflowService;
 };
 
 export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDependencies) {
@@ -162,7 +165,7 @@ export function mapInquiry(inquiry: OpsInquiry) {
   };
 }
 
-export function mapEvent(event: EventWithDrafts, dependencies: PmcmReadModelMapperDependencies) {
+export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMapperDependencies) {
   const floorPlanDrafts = event.floorPlanDrafts ?? [];
   const activeDraft =
     floorPlanDrafts.find((draft) => draft.isActive) ??

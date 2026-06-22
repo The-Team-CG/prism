@@ -30,6 +30,10 @@ import { EventReadModelQueries } from '../queries/event-read-models.queries';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
 
+export type EventListMappers = {
+  mapEvent: (event: EventWithDrafts) => unknown;
+};
+
 export type BillingReadModelMappers = {
   mapEvent: (event: EventWithDrafts) => unknown;
   mapBillingSource: (source: OpsBillingSource) => unknown;
@@ -79,6 +83,17 @@ export type PmcmDashboardMappers = {
 
 @Injectable()
 export class EventReadModelsService {
+  async eventList(actor: ResolvedEventOpsActor, mappers: EventListMappers) {
+    const visibleEvents = await this.visibleEventsForActor(actor);
+    return visibleEvents.map((event) => mappers.mapEvent(event));
+  }
+
+  async eventDetail(actor: ResolvedEventOpsActor, eventId: string, mappers: EventListMappers) {
+    const event = await this.queries.eventWithDrafts(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    await this.policy.requireCanReadEvent(actor, event, 'event detail');
+    return mappers.mapEvent(event);
+  }
   constructor(
     private readonly queries: EventReadModelQueries,
     private readonly policy: EventAccessPolicyService,
