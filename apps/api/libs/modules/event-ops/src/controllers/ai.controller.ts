@@ -1,63 +1,9 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
-import {
-  AddSupplierQuoteDto,
-  AiGovernanceDryRunDto,
-  ApproveBillingSourceDto,
-  ArchiveEventDto,
-  ChangeSupplierTierDto,
-  CreateBillingSourceDto,
-  CreateComplianceRuleDto,
-  CreateCoordinatorAssignmentDto,
-  CreateEventDayTaskDto,
-  CreateFloorPlanDraftDto,
-  CreateFloorPlanPreferenceDto,
-  CreateInquiryDto,
-  CreateSupplierCertificationDto,
-  CreateSupplierDto,
-  CreateSupplierReviewDto,
-  CreateUrgentIssueDto,
-  CreatePrivacyRequestDto,
-  SampleActorDto,
-  ExecutePrivacyRequestDto,
-  EscalateLiveOpsRecordDto,
-  ExportAuditLogsDto,
-  FloorPlanSnapshotQueryDto,
-  GuestCheckInDto,
-  GuestFeedbackDto,
-  ListAuditLogsDto,
-  LoginDto,
-  MarkPaymentDto,
-  RecordPaymentDto,
-  RequestApprovalDto,
-  RequestSupplierQuotesDto,
-  ResolveComplianceDto,
-  ReplaceCoordinatorAssignmentDto,
-  ReviewPrivacyRequestDto,
-  SubmitSupplierQuoteDto,
-  SubmitBriefingDto,
-  SupplierContractUploadDto,
-  SupplierEventStatusDto,
-  SupplierReadinessDto,
-  UpdateCoordinatorAttendanceDto,
-  UpdateComplianceRuleDto,
-  UpdateEventDayTaskDto,
-  UpdateUrgentIssueDto,
-  UpdateSupplierDto,
-  UpdateInquiryStatusDto,
-  UploadConformeDto,
-  VerifySupplierStatusDto,
-} from '../dto/event-ops.dto';
+import { Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { EventOpsService } from '../event-ops.service';
 
 @Controller('ai')
 export class OpsAiController {
   constructor(private readonly eventOpsService: EventOpsService) {}
-
-  @Post('governance/dry-run')
-  @HttpCode(HttpStatus.CREATED)
-  dryRun(@Body() dto: AiGovernanceDryRunDto) {
-    return this.eventOpsService.runAiGovernanceDryRun(dto);
-  }
 
   @Post('pare/trigger/:requestId')
   @HttpCode(HttpStatus.CREATED)
@@ -89,4 +35,3 @@ export class OpsAiController {
     return this.eventOpsService.pareReject(approvalRecordId, rejectedBy);
   }
 }
-

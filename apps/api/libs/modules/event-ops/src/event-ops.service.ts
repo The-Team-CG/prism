@@ -131,7 +131,7 @@ import {
   type GuestCheckInInput,
   type GuestFeedbackInput,
 } from '@prism/modules/guest-ops';
-import { AiGovernanceService } from './services/ai-governance.service';
+import { AiGovernanceService } from '@prism/modules/ai-governance';
 
 type CreateInquiryInput = {
   clientName: string;

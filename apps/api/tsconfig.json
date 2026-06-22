@@ -103,6 +103,12 @@
                                           "@prism/modules/access-control/*":  [
                                                                                   "libs/modules/access-control/src/*"
                                                                               ],
+                                          "@prism/modules/ai-governance":  [
+                                                                                  "libs/modules/ai-governance/src/index"
+                                                                              ],
+                                          "@prism/modules/ai-governance/*":  [
+                                                                                    "libs/modules/ai-governance/src/*"
+                                                                                ],
                                           "@prism/modules/supplier-ops":  [
                                                                               "libs/modules/supplier-ops/src/index"
                                                                           ],

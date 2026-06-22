@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { AiGovernanceService } from './ai-governance.service';
+import { AiGovernanceService } from '@prism/modules/ai-governance';
 
 function createService() {
   const aiAuditLogs: any[] = [];

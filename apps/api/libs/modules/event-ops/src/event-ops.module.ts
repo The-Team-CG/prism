@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
+import { AiGovernanceModule } from '@prism/modules/ai-governance';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { ClosureOpsModule } from '@prism/modules/closure-ops';
 import { CommercialOpsModule, CommercialWorkflowService } from '@prism/modules/commercial-ops';
@@ -26,7 +27,6 @@ import {
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { EVENT_OPS_CONTROLLERS } from './controllers';
 import { EventOpsService } from './event-ops.service';
-import { AiGovernanceService } from './services/ai-governance.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
@@ -35,7 +35,6 @@ import { SuppliersService } from './services/suppliers.service';
 
 const EVENT_OPS_PROVIDERS = [
   SampleStateService,
-  AiGovernanceService,
   SuppliersService,
   PAREService,
   LiveOperationsService,
@@ -50,7 +49,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule, ClosureOpsModule, IdentityOpsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule, ClosureOpsModule, IdentityOpsModule, AiGovernanceModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })

@@ -20,6 +20,7 @@ export default defineConfig({
       '@prism/modules/trust-ops': resolve(__dirname, './libs/modules/trust-ops/src/index.ts'),
       '@prism/modules/notification-ops': resolve(__dirname, './libs/modules/notification-ops/src/index.ts'),
       '@prism/modules/access-control': resolve(__dirname, './libs/modules/access-control/src/index.ts'),
+      '@prism/modules/ai-governance': resolve(__dirname, './libs/modules/ai-governance/src/index.ts'),
       '@prism/modules/supplier-ops': resolve(__dirname, './libs/modules/supplier-ops/src/index.ts'),
       '@prism/modules/finance-ops': resolve(__dirname, './libs/modules/finance-ops/src/index.ts'),
       '@prism/modules/file-ops': resolve(__dirname, './libs/modules/file-ops/src/index.ts'),

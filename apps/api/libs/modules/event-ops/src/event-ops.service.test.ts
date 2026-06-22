@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, UnauthorizedException } from '
 import { describe, expect, it } from 'vitest';
 import { PrismTransactionRunner } from '../../../core/shared-kernel/src';
 import { EventOpsService } from './event-ops.service';
-import { AiGovernanceService } from './services/ai-governance.service';
+import { AiGovernanceService } from '@prism/modules/ai-governance';
 import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/modules/trust-ops';
 import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
 import { BillingOperationsService } from '@prism/modules/finance-ops';
