@@ -5,6 +5,7 @@ export { CoordinatorAssignmentDesk } from "./coordinator-assignment-desk";
 export { CoordinatorView } from "./coordinator-view";
 export { EventActivityPanel } from "./event-activity-panel";
 export { EventBriefingPanel } from "./event-briefing-panel";
+export { EventCommandInbox } from "./event-command-inbox";
 export { EventFloorplansTab } from "./event-floorplans-tab";
 export { EventRoleLoadingState } from "./event-role-loading-state";
 export { EventSuppliersTab } from "./event-suppliers-tab";
