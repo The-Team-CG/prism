@@ -1,4 +1,6 @@
 export * from './file-ops.module';
+export * from './controllers/event-file-requirements.controller';
+export * from './dto/file-requirements.dto';
 export * from './ports/file-ops.tokens';
 export * from './ports/file-requirement-commands.port';
 export * from './ports/file-requirement-reader.port';

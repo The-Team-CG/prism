@@ -214,9 +214,5 @@ export class OpsEventsController {
 
 
 
-  @Get(':eventId/file-requirements')
-  fileRequirements(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
-    return this.eventOpsService.getFileRequirements(eventId, actor);
-  }
 
 }

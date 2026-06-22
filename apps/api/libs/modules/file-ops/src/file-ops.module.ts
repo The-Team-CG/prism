@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
+import { AccessControlModule } from '@prism/modules/access-control';
+import { OpsEventFileRequirementsController } from './controllers/event-file-requirements.controller';
 import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER, SIGNED_UPLOAD_URL_FACTORY } from './ports/file-ops.tokens';
 import { MetadataOnlySignedUploadUrlFactory } from './ports/signed-upload-url-factory.port';
 import { DocumentVaultService } from './services/document-vault.service';
@@ -8,7 +10,8 @@ import { FileRequirementsMatrixService } from './services/file-requirements-matr
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, AccessControlModule],
+  controllers: [OpsEventFileRequirementsController],
   providers: [
     DocumentVaultService,
     FileRequirementsMatrixService,
