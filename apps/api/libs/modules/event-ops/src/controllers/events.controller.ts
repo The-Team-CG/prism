@@ -2,7 +2,6 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query 
 import {
   AddSupplierQuoteDto,
   AiGovernanceDryRunDto,
-  ArchiveEventDto,
   ChangeSupplierTierDto,
   CreateCoordinatorAssignmentDto,
   CreateEventDayTaskDto,
@@ -214,38 +213,10 @@ export class OpsEventsController {
   }
 
 
-  @Patch(':eventId/post-event-documents/:documentId/complete')
-  completePostEventDocument(
-    @Param('eventId') eventId: string,
-    @Param('documentId') documentId: string,
-  ) {
-    return this.eventOpsService.completePostEventDocument(eventId, documentId);
-  }
-
-  @Get(':eventId/close-gates')
-  closeGates(@Param('eventId') eventId: string) {
-    return this.eventOpsService.getCloseGates(eventId);
-  }
 
   @Get(':eventId/file-requirements')
   fileRequirements(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
     return this.eventOpsService.getFileRequirements(eventId, actor);
   }
 
-  @Post(':eventId/archive')
-  @HttpCode(HttpStatus.OK)
-  archiveEvent(@Param('eventId') eventId: string, @Body() dto: ArchiveEventDto = {}) {
-    return this.eventOpsService.archiveEvent(eventId, dto);
-  }
-
-  @Get(':eventId/insights')
-  eventInsights(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
-    return this.eventOpsService.listEventInsights(eventId, actor);
-  }
-
-  @Post(':eventId/insights/generate')
-  @HttpCode(HttpStatus.CREATED)
-  generateEventInsights(@Param('eventId') eventId: string) {
-    return this.eventOpsService.generateEventInsights(eventId);
-  }
 }

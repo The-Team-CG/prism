@@ -862,7 +862,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 | `files.controller.ts` or file route group | `file-ops` |
 | `floor-plan.controller.ts` | `floorplan` |
 | `guest.controller.ts` | `guest-ops` |
-| `events.controller.ts` | split between `event-core`, `floorplan`, `compliance-ops`, closure/readiness, and read models; event list/detail now moved to `event-read-models`, floorplan routes now moved to `floorplan`, billing command routes now moved to `finance-ops`, and compliance execution/resolution now moved to `compliance-ops` |
+| `events.controller.ts` | split between `event-core`, `floorplan`, `compliance-ops`, closure/readiness, and read models; event list/detail now moved to `event-read-models`, floorplan routes now moved to `floorplan`, billing command routes now moved to `finance-ops`, closure/archive routes now moved to `closure-ops`, and compliance execution/resolution now moved to `compliance-ops` |
 | dashboard/read endpoints | `event-read-models` |
 
 **Tests:**
@@ -879,7 +879,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 - [ ] App clients continue to build.
 
 
-> Progress: `guest.controller.ts` has moved to `guest-ops`; `quote-requests.controller.ts` has moved to `commercial-ops`; `inquiries.controller.ts` has moved to `inquiry-onboarding`; `billing.controller.ts` has moved to `event-read-models`; `notifications.controller.ts` has moved to `notification-ops`; `OpsClientController` has moved to `event-read-models`; `OpsCoordinatorsController` has moved to `staffing-ops`; `OpsPmcmCommandInboxController` has moved to `event-read-models`; `OpsOnboardingController` has moved to `inquiry-onboarding`; `OpsAuditController` and `OpsPrivacyController` have moved to `trust-ops`; `OpsAuthController` has moved to `identity-ops`; `OpsAiGovernanceController` has moved AI governance dry-run to `ai-governance`; supplier directory reads have moved to `supplier-ops`; event billing command routes have moved to `finance-ops`; remaining controller families are still pending.
+> Progress: `guest.controller.ts` has moved to `guest-ops`; `quote-requests.controller.ts` has moved to `commercial-ops`; `inquiries.controller.ts` has moved to `inquiry-onboarding`; `billing.controller.ts` has moved to `event-read-models`; `notifications.controller.ts` has moved to `notification-ops`; `OpsClientController` has moved to `event-read-models`; `OpsCoordinatorsController` has moved to `staffing-ops`; `OpsPmcmCommandInboxController` has moved to `event-read-models`; `OpsOnboardingController` has moved to `inquiry-onboarding`; `OpsAuditController` and `OpsPrivacyController` have moved to `trust-ops`; `OpsAuthController` has moved to `identity-ops`; `OpsAiGovernanceController` has moved AI governance dry-run to `ai-governance`; supplier directory reads have moved to `supplier-ops`; event billing command routes have moved to `finance-ops`; event closure/archive routes have moved to `closure-ops`; remaining controller families are still pending.
 **Commit checkpoint:** `refactor(api): move controllers to owning modules`
 
 ## Phase 14 - Retire EventOps Facade
