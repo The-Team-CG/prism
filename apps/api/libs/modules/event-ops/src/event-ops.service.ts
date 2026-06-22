@@ -98,7 +98,7 @@ import { WorkflowCommandService } from './services/workflow-command.service';
 import {
   createBillingReadModelMappers,
   createClientWorkspaceMappers,
-  createPmcmDashboardMappers,
+  createPmcmReadModelMappers,
   createSupplierWorkspaceMappers,
   EventReadModelsService,
   type BillingReadModelMappers,
@@ -633,31 +633,14 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private pmcmReadModelMappers(): PmcmDashboardMappers {
-    return createPmcmDashboardMappers({
-      coordinatorRoleRequirements: COORDINATOR_ROLE_REQUIREMENTS,
-      mapUser: this.mapUser.bind(this),
-      mapInquiry: this.mapInquiry.bind(this),
-      mapEvent: this.mapEvent.bind(this),
-      mapDocument: this.mapDocument.bind(this),
-      mapBriefing: this.mapBriefing.bind(this),
-      mapSupplierQuoteRequest: this.mapSupplierQuoteRequest.bind(this),
-      mapSupplierQuote: this.mapSupplierQuote.bind(this),
-      mapCoordinator: this.coordinatorsService.mapCoordinator.bind(this.coordinatorsService),
-      mapCoordinatorAssignment: this.coordinatorsService.mapCoordinatorAssignment.bind(this.coordinatorsService),
-      mapComplianceRule: this.mapComplianceRule.bind(this),
-      mapComplianceCheck: this.mapComplianceCheck.bind(this),
-      mapBillingSource: this.billingOperationsService.mapBillingSource.bind(this.billingOperationsService),
-      mapBillingStatement: this.billingOperationsService.mapBillingStatement.bind(this.billingOperationsService),
-      mapPaymentMilestone: this.billingOperationsService.mapPaymentMilestone.bind(this.billingOperationsService),
-      mapPaymentRecord: this.billingOperationsService.mapPaymentRecord.bind(this.billingOperationsService),
-      mapPostEventDocument: this.mapPostEventDocument.bind(this),
-      mapEventInsight: this.mapEventInsight.bind(this),
-      mapFloorPlanDraft: this.floorPlanWorkflowService.mapFloorPlanDraft.bind(this.floorPlanWorkflowService),
-      mapAuditLog: this.auditService.mapAuditLog.bind(this.auditService),
-      mapNotificationLog: this.mapNotificationLog.bind(this),
+    return createPmcmReadModelMappers({
+      auditService: this.auditService,
+      billingOperationsService: this.billingOperationsService,
+      coordinatorsService: this.coordinatorsService,
+      floorPlanWorkflowService: this.floorPlanWorkflowService,
+      guestWorkflowService: this.guestWorkflowService,
     });
   }
-
   async state() {
     return this.sampleStateService.state({
       runConformeReminderSweep: () => this.runConformeReminderSweep(),

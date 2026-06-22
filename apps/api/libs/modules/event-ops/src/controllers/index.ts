@@ -4,14 +4,13 @@ export { OpsEventsController, OpsComplianceController } from './events.controlle
 export { OpsSuppliersController } from '@prism/modules/supplier-ops';
 export { OpsSupplierWorkspaceController } from './supplier-workspace.controller';
 export { OpsCoordinatorWorkspaceController } from './coordinator-workspace.controller';
-export { OpsPmcmDashboardController } from './pmcm-dashboard.controller';
+export { OpsPmcmDashboardController } from '@prism/modules/event-read-models';
 export { OpsAiController } from './ai.controller';
 
 import { SampleController } from './sample.controller';
 import { OpsEventsController, OpsComplianceController } from './events.controller';
 import { OpsSupplierWorkspaceController } from './supplier-workspace.controller';
 import { OpsCoordinatorWorkspaceController } from './coordinator-workspace.controller';
-import { OpsPmcmDashboardController } from './pmcm-dashboard.controller';
 import { OpsAiController } from './ai.controller';
 
 export const EVENT_OPS_CONTROLLERS = [
@@ -20,6 +19,5 @@ export const EVENT_OPS_CONTROLLERS = [
   OpsComplianceController,
   OpsSupplierWorkspaceController,
   OpsCoordinatorWorkspaceController,
-  OpsPmcmDashboardController,
   OpsAiController,
 ];

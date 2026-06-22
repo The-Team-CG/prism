@@ -13,7 +13,6 @@ describe('event-ops controller routes', () => {
       'compliance',
       'coordinator',
       'events',
-      'pmcm',
       'sample',
       'supplier',
     ]);
