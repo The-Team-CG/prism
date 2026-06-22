@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { SuppliersService } from './suppliers.service';
+import { SuppliersService } from '@prism/modules/supplier-ops';
 
 describe('SuppliersService', () => {
   it('auto-selects the Tier 1 supplier for a requested category', async () => {

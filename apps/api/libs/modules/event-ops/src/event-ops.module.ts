@@ -17,7 +17,6 @@ import { FinanceOpsModule } from '@prism/modules/finance-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import {
   SUPPLIER_COMMANDS,
-  SUPPLIER_DIRECTORY,
   SUPPLIER_DOCUMENT_VAULT,
   SUPPLIER_LIVE_OPERATIONS,
   SUPPLIER_PARE_AUTOMATION,
@@ -30,16 +29,13 @@ import { EventOpsService } from './event-ops.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
-import { SuppliersService } from './services/suppliers.service';
 
 
 const EVENT_OPS_PROVIDERS = [
   SampleStateService,
-  SuppliersService,
   PAREService,
   LiveOperationsService,
   ComplianceWorkflowService,
-  { provide: SUPPLIER_DIRECTORY, useExisting: SuppliersService },
   { provide: SUPPLIER_PARE_AUTOMATION, useExisting: PAREService },
   { provide: SUPPLIER_LIVE_OPERATIONS, useExisting: LiveOperationsService },
   { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DocumentVaultService },

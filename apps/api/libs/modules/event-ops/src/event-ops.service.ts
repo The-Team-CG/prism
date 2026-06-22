@@ -54,12 +54,12 @@ import {
   type CreateSupplierReviewInput,
   SuppliersService,
   type UpdateSupplierInput,
-} from './services/suppliers.service';
+} from '@prism/modules/supplier-ops';
 import {
   SupplierNetworkWorkflowService,
   type SupplierEventStatusInput,
   type SupplierReadinessInput,
-} from './services/supplier-network-workflow.service';
+} from '@prism/modules/supplier-ops';
 import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,

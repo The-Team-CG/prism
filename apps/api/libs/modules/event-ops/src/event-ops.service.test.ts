@@ -26,7 +26,7 @@ import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@pri
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
 import { SupplierNetworkWorkflowService } from '@prism/modules/supplier-ops';
-import { SuppliersService } from './services/suppliers.service';
+import { SuppliersService } from '@prism/modules/supplier-ops';
 import { WorkflowCommandService } from '@prism/modules/event-core';
 
 function inquiry(overrides: Record<string, unknown> = {}) {

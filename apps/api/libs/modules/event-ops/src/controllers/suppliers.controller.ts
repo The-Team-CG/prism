@@ -1,76 +1,26 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import {
-  AddSupplierQuoteDto,
-  AiGovernanceDryRunDto,
-  ApproveBillingSourceDto,
-  ArchiveEventDto,
   ChangeSupplierTierDto,
-  CreateBillingSourceDto,
-  CreateComplianceRuleDto,
-  CreateCoordinatorAssignmentDto,
-  CreateEventDayTaskDto,
-  CreateFloorPlanDraftDto,
-  CreateFloorPlanPreferenceDto,
-  CreateInquiryDto,
   CreateSupplierCertificationDto,
   CreateSupplierDto,
   CreateSupplierReviewDto,
-  CreateUrgentIssueDto,
-  CreatePrivacyRequestDto,
-  SampleActorDto,
-  ExecutePrivacyRequestDto,
-  EscalateLiveOpsRecordDto,
-  ExportAuditLogsDto,
-  FloorPlanSnapshotQueryDto,
-  GuestCheckInDto,
-  GuestFeedbackDto,
-  ListAuditLogsDto,
-  LoginDto,
-  MarkPaymentDto,
-  RecordPaymentDto,
-  RequestApprovalDto,
-  RequestSupplierQuotesDto,
-  ResolveComplianceDto,
-  ReplaceCoordinatorAssignmentDto,
-  ReviewPrivacyRequestDto,
-  SubmitSupplierQuoteDto,
-  SubmitBriefingDto,
-  SupplierContractUploadDto,
-  SupplierEventStatusDto,
-  SupplierReadinessDto,
-  UpdateCoordinatorAttendanceDto,
-  UpdateComplianceRuleDto,
-  UpdateEventDayTaskDto,
-  UpdateUrgentIssueDto,
+  SupplierActorDto,
   UpdateSupplierDto,
-  UpdateInquiryStatusDto,
-  UploadConformeDto,
-  VerifySupplierStatusDto,
-} from '../dto/event-ops.dto';
+} from '@prism/modules/supplier-ops';
 import { EventOpsService } from '../event-ops.service';
 
 @Controller('suppliers')
 export class OpsSuppliersController {
   constructor(private readonly eventOpsService: EventOpsService) {}
 
-  @Get('categories')
-  listCategories(@Query() actor: SampleActorDto) {
-    return this.eventOpsService.listSupplierCategories(actor);
-  }
-
-  @Get()
-  list(@Query() actor: SampleActorDto) {
-    return this.eventOpsService.listSuppliers(actor);
-  }
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateSupplierDto, @Query() actor: SampleActorDto) {
+  create(@Body() dto: CreateSupplierDto, @Query() actor: SupplierActorDto) {
     return this.eventOpsService.createSupplier(dto, actor);
   }
 
   @Patch(':supplierId')
-  update(@Param('supplierId') supplierId: string, @Body() dto: UpdateSupplierDto, @Query() actor: SampleActorDto) {
+  update(@Param('supplierId') supplierId: string, @Body() dto: UpdateSupplierDto, @Query() actor: SupplierActorDto) {
     return this.eventOpsService.updateSupplier(supplierId, dto, actor);
   }
 
@@ -78,7 +28,7 @@ export class OpsSuppliersController {
   changeTier(
     @Param('supplierId') supplierId: string,
     @Body() dto: ChangeSupplierTierDto,
-    @Query() actor: SampleActorDto,
+    @Query() actor: SupplierActorDto,
   ) {
     return this.eventOpsService.changeSupplierTier(supplierId, dto, actor);
   }
@@ -88,7 +38,7 @@ export class OpsSuppliersController {
   addReview(
     @Param('supplierId') supplierId: string,
     @Body() dto: CreateSupplierReviewDto,
-    @Query() actor: SampleActorDto,
+    @Query() actor: SupplierActorDto,
   ) {
     return this.eventOpsService.addSupplierReview(supplierId, dto, actor);
   }
@@ -98,9 +48,8 @@ export class OpsSuppliersController {
   addCertification(
     @Param('supplierId') supplierId: string,
     @Body() dto: CreateSupplierCertificationDto,
-    @Query() actor: SampleActorDto,
+    @Query() actor: SupplierActorDto,
   ) {
     return this.eventOpsService.addSupplierCertification(supplierId, dto, actor);
   }
 }
-
