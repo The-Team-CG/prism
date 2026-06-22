@@ -10,13 +10,11 @@ describe('event-ops controller routes', () => {
   it('keeps public controller base paths stable', () => {
     expect(EVENT_OPS_CONTROLLERS.map(controllerPath).sort()).toEqual([
       'ai',
-      'audit',
       'auth',
       'compliance',
       'coordinator',
       'events',
       'pmcm',
-      'privacy',
       'sample',
       'supplier',
       'suppliers',

@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, OpsInquiry } from '@prisma/client';
 import type { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import {
@@ -39,6 +40,10 @@ type ListPrivacyRequestsInput = {
   status?: string;
 };
 
+type PrivacyInventoryInput = {
+  eventId?: string;
+};
+
 type OpsPrivacyRequestRecord = {
   id: string;
   eventId?: string | null;
@@ -69,6 +74,63 @@ export class PrivacyOperationsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
   ) {}
+
+  async getInventory(input: PrivacyInventoryInput = {}) {
+    const [events, inquiries, approvalRequests] = await Promise.all([
+      this.prisma.opsEvent.findMany({
+        where: input.eventId ? { id: input.eventId } : {},
+        orderBy: { eventDate: 'asc' },
+      }),
+      this.prisma.opsInquiry.findMany(),
+      this.prisma.opsApprovalRequest.findMany(),
+    ]);
+    const eventIds = events.map((event: OpsEvent) => event.id);
+    const [guestCheckIns, guestFeedback] = await Promise.all([
+      this.prisma.opsGuestCheckIn.findMany({
+        where: eventIds.length ? { eventId: { in: eventIds } } : { eventId: { in: [] } },
+        orderBy: { checkedInAt: 'desc' },
+      }),
+      this.prisma.opsGuestFeedback.findMany({
+        where: eventIds.length ? { eventId: { in: eventIds } } : { eventId: { in: [] } },
+        orderBy: { submittedAt: 'desc' },
+      }),
+    ]);
+
+    const eventsInventory = events.map((event: OpsEvent) => {
+      const inquiry = inquiries.find((item: OpsInquiry) => item.id === event.inquiryId);
+      const checkIns = guestCheckIns.filter((item: OpsGuestCheckIn) => item.eventId === event.id);
+      const feedback = guestFeedback.filter((item: OpsGuestFeedback) => item.eventId === event.id);
+      const surfaces = [
+        this.privacySurface('inquiry', inquiry ? 1 : 0, ['client_contact', 'event_details', 'consent'], [
+          inquiry,
+        ]),
+        this.privacySurface('guest_check_in', checkIns.length, ['guest_name', 'attendance', 'consent'], checkIns),
+        this.privacySurface('guest_feedback', feedback.length, ['guest_name', 'rating', 'comment', 'media_metadata', 'consent'], feedback),
+      ];
+      return {
+        eventId: event.id,
+        eventName: event.eventName,
+        clientName: event.clientName,
+        dataCategories: Array.from(new Set(surfaces.flatMap((surface) => surface.dataCategories))),
+        recordCount: surfaces.reduce((total, surface) => total + surface.recordCount, 0),
+        surfaces,
+        retentionNotes: 'Event personal-data records stay with the event until PMCM defines the final archive retention policy.',
+      };
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      events: eventsInventory,
+      globalSurfaces: [
+        this.privacySurface('account_approval_request', approvalRequests.length, ['email', 'role', 'organization', 'consent'], approvalRequests),
+      ],
+      retentionNotes: [
+        'Sample personal-data records are retained with the event record until archive policy is finalized.',
+        'Guest feedback remains moderated and is never published automatically.',
+        'AI use remains blocked unless ZDR, sanitizer, audit, and human approval records are present.',
+      ],
+    };
+  }
 
   listRetentionPolicies() {
     return [
@@ -238,6 +300,30 @@ export class PrivacyOperationsService {
     });
 
     return this.mapRequest(saved);
+  }
+
+  private privacySurface(
+    surface: string,
+    recordCount: number,
+    dataCategories: string[],
+    records: Array<{ privacyConsentAccepted?: boolean; privacyNoticeVersion?: string; marketingConsentAccepted?: boolean } | null | undefined>,
+  ) {
+    const presentRecords = records.filter(Boolean) as Array<{
+      privacyConsentAccepted?: boolean;
+      privacyNoticeVersion?: string;
+      marketingConsentAccepted?: boolean;
+    }>;
+    return {
+      surface,
+      recordCount,
+      dataCategories,
+      consentAcceptedCount: presentRecords.filter((record) => Boolean(record.privacyConsentAccepted)).length,
+      missingConsentCount: Math.max(0, recordCount - presentRecords.filter((record) => Boolean(record.privacyConsentAccepted)).length),
+      privacyNoticeVersions: Array.from(
+        new Set(presentRecords.map((record) => record.privacyNoticeVersion).filter(Boolean)),
+      ),
+      marketingConsentAcceptedCount: presentRecords.filter((record) => Boolean(record.marketingConsentAccepted)).length,
+    };
   }
 
   private async requireRequest(requestId: string) {
