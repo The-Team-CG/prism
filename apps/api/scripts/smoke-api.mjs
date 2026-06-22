@@ -132,7 +132,7 @@ await expectBadRequest('reject unknown template field', '/api/templates', {
   }),
 });
 
-const sample = await expectOk('reset event ops sample', '/api/sample/reset', {
+const sample = await expectOk('reset sample compatibility state', '/api/sample/reset', {
   method: 'POST',
 });
 

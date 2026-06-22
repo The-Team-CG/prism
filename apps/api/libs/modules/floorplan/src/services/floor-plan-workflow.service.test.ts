@@ -1,0 +1,164 @@
+import { describe, expect, it, vi } from 'vitest';
+import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
+import { WorkflowCommandService } from '@prism/modules/event-core';
+
+function createService() {
+  const state = {
+    events: [
+      {
+        id: 'evt_sample',
+        inquiryId: 'inq_sample',
+        clientName: 'Ana Reyes',
+        eventName: 'Ayala Summit',
+        floorPlanStatus: 'not_started',
+        readiness: 'Planning',
+      },
+    ] as any[],
+    floorPlans: [] as any[],
+    floorPlanObjects: [] as any[],
+    floorPlanDrafts: [] as any[],
+  };
+  const prisma = {
+    opsEvent: {
+      findUnique: vi.fn(async ({ where }) => state.events.find((event) => event.id === where.id) ?? null),
+      update: vi.fn(async ({ where, data }) => {
+        const event = state.events.find((item) => item.id === where.id);
+        if (!event) throw new Error('event not found');
+        Object.assign(event, data);
+        return event;
+      }),
+    },
+    floorPlan: {
+      create: vi.fn(async ({ data }) => {
+        const row = { ...data, updatedAt: data.updatedAt ?? new Date() };
+        state.floorPlans.push(row);
+        return row;
+      }),
+      findUnique: vi.fn(async ({ where }) => state.floorPlans.find((plan) => plan.id === where.id) ?? null),
+    },
+    floorPlanObject: {
+      createMany: vi.fn(async ({ data }) => {
+        state.floorPlanObjects.push(...data);
+        return { count: data.length };
+      }),
+    },
+    opsFloorPlanDraft: {
+      create: vi.fn(async ({ data }) => {
+        const row = { ...data, createdAt: data.createdAt ?? new Date(), updatedAt: data.updatedAt ?? new Date() };
+        state.floorPlanDrafts.push(row);
+        return row;
+      }),
+      findFirst: vi.fn(async ({ where }) =>
+        state.floorPlanDrafts.find((draft) => draft.id === where.id && draft.eventId === where.eventId) ?? null,
+      ),
+      update: vi.fn(async ({ where, data }) => {
+        const draft = state.floorPlanDrafts.find((item) => item.id === where.id);
+        if (!draft) throw new Error('draft not found');
+        Object.assign(draft, data, { updatedAt: data.updatedAt ?? new Date() });
+        return draft;
+      }),
+      updateMany: vi.fn(async ({ where, data }) => {
+        let count = 0;
+        for (const draft of state.floorPlanDrafts) {
+          if (where?.eventId && draft.eventId !== where.eventId) continue;
+          if (typeof where?.isActive === 'boolean' && draft.isActive !== where.isActive) continue;
+          Object.assign(draft, data);
+          count += 1;
+        }
+        return { count };
+      }),
+    },
+    $transaction: vi.fn(async (callback) => callback(prisma)),
+  };
+  const auditService = { audit: vi.fn(async () => undefined) };
+  const notificationOutboxService = { queue: vi.fn(async () => undefined) };
+  const service = new FloorPlanWorkflowService(
+    prisma as any,
+    auditService as any,
+    notificationOutboxService as any,
+    new WorkflowCommandService(),
+  );
+  return { service, state, auditService, notificationOutboxService };
+}
+
+describe('FloorPlanWorkflowService', () => {
+  it('creates PMCM official floorplan drafts with canvas object rows intact', async () => {
+    const { service, state, auditService } = createService();
+
+    const draft = await service.createFloorPlanDraft(
+      'evt_sample',
+      {
+        name: 'Official Layout',
+        sourceType: 'blank',
+        objects: [{ id: 'stage', kind: 'stage', x: 10, y: 20, svgMarkup: '<svg />' }],
+      },
+      { name: 'PMCM Admin', role: 'pmcm-admin' },
+    );
+
+    expect(draft.status).toBe('pmcm_draft');
+    expect(state.floorPlans).toHaveLength(1);
+    expect(state.floorPlanDrafts[0]).toMatchObject({ name: 'Official Layout', status: 'pmcm_draft' });
+    expect(state.floorPlanObjects[0]).toMatchObject({ objectId: 'stage', kind: 'stage', svgMarkup: '<svg />' });
+    expect(state.events[0]).toMatchObject({ floorPlanStatus: 'pmcm_draft', readiness: 'Floorplan draft in progress' });
+    expect(auditService.audit).toHaveBeenCalledWith(
+      'evt_sample',
+      'PMCM Admin',
+      'Created floorplan draft: Official Layout',
+      expect.objectContaining({ affectedType: 'floor_plan_draft' }),
+    );
+  });
+
+  it('creates client layout preferences without making them official approved layouts', async () => {
+    const { service, state, notificationOutboxService } = createService();
+    state.events[0].clientPortalStatus = 'unlocked';
+
+    const draft = await service.createFloorPlanPreference(
+      'evt_sample',
+      {
+        name: 'Client Preference',
+        seatingStyle: 'banquet',
+        stagePreference: 'center',
+        flowNotes: 'Keep registration near entrance.',
+        guestCount: 180,
+        constraints: ['VIP tables near stage'],
+        objects: [{ id: 'vip-zone', kind: 'zone' }],
+      },
+      { name: 'Ana Reyes', role: 'client' },
+    );
+
+    expect(draft.status).toBe('client_submitted');
+    expect(draft.createdByRole).toBe('client');
+    expect(state.floorPlanDrafts[0].clientPreference).toMatchObject({ seatingStyle: 'banquet', guestCount: 180 });
+    expect(state.events[0]).toMatchObject({ floorPlanStatus: 'client_submitted', readiness: 'Client layout preference received' });
+    expect(notificationOutboxService.queue).toHaveBeenCalledWith(
+      'evt_sample',
+      'PMCM Admin',
+      'Client submitted a layout preference: Client Preference',
+    );
+  });
+
+  it('returns submitted and approved snapshots without mutating stored canvas state', async () => {
+    const { service, state } = createService();
+    state.floorPlanDrafts.push({
+      id: 'fpd_sample',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_sample',
+      name: 'Official Layout',
+      status: 'approved',
+      isActive: true,
+      sourceType: 'blank',
+      createdByRole: 'pmcm-admin',
+      submittedSnapshot: { objects: [{ id: 'stage', x: 10 }] },
+      approvedSnapshot: { objects: [{ id: 'stage', x: 20 }] },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const submitted = await service.getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'submitted');
+    const approved = await service.getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'approved');
+
+    expect((submitted as any).objects[0].x).toBe(10);
+    expect((approved as any).objects[0].x).toBe(20);
+    expect(state.floorPlanDrafts[0].approvedSnapshot.objects[0].x).toBe(20);
+  });
+});

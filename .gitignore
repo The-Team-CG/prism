@@ -52,6 +52,7 @@ prism-guest/
 .env.development
 .env.production
 .env.test
+!.env.docker.example
 
 # Misc generated files
 *.swp

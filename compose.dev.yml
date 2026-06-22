@@ -1,0 +1,95 @@
+name: prism-dev
+
+x-dev-service: &dev-service
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: dev
+  init: true
+  volumes:
+    - .:/app
+    - prism-root-node-modules:/app/node_modules
+    - prism-api-node-modules:/app/apps/api/node_modules
+    - prism-client-node-modules:/app/apps/client/node_modules
+    - prism-event-node-modules:/app/apps/event/node_modules
+    - prism-guest-node-modules:/app/apps/guest/node_modules
+    - prism-supplier-node-modules:/app/apps/supplier/node_modules
+    - prism-api-client-node-modules:/app/packages/api-client/node_modules
+    - prism-types-node-modules:/app/packages/types/node_modules
+    - prism-client-next:/app/apps/client/.next
+    - prism-event-next:/app/apps/event/.next
+    - prism-guest-next:/app/apps/guest/.next
+    - prism-supplier-next:/app/apps/supplier/.next
+    - prism-api-dist:/app/apps/api/dist
+  environment:
+    NODE_ENV: development
+    NEXT_TELEMETRY_DISABLED: "1"
+    CHOKIDAR_USEPOLLING: "true"
+    WATCHPACK_POLLING: "true"
+
+x-web-service: &web-service
+  <<: *dev-service
+  environment:
+    NODE_ENV: development
+    NEXT_TELEMETRY_DISABLED: "1"
+    CHOKIDAR_USEPOLLING: "true"
+    WATCHPACK_POLLING: "true"
+    NEXT_PUBLIC_API_URL: http://localhost:4000
+    NEXT_PUBLIC_PRISM_API_BASE_URL: http://localhost:4000/api
+  depends_on:
+    api:
+      condition: service_started
+
+services:
+  api:
+    <<: *dev-service
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
+      PRISM_DISABLE_CONFORME_REMINDER_JOB: "1"
+    command: ["sh", "-c", "npm --workspace prism-api exec -- nest start api --watch"]
+    ports:
+      - "4000:4000"
+
+  client:
+    <<: *web-service
+    command: ["sh", "-c", "npm --workspace @prism/client run dev -- --hostname 0.0.0.0"]
+    ports:
+      - "3001:3001"
+
+  supplier:
+    <<: *web-service
+    command: ["sh", "-c", "npm --workspace @prism/supplier run dev -- --hostname 0.0.0.0"]
+    ports:
+      - "3002:3002"
+
+  guest:
+    <<: *web-service
+    command: ["sh", "-c", "npm --workspace @prism/guest run dev -- --hostname 0.0.0.0"]
+    ports:
+      - "3003:3003"
+
+  event:
+    <<: *web-service
+    command: ["sh", "-c", "npm --workspace @prism/event run dev -- --hostname 0.0.0.0"]
+    ports:
+      - "3004:3004"
+
+volumes:
+  prism-root-node-modules:
+  prism-api-node-modules:
+  prism-client-node-modules:
+  prism-event-node-modules:
+  prism-guest-node-modules:
+  prism-supplier-node-modules:
+  prism-api-client-node-modules:
+  prism-types-node-modules:
+  prism-client-next:
+  prism-event-next:
+  prism-guest-next:
+  prism-supplier-next:
+  prism-api-dist:

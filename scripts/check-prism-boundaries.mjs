@@ -3,6 +3,37 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+const backendCapabilityModules = [
+  "access-control",
+  "identity-ops",
+  "trust-ops",
+  "notification-ops",
+  "event-core",
+  "inquiry-onboarding",
+  "commercial-ops",
+  "supplier-ops",
+  "staffing-ops",
+  "finance-ops",
+  "compliance-ops",
+  "floorplan",
+  "file-ops",
+  "guest-ops",
+  "closure-ops",
+  "ai-governance",
+  "event-read-models",
+  "sample-compatibility",
+];
+
+const backendCapabilityPattern = new RegExp(
+  `^apps/api/libs/modules/(?:${backendCapabilityModules.join("|")})/src/`,
+);
+
+const eventReadModelsPattern = /^apps\/api\/libs\/modules\/event-read-models\/src\//;
+const eventReadModelsQueriesPattern = /^apps\/api\/libs\/modules\/event-read-models\/src\/queries\/.*\.ts$/;
+const prismaMutationPattern =
+  /(?:\b(?:this\.)?prisma(?:\.[A-Za-z_$][\w$]*)*|\btx(?:\.[A-Za-z_$][\w$]*)*)\.(?:createMany|create|updateMany|update|upsert|deleteMany|delete|\$executeRawUnsafe|\$executeRaw)\s*\(/;
+const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
+
 export const boundaryRules = [
   {
     name: "client app must not import event app internals",
@@ -18,6 +49,11 @@ export const boundaryRules = [
     name: "shared ui must not import app-local modules",
     filePattern: /^packages\/ui\//,
     importPattern: /from\s+["'](?:@\/|apps\/)/,
+  },
+  {
+    name: "shared ui must not import backend modules",
+    filePattern: /^packages\/ui\//,
+    importPattern: /from\s+["'](?:@prism\/modules|apps\/api\/libs\/modules)/,
   },
   {
     name: "shared types must not import React or app modules",
@@ -51,6 +87,51 @@ export const boundaryRules = [
     filePattern: /^apps\/api\/libs\/modules\/.*\/src\/.*service\.ts$/,
     importPattern: /(?:private\s+readonly\s+)?prisma\s*:\s*any\b/,
   },
+  {
+    name: "backend capability modules must not import private services from other capability modules",
+    filePattern: backendCapabilityPattern,
+    check(normalized, source) {
+      const moduleName = normalized.match(/^apps\/api\/libs\/modules\/([^/]+)\//)?.[1];
+      if (!moduleName) return false;
+
+      const privateServiceImports = source.matchAll(
+        /from\s+["'](?:@prism\/modules\/|apps\/api\/libs\/modules\/|(?:\.\.\/)+)([^/"'.]+)\/src\/services\//g,
+      );
+
+      for (const privateServiceImport of privateServiceImports) {
+        if (privateServiceImport[1] !== moduleName) return true;
+      }
+
+      return false;
+    },
+  },
+  {
+    name: "backend capability modules must not import event-ops compatibility internals",
+    filePattern: backendCapabilityPattern,
+    importPattern: /from\s+["'](?:@prism\/modules\/event-ops|apps\/api\/libs\/modules\/event-ops)/,
+  },
+  {
+    name: "event-read-models must not mutate Prisma state",
+    filePattern: eventReadModelsPattern,
+    check(_normalized, source) {
+      return prismaMutationPattern.test(source);
+    },
+  },
+  {
+    name: "event-read-models raw queries require an approved query builder with a query budget",
+    filePattern: eventReadModelsPattern,
+    check(normalized, source) {
+      if (!rawQueryPattern.test(source)) return false;
+      return !eventReadModelsQueriesPattern.test(normalized) || !source.includes("Query budget:");
+    },
+  },
+  {
+    name: "event-ops module must not contain tracked files after sample compatibility migration",
+    filePattern: /^apps\/api\/libs\/modules\/event-ops\//,
+    check() {
+      return true;
+    },
+  },
 ];
 
 export function listTrackedSourceFiles(root = process.cwd()) {
@@ -74,7 +155,7 @@ export function findBoundaryViolations(fileSources, rules = boundaryRules) {
       if (
         rule.filePattern.test(normalized) &&
         !(rule.allowedFilePattern && rule.allowedFilePattern.test(normalized)) &&
-        rule.importPattern.test(source)
+        ((rule.importPattern && rule.importPattern.test(source)) || (rule.check && rule.check(normalized, source)))
       ) {
         violations.push(`${normalized}: ${rule.name}`);
       }
