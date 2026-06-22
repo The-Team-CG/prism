@@ -858,7 +858,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 | `inquiries.controller.ts` | `inquiry-onboarding` |
 | `quote-requests.controller.ts` | `commercial-ops` |
 | `supplier-network.controller.ts` | `supplier-ops` |
-| `billing.controller.ts` | `finance-ops` |
+| `billing.controller.ts` | `event-read-models` for billing reads |
 | `files.controller.ts` or file route group | `file-ops` |
 | `floor-plan.controller.ts` | `floorplan` |
 | `guest.controller.ts` | `guest-ops` |
@@ -879,7 +879,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 - [ ] App clients continue to build.
 
 
-> Progress: `guest.controller.ts` has moved to `guest-ops`; `quote-requests.controller.ts` has moved to `commercial-ops`; `inquiries.controller.ts` has moved to `inquiry-onboarding`; remaining controller families are still pending.
+> Progress: `guest.controller.ts` has moved to `guest-ops`; `quote-requests.controller.ts` has moved to `commercial-ops`; `inquiries.controller.ts` has moved to `inquiry-onboarding`; `billing.controller.ts` has moved to `event-read-models`; remaining controller families are still pending.
 **Commit checkpoint:** `refactor(api): move controllers to owning modules`
 
 ## Phase 14 - Retire EventOps Facade

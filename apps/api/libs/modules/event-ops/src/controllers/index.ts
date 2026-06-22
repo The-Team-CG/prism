@@ -6,7 +6,6 @@ export { OpsEventsController, OpsComplianceController } from './events.controlle
 export { OpsSuppliersController } from './suppliers.controller';
 export { OpsSupplierWorkspaceController } from './supplier-workspace.controller';
 export { OpsCoordinatorWorkspaceController, OpsCoordinatorsController } from './coordinator-workspace.controller';
-export { OpsBillingController } from './billing.controller';
 export { OpsOnboardingController, OpsClientController } from './client-workspace.controller';
 export { OpsPmcmDashboardController } from './pmcm-dashboard.controller';
 export { OpsAiController } from './ai.controller';
@@ -19,7 +18,6 @@ import { OpsEventsController, OpsComplianceController } from './events.controlle
 import { OpsSuppliersController } from './suppliers.controller';
 import { OpsSupplierWorkspaceController } from './supplier-workspace.controller';
 import { OpsCoordinatorWorkspaceController, OpsCoordinatorsController } from './coordinator-workspace.controller';
-import { OpsBillingController } from './billing.controller';
 import { OpsOnboardingController, OpsClientController } from './client-workspace.controller';
 import { OpsPmcmDashboardController } from './pmcm-dashboard.controller';
 import { OpsAiController } from './ai.controller';
@@ -36,7 +34,6 @@ export const EVENT_OPS_CONTROLLERS = [
   OpsSupplierWorkspaceController,
   OpsCoordinatorWorkspaceController,
   OpsCoordinatorsController,
-  OpsBillingController,
   OpsOnboardingController,
   OpsClientController,
   OpsPmcmDashboardController,

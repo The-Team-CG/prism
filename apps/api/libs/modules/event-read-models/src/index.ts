@@ -1,4 +1,7 @@
 export * from './event-read-models.module';
+export * from './controllers/billing.controller';
+export * from './dto/read-model.dto';
+export * from './mappers/billing-read-model.mappers';
 export * from './mappers/event-read-model.mappers';
 export * from './ports/billing-read-model.port';
 export * from './ports/client-event-read-model.port';
