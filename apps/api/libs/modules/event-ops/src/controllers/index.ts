@@ -8,10 +8,8 @@ export { OpsAiController } from './ai.controller';
 
 import { SampleController } from './sample.controller';
 import { OpsEventsController } from './events.controller';
-import { OpsAiController } from './ai.controller';
 
 export const EVENT_OPS_CONTROLLERS = [
   SampleController,
   OpsEventsController,
-  OpsAiController,
 ];

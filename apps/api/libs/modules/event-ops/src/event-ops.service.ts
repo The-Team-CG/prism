@@ -111,7 +111,6 @@ import {
   type SupplierWorkspaceMappers,
 } from '@prism/modules/event-read-models';
 import { EventClosureService, type ArchiveEventInput } from '@prism/modules/closure-ops';
-import { PAREService } from './services/pare/pare.service';
 import {
   type ApproveBillingSourceInput,
   BillingOperationsService,
@@ -549,7 +548,6 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
     private readonly complianceWorkflowService: ComplianceWorkflowService,
     private readonly clientOnboardingWorkflowService: ClientOnboardingWorkflowService,
     private readonly guestWorkflowService: GuestWorkflowService,
-    private readonly pareService: PAREService,
     private readonly aiGovernanceService: AiGovernanceService,
     private readonly sampleStateService: SampleStateService,
     private readonly inquiryWorkflowService: InquiryWorkflowService,

@@ -8,10 +8,8 @@ function controllerPath(controller: Function): string {
 
 describe('event-ops controller routes', () => {
   it('keeps public controller base paths stable', () => {
-    // Live-ops route owners move out of event-ops in the live-ops child plan;
-    // this registry should shrink when coordinator/supplier compatibility controllers lose their last handlers.
+    // Controller ownership now lives in capability modules; event-ops only keeps compatibility controllers.
     expect(EVENT_OPS_CONTROLLERS.map(controllerPath).sort()).toEqual([
-      'ai',
       'events',
       'sample',
     ]);

@@ -10,6 +10,7 @@ export * from './services/supplier-network-workflow.service';
 export * from './services/supplier-profile-commands.service';
 
 export * from './controllers/supplier-directory.controller';
+export * from './controllers/supplier-pare.controller';
 export * from './controllers/supplier-workspace-commands.controller';
 export * from './controllers/suppliers.controller';
 export * from './dto/supplier.dto';

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
-import { AiGovernanceModule } from '@prism/modules/ai-governance';
+import { AiGovernanceModule, PAREService } from '@prism/modules/ai-governance';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { ClosureOpsModule } from '@prism/modules/closure-ops';
 import { CommercialOpsModule, CommercialWorkflowService } from '@prism/modules/commercial-ops';
@@ -28,16 +28,13 @@ import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { EVENT_OPS_CONTROLLERS } from './controllers';
 import { EventOpsService } from './event-ops.service';
 import { LiveOperationsService } from './services/live-operations.service';
-import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
-
 
 const EVENT_OPS_PROVIDERS = [
   SampleStateService,
-  PAREService,
   LiveOperationsService,
   ComplianceWorkflowService,
-  { provide: SUPPLIER_PARE_AUTOMATION, useExisting: PAREService },
+  { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
   { provide: SUPPLIER_LIVE_OPERATIONS, useExisting: LiveOperationsService },
   { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DocumentVaultService },
   SupplierNetworkWorkflowService,

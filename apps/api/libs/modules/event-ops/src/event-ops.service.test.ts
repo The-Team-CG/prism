@@ -23,7 +23,7 @@ import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
 import { GuestWorkflowService } from '@prism/modules/guest-ops';
 import { LiveOperationsService } from './services/live-operations.service';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
-import { PAREService } from './services/pare/pare.service';
+import { PAREService } from '@prism/modules/ai-governance';
 import { SampleStateService } from './services/sample-state.service';
 import { SupplierNetworkWorkflowService, SupplierProfileCommandsService, SuppliersService } from '@prism/modules/supplier-ops';
 import { WorkflowCommandService } from '@prism/modules/event-core';
@@ -1086,7 +1086,6 @@ function createEventOpsService(prisma: any) {
     complianceWorkflowService,
     clientOnboardingWorkflowService,
     guestWorkflowService,
-    pareService,
     aiGovernanceService,
     sampleStateService,
     inquiryWorkflowService,

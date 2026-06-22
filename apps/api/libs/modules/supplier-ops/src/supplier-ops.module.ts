@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
+import { AiGovernanceModule, PAREService } from '@prism/modules/ai-governance';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsSupplierDirectoryController } from './controllers/supplier-directory.controller';
+import { OpsSupplierPareController } from './controllers/supplier-pare.controller';
 import { OpsSupplierWorkspaceCommandsController } from './controllers/supplier-workspace-commands.controller';
 import { OpsSuppliersController } from './controllers/suppliers.controller';
 import {
@@ -14,7 +16,6 @@ import {
   SUPPLIER_PARE_AUTOMATION,
 } from './ports/supplier-ops.tokens';
 import type { SupplierLiveOperations } from './ports/supplier-live-operations.port';
-import type { SupplierPareAutomation } from './ports/supplier-pare-automation.port';
 import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
 import { SupplierProfileCommandsService } from './services/supplier-profile-commands.service';
 import { SuppliersService } from './services/suppliers.service';
@@ -30,24 +31,14 @@ const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
   },
 };
 
-const unsupportedSupplierPareAutomation: SupplierPareAutomation = {
-  getPendingApprovals: async () => {
-    throw new Error('Supplier PARE automation is still owned by event-ops until the PARE split moves.');
-  },
-  approveRecommendation: async () => {
-    throw new Error('Supplier PARE automation is still owned by event-ops until the PARE split moves.');
-  },
-  rejectRecommendation: async () => {
-    throw new Error('Supplier PARE automation is still owned by event-ops until the PARE split moves.');
-  },
-  handleEmergencyTrigger: async () => {
-    throw new Error('Supplier PARE automation is still owned by event-ops until the PARE split moves.');
-  },
-};
-
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, FileOpsModule],
-  controllers: [OpsSupplierDirectoryController, OpsSuppliersController, OpsSupplierWorkspaceCommandsController],
+  imports: [DatabaseModule, AccessControlModule, AiGovernanceModule, EventCoreModule, TrustOpsModule, FileOpsModule],
+  controllers: [
+    OpsSupplierDirectoryController,
+    OpsSuppliersController,
+    OpsSupplierWorkspaceCommandsController,
+    OpsSupplierPareController,
+  ],
   providers: [
     SuppliersService,
     supplierDirectoryProvider,
@@ -55,7 +46,7 @@ const unsupportedSupplierPareAutomation: SupplierPareAutomation = {
     SupplierNetworkWorkflowService,
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DocumentVaultService },
     { provide: SUPPLIER_LIVE_OPERATIONS, useValue: unsupportedSupplierLiveOperations },
-    { provide: SUPPLIER_PARE_AUTOMATION, useValue: unsupportedSupplierPareAutomation },
+    { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
   ],
   exports: [SuppliersService, supplierDirectoryProvider, SupplierProfileCommandsService],
 })
