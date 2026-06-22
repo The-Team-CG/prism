@@ -11,11 +11,11 @@
 | Evidence item | Required answer |
 | --- | --- |
 | Owner D system goal | Backend controller ownership aligned to capability modules for the redesign contract foundation. |
-| Feature-ledger row | Guest portal/live attendance, role-scoped public guest payloads, supplier commercial quote submission/revision, public/PMCM inquiry onboarding, billing workspace read models, notification acknowledgement state, and client workspace/action-center read models. |
-| Route/app/actor | `GET /guest/events/:accessCode`, `POST /guest/events/:accessCode/check-ins`, `POST /guest/events/:accessCode/feedback`; actor is public guest via access code. `GET /quote-requests/:token`, `POST /quote-requests/:token/quote`, and `PATCH /quote-requests/:token/quote`; actor is supplier via quote token. `GET /inquiries`, `POST /inquiries`, `POST /inquiries/log-on-behalf`, `PATCH /inquiries/:inquiryId/status`, `POST /inquiries/:inquiryId/conforme-reminders`, and `POST /inquiries/:inquiryId/conforme`; actors are public client and PMCM/system. `GET /billing`; actors are PMCM/system/client through billing read-model scope. `POST /notifications/:notificationId/acknowledge`; actor scope is existing notification acknowledgement behavior. `GET /client/workspace` and `GET /client/action-center`; actors are client-scoped through read-model policy. |
-| Contract touched | Controller ownership only; route paths and DTO fields remain stable; supplier quote DTO now has a commercial-owned copy matching the legacy DTO; inquiry DTOs now have inquiry-onboarding-owned copies matching the legacy DTOs; billing read model actor DTO now has an event-read-model-owned copy matching the legacy actor query shape; notification acknowledgement response mapper now lives in notification-ops; client workspace DTO and mappers now live in event-read-models. |
-| Fallback state | Old `event-ops/src/controllers/guest.controller.ts`, `event-ops/src/controllers/quote-requests.controller.ts`, `event-ops/src/controllers/inquiries.controller.ts`, `event-ops/src/controllers/billing.controller.ts`, `event-ops/src/controllers/notifications.controller.ts`, and `event-ops/src/controllers/client-workspace.controller.ts` client export remain compatibility re-exports but are no longer registered by `EVENT_OPS_CONTROLLERS`. |
-| Route-smoke evidence | Guest, quote-request, inquiry, billing, notification, and client controller route metadata/delegation tests, event-ops controller route registry test, guest/commercial/inquiry workflow tests, event-ops suite, build, and boundary check. |
+| Feature-ledger row | Guest portal/live attendance, role-scoped public guest payloads, supplier commercial quote submission/revision, public/PMCM inquiry onboarding, billing workspace read models, notification acknowledgement state, client workspace/action-center read models, and coordinator directory reads. |
+| Route/app/actor | `GET /guest/events/:accessCode`, `POST /guest/events/:accessCode/check-ins`, `POST /guest/events/:accessCode/feedback`; actor is public guest via access code. `GET /quote-requests/:token`, `POST /quote-requests/:token/quote`, and `PATCH /quote-requests/:token/quote`; actor is supplier via quote token. `GET /inquiries`, `POST /inquiries`, `POST /inquiries/log-on-behalf`, `PATCH /inquiries/:inquiryId/status`, `POST /inquiries/:inquiryId/conforme-reminders`, and `POST /inquiries/:inquiryId/conforme`; actors are public client and PMCM/system. `GET /billing`; actors are PMCM/system/client through billing read-model scope. `POST /notifications/:notificationId/acknowledge`; actor scope is existing notification acknowledgement behavior. `GET /client/workspace` and `GET /client/action-center`; actors are client-scoped through read-model policy. `GET /coordinators`; actors are PMCM/system/coordinator through staffing role policy. |
+| Contract touched | Controller ownership only; route paths and DTO fields remain stable; supplier quote DTO now has a commercial-owned copy matching the legacy DTO; inquiry DTOs now have inquiry-onboarding-owned copies matching the legacy DTOs; billing read model actor DTO now has an event-read-model-owned copy matching the legacy actor query shape; notification acknowledgement response mapper now lives in notification-ops; client workspace DTO and mappers now live in event-read-models; coordinator directory DTO now lives in staffing-ops. |
+| Fallback state | Old `event-ops/src/controllers/guest.controller.ts`, `event-ops/src/controllers/quote-requests.controller.ts`, `event-ops/src/controllers/inquiries.controller.ts`, `event-ops/src/controllers/billing.controller.ts`, `event-ops/src/controllers/notifications.controller.ts`, the client export from `event-ops/src/controllers/client-workspace.controller.ts`, and the coordinator directory export from `event-ops/src/controllers/coordinator-workspace.controller.ts` remain compatibility re-exports but are no longer registered by `EVENT_OPS_CONTROLLERS`. |
+| Route-smoke evidence | Guest, quote-request, inquiry, billing, notification, client, and coordinator controller route metadata/delegation tests, event-ops controller route registry test, guest/commercial/inquiry workflow tests, event-ops suite, build, and boundary check. |
 
 ## Controller Ownership Map
 
@@ -28,7 +28,8 @@
 | `client-workspace.controller.ts` / `OpsClientController` | `event-read-models` for client workspace/action-center reads | Moved in client read-model slice. |
 | `client-workspace.controller.ts` / `OpsOnboardingController` | `inquiry-onboarding` or a later onboarding read-model owner | Pending. |
 | `supplier-workspace.controller.ts`, `suppliers.controller.ts` | `supplier-ops` | Pending. |
-| `coordinator-workspace.controller.ts` | `staffing-ops` / later live-ops split | Pending. |
+| `coordinator-workspace.controller.ts` / `OpsCoordinatorsController` | `staffing-ops` for coordinator directory reads | Moved in staffing read slice. |
+| `coordinator-workspace.controller.ts` / `OpsCoordinatorWorkspaceController` | `staffing-ops` / later live-ops split | Pending. |
 | `pmcm-dashboard.controller.ts`, dashboard reads | `event-read-models` | Pending. |
 | `events.controller.ts` | Split across event-core, floorplan, compliance-ops, closure-ops, event-read-models | Pending. |
 | `audit-privacy.controller.ts` | `trust-ops` | Pending. |
@@ -67,11 +68,15 @@
 - [x] Register `OpsClientController` in `EventReadModelsModule`; keep the old event-ops controller file as onboarding plus client compatibility export.
 - [x] Remove client controller registration from `EVENT_OPS_CONTROLLERS`.
 - [x] Add client controller route/delegation smoke tests.
+- [x] Create staffing-owned coordinator directory controller and actor DTO.
+- [x] Register `OpsCoordinatorsController` in `StaffingOpsModule`; keep the old event-ops controller file as coordinator workspace plus coordinator-directory compatibility export.
+- [x] Remove coordinator directory controller registration from `EVENT_OPS_CONTROLLERS`.
+- [x] Add coordinator directory route/delegation smoke tests.
 - [ ] Move the remaining controller families one module at a time.
 - [ ] When all controllers are moved, mark the master Phase 13 checklist complete and proceed to Phase 14 facade retirement.
 
 ## Self-Review
 
-- Spec coverage: Guest, supplier quote-token, inquiry, billing, notification, and client read controller families moved without changing public route paths or response mapping.
-- Boundary clarity: `guest-ops`, `commercial-ops`, `inquiry-onboarding`, `event-read-models`, and `notification-ops` controllers import only local DTOs/mappers/services and public access-control; they do not import `event-ops` internals.
+- Spec coverage: Guest, supplier quote-token, inquiry, billing, notification, client read, and coordinator directory controller families moved without changing public route paths or response mapping.
+- Boundary clarity: `guest-ops`, `commercial-ops`, `inquiry-onboarding`, `event-read-models`, `notification-ops`, and `staffing-ops` controllers import only local DTOs/mappers/services and public access-control; they do not import `event-ops` internals.
 - Remaining risk: Most controllers still live in `event-ops`; this is an incremental Phase 13 checkpoint, not full Phase 13 completion.
