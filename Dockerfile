@@ -23,6 +23,15 @@ COPY packages/types/package.json packages/types/package.json
 COPY packages/ui/package.json packages/ui/package.json
 RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
+FROM deps AS dev
+ENV NODE_ENV=development \
+    NEXT_TELEMETRY_DISABLED=1 \
+    CHOKIDAR_USEPOLLING=true \
+    WATCHPACK_POLLING=true
+COPY . .
+RUN npm --workspace prism-api run db:generate
+EXPOSE 3001 3002 3003 3004 4000
+
 FROM deps AS builder
 COPY . .
 RUN npm --workspace prism-api run db:generate
