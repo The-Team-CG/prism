@@ -8,6 +8,7 @@ export type DashboardSection =
   | "clients"
   | "calendar"
   | "tasks"
+  | "command-inbox"
   | "team"
   | "suppliers"
   | "files"
@@ -241,6 +242,7 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   "calendar-team": "/dashboard/calendar/staff-availability",
   "calendar-suppliers": "/dashboard/calendar/supplier-bookings",
   "calendar-payments": "/dashboard/calendar/payment-due-dates",
+  "command-inbox": "/dashboard/command-inbox",
   "tasks-my": "/dashboard/tasks",
   "tasks-all": "/dashboard/tasks/all",
   "tasks-overdue": "/dashboard/tasks/overdue",
@@ -336,6 +338,7 @@ export function activeSidebarItemFromRoute(routeState: RouteState) {
   if (routeState.section === "clients") return "clients";
   if (routeState.section === "calendar") return "calendar";
   if (routeState.section === "tasks") return "tasks";
+  if (routeState.section === "command-inbox") return "command-inbox";
   if (routeState.section === "team") return routeState.eventId ? "event-staff" : "dashboard";
   if (routeState.section === "files") return routeState.eventId ? "event-files" : "dashboard";
   if (routeState.section === "messages") return routeState.eventId ? "event-messages" : "dashboard";
@@ -356,6 +359,7 @@ export function routeLoadingShellCopy(routeState: RouteState) {
   if (routeState.section === "clients") return { eyebrow: "Clients", title: "Client Desk" };
   if (routeState.section === "calendar") return { eyebrow: "Calendar", title: "Calendar" };
   if (routeState.section === "tasks") return { eyebrow: "Tasks", title: "Tasks" };
+  if (routeState.section === "command-inbox") return { eyebrow: "Command inbox", title: "Command Inbox" };
   if (routeState.section === "team") return { eyebrow: "Team", title: "Team & Coordinators" };
   if (routeState.section === "files") return { eyebrow: "Files", title: "Event File Hub" };
   if (routeState.section === "messages") return { eyebrow: "Messages", title: "Event Messages" };
@@ -398,6 +402,7 @@ export function routeStateFromPath(pathname: string): RouteState {
   if (parts[1] === "events") return { section: "events-list", tab: "overview", view: "all" };
   if (parts[1] === "calendar") return { section: "calendar", tab: "overview", view: parts[2] ?? "all" };
   if (parts[1] === "tasks") return { section: "tasks", tab: "overview", view: parts[2] ?? "mine" };
+  if (parts[1] === "command-inbox") return { section: "command-inbox", tab: "overview", view: "all" };
   if (parts[1] === "team") return { section: "team", tab: "coordinators", view: parts[2] ?? "all" };
   if (parts[1] === "suppliers") return { section: "suppliers", tab: "overview", view: parts[2] ?? "all" };
   if (parts[1] === "files") return { section: "files", tab: "floorplans", view: parts[2] ?? "all" };
