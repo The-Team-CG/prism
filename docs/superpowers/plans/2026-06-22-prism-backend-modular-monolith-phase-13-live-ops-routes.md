@@ -84,8 +84,21 @@ Expected before implementation: PASS with the current list. Expected after Task 
 Create this file by copying the currently used live-ops DTOs out of `event-ops.dto.ts`:
 
 ```ts
-import { IsEmail, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
 
+export class UploadMetadataDto {
+  @IsString()
+  fileName!: string;
+
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sizeBytes?: number;
+}
 export class LiveOpsActorDto {
   @IsOptional()
   @IsString()
@@ -253,7 +266,7 @@ export class ReplaceCoordinatorAssignmentDto {
 }
 
 export class SupplierEventStatusDto {
-  @IsString()
+  @IsIn(['arrived', 'set_up_ready', 'done_leaving'])
   status!: string;
 
   @IsOptional()
@@ -261,12 +274,12 @@ export class SupplierEventStatusDto {
   notes?: string;
 
   @IsOptional()
-  @IsString()
-  photoFileName?: string;
+  @IsObject()
+  photo?: UploadMetadataDto;
 }
 
 export class VerifySupplierStatusDto {
-  @IsIn(['verified', 'rejected'])
+  @IsIn(['verified', 'disputed'])
   verificationStatus!: string;
 
   @IsOptional()
@@ -430,7 +443,7 @@ Expected: PASS.
 - Create: `apps/api/libs/modules/live-ops/src/services/event-live-ops-read.service.ts`
 - Create: `apps/api/libs/modules/live-ops/src/services/event-live-ops-command.service.ts`
 
-- [ ] **Step 1: Create `EventLiveOpsReadService`**
+- [x] **Step 1: Create `EventLiveOpsReadService`**
 
 Move the current `EventOpsService.getEventLiveOps`, `getEventDayStatusFeed`, and `getCoordinatorRoleView` behavior into a service that injects `PrismaService`, `EventAccessPolicyService`, `LiveOperationsService`, `CoordinatorsService`, `GuestWorkflowService`, and `FloorPlanWorkflowService`. The public signatures must be:
 
@@ -453,7 +466,7 @@ await this.eventAccessPolicyService.requireActorRole(
 
 Coordinator actors must only see their assigned role tasks/issues and registration-role guest check-ins. PMCM/system actors keep the full live-ops payload.
 
-- [ ] **Step 2: Create `EventLiveOpsCommandService`**
+- [x] **Step 2: Create `EventLiveOpsCommandService`**
 
 Move command behavior currently exposed through these `EventOpsService` methods into the command service:
 
@@ -472,11 +485,19 @@ updateSupplierEventStatus(requestId: string, input: SupplierEventStatusDto, acto
 
 Use `EventAccessPolicyService.resolveActor` and the same PMCM/system/coordinator permission checks currently inside `EventOpsService.requireEventDayWriteActor`. Supplier self-report must require supplier role and must validate the request belongs to the resolved supplier from `SUPPLIER_DIRECTORY` before updating `opsSupplierQuoteRequest`.
 
-- [ ] **Step 3: Run focused service tests**
+- [x] **Step 3: Run focused service tests**
 
 Run: `npm --workspace prism-api run test -- live-operations.service.test.ts event-ops.service.test.ts supplier-network-workflow.service.test.ts`
 
 Expected: PASS.
+
+Task 5 checkpoint:
+
+- [x] `EventLiveOpsReadService` owns `getEventLiveOps`, `getEventDayStatusFeed`, and `getCoordinatorRoleView` read composition with coordinator role scoping preserved.
+- [x] `EventLiveOpsCommandService` owns event-day task, urgent issue, coordinator attendance/replacement, supplier verification, and supplier self-report command entrypoints.
+- [x] Supplier self-report keeps the current route payload shape (`photo` upload metadata) while avoiding a `SupplierOpsModule <-> LiveOpsModule` service cycle.
+- [x] `npm --workspace prism-api run test -- live-operations.service.test.ts event-ops.service.test.ts supplier-network-workflow.service.test.ts` passed after rerunning outside the sandbox for Vite `spawn EPERM`.
+- [x] `npm --workspace prism-api run build` passed after rerunning outside the sandbox for generated metadata unlink permissions.
 
 ## Task 6 - Register LiveOpsModule
 

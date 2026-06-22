@@ -1,5 +1,18 @@
-import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
 
+export class UploadMetadataDto {
+  @IsString()
+  fileName!: string;
+
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sizeBytes?: number;
+}
 export class LiveOpsActorDto {
   @IsOptional()
   @IsString()
@@ -167,7 +180,7 @@ export class ReplaceCoordinatorAssignmentDto {
 }
 
 export class SupplierEventStatusDto {
-  @IsString()
+  @IsIn(['arrived', 'set_up_ready', 'done_leaving'])
   status!: string;
 
   @IsOptional()
@@ -175,12 +188,12 @@ export class SupplierEventStatusDto {
   notes?: string;
 
   @IsOptional()
-  @IsString()
-  photoFileName?: string;
+  @IsObject()
+  photo?: UploadMetadataDto;
 }
 
 export class VerifySupplierStatusDto {
-  @IsIn(['verified', 'rejected'])
+  @IsIn(['verified', 'disputed'])
   verificationStatus!: string;
 
   @IsOptional()
