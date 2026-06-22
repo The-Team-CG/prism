@@ -11,10 +11,6 @@ export class OpsPmcmDashboardController {
     return this.eventOpsService.listPmcmDashboard(actor);
   }
 
-  @Get('command-inbox')
-  commandInbox(@Query() actor: SampleActorDto) {
-    return this.eventOpsService.listPmcmCommandInbox(actor);
-  }
 
   @Get('events/:eventId/workspace')
   eventWorkspace(@Param('eventId') eventId: string, @Query() actor: SampleActorDto) {
