@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. In side conversations, do not use subagents.
 
-**Goal:** Move the backend from a large legacy `event-ops` compatibility folder to capability-owned modules, with `/sample/*` isolated in `sample-compatibility` and `event-ops` reduced to `index.ts` only or deleted.
+**Goal:** Move the backend from a large legacy `event-ops` compatibility folder to a consistent capability-owned module shape across `apps/api/libs/modules`, with `/sample/*` isolated in `sample-compatibility` and `event-ops` reduced to `index.ts` only or deleted.
 
-**Architecture:** Keep one NestJS API and one Prisma client. Create a dedicated `sample-compatibility` module for demo/seed/reset routes, then remove old `event-ops` controllers, DTOs, service re-exports, tests, aliases, and module registration only after import checks prove they are unused. Capability modules keep ownership of their own controllers, DTOs, mappers, ports, services, and tests.
+**Architecture:** Keep one NestJS API and one Prisma client. First audit every capability module against the target folder contract, then create a dedicated `sample-compatibility` module for demo/seed/reset routes. Remove old `event-ops` controllers, DTOs, service re-exports, tests, aliases, and module registration only after import checks prove they are unused. Capability modules keep ownership of their own controllers, DTOs, mappers, ports, services, and tests; `event-read-models` uniquely owns `queries`.
 
 **Tech Stack:** NestJS modules/providers/controllers, Prisma, Vitest, TypeScript path aliases, `scripts/check-prism-boundaries.mjs`, existing Prism API package scripts.
 
@@ -49,9 +49,94 @@ apps/api/libs/modules/event-ops/
 ```
 
 or no `event-ops` module at all after every import is removed.
+## Whole Backend Target Shape
+
+The plan covers the full module tree, not only the leftover `event-ops` folder. The implementation target is:
+
+```txt
+apps/api/libs/modules/
+  event-core/
+    controllers/
+    dto/
+    services/
+    ports/
+    mappers/
+
+  inquiry-onboarding/
+    controllers/
+    dto/
+    services/
+    ports/
+    mappers/
+
+  supplier-ops/
+    controllers/
+    dto/
+    services/
+    ports/
+    mappers/
+
+  finance-ops/
+    controllers/
+    dto/
+    services/
+    ports/
+    mappers/
+
+  staffing-ops/
+    controllers/
+    dto/
+    services/
+    ports/
+    mappers/
+
+  floorplan/
+    controllers/
+    dto/
+    services/
+    ports/
+    mappers/
+
+  file-ops/
+    controllers/
+    dto/
+    services/
+    ports/
+    mappers/
+
+  live-ops/
+    controllers/
+    dto/
+    services/
+    ports/
+    mappers/
+
+  event-read-models/
+    controllers/
+    dto/
+    services/
+    queries/
+    mappers/
+
+  sample-compatibility/
+    controllers/
+    dto/
+    services/
+
+  event-ops/
+    index.ts only, or deleted
+```
+
+Folder presence is not enough by itself. Each folder must contain only files owned by that capability, and any empty folder should include a short `.gitkeep` only if the repository needs to preserve the shape before the first file lands. Do not create empty architecture folders just for symmetry if the capability has no planned code in that layer.
 
 ## File Responsibility Map
 
+- `apps/api/libs/modules/<capability>/controllers`: route controllers owned by that capability. Controllers should call local services or public provider ports, not `EventOpsService`.
+- `apps/api/libs/modules/<capability>/dto`: request/response DTOs for that module's controllers. Shared public contract types still belong in `packages/types` when reused by clients.
+- `apps/api/libs/modules/<capability>/services`: write workflows, local policies, orchestration, and adapters owned by the capability.
+- `apps/api/libs/modules/<capability>/ports`: explicit provider tokens and interfaces used for cross-module access.
+- `apps/api/libs/modules/<capability>/mappers`: conversion between Prisma/domain records and route/API payload shapes.
+- `apps/api/libs/modules/event-read-models/src/queries`: approved read-only query builders with query-budget comments.
 - `apps/api/libs/modules/sample-compatibility/src/sample-compatibility.module.ts`: imports every capability module needed to assemble `/sample/*` state, reset, and seed behavior.
 - `apps/api/libs/modules/sample-compatibility/src/controllers/sample.controller.ts`: owns `GET /api/sample/state`, `POST /api/sample/reset`, and `POST /api/sample/seed`.
 - `apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.ts`: replaces the remaining sample-facing methods from `EventOpsService` and contains only sample aggregation, seed, reset, and mapping helpers.
@@ -106,12 +191,136 @@ git diff --check
 
 Expected: API build passes, boundary check passes, and `git diff --check` reports no whitespace errors. If build or boundary fails only because of sandbox `EPERM`, rerun the exact same command with approved elevated execution.
 
-## Task 2: Add The SampleCompatibility Module Shell
+## Task 2: Audit And Normalize Capability Module Shape
+
+**Files:**
+- Read: `apps/api/libs/modules/event-core`
+- Read: `apps/api/libs/modules/inquiry-onboarding`
+- Read: `apps/api/libs/modules/supplier-ops`
+- Read: `apps/api/libs/modules/finance-ops`
+- Read: `apps/api/libs/modules/staffing-ops`
+- Read: `apps/api/libs/modules/floorplan`
+- Read: `apps/api/libs/modules/file-ops`
+- Read: `apps/api/libs/modules/live-ops`
+- Read: `apps/api/libs/modules/event-read-models`
+- Read: `apps/api/libs/modules/event-ops`
+- Modify after audit: only module folders with misplaced files or missing ownership docs
+
+- [ ] **Step 1: Generate the current module folder inventory**
+
+Run:
+
+```powershell
+$modules = @('event-core','inquiry-onboarding','supplier-ops','finance-ops','staffing-ops','floorplan','file-ops','live-ops','event-read-models','event-ops')
+foreach ($module in $modules) {
+  Write-Output "## $module"
+  Get-ChildItem -Path "apps/api/libs/modules/$module/src" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name
+}
+```
+
+Expected: the output shows which target folders already exist and which are missing. Record the result in the implementation notes before moving files.
+
+- [ ] **Step 2: Generate misplaced-file candidates**
+
+Run:
+
+```powershell
+rg -n "from ['\"](\.\./)+event-ops|from ['\"]@prism/modules/event-ops|event-ops/src" apps/api/libs/modules packages scripts -S
+rg -n "class .*Controller|@Controller\(" apps/api/libs/modules/event-ops/src apps/api/libs/modules/*/src -S
+rg -n "export class .*Dto|export type .*Dto|interface .*Dto" apps/api/libs/modules/event-ops/src apps/api/libs/modules/*/src -S
+```
+
+Expected: any active controller, DTO, mapper, service, or port still under `event-ops` is classified before deletion or movement. Do not move files based only on filename; ownership must match the route/workflow in the current module docs.
+
+- [ ] **Step 3: Create missing target folders only when a file will move into them**
+
+For each capability, create only the folders needed by actual files in that slice. Example for a supplier DTO move:
+
+```powershell
+New-Item -ItemType Directory -Force apps/api/libs/modules/supplier-ops/src/dto
+```
+
+Expected: no empty architecture folders are added unless a `.gitkeep` is intentionally required and documented.
+
+- [ ] **Step 4: Move DTOs to owning modules**
+
+For every DTO still exported from `apps/api/libs/modules/event-ops/src/dto/event-ops.dto.ts`, classify it by route owner:
+
+```txt
+inquiry/conforme/onboarding DTO -> inquiry-onboarding/src/dto
+supplier profile, assignment, PARE route DTO -> supplier-ops/src/dto
+finance billing/payment DTO -> finance-ops/src/dto
+staffing/coordinator DTO -> staffing-ops/src/dto
+floorplan DTO -> floorplan/src/dto
+file requirement/upload DTO -> file-ops/src/dto
+live operations DTO -> live-ops/src/dto
+dashboard/workspace/defense-readiness DTO -> event-read-models/src/dto
+sample-only DTO -> sample-compatibility/src/dto
+```
+
+After each move, update imports in the owning controller/service and run the narrow test for that module.
+
+- [ ] **Step 5: Move mappers to owning modules**
+
+For each mapper still embedded in `EventOpsService` or old event-ops services, move it to the owner module's `mappers` folder. Keep read-model mappers in `event-read-models/src/mappers`; keep sample-only wrapper mappers in `sample-compatibility/src/services` unless they are reusable by a real capability.
+
+Run after each mapper move:
+
+```powershell
+npm --workspace prism-api run test -- <owning-module-test-file>
+```
+
+Expected: moved mappers preserve response shape exactly.
+
+- [ ] **Step 6: Move ports to owning modules**
+
+For provider tokens still under `apps/api/libs/modules/event-ops/src/ports`, move them to the module that owns the provider:
+
+```txt
+access-control tokens -> access-control/src/ports
+trust/audit/privacy tokens -> trust-ops/src/ports
+notification outbox tokens -> notification-ops/src/ports
+event lifecycle/command tokens -> event-core/src/ports
+```
+
+Run:
+
+```powershell
+rg -n "event-ops/src/ports|@prism/modules/event-ops/.*/ports" apps packages scripts -S
+npm --workspace prism-api run build
+```
+
+Expected: no active imports reference event-ops ports after the moves.
+
+- [ ] **Step 7: Add or update per-module barrel exports**
+
+Each capability module `src/index.ts` should export only its public Nest module and intentional public ports/types. Do not export private services just because tests can import them by alias. Use relative imports inside same-module tests where needed.
+
+Run:
+
+```powershell
+rg -n "export \* from './services|export \* from './controllers|export \* from './dto" apps/api/libs/modules/*/src/index.ts -S
+```
+
+Expected: public barrels do not expose private implementation folders unless there is an explicit cross-module contract reason.
+
+- [ ] **Step 8: Verify target shape before sample extraction starts**
+
+Run:
+
+```powershell
+npm --workspace prism-api run build
+npm run check:boundaries
+git diff --check
+```
+
+Expected: build and boundary checks pass before starting the sample-compatibility move.
+## Task 3: Add The SampleCompatibility Module Shell
 
 **Files:**
 - Create: `apps/api/libs/modules/sample-compatibility/tsconfig.lib.json`
 - Create: `apps/api/libs/modules/sample-compatibility/src/index.ts`
-- Create: `apps/api/libs/modules/sample-compatibility/src/sample-compatibility.module.ts`
+- `apps/api/libs/modules/sample-compatibility/src/sample-compatibility.module.ts`: imports every capability module needed to assemble `/sample/*` state, reset, and seed behavior.
 - Modify: `apps/api/tsconfig.json`
 - Modify: `apps/api/vitest.config.ts`
 - Modify: `apps/api/nest-cli.json`
@@ -142,7 +351,7 @@ export * from './sample-compatibility.module';
 
 - [ ] **Step 3: Create the module shell**
 
-Create `apps/api/libs/modules/sample-compatibility/src/sample-compatibility.module.ts`:
+- `apps/api/libs/modules/sample-compatibility/src/sample-compatibility.module.ts`: imports every capability module needed to assemble `/sample/*` state, reset, and seed behavior.
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -203,7 +412,7 @@ npm --workspace prism-api run build
 
 Expected: build passes with the new empty module registered in config but not yet imported by `AppModule`.
 
-## Task 3: Move Sample Controller And SampleStateService
+## Task 4: Move Sample Controller And SampleStateService
 
 **Files:**
 - Move: `apps/api/libs/modules/event-ops/src/controllers/sample.controller.ts` to `apps/api/libs/modules/sample-compatibility/src/controllers/sample.controller.ts`
@@ -293,12 +502,12 @@ npm --workspace prism-api run test -- libs/modules/sample-compatibility/src/cont
 
 Expected: the registry test passes.
 
-## Task 4: Extract SampleCompatibilityService From EventOpsService
+## Task 5: Extract SampleCompatibilityService From EventOpsService
 
 **Files:**
 - Create: `apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.ts`
 - Create: `apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.test.ts`
-- Modify: `apps/api/libs/modules/sample-compatibility/src/sample-compatibility.module.ts`
+- `apps/api/libs/modules/sample-compatibility/src/sample-compatibility.module.ts`: imports every capability module needed to assemble `/sample/*` state, reset, and seed behavior.
 - Modify: `apps/api/libs/modules/event-ops/src/event-ops.service.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/event-ops.service.test.ts`
 
@@ -387,7 +596,7 @@ npm --workspace prism-api run test -- libs/modules/sample-compatibility/src even
 
 Expected: sample-compatibility tests pass, and event-ops tests no longer depend on sample-only methods.
 
-## Task 5: Replace AppModule Wiring
+## Task 6: Replace AppModule Wiring
 
 **Files:**
 - Modify: `apps/api/apps/api/src/app.module.ts`
@@ -437,7 +646,7 @@ node -e "require('reflect-metadata'); const { NestFactory } = require('@nestjs/c
 
 Expected: build passes and the boot probe prints `AppModule context boot passed`.
 
-## Task 6: Delete Legacy EventOps Compatibility Exports In Waves
+## Task 7: Delete Legacy EventOps Compatibility Exports In Waves
 
 **Files:**
 - Delete when unused: `apps/api/libs/modules/event-ops/src/services/*.ts`
@@ -499,7 +708,7 @@ When old consumers are gone, replace `apps/api/libs/modules/event-ops/src/index.
 export {};
 ```
 
-## Task 7: Tighten Boundary Rules For The Target Shape
+## Task 8: Tighten Boundary Rules For The Target Shape
 
 **Files:**
 - Modify: `scripts/check-prism-boundaries.mjs`
@@ -555,7 +764,7 @@ npm run check:boundaries
 
 Expected: both pass.
 
-## Task 8: Remove EventOps Alias And Library Registration
+## Task 9: Remove EventOps Alias And Library Registration
 
 **Files:**
 - Modify: `apps/api/tsconfig.json`
@@ -625,7 +834,7 @@ git diff --check
 
 Expected: all pass.
 
-## Task 9: API Client Naming Without Breaking Public Routes
+## Task 10: API Client Naming Without Breaking Public Routes
 
 **Files:**
 - Modify or keep: `packages/api-client/src/event-ops-client.ts`
@@ -662,7 +871,7 @@ npm --workspace @prism/api-client test
 
 If the package has a different script name, inspect `packages/api-client/package.json` and use the existing test script.
 
-## Task 10: Documentation And Final Verification
+## Task 11: Documentation And Final Verification
 
 **Files:**
 - Modify: `docs/prism-v4/15-system-architecture.md`
@@ -712,6 +921,16 @@ Before merging the implementation branch:
 - [ ] `apps/api/libs/modules/event-ops` is either deleted or contains only an inert `src/index.ts` during final alias removal.
 - [ ] No active app/package/script import references `@prism/modules/event-ops` or `event-ops/src`.
 - [ ] Boundary checker prevents new `event-ops/controllers`, `event-ops/dto`, and `event-ops/services` files.
+- [ ] `event-core` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape, or missing folders are documented as intentionally unnecessary for current code.
+- [ ] `inquiry-onboarding` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
+- [ ] `supplier-ops` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
+- [ ] `finance-ops` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
+- [ ] `staffing-ops` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
+- [ ] `floorplan` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
+- [ ] `file-ops` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
+- [ ] `live-ops` has the intended `controllers`, `dto`, `services`, `ports`, and `mappers` ownership shape.
+- [ ] `event-read-models` has the intended `controllers`, `dto`, `services`, `queries`, and `mappers` ownership shape, with read-only query builders only.
+- [ ] `sample-compatibility` has only `controllers`, `dto`, and `services`, and remains compatibility-only.
 - [ ] Public `/api/sample/state`, `/api/sample/reset`, and `/api/sample/seed` routes still work.
 - [ ] No role app uses `/api/sample/state` as a normal production read path.
 - [ ] Docs identify `sample-compatibility` as a temporary compatibility module, not a new business owner.
@@ -721,19 +940,21 @@ Before merging the implementation branch:
 Use small commits so rollback is easy:
 
 1. `docs(api): plan event ops target shape`
-2. `refactor(api): add sample compatibility module shell`
-3. `refactor(api): move sample controller to compatibility module`
-4. `refactor(api): move sample aggregate out of event ops`
-5. `refactor(api): wire sample compatibility module`
-6. `refactor(api): remove event ops <capability> compatibility exports`
-7. `test(api): enforce event ops target shape`
-8. `refactor(api): remove legacy event ops module alias`
-9. `docs(api): record event ops target shape completion`
+2. `refactor(api): normalize capability module folders`
+3. `refactor(api): add sample compatibility module shell`
+4. `refactor(api): move sample controller to compatibility module`
+5. `refactor(api): move sample aggregate out of event ops`
+6. `refactor(api): wire sample compatibility module`
+7. `refactor(api): remove event ops <capability> compatibility exports`
+8. `test(api): enforce event ops target shape`
+9. `refactor(api): remove legacy event ops module alias`
+10. `refactor(api-client): name sample compatibility client`
+11. `docs(api): record event ops target shape completion`
 
 ## Self-Review
 
-Spec coverage: This plan covers the requested target shape by creating `sample-compatibility`, moving `/sample/*`, deleting or shrinking `event-ops`, updating aliases/config, tightening boundary rules, preserving public routes, and updating docs.
+Spec coverage: This plan covers the requested target shape by auditing every target capability module folder, moving controllers/DTOs/services/ports/mappers into owning modules, creating `sample-compatibility`, moving `/sample/*`, deleting or shrinking `event-ops`, updating aliases/config, tightening boundary rules, preserving public routes, and updating docs.
 
 Placeholder scan: The plan contains no unresolved implementation placeholders. The `<capability>` label appears only in commit-message guidance and is explicitly explained by the surrounding deletion-wave task.
 
-Type consistency: The planned module names are consistent: `SampleCompatibilityModule`, `SampleController`, `SampleCompatibilityService`, `SampleStateService`, and `SAMPLE_COMPATIBILITY_CONTROLLERS`.
+Type consistency: The planned module names are consistent: `SampleCompatibilityModule`, `SampleController`, `SampleCompatibilityService`, `SampleStateService`, and `SAMPLE_COMPATIBILITY_CONTROLLERS`. The target folder names match the requested shape: `controllers`, `dto`, `services`, `ports`, `mappers`, and `queries` for `event-read-models`.
