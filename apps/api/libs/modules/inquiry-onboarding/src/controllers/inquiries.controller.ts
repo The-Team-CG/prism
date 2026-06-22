@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query 
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { OpsUserRole } from '@prism/modules/event-core';
 import { CreateInquiryDto, SampleActorDto, UpdateInquiryStatusDto, UploadConformeDto } from '../dto/inquiry.dto';
-import { mapDocument, mapInquiry } from '../mappers/inquiry.mappers';
+import { mapDocument, mapInquiry, mapOnboardingEvent } from '../mappers/inquiry.mappers';
 import { InquiriesService } from '../services/inquiries.service';
 import { InquiryWorkflowService } from '../services/inquiry-workflow.service';
 
@@ -23,6 +23,7 @@ export class OpsInquiriesController {
       allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       mapInquiry: (inquiry: unknown) => mapInquiry(inquiry as Parameters<typeof mapInquiry>[0]),
       mapDocument: (document: unknown) => mapDocument(document as Parameters<typeof mapDocument>[0]),
+      mapEvent: (event: unknown) => mapOnboardingEvent(event as Parameters<typeof mapOnboardingEvent>[0]),
     };
   }
 

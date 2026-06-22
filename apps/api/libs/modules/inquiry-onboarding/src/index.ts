@@ -8,3 +8,4 @@ export * from './ports/inquiry-onboarding.tokens';
 export * from './services/client-onboarding-workflow.service';
 export * from './services/inquiries.service';
 export { InquiryWorkflowService, type InquiryWorkflowContext } from './services/inquiry-workflow.service';
+export * from './controllers/onboarding.controller';

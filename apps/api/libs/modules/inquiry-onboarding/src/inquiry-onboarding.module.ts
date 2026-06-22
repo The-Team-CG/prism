@@ -6,13 +6,14 @@ import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { CLIENT_ONBOARDING_COMMANDS, INQUIRY_COMMANDS } from './ports/inquiry-onboarding.tokens';
 import { OpsInquiriesController } from './controllers/inquiries.controller';
+import { OpsOnboardingController } from './controllers/onboarding.controller';
 import { ClientOnboardingWorkflowService } from './services/client-onboarding-workflow.service';
 import { InquiriesService } from './services/inquiries.service';
 import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 
 @Module({
   imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule],
-  controllers: [OpsInquiriesController],
+  controllers: [OpsInquiriesController, OpsOnboardingController],
   providers: [
     InquiriesService,
     InquiryWorkflowService,

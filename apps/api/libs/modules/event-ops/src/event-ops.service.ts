@@ -614,6 +614,7 @@ export class EventOpsService implements OnModuleInit, OnModuleDestroy {
       allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       mapInquiry: (inquiry: unknown) => this.mapInquiry(inquiry as Parameters<typeof this.mapInquiry>[0]),
       mapDocument: (document: unknown) => this.mapDocument(document as Parameters<typeof this.mapDocument>[0]),
+      mapEvent: (event: unknown) => this.mapEvent(event as Parameters<typeof this.mapEvent>[0]),
     };
   }
 

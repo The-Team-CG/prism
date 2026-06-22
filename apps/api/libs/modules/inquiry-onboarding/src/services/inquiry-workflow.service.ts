@@ -36,6 +36,7 @@ export interface InquiryWorkflowContext {
   allowedAdminRoles: OpsUserRoleValue[];
   mapInquiry: (inquiry: unknown) => any;
   mapDocument: (document: unknown) => any;
+  mapEvent: (event: unknown) => any;
 }
 
 @Injectable()
@@ -52,6 +53,27 @@ export class InquiryWorkflowService {
     });
 
     return inquiries.map(context.mapInquiry);
+  }
+
+  async listOnboarding(actorInput: PrismEventOpsActorContext = {}, context: InquiryWorkflowContext) {
+    const actor = context.resolveActor(actorInput);
+    await context.requireActorRole(actor, context.allowedAdminRoles, 'onboarding');
+
+    const [inquiries, events, documents] = await Promise.all([
+      this.prisma.opsInquiry.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsEvent.findMany({
+        take: 500,
+        include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
+        orderBy: { eventDate: 'asc' },
+      }),
+      this.prisma.opsDocument.findMany({ take: 500, orderBy: { uploadedAt: 'desc' } }),
+    ]);
+
+    return {
+      inquiries: inquiries.map(context.mapInquiry),
+      events: events.map(context.mapEvent),
+      documents: documents.map(context.mapDocument),
+    };
   }
 
   async createInquiry(input: CreateInquiryInput, context: InquiryWorkflowContext) {
