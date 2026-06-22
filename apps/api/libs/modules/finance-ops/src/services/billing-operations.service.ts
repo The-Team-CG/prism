@@ -36,6 +36,12 @@ function parseDate(value: string) {
   return date;
 }
 
+function auditMetadata(actor: BillingActor, metadata: Record<string, unknown> = {}) {
+  const next = { ...metadata };
+  if (actor.correlationId) next.correlationId = actor.correlationId;
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
 @Injectable()
 export class BillingOperationsService {
   constructor(
@@ -129,6 +135,7 @@ export class BillingOperationsService {
             affectedType: 'payment_milestone',
             affectedId: payment.id,
             affectedLabel: payment.label,
+            metadata: auditMetadata(actor),
           }),
           this.notificationOutboxService.queue(eventId, 'Finance', `${payment.label} ${status}`),
         ]);
@@ -245,10 +252,10 @@ export class BillingOperationsService {
           affectedType: 'payment_milestone',
           affectedId: milestoneId,
           affectedLabel: payment.label,
-          metadata: {
+          metadata: auditMetadata(actor, {
             amountReceived: input.amountReceived,
             referenceNumber: input.referenceNumber ?? '',
-          },
+          }),
         });
       },
       project: ({ payment, history }) => this.mapPaymentMilestone(payment, history),
@@ -296,7 +303,7 @@ export class BillingOperationsService {
           affectedType: 'billing_source',
           affectedId: source.id,
           affectedLabel: source.sourceLabel,
-          metadata: { totalAmount },
+          metadata: auditMetadata(actor, { totalAmount }),
         });
       },
       project: (source) => this.mapBillingSource(source),
@@ -339,7 +346,7 @@ export class BillingOperationsService {
           affectedType: 'billing_source',
           affectedId: approvedSource.id,
           affectedLabel: approvedSource.sourceLabel,
-          metadata: { totalAmount: approvedSource.totalAmount, approvalNotes: input.approvalNotes ?? '' },
+          metadata: auditMetadata(actor, { totalAmount: approvedSource.totalAmount, approvalNotes: input.approvalNotes ?? '' }),
         });
       },
       project: (approvedSource) => this.mapBillingSource(approvedSource),
@@ -445,7 +452,7 @@ export class BillingOperationsService {
           affectedType: 'billing_statement',
           affectedId: statement.id,
           affectedLabel: billingNumber,
-          metadata: { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount },
+          metadata: auditMetadata(actor, { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount }),
         });
       },
       project: (statement) => this.mapBillingStatement(statement),
@@ -477,6 +484,7 @@ export class BillingOperationsService {
             affectedType: 'billing_statement',
             affectedId: billing.id,
             affectedLabel: billing.number,
+            metadata: auditMetadata(actor),
           }),
           this.notificationOutboxService.queue(eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
           this.notificationOutboxService.queue(eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
@@ -557,6 +565,32 @@ export class BillingOperationsService {
       paymentMethod: record.paymentMethod,
       referenceNumber: record.referenceNumber,
       recordedAt: timestamp(record.recordedAt),
+    };
+  }
+
+  async getPaymentStatusForEvent(eventId: string) {
+    await this.requireEvent(eventId);
+    const [milestones, records] = await Promise.all([
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.opsPaymentRecord.findMany({ where: { eventId }, orderBy: { recordedAt: 'desc' } }),
+    ]);
+
+    const mappedMilestones = milestones.map((payment) =>
+      this.mapPaymentMilestone(
+        payment,
+        records.filter((record) => record.milestoneId === payment.id),
+      ),
+    );
+
+    return {
+      eventId,
+      milestones: mappedMilestones,
+      paymentRecords: records.map((record) => this.mapPaymentRecord(record)),
+      counts: {
+        paid: mappedMilestones.filter((payment) => payment.status === 'paid').length,
+        pending: mappedMilestones.filter((payment) => payment.status !== 'paid').length,
+        atRisk: mappedMilestones.filter((payment) => payment.status === 'at_risk').length,
+      },
     };
   }
 

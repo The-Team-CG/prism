@@ -30,6 +30,7 @@ function createPaymentService() {
     opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample' })) },
     opsPaymentMilestone: {
       findUnique: vi.fn(async () => milestone),
+      findMany: vi.fn(async () => [milestone]),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(milestone, data)),
     },
     opsPaymentRecord: {
@@ -61,7 +62,7 @@ describe('BillingOperationsService', () => {
         paymentMethod: 'Bank Transfer',
         referenceNumber: 'BNK-123',
       },
-      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test', correlationId: 'corr_finance_1' },
     );
 
     expect(prisma.opsPaymentRecord.create).not.toHaveBeenCalled();
@@ -83,13 +84,42 @@ describe('BillingOperationsService', () => {
         paymentMethod: 'Bank Transfer',
         referenceNumber: 'BNK-456',
       },
-      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test', correlationId: 'corr_finance_1' },
     );
 
     expect(prisma.opsPaymentRecord.create).toHaveBeenCalledTimes(1);
-    expect(audit.audit).toHaveBeenCalledTimes(1);
+    expect(audit.audit).toHaveBeenCalledWith(
+      'evt_sample',
+      'PMCM Admin',
+      'Recorded Bank Transfer payment for Downpayment',
+      expect.objectContaining({
+        actorRole: 'pmcm-admin',
+        actorEmail: 'admin@pmcm.test',
+        metadata: expect.objectContaining({ correlationId: 'corr_finance_1', referenceNumber: 'BNK-456' }),
+      }),
+    );
     expect(history).toHaveLength(2);
     expect(result.amountPaid).toBe(50000);
     expect(result.remainingBalance).toBe(50000);
+  });
+  it('serves payment status through the payment status reader contract', async () => {
+    const { service, prisma } = createPaymentService();
+
+    const result = await service.getPaymentStatusForEvent('evt_sample');
+
+    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith({ where: { id: 'evt_sample' } });
+    expect(result).toMatchObject({
+      eventId: 'evt_sample',
+      counts: { paid: 0, pending: 1, atRisk: 0 },
+      milestones: [
+        {
+          id: 'pay_downpayment',
+          amountPaid: 25000,
+          remainingBalance: 75000,
+          history: [{ id: 'payrec_existing', referenceNumber: 'BNK-123' }],
+        },
+      ],
+      paymentRecords: [{ id: 'payrec_existing', referenceNumber: 'BNK-123' }],
+    });
   });
 });

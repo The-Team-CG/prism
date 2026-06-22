@@ -1,6 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, SupplierVerificationStatus, WorkflowCommandService } from '@prism/modules/event-core';
+import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { SupplierNetworkWorkflowService } from './supplier-network-workflow.service';
 
 function createService() {
@@ -14,6 +15,12 @@ function createService() {
   };
   const audit = vi.fn();
   const eventDayLog = vi.fn();
+  const suppliers = {
+    listSuppliers: vi.fn(async () => [
+      { id: 'sup_sonicline', name: 'Sonic Line Events', email: 'supplier@example.com' },
+    ]),
+  };
+  const eventAccessPolicyService = new EventAccessPolicyService({ audit: vi.fn() } as any);
   const prisma = {
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
@@ -22,16 +29,16 @@ function createService() {
   };
   const service = new SupplierNetworkWorkflowService(
     prisma as any,
-    {} as any,
+    suppliers as any,
     {} as any,
     { audit } as any,
-    {} as any,
+    eventAccessPolicyService,
     new WorkflowCommandService(),
     {} as any,
     { recordEventDayLog: eventDayLog } as any,
     {} as any,
   );
-  return { service, prisma, audit, eventDayLog, request };
+  return { service, prisma, audit, eventDayLog, request, suppliers };
 }
 
 describe('SupplierNetworkWorkflowService', () => {
@@ -80,6 +87,28 @@ describe('SupplierNetworkWorkflowService', () => {
         { name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin, explicit: true },
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.opsSupplierQuoteRequest.update).not.toHaveBeenCalled();
+  });
+  it('denies client and guest actors from mutating supplier assignments', async () => {
+    const { service, prisma, suppliers } = createService();
+
+    await expect(
+      service.confirmSupplierAssignment('qr_sonic', {
+        name: 'Ana Reyes',
+        role: OpsUserRole.Client,
+        clientName: 'Ana Reyes',
+        explicit: true,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.confirmSupplierAssignment('qr_sonic', {
+        name: 'Guest User',
+        role: OpsUserRole.Guest,
+        explicit: true,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(suppliers.listSuppliers).not.toHaveBeenCalled();
     expect(prisma.opsSupplierQuoteRequest.update).not.toHaveBeenCalled();
   });
 });

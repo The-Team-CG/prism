@@ -41,6 +41,7 @@ export type BillingActor = {
   name: string;
   role?: string;
   email?: string;
+  correlationId?: string;
 };
 
 export interface FinanceCommands {

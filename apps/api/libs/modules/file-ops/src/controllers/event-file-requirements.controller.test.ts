@@ -15,6 +15,7 @@ function createController() {
       { key: 'signed_conforme', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client] },
       { key: 'supplier_reviews', visibleToRoles: [OpsUserRole.PmcmAdmin] },
       { key: 'official_floorplan', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client, OpsUserRole.Coordinator] },
+      { key: 'supplier_contract', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Supplier] },
     ],
   };
   const fileRequirementsMatrixService = {
@@ -55,6 +56,7 @@ describe('OpsEventFileRequirementsController', () => {
         { key: 'signed_conforme', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client] },
         { key: 'supplier_reviews', visibleToRoles: [OpsUserRole.PmcmAdmin] },
         { key: 'official_floorplan', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client, OpsUserRole.Coordinator] },
+        { key: 'supplier_contract', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Supplier] },
       ],
     });
 
@@ -76,6 +78,17 @@ describe('OpsEventFileRequirementsController', () => {
         { key: 'signed_conforme', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client] },
         { key: 'official_floorplan', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client, OpsUserRole.Coordinator] },
       ],
+    });
+  });
+
+  it('does not expose client-only file requirements to suppliers', async () => {
+    const { controller } = createController();
+
+    await expect(
+      controller.fileRequirements('evt_file', { actorRole: OpsUserRole.Supplier, actorName: 'Sonic Line Events' }),
+    ).resolves.toEqual({
+      eventId: 'evt_file',
+      items: [{ key: 'supplier_contract', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Supplier] }],
     });
   });
 

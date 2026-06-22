@@ -90,7 +90,7 @@ Target backend module ownership:
 | `commercial-ops` | Briefing, proposal, package pricing, and conforme-ready commercial workflow. |
 | `supplier-ops` | Supplier assignments, quote/readiness workflow, supplier portal actions, supplier readiness reads, supplier quote-request withdrawal, and `/ai/pare/*` supplier emergency route ownership. |
 | `staffing-ops` | Coordinator staffing, task assignment, and internal staffing views. |
-| `finance-ops` | Billing, payments, invoices, adjustments, and finance approval workflow. |
+| `finance-ops` | Billing, payments, invoices, adjustments, finance approval workflow, payment status reads, and correlation-aware finance audit metadata. |
 | `compliance-ops` | Compliance workflow, evidence status, and policy-gated event checks. |
 | `floorplan` | Official PMCM floorplan workflow and client layout preference/read-only views. |
 | `file-ops` | File requirement matrix, upload metadata, document requirement workflow, and signed URL preparation. |
@@ -105,7 +105,7 @@ Phase 3 infrastructure modules are now active: `event-core` owns workflow comman
 
 Phase 4 supplier extraction is now partially active: `SupplierNetworkWorkflowService`, `SuppliersService`, the `SUPPLIER_DIRECTORY` provider, `SupplierProfileCommandsService`, and the supplier directory/read-write controllers live in `supplier-ops`, and `event-ops` keeps route compatibility through compatibility re-exports plus provider bindings for remaining supplier workflow dependencies. `supplier-ops` does not import `event-ops`; it owns supplier directory reads and supplier profile writes directly, consumes PARE through the public AI-governance-backed port, and consumes live-operations/document-vault behavior through public ports while those adjacent capabilities continue to harden.
 
-Phase 5 finance extraction is now active for command ownership: `BillingOperationsService` and its payment replay tests live in `finance-ops`, and `FinanceOpsModule` owns the runtime provider. Billing read-model composition now lives in `event-read-models`, and Phase 13 moved event-scoped billing source, statement, and payment command routes into a finance-owned controller.
+Phase 5 finance extraction is now active for command ownership: `BillingOperationsService` and its payment replay/status-reader tests live in `finance-ops`, and `FinanceOpsModule` owns the runtime provider plus `PAYMENT_STATUS_READER`. Billing read-model composition now lives in `event-read-models`, finance audit metadata carries actor correlation ids when provided, and Phase 13 moved event-scoped billing source, statement, and payment command routes into a finance-owned controller.
 
 Phase 6 file extraction is now active: `FileRequirementsMatrixService` and `DocumentVaultService` live in `file-ops`, `FileOpsModule` owns the runtime providers and public file tokens, and Phase 13 now registers the event file requirements route from `FileOpsModule`. Signed upload URLs remain disabled through `MetadataOnlySignedUploadUrlFactory`; real object storage requires a separate approved storage plan.
 

@@ -554,16 +554,16 @@ export class AuditWriterAdapter implements AuditWriter {
 - [x] Keep existing supplier route paths stable by delegating from current controllers or `EventOpsService`.
 - [x] Move supplier-specific tests beside the new module.
 - [x] Update imports in `event-ops` to call `supplier-ops` public API.
-- [ ] Add role-scope tests for PMCM and supplier portal reads.
-- [ ] Add one route-smoke evidence command for PMCM supplier assignment and supplier portal readiness.
+- [x] Add role-scope tests for PMCM and supplier portal reads.
+- [x] Add one route-smoke evidence command for PMCM supplier assignment and supplier portal readiness.
 
 **Tests:**
 
-- [ ] Supplier assignment mutation test.
+- [x] Supplier assignment mutation test.
 - [x] Supplier status transition test.
-- [ ] Forbidden-role test: client or guest cannot mutate supplier assignments.
-- [ ] Read-model test: supplier payload excludes PMCM-only finance/private fields.
-- [ ] `npm --workspace prism-api run test -- supplier`.
+- [x] Forbidden-role test: client or guest cannot mutate supplier assignments.
+- [x] Read-model test: supplier payload excludes PMCM-only finance/private fields.
+- [x] `npm --workspace prism-api run test -- supplier`.
 - [x] `npm run check:boundaries`.
 
 **Acceptance criteria:**
@@ -586,14 +586,14 @@ export class AuditWriterAdapter implements AuditWriter {
 - [x] Add `FinanceCommands`, `BillingReader`, and `PaymentStatusReader` ports.
 - [x] Add transaction tests for payment/billing state changes.
 - [x] Add idempotency behavior for retryable payment record commands if not already present.
-- [ ] Keep supplier assignment reads through `SupplierReadinessReader`, not private supplier services.
-- [ ] Update read models to use finance reader ports or approved finance query builders.
+- [x] Decide supplier readiness board may use approved `event-read-models` query builders; keep `SupplierReadinessReader` for later event/closure readiness hardening.
+- [x] Update read models to use finance reader ports or approved finance query builders.
 
 **Tests:**
 
 - [x] Billing command mutation test.
-- [ ] Payment status read test.
-- [ ] Forbidden-role test: supplier or guest cannot read PMCM finance payload.
+- [x] Payment status read test.
+- [x] Forbidden-role test: supplier or guest cannot read PMCM finance payload.
 - [x] Boundary test: `finance-ops` does not import supplier private services.
 - [x] `npm --workspace prism-api run test -- billing`.
 - [x] `npm run check:boundaries`.
@@ -601,8 +601,8 @@ export class AuditWriterAdapter implements AuditWriter {
 **Acceptance criteria:**
 
 - [x] Finance writes live in `finance-ops`.
-- [ ] Supplier and guest payloads do not expose PMCM finance details.
-- [ ] Billing audit rows include correlation id and actor.
+- [x] Supplier and guest payloads do not expose PMCM finance details.
+- [x] Billing audit rows include correlation id and actor.
 
 **Commit checkpoint:** `refactor(api): extract finance operations module`
 
@@ -616,20 +616,20 @@ export class AuditWriterAdapter implements AuditWriter {
 - [x] Move `FileRequirementsMatrixService` into `file-ops`.
 - [x] Add `FileRequirementCommands`, `FileRequirementReader`, and `SignedUploadUrlFactory` ports.
 - [x] Keep storage provider implementation local/mock unless a separate approved storage plan exists.
-- [ ] Add schema and route evidence for PMCM and client file requirements.
-- [ ] Update read models to consume file reader ports.
+- [x] Add schema and route evidence for PMCM and client file requirements.
+- [ ] Update read models to consume file reader ports. Deferred by design until workspace contracts require embedded file matrix payloads; current ownership is the `file-ops` route/reader.
 
 **Tests:**
 
 - [x] File requirement matrix command test.
 - [x] Client-visible file requirement read test.
-- [ ] Forbidden-role test for supplier/guest access to client-only files.
+- [x] Forbidden-role test for supplier/guest access to client-only files.
 - [x] Signed upload URL contract test with fake adapter.
 - [x] `npm --workspace prism-api run test -- file`.
 
 **Acceptance criteria:**
 
-- [ ] File requirement writes live in `file-ops`.
+- [ ] File requirement writes live in `file-ops`. Deferred by design for real storage/upload writes; current approved scope is metadata/read contracts.
 - [x] Object storage is not enabled by accident.
 - [x] File read payloads are role-scoped.
 
@@ -650,7 +650,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 - [x] Move client onboarding workflow behavior from current services.
 - [x] Keep public inquiry route paths stable.
 - [x] Test public inquiry creation, accepted inquiry gate, and client portal onboarding access.
-- [ ] Add forbidden-role test for unauthenticated access beyond public inquiry creation.
+- [x] Add forbidden-role test for unauthenticated access beyond public inquiry creation.
 
 ### Phase 7B - commercial-ops
 
@@ -659,9 +659,9 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 - [x] Create `commercial-ops` module.
 - [x] Move `CommercialWorkflowService`.
 - [x] Add token-scoped proposal/quote reader port.
-- [ ] Add briefing reader port when briefing ownership moves out of `inquiry-onboarding`/`event-ops`.
+- [ ] Add briefing reader port when briefing ownership moves out of `inquiry-onboarding`/`event-ops`. Deferred by design until briefing read ownership moves.
 - [x] Test supplier quote/proposal decision status changes.
-- [ ] Test full proposal document workflow and conforme readiness when proposal generation exists.
+- [ ] Test full proposal document workflow and conforme readiness when proposal generation exists. Deferred by design until proposal document generation is approved/implemented.
 - [x] Add forbidden-role test for supplier/guest access to PMCM commercial proposal decisions.
 
 ### Phase 7C - compliance-ops
