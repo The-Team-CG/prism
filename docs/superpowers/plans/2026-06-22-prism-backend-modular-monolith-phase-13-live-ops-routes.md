@@ -52,7 +52,7 @@
 **Files:**
 - Test: `apps/api/libs/modules/event-ops/src/controllers/controller-routes.test.ts`
 
-- [ ] **Step 1: Add a failing assertion for remaining event-ops route bases**
+- [x] **Step 1: Add a failing assertion for remaining event-ops route bases**
 
 Keep the existing route-base assertion and add this explicit comment above it so the next removals are intentional:
 
@@ -68,7 +68,7 @@ expect(EVENT_OPS_CONTROLLERS.map(controllerPath).sort()).toEqual([
 ]);
 ```
 
-- [ ] **Step 2: Run the inventory test**
+- [x] **Step 2: Run the inventory test**
 
 Run: `npm --workspace prism-api run test -- controller-routes.test.ts`
 
@@ -79,7 +79,7 @@ Expected before implementation: PASS with the current list. Expected after Task 
 **Files:**
 - Create: `apps/api/libs/modules/live-ops/src/dto/live-ops.dto.ts`
 
-- [ ] **Step 1: Create DTO file with stable request shapes**
+- [x] **Step 1: Create DTO file with stable request shapes**
 
 Create this file by copying the currently used live-ops DTOs out of `event-ops.dto.ts`:
 
@@ -275,7 +275,7 @@ export class VerifySupplierStatusDto {
 }
 ```
 
-- [ ] **Step 2: Run DTO compile check through tests**
+- [x] **Step 2: Run DTO compile check through tests**
 
 Run: `npm --workspace prism-api run test -- controller-routes.test.ts`
 
@@ -287,7 +287,7 @@ Expected: PASS; no live-ops DTO is imported yet.
 - Create: `apps/api/libs/modules/live-ops/src/services/live-operations.service.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/services/live-operations.service.ts`
 
-- [ ] **Step 1: Move the existing service implementation**
+- [x] **Step 1: Move the existing service implementation**
 
 Move the full current contents of `apps/api/libs/modules/event-ops/src/services/live-operations.service.ts` to `apps/api/libs/modules/live-ops/src/services/live-operations.service.ts` and change these imports:
 
@@ -309,7 +309,7 @@ import { AuditService } from '@prism/modules/trust-ops';
 import { NotificationOutboxService } from '@prism/modules/notification-ops';
 ```
 
-- [ ] **Step 2: Leave compatibility re-export in old path**
+- [x] **Step 2: Leave compatibility re-export in old path**
 
 Replace `apps/api/libs/modules/event-ops/src/services/live-operations.service.ts` with:
 
@@ -317,7 +317,7 @@ Replace `apps/api/libs/modules/event-ops/src/services/live-operations.service.ts
 export * from '@prism/modules/live-ops';
 ```
 
-- [ ] **Step 3: Run service tests**
+- [x] **Step 3: Run service tests**
 
 Run: `npm --workspace prism-api run test -- live-operations.service.test.ts`
 
@@ -329,7 +329,7 @@ Expected: PASS after updating test imports if they import the old path directly.
 - Create: `apps/api/libs/modules/live-ops/src/mappers/live-ops.mappers.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/event-ops.service.ts`
 
-- [ ] **Step 1: Create mapper file**
+- [x] **Step 1: Create mapper file**
 
 Extract these private methods from `EventOpsService` into exported functions with the same response shapes:
 
@@ -408,15 +408,21 @@ export function mapCoordinatorAssignmentForEventDay(assignment: any) {
 
 If the current private mapper includes additional fields, keep those fields in this exported mapper and add them to the controller tests in Task 8.
 
-- [ ] **Step 2: Replace EventOpsService private mapper calls**
+- [x] **Step 2: Replace EventOpsService private mapper calls**
 
 Import the exported mapper functions in `EventOpsService` so compatibility methods keep using the same response shape during the migration.
 
-- [ ] **Step 3: Run compatibility tests**
+- [x] **Step 3: Run compatibility tests**
 
 Run: `npm --workspace prism-api run test -- event-ops.service.test.ts`
 
 Expected: PASS.
+
+## Foundation Checkpoint
+
+- [x] `npm --workspace prism-api run test -- controller-routes.test.ts event-ops.service.test.ts` passed after rerunning outside the sandbox for Vite `spawn EPERM`.
+- [x] `npm --workspace prism-api run build` passed after rerunning outside the sandbox for generated metadata unlink permissions.
+- [x] `npm run check:boundaries` passed after rerunning outside the sandbox for `spawnSync git EPERM`; rerun again after staging so new files are counted.
 
 ## Task 5 - Add Live-Ops Read And Command Services
 
