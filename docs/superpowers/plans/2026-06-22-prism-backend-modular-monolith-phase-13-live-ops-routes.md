@@ -506,7 +506,7 @@ Task 5 checkpoint:
 - Create: `apps/api/libs/modules/live-ops/src/index.ts`
 - Modify: `apps/api/libs/modules/event-ops/src/event-ops.module.ts`
 
-- [ ] **Step 1: Create module**
+- [x] **Step 1: Create module**
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -550,7 +550,7 @@ import { LiveOperationsService } from './services/live-operations.service';
 export class LiveOpsModule {}
 ```
 
-- [ ] **Step 2: Create barrel**
+- [x] **Step 2: Create barrel**
 
 ```ts
 export * from './live-ops.module';
@@ -564,7 +564,7 @@ export * from './services/event-live-ops-read.service';
 export * from './services/live-operations.service';
 ```
 
-- [ ] **Step 3: Import `LiveOpsModule` in `EventOpsModule`**
+- [x] **Step 3: Import `LiveOpsModule` in `EventOpsModule`**
 
 Add `LiveOpsModule` to the `imports` array so the application registers the new route owners. Remove `LiveOperationsService` from `EVENT_OPS_PROVIDERS` only after all event-ops code imports it through the new module or compatibility re-export.
 

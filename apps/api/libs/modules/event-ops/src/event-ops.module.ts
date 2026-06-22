@@ -15,6 +15,7 @@ import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
+import { LiveOpsModule } from '@prism/modules/live-ops';
 import {
   SUPPLIER_COMMANDS,
   SUPPLIER_DOCUMENT_VAULT,
@@ -45,7 +46,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule, ClosureOpsModule, IdentityOpsModule, AiGovernanceModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule, ClosureOpsModule, IdentityOpsModule, AiGovernanceModule, LiveOpsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })
