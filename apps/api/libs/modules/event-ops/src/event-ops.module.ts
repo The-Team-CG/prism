@@ -8,6 +8,7 @@ import { EventCoreModule } from '@prism/modules/event-core';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { FloorplanModule } from '@prism/modules/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
+import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
@@ -26,7 +27,6 @@ import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { EVENT_OPS_CONTROLLERS } from './controllers';
 import { EventOpsService } from './event-ops.service';
 import { AiGovernanceService } from './services/ai-governance.service';
-import { AuthOperationsService } from './services/auth-operations.service';
 import { LiveOperationsService } from './services/live-operations.service';
 import { PAREService } from './services/pare/pare.service';
 import { SampleStateService } from './services/sample-state.service';
@@ -38,7 +38,6 @@ const EVENT_OPS_PROVIDERS = [
   AiGovernanceService,
   SuppliersService,
   PAREService,
-  AuthOperationsService,
   LiveOperationsService,
   ComplianceWorkflowService,
   { provide: SUPPLIER_DIRECTORY, useExisting: SuppliersService },
@@ -51,7 +50,7 @@ const EVENT_OPS_PROVIDERS = [
 ];
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule, ClosureOpsModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, SupplierOpsModule, FinanceOpsModule, FileOpsModule, InquiryOnboardingModule, CommercialOpsModule, ComplianceOpsModule, FloorplanModule, GuestOpsModule, StaffingOpsModule, EventReadModelsModule, ClosureOpsModule, IdentityOpsModule],
   controllers: EVENT_OPS_CONTROLLERS,
   providers: EVENT_OPS_PROVIDERS,
 })

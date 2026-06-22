@@ -46,8 +46,7 @@ import {
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditService } from './services/audit.service';
-import { AuthOperationsService } from './services/auth-operations.service';
-import { AuthSecurityService } from './services/auth-security.service';
+import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
 import {
   type ChangeSupplierTierInput,
   type CreateSupplierCertificationInput,

@@ -4,7 +4,7 @@ import { PrismTransactionRunner } from '../../../core/shared-kernel/src';
 import { EventOpsService } from './event-ops.service';
 import { AiGovernanceService } from './services/ai-governance.service';
 import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/modules/trust-ops';
-import { AuthOperationsService } from './services/auth-operations.service';
+import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
 import { BillingOperationsService } from '@prism/modules/finance-ops';
 import {
   ClientOnboardingWorkflowService,
@@ -28,7 +28,6 @@ import { SampleStateService } from './services/sample-state.service';
 import { SupplierNetworkWorkflowService } from '@prism/modules/supplier-ops';
 import { SuppliersService } from './services/suppliers.service';
 import { WorkflowCommandService } from '@prism/modules/event-core';
-import { AuthSecurityService } from './services/auth-security.service';
 
 function inquiry(overrides: Record<string, unknown> = {}) {
   const createdAt = new Date('2026-04-29T00:00:00.000Z');

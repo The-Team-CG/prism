@@ -1,5 +1,5 @@
 export { SampleController } from './sample.controller';
-export { OpsAuthController } from './auth.controller';
+export { OpsAuthController } from '@prism/modules/identity-ops';
 export { OpsEventsController, OpsComplianceController } from './events.controller';
 export { OpsSuppliersController } from './suppliers.controller';
 export { OpsSupplierWorkspaceController } from './supplier-workspace.controller';
@@ -8,7 +8,6 @@ export { OpsPmcmDashboardController } from './pmcm-dashboard.controller';
 export { OpsAiController } from './ai.controller';
 
 import { SampleController } from './sample.controller';
-import { OpsAuthController } from './auth.controller';
 import { OpsEventsController, OpsComplianceController } from './events.controller';
 import { OpsSuppliersController } from './suppliers.controller';
 import { OpsSupplierWorkspaceController } from './supplier-workspace.controller';
@@ -18,7 +17,6 @@ import { OpsAiController } from './ai.controller';
 
 export const EVENT_OPS_CONTROLLERS = [
   SampleController,
-  OpsAuthController,
   OpsEventsController,
   OpsComplianceController,
   OpsSuppliersController,

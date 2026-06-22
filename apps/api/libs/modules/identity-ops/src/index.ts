@@ -1,0 +1,5 @@
+export * from './identity-ops.module';
+export * from './controllers/auth.controller';
+export * from './dto/auth.dto';
+export * from './services/auth-operations.service';
+export * from './services/auth-security.service';

@@ -28,6 +28,7 @@ export default defineConfig({
       '@prism/modules/compliance-ops': resolve(__dirname, './libs/modules/compliance-ops/src/index.ts'),
       '@prism/modules/floorplan': resolve(__dirname, './libs/modules/floorplan/src/index.ts'),
       '@prism/modules/guest-ops': resolve(__dirname, './libs/modules/guest-ops/src/index.ts'),
+      '@prism/modules/identity-ops': resolve(__dirname, './libs/modules/identity-ops/src/index.ts'),
       '@prism/modules/staffing-ops': resolve(__dirname, './libs/modules/staffing-ops/src/index.ts'),
     },
   },
