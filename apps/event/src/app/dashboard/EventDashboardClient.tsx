@@ -303,6 +303,29 @@ function loadEventCommandData(eventId: string, force = false) {
   return request;
 }
 
+function getCachedCommandInbox() {
+  return commandInboxCache;
+}
+
+function loadCommandInbox(force = false) {
+  if (!force && commandInboxCache && isFresh(commandInboxCache.loadedAt)) {
+    return Promise.resolve(commandInboxCache.value);
+  }
+  if (!force && commandInboxRequest) return commandInboxRequest;
+
+  commandInboxRequest = prismApi
+    .pmcmCommandInbox()
+    .then((next) => {
+      commandInboxCache = { value: next, loadedAt: Date.now() };
+      return next;
+    })
+    .finally(() => {
+      commandInboxRequest = null;
+    });
+
+  return commandInboxRequest;
+}
+
 /* ── Shared card primitive ─────────────────────────────────── */
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -342,6 +365,7 @@ function eventPortalNavItems({
   draftCount,
   paymentCount,
   closeoutCount,
+  commandInboxCount,
 }: {
   hasEvent: boolean;
   eventName?: string;
@@ -1651,6 +1675,7 @@ export default function EventDashboard({
     if (nextSection === "settings") { router.push("/dashboard/settings"); return; }
     if (nextSection === "inquiries") { router.push("/dashboard/inquiries"); return; }
     if (nextSection === "events-list") { router.push("/dashboard/events"); return; }
+    if (nextSection === "command-inbox") { router.push("/dashboard/command-inbox"); return; }
     router.push("/dashboard");
   }
 
@@ -1808,6 +1833,7 @@ export default function EventDashboard({
       case "event-messages": navigateEventTab("activity", { preserveSidebarActive: true }); return;
       case "event-timeline": navigateEventTab("live-ops", { preserveSidebarActive: true }); return;
       case "event-report": navigateEventTab("closure", { preserveSidebarActive: true }); return;
+      case "command-inbox": navigateSection("command-inbox", { preserveSidebarActive: true }); return;
     }
   }
 
@@ -1943,6 +1969,9 @@ export default function EventDashboard({
     draftCount: drafts.length,
     paymentCount: payments.length,
     closeoutCount: openCheckCount,
+    commandInboxCount: commandInbox
+      ? commandInbox.counts.critical + commandInbox.counts.warning + commandInbox.counts.attention
+      : undefined,
   });
   const activeNavItem = shellNavItems.find((item) => item.id === activeSidebarItemId);
 
@@ -1978,6 +2007,7 @@ export default function EventDashboard({
         : isSettings ? "Settings"
         : isInquiries ? "Inquiries"
         : isEventsList ? "Events"
+        : isCommandInbox ? "Command inbox"
         : isHome ? "Command home"
         : "Event workspace"
       }
@@ -1995,6 +2025,7 @@ export default function EventDashboard({
         : isSettings ? activeNavItem?.label ?? "Settings"
         : isInquiries ? "Inquiry Intake"
         : isEventsList ? activeNavItem?.label ?? "All Events"
+        : isCommandInbox ? "Command Inbox"
         : isHome ? activeNavItem?.label ?? "Event Manager"
         : selectedEvent?.eventName ?? "Event Manager"
       }
@@ -2012,6 +2043,7 @@ export default function EventDashboard({
         : isSettings ? "Workspace preferences, account context, notification defaults, and role-safe system controls."
         : isInquiries ? "Review, accept, pend, or decline incoming event inquiries."
         : isEventsList ? "Confirmed event workspaces ready for planning and operations."
+        : isCommandInbox ? "Prioritized action queue across inquiries, suppliers, billing, coordinators, and closure."
         : isHome ? "Active event workspaces, inquiry intake, and client onboarding."
         : selectedEvent ? `${selectedEvent.clientName} — ${selectedEvent.eventDate}`
         : "Select an event or accept an inquiry to begin."
@@ -2376,6 +2408,12 @@ export default function EventDashboard({
               </Card>
             )}
           </>
+        ) : isCommandInbox ? (
+          <EventCommandInbox
+            inbox={commandInbox}
+            onNavigateSection={navigateSection}
+            onRefresh={() => loadCommandInbox(true).then(setCommandInbox).catch(() => {})}
+          />
         ) : (
           /* Event workspace */
           selectedEvent ? (
