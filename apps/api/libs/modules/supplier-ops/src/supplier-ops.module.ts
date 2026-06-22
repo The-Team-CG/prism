@@ -5,6 +5,7 @@ import { AiGovernanceModule, PAREService } from '@prism/modules/ai-governance';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
+import { OpsEventSupplierWithdrawalController } from './controllers/event-supplier-withdrawal.controller';
 import { OpsSupplierDirectoryController } from './controllers/supplier-directory.controller';
 import { OpsSupplierPareController } from './controllers/supplier-pare.controller';
 import { OpsSupplierWorkspaceCommandsController } from './controllers/supplier-workspace-commands.controller';
@@ -34,6 +35,7 @@ const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
 @Module({
   imports: [DatabaseModule, AccessControlModule, AiGovernanceModule, EventCoreModule, TrustOpsModule, FileOpsModule],
   controllers: [
+    OpsEventSupplierWithdrawalController,
     OpsSupplierDirectoryController,
     OpsSuppliersController,
     OpsSupplierWorkspaceCommandsController,
