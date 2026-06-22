@@ -125,6 +125,8 @@ Phase 11 event-read-models extraction is now active: `EventReadModelsService` li
 
 Phase 12 closure-ops extraction is now active: `EventClosureService` lives in `closure-ops`, `ClosureOpsModule` owns `CLOSURE_COMMANDS` and `CLOSURE_READINESS_READER`, and `EventLifecycleService` now lives in `event-core` as a narrow lifecycle invariant service. Archive commands require PMCM/system actor scope before writes, and `event-ops` keeps route compatibility through re-exports and facade methods until controller ownership moves in Phase 13.
 
+Phase 13 controller ownership migration has started: the public guest controller is now registered by `GuestOpsModule` and calls `GuestWorkflowService` directly while keeping `/guest/events/:accessCode`, `/guest/events/:accessCode/check-ins`, and `/guest/events/:accessCode/feedback` stable. Other controller families remain in `event-ops` until their owning modules receive route-level controllers.
+
 ## Data Domains
 
 | Domain | Representative models |

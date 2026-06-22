@@ -11,7 +11,6 @@ export { OpsCoordinatorWorkspaceController, OpsCoordinatorsController } from './
 export { OpsBillingController } from './billing.controller';
 export { OpsOnboardingController, OpsClientController } from './client-workspace.controller';
 export { OpsPmcmDashboardController } from './pmcm-dashboard.controller';
-export { OpsGuestController } from './guest.controller';
 export { OpsAiController } from './ai.controller';
 
 import { SampleController } from './sample.controller';
@@ -27,7 +26,6 @@ import { OpsCoordinatorWorkspaceController, OpsCoordinatorsController } from './
 import { OpsBillingController } from './billing.controller';
 import { OpsOnboardingController, OpsClientController } from './client-workspace.controller';
 import { OpsPmcmDashboardController } from './pmcm-dashboard.controller';
-import { OpsGuestController } from './guest.controller';
 import { OpsAiController } from './ai.controller';
 
 export const EVENT_OPS_CONTROLLERS = [
@@ -48,6 +46,5 @@ export const EVENT_OPS_CONTROLLERS = [
   OpsOnboardingController,
   OpsClientController,
   OpsPmcmDashboardController,
-  OpsGuestController,
   OpsAiController,
 ];

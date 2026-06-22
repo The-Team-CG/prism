@@ -839,6 +839,8 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 
 ## Phase 13 - Move Controllers To Owning Modules
 
+Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-phase-13-controller-ownership.md`.
+
 **Purpose:** Move HTTP ownership after service ownership is stable.
 
 **Edits:**
@@ -858,7 +860,7 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 | `billing.controller.ts` | `finance-ops` |
 | `files.controller.ts` or file route group | `file-ops` |
 | `floor-plan.controller.ts` | `floorplan` |
-| `guests.controller.ts` | `guest-ops` |
+| `guest.controller.ts` | `guest-ops` |
 | `events.controller.ts` | split between `event-core`, `floorplan`, `compliance-ops`, closure/readiness, and read models |
 | dashboard/read endpoints | `event-read-models` |
 
@@ -875,6 +877,8 @@ Child plan: `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith-ph
 - [ ] Controllers no longer route all business behavior through `EventOpsService`.
 - [ ] App clients continue to build.
 
+
+> Progress: `guest.controller.ts` has moved to `guest-ops`; remaining controller families are still pending.
 **Commit checkpoint:** `refactor(api): move controllers to owning modules`
 
 ## Phase 14 - Retire EventOps Facade

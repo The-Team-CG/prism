@@ -18,7 +18,6 @@ describe('event-ops controller routes', () => {
       'coordinator',
       'coordinators',
       'events',
-      'guest',
       'inquiries',
       'notifications',
       'onboarding',

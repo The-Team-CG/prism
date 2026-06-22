@@ -222,3 +222,9 @@ Phase 12 extracted archive command ownership, post-event document completion, ev
 `EventLifecycleService` now lives in `event-core`, keeping lifecycle/archive invariants narrow and public. Archive commands resolve actor context and require PMCM/system scope before writes; the event-ops facade preserves current route compatibility until Phase 13 controller ownership work.
 
 Current limitation: closure controller ownership still lives in `event-ops`, and richer closure-readiness composition can later consume more specific supplier, finance, file, compliance, floorplan, guest, and staffing reader ports as those ports mature.
+
+## Post-Snapshot Controller Ownership Slice: 2026-06-22
+
+Phase 13 has started with the public guest controller. `OpsGuestController` is now registered from `apps/api/libs/modules/guest-ops`, uses local guest DTOs, and calls `GuestWorkflowService` directly for guest event lookup, check-in, and feedback routes. The old `event-ops/src/controllers/guest.controller.ts` path remains a compatibility re-export but is no longer part of `EVENT_OPS_CONTROLLERS`.
+
+Current limitation: this is the first controller-family migration only. Inquiry, commercial quote, supplier, billing, client, PMCM dashboard, audit/privacy, notification, event, auth, AI, and sample controllers still need route ownership migration before Phase 13 can be marked complete.
