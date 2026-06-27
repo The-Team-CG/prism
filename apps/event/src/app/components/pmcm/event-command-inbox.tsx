@@ -63,9 +63,11 @@ function InboxItem({ item }: { item: PrismCommandInboxItem }) {
 export function EventCommandInbox({
   inbox,
   onRefresh,
+  loadFailed,
 }: {
   inbox: PrismPmcmCommandInbox | null;
   onRefresh: () => void;
+  loadFailed: boolean;
 }) {
   const groups = useMemo(
     () => selectCommandInboxGroupedBySeverity(inbox?.items ?? []),
@@ -96,7 +98,15 @@ export function EventCommandInbox({
         </Button>
       </div>
 
-      {groups.length === 0 ? (
+      {loadFailed ? (
+        <Panel title="Command Inbox" icon={Inbox}>
+          <div className="py-8 text-center">
+            <AlertTriangle className="mx-auto size-8 text-amber-500" />
+            <p className="mt-3 text-sm font-black text-foreground">Could not load inbox</p>
+            <p className="mt-1 text-xs text-muted-foreground">Try refreshing.</p>
+          </div>
+        </Panel>
+      ) : groups.length === 0 ? (
         <Panel title="Command Inbox" icon={Inbox}>
           <div className="py-8 text-center">
             <CheckCircle2 className="mx-auto size-8 text-emerald-400" />
