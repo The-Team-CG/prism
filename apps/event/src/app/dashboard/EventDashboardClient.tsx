@@ -18,6 +18,7 @@ import {
   FileText,
   Grid2X2,
   Home,
+  Inbox,
   LayoutGrid,
   List,
   MapPinned,
@@ -51,6 +52,7 @@ import {
   type PrismFloorPlanDraft,
   type PrismLiveOps,
   type PrismPostEventDocument,
+  type PrismPmcmCommandInbox,
   type PrismPmcmDashboardWorkspace,
   type PrismSupplierQuoteRequest,
 } from "@/lib/prism-api";
@@ -65,6 +67,7 @@ import {
   ClientOnboardingTracker,
   CoordinatorAssignmentDesk,
   CoordinatorView,
+  EventCommandInbox,
   FinancialWorkspace,
   InquiryIntakeLog,
   LiveOperationsWorkspace,
@@ -163,6 +166,8 @@ const coordinatorWorkspaceCache = new Map<string, TimedCache<PrismCoordinatorWor
 const coordinatorWorkspaceRequests = new Map<string, Promise<PrismCoordinatorWorkspace>>();
 const eventCommandDataCache = new Map<string, TimedCache<EventCommandData>>();
 const eventCommandDataRequests = new Map<string, Promise<EventCommandData>>();
+let commandInboxCache: TimedCache<PrismPmcmCommandInbox> | null = null;
+let commandInboxRequest: Promise<PrismPmcmCommandInbox> | null = null;
 
 function isFresh(loadedAt: number, ttl = EVENT_DASHBOARD_CACHE_MS) {
   return Date.now() - loadedAt < ttl;
@@ -218,6 +223,29 @@ function loadApprovalRequests(force = false) {
   return approvalRequestsRequest;
 }
 
+
+function getCachedCommandInbox() {
+  return commandInboxCache;
+}
+
+function loadCommandInbox(force = false) {
+  if (!force && commandInboxCache && isFresh(commandInboxCache.loadedAt)) {
+    return Promise.resolve(commandInboxCache.value);
+  }
+  if (!force && commandInboxRequest) return commandInboxRequest;
+
+  commandInboxRequest = prismApi
+    .pmcmCommandInbox()
+    .then((next) => {
+      commandInboxCache = { value: next, loadedAt: Date.now() };
+      return next;
+    })
+    .finally(() => {
+      commandInboxRequest = null;
+    });
+
+  return commandInboxRequest;
+}
 function getCachedCoordinatorWorkspace(session: EventSession) {
   return coordinatorWorkspaceCache.get(sessionCacheKey(session));
 }
@@ -308,6 +336,7 @@ function eventPortalNavItems({
   eventName,
   inquiryCount,
   taskCount,
+  commandInboxCount,
   assignmentCount,
   quoteCount,
   draftCount,
@@ -318,6 +347,7 @@ function eventPortalNavItems({
   eventName?: string;
   inquiryCount?: number;
   taskCount?: number;
+  commandInboxCount?: number;
   assignmentCount?: number;
   quoteCount?: number;
   draftCount?: number;
@@ -332,6 +362,7 @@ function eventPortalNavItems({
     { id: "events-list", icon: CalendarDays, label: "Events", section: "PMCM" },
     { id: "calendar", icon: CalendarClock, label: "Calendar", section: "PMCM" },
     { id: "tasks", icon: ClipboardCheck, label: "Tasks", section: "PMCM", badge: taskCount || undefined },
+    { id: "command-inbox", icon: Inbox, label: "Command Inbox", section: "PMCM", badge: commandInboxCount || undefined },
     ...(hasEvent
       ? [
           { id: "event-overview", icon: LayoutGrid, label: "Overview", section: eventSection },
@@ -1261,6 +1292,7 @@ export default function EventDashboard({
   const [defenseReadiness, setDefenseReadiness] = useState<PrismDefenseReadiness | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
+  const [commandInbox, setCommandInbox] = useState<PrismPmcmCommandInbox | null>(null);
 
   async function refresh(current = session) {
     if (!current) return;
@@ -1271,12 +1303,14 @@ export default function EventDashboard({
       return;
     }
     if (current.role !== "pmcm-admin") return;
-    const [next, requests] = await Promise.all([
+    const [next, requests, inboxResult] = await Promise.all([
       loadPmcmState(true),
       loadApprovalRequests(true),
+      loadCommandInbox(true),
     ]);
     setState(next);
     setApprovalRequests(requests);
+    setCommandInbox(inboxResult);
     setCoordinatorState(null);
   }
 
@@ -1327,6 +1361,7 @@ export default function EventDashboard({
 
     const cachedState = getCachedPmcmState();
     const cachedApprovals = getCachedApprovalRequests();
+    const cachedInbox = getCachedCommandInbox();
 
     if (cachedState) {
       setState(cachedState.value);
@@ -1335,10 +1370,14 @@ export default function EventDashboard({
     if (cachedApprovals) {
       setApprovalRequests(cachedApprovals.value);
     }
+    if (cachedInbox) {
+      setCommandInbox(cachedInbox.value);
+    }
 
     const stateIsFresh = cachedState && isFresh(cachedState.loadedAt);
     const approvalsAreFresh = cachedApprovals && isFresh(cachedApprovals.loadedAt);
-    if (stateIsFresh && approvalsAreFresh) {
+    const inboxIsFresh = cachedInbox && isFresh(cachedInbox.loadedAt);
+    if (stateIsFresh && approvalsAreFresh && inboxIsFresh) {
       return () => {
         cancelled = true;
       };
@@ -1347,11 +1386,13 @@ export default function EventDashboard({
     Promise.all([
       stateIsFresh ? Promise.resolve(cachedState.value) : loadPmcmState(!cachedState),
       approvalsAreFresh ? Promise.resolve(cachedApprovals.value) : loadApprovalRequests(!cachedApprovals),
+      inboxIsFresh ? Promise.resolve(cachedInbox.value) : loadCommandInbox(!cachedInbox),
     ])
-      .then(([next, requests]) => {
+      .then(([next, requests, inboxResult]) => {
         if (cancelled) return;
         setState(next);
         setApprovalRequests(requests);
+        setCommandInbox(inboxResult);
         setCoordinatorState(null);
         setError(null);
       })
@@ -1443,6 +1484,7 @@ export default function EventDashboard({
     router.prefetch("/dashboard/clients");
     router.prefetch("/dashboard/calendar");
     router.prefetch("/dashboard/tasks");
+    router.prefetch("/dashboard/command-inbox");
     router.prefetch("/dashboard/team");
     router.prefetch("/dashboard/suppliers");
     router.prefetch("/dashboard/files");
@@ -1599,6 +1641,7 @@ export default function EventDashboard({
     if (nextSection === "clients") { setSelectedClientId(null); router.push("/dashboard/clients"); return; }
     if (nextSection === "calendar") { router.push("/dashboard/calendar"); return; }
     if (nextSection === "tasks") { router.push("/dashboard/tasks"); return; }
+    if (nextSection === "command-inbox") { router.push("/dashboard/command-inbox"); return; }
     if (nextSection === "team") { router.push("/dashboard/team"); return; }
     if (nextSection === "suppliers") { router.push("/dashboard/suppliers"); return; }
     if (nextSection === "files") { router.push("/dashboard/files"); return; }
@@ -1650,6 +1693,7 @@ export default function EventDashboard({
       case "dashboard-pending": navigateSection("tasks", { preserveSidebarActive: true }); return;
       case "dashboard-messages": navigateSection("messages", { preserveSidebarActive: true }); return;
       case "dashboard-finance": navigateSection("finance", { preserveSidebarActive: true }); return;
+      case "command-inbox": navigateSection("command-inbox", { preserveSidebarActive: true }); return;
       case "clients-all":
       case "clients-active":
       case "clients-past":
@@ -1891,6 +1935,9 @@ export default function EventDashboard({
     eventName: selectedEvent?.eventName,
     inquiryCount: unreviewedInquiries + pendingApprovals.length,
     taskCount: openActionCount,
+    commandInboxCount: commandInbox
+      ? commandInbox.counts.critical + commandInbox.counts.warning + commandInbox.counts.attention
+      : undefined,
     assignmentCount: assignments.length,
     quoteCount: quotes.length,
     draftCount: drafts.length,
@@ -1901,6 +1948,7 @@ export default function EventDashboard({
 
   /* Section routing flags */
   const isHome = section === "dashboard";
+  const isCommandInbox = section === "command-inbox";
   const isEventsList = section === "events-list";
   const isInquiries = section === "inquiries";
   const isClients = section === "clients";
@@ -1922,6 +1970,7 @@ export default function EventDashboard({
         : isClients ? "Clients"
         : isCalendar ? "Calendar"
         : isTasks ? "Tasks"
+        : isCommandInbox ? "Command inbox"
         : isTeam ? "Team"
         : isFiles ? "Files"
         : isMessages ? "Messages"
@@ -1938,6 +1987,7 @@ export default function EventDashboard({
         : isClients ? activeNavItem?.label ?? "Client Desk"
         : isCalendar ? activeNavItem?.label ?? "Calendar"
         : isTasks ? activeNavItem?.label ?? "Task Queue"
+        : isCommandInbox ? "Command Inbox"
         : isTeam ? "Team & Coordinators"
         : isFiles ? activeNavItem?.label ?? "Event File Hub"
         : isMessages ? activeNavItem?.label ?? "Event Messages"
@@ -1954,6 +2004,7 @@ export default function EventDashboard({
         : isClients ? "Client intake, conforme status, approval requests, and portal readiness."
         : isCalendar ? "Event dates, planning windows, supplier deadlines, and onsite schedule checkpoints."
         : isTasks ? "PMCM actions across inquiries, approvals, planning, finance, live operations, and closure."
+        : isCommandInbox ? "Prioritized action queue across inquiries, suppliers, billing, coordinators, and closure."
         : isTeam ? "Coordinator roster, assignment coverage, availability, and event-day staffing."
         : isFiles ? "Operational documents, official floorplans, billing statements, contracts, and closeout records."
         : isMessages ? "Client, supplier, coordinator, and internal PMCM communication threads."
@@ -1999,6 +2050,11 @@ export default function EventDashboard({
             openCheckCount={openCheckCount}
             onNavigateSection={navigateSection}
             onNavigateEventTab={(nextTab) => navigateEventTab(nextTab)}
+          />
+        ) : isCommandInbox ? (
+          <EventCommandInbox
+            inbox={commandInbox}
+            onRefresh={() => loadCommandInbox(true).then(setCommandInbox).catch(() => undefined)}
           />
         ) : isSettings ? (
           <EventSettingsWorkspace session={session} selectedEvent={selectedEvent} />
