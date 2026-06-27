@@ -93,6 +93,7 @@ export function auditTone(category: string) {
 export function severityTone(severity: string) {
   if (severity === "critical") return "bg-rose-50 text-rose-700 ring-rose-100";
   if (severity === "warning") return "bg-amber-50 text-amber-800 ring-amber-100";
+  if (severity === "attention") return "bg-blue-50 text-blue-700 ring-blue-100";
   return "bg-emerald-50 text-emerald-700 ring-emerald-100";
 }
 
