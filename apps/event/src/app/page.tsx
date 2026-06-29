@@ -263,10 +263,6 @@ function PmcmPortal({
     await run("decline inquiry", () => prismApi.declineInquiry(inquiry.id, reason));
   }
 
-  async function uploadConformeForInquiry(inquiry: PrismInquiry) {
-    await run("upload conforme", () => prismApi.uploadConforme(inquiry.id));
-  }
-
   async function sendConformeReminder(inquiry: PrismInquiry) {
     await run("conforme reminder", () => prismApi.sendConformeReminder(inquiry.id));
   }
@@ -657,7 +653,8 @@ function PmcmPortal({
 
         <ClientOnboardingTracker
           inquiries={state.inquiries}
-          onUploadConforme={uploadConformeForInquiry}
+          // TODO(EP-04): conforme upload handled in /dashboard via ConformeUploadModal
+          onUploadConforme={() => Promise.resolve()}
           onSendReminder={sendConformeReminder}
           busy={Boolean(busy)}
         />
