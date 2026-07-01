@@ -82,6 +82,7 @@ import {
   readStoredEventSession,
   type EventSession,
 } from "@/app/lib/session";
+import { isPmcmAdmin } from "@/app/lib/role-guards";
 
 const EditorShell = dynamic(
   () => import("./components/editor/EditorShell").then((mod) => mod.EditorShell),
@@ -865,6 +866,7 @@ export default function EventCommandHome() {
   }, [session, screen.name]);
 
   async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
+    if (!session || !isPmcmAdmin(session.role)) return;
     const project = await prismApi.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
