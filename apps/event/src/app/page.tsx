@@ -584,6 +584,7 @@ function PmcmPortal({
     assignmentsCount: assignments.length,
     paymentsCount: payments.length,
     openChecksCount: openCheckCount,
+    role: session.role,
   });
 
   const eventRail = (
