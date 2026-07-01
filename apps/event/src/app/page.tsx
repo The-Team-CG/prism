@@ -891,6 +891,7 @@ export default function EventCommandHome() {
           eventName={screen.event.eventName}
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
+          readOnly={!isPmcmAdmin(session.role)}
           onSave={(project) => prismApi.savePlan(project)}
           onSubmit={async (project) => {
             await prismApi.savePlan(project);
