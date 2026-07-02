@@ -4,6 +4,7 @@ import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FloorplanModule } from '@prism/modules/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
+import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsCoordinatorWorkspaceController } from './controllers/coordinator-workspace.controller';
@@ -14,7 +15,7 @@ import { CoordinatorWorkspaceReadService } from './services/coordinator-workspac
 import { CoordinatorsService } from './services/coordinators.service';
 
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, FloorplanModule, GuestOpsModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, FloorplanModule, GuestOpsModule, IdentityOpsModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController],
   providers: [
     CoordinatorsService,

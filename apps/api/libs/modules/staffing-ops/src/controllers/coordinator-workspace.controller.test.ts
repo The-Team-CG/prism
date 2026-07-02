@@ -17,22 +17,19 @@ describe('OpsCoordinatorWorkspaceController', () => {
       listCoordinatorWorkspace: vi.fn(async () => ({ coordinator: { id: 'coord_marco' }, events: [] })),
     };
     const eventAccessPolicyService = {
-      resolveActor: vi.fn(() => actor),
+      resolveActor: vi.fn((_input: any, _verified: any) => actor),
     };
     const controller = new OpsCoordinatorWorkspaceController(
       coordinatorWorkspaceReadService as any,
       eventAccessPolicyService as any,
     );
 
-    await expect(controller.getCoordinatorWorkspace({ actorRole: 'coordinator', actorName: 'Marco' })).resolves.toEqual({
+    await expect(controller.getCoordinatorWorkspace({ id: 'user_coord', actorId: 'user_coord', role: 'coordinator', actorRole: 'coordinator', email: 'marco@pmcm.test', actorEmail: 'marco@pmcm.test', name: 'Marco', actorName: 'Marco', expiresAt: '2026-07-03T12:00:00.000Z' } as any)).resolves.toEqual({
       coordinator: { id: 'coord_marco' },
       events: [],
     });
 
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({
-      actorRole: 'coordinator',
-      actorName: 'Marco',
-    });
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, expect.objectContaining({ actorRole: 'coordinator', actorName: 'Marco' }));
     expect(coordinatorWorkspaceReadService.listCoordinatorWorkspace).toHaveBeenCalledWith(actor);
   });
 });

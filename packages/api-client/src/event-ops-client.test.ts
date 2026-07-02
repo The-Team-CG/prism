@@ -232,6 +232,18 @@ describe("createEventOpsClient", () => {
     );
   });
 
+
+  it("sends bearer tokens when configured", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api", getAuthToken: () => "signed-token" });
+    await client.pmcmDashboard.detail();
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/pmcm/dashboard", {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer signed-token" },
+    });
+  });
   it("loads the PMCM dashboard as a scoped read model", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

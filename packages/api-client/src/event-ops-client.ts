@@ -36,11 +36,13 @@ export interface CreatePrismInquiryInput {
 
 export interface EventOpsClientOptions {
   baseUrl?: string;
+  getAuthToken?: () => string | null | undefined;
 }
 
 function withBase(options: EventOpsClientOptions, init: PrismRequestInit = {}): PrismRequestInit {
   return {
     ...init,
+    authToken: init.authToken ?? options.getAuthToken?.() ?? null,
     baseUrl: init.baseUrl ?? options.baseUrl,
   };
 }

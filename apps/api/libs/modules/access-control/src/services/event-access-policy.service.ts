@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
-import type { PrismEventOpsActorContext } from '@prism/types';
+import type { PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
 import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/modules/event-core';
 import { AuditService } from '@prism/modules/trust-ops';
 
@@ -31,7 +31,8 @@ export class EventAccessPolicyService {
 
   constructor(private readonly auditService: AuditService) {}
 
-  resolveActor(input: EventOpsActorInput = {}): ResolvedEventOpsActor {
+  resolveActor(input: EventOpsActorInput = {}, verifiedActor?: PrismVerifiedEventActor): ResolvedEventOpsActor {
+    if (verifiedActor) return this.resolveVerifiedActor(verifiedActor, input);
     const requestedRole = (input.actorRole ?? input.role ?? OpsUserRole.PmcmAdmin).trim().toLowerCase();
     const knownRoles = Object.values(OpsUserRole) as OpsUserRoleValue[];
     const role = knownRoles.includes(requestedRole as OpsUserRoleValue)
@@ -54,6 +55,17 @@ export class EventAccessPolicyService {
       eventId: input.eventId,
       accessCode: input.accessCode,
       explicit: Boolean(input.actorRole ?? input.role),
+    };
+  }
+
+  resolveVerifiedActor(verifiedActor: PrismVerifiedEventActor, _input: EventOpsActorInput = {}): ResolvedEventOpsActor {
+    return {
+      id: verifiedActor.actorId,
+      role: verifiedActor.actorRole as OpsUserRoleValue,
+      email: verifiedActor.actorEmail,
+      name: verifiedActor.actorName,
+      clientName: verifiedActor.actorRole === OpsUserRole.Client ? verifiedActor.actorName : undefined,
+      explicit: true,
     };
   }
 

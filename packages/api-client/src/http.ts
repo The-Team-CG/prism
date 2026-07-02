@@ -68,6 +68,7 @@ export class PrismApiError extends Error {
 }
 
 export interface PrismRequestInit extends Omit<RequestInit, "body"> {
+  authToken?: string | null;
   baseUrl?: string;
   body?: unknown;
 }
@@ -98,11 +99,12 @@ async function parseResponseBody(response: Response): Promise<unknown> {
 }
 
 export async function prismRequest<T>(path: string, init: PrismRequestInit = {}): Promise<T> {
-  const { baseUrl, body, headers, ...requestInit } = init;
+  const { authToken, baseUrl, body, headers, ...requestInit } = init;
   const request: RequestInit = {
     ...requestInit,
     headers: {
       "Content-Type": "application/json",
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...(headers ?? {}),
     },
   };

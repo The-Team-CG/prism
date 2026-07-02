@@ -1,3 +1,5 @@
+import type { PrismAuthenticatedSession } from "./event-ops";
+
 export const PRISM_SESSION_STORAGE_KEYS = {
   client: "prism:client-session",
   event: "prism:event-command-session",
@@ -85,4 +87,25 @@ export function clearPrismSession(
   const storage = sessionStorageFrom(options);
   if (!storage) return;
   allSessionKeys(key, options.legacyKeys).forEach((candidate) => storage.removeItem(candidate));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function isPrismAuthenticatedSession(value: unknown): value is PrismAuthenticatedSession {
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.email === "string" &&
+    typeof value.role === "string" &&
+    typeof value.organization === "string" &&
+    typeof value.approvalStatus === "string" &&
+    typeof value.accessToken === "string" &&
+    value.accessToken.length > 0 &&
+    typeof value.expiresAt === "string" &&
+    typeof value.signedInAt === "string"
+  );
 }

@@ -4,6 +4,7 @@ import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FloorplanModule } from '@prism/modules/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
+import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { SUPPLIER_LIVE_OPERATIONS, SupplierOpsModule } from '@prism/modules/supplier-ops';
@@ -26,6 +27,7 @@ import { LiveOperationsService } from './services/live-operations.service';
     FloorplanModule,
     GuestOpsModule,
     SupplierOpsModule,
+    IdentityOpsModule,
   ],
   controllers: [EventLiveOpsController, CoordinatorLiveOpsController, SupplierLiveOpsController],
   providers: [
