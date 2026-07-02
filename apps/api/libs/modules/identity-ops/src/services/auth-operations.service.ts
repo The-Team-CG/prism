@@ -6,10 +6,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
+import type { PrismUser } from '@prism/types';
 import { PrismaService } from '@prism/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/modules/event-core';
 import { AuditService } from '@prism/modules/trust-ops';
 import { AuthSecurityService } from './auth-security.service';
+import { AuthSessionService } from './auth-session.service';
 import { InquiriesService } from '@prism/modules/inquiry-onboarding';
 
 type RequestApprovalInput = {
@@ -29,6 +31,7 @@ export class AuthOperationsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly inquiriesService: InquiriesService,
+    private readonly authSessionService: AuthSessionService,
   ) {}
 
   async login(email: string, password: string) {
@@ -100,10 +103,7 @@ export class AuthOperationsService {
       await this.inquiriesService.markPortalInvitationOpenedByEmail(updated.email);
     }
 
-    return {
-      ...this.mapUser(updated),
-      signedInAt: new Date().toISOString(),
-    };
+    return this.authSessionService.issueSession(this.mapUser(updated), new Date());
   }
 
   async requestApproval(input: string | RequestApprovalInput) {
@@ -124,7 +124,7 @@ export class AuthOperationsService {
         userId: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: user.role as PrismUser['role'],
         organization: user.organization,
         status: 'pending',
         privacyConsentAccepted: true,
@@ -190,12 +190,12 @@ export class AuthOperationsService {
     return this.mapApprovalRequest(saved);
   }
 
-  private mapUser(user: OpsUser) {
+  private mapUser(user: OpsUser): PrismUser {
     return {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: user.role as PrismUser['role'],
       organization: user.organization,
       approvalStatus: user.approvalStatus,
       lastLoginAt: user.lastLoginAt ? timestamp(user.lastLoginAt) : null,

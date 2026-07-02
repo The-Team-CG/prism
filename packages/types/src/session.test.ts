@@ -3,6 +3,7 @@ import {
   PRISM_LEGACY_SESSION_STORAGE_KEYS,
   PRISM_SESSION_STORAGE_KEYS,
   clearPrismSession,
+  isPrismAuthenticatedSession,
   readPrismSession,
   savePrismSession,
 } from "./session";
@@ -77,5 +78,33 @@ describe("shared Prism session storage helpers", () => {
       storage,
     });
     expect(storage.snapshot()).toEqual({});
+  });
+});
+
+describe("Prism authenticated session validation", () => {
+  it("accepts signed flattened API sessions", () => {
+    expect(
+      isPrismAuthenticatedSession({
+        id: "user_pmcm",
+        name: "Ms. Mys",
+        email: "mys@pmcm.test",
+        role: "pmcm-admin",
+        organization: "PMCM",
+        approvalStatus: "approved",
+        accessToken: "header.payload.signature",
+        expiresAt: "2026-07-03T12:00:00.000Z",
+        signedInAt: "2026-07-03T04:00:00.000Z",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects unsigned legacy role-only sessions", () => {
+    expect(
+      isPrismAuthenticatedSession({
+        email: "mys@pmcm.test",
+        role: "pmcm-admin",
+        signedInAt: "2026-07-03T04:00:00.000Z",
+      }),
+    ).toBe(false);
   });
 });

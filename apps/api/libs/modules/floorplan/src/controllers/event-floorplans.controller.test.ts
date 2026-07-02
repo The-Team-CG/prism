@@ -7,6 +7,8 @@ function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
 }
 
+const verifiedPmcmActor = { id: 'user_pmcm', actorId: 'user_pmcm', role: OpsUserRole.PmcmAdmin, actorRole: OpsUserRole.PmcmAdmin, email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' };
+
 function createController() {
   const floorPlanWorkflowService = {
     createFloorPlanDraft: vi.fn(async () => ({ id: 'fpd_new' })),
@@ -16,7 +18,7 @@ function createController() {
     getFloorPlanSnapshot: vi.fn(async () => ({ objects: [] })),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((input = {}) => ({ role: input.actorRole ?? OpsUserRole.PmcmAdmin, name: input.actorName ?? 'Maxine' })),
+    resolveActor: vi.fn((input: any = {}, verified?: any) => ({ role: verified?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin, name: verified?.actorName ?? input.actorName ?? 'Maxine' })),
     requireCanMutateOfficialFloorplan: vi.fn(async () => undefined),
     requireActorRole: vi.fn(async () => undefined),
     canReadEvent: vi.fn(() => true),
@@ -42,11 +44,9 @@ describe('OpsEventFloorplansController', () => {
 
   it('serves official floorplan commands through FloorPlanWorkflowService with route policy', async () => {
     const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
-    const actor = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine' };
-
-    await expect(controller.createFloorPlanDraft('evt_sample', { name: 'Official', sourceType: 'blank' }, actor)).resolves.toEqual({ id: 'fpd_new' });
-    await expect(controller.submitFloorPlanDraft('evt_sample', 'fpd_new', actor)).resolves.toEqual({ id: 'fpd_new', status: 'submitted' });
-    await expect(controller.approveFloorPlanDraft('evt_sample', 'fpd_new', actor)).resolves.toEqual({ id: 'fpd_new', status: 'approved' });
+    await expect(controller.createFloorPlanDraft('evt_sample', { name: 'Official', sourceType: 'blank' }, verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new' });
+    await expect(controller.submitFloorPlanDraft('evt_sample', 'fpd_new', verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new', status: 'submitted' });
+    await expect(controller.approveFloorPlanDraft('evt_sample', 'fpd_new', verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new', status: 'approved' });
 
     expect(eventAccessPolicyService.requireCanMutateOfficialFloorplan).toHaveBeenCalledTimes(3);
     expect(floorPlanWorkflowService.createFloorPlanDraft).toHaveBeenCalledWith('evt_sample', { name: 'Official', sourceType: 'blank' }, { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
@@ -65,7 +65,7 @@ describe('OpsEventFloorplansController', () => {
         actor,
       ),
     ).resolves.toEqual({ id: 'fpd_pref' });
-    await expect(controller.getFloorPlanSnapshot('evt_sample', 'fpd_pref', { ...actor, type: 'submitted' })).resolves.toEqual({ objects: [] });
+    await expect(controller.getFloorPlanSnapshot('evt_sample', 'fpd_pref', { ...actor, type: 'submitted' }, verifiedPmcmActor as any)).resolves.toEqual({ objects: [] });
 
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
       { role: OpsUserRole.Client, name: 'Ana Reyes' },

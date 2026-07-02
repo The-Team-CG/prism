@@ -5,6 +5,7 @@ import { ClosureOpsModule } from '@prism/modules/closure-ops';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
 import { FloorplanModule } from '@prism/modules/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
+import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsBillingController } from './controllers/billing.controller';
@@ -19,7 +20,7 @@ import { EventReadModelQueries } from './queries/event-read-models.queries';
 import { EventReadModelsService } from './services/event-read-models.service';
 
 @Module({
-  imports: [DatabaseModule, AccessControlModule, GuestOpsModule, StaffingOpsModule, FinanceOpsModule, FloorplanModule, TrustOpsModule, ClosureOpsModule],
+  imports: [DatabaseModule, AccessControlModule, GuestOpsModule, StaffingOpsModule, FinanceOpsModule, FloorplanModule, TrustOpsModule, ClosureOpsModule, IdentityOpsModule],
   controllers: [OpsBillingController, OpsClientController, OpsDefenseReadinessController, OpsEventReadsController, OpsPmcmCommandInboxController, OpsPmcmDashboardController, OpsSupplierWorkspaceReadsController],
   providers: [
     EventReadModelQueries,

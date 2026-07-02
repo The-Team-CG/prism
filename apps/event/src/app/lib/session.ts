@@ -1,19 +1,23 @@
 "use client";
 
-import type { PrismUser } from "@/lib/prism-api";
 import {
   PRISM_SESSION_STORAGE_KEYS,
   clearPrismSession,
+  isPrismAuthenticatedSession,
   readPrismSession,
   savePrismSession,
+  type PrismAuthenticatedSession,
 } from "@prism/types";
 
-export type EventSession = PrismUser & { signedInAt: string };
+export type EventSession = PrismAuthenticatedSession;
 
 export const EVENT_SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.event;
 
 export function readStoredEventSession(): EventSession | null {
-  return readPrismSession<EventSession>(EVENT_SESSION_KEY);
+  const session = readPrismSession<unknown>(EVENT_SESSION_KEY);
+  if (isPrismAuthenticatedSession(session)) return session;
+  if (session) clearEventSession();
+  return null;
 }
 
 export function saveEventSession(session: EventSession) {

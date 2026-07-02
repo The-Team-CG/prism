@@ -69,6 +69,28 @@ describe('PlansService client floorplan permissions', () => {
     expect(prisma.floorPlan.upsert).not.toHaveBeenCalled();
   });
 
+
+  it('allows a client to read their own unlocked event floorplan', async () => {
+    const { service } = createService(draft('approved', 'Ana Reyes'));
+
+    await expect(
+      service.getPlan('plan_event_1', { actorRole: 'client', clientName: 'Ana Reyes' }),
+    ).resolves.toMatchObject({ id: 'plan_event_1' });
+  });
+
+  it('blocks a client from reading another client event floorplan', async () => {
+    const { service } = createService(draft('approved', 'Ana Reyes'));
+
+    await expect(
+      service.getPlan('plan_event_1', { actorRole: 'client', clientName: 'Other Client' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('blocks anonymous plan reads', async () => {
+    const { service } = createService(draft('approved', 'Ana Reyes'));
+
+    await expect(service.getPlan('plan_event_1')).rejects.toBeInstanceOf(ForbiddenException);
+  });
   it('allows a client to update their own unlocked event floorplan before approval', async () => {
     const { service, prisma } = createService(draft('in_review', 'Ana Reyes'));
 
