@@ -127,6 +127,25 @@ export interface PrismUser {
   permanentLockout?: boolean;
 }
 
+export interface PrismAuthenticatedSession extends PrismUser {
+  accessToken: string;
+  expiresAt: string;
+  signedInAt: string;
+  tokenType?: "Bearer";
+}
+
+export interface PrismVerifiedEventActor extends PrismEventOpsActorContext {
+  id: string;
+  actorId: string;
+  role: PrismEventOpsActorRole;
+  actorRole: PrismEventOpsActorRole;
+  email: string;
+  actorEmail: string;
+  name: string;
+  actorName: string;
+  expiresAt: string;
+}
+
 export interface PrismInquiry {
   id: string;
   clientName: string;

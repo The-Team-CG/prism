@@ -1,7 +1,9 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { PrismaService } from '@prism/database';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { OpsUserRole } from '@prism/modules/event-core';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import {
   CreateFloorPlanDraftDto,
   CreateFloorPlanPreferenceDto,
@@ -19,13 +21,14 @@ export class OpsEventFloorplansController {
   ) {}
 
   @Post(':eventId/floorplans')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
   async createFloorPlanDraft(
     @Param('eventId') eventId: string,
     @Body() dto: CreateFloorPlanDraftDto,
-    @Query() actorInput: FloorPlanActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireCanMutateOfficialFloorplan(actor, eventId, 'official floorplan draft');
     return this.floorPlanWorkflowService.createFloorPlanDraft(eventId, dto, {
       name: actor.name,
@@ -59,13 +62,14 @@ export class OpsEventFloorplansController {
   }
 
   @Post(':eventId/floorplans/:draftId/submit')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.OK)
   async submitFloorPlanDraft(
     @Param('eventId') eventId: string,
     @Param('draftId') draftId: string,
-    @Query() actorInput: FloorPlanActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireCanMutateOfficialFloorplan(actor, eventId, 'official floorplan submit');
     return this.floorPlanWorkflowService.submitFloorPlanDraft(eventId, draftId, {
       name: actor.name,
@@ -74,13 +78,14 @@ export class OpsEventFloorplansController {
   }
 
   @Post(':eventId/floorplans/:draftId/approve')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.OK)
   async approveFloorPlanDraft(
     @Param('eventId') eventId: string,
     @Param('draftId') draftId: string,
-    @Query() actorInput: FloorPlanActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireCanMutateOfficialFloorplan(actor, eventId, 'official floorplan approve');
     return this.floorPlanWorkflowService.approveFloorPlanDraft(eventId, draftId, {
       name: actor.name,
@@ -89,13 +94,15 @@ export class OpsEventFloorplansController {
   }
 
   @Get(':eventId/floorplans/:draftId/snapshot')
+  @UseGuards(EventSessionGuard)
   async getFloorPlanSnapshot(
     @Param('eventId') eventId: string,
     @Param('draftId') draftId: string,
     @Query() query: FloorPlanSnapshotQueryDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const { type = 'approved', ...actorInput } = query;
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const { type = 'approved' } = query;
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     const event = await this.requireEvent(eventId);
     if (!this.eventAccessPolicyService.canReadEvent(actor, event)) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan snapshot', eventId);

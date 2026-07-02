@@ -14,10 +14,10 @@ describe('CoordinatorLiveOpsController', () => {
   it('delegates coordinator role view with stable route parameters', async () => {
     const readService = { getCoordinatorRoleView: vi.fn(async () => ({ id: 'role_view' })) };
     const controller = new CoordinatorLiveOpsController(readService as any);
-    const actor = { actorRole: 'coordinator', coordinatorId: 'coord_sample' };
+    const actor = { id: 'user_coord', actorId: 'user_coord', role: 'coordinator', actorRole: 'coordinator', email: 'marco@pmcm.test', actorEmail: 'marco@pmcm.test', name: 'Marco', actorName: 'Marco', expiresAt: '2026-07-03T12:00:00.000Z' };
 
-    await controller.roleView('evt_sample', actor);
+    await controller.roleView('evt_sample', actor as any);
 
-    expect(readService.getCoordinatorRoleView).toHaveBeenCalledWith('evt_sample', actor);
+    expect(readService.getCoordinatorRoleView).toHaveBeenCalledWith('evt_sample', {}, actor);
   });
 });

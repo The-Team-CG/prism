@@ -1,25 +1,38 @@
-import { Body, Controller, Get, Param, Put, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Res, UseGuards } from '@nestjs/common';
+import { EventAccessPolicyService } from '@prism/modules/access-control';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import type { Response } from 'express';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PlansService } from './plans.service';
 
 @Controller('plans')
 export class PlansController {
-  constructor(private readonly plansService: PlansService) {}
+  constructor(
+    private readonly plansService: PlansService,
+    private readonly eventAccessPolicyService: EventAccessPolicyService,
+  ) {}
 
   @Get(':planId')
-  getOne(@Param('planId') planId: string, @Query() actor: Record<string, string>) {
-    return this.plansService.getPlan(planId, actor);
+  @UseGuards(EventSessionGuard)
+  getOne(@Param('planId') planId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.plansService.getPlan(planId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Put(':planId')
-  update(@Param('planId') planId: string, @Body() dto: UpdatePlanDto, @Query() actor: Record<string, string>) {
-    return this.plansService.updatePlan(planId, dto, actor);
+  @UseGuards(EventSessionGuard)
+  update(
+    @Param('planId') planId: string,
+    @Body() dto: UpdatePlanDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    return this.plansService.updatePlan(planId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Get(':planId/export')
-  async exportPlan(@Param('planId') planId: string, @Res() res: Response) {
-    const plan = await this.plansService.getPlan(planId);
+  @UseGuards(EventSessionGuard)
+  async exportPlan(@Param('planId') planId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor, @Res() res: Response) {
+    const plan = await this.plansService.getPlan(planId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
     res.setHeader('Content-Disposition', `attachment; filename=plan-${plan.id}.json`);
     res.json(plan);
   }

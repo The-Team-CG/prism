@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, OpsFloorPlanDraft, OpsSupplierQuoteRequest } from '@prisma/client';
 import { PrismaService } from '@prism/database';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import {
   EventAccessPolicyService,
   type ResolvedEventOpsActor,
@@ -45,8 +46,8 @@ export class EventLiveOpsReadService {
     private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
   ) {}
 
-  async getEventLiveOps(eventId: string, actorInput: LiveOpsActorDto = {}): Promise<unknown> {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  async getEventLiveOps(eventId: string, actorInput: LiveOpsActorDto = {}, verifiedActor?: PrismVerifiedEventActor): Promise<unknown> {
+    const actor = this.eventAccessPolicyService.resolveActor(actorInput, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator],
@@ -140,15 +141,15 @@ export class EventLiveOpsReadService {
     return base;
   }
 
-  async getEventDayStatusFeed(eventId: string, actorInput: LiveOpsActorDto = {}): Promise<unknown> {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  async getEventDayStatusFeed(eventId: string, actorInput: LiveOpsActorDto = {}, verifiedActor?: PrismVerifiedEventActor): Promise<unknown> {
+    const actor = this.eventAccessPolicyService.resolveActor(actorInput, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator],
       'event-day status feed',
       eventId,
     );
-    const liveOps = (await this.getEventLiveOps(eventId, actorInput)) as any;
+    const liveOps = (await this.getEventLiveOps(eventId, actorInput, verifiedActor)) as any;
     const role = 'role' in liveOps ? liveOps.role : undefined;
     const includeGuestDetails =
       actor.role === OpsUserRole.PmcmAdmin ||
@@ -169,11 +170,11 @@ export class EventLiveOpsReadService {
     });
   }
 
-  async getCoordinatorRoleView(eventId: string, actorInput: LiveOpsActorDto = {}): Promise<unknown> {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  async getCoordinatorRoleView(eventId: string, actorInput: LiveOpsActorDto = {}, verifiedActor?: PrismVerifiedEventActor): Promise<unknown> {
+    const actor = this.eventAccessPolicyService.resolveActor(actorInput, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator role view', eventId);
     const assignment = await this.requireCoordinatorAssignmentForEvent(eventId, actor);
-    const liveOps = (await this.getEventLiveOps(eventId, actorInput)) as any;
+    const liveOps = (await this.getEventLiveOps(eventId, actorInput, verifiedActor)) as any;
 
     return {
       event: liveOps.event,
