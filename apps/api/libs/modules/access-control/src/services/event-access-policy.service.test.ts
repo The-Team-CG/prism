@@ -147,4 +147,30 @@ describe('EventAccessPolicyService', () => {
       expect.objectContaining({ actorRole: OpsUserRole.Supplier }),
     );
   });
+
+  it('prefers a verified session actor over client-supplied actor fields', () => {
+    const { policy } = createPolicy();
+    const actor = policy.resolveActor(
+      { actorRole: 'pmcm-admin', actorName: 'Spoofed Admin' },
+      {
+        id: 'user_coord',
+        actorId: 'user_coord',
+        role: 'coordinator',
+        actorRole: 'coordinator',
+        email: 'marco@pmcm.test',
+        actorEmail: 'marco@pmcm.test',
+        name: 'Marco',
+        actorName: 'Marco',
+        expiresAt: '2026-07-03T12:00:00.000Z',
+      },
+    );
+
+    expect(actor).toMatchObject({
+      id: 'user_coord',
+      role: 'coordinator',
+      email: 'marco@pmcm.test',
+      name: 'Marco',
+      explicit: true,
+    });
+  });
 });

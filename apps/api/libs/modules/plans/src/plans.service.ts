@@ -58,7 +58,7 @@ export class PlansService {
     };
   }
 
-  async getPlan(planId: string, _actor: PlanActor = {}): Promise<FloorPlan> {
+  async getPlan(planId: string, actor: PlanActor = {}): Promise<FloorPlan> {
     const row = await this.prisma.floorPlan.findUnique({
       where: { id: planId },
       include: {
@@ -67,6 +67,7 @@ export class PlansService {
     });
 
     if (!row) throw new NotFoundException('Plan not found');
+    await this.assertCanReadPlan(row, actor);
 
     return this.mapPlan(row);
   }
@@ -75,7 +76,7 @@ export class PlansService {
     await this.assertCanUpdatePlan(planId, actor);
 
     if (Object.keys(changes).length === 0) {
-      return this.getPlan(planId);
+      return this.getPlan(planId, actor);
     }
 
     const { objects, ...scalarChanges } = changes;
@@ -154,15 +155,29 @@ export class PlansService {
     return this.mapPlan(row, typedObjects);
   }
 
-  private async assertCanUpdatePlan(planId: string, actor: PlanActor) {
-    const role = (actor.actorRole ?? actor.role ?? 'pmcm-admin').trim().toLowerCase();
-    if (role !== 'client') return;
+  private async assertCanReadPlan(plan: PlanWithObjects, actor: PlanActor) {
+    const role = (actor.actorRole ?? actor.role ?? '').trim().toLowerCase();
+    if (role === 'pmcm-admin' || role === 'system') return;
+    if (role !== 'client') {
+      throw new ForbiddenException('Only PMCM or the owning client can read this floorplan');
+    }
 
-    const plan = (await this.prisma.floorPlan.findUnique({
-      where: { id: planId },
-      include: { opsDraft: { include: { event: true } } },
-    } as any)) as any;
-    const draft = plan?.opsDraft;
+    const draft = await this.findPlanDraft(plan.id);
+    if (!draft) {
+      throw new ForbiddenException('Clients cannot read this floorplan');
+    }
+
+    this.assertClientOwnsDraft(draft, actor, 'read');
+  }
+
+  private async assertCanUpdatePlan(planId: string, actor: PlanActor) {
+    const role = (actor.actorRole ?? actor.role ?? '').trim().toLowerCase();
+    if (role === 'pmcm-admin' || role === 'system') return;
+    if (role !== 'client') {
+      throw new ForbiddenException('Only PMCM or the owning client can edit this floorplan');
+    }
+
+    const draft = await this.findPlanDraft(planId);
     if (!draft) {
       throw new ForbiddenException('Clients cannot edit this floorplan');
     }
@@ -170,12 +185,24 @@ export class PlansService {
       throw new ForbiddenException('Approved floorplans are read-only');
     }
 
+    this.assertClientOwnsDraft(draft, actor, 'edit');
+  }
+
+  private async findPlanDraft(planId: string) {
+    const plan = (await this.prisma.floorPlan.findUnique({
+      where: { id: planId },
+      include: { opsDraft: { include: { event: true } } },
+    } as any)) as any;
+    return plan?.opsDraft;
+  }
+
+  private assertClientOwnsDraft(draft: any, actor: PlanActor, action: 'read' | 'edit') {
     const actorClientName = (actor.clientName ?? actor.actorName ?? '').trim().toLowerCase();
     const eventClientName = (draft.event?.clientName ?? '').trim().toLowerCase();
     const portalUnlocked = draft.event?.clientPortalStatus === 'unlocked';
 
     if (!portalUnlocked || !actorClientName || actorClientName !== eventClientName) {
-      throw new ForbiddenException('Clients cannot edit this event floorplan');
+      throw new ForbiddenException(`Clients cannot ${action} this event floorplan`);
     }
   }
 }

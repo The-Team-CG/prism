@@ -1,6 +1,7 @@
-import type { PrismSupplier, PrismSupplierQuoteRequest, PrismUser } from "@/lib/prism-api";
+import type { PrismSupplier, PrismSupplierQuoteRequest } from "@/lib/prism-api";
+import type { PrismAuthenticatedSession } from "@prism/types";
 
-export type PmcmEventSession = PrismUser & { signedInAt: string };
+export type PmcmEventSession = PrismAuthenticatedSession;
 
 export type SupplierQuoteRow = {
   id: string;

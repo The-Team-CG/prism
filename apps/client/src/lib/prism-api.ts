@@ -1,7 +1,7 @@
 import { createInitialPrismSampleState } from "@/mock/prism-sample-state";
 import type { Project } from "@/app/components/editor/types";
 import { createEventOpsClient } from "@prism/api-client";
-import { PRISM_SAMPLE_STATE_STORAGE_KEY } from "@prism/types";
+import { PRISM_SAMPLE_STATE_STORAGE_KEY, PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
 
 import type {
   SampleRole,
@@ -27,6 +27,7 @@ import type {
   PrismPostEventDocument,
   PrismSupplierQuote,
   PrismUser,
+  PrismAuthenticatedSession,
 } from "@prism/types";
 
 export type {
@@ -53,6 +54,7 @@ export type {
   PrismPostEventDocument,
   PrismSupplierQuote,
   PrismUser,
+  PrismAuthenticatedSession,
 };
 export type PrivacyConsentInput = {
   privacyConsentAccepted: boolean;
@@ -70,7 +72,19 @@ export type CreatePrismInquiryInput = Pick<PrismInquiry, "clientName" | "email" 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const USE_REMOTE_API = process.env.NEXT_PUBLIC_Prism_API_MODE !== "local";
 const STORAGE_KEY = PRISM_SAMPLE_STATE_STORAGE_KEY;
-const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
+function storedClientAccessToken() {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(PRISM_SESSION_STORAGE_KEYS.client);
+  if (!raw) return null;
+  try {
+    const session = JSON.parse(raw) as unknown;
+    return isPrismAuthenticatedSession(session) ? session.accessToken : null;
+  } catch {
+    return null;
+  }
+}
+
+const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api`, getAuthToken: storedClientAccessToken });
 const defaultInquiryInput: CreatePrismInquiryInput = {
   clientName: "Maria Santos",
   companyName: "SampleCorp",
@@ -276,12 +290,14 @@ function ensureLocalEventForConforme(state: PrismSampleState, inquiryId: string)
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const accessToken = storedClientAccessToken();
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...init?.headers,
       },
     });
@@ -449,7 +465,7 @@ export const prismApi = {
   },
   login: (input: { email: string; password: string }) =>
     USE_REMOTE_API
-      ? request<PrismUser & { signedInAt: string }>("/api/auth/login", {
+      ? request<PrismAuthenticatedSession>("/api/auth/login", {
           method: "POST",
           body: JSON.stringify(input),
         })

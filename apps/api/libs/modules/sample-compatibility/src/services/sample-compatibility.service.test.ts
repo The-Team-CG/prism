@@ -969,7 +969,8 @@ function createSampleCompatibilityService(prisma: any) {
     notificationOutboxService,
     workflowCommandService,
   );
-  const authOperationsService = new AuthOperationsService(prisma, auditService, inquiriesService);
+  const authSessionService = { issueSession: (user: any) => ({ ...user, accessToken: 'test-token', expiresAt: new Date(Date.now() + 3600000).toISOString(), signedInAt: new Date().toISOString(), tokenType: 'Bearer' }) };
+  const authOperationsService = new AuthOperationsService(prisma, auditService, inquiriesService, authSessionService as any);
   const privacyOperationsService = new PrivacyOperationsService(prisma, auditService);
   const coordinatorsService = new CoordinatorsService(
     prisma,

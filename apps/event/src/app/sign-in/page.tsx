@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff, Handshake, Shield } from "lucide-re
 import { PrismBrandLogo } from "@prism/ui";
 import { prismApi } from "@/lib/prism-api";
 import { Input } from "@/app/components/ui/input";
-import { saveEventSession, type EventSession } from "@/app/lib/session";
+import { saveEventSession } from "@/app/lib/session";
 
 const sampleAccounts = [
   { name: "Ms. Mys", role: "PMCM Admin", email: "mys@pmcm.test", password: "prism-admin" },
@@ -35,8 +35,7 @@ export default function EventSignIn() {
         );
         return;
       }
-      const full: EventSession = { ...session, signedInAt: new Date().toISOString() };
-      saveEventSession(full);
+      saveEventSession(session);
       const next = new URLSearchParams(window.location.search).get("next");
       router.replace(next?.startsWith("/") ? next : "/dashboard");
     } catch (err) {

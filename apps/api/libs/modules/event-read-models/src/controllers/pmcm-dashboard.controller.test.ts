@@ -12,7 +12,7 @@ function createController() {
     pmcmEventWorkspace: vi.fn(async () => ({ event: { id: 'evt_sample' } })),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((input) => ({ role: input.actorRole, name: input.actorName ?? input.actorRole })),
+    resolveActor: vi.fn((_input: any, verified: any) => ({ role: verified.actorRole, name: verified.actorName })),
   };
   const auditService = { mapAuditLog: vi.fn((log) => log) };
   const billingOperationsService = {
@@ -49,12 +49,9 @@ describe('OpsPmcmDashboardController', () => {
   it('serves PMCM dashboard reads through EventReadModelsService', async () => {
     const { controller, eventReadModelsService, eventAccessPolicyService } = createController();
 
-    await expect(controller.dashboard({ actorRole: 'pmcm-admin', actorName: 'Maxine' })).resolves.toEqual({ events: [] });
+    await expect(controller.dashboard({ id: 'user_pmcm', actorId: 'user_pmcm', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' } as any)).resolves.toEqual({ events: [] });
 
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({
-      actorRole: 'pmcm-admin',
-      actorName: 'Maxine',
-    });
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, { id: 'user_pmcm', actorId: 'user_pmcm', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' });
     expect(eventReadModelsService.pmcmDashboard).toHaveBeenCalledWith(
       { role: 'pmcm-admin', name: 'Maxine' },
       expect.objectContaining({
@@ -67,12 +64,12 @@ describe('OpsPmcmDashboardController', () => {
   it('serves PMCM event workspace reads through EventReadModelsService', async () => {
     const { controller, eventReadModelsService } = createController();
 
-    await expect(controller.eventWorkspace('evt_sample', { actorRole: 'pmcm-admin' })).resolves.toEqual({
+    await expect(controller.eventWorkspace('evt_sample', { id: 'user_pmcm', actorId: 'user_pmcm', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' } as any)).resolves.toEqual({
       event: { id: 'evt_sample' },
     });
 
     expect(eventReadModelsService.pmcmEventWorkspace).toHaveBeenCalledWith(
-      { role: 'pmcm-admin', name: 'pmcm-admin' },
+      { role: 'pmcm-admin', name: 'Maxine' },
       'evt_sample',
       expect.objectContaining({ mapEvent: expect.any(Function) }),
     );

@@ -1,6 +1,7 @@
 import type { Project } from "@/app/components/editor/types";
 import { createEventOpsClient } from "@prism/api-client";
 
+import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
 import type {
   SampleRole,
   PrismApprovalRequest,
@@ -54,6 +55,7 @@ import type {
   PAREResult,
   PARERisk,
   PrismUser,
+  PrismAuthenticatedSession,
 } from "@prism/types";
 
 export type {
@@ -319,7 +321,19 @@ interface ApiFloorPlan {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
-const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
+function storedEventAccessToken() {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(PRISM_SESSION_STORAGE_KEYS.event);
+  if (!raw) return null;
+  try {
+    const session = JSON.parse(raw) as unknown;
+    return isPrismAuthenticatedSession(session) ? session.accessToken : null;
+  } catch {
+    return null;
+  }
+}
+
+const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api`, getAuthToken: storedEventAccessToken });
 
 export function apiUrl(path: string) {
   if (!path) return "#";
@@ -327,12 +341,14 @@ export function apiUrl(path: string) {
 }
 
 async function request<T>(path: string, init: RequestInit = {}) {
+  const accessToken = storedEventAccessToken();
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
         "content-type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...(init.headers ?? {}),
       },
     });
@@ -418,7 +434,7 @@ export const prismApi = {
     }),
   reset: () => eventOpsClient.sample.reset(),
   login: (input: { email: string; password: string }) =>
-    request<PrismUser & { signedInAt: string }>("/api/auth/login", {
+    request<PrismAuthenticatedSession>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(input),
     }),
