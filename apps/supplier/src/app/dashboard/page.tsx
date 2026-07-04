@@ -320,7 +320,7 @@ function RequestsPage({
   if (!workspace.quoteRequests.length) {
     return (
       <Card><CardBody>
-        <EmptyState icon={ClipboardList} title="No quote requests yet" description="PMCM will send scoped quote requests when events are ready." />
+        <EmptyState icon={ClipboardList} title="No quote requests yet." description="PMCM will send scoped quote requests when events are ready." />
       </CardBody></Card>
     );
   }
@@ -445,7 +445,7 @@ function BookingsPage({
   if (!selectedRequests.length) {
     return (
       <Card><CardBody>
-        <EmptyState icon={BadgeCheck} title="No active bookings" description="When PMCM selects your quote, the booking appears here for handoff." />
+        <EmptyState icon={BadgeCheck} title="No active bookings." description="When PMCM selects your quote, the booking appears here for handoff." />
       </CardBody></Card>
     );
   }
@@ -580,7 +580,7 @@ function CalendarPage({ workspace, quoteByRequest }: { workspace: SupplierWorksp
         </CardHeader>
         {events.length === 0 ? (
           <CardBody>
-            <EmptyState icon={CalendarDays} title="No upcoming dates" description="Quote deadlines and event dates will appear here." />
+            <EmptyState icon={CalendarDays} title="No upcoming dates." description="Quote deadlines and event dates will appear here." />
           </CardBody>
         ) : (
           <div className="divide-y divide-border">
@@ -616,7 +616,7 @@ function QuotationsPage({ workspace, quoteByRequest }: { workspace: SupplierWork
   if (!workspace.supplierQuotes.length) {
     return (
       <Card><CardBody>
-        <EmptyState icon={FileText} title="No quotations on file" description="Submitted quotes will appear here with their full history." />
+        <EmptyState icon={FileText} title="No quotations on file." description="Submitted quotes will appear here with their full history." />
       </CardBody></Card>
     );
   }
@@ -719,7 +719,7 @@ function FilesPage({ workspace }: { workspace: SupplierWorkspace }) {
         </CardHeader>
         {fileRequests.length === 0 ? (
           <CardBody>
-            <EmptyState icon={FileCheck2} title="No contract files saved" description="Save contract metadata in the Bookings section after PMCM selects your quote." />
+            <EmptyState icon={FileCheck2} title="No contract files saved." description="Save contract metadata in the Bookings section after PMCM selects your quote." />
           </CardBody>
         ) : (
           <div className="divide-y divide-border">
@@ -749,7 +749,7 @@ function FilesPage({ workspace }: { workspace: SupplierWorkspace }) {
         </CardHeader>
         {workspace.supplier.certifications.length === 0 ? (
           <CardBody>
-            <EmptyState icon={ShieldCheck} title="No certifications on file" description="PMCM will upload certification documents to your supplier record." />
+            <EmptyState icon={ShieldCheck} title="No certifications on file." description="PMCM will upload certification documents to your supplier record." />
           </CardBody>
         ) : (
           <div className="divide-y divide-border">
@@ -785,7 +785,7 @@ function PaymentsPage({ workspace }: { workspace: SupplierWorkspace }) {
     <div className="space-y-4">
       {selected.length === 0 ? (
         <Card><CardBody>
-          <EmptyState icon={Wallet} title="No payment milestones yet" description="Payment tracking becomes available once PMCM selects and locks your quote." />
+          <EmptyState icon={Wallet} title="No payment milestones yet." description="Payment tracking becomes available once PMCM selects and locks your quote." />
         </CardBody></Card>
       ) : selected.map((q) => (
         <Card key={q.id}>
@@ -1031,7 +1031,7 @@ export default function SupplierDashboard() {
     };
     setBusy(req.id); setError(null); setNotice(null);
     try {
-      if (quote) { await prismApi.reviseQuote(req.accessToken, input); setNotice("Quote revision saved."); }
+      if (quote) { await prismApi.reviseQuote(req.accessToken, input); setNotice("Quote revision submitted."); }
       else { await prismApi.submitQuote(req.accessToken, input); setNotice("Quote submitted."); }
       await refresh();
     } catch (err) {
