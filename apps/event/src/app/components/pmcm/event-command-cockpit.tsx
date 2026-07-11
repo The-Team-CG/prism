@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 
-import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft } from "@/lib/prism-api";
+import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, SampleRole } from "@/lib/prism-api";
+import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "./helpers";
@@ -207,14 +208,16 @@ export function buildEventWorkflowTabs({
   assignmentsCount,
   paymentsCount,
   openChecksCount,
+  role,
 }: {
   draftsCount: number;
   quotesCount: number;
   assignmentsCount: number;
   paymentsCount: number;
   openChecksCount: number;
+  role: SampleRole;
 }): PmcmWorkflowTabItem[] {
-  return [
+  const tabs: PmcmWorkflowTabItem[] = [
     { id: "overview", label: "Overview", icon: ClipboardList },
     { id: "floorplans", label: "Floorplans", icon: MapPinned, badge: draftsCount || undefined },
     { id: "briefing", label: "Briefing", icon: FileCheck2 },
@@ -225,6 +228,7 @@ export function buildEventWorkflowTabs({
     { id: "closure", label: "Closure", icon: Archive, badge: openChecksCount || undefined },
     { id: "activity", label: "Messages", icon: MessageSquareText },
   ];
+  return isPmcmAdmin(role) ? tabs : tabs.filter((t) => t.id !== "floorplans");
 }
 
 export function EventQueuePanel({
