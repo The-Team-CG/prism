@@ -347,7 +347,7 @@ function eventPortalNavItems({
   eventName?: string;
   inquiryCount?: number;
   taskCount?: number;
-  commandInboxCount?: number;
+  commandInboxCount?: number | string;
   assignmentCount?: number;
   quoteCount?: number;
   draftCount?: number;
@@ -1293,6 +1293,7 @@ export default function EventDashboard({
   const [busy, setBusy] = useState<string | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
   const [commandInbox, setCommandInbox] = useState<PrismPmcmCommandInbox | null>(null);
+  const [commandInboxLoadFailed, setCommandInboxLoadFailed] = useState(false);
 
   async function refresh(current = session) {
     if (!current) return;
@@ -1386,18 +1387,22 @@ export default function EventDashboard({
     Promise.all([
       stateIsFresh ? Promise.resolve(cachedState.value) : loadPmcmState(!cachedState),
       approvalsAreFresh ? Promise.resolve(cachedApprovals.value) : loadApprovalRequests(!cachedApprovals),
-      inboxIsFresh ? Promise.resolve(cachedInbox.value) : loadCommandInbox(!cachedInbox),
+      inboxIsFresh ? Promise.resolve(cachedInbox.value) : Promise.resolve().then(() => loadCommandInbox(!cachedInbox)),
     ])
       .then(([next, requests, inboxResult]) => {
         if (cancelled) return;
         setState(next);
         setApprovalRequests(requests);
         setCommandInbox(inboxResult);
+        setCommandInboxLoadFailed(false);
         setCoordinatorState(null);
         setError(null);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load event portal");
+        if (!cancelled) {
+          setCommandInboxLoadFailed(true);
+          setError(err instanceof Error ? err.message : "Unable to load event portal");
+        }
       });
 
     return () => {
@@ -1935,9 +1940,11 @@ export default function EventDashboard({
     eventName: selectedEvent?.eventName,
     inquiryCount: unreviewedInquiries + pendingApprovals.length,
     taskCount: openActionCount,
-    commandInboxCount: commandInbox
-      ? commandInbox.counts.critical + commandInbox.counts.warning + commandInbox.counts.attention
-      : undefined,
+    commandInboxCount: commandInboxLoadFailed
+      ? "!"
+      : commandInbox
+        ? commandInbox.counts.critical + commandInbox.counts.warning + commandInbox.counts.attention
+        : undefined,
     assignmentCount: assignments.length,
     quoteCount: quotes.length,
     draftCount: drafts.length,
@@ -2054,7 +2061,8 @@ export default function EventDashboard({
         ) : isCommandInbox ? (
           <EventCommandInbox
             inbox={commandInbox}
-            onRefresh={() => loadCommandInbox(true).then(setCommandInbox).catch(() => undefined)}
+            onRefresh={() => loadCommandInbox(true).then((data) => { setCommandInbox(data); setCommandInboxLoadFailed(false); }).catch(() => setCommandInboxLoadFailed(true))}
+            loadFailed={commandInboxLoadFailed}
           />
         ) : isSettings ? (
           <EventSettingsWorkspace session={session} selectedEvent={selectedEvent} />
