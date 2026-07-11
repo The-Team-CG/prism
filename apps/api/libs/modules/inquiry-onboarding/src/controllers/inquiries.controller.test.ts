@@ -46,7 +46,9 @@ describe('OpsInquiriesController', () => {
       id: 'inq_sample',
       lastConformeReminderAt: 'now',
     });
-    await expect(controller.uploadConforme('inq_sample', { fileName: 'signed.pdf' })).resolves.toEqual({
+    await expect(
+      controller.uploadConforme('inq_sample', { fileName: 'signed.pdf' } as any, { actorRole: 'pmcm-admin' }),
+    ).resolves.toEqual({
       id: 'doc_sample',
     });
 
@@ -75,6 +77,7 @@ describe('OpsInquiriesController', () => {
     expect(inquiryWorkflowService.uploadConforme).toHaveBeenCalledWith(
       'inq_sample',
       { fileName: 'signed.pdf' },
+      { actorRole: 'pmcm-admin' },
       expect.objectContaining({ inquiriesService }),
     );
   });

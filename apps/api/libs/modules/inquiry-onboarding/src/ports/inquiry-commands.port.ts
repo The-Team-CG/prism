@@ -1,5 +1,6 @@
 import type { OpsDocument, OpsInquiry } from '@prisma/client';
 import type { PrismEventOpsActorContext } from '@prism/types';
+import type { ResolvedEventOpsActor } from '@prism/modules/access-control';
 import type { CreateInquiryInput, UpdateInquiryStatusInput } from '../services/inquiries.service';
 
 export interface InquiryCommands {
@@ -12,5 +13,6 @@ export interface InquiryCommands {
   uploadConforme(
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    actor: ResolvedEventOpsActor,
   ): Promise<OpsDocument>;
 }
