@@ -57,7 +57,11 @@ export class OpsInquiriesController {
 
   @Post(':inquiryId/conforme')
   @HttpCode(HttpStatus.CREATED)
-  uploadConforme(@Param('inquiryId') inquiryId: string, @Body() dto: UploadConformeDto) {
-    return this.inquiryWorkflowService.uploadConforme(inquiryId, dto, this.inquiryWorkflowContext());
+  uploadConforme(
+    @Param('inquiryId') inquiryId: string,
+    @Body() dto: UploadConformeDto,
+    @Query() actor: SampleActorDto,
+  ) {
+    return this.inquiryWorkflowService.uploadConforme(inquiryId, dto, actor, this.inquiryWorkflowContext());
   }
 }

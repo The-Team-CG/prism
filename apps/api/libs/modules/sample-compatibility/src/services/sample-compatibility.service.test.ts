@@ -26,7 +26,7 @@ import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@pri
 import { PAREService } from '@prism/modules/ai-governance';
 import { SampleStateService } from './sample-state.service';
 import { SupplierNetworkWorkflowService, SupplierProfileCommandsService, SuppliersService } from '@prism/modules/supplier-ops';
-import { WorkflowCommandService } from '@prism/modules/event-core';
+import { OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';
 
 function inquiry(overrides: Record<string, unknown> = {}) {
   const createdAt = new Date('2026-04-29T00:00:00.000Z');
@@ -1258,6 +1258,54 @@ describe('SampleCompatibilityService', () => {
       ['Downpayment', 260000],
       ['Balance', 260000],
     ]);
+  });
+
+  it('enforces PmcmAdmin-only access and records the resolved actor on conforme upload', async () => {
+    const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
+    const auditService = new AuditService(fake.prisma as any);
+    const notificationOutboxService = new NotificationOutboxService(fake.prisma as any);
+    const workflowCommandService = new WorkflowCommandService(new PrismTransactionRunner(fake.prisma as any));
+    const eventAccessPolicyService = new EventAccessPolicyService(auditService);
+    const inquiriesService = new InquiriesService(
+      fake.prisma as any,
+      auditService,
+      notificationOutboxService,
+      workflowCommandService,
+    );
+    const inquiryWorkflowService = new InquiryWorkflowService(fake.prisma as any);
+    const context = {
+      inquiriesService,
+      resolveActor: (input?: any) => eventAccessPolicyService.resolveActor(input),
+      requireActorRole: (actor: any, roles: any, resource: string) =>
+        eventAccessPolicyService.requireActorRole(actor, roles, resource),
+      allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      mapInquiry: (record: unknown) => record,
+      mapDocument: (record: unknown) => record,
+      mapEvent: (record: unknown) => record,
+    };
+
+    await expect(
+      inquiryWorkflowService.uploadConforme(
+        'inq_sample',
+        { type: 'signed_conforme', fileName: 'signed-conforme.pdf' },
+        { actorRole: 'client' },
+        context as any,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    await inquiryWorkflowService.uploadConforme(
+      'inq_sample',
+      { type: 'signed_conforme', fileName: 'signed-conforme.pdf' },
+      { actorRole: 'pmcm-admin', actorName: 'Ms. Mys', actorEmail: 'mys@pmcm.test' },
+      context as any,
+    );
+
+    const conformeAudit = fake.state.auditLogs.find(
+      (entry: any) => entry.action === 'Uploaded signed conforme and unlocked client portal',
+    );
+    expect(conformeAudit?.actor).toBe('Ms. Mys');
+    expect(conformeAudit?.actorEmail).toBe('mys@pmcm.test');
+    expect(conformeAudit?.actor).not.toBe('PMCM Admin');
   });
 
   it('creates confidential quote requests for all selected Tier 1 suppliers with unique supplier tokens', async () => {

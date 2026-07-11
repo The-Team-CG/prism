@@ -103,9 +103,13 @@ export class InquiryWorkflowService {
   async uploadConforme(
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    actorInput: PrismEventOpsActorContext = {},
     context: InquiryWorkflowContext,
   ) {
-    const document = await context.inquiriesService.uploadConforme(inquiryId, input);
+    const actor = context.resolveActor(actorInput);
+    await context.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'conforme upload');
+
+    const document = await context.inquiriesService.uploadConforme(inquiryId, input, actor);
     return context.mapDocument(document);
   }
 }
