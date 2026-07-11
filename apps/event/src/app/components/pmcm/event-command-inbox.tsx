@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Eye, Inbox, RotateCcw } from "lucide-react";
 import type { PrismCommandInboxItem, PrismCommandInboxSeverity, PrismPmcmCommandInbox } from "@prism/types";
 import { selectCommandInboxGroupedBySeverity } from "@/features/event-dashboard/event-dashboard.selectors";
@@ -31,9 +32,10 @@ function InboxItem({ item }: { item: PrismCommandInboxItem }) {
   const Icon = severityIcon(item.severity);
   const iconColor = severityIconColor(item.severity);
 
-  return (
+  const card = (
     <div className={cx(
       "flex items-start gap-3 rounded-lg border px-4 py-3",
+      item.href && "cursor-pointer transition-colors hover:bg-accent/50",
       item.severity === "critical" ? "border-rose-200 bg-rose-50/50 ring-1 ring-rose-100" : "border-border bg-card",
     )}>
       <div className="mt-0.5 shrink-0">
@@ -58,14 +60,18 @@ function InboxItem({ item }: { item: PrismCommandInboxItem }) {
       </div>
     </div>
   );
+
+  return item.href ? <Link href={item.href} className="block">{card}</Link> : card;
 }
 
 export function EventCommandInbox({
   inbox,
   onRefresh,
+  loadFailed,
 }: {
   inbox: PrismPmcmCommandInbox | null;
   onRefresh: () => void;
+  loadFailed: boolean;
 }) {
   const groups = useMemo(
     () => selectCommandInboxGroupedBySeverity(inbox?.items ?? []),
@@ -96,7 +102,15 @@ export function EventCommandInbox({
         </Button>
       </div>
 
-      {groups.length === 0 ? (
+      {loadFailed ? (
+        <Panel title="Command Inbox" icon={Inbox}>
+          <div className="py-8 text-center">
+            <AlertTriangle className="mx-auto size-8 text-amber-500" />
+            <p className="mt-3 text-sm font-black text-foreground">Could not load inbox</p>
+            <p className="mt-1 text-xs text-muted-foreground">Try refreshing.</p>
+          </div>
+        </Panel>
+      ) : groups.length === 0 ? (
         <Panel title="Command Inbox" icon={Inbox}>
           <div className="py-8 text-center">
             <CheckCircle2 className="mx-auto size-8 text-emerald-400" />
