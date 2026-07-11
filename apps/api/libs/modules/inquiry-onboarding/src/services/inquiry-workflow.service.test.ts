@@ -10,7 +10,9 @@ function createService() {
     opsDocument: { findMany: vi.fn(async () => []) },
   };
   const context = {
-    inquiriesService: {} as any,
+    inquiriesService: {
+      uploadConforme: vi.fn(async () => ({ id: 'doc_sample' })),
+    } as any,
     resolveActor: vi.fn((input = {}) => ({
       role: input.actorRole,
       name: input.actorName ?? 'anonymous',
@@ -42,5 +44,20 @@ describe('InquiryWorkflowService', () => {
     expect(prisma.opsInquiry.findMany).not.toHaveBeenCalled();
     expect(prisma.opsEvent.findMany).not.toHaveBeenCalled();
     expect(prisma.opsDocument.findMany).not.toHaveBeenCalled();
+  });
+
+  it('denies non-PmcmAdmin actors from uploading conforme documents', async () => {
+    const { service, context } = createService();
+
+    await expect(
+      service.uploadConforme('inq_sample', { fileName: 'signed.pdf' }, { actorRole: 'client' }, context as any),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(context.requireActorRole).toHaveBeenCalledWith(
+      { role: 'client', name: 'anonymous' },
+      [OpsUserRole.PmcmAdmin],
+      'conforme upload',
+    );
+    expect(context.inquiriesService.uploadConforme).not.toHaveBeenCalled();
   });
 });
