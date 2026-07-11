@@ -6,6 +6,7 @@
     "dev": "next dev --port 3004",
     "build": "next build",
     "start": "next start --port 3004",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "next lint"
   },
