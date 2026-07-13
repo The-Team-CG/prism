@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   tag:
-    uses: The-Team-CG/.github/.github/workflows/release-tag.yml@v1
+    uses: The-Team-CG/.github/.github/workflows/release-tag.yml@main
     with:
       version: ${{ inputs.version }}
       target_ref: main
