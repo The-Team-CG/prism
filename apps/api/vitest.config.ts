@@ -12,7 +12,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
       reportsDirectory: './coverage',
-      // Raise thresholds toward 80% as suites grow; Sonar free gates new code when SONAR_TOKEN is set.
+      // Practice bar (looser than industry 80%): raise toward 80/80/80/75 over time.
+      thresholds: {
+        lines: 50,
+        statements: 50,
+        functions: 50,
+        branches: 40,
+      },
     },
   },
   resolve: {
