@@ -8,10 +8,12 @@ on:
 
 permissions:
   contents: read
+  security-events: write
+  actions: read
 
 jobs:
   monorepo:
-    uses: The-Team-CG/.github/.github/workflows/ci-node.yml@main
+    uses: The-Team-CG/.github/.github/workflows/ci-node.yml@v1
     with:
       working_directory: .
       node_version: "22"
@@ -22,11 +24,29 @@ jobs:
       build_command: npm run build
     secrets: inherit
 
+  gitleaks:
+    uses: The-Team-CG/.github/.github/workflows/security-gitleaks.yml@v1
+    secrets: inherit
+
+  codeql:
+    uses: The-Team-CG/.github/.github/workflows/security-codeql.yml@v1
+    secrets: inherit
+
   sonar:
-    needs: monorepo
-    uses: The-Team-CG/.github/.github/workflows/sonar.yml@main
+    needs: [monorepo, gitleaks]
+    uses: The-Team-CG/.github/.github/workflows/sonar.yml@v1
     with:
       project_key: The-Team-CG_prism
       project_name: prism
       working_directory: .
+    secrets: inherit
+
+  notify-failure:
+    if: failure()
+    needs: [monorepo, gitleaks, codeql, sonar]
+    uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
+    with:
+      status: failure
+      title: "CI failed — prism"
+      environment: ci
     secrets: inherit
