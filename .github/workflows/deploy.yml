@@ -10,7 +10,7 @@ permissions:
 jobs:
   deploy-staging:
     if: github.ref == 'refs/heads/staging'
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v1
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
     with:
       environment: staging
       working_directory: apps/client
@@ -21,7 +21,7 @@ jobs:
 
   deploy-production:
     if: github.ref == 'refs/heads/main'
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v1
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
     with:
       environment: production
       working_directory: apps/client
@@ -33,19 +33,19 @@ jobs:
   notify-staging:
     if: always() && github.ref == 'refs/heads/staging'
     needs: [deploy-staging]
-    uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
+    uses: The-Team-CG/.github/.github/workflows/notify.yml@main
     with:
       status: ${{ needs.deploy-staging.result == 'success' && 'success' || 'failure' }}
-      title: "Deploy staging â€” prism client"
+      title: "Deploy staging - prism client"
       environment: staging
     secrets: inherit
 
   notify-production:
     if: always() && github.ref == 'refs/heads/main'
     needs: [deploy-production]
-    uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
+    uses: The-Team-CG/.github/.github/workflows/notify.yml@main
     with:
       status: ${{ needs.deploy-production.result == 'success' && 'success' || 'failure' }}
-      title: "Deploy production â€” prism client"
+      title: "Deploy production - prism client"
       environment: production
     secrets: inherit
