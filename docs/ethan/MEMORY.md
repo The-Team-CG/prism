@@ -113,3 +113,43 @@ Extracted all Ethan-assigned stories from `PRISM_AC_Tracker.xlsx` and created a 
 - All 17 stories confirmed against Tracker sheet owner column (G = "C (Ethan)")
 - Cadence assignments cross-checked with Cadence Review Guide and Owner Tasks sheets
 - PA dependencies verified against PA Resolution Tracker sheet
+
+---
+
+## Session Date
+2026-07-13 (session 2)
+
+## Branch
+`ethan/c1-c2`
+
+## Summary
+Completed EP-10-S01 (Client Action Center) by removing the fallback derivation. Confirmed C2 blockers on Francis.
+
+## What Was Done
+
+### EP-10-S01 -- Client Action Center (AC item 2)
+- Removed `getClientDashboardActions()` function from `Dashboard.tsx:345-420` (75 lines)
+- Simplified `clientActions` derivation to pull exclusively from `actionCenter.items` contract -- no local derivation fallback
+- Updated action center render guard from `contractClientActions.length > 0` to `clientActions.length > 0`
+- Verified no stale references to removed function or intermediate variable remain
+
+### C2 Dependency Check
+- EP-04-S01 (conforme upload): **In Progress**, Francis -- not done
+- EP-05-S01 (official floor plan): **To Do**, Francis -- not done
+- Remaining C2 stories (EP-05-S02, EP-05-S03, EP-10-S03) are blocked on Francis completing both
+
+## Key Files Changed
+| File | Change |
+|------|--------|
+| `apps/client/src/app/components/dashboard/Dashboard.tsx` | Removed `getClientDashboardActions`, contract-only action derivation |
+
+## Verified
+- `@prism/client` typecheck: clean (zero errors)
+
+## Remaining C2 Work
+| Story | Status | Blocker |
+|-------|--------|---------|
+| EP-10-S01 | Done | Needs Maxine design review (AC item 6) before Done call |
+| EP-05-S02 | To Do | Francis: EP-04-S01 + EP-05-S01 |
+| EP-05-S03 | To Do | Francis: EP-05-S01 |
+| EP-10-S03 | To Do | Francis: EP-04-S01 + PA-59 resolution |
