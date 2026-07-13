@@ -342,83 +342,6 @@ const money = new Intl.NumberFormat("en-PH", {
   maximumFractionDigits: 0,
 });
 
-function getClientDashboardActions({
-  selectedEvent,
-  briefing,
-  billing,
-  payments,
-  documents,
-  officialDraft,
-}: {
-  selectedEvent: PrismEvent;
-  briefing?: PrismBriefing;
-  billing?: PrismBillingStatement;
-  payments: PrismPaymentMilestone[];
-  documents: PrismDocument[];
-  officialDraft?: PrismFloorPlanDraft;
-}): ClientDashboardAction[] {
-  const nextPayment = payments.find((payment) => payment.status !== "paid");
-  const documentNeedsAttention = documents.some((document) => /needs|pending|requested/i.test(document.status));
-  const officialNeedsReview = officialDraft && officialDraft.status !== "approved";
-
-  return [
-    {
-      id: "layout-review",
-      title: officialNeedsReview ? "Review official layout" : officialDraft ? "Official layout is approved" : "Send layout preference",
-      description: officialNeedsReview
-        ? "PMCM has published the official layout. Open the floor plan before planning moves forward."
-        : officialDraft
-          ? "The official layout is approved for this event."
-          : "Share seating, stage, guest-flow, and constraint notes before PMCM prepares the official plan.",
-      detail: officialNeedsReview ? "Client review needed" : officialDraft ? formatStatusLabel(officialDraft.status) : "Preference draft",
-      ctaLabel: officialDraft ? "Review layout" : "Open layout preferences",
-      icon: MapPinned,
-      targetTab: "floorplan",
-      status: officialDraft?.status ?? "pending",
-      tone: officialNeedsReview ? "primary" : officialDraft ? "success" : "warning",
-    },
-    {
-      id: "proposal-package",
-      title: billing && briefing ? "Review proposal package" : "Proposal package in preparation",
-      description: billing && briefing
-        ? "Briefing, package basis, billing statement, and review path are ready."
-        : "The proposal view will populate after PMCM posts the client-safe planning package.",
-      detail: billing ? billing.number : selectedEvent.status,
-      ctaLabel: "Open proposal",
-      icon: Presentation,
-      targetTab: "proposal",
-      status: billing && briefing ? "ready" : "pending",
-      tone: billing && briefing ? "primary" : "neutral",
-    },
-    {
-      id: "documents",
-      title: documentNeedsAttention ? "Complete document checklist" : "Documents are organized",
-      description: documentNeedsAttention
-        ? "Some client files still need review or replacement before final planning checks."
-        : "Signed conforme, client assets, and approval files are grouped with this event.",
-      detail: `${documents.length} file${documents.length === 1 ? "" : "s"}`,
-      ctaLabel: "Open documents",
-      icon: FileText,
-      targetTab: "documents",
-      status: documentNeedsAttention ? "pending" : documents.length ? "ready" : "pending",
-      tone: documentNeedsAttention ? "warning" : documents.length ? "success" : "neutral",
-    },
-    {
-      id: "billing",
-      title: nextPayment ? `Check ${nextPayment.label.toLowerCase()}` : "Billing is on track",
-      description: nextPayment
-        ? `${money.format(nextPayment.amount)} is scheduled for ${nextPayment.dueDate}. Payment recording remains PMCM-managed.`
-        : "All visible billing milestones are marked complete.",
-      detail: nextPayment ? nextPayment.dueDate : "No open milestone",
-      ctaLabel: "Open billing",
-      icon: ReceiptText,
-      targetTab: "billing",
-      status: nextPayment?.status ?? "approved",
-      tone: nextPayment ? "warning" : "success",
-    },
-  ];
-}
-
 function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIcon {
   if (kind === "billing") return ReceiptText;
   if (kind === "document" || kind === "closure") return FileText;
@@ -876,23 +799,11 @@ export function Dashboard({
     }
   }
 
-  const contractClientActions = selectedEvent && actionCenter
+  const clientActions = selectedEvent && actionCenter
     ? actionCenter.items
         .filter((item) => item.eventId === selectedEvent.id)
         .map(actionCenterItemToDashboardAction)
     : [];
-  const clientActions = contractClientActions.length > 0
-    ? contractClientActions
-    : selectedEvent
-      ? getClientDashboardActions({
-          selectedEvent,
-          briefing,
-          billing,
-          payments,
-          documents,
-          officialDraft,
-        })
-      : [];
   const nextAction = selectNextAction(clientActions);
 
   function runClientAction(action: ClientDashboardAction) {
@@ -1334,7 +1245,7 @@ export function Dashboard({
         )}
 
         {/* Action center groups — contract-first actions from API */}
-        {actionCenter && contractClientActions.length > 0 && (
+        {actionCenter && clientActions.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-base font-black text-foreground">Action center</h2>
             {renderActionGroup("Needs your action", "Client decisions that can move planning forward.", clientActions.filter((a) => a.tone === "primary" || a.tone === "warning"))}
