@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [staging, main]
+  push:
+    branches: [staging, main]
+
+permissions:
+  contents: read
+
+jobs:
+  monorepo:
+    uses: The-Team-CG/.github/.github/workflows/ci-node.yml@main
+    with:
+      working_directory: .
+      node_version: "22"
+      package_manager: npm
+      install_command: npm ci
+      typecheck_command: npm run typecheck
+      test_command: npm run test:api
+      build_command: npm run build
+    secrets: inherit
+
+  sonar:
+    needs: monorepo
+    uses: The-Team-CG/.github/.github/workflows/sonar.yml@main
+    with:
+      project_key: The-Team-CG_prism
+      project_name: prism
+      working_directory: .
+    secrets: inherit

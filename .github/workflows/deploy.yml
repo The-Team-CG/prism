@@ -1,0 +1,28 @@
+name: Deploy
+
+on:
+  push:
+    branches: [staging, main]
+
+permissions:
+  contents: read
+
+# Primary web surface: apps/client. Additional prism apps can add jobs with their own VERCEL_PROJECT_ID.
+jobs:
+  deploy-staging:
+    if: github.ref == 'refs/heads/staging'
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: staging
+      working_directory: apps/client
+      node_version: "22"
+    secrets: inherit
+
+  deploy-production:
+    if: github.ref == 'refs/heads/main'
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: production
+      working_directory: apps/client
+      node_version: "22"
+    secrets: inherit
