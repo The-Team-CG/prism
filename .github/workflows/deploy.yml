@@ -7,22 +7,45 @@ on:
 permissions:
   contents: read
 
-# Primary web surface: apps/client. Additional prism apps can add jobs with their own VERCEL_PROJECT_ID.
 jobs:
   deploy-staging:
     if: github.ref == 'refs/heads/staging'
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v1
     with:
       environment: staging
       working_directory: apps/client
       node_version: "22"
+      run_smoke: true
+      smoke_path: /
     secrets: inherit
 
   deploy-production:
     if: github.ref == 'refs/heads/main'
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v1
     with:
       environment: production
       working_directory: apps/client
       node_version: "22"
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit
+
+  notify-staging:
+    if: always() && github.ref == 'refs/heads/staging'
+    needs: [deploy-staging]
+    uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
+    with:
+      status: ${{ needs.deploy-staging.result == 'success' && 'success' || 'failure' }}
+      title: "Deploy staging — prism client"
+      environment: staging
+    secrets: inherit
+
+  notify-production:
+    if: always() && github.ref == 'refs/heads/main'
+    needs: [deploy-production]
+    uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
+    with:
+      status: ${{ needs.deploy-production.result == 'success' && 'success' || 'failure' }}
+      title: "Deploy production — prism client"
+      environment: production
     secrets: inherit

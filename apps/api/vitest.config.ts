@@ -8,6 +8,12 @@ export default defineConfig({
     include: ['libs/**/*.test.ts', 'apps/**/*.test.ts'],
     clearMocks: true,
     restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      reportsDirectory: './coverage',
+      // Raise thresholds toward 80% as suites grow; Sonar free gates new code when SONAR_TOKEN is set.
+    },
   },
   resolve: {
     alias: {
