@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   pull_request:
@@ -16,7 +16,7 @@ jobs:
     uses: The-Team-CG/.github/.github/workflows/ci-node.yml@v1
     with:
       working_directory: .
-      node_version: "22"
+      node_version: "24"
       package_manager: npm
       install_command: npm ci
       typecheck_command: npm run typecheck
@@ -47,6 +47,6 @@ jobs:
     uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
     with:
       status: failure
-      title: "CI failed — prism"
+      title: "CI failed â€” prism"
       environment: ci
     secrets: inherit

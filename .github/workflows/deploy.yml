@@ -1,4 +1,4 @@
-name: Deploy
+﻿name: Deploy
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
     with:
       environment: staging
       working_directory: apps/client
-      node_version: "22"
+      node_version: "24"
       run_smoke: true
       smoke_path: /
     secrets: inherit
@@ -25,7 +25,7 @@ jobs:
     with:
       environment: production
       working_directory: apps/client
-      node_version: "22"
+      node_version: "24"
       run_smoke: true
       smoke_path: /
     secrets: inherit
@@ -36,7 +36,7 @@ jobs:
     uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
     with:
       status: ${{ needs.deploy-staging.result == 'success' && 'success' || 'failure' }}
-      title: "Deploy staging — prism client"
+      title: "Deploy staging â€” prism client"
       environment: staging
     secrets: inherit
 
@@ -46,6 +46,6 @@ jobs:
     uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
     with:
       status: ${{ needs.deploy-production.result == 'success' && 'success' || 'failure' }}
-      title: "Deploy production — prism client"
+      title: "Deploy production â€” prism client"
       environment: production
     secrets: inherit
