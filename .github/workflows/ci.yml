@@ -20,7 +20,7 @@ jobs:
       package_manager: npm
       install_command: npm ci
       typecheck_command: npm run typecheck
-      test_command: npm run test:api
+      test_command: npm run test:api:coverage
       build_command: npm run build
     secrets: inherit
 
@@ -47,6 +47,6 @@ jobs:
     uses: The-Team-CG/.github/.github/workflows/notify.yml@v1
     with:
       status: failure
-      title: "CI failed â€” prism"
+      title: "CI failed - prism"
       environment: ci
     secrets: inherit
