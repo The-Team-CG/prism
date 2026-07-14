@@ -1,4 +1,4 @@
-import type { PrismAuthenticatedSession } from "./event-ops";
+import type { PrismAuthenticatedSession } from "./event-ops.js";
 
 export const PRISM_SESSION_STORAGE_KEYS = {
   client: "prism:client-session",
