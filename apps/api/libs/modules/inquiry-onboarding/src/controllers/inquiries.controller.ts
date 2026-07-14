@@ -1,6 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { OpsUserRole } from '@prism/modules/event-core';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { CreateInquiryDto, SampleActorDto, UpdateInquiryStatusDto, UploadConformeDto } from '../dto/inquiry.dto';
 import { mapDocument, mapInquiry, mapOnboardingEvent } from '../mappers/inquiry.mappers';
 import { InquiriesService } from '../services/inquiries.service';
@@ -17,7 +19,8 @@ export class OpsInquiriesController {
   private inquiryWorkflowContext() {
     return {
       inquiriesService: this.inquiriesService,
-      resolveActor: (input?: SampleActorDto) => this.eventAccessPolicyService.resolveActor(input),
+      resolveActor: (input?: SampleActorDto, verifiedActor?: PrismVerifiedEventActor) =>
+        this.eventAccessPolicyService.resolveActor(input, verifiedActor),
       requireActorRole: (actor: ReturnType<EventAccessPolicyService['resolveActor']>, roles: OpsUserRole[], resource: string) =>
         this.eventAccessPolicyService.requireActorRole(actor, roles, resource),
       allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
@@ -57,11 +60,12 @@ export class OpsInquiriesController {
 
   @Post(':inquiryId/conforme')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
   uploadConforme(
     @Param('inquiryId') inquiryId: string,
     @Body() dto: UploadConformeDto,
-    @Query() actor: SampleActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    return this.inquiryWorkflowService.uploadConforme(inquiryId, dto, actor, this.inquiryWorkflowContext());
+    return this.inquiryWorkflowService.uploadConforme(inquiryId, dto, {}, this.inquiryWorkflowContext(), verifiedActor);
   }
 }
