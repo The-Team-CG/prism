@@ -201,3 +201,58 @@ Reviewed MEMORY.md and TODO.md to identify next actionable deliverables. Confirm
 
 ## Verified
 - TODO.md reviewed against MEMORY.md session history — consistent
+
+---
+
+## Session Date
+2026-07-14 (session 2)
+
+## Branch
+`ethan/c1-c2`
+
+## Summary
+Implemented EP-13-S02 (Guest Check-In) and EP-13-S04 (Guest Post-Event Feedback) Sprint 3 deliverables. Major refactor of `apps/guest/src/app/dashboard/page.tsx`: replaced PrismDashboardShell with nav-free public surface, added headcount-only mode, real-time attendance polling, and media upload on feedback form.
+
+## What Was Done
+
+### EP-13-S02 — Guest Check-In (name-based + headcount-only)
+- **Shell migration:** Replaced `PrismDashboardShell` with custom nav-free public surface. Dark header with event pass card (aside slot), page title `Guest Registration · [Event Name]`, inline attendance count. No sidebar, no mobile bottom bar, no scroll-to anchors, no command palette.
+- **Headcount-only mode (FR-39 Mode 3):** Added toggle between "Name-based" and "Headcount-only". Headcount sends `checkInMode: "headcount"` with `guestName: "Walk-in guest"`, simplified consent text, no walk-in checkbox.
+- **Real-time attendance polling:** `setInterval` every 20s refetches event pass via `GET /api/guest/events/:accessCode`. Silent error handling on poll failures. Cleanup on unmount.
+- **Walk-in enforcement:** Walk-in checkbox only visible in name-based mode. Flagged status sent to API.
+
+### EP-13-S04 — Guest Post-Event Feedback (star rating + media)
+- **Photo upload:** File input (`image/jpeg,image/png,application/pdf`), max 10MB. Stores `File` object, sends metadata (`fileName`, `mimeType`, `sizeBytes`) in API payload. Remove button to clear selection.
+- **Video upload:** File input (`video/mp4`), max 10MB. Client-side duration validation via hidden `<video>` element reading `loadedmetadata`. Rejects videos > 60s per FR-41 with inline error message.
+- **Metadata-only:** Actual file storage is gated (storage adapter contract). Only metadata sent to `POST /api/guest/events/:code/feedback`.
+- **Form reset:** Photo/video inputs and state cleared on successful submission.
+
+### DES-04 Compliance
+- All state language uses approved strings: "Loading event pass…", "Check-in successful.", "Walk-in flagged for PMCM review.", "Feedback submitted for moderation.", "Something went wrong."
+- No metric tiles, no eyebrow pills, no active underline, no FABs, no RolePageHeader
+- Single primary action per section
+- Page title follows `[Section] · [Context]` format
+
+### Documentation
+- Created `docs/ethan/Sprint3-Guest-Implementation.md` — full implementation plan with architecture decisions, file changes, execution phases, API contracts, verification checklist, and risk register
+- Updated `docs/ethan/MEMORY.md` — session entries for July 14 (priorities review + implementation)
+
+## Key Files Changed
+| File | Change |
+|------|--------|
+| `apps/guest/src/app/dashboard/page.tsx` | Major refactor: nav-free shell, headcount mode, polling, media upload, DES-04 compliance |
+| `docs/ethan/Sprint3-Guest-Implementation.md` | New — Sprint 3 implementation plan |
+| `docs/ethan/MEMORY.md` | Updated — session entries added |
+
+## Verified
+- `@prism/guest` typecheck: clean (zero errors)
+- `check:boundaries`: pass (623 files)
+- Boundary tests: 6/6 pass
+- App-level route boundaries verified: `loading.tsx`, `error.tsx`, `not-found.tsx` all DES-04 compliant
+
+## Remaining / Post-July
+- QR code check-in (EP-13-S03): blocked on PA-63/PA-66 — declare post-July
+- Guest game (EP-13-S07): blocked on QR gate + EP-12-S05 — declare post-July
+- Real file upload to storage: gated on storage adapter contract
+- Toast notifications (DES-04): inline banners for now, sonner integration post-July
+- `prismApi` client consolidation: dead code, leave as-is
