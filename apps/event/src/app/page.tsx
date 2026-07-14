@@ -82,6 +82,7 @@ import {
   readStoredEventSession,
   type EventSession,
 } from "@/app/lib/session";
+import { isPmcmAdmin } from "@/app/lib/role-guards";
 
 const EditorShell = dynamic(
   () => import("./components/editor/EditorShell").then((mod) => mod.EditorShell),
@@ -580,6 +581,7 @@ function PmcmPortal({
     assignmentsCount: assignments.length,
     paymentsCount: payments.length,
     openChecksCount: openCheckCount,
+    role: session.role,
   });
 
   const eventRail = (
@@ -861,6 +863,7 @@ export default function EventCommandHome() {
   }, [session, screen.name]);
 
   async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
+    if (!session || !isPmcmAdmin(session.role)) return;
     const project = await prismApi.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
@@ -885,6 +888,7 @@ export default function EventCommandHome() {
           eventName={screen.event.eventName}
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
+          readOnly={!isPmcmAdmin(session.role)}
           onSave={(project) => prismApi.savePlan(project)}
           onSubmit={async (project) => {
             await prismApi.savePlan(project);
