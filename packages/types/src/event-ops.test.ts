@@ -21,7 +21,7 @@ import {
   type PrismSupplier,
   type PrismUser,
   type PrismLifecycleStage,
-} from "./index";
+} from "./index.js";
 
 describe("P.R.I.S.M lifecycle contract", () => {
   it("keeps the accepted inquiry plus signed conforme gate explicit", () => {
