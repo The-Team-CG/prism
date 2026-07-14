@@ -12,6 +12,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "dev:api": "npm --workspace prism-api run dev",
+    "dev:api:watch": "concurrently -n types,api -c blue,green \"npm --workspace @prism/types run dev\" \"npm run dev:api\"",
     "dev:client": "npm --workspace @prism/client run dev",
     "dev:event": "npm --workspace @prism/event run dev",
     "dev:supplier": "npm --workspace @prism/supplier run dev",
@@ -28,6 +29,7 @@
     "check:boundaries": "node scripts/check-prism-boundaries.mjs"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "turbo": "^2.6.1",
     "typescript": "^6.0.3"
   }
