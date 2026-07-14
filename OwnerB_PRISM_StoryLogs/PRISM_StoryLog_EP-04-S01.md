@@ -36,10 +36,7 @@ Blocked on Anthony resolving the same Node 22 ESM boot issue already blocking EP
 
 ## Update: 2026-07-14 — PA-138/139/140 re-verification against current code
 
-Re-verified all three findings from EP-04_Audit_2026-07-03.md against
-current branch state (post RBAC-hardening merge, post today's Node 22 ESM
-fix merge, post force-push reconciliation with a stale origin copy). Full
-verification performed by Claude Code, read-only, no fixes applied.
+Re-verified all three findings from EP-04_Audit_2026-07-03.md against current branch state (post RBAC-hardening merge, post today's Node 22 ESM fix merge, post force-push reconciliation with a stale origin copy). Full verification performed by Claude Code, read-only, no fixes applied.
 
 **PA-138** (originally flagged 2026-07-03, CRITICAL): A `requireActorRole`
 check now exists in the uploadConforme chain
@@ -86,3 +83,39 @@ PA-139 is a reasonable candidate for deferral with a tracked follow-up.
 **Pending:** sync these three re-verified findings back into
 EP-04_Audit_2026-07-03.md (or a dated addendum to it) when convenient, not
 blocking.
+
+## Update: 2026-07-15 — PA-138 fixed for uploadConforme specifically
+
+Per Anthony's explicit direction, `uploadConforme` now requires a verified
+session actor instead of trusting client-supplied `actorRole`:
+`@UseGuards(EventSessionGuard)` + `@VerifiedEventActor()` on the controller
+method (`inquiries.controller.ts`), threaded through
+`InquiryWorkflowService.uploadConforme`'s new trailing `verifiedActor`
+param into the existing `EventAccessPolicyService.resolveActor(input,
+verifiedActor)` bypass (`event-access-policy.service.ts:35`), which never
+touches the fail-open `PmcmAdmin` default. The shared `resolveActor`
+default itself is deliberately untouched — that remains separate, deferred,
+project-wide work (per the same reasoning as the 2026-07-14 note above).
+New shared module `EventSessionModule` (`libs/modules/event-session/`, its
+own top-level lib, imported by both `identity-ops` and `inquiry-onboarding`
+via the plain barrel `@prism/modules/event-session`) extracted so
+`inquiry-onboarding` can consume `EventSessionGuard` without a circular
+module import with `identity-ops`. (An earlier attempt kept the guard inside
+`identity-ops` and reached it via a deep tsconfig-path import from
+`inquiry-onboarding`; that failed at Vitest runtime — `vitest.config.ts`
+maintains its own separate, exact-string-only alias map, unrelated to
+`tsconfig.json`'s wildcard `paths` — so the guard was relocated to its own
+lib instead, which only needs one plain alias entry, matching every other
+module's existing convention.)
+
+**Tracked follow-up debt (not a new PA):** `uploadConforme` now has two
+actor-resolution paths — `verifiedActor` (used by the real HTTP route) and
+the legacy `actorInput` (kept only because
+`SampleCompatibilityService.uploadConforme` calls
+`InquiryWorkflowService.uploadConforme` directly, bypassing the HTTP
+controller entirely; that call path is unreachable via any live route, per
+`SampleController` only exposing `/sample/state`, `/sample/reset`,
+`/sample/seed`). This fork should be removed once
+`SampleCompatibilityService` is migrated in the same deferred project-wide
+resolveActor sweep referenced above — not filed as an independent PA since
+the legacy branch carries no live HTTP exposure.
