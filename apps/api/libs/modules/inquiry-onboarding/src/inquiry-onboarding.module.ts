@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
+import { EventSessionModule } from '@prism/modules/event-session';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { CLIENT_ONBOARDING_COMMANDS, INQUIRY_COMMANDS } from './ports/inquiry-onboarding.tokens';
@@ -14,7 +15,7 @@ import { InquiryConformeReminderScheduler } from './services/inquiry-conforme-re
 import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 
 @Module({
-  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule],
+  imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, EventSessionModule],
   controllers: [OpsInquiriesController, OpsOnboardingController, OpsEventBriefingController],
   providers: [
     InquiriesService,
