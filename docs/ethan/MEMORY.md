@@ -153,3 +153,51 @@ Completed EP-10-S01 (Client Action Center) by removing the fallback derivation. 
 | EP-05-S02 | To Do | Francis: EP-04-S01 + EP-05-S01 |
 | EP-05-S03 | To Do | Francis: EP-05-S01 |
 | EP-10-S03 | To Do | Francis: EP-04-S01 + PA-59 resolution |
+
+---
+
+## Session Date
+2026-07-14
+
+## Branch
+`ethan/c1-c2` (working tree)
+
+## Summary
+Reviewed MEMORY.md and TODO.md to identify next actionable deliverables. Confirmed deadline status against current date.
+
+## Current Priorities
+
+### 1. EP-13-S02 — Guest Check-In (name-based + headcount-only)
+- **Status:** In Progress
+- **Deadline:** July 10 — PASSED (4 days overdue)
+- **Remaining:** headcount-only mode, walk-in policy enforcement, real-time count feed
+- **Blocks:** EP-13-S03, EP-13-S04, and downstream guest experience stories
+
+### 2. EP-13-S04 — Guest Post-Event Feedback (star rating + media)
+- **Status:** To Do
+- **Deadline:** July 14 — DUE TODAY
+- **Remaining:** entire implementation scope
+- **Risk:** Likely needs deadline extension given EP-13-S02 still in progress
+
+### 3. EP-10-S01 — Client Action Center
+- **Status:** Code-complete, awaiting Maxine design review (AC item 6)
+- **Action:** Follow up with Maxine to close out formally
+
+### Blocked on Francis (C2 carry-over)
+| Story | Blocker |
+|-------|---------|
+| EP-05-S02 | EP-04-S01 (conforme upload) + EP-05-S01 (official floor plan) |
+| EP-05-S03 | EP-05-S01 |
+| EP-10-S03 | EP-04-S01 + PA-59 resolution |
+
+## Open Decisions
+- **PA-63 / PA-66:** If still unresolved, formally declare EP-13-S03 and EP-13-S07 as post-July immediately. Deadline was July 6.
+- **EP-13-S04:** Whether to compress timeline or request extension given today's deadline.
+
+## Key Files Changed
+| File | Change |
+|------|--------|
+| `docs/ethan/MEMORY.md` | New session entry added |
+
+## Verified
+- TODO.md reviewed against MEMORY.md session history — consistent
