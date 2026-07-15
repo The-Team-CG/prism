@@ -55,3 +55,31 @@ export class CreateCoordinatorAssignmentDto {
   @IsBoolean()
   overrideConflict?: boolean;
 }
+
+export class WithdrawCoordinatorAssignmentDto {
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class ReplaceCoordinatorAssignmentDto {
+  @IsOptional()
+  @IsString()
+  replacementCoordinatorId?: string;
+
+  @IsOptional()
+  @IsString()
+  replacementCoordinatorName?: string;
+
+  @IsOptional()
+  @IsString()
+  replacementRole?: string;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  overrideConflict?: boolean;
+}
