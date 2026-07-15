@@ -1,6 +1,6 @@
  Story Log: EP-04-S01, Conforme Upload
 
-**Status: Paused**
+**Status: Complete — merge to main pending**
 **Session(s): 2026-07-11**
 
 ## What we set out to do
@@ -119,3 +119,108 @@ controller entirely; that call path is unreachable via any live route, per
 `SampleCompatibilityService` is migrated in the same deferred project-wide
 resolveActor sweep referenced above — not filed as an independent PA since
 the legacy branch carries no live HTTP exposure.
+
+## Update: 2026-07-16 — Live HTTP verification, severity calls, and closeout
+
+Ran the manual curl-level verification specified in this log's own resume
+point, now that the Node 22 ESM boot blocker (fixed 2026-07-14) is no
+longer in the way. One correction to the original plan: uploadConforme has
+no ?actorRole= query param, it's gated by EventSessionGuard, which requires
+a real signed bearer token from /api/auth/login. Logged in as seeded
+ana@ayala.test (client) and mys@pmcm.test (pmcm-admin) users and used those
+tokens instead. This is an adaptation to how the guard actually works
+post-2026-07-15 fix, not a deviation from the check's intent.
+
+Check 1, wrong role (client token): HTTP 403,
+{"message":"client cannot access conforme upload","error":"Forbidden","statusCode":403}
+
+Check 2, correct role (pmcm-admin token): HTTP 201, document created
+successfully. Matching audit row confirms actor: "Ms. Mys",
+actorEmail: "mys@pmcm.test", not the literal string 'PMCM Admin'. The same
+query surfaced an older pre-fix audit row for contrast
+(actor:"PMCM Admin", actorEmail:null).
+
+Check 3, no session at all: HTTP 401,
+{"message":"Missing session token","error":"Unauthorized","statusCode":401},
+matching Anthony's confirmed behavior from the 401/403 discussion.
+
+AC-1/PA-138 is now closed, end-to-end, at both the automated-test and live-
+HTTP level. AC-9/PA-142 is likewise confirmed closed via the real audit row
+above, not just the earlier unit-test assertion.
+
+Two findings surfaced during this verification, out of this story's scope,
+reported to Anthony the same day, not fixed here:
+1. /api/auth/login 500s on a clean local boot — AuthSessionService.sessionSecret()
+   throws unless a session secret or NODE_ENV=development/test is set, and
+   neither apps/api/.env nor npm run dev:api sets either. Worked around
+   locally with a manual NODE_ENV=development restart to complete today's
+   checks; this is an environment-config gap affecting any fresh checkout,
+   not specific to this story.
+2. prisma-exception.filter.ts silently swallows all non-Prisma exceptions
+   into a generic 500 with no server-side logging, which is what made
+   finding #1 opaque in the first place. Matches the PA-186/187 silent-
+   failure shape already in the tracker, logged as corroborating evidence,
+   not a new PA.
+
+Second-owner review: confirmed complete. Anthony's earlier merge approval,
+given after reviewing the 401/403 behavior and the PA-138 implementation
+directly, is confirmed by him to double as the second-owner review, not a
+separate step.
+
+Severity calls on the two remaining findings (Francis, this session):
+- PA-139: LOW, conditional. No file bytes are transmitted to this endpoint
+  at all (see PA-140), so there is currently no real attack surface for a
+  spoofed mimeType or extension to exploit, the gap is real but presently
+  theoretical. This rating holds only as long as PA-140 stays open — the
+  moment real file transmission is built, PA-139 must be re-assessed
+  immediately, likely upward.
+- PA-140: MEDIUM. Not an active exploit path, but a genuine functional
+  completeness gap (AC-5 is false, a PMCM Admin cannot view an uploaded
+  conforme) with an underlying data-integrity concern beneath it
+  (DocumentVaultService fabricates a storageKey label rather than
+  confirming real persistence, so downstream code may be operating on a
+  false assumption that storage occurred).
+
+Both ratings clear this project's CRITICAL/HIGH-blocks-Done threshold.
+
+Anthony's response, same day: Independently confirmed the metadata-only
+state via his own read of the code (uploadConforme is metadata-only,
+DocumentVaultService only validates declared metadata and fabricates the
+storage key shape) and surfaced one detail neither prior session's
+verification had found: signed upload URLs are explicitly gated behind a
+disabled MetadataOnlySignedUploadUrlFactory, confirming this was a
+deliberate, known stopping point, not an oversight. Confirmed real content-
+type enforcement (PA-139) cannot honestly be completed until the real
+upload path (PA-140) exists, and directed both be closed on this story as
+explicitly deferred/tracked follow-up scope, not fixed here.
+
+Architecture direction for the combined follow-up, per Anthony, not scoped
+further in this story:
+- One shared file-ops upload contract/session path, used by conforme,
+  supplier docs, guest/live-ops photos, etc., not a conforme-only patch
+- Supabase Storage adapter sitting behind a port, not direct storage calls
+  from feature services
+- Server-side validation of actual file bytes/content signature where
+  feasible, not just client-declared mimeType
+- Bucket/key policy, access checks, and retention/delete/audit behavior
+  defined before enabling production writes
+- Existing metadata-only behavior remains in place until that storage plan
+  lands, explicitly not to be built piecemeal per-endpoint in the meantime
+
+Severity calls and deferral are both confirmed correct independently by
+Anthony's review. PA-139: LOW, conditional on PA-140 staying open, re-
+assess immediately once real upload lands. PA-140: MEDIUM. Tracked
+together going forward as one file-ops storage adapter follow-up, not two
+separate PA numbers to close independently.
+
+Final AC-by-AC status:
+AC-1 (PA-138): Closed — automated (27/27, 249/249) + live HTTP (403/201/401 confirmed)
+AC-2 (PA-139): Mitigated, explicitly accepted as deferred (LOW, conditional)
+AC-5 (PA-140): Report-only scope met as committed; underlying gap explicitly accepted as deferred (MEDIUM), combined follow-up per Anthony's direction
+AC-9 (PA-142): Closed — automated + live audit-log confirmation
+
+Remaining gaps: none blocking Done. PA-139/PA-140 tracked together as a
+file-ops storage adapter follow-up per Anthony's architecture direction,
+not this story's responsibility to build further.
+
+Resume point: not applicable, story complete pending merge to main.
