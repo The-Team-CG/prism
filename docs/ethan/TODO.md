@@ -2,7 +2,7 @@
 
 > **Primary Scope:** `apps/client` (port 3001), `apps/supplier` (port 3002), `apps/guest` (port 3003), public flows
 > **Generated from:** `PRISM_AC_Tracker.xlsx` -- Tracker, Cadence Review Guide, and Owner Tasks sheets
-> **Date:** July 13, 2026
+> **Date:** July 16, 2026
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## C3 Stories (July 6--17, 2026) -- UPCOMING (Feature Freeze at Close)
 
-> **11 stories this cadence.** Two stories potentially declared post-July (EP-13-S03, EP-13-S07) depending on PA-63 and PA-66 resolution.
+> **12 stories this cadence.** Two stories potentially declared post-July (EP-13-S03, EP-13-S07) depending on PA-63 and PA-66 resolution.
 > **Key deadline:** EP-13-S02 Done by **July 10**. EP-13-S04 Done by **July 14**. PA-63/PA-66 resolved by **July 6** or EP-13-S03 and EP-13-S07 declared post-July by **July 10**.
 
 ### Carry-Over from C2 (if needed)
@@ -43,6 +43,7 @@
 
 | Story | Description | Status | Priority | Dependencies | Notes |
 |-------|-------------|--------|----------|--------------|-------|
+| EP-07-S06 | Supplier application form (public-facing) | **To Do** | Must | None | New-SUP3 = New-EX1 = New-S1; PA-74 OPEN -- canonical FR number and name TBD. Public-facing form routes to EP-07-S09 (Supplier Applications inbox). |
 | EP-10-S02 | Client event timeline and milestone progress view | **To Do** | Should | EP-04-S01 | FR-27; FL-004 thin slice; New-CL2 toggle by PMCM per event. |
 | EP-12-S03 | Supplier withdrawal from event | **Done** | Must | EP-06-S03 | supplier-ops; OpsEventSupplierWithdrawalController; requireSupplierAdmin policy. |
 | EP-13-S02 | Guest check-in (name-based + headcount-only) | **In Progress** | Must | EP-04-S01 | FR-39, FR-95; Partial per File 9. Remaining: headcount-only mode, walk-in policy enforcement, real-time count feed. **Deadline: July 10.** |
@@ -91,12 +92,12 @@
 |---------|------|-------------|-------|---------|-------|
 | C1 | 3 | 0 | 0 | 0 | 3 |
 | C2 | 0 | 1 | 3 | 0 | 4 |
-| C3 | 1 | 1 | 5 | 2 | 9* |
+| C3 | 1 | 1 | 6 | 2 | 10* |
 | C4 | 0 | 0 | 1 | 0 | 1 |
-| **Total** | **4** | **2** | **9** | **2** | **17** |
+| **Total** | **4** | **2** | **10** | **2** | **18** |
 
 *Excludes C2 carry-over stories (EP-05-S02, EP-05-S03) counted under C2.*
 
-**Completed:** 4 / 17 stories (24%)
+**Completed:** 4 / 18 stories (22%)
 **In Progress:** 2 stories
 **At Risk (Blocked):** 2 stories (EP-13-S03, EP-13-S07 -- both on PA-63/PA-66)
