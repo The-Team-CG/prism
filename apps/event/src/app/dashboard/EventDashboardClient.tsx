@@ -2232,6 +2232,9 @@ export default function EventDashboard({
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-foreground">{coordinator.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{coordinator.roleTags.join(", ") || "General coordinator"}</p>
+                      {coordinator.skillsTags.length > 0 && (
+                        <p className="mt-0.5 text-xs text-muted-foreground/70">{coordinator.skillsTags.join(", ")}</p>
+                      )}
                     </div>
                     <StatusBadge status={coordinator.active ? "active" : "inactive"} />
                   </div>
