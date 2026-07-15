@@ -158,6 +158,7 @@ model OpsInquiry {
   eventDate                 DateTime  @map("event_date")
   clientType                String    @map("client_type")
   source                    String    @default("Website")
+  channel                   String?
   normalizedEmail           String    @default("") @map("normalized_email")
   referralDetails           String    @default("") @map("referral_details")
   loggedByRole              String?   @map("logged_by_role")
