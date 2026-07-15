@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/database';
-import type { PrismEventOpsActorContext } from '@prism/types';
+import type { PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/modules/event-core';
 import type { InquiriesService } from './inquiries.service';
 
@@ -31,7 +31,7 @@ export type UpdateInquiryStatusInput = {
 
 export interface InquiryWorkflowContext {
   inquiriesService: InquiriesService;
-  resolveActor: (input?: PrismEventOpsActorContext) => any;
+  resolveActor: (input?: PrismEventOpsActorContext, verifiedActor?: PrismVerifiedEventActor) => any;
   requireActorRole: (actor: any, roles: OpsUserRoleValue[], resource: string) => Promise<void>;
   allowedAdminRoles: OpsUserRoleValue[];
   mapInquiry: (inquiry: unknown) => any;
@@ -103,9 +103,14 @@ export class InquiryWorkflowService {
   async uploadConforme(
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    actorInput: PrismEventOpsActorContext = {},
     context: InquiryWorkflowContext,
+    verifiedActor?: PrismVerifiedEventActor,
   ) {
-    const document = await context.inquiriesService.uploadConforme(inquiryId, input);
+    const actor = verifiedActor ? context.resolveActor({}, verifiedActor) : context.resolveActor(actorInput);
+    await context.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'conforme upload');
+
+    const document = await context.inquiriesService.uploadConforme(inquiryId, input, actor);
     return context.mapDocument(document);
   }
 }

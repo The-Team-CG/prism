@@ -1,6 +1,7 @@
 export { AdminApprovalsPanel } from "./admin-approvals-panel";
 export { AuditTrailPanel } from "./audit-trail-panel";
 export { ClientOnboardingTracker } from "./client-onboarding-tracker";
+export { ConformeUploadModal } from "./conforme-upload-modal";
 export { CoordinatorAssignmentDesk } from "./coordinator-assignment-desk";
 export { CoordinatorView } from "./coordinator-view";
 export { EventActivityPanel } from "./event-activity-panel";
