@@ -50,6 +50,7 @@ import {
   type PrismEvent,
   type PrismEventDayStatusFeed,
   type PrismFloorPlanDraft,
+  type PrismInquiry,
   type PrismLiveOps,
   type PrismPostEventDocument,
   type PrismPmcmCommandInbox,
@@ -65,6 +66,7 @@ import { Badge } from "@/app/components/ui/badge";
 import {
   AuditTrailPanel,
   ClientOnboardingTracker,
+  ConformeUploadModal,
   CoordinatorAssignmentDesk,
   CoordinatorView,
   EventCommandInbox,
@@ -1293,6 +1295,8 @@ export default function EventDashboard({
   const [busy, setBusy] = useState<string | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
   const [commandInbox, setCommandInbox] = useState<PrismPmcmCommandInbox | null>(null);
+
+  const [conformeUploadTarget, setConformeUploadTarget] = useState<PrismInquiry | null>(null);
   const [commandInboxLoadFailed, setCommandInboxLoadFailed] = useState(false);
 
   async function refresh(current = session) {
@@ -2197,7 +2201,7 @@ export default function EventDashboard({
             />
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
               onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
@@ -2307,7 +2311,7 @@ export default function EventDashboard({
             />
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
               onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
@@ -2346,7 +2350,7 @@ export default function EventDashboard({
 
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
               onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
@@ -2695,6 +2699,20 @@ export default function EventDashboard({
           )
         )}
       </div>
+      {conformeUploadTarget && (
+        <ConformeUploadModal
+          inquiry={conformeUploadTarget}
+          onUpload={async (file) => {
+            await prismApi.uploadConforme(conformeUploadTarget.id, {
+              fileName: file.name,
+              mimeType: file.type,
+              sizeBytes: file.size,
+            });
+            await refresh();
+          }}
+          onClose={() => setConformeUploadTarget(null)}
+        />
+      )}
     </PrismDashboardShell>
   );
 }

@@ -174,7 +174,13 @@
                                                                           ],
                                           "@prism/modules/live-ops/*":  [
                                                                                 "libs/modules/live-ops/src/*"
-                                                                            ]
+                                                                            ],
+                                          "@prism/modules/event-session":  [
+                                                                                "libs/modules/event-session/src/index"
+                                                                            ],
+                                          "@prism/modules/event-session/*":  [
+                                                                                  "libs/modules/event-session/src/*"
+                                                                              ]
                                       }
                         }
 }

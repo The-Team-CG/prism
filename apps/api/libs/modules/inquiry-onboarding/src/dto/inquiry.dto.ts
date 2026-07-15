@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsOptional, IsString, Matches, Min } from 'class-validator';
 
 export class SampleActorDto {
   @IsOptional()
@@ -109,6 +109,7 @@ export class UploadConformeDto {
   type?: string;
 
   @IsString()
+  @Matches(/\.pdf$/i, { message: 'fileName must have a .pdf extension' })
   fileName!: string;
 
   @IsOptional()
