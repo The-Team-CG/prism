@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { PrismTransactionRunner } from '../../../../core/shared-kernel/src';
 import { AuditService, AuditWriterAdapter } from '@prism/modules/trust-ops';
@@ -36,6 +36,9 @@ function createAccessPolicy() {
         throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
       }
     },
+    sameText: (left?: string | null, right?: string | null) =>
+      Boolean(left && right && left.trim().toLowerCase() === right.trim().toLowerCase()),
+    recordForbiddenAccess: async () => undefined,
   };
 }
 
@@ -254,6 +257,42 @@ describe('CoordinatorsService', () => {
     await expect(service.acknowledgeCoordinator(event.id, created.id, clientActor)).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+
+  it('rejects acknowledgeCoordinator when a Coordinator actor is not the assignment owner (PA-276)', async () => {
+    const fake = createPrisma();
+    const coordinatorB = { ...coordinator, id: 'coord_taylor', name: 'Taylor Cruz', email: 'taylor@pmcm.test' };
+
+    // Local override: this test needs two resolvable coordinators; other tests in this
+    // file rely on createPrisma()'s single-coordinator fixture and must stay unaffected.
+    (fake.prisma.opsCoordinator as any).findMany = async () => [coordinator, coordinatorB];
+    (fake.prisma.opsCoordinator as any).findUnique = async ({ where }: { where: { id: string } }) =>
+      [coordinator, coordinatorB].find((item) => item.id === where.id) ?? null;
+
+    const service = createService(fake.prisma as any);
+    const assignmentForB = await service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinatorB.id, role: 'Floor Director', overrideConflict: true },
+      pmcmAdminActor,
+    );
+
+    await expect(
+      service.acknowledgeCoordinator(event.id, assignmentForB.id, coordinatorActor),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects acknowledgeCoordinator when the assignment does not belong to the route eventId (PA-276)', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as any);
+    const created = await service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+      pmcmAdminActor,
+    );
+
+    await expect(
+      service.acknowledgeCoordinator('evt_conflict', created.id, pmcmAdminActor),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   describe('withdrawCoordinator', () => {
