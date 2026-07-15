@@ -256,3 +256,243 @@ Implemented EP-13-S02 (Guest Check-In) and EP-13-S04 (Guest Post-Event Feedback)
 - Real file upload to storage: gated on storage adapter contract
 - Toast notifications (DES-04): inline banners for now, sonner integration post-July
 - `prismApi` client consolidation: dead code, leave as-is
+
+---
+
+## Session Date
+2026-07-16
+
+## Branch
+`ethan/c1-c2` (rebased onto origin/main)
+
+## Summary
+Rebased branch onto latest main, audited deliverable state against tracker, identified two missing stories, and created comprehensive implementation plans for both.
+
+## What Was Done
+
+### Branch Maintenance
+- Fetched latest from origin, rebased `ethan/c1-c2` onto `origin/main`
+- Resolved `package-lock.json` conflict by regenerating lockfile
+- All 7 commits replayed cleanly; branch is now up-to-date with main locally
+
+### Deliverable Audit
+- Reviewed MEMORY.md, TODO.md, and `PRISM_AC_Tracker.xlsx` to reconcile current state
+- Found tracker stale: EP-10-S01, EP-13-S02, EP-13-S04 are done per MEMORY.md but tracker shows In Progress / To Do
+- Found two stories in tracker assigned to Ethan but missing from TODO.md:
+  - **EP-07-S06** (Must priority, supplier application form, no hard dependencies)
+  - **EP-13-S06** (Could priority, guest event info page, no dependencies)
+
+### TODO.md Updates
+- Added EP-07-S06 to C3 Dedicated Stories table
+- Updated C3 story count from 11 to 12, total from 17 to 18
+- Updated completion percentage to 22%
+- Updated date to July 16
+
+### Feasibility Research
+- Deep-dived both stories: infrastructure check, dependency analysis, codebase pattern review
+- Confirmed EP-13-S06 is low-effort (backend API already exists, just needs a UI page)
+- Confirmed EP-07-S06 is high-effort (multi-layer build: schema, API, frontend wizard)
+- Confirmed neither is blocked by open PAs or other stories
+
+### Implementation Plans Created
+- **EP-13-S06.md** — Guest event info page via QR on LED wall
+  - New route `/info/[accessCode]` in `apps/guest`
+  - Reuses existing `GET /guest/events/:accessCode` API
+  - Adds `qrcode.react` dependency for QR rendering
+  - ~1-2 days effort
+
+- **EP-07-S06.md** — Supplier application form (public-facing)
+  - New Prisma model `OpsSupplierApplication`
+  - Public `POST /supplier-applications` endpoint (no auth)
+  - Multi-step wizard at `/apply` in `apps/supplier`
+  - Missing UI components (Field, Select, Textarea) copied from client portal
+  - Landing page "Apply" link
+  - ~3-5 days effort
+
+## Key Files Changed
+| File | Change |
+|------|--------|
+| `package-lock.json` | Regenerated during rebase conflict resolution |
+| `docs/ethan/TODO.md` | Added EP-07-S06, updated counts and date |
+| `docs/ethan/EP-13-S06.md` | New — implementation plan for guest event info page |
+| `docs/ethan/EP-07-S06.md` | New — implementation plan for supplier application form |
+
+## Verified
+- Rebase completed cleanly (7/7 commits)
+- All 17 stories from tracker confirmed against Ethan assignment (now 18 with EP-07-S06)
+
+## Current Actionable Status
+| Story | Status | Next Action |
+|-------|--------|-------------|
+| EP-13-S06 | Plan ready | Implement when selected |
+| EP-07-S06 | Plan ready | Implement when selected |
+| EP-10-S01 | Code-complete | Awaiting Maxine design review |
+| All others | Blocked or post-July | Waiting on Francis / PAs |
+
+---
+
+## Addendum: What the `ethan/c1-c2` Branch Delivers (vs. Main)
+
+Everything below is code, documentation, or tooling that exists on this branch but does not yet exist on `main`. Organized by the story or work area it belongs to.
+
+### EP-10-S01 — Client Action Center (C2 deliverable)
+
+- **Removed the local fallback action list.** The client dashboard used to generate its own action items locally when the API didn't provide any. This fallback has been deleted entirely. The dashboard now relies exclusively on the action items the API sends back — no local derivation, no gap-filling.
+- **Updated the action center rendering logic.** The dashboard now shows the action center section whenever the API returns items, instead of requiring a separate "contract" flag to be truthy first.
+- **Result:** The client action center is now contract-first. What the API says is what the client sees. No locally invented actions appear as a safety net.
+
+### EP-13-S02 — Guest Check-In (Sprint 3 deliverable)
+
+- **Replaced the guest dashboard shell.** The old layout used `PrismDashboardShell` — a full navigation sidebar, mobile bottom bar, scroll-to anchors, and a command palette. This has been replaced with a nav-free, single-page public surface. Guests now see a dark gradient header with the event name and pass card, followed by a straightforward scroll of sections.
+- **Added headcount-only check-in mode.** A toggle between "Name-based" and "Headcount-only" lets guests record attendance without providing a name. Headcount mode sends `checkInMode: "headcount"` with the placeholder name "Walk-in guest" and simplified consent text.
+- **Added real-time attendance polling.** Every 20 seconds, the page silently refetches the event pass data from the API to keep the attendance count current. Errors during polling are swallowed — stale data is acceptable.
+- **Added walk-in checkbox scoping.** The "flag as walk-in" checkbox now only appears in name-based mode. In headcount mode, there is no walk-in concept.
+- **Updated all user-facing messages.** Loading text now says "Loading event pass…", success says "Check-in successful." or "Attendance recorded.", walk-in says "Walk-in flagged for PMCM review.", and errors say "Something went wrong." — all matching the approved DES-04 state language.
+- **Removed prohibited UI patterns.** `PrismMetricTile`, `PrismStatusTimeline`, `RolePageHeader`, and `Badge` components are no longer used on the guest dashboard. No metric tiles, no eyebrow pills, no active underline navigation.
+
+### EP-13-S04 — Guest Post-Event Feedback (Sprint 3 deliverable)
+
+- **Added photo upload to the feedback form.** Guests can select a photo (JPEG, PNG, or PDF) up to 10 MB. The file metadata (name, type, size) is sent to the API — actual file storage is gated on a future storage adapter. A remove button clears the selection.
+- **Added video upload to the feedback form.** Guests can select an MP4 video up to 10 MB. Before submission, the page reads the video's duration using a hidden `<video>` element. Videos longer than 60 seconds are rejected with an inline error message.
+- **Added media metadata to the feedback payload.** When a photo or video is attached, the submission includes `photo` and `video` objects with `fileName`, `mimeType`, and `sizeBytes` fields.
+- **Added form reset on success.** After successful feedback submission, photo and video inputs and their state are cleared, including resetting the file input elements.
+- **Updated feedback confirmation message.** Now says "Feedback submitted for moderation." instead of the old generic thank-you text.
+
+### Route Boundaries (Sprint 2 deliverable)
+
+- **Created `apps/client/src/app/dashboard/loading.tsx`** — A skeleton loading screen shown while the client dashboard page loads.
+- **Created `apps/client/src/app/dashboard/error.tsx`** — An error boundary that displays "Something went wrong." with a Try Again button.
+- **Created `apps/client/src/app/dashboard/not-found.tsx`** — A 404 page that displays "Page not found." with a Go Home link.
+
+### DES-04 State Language Alignment
+
+- **Supplier portal (`apps/supplier/src/app/dashboard/page.tsx`):** Updated all 7 empty states to use the "No [content type] yet." format. Changed the success notice from "Quote revision saved." to "Quote revision submitted." to match the approved `[Action] successful.` pattern.
+- **Guest portal:** All state language updated as part of the EP-13-S02 and EP-13-S04 work above.
+
+### Documentation
+
+- **Created `docs/ethan/MEMORY.md`** — Session memory log tracking all work across multiple sessions: what was done, key files changed, verification results, remaining work, and open questions.
+- **Created `docs/ethan/PRISM_AC_Tracker.xlsx`** — Local copy of the PRISM acceptance criteria tracker for reference.
+- **Created `docs/ethan/TODO.md`** — Structured task list of all 18 stories assigned to Ethan across C1 through C4 cadences, with status, priority, dependencies, notes, and a summary table.
+- **Created `docs/ethan/Sprint3-Guest-Implementation.md`** — Full implementation plan for the Sprint 3 guest portal work (EP-13-S02 and EP-13-S04), covering architecture decisions, file changes, API contracts, verification checklist, and risk register.
+- **Created `docs/ethan/EP-13-S06.md`** — Implementation plan for the guest event info page (QR on LED wall).
+- **Created `docs/ethan/EP-07-S06.md`** — Implementation plan for the supplier application form (public-facing).
+
+---
+
+## Addendum: What the Pending Implementation Plans Mean (Non-Technical Summary)
+
+### EP-13-S06 — Guest Event Info Page
+**What it is:** A simple web page that shows guests the basic details of an event — event name, date, host client, current readiness status, and how many guests have checked in so far.
+
+**How guests access it:** PMCM prints or displays a QR code on the LED wall at the venue. When a guest scans that QR code with their phone's camera, it opens this page directly — no app download, no account creation, no login required.
+
+**Why it matters:** Right now, guests have to go through a check-in flow to see any event information. This page gives them a quick, read-only snapshot of what's happening — useful for walk-ins, late arrivals, or anyone who just wants to see the event status at a glance.
+
+**What needs to be built:** Just the page itself. The backend already knows how to look up event details by access code. No new database tables, no new API endpoints.
+
+**Estimated effort:** 1–2 days.
+
+---
+
+### EP-07-S06 — Supplier Application Form
+**What it is:** A public web form where businesses can apply to join PMCM's supplier network — becoming vendors who provide services (catering, AV, decoration, etc.) for PMCM-managed events.
+
+**What the form collects:**
+- Company name and contact person
+- Email address and phone number
+- What type of services they offer (selected from a list of categories)
+- Past events they've worked on
+- What's included in their service offerings
+- Price range
+- Certifications or credentials
+- Whether they're a BNI member
+- Any additional notes or portfolio links
+
+**How it works:** The applicant fills out the form across a few simple steps, reviews their answers, consents to the privacy policy, and submits. They see a confirmation message with a reference number. The application is stored in the system for PMCM to review.
+
+**What happens after submission:** PMCM will eventually see these applications in a dashboard inbox (that's a separate story, EP-07-S09). From there they can request a proposal, schedule a meeting, or decline. For now, the form just captures and stores the application — the review inbox comes later.
+
+**Why it matters:** Right now, there's no way for new suppliers to apply online. PMCM has to manually onboard suppliers. This form automates the intake process and gives prospective suppliers a professional, self-service entry point.
+
+**What needs to be built:** Everything — a new database table to store applications, a new API endpoint to receive them, the multi-step form page, and a few UI components that don't exist in the supplier portal yet.
+
+**Estimated effort:** 3–5 days.
+
+---
+
+## Addendum: Chronological Work History on `ethan/c1-c2`
+
+This is a session-by-session account of what was actually built, when, and in what order. Commits are listed oldest to newest.
+
+### Session 1 — July 13, 2026 (early morning)
+**Commit:** `6e06774` — "sprint 2"
+
+- Branched off and set up the working environment.
+- Regenerated `next-env.d.ts` files across all four apps (client, event, guest, supplier) to pick up the latest Next.js TypeScript declarations.
+- Cleaned up `package-lock.json` (removed 18 lines of stale entries).
+- This was a housekeeping commit — no feature code changed.
+
+### Session 2 — July 13, 2026 (afternoon)
+**Commit:** `d000ea9` — "Preparations"
+
+- Installed `openpyxl` and parsed all 8 sheets of `PRISM_AC_Tracker.xlsx`.
+- Identified all 17 stories assigned to Ethan (Owner C) across C1–C4 cadences.
+- Created `docs/ethan/MEMORY.md` with the first session entry documenting scope and findings.
+- Created `docs/ethan/TODO.md` — a structured task list extracted from the tracker, organized by cadence with status, priority, dependencies, and notes.
+- Copied `PRISM_AC_Tracker.xlsx` into `docs/ethan/` for local reference.
+- This was a planning/documentation commit — no feature code changed.
+
+### Session 3 — July 14, 2026 (early morning)
+**Commits:** `3e6ff34`, `619ce33` — "[EP-10-S01] Remove fallback derivation from client action center"
+
+- Removed the `getClientDashboardActions()` function from `Dashboard.tsx` (75 lines deleted). This function locally generated action items (layout review, proposal package, documents, billing) when the API didn't provide any.
+- Simplified the `clientActions` derivation to pull exclusively from `actionCenter.items` — the API contract is now the sole source of action items.
+- Changed the action center render guard from `contractClientActions.length > 0` to `clientActions.length > 0`.
+- Verified no stale references to the removed function remain.
+- Typecheck passed clean.
+- This completed the EP-10-S01 code work (client action center is now contract-first).
+
+### Session 4 — July 14, 2026 (evening)
+**Commits:** `91bb323`, `9786f64` — "feat(guest): EP-13-S02 + EP-13-S04"
+
+This was the largest work session. Two stories were built in a single pass:
+
+**EP-13-S02 — Guest Check-In (headcount mode + shell migration):**
+- Replaced `PrismDashboardShell` with a custom nav-free public surface. Removed the sidebar, mobile bottom bar, scroll-to anchors, command palette, and `RolePageHeader`.
+- Built a dark gradient header banner with event name, pass card (aside slot), and inline attendance count.
+- Added a "Name-based" / "Headcount-only" toggle for check-in mode.
+- Headcount mode sends `checkInMode: "headcount"` with `guestName: "Walk-in guest"`, simplified consent text, and no walk-in checkbox.
+- Added 20-second polling via `setInterval` + `useCallback` to keep attendance count current. Poll errors are silently swallowed.
+- Walk-in checkbox scoped to name-based mode only.
+- All user-facing strings updated to DES-04 approved state language.
+- Removed prohibited components: `PrismMetricTile`, `PrismStatusTimeline`, `RolePageHeader`, `Badge`.
+
+**EP-13-S04 — Guest Post-Event Feedback (media upload):**
+- Added photo upload input (accepts JPEG, PNG, PDF, max 10 MB). Stores the `File` object locally, sends metadata (`fileName`, `mimeType`, `sizeBytes`) in the API payload.
+- Added video upload input (accepts MP4, max 10 MB). Client-side duration validation via a hidden `<video>` element reading `loadedmetadata`. Videos over 60 seconds are rejected with an inline error message per FR-41.
+- Added file preview/remove UI for both photo and video selections.
+- Added form reset on successful submission — file inputs and state are cleared.
+- Updated feedback submission to include optional `photo` and `video` metadata objects in the payload.
+- Updated confirmation message to "Feedback submitted for moderation."
+
+**Documentation created in this session:**
+- `docs/ethan/Sprint3-Guest-Implementation.md` — full implementation plan with architecture decisions, file changes, execution phases, API contracts, verification checklist, and risk register.
+- Updated `docs/ethan/MEMORY.md` with session entries for both the priorities review and the implementation.
+
+**Verification:**
+- `@prism/guest` typecheck: clean (zero errors).
+- `check:boundaries`: pass (623 files).
+- Boundary tests: 6/6 pass.
+
+---
+
+### Summary of All Branch Work
+
+| Date | Stories | What Changed |
+|------|---------|-------------|
+| Jul 13 (AM) | — | Branch setup, housekeeping |
+| Jul 13 (PM) | — | Documentation: MEMORY.md, TODO.md, tracker copy |
+| Jul 14 (AM) | EP-10-S01 | Client action center: removed local fallback, contract-first |
+| Jul 14 (PM) | EP-13-S02, EP-13-S04 | Guest dashboard: shell replacement, headcount mode, polling, media upload, DES-04 |
+| Jul 16 | — | Rebase onto main, deliverable audit, TODO.md update, implementation plans for EP-13-S06 and EP-07-S06 |
