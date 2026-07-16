@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent } from '@prisma/client';
 import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
@@ -262,6 +262,7 @@ export class CoordinatorsService {
       sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
+        await this.requireOwnedAssignment(eventId, assignmentId, actor);
       },
       write: (transactionContext) => {
         const prisma = transactionContext?.prisma ?? this.prisma;
@@ -544,5 +545,32 @@ export class CoordinatorsService {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     return event;
+  }
+
+  // PA-276: acknowledgeCoordinator previously updated by assignmentId alone, letting any
+  // authenticated Coordinator acknowledge any assignment regardless of who it belonged to
+  // or which event it was scoped to. This closes both gaps: the assignment must belong to
+  // the route's eventId, and a Coordinator actor must own the assignment being acknowledged.
+  private async requireOwnedAssignment(eventId: string, assignmentId: string, actor: ResolvedEventOpsActor) {
+    const assignment = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId } });
+    if (!assignment || assignment.eventId !== eventId) {
+      throw new NotFoundException('Coordinator assignment not found');
+    }
+
+    if (actor.role === OpsUserRole.Coordinator) {
+      const coordinator = await this.resolveCoordinatorForActor(actor);
+      const owns =
+        this.eventAccessPolicyService.sameText(assignment.coordinatorId, coordinator.id) ||
+        this.eventAccessPolicyService.sameText(assignment.coordinatorName, coordinator.name);
+
+      if (!owns) {
+        await this.eventAccessPolicyService.recordForbiddenAccess(
+          actor,
+          'coordinator assignment acknowledgement',
+          eventId,
+        );
+        throw new ForbiddenException("Coordinator cannot acknowledge another coordinator's assignment");
+      }
+    }
   }
 }
