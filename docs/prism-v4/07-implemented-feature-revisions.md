@@ -4,7 +4,7 @@ Last updated: 2026-06-15
 
 This file separates the complete feature catalog from the current implementation reality. Use it when deciding what already exists, what needs revision, and how to revise it without breaking the role-specific app boundaries.
 
-The complete feature source remains `01-complete-feature-catalog.md`, but the catalog is now treated as the baseline inventory rather than a hard ceiling. Use `10-product-evolution-and-redesign-governance.md` and `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` when deciding whether to add, revise, merge, split, defer, retire, or gate a feature during the whole-app redesign.
+The complete feature source remains `01-complete-feature-catalog.md`, but the catalog is now treated as the baseline inventory rather than a hard ceiling. Use `10-product-evolution-and-redesign-governance.md` and `11-feature-ledger.md` when deciding whether to add, revise, merge, split, defer, retire, or gate a feature during the whole-app redesign.
 
 This document is a working backlog for implemented or partially implemented features that need hardening before more scope is added. It should feed the Phase 0 feature ledger rather than freeze the product scope.
 
@@ -13,12 +13,12 @@ This document is a working backlog for implemented or partially implemented feat
 | Source | Use |
 | --- | --- |
 | `01-complete-feature-catalog.md` | Complete Version 4 feature list and official counts. |
-| `04-implementation-plan.md` | Target frontend, backend, entity, dependency, and acceptance criteria by feature. |
 | `10-product-evolution-and-redesign-governance.md` | Rules for adding, revising, merging, deferring, or retiring features during redesign. |
-| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan. |
+| `11-feature-ledger.md` | Active feature-family decisions. |
+| `15-system-architecture.md` | Module ownership and technical stop rules. |
 | `14-redesign-readiness-foundation.md` | Current handoff rules for sample-state fencing, session conventions, owner boundaries, and legacy removal. |
 | `apps/api/prisma/schema.prisma` | Current persistence model coverage. |
-| `apps/api/libs/modules/event-ops/src/controllers/*` | Current API surface. |
+| `apps/api/libs/modules/*/src/controllers/*` | Current API surface by capability module. |
 | `apps/event/src/app/dashboard/EventDashboardClient.tsx`, `apps/event/src/app/dashboard/components/event-dashboard-skeleton.tsx`, `apps/event/src/app/components/pmcm/*`, and `apps/event/src/app/components/public/event-command-landing.tsx` | Current PMCM command app surfaces. |
 | `apps/client/src/app/components/dashboard/Dashboard.tsx` | Current client portal dashboard. |
 | `apps/supplier/src/app/dashboard/page.tsx` | Current supplier portal dashboard. |
@@ -65,7 +65,7 @@ This document is a working backlog for implemented or partially implemented feat
 | Guest portal | FR-39, FR-40, FR-41, FR-95, New-GU1, New-EX2 | Partial | Phase 5 adds access-code-scoped name check-in, walk-in flagging, attendance counts, moderated feedback records, and the shared `PrismGuestEventPass` read contract. QR scanning and masterlist reconciliation remain deferred. | Keep guest lightweight. Build moderation and masterlist reconciliation before QR scanning; QR scanning should wait until HTTPS/sample constraints are solved. |
 | AI features | FR-AI-01, FR-AI-03, FR-AI-04, FR-AI-04b, FR-AI-05 to FR-AI-09, FR-AI-ZDR | Partial | Phase 5 adds `DataSanitizer`, `OpsAiAuditLog`, `OpsAiApprovalRecord`, ZDR confirmation blocking, human approval-gate records, and the PARE automation foundation now owned by `ai-governance`; `/ai/pare/*` route ownership now lives in `supplier-ops` while preserving PMCM approval flow paths. No live AI call is shipped. | Keep live AI blocked until governance records are reviewed, ZDR is confirmed for the selected provider, and every AI suggestion requires PMCM approval before action. |
 | Shared UI, contracts, and editor code | Cross-cutting | Partial | UI primitives and editor internals are copied across apps. Shared DTO coverage now includes the File Requirements Matrix, close-gate matrix payload, API-client route for event file requirements, lifecycle transition rules consumed by the API lifecycle service, shared role-session storage helpers consumed by the client, event, supplier, and guest apps, and Sprint 2 role-boundary and contract tests for PMCM command inbox, client action center, supplier readiness board, official floorplans, internal costs, privacy operations, event scoping, and File Requirements Matrix visibility. | Add `packages/prism-ui`, `packages/prism-contracts`, and `packages/prism-floorplan-editor` or a temporary source-sync strategy. Continue moving route responses, actor-scoped view models, and auth/session provider seams into shared contracts before large UI rewrites depend on them. |
-| Root documentation | Cross-cutting | Partial | Root folder is not a git repo, so active planning docs need one canonical local home. | Keep `AGENTS.md`, `README.md`, and `CLAUDE.md` pointed at `docs/prism-v4`. Use `08-revision-phase-plan.md` for phase planning and keep superseded root planning docs removed. |
+| Root documentation | Cross-cutting | Live | Docs live under `docs/` with a slim living set. | Keep `AGENTS.md`, `README.md`, `docs/README.md`, and living `docs/prism-v4/*` current. Do not reintroduce root audit dumps, owner story logs, or long-lived superpowers plan trees. |
 
 ## Recommended Revision Order
 
@@ -129,11 +129,11 @@ Use these checks before marking a revision slice complete:
 
 | Area | Minimum verification |
 | --- | --- |
-| API behavior | Run focused `apps/api` tests for the touched service, then `npm --workspace prism-api run test:event-ops` when available. |
+| API behavior | Run focused `apps/api` tests for the touched service (`npm --workspace prism-api run test` or a path-scoped vitest run). |
 | API build/type safety | Run `npm --workspace prism-api run typecheck`, `npm --workspace prism-api run build`, and `npm --workspace prism-api run prisma:validate` for backend/schema changes. |
 | PMCM frontend | Run `npm --workspace @prism/event run build` after PMCM UI changes. |
 | Client portal | Run `npm --workspace @prism/client run build` after client dashboard or public inquiry changes. |
 | Supplier portal | Run `npm --workspace @prism/supplier run build` after supplier workflow changes. |
 | Guest portal | Run `npm --workspace @prism/guest run build` after guest workflow changes. |
 | Scope regression | Confirm public pages still cannot jump directly into dashboards and client users still cannot edit official floorplans. |
-| Docs | Update this file and `04-implementation-plan.md` whenever a revision changes what is already live or what is still needed. |
+| Docs | Update this file and `11-feature-ledger.md` whenever a revision changes what is already live or what is still needed. |
