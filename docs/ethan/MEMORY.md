@@ -324,7 +324,7 @@ Rebased branch onto latest main, audited deliverable state against tracker, iden
 ## Current Actionable Status
 | Story | Status | Next Action |
 |-------|--------|-------------|
-| EP-13-S06 | Plan ready | Implement when selected |
+| EP-13-S06 | Done | — |
 | EP-07-S06 | Plan ready | Implement when selected |
 | EP-10-S01 | Code-complete | Awaiting Maxine design review |
 | All others | Blocked or post-July | Waiting on Francis / PAs |
@@ -378,11 +378,19 @@ Everything below is code, documentation, or tooling that exists on this branch b
 - **Created `docs/ethan/EP-13-S06.md`** — Implementation plan for the guest event info page (QR on LED wall).
 - **Created `docs/ethan/EP-07-S06.md`** — Implementation plan for the supplier application form (public-facing).
 
+### EP-13-S06 — Guest Event Info Page (Sprint 3 deliverable)
+
+- **New route `/info/[accessCode]`:** A standalone public page that displays guest-safe event information — event name, date, client, readiness status, floorplan status, and live attendance count. No authentication, no session, no navigation shell.
+- **QR code rendering:** Added `qrcode.react` dependency. The page renders a self-referencing `QRCodeSVG` pointing back to its own URL (`/info/{accessCode}`). This QR is displayed on the page itself — useful when the page is projected on an LED wall and someone wants to scan from another device.
+- **Data fetching:** Reuses the existing `GET /api/guest/events/:accessCode` endpoint via the same inline `request<T>` pattern used by `open/page.tsx`. No new API work.
+- **Error handling:** Invalid access codes show a friendly "Event not found" page. API offline shows the standard offline message. Loading state is a skeleton matching the page layout.
+- **AC5 compliance:** Excludes `guestAccessCode`, `activeFloorPlanDraftId`, and `id` from display — only guest-safe fields are shown.
+
 ---
 
 ## Addendum: What the Pending Implementation Plans Mean (Non-Technical Summary)
 
-### EP-13-S06 — Guest Event Info Page
+### EP-13-S06 — Guest Event Info Page *(Done)*
 **What it is:** A simple web page that shows guests the basic details of an event — event name, date, host client, current readiness status, and how many guests have checked in so far.
 
 **How guests access it:** PMCM prints or displays a QR code on the LED wall at the venue. When a guest scans that QR code with their phone's camera, it opens this page directly — no app download, no account creation, no login required.
@@ -485,6 +493,32 @@ This was the largest work session. Two stories were built in a single pass:
 - `check:boundaries`: pass (623 files).
 - Boundary tests: 6/6 pass.
 
+### Session 5 — July 16, 2026 (morning)
+**Commits:** `951fe3b` — "docs(ethan): session entry, addenda, implementation plans for EP-13-S06 and EP-07-S06"
+
+- Fetched latest from origin, rebased `ethan/c1-c2` onto `origin/main`
+- Resolved `package-lock.json` conflict by regenerating lockfile
+- All prior commits replayed cleanly; branch is now up-to-date with main locally
+- Audited deliverable state against `PRISM_AC_Tracker.xlsx`
+- Found two stories assigned to Ethan but missing from TODO.md: EP-07-S06 and EP-13-S06
+- Created comprehensive implementation plans for both (`EP-13-S06.md`, `EP-07-S06.md`)
+- Updated `TODO.md` with new stories, counts, and date
+
+### Session 6 — July 16, 2026 (afternoon)
+**Commit:** `c03dab6` — "feat(guest): EP-13-S06 guest event info page"
+
+- Installed `qrcode.react` dependency in `@prism/guest`
+- Created `apps/guest/src/app/info/[accessCode]/page.tsx` — public read-only event info page
+- Page fetches from existing `GET /api/guest/events/:accessCode` (no API changes)
+- Dark gradient header banner with event name, client/date, attendance count
+- 5-row info grid using `border-l` pattern (Event, Date, Client, Readiness, Floorplan)
+- Self-referencing QR code via `QRCodeSVG` for secondary device scanning from LED wall
+- Error states: "Event not found" for invalid codes, API offline message
+- Loading skeleton matching page layout
+- AC5 compliance: excluded internal fields (`guestAccessCode`, `activeFloorPlanDraftId`, `id`)
+- No route boundaries added (consistent with all other guest routes)
+- Typecheck: clean. `check:boundaries`: pass (623 files).
+
 ---
 
 ### Summary of All Branch Work
@@ -495,4 +529,44 @@ This was the largest work session. Two stories were built in a single pass:
 | Jul 13 (PM) | — | Documentation: MEMORY.md, TODO.md, tracker copy |
 | Jul 14 (AM) | EP-10-S01 | Client action center: removed local fallback, contract-first |
 | Jul 14 (PM) | EP-13-S02, EP-13-S04 | Guest dashboard: shell replacement, headcount mode, polling, media upload, DES-04 |
-| Jul 16 | — | Rebase onto main, deliverable audit, TODO.md update, implementation plans for EP-13-S06 and EP-07-S06 |
+| Jul 16 | — | Rebase onto main, deliverable audit, TODO.md update, implementation plans |
+| Jul 16 | EP-13-S06 | Guest event info page: QR on LED wall, public read-only |
+
+---
+
+## Session Date
+2026-07-16 (session 2)
+
+## Branch
+`ethan/c1-c2`
+
+## Summary
+Built EP-13-S06 — guest event info page for QR display on LED wall. Single new route, one dependency add, zero API or schema changes.
+
+## What Was Done
+
+### EP-13-S06 — Guest Event Info Page via QR on LED Wall
+- **New route:** `apps/guest/src/app/info/[accessCode]/page.tsx` — public read-only page displaying guest-safe event information
+- **QR dependency:** Added `qrcode.react` to `apps/guest/package.json`
+- **Data fetching:** Reuses existing `GET /api/guest/events/:accessCode` endpoint via inline `request<T>` pattern (matches `open/page.tsx`)
+- **Header banner:** Dark gradient with event name, client/date subtitle, attendance count with Users icon
+- **Info grid:** 5 `border-l` rows — Event, Date, Client, Readiness, Floorplan — matching dashboard pattern
+- **QR code:** `QRCodeSVG` component rendering self-referencing URL (`/info/{accessCode}`) for secondary device scanning from LED wall
+- **Error handling:** Friendly "Event not found" page for invalid codes; API offline message for network failures
+- **Loading state:** Skeleton matching the page layout (banner + 5 info rows)
+- **AC5 compliance:** Excluded `guestAccessCode`, `activeFloorPlanDraftId`, `id` from display
+- **No route boundaries added:** Consistent with all other guest routes (root-level boundaries cover this route)
+
+## Key Files Changed
+| File | Change |
+|------|--------|
+| `apps/guest/src/app/info/[accessCode]/page.tsx` | New — public event info page |
+| `apps/guest/package.json` | Added `qrcode.react` dependency |
+| `package-lock.json` | Updated lockfile |
+
+## Verified
+- `@prism/guest` typecheck: clean (zero errors)
+- `check:boundaries`: pass (623 files)
+
+## Commit
+`c03dab6` — "feat(guest): EP-13-S06 guest event info page"
