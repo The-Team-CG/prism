@@ -68,3 +68,8 @@ Thumbs.db
 
 # Docker local secrets (synced from apps/api/.env; never commit)
 .env.docker
+
+# Local-only story logs and audits (removed from main by 0867515; recovered
+# locally for reference, must not be swept back in by git add -A/-u)
+OwnerB_PRISM_StoryLogs/
+PRISM_Audits/
