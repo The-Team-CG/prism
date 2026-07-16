@@ -3,6 +3,10 @@ node_modules/
 .pnp/
 .pnp.js
 
+# Ethan
+dosc/ethan/
+docs/ethan/*
+
 # Build output
 dist/
 build/
