@@ -1,12 +1,14 @@
 [CmdletBinding()]
 param(
-  # Production-style built containers (default). Use -Dev for hot-reload compose.
+  # Use Docker instead of local Node (prefer start-prism-docker.cmd).
+  [switch]$Docker,
+  # Docker: hot-reload compose.dev.yml instead of compose.local.yml.
   [switch]$Dev,
-  # Run process-local Node apps instead of Docker.
-  [switch]$Local,
-  # Attach to compose logs (default is detached).
+  # Docker: attach to compose logs (default is detached).
   [switch]$Foreground,
-  # Local mode only: force npm install, skip prisma generate, skip build, keep ports.
+  # Local: npm run start after full build (default local is npm run dev).
+  [switch]$Prod,
+  # Local: force npm install, skip prisma generate, skip build, keep ports.
   [switch]$Install,
   [switch]$NoPortCleanup,
   [switch]$SkipPrismaGenerate,
@@ -145,7 +147,8 @@ function Show-Urls {
   Write-Host "  Event:    http://localhost:3004/"
   Write-Host "  API:      http://localhost:4000/health"
   Write-Host ""
-  Write-Host "Stop with: .\stop-prism.cmd"
+  Write-Host "Stop local:  .\stop-prism.cmd"
+  Write-Host "Stop Docker: .\stop-prism-docker.cmd"
 }
 
 # ---------------------------------------------------------------------------
@@ -196,13 +199,13 @@ function Wait-DockerEngine {
   throw "Docker engine did not become ready within $TimeoutSeconds seconds. Start Docker Desktop and retry."
 }
 
-if (-not $Local) {
+if ($Docker) {
   Assert-Command -Name "docker"
   Wait-DockerEngine
   Ensure-DockerEnvFile
 
   $script:composeFile = if ($Dev) { "compose.dev.yml" } else { "compose.local.yml" }
-  $modeLabel = if ($Dev) { "dev (hot reload)" } else { "local (build + start)" }
+  $modeLabel = if ($Dev) { "dev (hot reload)" } else { "built images" }
 
   Write-Host "Starting P.R.I.S.M with Docker ($modeLabel) using $composeFile"
 
@@ -256,8 +259,10 @@ if (-not $Local) {
 }
 
 # ---------------------------------------------------------------------------
-# Local Node mode (-Local): rebuild dist and start npm workspaces
+# Local Node mode (default): fast npm run dev, or -Prod for build + start
 # ---------------------------------------------------------------------------
+Write-Host "Starting P.R.I.S.M locally (Node) - not Docker."
+
 $processEnvironment = [Environment]::GetEnvironmentVariables("Process")
 $processEnvironmentNames = @($processEnvironment.Keys)
 if (($processEnvironmentNames -contains "Path") -and ($processEnvironmentNames -contains "PATH")) {
@@ -286,12 +291,13 @@ if (Test-Path -LiteralPath (Join-Path $nodeDirectory "node.exe")) {
 $logRoot = Join-Path $root ".local-dev\logs"
 $pidFile = Join-Path $logRoot "pids.csv"
 
+$npmScript = if ($Prod) { "start" } else { "dev" }
 $apps = @(
-  [pscustomobject]@{ Name = "api"; Directory = "apps\api"; Port = 4000; Url = "http://localhost:4000/health"; Args = @("run", "start") },
-  [pscustomobject]@{ Name = "client"; Directory = "apps\client"; Port = 3001; Url = "http://localhost:3001/"; Args = @("run", "start") },
-  [pscustomobject]@{ Name = "supplier"; Directory = "apps\supplier"; Port = 3002; Url = "http://localhost:3002/"; Args = @("run", "start") },
-  [pscustomobject]@{ Name = "guest"; Directory = "apps\guest"; Port = 3003; Url = "http://localhost:3003/"; Args = @("run", "start") },
-  [pscustomobject]@{ Name = "event"; Directory = "apps\event"; Port = 3004; Url = "http://localhost:3004/"; Args = @("run", "start") }
+  [pscustomobject]@{ Name = "api"; Directory = "apps\api"; Port = 4000; Url = "http://localhost:4000/health"; Args = @("run", $npmScript) },
+  [pscustomobject]@{ Name = "client"; Directory = "apps\client"; Port = 3001; Url = "http://localhost:3001/"; Args = @("run", $npmScript) },
+  [pscustomobject]@{ Name = "supplier"; Directory = "apps\supplier"; Port = 3002; Url = "http://localhost:3002/"; Args = @("run", $npmScript) },
+  [pscustomobject]@{ Name = "guest"; Directory = "apps\guest"; Port = 3003; Url = "http://localhost:3003/"; Args = @("run", $npmScript) },
+  [pscustomobject]@{ Name = "event"; Directory = "apps\event"; Port = 3004; Url = "http://localhost:3004/"; Args = @("run", $npmScript) }
 )
 
 function Invoke-External {
@@ -387,10 +393,14 @@ if (-not $SkipPrismaGenerate) {
   Invoke-External -Label "Generating Prisma client" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "db:generate")
 }
 
-if (-not $SkipBuild) {
+# Default local path is hot-reload dev (no monorepo build). -Prod builds then starts.
+$shouldBuild = $Prod -and -not $SkipBuild
+if ($shouldBuild) {
   Invoke-External -Label "Building monorepo (dist / .next)" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "build")
+} elseif ($Prod -and $SkipBuild) {
+  Write-Host "Skipping monorepo build (-SkipBuild with -Prod)."
 } else {
-  Write-Host "Skipping monorepo build (-SkipBuild)."
+  Write-Host "Local dev mode: npm run dev (skip full build). Use -Prod for production start."
 }
 
 "name,pid,port,directory" | Set-Content -LiteralPath $pidFile
@@ -440,4 +450,5 @@ if ($failedApps.Count -gt 0) {
 
 Show-Urls
 Write-Host "Logs: $logRoot"
-Write-Host "Mode: local Node (-Local)"
+Write-Host "Mode: local Node (npm run $npmScript)"
+Write-Host "Docker stack (slow): .\start-prism-docker.cmd"

@@ -1,9 +1,11 @@
 [CmdletBinding()]
 param(
-  # Also remove named Docker volumes (node_modules mounts for dev compose).
+  # Prefer stop-prism-docker.cmd. Stops compose stacks only (not local Node).
+  [switch]$Docker,
+  # When used with -Docker, also remove named volumes.
   [switch]$Volumes,
-  # Skip docker compose down; only stop local Node processes.
-  [switch]$LocalOnly,
+  # Stop both Docker stacks and local Node processes.
+  [switch]$All,
   [int[]]$Ports = @(3000, 3001, 3002, 3003, 3004, 4000)
 )
 
@@ -35,16 +37,22 @@ function Stop-DockerStacks {
     return
   }
 
-  foreach ($composeFile in @("compose.local.yml", "compose.dev.yml")) {
-    if (-not (Test-Path -LiteralPath (Join-Path $root $composeFile))) {
-      continue
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    foreach ($composeFile in @("compose.local.yml", "compose.dev.yml")) {
+      if (-not (Test-Path -LiteralPath (Join-Path $root $composeFile))) {
+        continue
+      }
+      $downArgs = @("compose", "-f", $composeFile, "down", "--remove-orphans")
+      if ($Volumes) {
+        $downArgs += "-v"
+      }
+      Write-Host "Stopping Docker stack: $composeFile"
+      & docker @downArgs 2>$null | Out-Null
     }
-    $downArgs = @("compose", "-f", $composeFile, "down", "--remove-orphans")
-    if ($Volumes) {
-      $downArgs += "-v"
-    }
-    Write-Host "Stopping Docker stack: $composeFile"
-    & docker @downArgs 2>$null
+  } finally {
+    $ErrorActionPreference = $prev
   }
 }
 
@@ -88,10 +96,22 @@ function Stop-LocalProcesses {
   }
 }
 
-if (-not $LocalOnly) {
+if ($Docker -and -not $All) {
+  Write-Host "Stopping Docker stacks only."
   Stop-DockerStacks
+  Write-Host "P.R.I.S.M Docker stop complete."
+  exit 0
 }
 
-Stop-LocalProcesses
+if ($All) {
+  Write-Host "Stopping Docker stacks and local Node processes."
+  Stop-DockerStacks
+  Stop-LocalProcesses
+  Write-Host "P.R.I.S.M stop complete (all)."
+  exit 0
+}
 
-Write-Host "P.R.I.S.M stop complete."
+Write-Host "Stopping local Node processes only (not Docker)."
+Stop-LocalProcesses
+Write-Host "P.R.I.S.M local stop complete."
+Write-Host "Docker: .\stop-prism-docker.cmd"

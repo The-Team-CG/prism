@@ -67,6 +67,7 @@ Recover any of the above from **git history** if needed for panel or forensics.
 12. Single feature-decision source: `11-feature-ledger.md`.
 13. Do not keep unchecked implementation checklists after the work exists.
 14. Owner labels must map to system goals (A Maxine / B Francis / C Ethan / D Anthony).
+15. **Conversation-agnostic living docs.** Write durable product/engineering truth that any reader can use cold. Do not leave chat handoff notes, session diaries (“resolution captured…”, “as discussed…”), sprint closeout voice, or references to deleted plans/calendars as if they were still active.
 
 ## Verification
 

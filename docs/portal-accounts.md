@@ -48,10 +48,10 @@ Guest name: any display name (e.g. Sofia Lim)
 
 ## How to load / refresh accounts
 
-`start-prism.cmd` starts the stack via Docker (or `-Local` for Node). It does **not** seed or provision data.
+Start does **not** seed data.
 
-1. Ensure `.env.docker` has database URLs (created from `.env.docker.example` on first start).
-2. Start: `start-prism.cmd`
+1. Ensure `apps/api/.env` has database URLs (Docker uses `.env.docker`).
+2. Fast local: `start-prism.cmd` — Docker: `start-prism-docker.cmd`
 3. To recreate sample users/events, use **Reset sample data** in the event command app.
 
 After a sample reset you should be able to sign in with every account above.
