@@ -21,7 +21,8 @@ COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/tokens/package.json packages/tokens/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/ui/package.json packages/ui/package.json
-RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
+# Avoid BuildKit npm cache mounts on Windows Docker Desktop (can EOF-crash the builder).
+RUN npm ci --ignore-scripts
 
 FROM deps AS dev
 ENV NODE_ENV=development \

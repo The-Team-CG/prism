@@ -85,6 +85,18 @@ PARE_MODE=mock
 
 For local testing, the database URL values usually point to the same local or Supabase database connection unless you are intentionally testing separate runtime/direct connections.
 
+## One-command wrappers
+
+From the repo root (Docker Desktop running):
+
+```powershell
+.\start-prism.cmd          # compose.local.yml — build + start
+.\start-prism.cmd -Dev     # compose.dev.yml — hot reload
+.\stop-prism.cmd           # compose down + local cleanup
+```
+
+These wrappers create `.env.docker` from the example if needed, then run Docker Compose.
+
 ## Option 1: Dev Mode With Hot Reload
 
 Use this when you are editing code and want the app to update while containers are running.
@@ -92,6 +104,8 @@ Use this when you are editing code and want the app to update while containers a
 Start the full dev stack:
 
 ```powershell
+.\start-prism.cmd -Dev
+# or:
 docker compose -f compose.dev.yml up --build
 ```
 
