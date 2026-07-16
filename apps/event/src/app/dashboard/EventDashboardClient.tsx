@@ -50,6 +50,7 @@ import {
   type PrismEvent,
   type PrismEventDayStatusFeed,
   type PrismFloorPlanDraft,
+  type PrismInquiry,
   type PrismLiveOps,
   type PrismPostEventDocument,
   type PrismPmcmCommandInbox,
@@ -65,6 +66,7 @@ import { Badge } from "@/app/components/ui/badge";
 import {
   AuditTrailPanel,
   ClientOnboardingTracker,
+  ConformeUploadModal,
   CoordinatorAssignmentDesk,
   CoordinatorView,
   EventCommandInbox,
@@ -347,7 +349,7 @@ function eventPortalNavItems({
   eventName?: string;
   inquiryCount?: number;
   taskCount?: number;
-  commandInboxCount?: number;
+  commandInboxCount?: number | string;
   assignmentCount?: number;
   quoteCount?: number;
   draftCount?: number;
@@ -1294,6 +1296,9 @@ export default function EventDashboard({
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
   const [commandInbox, setCommandInbox] = useState<PrismPmcmCommandInbox | null>(null);
 
+  const [conformeUploadTarget, setConformeUploadTarget] = useState<PrismInquiry | null>(null);
+  const [commandInboxLoadFailed, setCommandInboxLoadFailed] = useState(false);
+
   async function refresh(current = session) {
     if (!current) return;
     if (current.role === "coordinator") {
@@ -1386,18 +1391,22 @@ export default function EventDashboard({
     Promise.all([
       stateIsFresh ? Promise.resolve(cachedState.value) : loadPmcmState(!cachedState),
       approvalsAreFresh ? Promise.resolve(cachedApprovals.value) : loadApprovalRequests(!cachedApprovals),
-      inboxIsFresh ? Promise.resolve(cachedInbox.value) : loadCommandInbox(!cachedInbox),
+      inboxIsFresh ? Promise.resolve(cachedInbox.value) : Promise.resolve().then(() => loadCommandInbox(!cachedInbox)),
     ])
       .then(([next, requests, inboxResult]) => {
         if (cancelled) return;
         setState(next);
         setApprovalRequests(requests);
         setCommandInbox(inboxResult);
+        setCommandInboxLoadFailed(false);
         setCoordinatorState(null);
         setError(null);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load event portal");
+        if (!cancelled) {
+          setCommandInboxLoadFailed(true);
+          setError(err instanceof Error ? err.message : "Unable to load event portal");
+        }
       });
 
     return () => {
@@ -1935,9 +1944,11 @@ export default function EventDashboard({
     eventName: selectedEvent?.eventName,
     inquiryCount: unreviewedInquiries + pendingApprovals.length,
     taskCount: openActionCount,
-    commandInboxCount: commandInbox
-      ? commandInbox.counts.critical + commandInbox.counts.warning + commandInbox.counts.attention
-      : undefined,
+    commandInboxCount: commandInboxLoadFailed
+      ? "!"
+      : commandInbox
+        ? commandInbox.counts.critical + commandInbox.counts.warning + commandInbox.counts.attention
+        : undefined,
     assignmentCount: assignments.length,
     quoteCount: quotes.length,
     draftCount: drafts.length,
@@ -2054,7 +2065,8 @@ export default function EventDashboard({
         ) : isCommandInbox ? (
           <EventCommandInbox
             inbox={commandInbox}
-            onRefresh={() => loadCommandInbox(true).then(setCommandInbox).catch(() => undefined)}
+            onRefresh={() => loadCommandInbox(true).then((data) => { setCommandInbox(data); setCommandInboxLoadFailed(false); }).catch(() => setCommandInboxLoadFailed(true))}
+            loadFailed={commandInboxLoadFailed}
           />
         ) : isSettings ? (
           <EventSettingsWorkspace session={session} selectedEvent={selectedEvent} />
@@ -2189,7 +2201,7 @@ export default function EventDashboard({
             />
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
               onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
@@ -2220,6 +2232,9 @@ export default function EventDashboard({
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-foreground">{coordinator.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{coordinator.roleTags.join(", ") || "General coordinator"}</p>
+                      {coordinator.skillsTags.length > 0 && (
+                        <p className="mt-0.5 text-xs text-muted-foreground/70">{coordinator.skillsTags.join(", ")}</p>
+                      )}
                     </div>
                     <StatusBadge status={coordinator.active ? "active" : "inactive"} />
                   </div>
@@ -2299,7 +2314,7 @@ export default function EventDashboard({
             />
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
               onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
@@ -2338,7 +2353,7 @@ export default function EventDashboard({
 
             <ClientOnboardingTracker
               inquiries={state.inquiries}
-              onUploadConforme={(inq) => run("upload conforme", () => prismApi.uploadConforme(inq.id))}
+              onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
               onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
@@ -2687,6 +2702,20 @@ export default function EventDashboard({
           )
         )}
       </div>
+      {conformeUploadTarget && (
+        <ConformeUploadModal
+          inquiry={conformeUploadTarget}
+          onUpload={async (file) => {
+            await prismApi.uploadConforme(conformeUploadTarget.id, {
+              fileName: file.name,
+              mimeType: file.type,
+              sizeBytes: file.size,
+            });
+            await refresh();
+          }}
+          onClose={() => setConformeUploadTarget(null)}
+        />
+      )}
     </PrismDashboardShell>
   );
 }

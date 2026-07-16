@@ -513,6 +513,21 @@ export interface PrismGuestEventPass {
   attendanceCount: number;
 }
 
+export interface PrismGuestFeedback {
+  id: string;
+  eventId: string;
+  guestName: string;
+  rating: number;
+  comment: string;
+  photoFileName: string | null;
+  videoFileName: string | null;
+  privacyConsentAccepted: boolean;
+  privacyNoticeVersion: string;
+  marketingConsentAccepted: boolean;
+  moderationStatus: string;
+  submittedAt: string;
+}
+
 export interface PrismEventDayTask {
   id: string;
   eventId: string;

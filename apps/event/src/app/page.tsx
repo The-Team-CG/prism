@@ -82,6 +82,7 @@ import {
   readStoredEventSession,
   type EventSession,
 } from "@/app/lib/session";
+import { isPmcmAdmin } from "@/app/lib/role-guards";
 
 const EditorShell = dynamic(
   () => import("./components/editor/EditorShell").then((mod) => mod.EditorShell),
@@ -261,10 +262,6 @@ function PmcmPortal({
 
   async function declineInquiry(inquiry: PrismInquiry, reason: string) {
     await run("decline inquiry", () => prismApi.declineInquiry(inquiry.id, reason));
-  }
-
-  async function uploadConformeForInquiry(inquiry: PrismInquiry) {
-    await run("upload conforme", () => prismApi.uploadConforme(inquiry.id));
   }
 
   async function sendConformeReminder(inquiry: PrismInquiry) {
@@ -584,6 +581,7 @@ function PmcmPortal({
     assignmentsCount: assignments.length,
     paymentsCount: payments.length,
     openChecksCount: openCheckCount,
+    role: session.role,
   });
 
   const eventRail = (
@@ -657,7 +655,8 @@ function PmcmPortal({
 
         <ClientOnboardingTracker
           inquiries={state.inquiries}
-          onUploadConforme={uploadConformeForInquiry}
+          // TODO(EP-04): conforme upload handled in /dashboard via ConformeUploadModal
+          onUploadConforme={() => Promise.resolve()}
           onSendReminder={sendConformeReminder}
           busy={Boolean(busy)}
         />
@@ -864,6 +863,7 @@ export default function EventCommandHome() {
   }, [session, screen.name]);
 
   async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
+    if (!session || !isPmcmAdmin(session.role)) return;
     const project = await prismApi.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
@@ -888,6 +888,7 @@ export default function EventCommandHome() {
           eventName={screen.event.eventName}
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
+          readOnly={!isPmcmAdmin(session.role)}
           onSave={(project) => prismApi.savePlan(project)}
           onSubmit={async (project) => {
             await prismApi.savePlan(project);
