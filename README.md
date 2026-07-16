@@ -4,25 +4,21 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 
 ## Canonical Docs
 
+Full map: [`docs/README.md`](docs/README.md). Agents: [`AGENTS.md`](AGENTS.md).
+
 | Document | Purpose |
 | --- | --- |
-| `docs/prism-v4/01-complete-feature-catalog.md` | Baseline Version 4 feature catalog and official manuscript/defense counts. |
-| `docs/prism-v4/04-implementation-plan.md` | Build plan, app/API/database mapping, and acceptance criteria by feature. |
-| `docs/prism-v4/05-prism-defense-sample-guide.md` | Seeded defense story and feature sample matrix. |
-| `docs/prism-v4/07-implemented-feature-revisions.md` | Current implemented/partial features, revision gaps, and how to revise them. |
-| `docs/prism-v4/08-revision-phase-plan.md` | Historical phase roadmap for revision-first implementation and cleanup. |
-| `docs/prism-v4/10-product-evolution-and-redesign-governance.md` | Rules for adding, revising, merging, deferring, or retiring features during redesign. |
-| `docs/prism-v4/11-feature-ledger.md` | Active feature-family decisions, ownership, phase placement, and verification requirements. |
-| `docs/prism-v4/12-redesign-inventory.md` | Whole-app route inventory with redesign severity and role boundaries. |
-| `docs/prism-v4/13-docs-cleanup-checklist.md` | Documentation hygiene rules, retired artifacts, and verification commands. |
-| `docs/prism-v4/14-redesign-readiness-foundation.md` | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
-| `docs/prism-v4/15-system-architecture.md` | Canonical role-app/API/package architecture, data domains, boundaries, and stop rules. |
-| `docs/prism-v4/16-actual-system.md` | Full P.R.I.S.M system details: actors, lifecycle, workflows, data ownership, feature families, and completion evidence. |
-| `docs/prism-v4/17-current-state-2026-06-20.md` | Dated June 20, 2026 snapshot of current feature, dependency, and confidence status. |
-| `docs/prism-v4/18-future-state.md` | July 31 and post-July target state for the complete system. |
-| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan, including Owner A-D system goals and named owners. |
-| `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Whole-system completion sprint calendar through July 31, 2026 with actionable tasks for Maxine, Francis, Ethan, and Anthony. |
-| `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` | Current-vs-target system completion audit, confidence gates, and missing-task review for the July calendar. |
+| `docs/prism-v4/15-system-architecture.md` | Role-app / API / package architecture, boundaries, stop rules |
+| `docs/prism-v4/11-feature-ledger.md` | Feature-family decisions and verification |
+| `docs/prism-v4/10-product-evolution-and-redesign-governance.md` | Add / revise / merge / defer / retire rules |
+| `docs/prism-v4/14-redesign-readiness-foundation.md` | Sample-state fencing, session keys, owner boundaries |
+| `docs/prism-v4/07-implemented-feature-revisions.md` | Implementation reality and gaps |
+| `docs/prism-v4/12-redesign-inventory.md` | Route inventory and redesign severity |
+| `docs/prism-v4/16-actual-system.md` | Actors, lifecycle, workflows |
+| `docs/prism-v4/18-future-state.md` | Target state |
+| `docs/prism-v4/01-complete-feature-catalog.md` | Baseline catalog / manuscript counts (not a hard ceiling) |
+| `docs/portal-accounts.md` | Sample sign-in accounts |
+| `docs/docker-dev-testing-guide.md` | Docker detail |
 
 ## Monorepo Layout
 
@@ -38,37 +34,23 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 
 ## Run Locally
 
-From the repo root, use the start wrapper:
+**One command** (Docker Desktop must be running):
 
 ```bat
 start-prism.cmd
 ```
 
-That script is build-and-run only (no data seed / provisioning):
+That is the default path. It:
 
-1. Optional `npm install` / `npm ci` when dependencies are missing (`-Install` forces reinstall)
-2. `npm run db:generate` (Prisma client codegen only)
-3. `npm run build` (workspace dist / Next `.next` outputs)
-4. `npm run start` for API + all four portals
+1. Creates `.env.docker` from `.env.docker.example` if missing (fill in DB URLs)
+2. Builds and starts the full stack with `compose.local.yml`
+3. Waits for API + portals, then prints URLs
 
-Logs land under `.local-dev\logs`. Useful flags:
-
-```bat
-start-prism.cmd -SkipBuild
-start-prism.cmd -Install
-start-prism.cmd -SkipPrismaGenerate
-start-prism.cmd -NoPortCleanup
-```
-
-To stop the local stack:
+Stop everything:
 
 ```bat
 stop-prism.cmd
 ```
-
-For day-to-day hot reload without a full rebuild, use the workspace dev scripts instead (`npm run dev:api`, `dev:client`, `dev:event`, `dev:supplier`, `dev:guest`).
-
-Individual app defaults:
 
 | App | URL |
 | --- | --- |
@@ -78,35 +60,34 @@ Individual app defaults:
 | Guest portal | `http://localhost:3003` |
 | Event command | `http://localhost:3004` |
 
-Sample sign-in accounts for every portal are listed in [`docs/portal-accounts.md`](docs/portal-accounts.md).
+Sample sign-in accounts: [`docs/portal-accounts.md`](docs/portal-accounts.md).
 
-### Docker Local Stack
+### Start / stop options
 
-For an isolated production-style local run, copy the Docker env example and provide the same database URL values used by the API:
-
-```bash
-cp .env.docker.example .env.docker
-docker compose -f compose.local.yml up --build
+```bat
+start-prism.cmd              rem Docker build+start (default)
+start-prism.cmd -Dev         rem Docker hot-reload via compose.dev.yml
+start-prism.cmd -Foreground  rem attach to compose logs
+start-prism.cmd -Local       rem no Docker: local npm build + start
+stop-prism.cmd               rem docker compose down + stop local Node
+stop-prism.cmd -Volumes      rem also remove compose volumes
+stop-prism.cmd -LocalOnly    rem only stop local Node processes
 ```
 
-The compose stack exposes the same ports as the local scripts:
+API containers read `.env.docker`. Edit that file with your database URLs (same values you use for the API). Do not commit `.env.docker`.
 
-- API: `http://localhost:4000`
-- Client portal: `http://localhost:3001`
-- Supplier portal: `http://localhost:3002`
-- Guest portal: `http://localhost:3003`
-- Event command: `http://localhost:3004`
+For workspace-only hot reload without Docker, use `npm run dev:api`, `dev:client`, `dev:event`, `dev:supplier`, `dev:guest`.
 
-Use this when you want to test the complete built system without relying on local `node_modules`. The API container reads `.env.docker`; the role apps default to `http://localhost:4000`.
+More Docker detail: [`docs/docker-dev-testing-guide.md`](docs/docker-dev-testing-guide.md).
 
-For Docker-based hot reload while editing code, use the dev compose file:
+### Manual Docker (optional)
 
 ```bash
 cp .env.docker.example .env.docker
+docker compose -f compose.local.yml up --build -d
+# hot reload:
 docker compose -f compose.dev.yml up --build
 ```
-
-`compose.dev.yml` uses the same `Dockerfile` with the `dev` target, bind-mounts the repository, keeps Linux `node_modules` in named volumes, and runs the API/Next dev servers with file watching enabled.
 
 ## Product Boundaries
 
@@ -130,18 +111,18 @@ npm run check:boundaries
 
 ## Backend Architecture
 
-`apps/api` remains one shared NestJS API for the Prism. Event operations live under `libs/modules/event-ops` with service seams for audit, suppliers, and coordinators, while controllers keep the public API shape stable.
+`apps/api` is one shared NestJS modular monolith. Capability modules under `libs/modules/<capability>/` own writes (inquiry, commercial, supplier, finance, floorplan, guest, live-ops, sample-compatibility, and others). `event-read-models` composes role-scoped reads only. See [`docs/prism-v4/15-system-architecture.md`](docs/prism-v4/15-system-architecture.md).
 
 Useful API commands:
 
 ```bash
 cd apps/api
-npm run test:event-ops
+npm run test
+npm run test:sample-compatibility
 npm run typecheck
 npm run build
 npm run prisma:validate
 ```
-
 
 Database domain checks:
 
@@ -155,7 +136,8 @@ npm run db:audit:indexes
 npm run db:perf:report
 ```
 
-`db:verify:offline` and `db:audit:queries` are safe local checks. The live schema, naming, and index audits require a reachable migrated database; as of the 2026-06-22 DB migration review, the shared Supabase target has passed those audits after migration deployment. `db:perf:report` reads `pg_stat_statements` with credential redaction; re-run it after representative app traffic before treating the ranking as an event-ops workload profile.
+`db:verify:offline` and `db:audit:queries` are safe local checks. Live schema, naming, and index audits need a reachable migrated database. `db:perf:report` reads `pg_stat_statements` with credential redaction.
+
 Useful event portal command:
 
 ```bash
@@ -168,4 +150,5 @@ Root workspace gates:
 ```bash
 npm run typecheck
 npm run build
+npm run check:boundaries
 ```

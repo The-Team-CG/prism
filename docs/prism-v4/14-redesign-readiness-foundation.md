@@ -230,7 +230,7 @@ The plan remediation branch makes the July work executable at system level. Thes
 
 ### Remediation Branch Scope
 
-This branch updates the planning system, not app behavior. It may change `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md`, `docs/prism-v4/11-feature-ledger.md`, `docs/prism-v4/12-redesign-inventory.md`, and this readiness foundation. Code or UI changes belong on owner execution branches after this remediation plan is accepted.
+This branch updates the planning system, not app behavior. It may change `docs/prism-v4/11-feature-ledger.md`, `docs/prism-v4/12-redesign-inventory.md`, and this readiness foundation. Code or UI changes belong on owner execution branches after this remediation plan is accepted.
 
 ## Merge Gate For Redesign Branches
 

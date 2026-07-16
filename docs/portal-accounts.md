@@ -48,11 +48,11 @@ Guest name: any display name (e.g. Sofia Lim)
 
 ## How to load / refresh accounts
 
-`start-prism.cmd` only rebuilds and starts apps. It does **not** seed or provision data.
+`start-prism.cmd` starts the stack via Docker (or `-Local` for Node). It does **not** seed or provision data.
 
-1. Ensure the API database is available (`npm --workspace prism-api run db:doctor:runtime` if needed).
-2. Start the stack: `start-prism.cmd` (build + dist + start).
-3. To recreate sample users/events, use **Reset sample data** in the event command app, or the sample reset API path.
+1. Ensure `.env.docker` has database URLs (created from `.env.docker.example` on first start).
+2. Start: `start-prism.cmd`
+3. To recreate sample users/events, use **Reset sample data** in the event command app.
 
 After a sample reset you should be able to sign in with every account above.
 
@@ -72,7 +72,7 @@ Signing into the wrong portal with a valid account from another role returns a p
 | Sample `OpsUser` rows + passwords (via sample reset only) | `apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.ts` |
 | Sample suppliers (matched by email for supplier workspace) | same file (`SEEDED_SUPPLIERS`) |
 | Guest access-code derivation | `apps/api/libs/modules/guest-ops/src/services/guest-workflow.service.ts` (`guestAccessCode`) |
-| Defense runbook (story path) | `docs/prism-v4/09-defense-sample-runbook.md` |
+| Product / ops docs | `docs/README.md`, `docs/prism-v4/16-actual-system.md` |
 
 ## Security note
 
