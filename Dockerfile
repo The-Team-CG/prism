@@ -35,6 +35,8 @@ EXPOSE 3001 3002 3003 3004 4000
 
 FROM deps AS builder
 COPY . .
+# Workspace package exports point at dist/; build types first so dependents resolve.
+RUN npm --workspace @prism/types run build
 RUN npm --workspace prism-api run db:generate
 RUN npm run build
 

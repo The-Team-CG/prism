@@ -1,7 +1,7 @@
 # P.R.I.S.M System Architecture
 
 Date: 2026-06-20
-Status: Canonical architecture reference for the current Prism monorepo and July completion plan
+Status: Canonical architecture reference for the current Prism monorepo
 
 This document describes the intended architecture of P.R.I.S.M as PMCM's internal event operating system. Read it with `16-actual-system.md` for full system details and `18-future-state.md` for the target state.
 
@@ -75,7 +75,7 @@ flowchart LR
 
 The backend is a modular monolith: one NestJS API and one Prisma client, with write ownership in capability modules under `apps/api/libs/modules/<capability>/`, explicit public ports, transaction semantics, and role-scoped composition in `event-read-models`. The legacy centralized `event-ops` hub has been removed.
 
-July execution is intentionally bounded. Through July 31, 2026, the default backend architecture scope is guardrails, dependency-injection foundation, and transaction/side-effect ports. Capability extraction beyond that requires a child plan that names the affected feature-ledger row, route/app/actor, contract, fallback state, forbidden-role test, route-smoke evidence, and docs updates.
+Default backend architecture scope stays on guardrails, dependency-injection foundation, transaction/side-effect ports, and capability modules named in this doc. Further extraction or new capability modules should name the affected feature-ledger row, route/app/actor, contract, fallback state, forbidden-role test, route-smoke evidence, and docs updates.
 
 Target backend module ownership:
 

@@ -87,15 +87,18 @@ For local testing, the database URL values usually point to the same local or Su
 
 ## One-command wrappers
 
-From the repo root (Docker Desktop running):
+Docker is **separate** from the normal local scripts (local Node is faster for day-to-day work).
 
 ```powershell
-.\start-prism.cmd          # compose.local.yml — build + start
-.\start-prism.cmd -Dev     # compose.dev.yml — hot reload
-.\stop-prism.cmd           # compose down + local cleanup
+.\start-prism.cmd                 # local Node (npm run dev) — preferred
+.\stop-prism.cmd
+
+.\start-prism-docker.cmd          # compose.local.yml — build + start
+.\start-prism-docker.cmd -Dev     # compose.dev.yml — hot reload
+.\stop-prism-docker.cmd           # compose down only
 ```
 
-These wrappers create `.env.docker` from the example if needed, then run Docker Compose.
+Docker wrappers create/sync `.env.docker` when needed, then run Docker Compose.
 
 ## Option 1: Dev Mode With Hot Reload
 
@@ -104,7 +107,7 @@ Use this when you are editing code and want the app to update while containers a
 Start the full dev stack:
 
 ```powershell
-.\start-prism.cmd -Dev
+.\start-prism-docker.cmd -Dev
 # or:
 docker compose -f compose.dev.yml up --build
 ```

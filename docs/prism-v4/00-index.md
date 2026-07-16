@@ -7,7 +7,7 @@ This set keeps the Version 4 **baseline catalog** for manuscript/defense counts 
 
 Owners (system goals, not loose assignees): **A** Maxine (UX) · **B** Francis (PMCM ops) · **C** Ethan (external portals) · **D** Anthony (platform trust).
 
-Completed superpowers execution plans, owner session notes, and historical defense/plan artifacts were removed in the 2026-07 docs cleanup. Recover from git history if needed.
+Living docs are **conversation-agnostic**: durable product and engineering truth only. Completed execution plans, owner session notes, and historical defense/plan artifacts were removed in the 2026-07 docs cleanup—recover from git history if needed.
 
 ## Official count summary
 
