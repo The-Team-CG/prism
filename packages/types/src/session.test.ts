@@ -6,7 +6,7 @@ import {
   isPrismAuthenticatedSession,
   readPrismSession,
   savePrismSession,
-} from "./session";
+} from "./session.js";
 
 function createStorage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));

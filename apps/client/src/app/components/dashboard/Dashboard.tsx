@@ -876,29 +876,23 @@ export function Dashboard({
     }
   }
 
-  const derivedClientActions = selectedEvent
-    ? getClientDashboardActions({
-        selectedEvent,
-        briefing,
-        billing,
-        payments,
-        documents,
-        officialDraft,
-      })
-    : [];
   const contractClientActions = selectedEvent && actionCenter
     ? actionCenter.items
         .filter((item) => item.eventId === selectedEvent.id)
         .map(actionCenterItemToDashboardAction)
     : [];
-  const clientActions = actionCenter
-    ? [
-        ...contractClientActions,
-        ...derivedClientActions.filter(
-          (action) => action.tone === "success" && !contractClientActions.some((contractAction) => contractAction.targetTab === action.targetTab),
-        ),
-      ]
-    : derivedClientActions;
+  const clientActions = contractClientActions.length > 0
+    ? contractClientActions
+    : selectedEvent
+      ? getClientDashboardActions({
+          selectedEvent,
+          briefing,
+          billing,
+          payments,
+          documents,
+          officialDraft,
+        })
+      : [];
   const nextAction = selectNextAction(clientActions);
 
   function runClientAction(action: ClientDashboardAction) {
@@ -1049,10 +1043,10 @@ export function Dashboard({
     const loadingDescription =
       loadingPortalViewMeta?.description
       ?? (route === "request"
-        ? "Loading your saved client details for the guided event request."
-        : route === "events"
-          ? "Loading your confirmed PMCM event workspaces."
-          : "Loading your client event workspace, actions, files, billing, and PMCM updates.");
+            ? "Loading event request details…"
+            : route === "events"
+              ? "Loading events…"
+              : "Loading event workspace…");
 
     return (
       <PrismDashboardShell
@@ -1339,6 +1333,24 @@ export function Dashboard({
           </div>
         )}
 
+        {/* Action center groups — contract-first actions from API */}
+        {actionCenter && contractClientActions.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-base font-black text-foreground">Action center</h2>
+            {renderActionGroup("Needs your action", "Client decisions that can move planning forward.", clientActions.filter((a) => a.tone === "primary" || a.tone === "warning"))}
+            {renderActionGroup("Waiting on PMCM", "Being prepared or reviewed by the event team.", clientActions.filter((a) => a.tone === "neutral"))}
+            {actionCenter.counts.critical === 0 && actionCenter.counts.warning === 0 && actionCenter.counts.attention === 0 && actionCenter.counts.info === 0 && (
+              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-10 text-center">
+                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-(--prism-success)/10">
+                  <CheckCircle2 className="size-5 text-(--prism-success)" />
+                </span>
+                <h3 className="mt-4 text-sm font-bold text-foreground">No pending actions yet.</h3>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">All event items are up to date. PMCM will notify you when something needs your attention.</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Event card grid */}
         {events.length > 0 ? (
           <div>
@@ -1380,7 +1392,7 @@ export function Dashboard({
             <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--prism-signal-soft)]">
               <CalendarDays className="size-6 text-[var(--prism-signal)]" />
             </span>
-            <h3 className="mt-4 text-base font-black text-foreground">No events yet</h3>
+            <h3 className="mt-4 text-base font-black text-foreground">No events yet.</h3>
             <p className="mt-2 max-w-sm mx-auto text-sm leading-6 text-muted-foreground">
               Your event workspace opens after PMCM accepts your inquiry and records the signed conforme. Submit a request to get started.
             </p>
@@ -2555,7 +2567,7 @@ export function Dashboard({
             </button>
           );
         }) : (
-          <p className="px-5 py-6 text-sm text-muted-foreground">Nothing here right now.</p>
+          <p className="px-5 py-6 text-sm text-muted-foreground">No items yet.</p>
         )}
       </div>
     </div>

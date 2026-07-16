@@ -906,7 +906,7 @@ export class SampleCompatibilityService implements OnModuleInit {
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
   ) {
-    return this.inquiryWorkflowService.uploadConforme(inquiryId, input, this.inquiryWorkflowContext());
+    return this.inquiryWorkflowService.uploadConforme(inquiryId, input, {}, this.inquiryWorkflowContext());
   }
 
   private async listEvents(actorInput: SampleActorInput = {}) {
@@ -1533,12 +1533,14 @@ export class SampleCompatibilityService implements OnModuleInit {
     return this.coordinatorsService.listCoordinators();
   }
 
-  private async assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput) {
-    return this.coordinatorsService.assignCoordinator(eventId, input);
+  private async assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput, actorInput: SampleActorInput = {}) {
+    const actor = this.resolveActor(actorInput);
+    return this.coordinatorsService.assignCoordinator(eventId, input, actor);
   }
 
-  private async acknowledgeCoordinator(eventId: string, assignmentId: string) {
-    return this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId);
+  private async acknowledgeCoordinator(eventId: string, assignmentId: string, actorInput: SampleActorInput = {}) {
+    const actor = this.resolveActor(actorInput);
+    return this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId, actor);
   }
 
   private async markPayment(

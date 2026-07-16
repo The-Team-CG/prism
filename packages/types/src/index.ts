@@ -1,6 +1,6 @@
-export * from "./event-ops";
-export * from "./lifecycle";
-export * from "./session";
+export * from "./event-ops.js";
+export * from "./lifecycle.js";
+export * from "./session.js";
 
 export type PrismRole = "pmcm" | "client" | "supplier" | "guest" | "coordinator";
 

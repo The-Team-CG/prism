@@ -1,9 +1,10 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsCoordinator, OpsCoordinatorAssignment } from '@prisma/client';
+import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent } from '@prisma/client';
 import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import type { PrismCommandContext } from '../../../../core/shared-kernel/src';
-import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/modules/event-core';
+import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/modules/event-core';
+import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
 import { AUDIT_WRITER, type AuditWriter } from '@prism/modules/trust-ops';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/modules/notification-ops';
 
@@ -11,6 +12,18 @@ export type CreateCoordinatorAssignmentInput = {
   coordinatorId?: string;
   coordinatorName?: string;
   role?: string;
+  overrideConflict?: boolean;
+};
+
+export type WithdrawCoordinatorAssignmentInput = {
+  reason?: string;
+};
+
+export type ReplaceCoordinatorAssignmentInput = {
+  replacementCoordinatorId?: string;
+  replacementCoordinatorName?: string;
+  replacementRole?: string;
+  reason?: string;
   overrideConflict?: boolean;
 };
 
@@ -35,6 +48,7 @@ export class CoordinatorsService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     @Inject(WORKFLOW_COMMAND_LOG) private readonly workflowCommandService: WorkflowCommandService,
+    private readonly eventAccessPolicyService: EventAccessPolicyService,
   ) {}
 
   async listCoordinators() {
@@ -102,14 +116,63 @@ export class CoordinatorsService {
     );
   }
 
-  async assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput) {
-    let event: Awaited<ReturnType<CoordinatorsService['requireEvent']>> | null = null;
-    let coordinator: OpsCoordinator | null = null;
-    let role = '';
-    let conflict: CoordinatorConflict | null = null;
+  private async resolveAssignmentPlan(
+    eventId: string,
+    input: CreateCoordinatorAssignmentInput,
+  ): Promise<{ event: OpsEvent; coordinator: OpsCoordinator; role: string; conflict: CoordinatorConflict | null }> {
+    const event = await this.requireEvent(eventId);
+    const coordinator = await this.resolveCoordinator(input);
+    const role = input.role || coordinator.roleTags[0] || 'General Coordinator';
+
+    if (!coordinator.roleTags.includes(role)) {
+      throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
+    }
+
+    const conflict = (await this.prisma.opsCoordinatorAssignment.findFirst({
+      where: {
+        coordinatorId: coordinator.id,
+        eventDate: event.eventDate,
+        eventId: { not: event.id },
+        status: { not: CoordinatorAssignmentStatus.Cancelled },
+      },
+      include: { event: true },
+      orderBy: { createdAt: 'desc' },
+    })) as CoordinatorConflict | null;
+
+    if (conflict && !input.overrideConflict) {
+      throw new BadRequestException(
+        `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
+      );
+    }
+
+    return { event, coordinator, role, conflict };
+  }
+
+  private buildAssignmentCreateData(
+    eventId: string,
+    plan: { event: OpsEvent; coordinator: OpsCoordinator; role: string; conflict: CoordinatorConflict | null },
+  ) {
+    return {
+      id: `coord_asg_${randomUUID()}`,
+      eventId,
+      coordinatorId: plan.coordinator.id,
+      coordinatorName: plan.coordinator.name,
+      role: plan.role,
+      status: CoordinatorAssignmentStatus.PendingAcknowledgement,
+      doubleBookingWarning: Boolean(plan.conflict),
+      eventDate: plan.event.eventDate,
+      conflictEventId: plan.conflict?.eventId ?? null,
+      conflictEventName: plan.conflict?.event.eventName ?? null,
+    };
+  }
+
+  async assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator assignment');
+
+    let plan: Awaited<ReturnType<CoordinatorsService['resolveAssignmentPlan']>> | null = null;
     const commandContext: PrismCommandContext = {
-      actorId: 'pmcm_admin',
-      actorRole: 'pmcm_admin',
+      actorId: actor.id ?? actor.name,
+      actorRole: actor.role,
       eventId,
       correlationId: `coord_assign_${eventId}_${input.coordinatorId ?? input.coordinatorName ?? input.role ?? 'unassigned'}`,
       idempotencyKey: `coord-assign:${eventId}:${input.coordinatorId ?? input.coordinatorName ?? input.role ?? 'unassigned'}`,
@@ -124,71 +187,35 @@ export class CoordinatorsService {
       context: commandContext,
       sideEffectMode: 'same_tx',
       validateState: async () => {
-        event = await this.requireEvent(eventId);
-        coordinator = await this.resolveCoordinator(input);
-        role = input.role || coordinator.roleTags[0] || 'General Coordinator';
-
-        if (!coordinator.roleTags.includes(role)) {
-          throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
-        }
-
-        conflict = await this.prisma.opsCoordinatorAssignment.findFirst({
-          where: {
-            coordinatorId: coordinator.id,
-            eventDate: event.eventDate,
-            eventId: { not: event.id },
-            status: { not: CoordinatorAssignmentStatus.Cancelled },
-          },
-          include: { event: true },
-          orderBy: { createdAt: 'desc' },
-        }) as CoordinatorConflict | null;
-
-        if (conflict && !input.overrideConflict) {
-          throw new BadRequestException(
-            `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
-          );
-        }
+        plan = await this.resolveAssignmentPlan(eventId, input);
       },
       write: (transactionContext) => {
-        if (!event || !coordinator) throw new NotFoundException('Coordinator not found');
+        if (!plan) throw new NotFoundException('Coordinator not found');
         const prisma = transactionContext?.prisma ?? this.prisma;
-        return prisma.opsCoordinatorAssignment.create({
-          data: {
-            id: `coord_asg_${randomUUID()}`,
-            eventId,
-            coordinatorId: coordinator.id,
-            coordinatorName: coordinator.name,
-            role,
-            status: CoordinatorAssignmentStatus.PendingAcknowledgement,
-            doubleBookingWarning: Boolean(conflict),
-            eventDate: event.eventDate,
-            conflictEventId: conflict?.eventId ?? null,
-            conflictEventName: conflict?.event.eventName ?? null,
-          },
-        });
+        return prisma.opsCoordinatorAssignment.create({ data: this.buildAssignmentCreateData(eventId, plan) });
       },
       sideEffects: async (assignment, transactionContext) => {
-        if (!event || !coordinator) return;
+        if (!plan) return;
         await Promise.all([
           this.auditWriter.write({
             eventId,
-            actor: 'PMCM Admin',
-            action: `Assigned ${coordinator.name} as ${role}`,
+            actor: actor.name,
+            action: `Assigned ${plan.coordinator.name} as ${plan.role}`,
             actionType: AuditActionType.Assign,
             category: AuditCategory.Events,
             affectedType: 'coordinator_assignment',
             affectedId: assignment.id,
-            affectedLabel: `${coordinator.name} - ${role}`,
+            affectedLabel: `${plan.coordinator.name} - ${plan.role}`,
             metadata: {
-              coordinatorId: coordinator.id,
-              conflictEventId: conflict?.eventId ?? null,
-              conflictEventName: conflict?.event.eventName ?? null,
+              coordinatorId: plan.coordinator.id,
+              conflictEventId: plan.conflict?.eventId ?? null,
+              conflictEventName: plan.conflict?.event.eventName ?? null,
             },
           }, transactionContext),
           this.notificationOutboxWriter.write({
             eventId,
-            recipient: coordinator.email,
-            message: `Coordinator assignment issued: ${event.eventName} (${role})`,
+            recipient: plan.coordinator.email,
+            message: `Coordinator assignment issued: ${plan.event.eventName} (${plan.role})`,
             correlationId: commandContext.correlationId,
             idempotencyKey: `${commandContext.idempotencyKey}:email`,
           }, transactionContext),
@@ -206,10 +233,20 @@ export class CoordinatorsService {
     });
   }
 
-  async acknowledgeCoordinator(eventId: string, assignmentId: string) {
+  async acknowledgeCoordinator(eventId: string, assignmentId: string, actor: ResolvedEventOpsActor) {
+    // FLAGGED SCOPING DECISION (EP-02-S05 / AC8): acknowledge allows PmcmAdmin AND Coordinator,
+    // not PmcmAdmin-only, because the real coordinator self-service flow (coordinator-view.tsx)
+    // calls this endpoint for a coordinator to confirm their own assignment. Revisit only if
+    // that flow changes.
+    await this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator],
+      'coordinator assignment acknowledgement',
+    );
+
     const commandContext: PrismCommandContext = {
-      actorId: 'coordinator',
-      actorRole: 'coordinator',
+      actorId: actor.id ?? actor.name,
+      actorRole: actor.role,
       eventId,
       correlationId: `coord_ack_${eventId}_${assignmentId}`,
       idempotencyKey: `coord-ack:${eventId}:${assignmentId}`,
@@ -240,7 +277,7 @@ export class CoordinatorsService {
       sideEffects: async (assignment, transactionContext) => {
         await this.auditWriter.write({
           eventId,
-          actor: assignment.coordinatorName,
+          actor: actor.name,
           action: 'Acknowledged coordinator assignment',
           actionType: AuditActionType.Update,
           category: AuditCategory.Events,
@@ -250,6 +287,197 @@ export class CoordinatorsService {
         }, transactionContext);
       },
       project: (assignment) => this.mapCoordinatorAssignment(assignment),
+    });
+  }
+
+  async withdrawCoordinator(
+    eventId: string,
+    assignmentId: string,
+    input: WithdrawCoordinatorAssignmentInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    // FLAGGED SCOPING DECISION (EP-02-S05 / AC8): withdraw is PmcmAdmin-only by design,
+    // there is no coordinator-facing withdraw UI today. Revisit if that changes.
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator withdrawal');
+
+    const commandContext: PrismCommandContext = {
+      actorId: actor.id ?? actor.name,
+      actorRole: actor.role,
+      eventId,
+      correlationId: `coord_withdraw_${eventId}_${assignmentId}`,
+      idempotencyKey: `coord-withdraw:${eventId}:${assignmentId}`,
+    };
+
+    return this.workflowCommandService.execute<
+      OpsCoordinatorAssignment,
+      ReturnType<CoordinatorsService['mapCoordinatorAssignment']>
+    >({
+      name: 'withdraw_coordinator_assignment',
+      eventId,
+      context: commandContext,
+      sideEffectMode: 'same_tx',
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        const existing = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
+        if (!existing) throw new NotFoundException('Coordinator assignment not found');
+        if (
+          existing.status === CoordinatorAssignmentStatus.Cancelled ||
+          existing.status === CoordinatorAssignmentStatus.Replaced
+        ) {
+          throw new BadRequestException('Coordinator assignment is already withdrawn or replaced');
+        }
+      },
+      write: (transactionContext) => {
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        return prisma.opsCoordinatorAssignment
+          .update({
+            where: { id: assignmentId },
+            data: { status: CoordinatorAssignmentStatus.Cancelled },
+          })
+          .catch(() => {
+            throw new NotFoundException('Coordinator assignment not found');
+          });
+      },
+      sideEffects: async (assignment, transactionContext) => {
+        await Promise.all([
+          this.auditWriter.write({
+            eventId,
+            actor: actor.name,
+            action: `Withdrew coordinator assignment for ${assignment.coordinatorName}`,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'coordinator_assignment',
+            affectedId: assignment.id,
+            affectedLabel: assignment.coordinatorName,
+            metadata: { reason: input.reason ?? '' },
+          }, transactionContext),
+          this.notificationOutboxWriter.write({
+            eventId,
+            recipient: assignment.coordinatorName,
+            message: `Your coordinator assignment for this event has been withdrawn${input.reason ? `: ${input.reason}` : '.'}`,
+            correlationId: commandContext.correlationId,
+            idempotencyKey: `${commandContext.idempotencyKey}:notify`,
+          }, transactionContext),
+        ]);
+      },
+      project: (assignment) => this.mapCoordinatorAssignment(assignment),
+    });
+  }
+
+  async replaceCoordinator(
+    eventId: string,
+    assignmentId: string,
+    input: ReplaceCoordinatorAssignmentInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    // FLAGGED SCOPING DECISION (EP-02-S05 / AC8): replace is PmcmAdmin-only by design,
+    // there is no coordinator-facing replace UI today. Revisit if that changes.
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator replacement');
+
+    let oldAssignment: OpsCoordinatorAssignment | null = null;
+    let plan: Awaited<ReturnType<CoordinatorsService['resolveAssignmentPlan']>> | null = null;
+    const commandContext: PrismCommandContext = {
+      actorId: actor.id ?? actor.name,
+      actorRole: actor.role,
+      eventId,
+      correlationId: `coord_replace_${eventId}_${assignmentId}`,
+      idempotencyKey: `coord-replace:${eventId}:${assignmentId}`,
+    };
+
+    return this.workflowCommandService.execute<
+      { newAssignment: OpsCoordinatorAssignment; oldAssignment: OpsCoordinatorAssignment },
+      {
+        outgoing: ReturnType<CoordinatorsService['mapCoordinatorAssignment']>;
+        incoming: ReturnType<CoordinatorsService['mapCoordinatorAssignment']>;
+      }
+    >({
+      name: 'replace_coordinator_assignment',
+      eventId,
+      context: commandContext,
+      sideEffectMode: 'same_tx',
+      validateState: async () => {
+        oldAssignment = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
+        if (!oldAssignment) throw new NotFoundException('Coordinator assignment not found');
+        if (
+          oldAssignment.status === CoordinatorAssignmentStatus.Cancelled ||
+          oldAssignment.status === CoordinatorAssignmentStatus.Replaced
+        ) {
+          throw new BadRequestException('Coordinator assignment is already withdrawn or replaced');
+        }
+        plan = await this.resolveAssignmentPlan(eventId, {
+          coordinatorId: input.replacementCoordinatorId,
+          coordinatorName: input.replacementCoordinatorName,
+          role: input.replacementRole,
+          overrideConflict: input.overrideConflict,
+        });
+      },
+      write: async (transactionContext) => {
+        if (!oldAssignment || !plan) throw new NotFoundException('Coordinator assignment not found');
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        const newAssignment = await prisma.opsCoordinatorAssignment.create({
+          data: this.buildAssignmentCreateData(eventId, plan),
+        });
+        const updatedOld = await prisma.opsCoordinatorAssignment
+          .update({
+            where: { id: assignmentId },
+            data: {
+              status: CoordinatorAssignmentStatus.Replaced,
+              replacedAt: new Date(),
+              replacedBy: actor.name,
+              replacementReason: input.reason ?? '',
+              replacedByAssignmentId: newAssignment.id,
+            },
+          })
+          .catch(() => {
+            throw new NotFoundException('Coordinator assignment not found');
+          });
+        return { newAssignment, oldAssignment: updatedOld };
+      },
+      sideEffects: async ({ newAssignment, oldAssignment: updatedOld }, transactionContext) => {
+        if (!plan) return;
+        await Promise.all([
+          this.auditWriter.write({
+            eventId,
+            actor: actor.name,
+            action: `Replaced ${updatedOld.coordinatorName} with ${plan.coordinator.name}`,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'coordinator_assignment',
+            affectedId: updatedOld.id,
+            affectedLabel: updatedOld.coordinatorName,
+            metadata: { reason: input.reason ?? '', replacementAssignmentId: newAssignment.id },
+          }, transactionContext),
+          this.auditWriter.write({
+            eventId,
+            actor: actor.name,
+            action: `Assigned ${plan.coordinator.name} as ${plan.role} (replacement)`,
+            actionType: AuditActionType.Assign,
+            category: AuditCategory.Events,
+            affectedType: 'coordinator_assignment',
+            affectedId: newAssignment.id,
+            affectedLabel: `${plan.coordinator.name} - ${plan.role}`,
+            metadata: { replacedAssignmentId: updatedOld.id },
+          }, transactionContext),
+          this.notificationOutboxWriter.write({
+            eventId,
+            recipient: updatedOld.coordinatorName,
+            message: `You have been replaced on this assignment${input.reason ? `: ${input.reason}` : '.'}`,
+            correlationId: commandContext.correlationId,
+            idempotencyKey: `${commandContext.idempotencyKey}:outgoing`,
+          }, transactionContext),
+          this.notificationOutboxWriter.write({
+            eventId,
+            recipient: plan.coordinator.email,
+            message: `Coordinator assignment issued (replacement): ${plan.role}`,
+            correlationId: commandContext.correlationId,
+            idempotencyKey: `${commandContext.idempotencyKey}:incoming`,
+          }, transactionContext),
+        ]);
+      },
+      project: ({ newAssignment, oldAssignment: updatedOld }) => ({
+        outgoing: this.mapCoordinatorAssignment(updatedOld),
+        incoming: this.mapCoordinatorAssignment(newAssignment),
+      }),
     });
   }
 

@@ -3,6 +3,7 @@ import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import type { PrismEventOpsActorContext } from '@prism/types';
+import type { ResolvedEventOpsActor } from '@prism/modules/access-control';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';
 import { NotificationOutboxService } from '@prism/modules/notification-ops';
@@ -208,6 +209,7 @@ export class InquiriesService {
   async uploadConforme(
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    actor: ResolvedEventOpsActor,
   ): Promise<OpsDocument> {
     let inquiry: OpsInquiry | null = null;
     let existingEvent: OpsEvent | null = null;
@@ -408,7 +410,9 @@ export class InquiriesService {
       },
       sideEffects: async ({ document, event, billingNumber }) => {
         const sideEffects: Array<Promise<unknown>> = [
-          this.audit(event.id, 'PMCM Admin', 'Uploaded signed conforme and unlocked client portal', {
+          this.audit(event.id, actor.name, 'Uploaded signed conforme and unlocked client portal', {
+            actorRole: actor.role,
+            actorEmail: actor.email,
             category: AuditCategory.Documents,
             actionType: AuditActionType.Upload,
             affectedType: 'document',

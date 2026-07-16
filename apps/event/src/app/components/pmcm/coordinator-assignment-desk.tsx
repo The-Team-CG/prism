@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { UserCheck, UsersRound } from "lucide-react";
+import { ChevronDown, UserCheck, UsersRound } from "lucide-react";
 
 import type {
   PrismCoordinator,
@@ -55,6 +55,9 @@ export function CoordinatorAssignmentDesk({
     role: string;
     conflict: PrismCoordinatorAssignment;
   } | null>(null);
+  const [ackPanelOpen, setAckPanelOpen] = useState(true);
+
+  const pendingAcknowledgments = assignments.filter((a) => a.status === "pending_acknowledgement");
 
   const eventDate = dateKey(event.eventDate);
   const eventAssignments = assignments.filter((a) => a.eventId === event.id);
@@ -107,6 +110,40 @@ export function CoordinatorAssignmentDesk({
 
   return (
     <div className="space-y-5">
+      {/* Pending acknowledgments */}
+      {pendingAcknowledgments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <UserCheck className="size-4 text-(--prism-amber)" />
+                <h2 className="text-sm font-bold text-foreground">Pending Acknowledgments</h2>
+                <span className="rounded-full bg-(--prism-amber)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">
+                  {pendingAcknowledgments.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAckPanelOpen((prev) => !prev)}
+                className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted"
+              >
+                <ChevronDown className={`size-4 transition-transform ${ackPanelOpen ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+          </CardHeader>
+          {ackPanelOpen && (
+            <CardBody className="space-y-1">
+              {pendingAcknowledgments.map((asg) => (
+                <div key={asg.id} className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 px-4 py-2.5">
+                  <p className="text-sm font-bold text-foreground">{asg.coordinatorName}</p>
+                  <span className="rounded-full border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{asg.role}</span>
+                </div>
+              ))}
+            </CardBody>
+          )}
+        </Card>
+      )}
+
       {/* Staffing summary */}
       <Card>
         <CardHeader>
@@ -220,6 +257,13 @@ export function CoordinatorAssignmentDesk({
                                       <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-foreground">{tag}</span>
                                     ))}
                                   </div>
+                                  {coord.skillsTags.length > 0 && (
+                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                      {coord.skillsTags.map((tag) => (
+                                        <span key={tag} className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground">{tag}</span>
+                                      ))}
+                                    </div>
+                                  )}
                                   {conflict && (
                                     <p className="mt-2 text-xs font-semibold text-(--prism-amber)">
                                       Assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
@@ -235,6 +279,19 @@ export function CoordinatorAssignmentDesk({
                                     <UserCheck className="size-3.5" />
                                     {assignedHere ? "Assigned" : conflict ? "Review conflict" : "Quick assign"}
                                   </Button>
+                                  {(() => {
+                                    const asg = eventAssignments.find((a) => a.coordinatorId === coord.id);
+                                    if (!asg || (asg.status !== "pending_acknowledgement" && asg.status !== "acknowledged")) return null;
+                                    const isPending = asg.status === "pending_acknowledgement";
+                                    return (
+                                      <Badge
+                                        variant="outline"
+                                        className={`mt-2 rounded-full text-[10px] font-bold ${isPending ? "border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)" : "border-(--prism-success)/25 bg-(--prism-success)/8 text-(--prism-success)"}`}
+                                      >
+                                        {isPending ? "Pending Acknowledgment" : "Acknowledged"}
+                                      </Badge>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
