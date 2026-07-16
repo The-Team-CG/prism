@@ -65,3 +65,6 @@ skills-lock.json
 Thumbs.db
 
 .next
+
+# Docker local secrets (synced from apps/api/.env; never commit)
+.env.docker

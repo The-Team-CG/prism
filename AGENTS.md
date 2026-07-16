@@ -84,9 +84,11 @@ npm run dev:api | dev:api:watch | dev:client | dev:event | dev:supplier | dev:gu
 ```
 
 ```bat
-start-prism.cmd                 rem Docker default (needs Desktop)
-start-prism.cmd -Dev|-Foreground|-Local
-stop-prism.cmd [-Volumes|-LocalOnly]
+start-prism.cmd                 rem local Node npm run dev (default, faster)
+stop-prism.cmd                  rem stop local Node only
+start-prism-docker.cmd          rem Docker compose (slow first build)
+start-prism-docker.cmd -Dev     rem Docker hot reload
+stop-prism-docker.cmd           rem docker compose down
 ```
 
 ```bash

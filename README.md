@@ -34,22 +34,18 @@ Full map: [`docs/README.md`](docs/README.md). Agents: [`AGENTS.md`](AGENTS.md).
 
 ## Run Locally
 
-**One command** (Docker Desktop must be running):
+**Normal (fast) — local Node hot reload:**
 
 ```bat
 start-prism.cmd
+stop-prism.cmd
 ```
 
-That is the default path. It:
-
-1. Creates `.env.docker` from `.env.docker.example` if missing (fill in DB URLs)
-2. Builds and starts the full stack with `compose.local.yml`
-3. Waits for API + portals, then prints URLs
-
-Stop everything:
+**Docker (slower image build) — separate commands:**
 
 ```bat
-stop-prism.cmd
+start-prism-docker.cmd
+stop-prism-docker.cmd
 ```
 
 | App | URL |
@@ -62,32 +58,32 @@ stop-prism.cmd
 
 Sample sign-in accounts: [`docs/portal-accounts.md`](docs/portal-accounts.md).
 
-### Start / stop options
+### Local options (`start-prism.cmd`)
 
 ```bat
-start-prism.cmd              rem Docker build+start (default)
-start-prism.cmd -Dev         rem Docker hot-reload via compose.dev.yml
-start-prism.cmd -Foreground  rem attach to compose logs
-start-prism.cmd -Local       rem no Docker: local npm build + start
-stop-prism.cmd               rem docker compose down + stop local Node
-stop-prism.cmd -Volumes      rem also remove compose volumes
-stop-prism.cmd -LocalOnly    rem only stop local Node processes
+start-prism.cmd              rem npm run dev for API + 4 portals
+start-prism.cmd -Prod        rem full build then npm run start
+start-prism.cmd -Install     rem force npm install first
+start-prism.cmd -SkipBuild   rem with -Prod, skip monorepo build
+stop-prism.cmd               rem stop local Node only
+stop-prism.cmd -All          rem stop local Node + Docker
 ```
 
-API containers read `.env.docker`. Edit that file with your database URLs (same values you use for the API). Do not commit `.env.docker`.
+Logs: `.local-dev\logs`. Requires `apps/api/.env` with database URLs.
 
-For workspace-only hot reload without Docker, use `npm run dev:api`, `dev:client`, `dev:event`, `dev:supplier`, `dev:guest`.
+### Docker options (`start-prism-docker.cmd`)
+
+```bat
+start-prism-docker.cmd              rem compose.local.yml build + start
+start-prism-docker.cmd -Dev         rem compose.dev.yml hot reload
+start-prism-docker.cmd -Foreground  rem attach logs
+stop-prism-docker.cmd               rem docker compose down
+stop-prism-docker.cmd -Volumes      rem also remove volumes
+```
+
+API containers read `.env.docker` (auto-synced from `apps/api/.env` when empty). Do not commit `.env.docker`.
 
 More Docker detail: [`docs/docker-dev-testing-guide.md`](docs/docker-dev-testing-guide.md).
-
-### Manual Docker (optional)
-
-```bash
-cp .env.docker.example .env.docker
-docker compose -f compose.local.yml up --build -d
-# hot reload:
-docker compose -f compose.dev.yml up --build
-```
 
 ## Product Boundaries
 
