@@ -6,9 +6,9 @@ This runbook is the local-only May 9, 2026 defense path. It should be used with 
 
 ## Start And Reset
 
-1. Start the stack from the repo root:
+1. Start the stack from the repo root (`.\start-prism.cmd` rebuilds dist and starts apps; it does not seed data):
    `.\start-prism.cmd`
-2. Open these surfaces:
+2. If sample accounts/events are missing, reset sample data from the PMCM event app (or sample reset API), then open these surfaces:
    - PMCM and coordinator command: `http://localhost:3004`
    - Client portal: `http://localhost:3001`
    - Supplier portal: `http://localhost:3002`
@@ -18,13 +18,15 @@ This runbook is the local-only May 9, 2026 defense path. It should be used with 
 
 ## Sample Accounts
 
+Canonical list (all portals, including second supplier sample and guest code): [`docs/portal-accounts.md`](../portal-accounts.md).
+
 | Role | URL | Account |
 | --- | --- | --- |
 | PMCM admin | `http://localhost:3004` | `mys@pmcm.test` / `prism-admin` |
 | Coordinator | `http://localhost:3004` | `marco@pmcm.test` / `prism-coordinator` |
 | Client | `http://localhost:3001/sign-in` | `ana@ayala.test` / `prism-client` |
-| Supplier | `http://localhost:3002/sign-in` | `ops@xperto.test` / `prism-supplier` |
-| Guest | `http://localhost:3003/open` | event access code generated in the PMCM selected-event workspace |
+| Supplier | `http://localhost:3002/sign-in` | `ops@xperto.test` / `prism-supplier` (also `flowers@bloom.test` / `prism-supplier`) |
+| Guest | `http://localhost:3003/open` | sample code `AYALA-TECH-YALA` (also shown in the PMCM selected-event workspace) |
 
 ## Defense Story
 

@@ -114,14 +114,4 @@ describe('SampleStateService', () => {
     await expect(service.state(createContext())).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('allows seed compatibility to delegate then read state outside production', async () => {
-    process.env.NODE_ENV = 'test';
-    const service = new SampleStateService(createPrisma() as any);
-    const ensureSeeded = vi.fn(async () => undefined);
-    const readState = vi.fn(async () => ({ ok: true }));
-
-    await expect(service.seedSampleState(ensureSeeded, readState)).resolves.toEqual({ ok: true });
-    expect(ensureSeeded).toHaveBeenCalledTimes(1);
-    expect(readState).toHaveBeenCalledTimes(1);
-  });
 });

@@ -38,19 +38,35 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 
 ## Run Locally
 
-From `c:\Codes\prism`, use the root wrappers:
+From the repo root, use the start wrapper:
 
-```bash
+```bat
 start-prism.cmd
 ```
 
-This starts the API and all four portals with logs under `.local-dev\logs`.
+That script is build-and-run only (no data seed / provisioning):
+
+1. Optional `npm install` / `npm ci` when dependencies are missing (`-Install` forces reinstall)
+2. `npm run db:generate` (Prisma client codegen only)
+3. `npm run build` (workspace dist / Next `.next` outputs)
+4. `npm run start` for API + all four portals
+
+Logs land under `.local-dev\logs`. Useful flags:
+
+```bat
+start-prism.cmd -SkipBuild
+start-prism.cmd -Install
+start-prism.cmd -SkipPrismaGenerate
+start-prism.cmd -NoPortCleanup
+```
 
 To stop the local stack:
 
-```bash
+```bat
 stop-prism.cmd
 ```
+
+For day-to-day hot reload without a full rebuild, use the workspace dev scripts instead (`npm run dev:api`, `dev:client`, `dev:event`, `dev:supplier`, `dev:guest`).
 
 Individual app defaults:
 
@@ -61,6 +77,8 @@ Individual app defaults:
 | Supplier portal | `http://localhost:3002` |
 | Guest portal | `http://localhost:3003` |
 | Event command | `http://localhost:3004` |
+
+Sample sign-in accounts for every portal are listed in [`docs/portal-accounts.md`](docs/portal-accounts.md).
 
 ### Docker Local Stack
 

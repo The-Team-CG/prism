@@ -120,7 +120,7 @@ Current `event-ops` end state:
 apps/api/libs/modules/event-ops/  # deleted
 ```
 
-`sample-compatibility` owns `/sample/state`, `/sample/reset`, and `/sample/seed`. Those endpoints intentionally aggregate demo/seed state across many capabilities, so they remain isolated from normal role-scoped product APIs. No app, package, script, or API config should import `@prism/modules/event-ops`, `event-ops/src`, `EventOpsModule`, `EventOpsService`, or `EVENT_OPS_CONTROLLERS`.
+`sample-compatibility` owns `/sample/state` and `/sample/reset`. Those endpoints intentionally aggregate demo state across many capabilities, so they remain isolated from normal role-scoped product APIs. No app, package, script, or API config should import `@prism/modules/event-ops`, `event-ops/src`, `EventOpsModule`, `EventOpsService`, or `EVENT_OPS_CONTROLLERS`.
 
 
 Executable backend guardrails live in `scripts/check-prism-boundaries.mjs`. The checker now blocks future capability modules from importing other modules' private service internals, prevents capability modules from importing `event-ops`, fails any tracked file under `apps/api/libs/modules/event-ops`, prevents `event-read-models` from mutating Prisma state, and requires raw read-model queries to live in approved query-builder files with a query budget.
