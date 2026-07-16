@@ -10,11 +10,14 @@ function createService() {
     opsDocument: { findMany: vi.fn(async () => []) },
   };
   const context = {
-    inquiriesService: {} as any,
-    resolveActor: vi.fn((input = {}) => ({
-      role: input.actorRole,
-      name: input.actorName ?? 'anonymous',
-    })),
+    inquiriesService: {
+      uploadConforme: vi.fn(async () => ({ id: 'doc_sample' })),
+    } as any,
+    resolveActor: vi.fn((input: any = {}, verifiedActor?: any) =>
+      verifiedActor
+        ? { role: verifiedActor.actorRole, name: verifiedActor.actorName }
+        : { role: input.actorRole, name: input.actorName ?? 'anonymous' },
+    ),
     requireActorRole: vi.fn(async (actor, roles, resource) => {
       if (!roles.includes(actor.role)) {
         throw new ForbiddenException(`${actor.role ?? 'anonymous'} cannot access ${resource}`);
@@ -42,5 +45,53 @@ describe('InquiryWorkflowService', () => {
     expect(prisma.opsInquiry.findMany).not.toHaveBeenCalled();
     expect(prisma.opsEvent.findMany).not.toHaveBeenCalled();
     expect(prisma.opsDocument.findMany).not.toHaveBeenCalled();
+  });
+
+  it('denies non-PmcmAdmin actors from uploading conforme documents', async () => {
+    const { service, context } = createService();
+
+    await expect(
+      service.uploadConforme('inq_sample', { fileName: 'signed.pdf' }, { actorRole: 'client' }, context as any),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(context.requireActorRole).toHaveBeenCalledWith(
+      { role: 'client', name: 'anonymous' },
+      [OpsUserRole.PmcmAdmin],
+      'conforme upload',
+    );
+    expect(context.inquiriesService.uploadConforme).not.toHaveBeenCalled();
+  });
+
+  it('denies a verified non-PmcmAdmin actor from uploading conforme documents', async () => {
+    const { service, context } = createService();
+    const verifiedActor = { actorRole: 'client', actorName: 'A Client' };
+
+    await expect(
+      service.uploadConforme('inq_sample', { fileName: 'signed.pdf' }, {}, context as any, verifiedActor as any),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(context.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
+    expect(context.requireActorRole).toHaveBeenCalledWith(
+      { role: 'client', name: 'A Client' },
+      [OpsUserRole.PmcmAdmin],
+      'conforme upload',
+    );
+    expect(context.inquiriesService.uploadConforme).not.toHaveBeenCalled();
+  });
+
+  it('allows a verified PmcmAdmin actor to upload conforme documents', async () => {
+    const { service, context } = createService();
+    const verifiedActor = { actorRole: 'pmcm-admin', actorName: 'Ms. Mys' };
+
+    await expect(
+      service.uploadConforme('inq_sample', { fileName: 'signed.pdf' }, {}, context as any, verifiedActor as any),
+    ).resolves.toEqual({ id: 'doc_sample' });
+
+    expect(context.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
+    expect(context.inquiriesService.uploadConforme).toHaveBeenCalledWith(
+      'inq_sample',
+      { fileName: 'signed.pdf' },
+      { role: 'pmcm-admin', name: 'Ms. Mys' },
+    );
   });
 });

@@ -47,6 +47,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
 
+function actorFromSession(session: SupplierSession) {
+  return { actorRole: "supplier" as const, actorName: session.name, actorEmail: session.email };
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
@@ -68,18 +72,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error(message || `Request failed: ${response.status}`);
   }
   return body.data as T;
-}
-
-function supplierActorQuery(session: SupplierSession) {
-  return new URLSearchParams({
-    actorRole: "supplier",
-    actorName: session.name,
-    actorEmail: session.email,
-  }).toString();
-}
-
-function supplierRequestPath(session: SupplierSession, requestId: string, suffix: string) {
-  return `/api/supplier/quote-requests/${requestId}/${suffix}?${supplierActorQuery(session)}`;
 }
 
 export const prismApi = {
@@ -107,26 +99,19 @@ export const prismApi = {
       body: JSON.stringify(input),
     }),
   confirmAssignment: (session: SupplierSession, requestId: string) =>
-    request<PrismSupplierQuoteRequest>(supplierRequestPath(session, requestId, "assignment/confirm"), {
-      method: "PATCH",
-    }),
+    eventOpsClient.supplierWorkspace.confirmAssignment(requestId, actorFromSession(session)),
   confirmReadiness: (session: SupplierSession, requestId: string, notes: string) =>
-    request<PrismSupplierQuoteRequest>(supplierRequestPath(session, requestId, "readiness/confirm"), {
-      method: "PATCH",
-      body: JSON.stringify({ notes }),
-    }),
+    eventOpsClient.supplierWorkspace.confirmReadiness(requestId, { notes }, actorFromSession(session)),
   uploadContract: (session: SupplierSession, requestId: string, fileName: string) =>
-    request<PrismSupplierQuoteRequest>(supplierRequestPath(session, requestId, "contract"), {
-      method: "POST",
-      body: JSON.stringify({
-        fileName,
-        mimeType: "application/pdf",
-        sizeBytes: 2048,
-      }),
-    }),
+    eventOpsClient.supplierWorkspace.uploadContract(
+      requestId,
+      { fileName, mimeType: "application/pdf", sizeBytes: 2048 },
+      actorFromSession(session),
+    ),
   updateEventStatus: (session: SupplierSession, requestId: string, status: string, notes: string) =>
-    request<PrismSupplierQuoteRequest>(supplierRequestPath(session, requestId, "event-status"), {
-      method: "PATCH",
-      body: JSON.stringify({ status, notes }),
-    }),
+    eventOpsClient.supplierWorkspace.updateEventStatus(
+      requestId,
+      { status: status as "arrived" | "set_up_ready" | "done_leaving", notes },
+      actorFromSession(session),
+    ),
 };

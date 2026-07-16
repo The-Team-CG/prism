@@ -511,10 +511,20 @@ export const prismApi = {
     }),
   sendConformeReminder: (inquiryId: string) =>
     request<PrismInquiry>(`/api/inquiries/${inquiryId}/conforme-reminders`, { method: "POST" }),
-  uploadConforme: (inquiryId: string) =>
+  // STUB(EP-04): File bytes not transmitted. When Supabase Storage is ready,
+  // convert to FormData with the actual File object. Coordinate with Anthony (Owner D).
+  uploadConforme: (
+    inquiryId: string,
+    meta: { fileName: string; mimeType: string; sizeBytes: number },
+  ) =>
     request<PrismDocument>(`/api/inquiries/${inquiryId}/conforme`, {
       method: "POST",
-      body: JSON.stringify({ type: "signed_conforme", fileName: "signed-conforme.pdf" }),
+      body: JSON.stringify({
+        type: "signed_conforme",
+        fileName: meta.fileName,
+        mimeType: meta.mimeType,
+        sizeBytes: meta.sizeBytes,
+      }),
     }),
   createFloorPlanDraft: (eventId: string, input: CreateFloorPlanDraftInput) =>
     request<PrismFloorPlanDraft>(withPmcmActor(`/api/events/${eventId}/floorplans`), {

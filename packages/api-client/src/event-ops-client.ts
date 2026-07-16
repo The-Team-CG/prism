@@ -4,15 +4,23 @@ import type {
   PrismClientWorkspace,
   PrismEvent,
   PrismFileRequirementsMatrix,
+  PrismGuestCheckIn,
   PrismGuestEventPass,
+  PrismGuestFeedback,
   PrismInquiry,
   PrismPmcmCommandInbox,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
   PrismSampleState,
   PrismEventOpsActorContext,
+  PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
+  PrismCoordinatorWorkspace,
+  PrismLiveOps,
+  PrismEventDayTask,
+  PrismUrgentIssue,
+  PrismCoordinatorAssignment,
 } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
@@ -32,6 +40,73 @@ export interface CreatePrismInquiryInput {
   privacyConsentAccepted?: boolean;
   privacyNoticeVersion?: string;
   marketingConsentAccepted?: boolean;
+}
+
+export interface CreateGuestCheckInInput {
+  guestName: string;
+  checkInMode?: string;
+  walkIn?: boolean;
+  verificationStatus?: string;
+  privacyConsentAccepted?: boolean;
+  privacyNoticeVersion?: string;
+  marketingConsentAccepted?: boolean;
+}
+
+export interface CreateGuestFeedbackInput {
+  guestName: string;
+  rating: number;
+  comment?: string;
+  privacyConsentAccepted?: boolean;
+  privacyNoticeVersion?: string;
+  marketingConsentAccepted?: boolean;
+}
+
+export interface ConfirmSupplierReadinessInput {
+  notes?: string;
+}
+
+export interface UploadContractInput {
+  fileName: string;
+  mimeType?: string;
+  sizeBytes?: number;
+}
+
+export interface UpdateSupplierEventStatusInput {
+  status: "arrived" | "set_up_ready" | "done_leaving";
+  notes?: string;
+}
+
+export interface CreateEventDayTaskInput {
+  title: string;
+  assignedRole?: string;
+  ownerName?: string;
+  priority?: string;
+  notes?: string;
+  dueAt?: string;
+  slaDueAt?: string;
+}
+
+export interface UpdateEventDayTaskInput {
+  status?: string;
+  notes?: string;
+  ownerName?: string;
+  slaDueAt?: string;
+}
+
+export interface UpdateCoordinatorAttendanceInput {
+  status: string;
+  notes?: string;
+  markedBy?: string;
+}
+
+export interface CreateUrgentIssueInput {
+  title: string;
+  description?: string;
+  severity?: string;
+  ownerRole?: string;
+  ownerName?: string;
+  openedBy?: string;
+  slaDueAt?: string;
 }
 
 export interface EventOpsClientOptions {
@@ -76,10 +151,6 @@ export interface EventOpsClient {
     detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
     actionCenter(actor?: EventOpsActorQuery): Promise<PrismClientActionCenter>;
   };
-  supplierWorkspace: {
-    detail(actor?: EventOpsActorQuery): Promise<PrismSupplierWorkspace>;
-    readinessBoard(actor?: EventOpsActorQuery): Promise<PrismSupplierReadinessBoard>;
-  };
   billing: {
     list(actor?: EventOpsActorQuery): Promise<PrismBillingWorkspace>;
   };
@@ -92,6 +163,26 @@ export interface EventOpsClient {
   };
   guest: {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
+    checkIn(accessCode: string, input: CreateGuestCheckInInput): Promise<PrismGuestCheckIn>;
+    feedback(accessCode: string, input: CreateGuestFeedbackInput): Promise<PrismGuestFeedback>;
+  };
+  supplierWorkspace: {
+    detail(actor?: EventOpsActorQuery): Promise<PrismSupplierWorkspace>;
+    readinessBoard(actor?: EventOpsActorQuery): Promise<PrismSupplierReadinessBoard>;
+    confirmAssignment(requestId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
+    confirmReadiness(requestId: string, input: ConfirmSupplierReadinessInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
+    uploadContract(requestId: string, input: UploadContractInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
+    updateEventStatus(requestId: string, input: UpdateSupplierEventStatusInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
+  };
+  coordinator: {
+    workspace(actor?: EventOpsActorQuery): Promise<PrismCoordinatorWorkspace>;
+  };
+  liveOps: {
+    eventDayWorkspace(eventId: string, actor?: EventOpsActorQuery): Promise<PrismLiveOps>;
+    createTask(eventId: string, input: CreateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
+    updateTask(eventId: string, taskId: string, input: UpdateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
+    updateCoordinatorAttendance(eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
+    createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor?: EventOpsActorQuery): Promise<PrismUrgentIssue>;
   };
 }
 
@@ -126,6 +217,26 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<PrismSupplierWorkspace>(actorPath("/supplier/workspace", actor), withBase(options)),
       readinessBoard: (actor = {}) =>
         prismRequest<PrismSupplierReadinessBoard>(actorPath("/supplier/readiness-board", actor), withBase(options)),
+      confirmAssignment: (requestId, actor = {}) =>
+        prismRequest<PrismSupplierQuoteRequest>(
+          actorPath(`/supplier/quote-requests/${requestId}/assignment/confirm`, actor),
+          withBase(options, { method: "PATCH" }),
+        ),
+      confirmReadiness: (requestId, input, actor = {}) =>
+        prismRequest<PrismSupplierQuoteRequest>(
+          actorPath(`/supplier/quote-requests/${requestId}/readiness/confirm`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      uploadContract: (requestId, input, actor = {}) =>
+        prismRequest<PrismSupplierQuoteRequest>(
+          actorPath(`/supplier/quote-requests/${requestId}/contract`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      updateEventStatus: (requestId, input, actor = {}) =>
+        prismRequest<PrismSupplierQuoteRequest>(
+          actorPath(`/supplier/quote-requests/${requestId}/event-status`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
     },
     billing: {
       list: (actor = {}) => prismRequest<PrismBillingWorkspace>(actorPath("/billing", actor), withBase(options)),
@@ -143,6 +254,44 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     guest: {
       eventPass: (accessCode) =>
         prismRequest<PrismGuestEventPass>(`/guest/events/${encodeURIComponent(accessCode)}`, withBase(options)),
+      checkIn: (accessCode, input) =>
+        prismRequest<PrismGuestCheckIn>(
+          `/guest/events/${encodeURIComponent(accessCode)}/check-ins`,
+          withBase(options, { method: "POST", body: input }),
+        ),
+      feedback: (accessCode, input) =>
+        prismRequest<PrismGuestFeedback>(
+          `/guest/events/${encodeURIComponent(accessCode)}/feedback`,
+          withBase(options, { method: "POST", body: input }),
+        ),
+    },
+    coordinator: {
+      workspace: (actor = {}) =>
+        prismRequest<PrismCoordinatorWorkspace>(actorPath("/coordinator/workspace", actor), withBase(options)),
+    },
+    liveOps: {
+      eventDayWorkspace: (eventId, actor = {}) =>
+        prismRequest<PrismLiveOps>(actorPath(`/events/${eventId}/live-ops`, actor), withBase(options)),
+      createTask: (eventId, input, actor = {}) =>
+        prismRequest<PrismEventDayTask>(
+          actorPath(`/events/${eventId}/event-day/tasks`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      updateTask: (eventId, taskId, input, actor = {}) =>
+        prismRequest<PrismEventDayTask>(
+          actorPath(`/events/${eventId}/event-day/tasks/${taskId}`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      updateCoordinatorAttendance: (eventId, assignmentId, input, actor = {}) =>
+        prismRequest<PrismCoordinatorAssignment>(
+          actorPath(`/events/${eventId}/coordinators/${assignmentId}/status`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      createUrgentIssue: (eventId, input, actor = {}) =>
+        prismRequest<PrismUrgentIssue>(
+          actorPath(`/events/${eventId}/urgent-issues`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
     },
   };
 }

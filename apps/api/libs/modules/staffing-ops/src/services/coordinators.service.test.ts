@@ -1,9 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { PrismTransactionRunner } from '../../../../core/shared-kernel/src';
 import { AuditService, AuditWriterAdapter } from '@prism/modules/trust-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
-import { WorkflowCommandService } from '@prism/modules/event-core';
+import { OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';
 import { CoordinatorsService } from './coordinators.service';
 
 const event = {
@@ -23,6 +23,21 @@ const coordinator = {
   active: true,
   createdAt: new Date('2026-04-29T00:00:00.000Z'),
 };
+
+const pmcmAdminActor = { id: 'admin_1', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true };
+const coordinatorActor = { id: 'coord_marco', role: OpsUserRole.Coordinator, name: 'Marco Santos', explicit: true };
+const clientActor = { id: 'client_1', role: OpsUserRole.Client, name: 'Some Client', explicit: true };
+
+function createAccessPolicy() {
+  return {
+    resolveActor: (_input: unknown, verifiedActor?: unknown) => verifiedActor ?? pmcmAdminActor,
+    requireActorRole: async (actor: { role: string }, roles: string[], resource: string) => {
+      if (!roles.includes(actor.role)) {
+        throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
+      }
+    },
+  };
+}
 
 function createPrisma() {
   const assignments: any[] = [
@@ -53,7 +68,12 @@ function createPrisma() {
       findMany: async () => [coordinator],
     },
     opsCoordinatorAssignment: {
-      findFirst: async () => assignments[0],
+      findFirst: async ({ where }: { where?: { id?: string } } = {}) => {
+        if (where?.id) {
+          return assignments.find((item) => item.id === where.id) ?? null;
+        }
+        return assignments[0] ?? null;
+      },
       findMany: async ({ where }: { where?: { eventId?: string; coordinatorId?: string; coordinatorName?: string } } = {}) =>
         assignments.filter((assignment) => {
           if (where?.eventId && assignment.eventId !== where.eventId) return false;
@@ -66,9 +86,11 @@ function createPrisma() {
         assignments.push(row);
         return row;
       },
-      update: async ({ data }: { data: any }) => {
-        assignments[1] = { ...assignments[1], ...data };
-        return assignments[1];
+      update: async ({ where, data }: { where: { id: string }; data: any }) => {
+        const index = assignments.findIndex((item) => item.id === where.id);
+        if (index < 0) throw new Error('not found');
+        assignments[index] = { ...assignments[index], ...data };
+        return assignments[index];
       },
     },
     opsAuditLog: {
@@ -101,28 +123,34 @@ function createPrisma() {
   };
 }
 
-function createService(prisma: any) {
+function createService(prisma: any, accessPolicy: any = createAccessPolicy()) {
   return new CoordinatorsService(
     prisma,
     new AuditWriterAdapter(new AuditService(prisma)),
     new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma)),
     new WorkflowCommandService(new PrismTransactionRunner(prisma)),
+    accessPolicy,
   );
 }
+
 describe('CoordinatorsService', () => {
   it('blocks a same-date conflict until PMCM overrides it', async () => {
     const fake = createPrisma();
     const service = createService(fake.prisma as any);
 
     await expect(
-      service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director' }),
+      service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director' }, pmcmAdminActor),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    const assignment = await service.assignCoordinator(event.id, {
-      coordinatorId: coordinator.id,
-      role: 'Floor Director',
-      overrideConflict: true,
-    });
+    const assignment = await service.assignCoordinator(
+      event.id,
+      {
+        coordinatorId: coordinator.id,
+        role: 'Floor Director',
+        overrideConflict: true,
+      },
+      pmcmAdminActor,
+    );
 
     expect(assignment.doubleBookingWarning).toBe(true);
     expect(assignment.conflictEventName).toBe('Other Event');
@@ -131,15 +159,31 @@ describe('CoordinatorsService', () => {
     expect(fake.transactionCalls).toEqual(['same_tx']);
   });
 
+  it('rejects assignCoordinator for a non-PmcmAdmin actor', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as any);
+
+    await expect(
+      service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        clientActor,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 
   it('reads active coordinator directory and coordinator assignments for workspace payloads', async () => {
     const fake = createPrisma();
     const service = createService(fake.prisma as any);
-    await service.assignCoordinator(event.id, {
-      coordinatorId: coordinator.id,
-      role: 'Floor Director',
-      overrideConflict: true,
-    });
+    await service.assignCoordinator(
+      event.id,
+      {
+        coordinatorId: coordinator.id,
+        role: 'Floor Director',
+        overrideConflict: true,
+      },
+      pmcmAdminActor,
+    );
 
     await expect(service.listCoordinators()).resolves.toEqual([
       expect.objectContaining({ id: 'coord_marco', name: 'Marco Santos' }),
@@ -156,20 +200,180 @@ describe('CoordinatorsService', () => {
     );
   });
 
-  it('acknowledges a pending coordinator assignment', async () => {
+  it('acknowledges a pending coordinator assignment for a PmcmAdmin actor', async () => {
     const fake = createPrisma();
     const service = createService(fake.prisma as any);
-    await service.assignCoordinator(event.id, {
-      coordinatorId: coordinator.id,
-      role: 'Floor Director',
-      overrideConflict: true,
-    });
+    const created = await service.assignCoordinator(
+      event.id,
+      {
+        coordinatorId: coordinator.id,
+        role: 'Floor Director',
+        overrideConflict: true,
+      },
+      pmcmAdminActor,
+    );
 
-    const acknowledged = await service.acknowledgeCoordinator(event.id, 'coord_asg_new');
+    const acknowledged = await service.acknowledgeCoordinator(event.id, created.id, pmcmAdminActor);
 
     expect(acknowledged.status).toBe('acknowledged');
     expect(acknowledged.acknowledgedAt).toBeTruthy();
     expect(fake.transactionCalls).toEqual(['same_tx', 'same_tx']);
   });
-});
 
+  it('allows a Coordinator actor to acknowledge their own assignment (AC8 scoping decision)', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as any);
+    const created = await service.assignCoordinator(
+      event.id,
+      {
+        coordinatorId: coordinator.id,
+        role: 'Floor Director',
+        overrideConflict: true,
+      },
+      pmcmAdminActor,
+    );
+
+    const acknowledged = await service.acknowledgeCoordinator(event.id, created.id, coordinatorActor);
+
+    expect(acknowledged.status).toBe('acknowledged');
+  });
+
+  it('rejects acknowledgeCoordinator for an actor that is neither PmcmAdmin nor Coordinator', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as any);
+    const created = await service.assignCoordinator(
+      event.id,
+      {
+        coordinatorId: coordinator.id,
+        role: 'Floor Director',
+        overrideConflict: true,
+      },
+      pmcmAdminActor,
+    );
+
+    await expect(service.acknowledgeCoordinator(event.id, created.id, clientActor)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  describe('withdrawCoordinator', () => {
+    it('withdraws a pending assignment', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+      const created = await service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        pmcmAdminActor,
+      );
+
+      const withdrawn = await service.withdrawCoordinator(event.id, created.id, { reason: 'No longer available' }, pmcmAdminActor);
+
+      expect(withdrawn.status).toBe('cancelled');
+      expect(fake.notifications.length).toBeGreaterThan(0);
+      expect(fake.audits.some((entry: any) => entry.action?.includes('Withdrew'))).toBe(true);
+    });
+
+    it('rejects a non-PmcmAdmin actor', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+      const created = await service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        pmcmAdminActor,
+      );
+
+      await expect(
+        service.withdrawCoordinator(event.id, created.id, {}, coordinatorActor),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects withdrawing an assignment that is already cancelled or replaced', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+      const created = await service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        pmcmAdminActor,
+      );
+      await service.withdrawCoordinator(event.id, created.id, {}, pmcmAdminActor);
+
+      await expect(
+        service.withdrawCoordinator(event.id, created.id, {}, pmcmAdminActor),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects withdrawing an assignment that does not exist', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+
+      await expect(
+        service.withdrawCoordinator(event.id, 'coord_asg_missing', {}, pmcmAdminActor),
+      ).rejects.toThrow('Coordinator assignment not found');
+    });
+  });
+
+  describe('replaceCoordinator', () => {
+    it('replaces an assignment with a new coordinator atomically', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+      const created = await service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        pmcmAdminActor,
+      );
+      fake.transactionCalls.length = 0;
+
+      const result = await service.replaceCoordinator(
+        event.id,
+        created.id,
+        { replacementCoordinatorId: coordinator.id, replacementRole: 'Floor Director', reason: 'Scheduling conflict', overrideConflict: true },
+        pmcmAdminActor,
+      );
+
+      expect(result.outgoing.status).toBe('replaced');
+      expect(result.outgoing.replacedByAssignmentId).toBe(result.incoming.id);
+      expect(result.outgoing.replacementReason).toBe('Scheduling conflict');
+      expect(result.outgoing.replacedBy).toBe(pmcmAdminActor.name);
+      expect(result.incoming.status).toBe('pending_acknowledgement');
+      expect(fake.transactionCalls).toEqual(['same_tx']);
+    });
+
+    it('rejects a non-PmcmAdmin actor', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+      const created = await service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        pmcmAdminActor,
+      );
+
+      await expect(
+        service.replaceCoordinator(
+          event.id,
+          created.id,
+          { replacementCoordinatorId: coordinator.id, overrideConflict: true },
+          coordinatorActor,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects a same-date conflict on the replacement coordinator until overridden', async () => {
+      const fake = createPrisma();
+      const service = createService(fake.prisma as any);
+      const created = await service.assignCoordinator(
+        event.id,
+        { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+        pmcmAdminActor,
+      );
+
+      await expect(
+        service.replaceCoordinator(
+          event.id,
+          created.id,
+          { replacementCoordinatorId: coordinator.id, replacementRole: 'Floor Director' },
+          pmcmAdminActor,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+});

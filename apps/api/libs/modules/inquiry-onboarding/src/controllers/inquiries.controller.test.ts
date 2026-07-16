@@ -1,14 +1,32 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
+import { EventSessionGuard } from '@prism/modules/event-session';
 import { OpsInquiriesController } from './inquiries.controller';
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
 }
 
+const verifiedPmcmActor = {
+  id: 'user_pmcm',
+  actorId: 'user_pmcm',
+  role: 'pmcm-admin',
+  actorRole: 'pmcm-admin',
+  email: 'mys@pmcm.test',
+  actorEmail: 'mys@pmcm.test',
+  name: 'Ms. Mys',
+  actorName: 'Ms. Mys',
+  expiresAt: '2026-07-15T00:00:00.000Z',
+};
+
 describe('OpsInquiriesController', () => {
   it('keeps the public inquiries route base stable under inquiry-onboarding ownership', () => {
     expect(controllerPath(OpsInquiriesController)).toBe('inquiries');
+  });
+
+  it('guards uploadConforme with EventSessionGuard (PA-138)', () => {
+    const guards = Reflect.getMetadata('__guards__', OpsInquiriesController.prototype.uploadConforme);
+    expect(guards).toContain(EventSessionGuard);
   });
 
   it('serves inquiry routes through InquiryWorkflowService with inquiry-owned context', async () => {
@@ -46,7 +64,9 @@ describe('OpsInquiriesController', () => {
       id: 'inq_sample',
       lastConformeReminderAt: 'now',
     });
-    await expect(controller.uploadConforme('inq_sample', { fileName: 'signed.pdf' })).resolves.toEqual({
+    await expect(
+      controller.uploadConforme('inq_sample', { fileName: 'signed.pdf' } as any, verifiedPmcmActor as any),
+    ).resolves.toEqual({
       id: 'doc_sample',
     });
 
@@ -75,7 +95,9 @@ describe('OpsInquiriesController', () => {
     expect(inquiryWorkflowService.uploadConforme).toHaveBeenCalledWith(
       'inq_sample',
       { fileName: 'signed.pdf' },
+      {},
       expect.objectContaining({ inquiriesService }),
+      verifiedPmcmActor,
     );
   });
 });
