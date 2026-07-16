@@ -23,6 +23,7 @@
     "start:supplier": "npm --workspace @prism/supplier run start",
     "start:guest": "npm --workspace @prism/guest run start",
     "test:api": "npm --workspace prism-api run test",
+    "test:api:coverage": "npm --workspace prism-api run test:coverage",
     "db:generate": "npm --workspace prism-api run db:generate",
     "smoke:ui": "node scripts/smoke-prism-ui.mjs",
     "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs",

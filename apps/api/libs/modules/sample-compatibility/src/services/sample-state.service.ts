@@ -177,13 +177,6 @@ export class SampleStateService {
     return readState();
   }
 
-  async seedSampleState(ensureSeeded: () => Promise<void>, readState: () => Promise<unknown>) {
-    this.assertSampleCompatibilityEnabled('seed');
-
-    await ensureSeeded();
-    return readState();
-  }
-
   private assertSampleCompatibilityEnabled(action: string) {
     const legacyResetOverride = action === 'reset' && process.env.PRISM_ALLOW_SAMPLE_RESET === '1';
     if (

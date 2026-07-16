@@ -21,7 +21,8 @@ COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/tokens/package.json packages/tokens/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/ui/package.json packages/ui/package.json
-RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
+# Avoid BuildKit npm cache mounts on Windows Docker Desktop (can EOF-crash the builder).
+RUN npm ci --ignore-scripts
 
 FROM deps AS dev
 ENV NODE_ENV=development \
@@ -34,6 +35,8 @@ EXPOSE 3001 3002 3003 3004 4000
 
 FROM deps AS builder
 COPY . .
+# Workspace package exports point at dist/; build types first so dependents resolve.
+RUN npm --workspace @prism/types run build
 RUN npm --workspace prism-api run db:generate
 RUN npm run build
 
