@@ -1,0 +1,27 @@
+name: Deploy
+on:
+  push:
+    branches: [staging, main]
+permissions:
+  contents: read
+jobs:
+  deploy-staging:
+    if: ${{ github.ref == 'refs/heads/staging' }}
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: staging
+      working_directory: apps/client
+      node_version: "24"
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit
+  deploy-production:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: production
+      working_directory: apps/client
+      node_version: "24"
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit

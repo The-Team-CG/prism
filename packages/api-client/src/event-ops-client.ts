@@ -136,7 +136,6 @@ export interface EventOpsClient {
   sample: {
     state(): Promise<PrismSampleState>;
     reset(): Promise<PrismSampleState>;
-    seed(): Promise<PrismSampleState>;
   };
   inquiries: {
     list(actor?: EventOpsActorQuery): Promise<PrismInquiry[]>;
@@ -191,7 +190,6 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     sample: {
       state: () => prismRequest<PrismSampleState>("/sample/state", withBase(options)),
       reset: () => prismRequest<PrismSampleState>("/sample/reset", withBase(options, { method: "POST" })),
-      seed: () => prismRequest<PrismSampleState>("/sample/seed", withBase(options, { method: "POST" })),
     },
     inquiries: {
       list: (actor = {}) => prismRequest<PrismInquiry[]>(actorPath("/inquiries", actor), withBase(options)),

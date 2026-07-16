@@ -1,15 +1,16 @@
 # P.R.I.S.M Feature Ledger
 
-Last updated: 2026-06-20
+Last updated: 2026-07-16
 
-This ledger is the Phase 0 product decision layer for the whole-app redesign. It does not replace the source-preserving catalog. It decides how catalog features and new redesign candidates should move forward.
+This ledger is the product decision layer for feature work. It does not replace the source-preserving catalog. It decides how catalog features and redesign candidates should move forward.
 
 Use this file with:
 
 - `01-complete-feature-catalog.md` for source feature text and official counts.
 - `07-implemented-feature-revisions.md` for implementation reality.
 - `10-product-evolution-and-redesign-governance.md` for decision rules.
-- `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` for phase ownership and execution.
+- `AGENTS.md` for owner system goals (A–D) and app boundaries.
+- `15-system-architecture.md` for module ownership and technical stop rules.
 
 ## Decision Legend
 
@@ -43,13 +44,13 @@ Use this file with:
 | FL-013 Closure, archive, and learning loop | FR-22, FR-23, New-P1, New-P2, New-P3, New-P4, New-SY1, New-SY2, FR-AI-08 | PMCM, Client | Partial | Merge/Gate | Closure, archive, insights, testimonials, logistics, and PEIL should become post-event knowledge and closeout workflow. AI analysis remains gated. Archive is now guarded by the central lifecycle transition table. | B, C, D | Phase 9, Phase 12 for PEIL | Close gates, archive search, feedback, billing/logistics, AI governance | PMCM owns archive and private notes; client sees deliverables/acknowledgment/testimonial only. | Audit close/override/archive/testimonial/logistics; notify required owners before close deadlines. | PMCM closure workspace, archive, client closeout surface | Close blocked unless gates pass or override reason exists; event cannot skip directly from planning to archive; private notes hidden from portals. |
 | FL-014 Notifications and communications | FR-25, FR-55, FR-64, FR-AI-09, FR-AI-05 | All | Partial | Revise/Gate | Treat email/Viber as queue-backed notification adapters with templates, language preference, audit, retries, and PMCM-reviewed AI communication drafts. POA remains a PMCM-only assistant concept until AI governance is complete. | C, D | Phase 10, Phase 12 | Notification queue, templates, adapter credentials, language preferences, AI governance | Users receive only role-appropriate messages; PMCM controls broadcast, assistant use, and sensitive content. | Audit queued/sent/failed/acknowledged, template version, recipient scope, AI draft approval. | Notification settings, PMCM communication queue, role-specific message surfaces, PMCM assistant review surface | No direct send from UI; adapter retry tests; template visibility tests; AI assistant cannot act or send without PMCM approval. |
 | FL-015 Security, privacy, and audit | New-SEC1, New-SEC2, New-SEC3, New-SEC4, FR-56, FR-AI-ZDR | All | Partial | Keep/Gate | Security and privacy remain mandatory cross-cutting capabilities. External auth, privacy notices, export/anonymization, ZDR, retention, and legal hold should mature before high-risk features. | D | Phase 11, Phase 12 | Auth provider decision, retention policy, privacy operations, AI provider agreement | PMCM sees privacy operations; users can exercise rights only over own data. | Audit auth, access denied, privacy requests, redaction, retention, AI calls. | Privacy operations console, audit settings, auth flows | Forbidden access tests; audit integrity tests; privacy request execution tests; ZDR required before AI. |
-| FL-016 Shared design system and shell | Cross-cutting, old UI modernization Phase 2 plan | All | Partial | Keep/Complete | Shared blocks, public shell, client blocks, and smoke script now exist. Future redesign work should happen through the capability maturity plan, not the old standalone checklist. | A, B, C, D | Phase 1 and ongoing | `packages/ui`, route inventory, smoke script | Shared UI must preserve app role boundaries and avoid public dashboard shortcuts. | N/A except UI actions wired to audited workflows. | Shared app shell, public shell, dashboard/workflow blocks | `npm run smoke:ui`, `npm run check:boundaries`, visual QA checklist. |
+| FL-016 Shared design system and shell | Cross-cutting, old UI modernization Phase 2 plan | All | Partial | Keep/Complete | Shared blocks, public shell, client blocks, and smoke script now exist. Future redesign work should follow living docs (`AGENTS.md`, this ledger, `12`, `14`, `15`), not the old standalone checklist. | A, B, C, D | Phase 1 and ongoing | `packages/ui`, route inventory, smoke script | Shared UI must preserve app role boundaries and avoid public dashboard shortcuts. | N/A except UI actions wired to audited workflows. | Shared app shell, public shell, dashboard/workflow blocks | `npm run smoke:ui`, `npm run check:boundaries`, visual QA checklist. |
 
-## July Remediation Ownership Overlay
+## Ownership Overlay
 
-This overlay is the execution layer for the July completion push. The Active Ledger above remains the product decision record; this table assigns one July DRI, a treatment, and the exact evidence needed to close each family for the complete system plan.
+The Active Ledger above remains the product decision record. This table assigns one DRI, a treatment, and the evidence needed to close each family.
 
-| Ledger ID | July treatment | July DRI | Support | Required July task | Completion evidence |
+| Ledger ID | Treatment | DRI | Support | Required task | Completion evidence |
 | --- | --- | --- | --- | --- | --- |
 | FL-001 | Finish thin slice | Francis | Ethan, Anthony, Maxine | PMCM inquiry/triage appears in command path with client-safe status feeding the portal where supported. | PMCM route check; public inquiry cannot spoof PMCM fields; lifecycle docs updated. |
 | FL-002 | Finish thin slice | Francis | Ethan, Anthony | Conforme/portal gate remains explicit across PMCM and client action center. | Client portal locked before accepted inquiry plus signed conforme; lifecycle contract tests. |
@@ -58,27 +59,27 @@ This overlay is the execution layer for the July completion push. The Active Led
 | FL-005 | Gate/thin slice | Francis | Ethan, Anthony | Show approved proposal/billing evidence only where current contracts support it; gate adapters and AI drafts. | Billing/proposal gap documented; no adapter/AI claims without governance. |
 | FL-006 | Thin slice | Anthony | Ethan, Francis, Maxine | File Requirements Matrix is metadata-only; real storage remains gated. | File matrix type/API tests; storage gate remains in readiness foundation. |
 | FL-007 | Thin slice | Ethan | Francis, Anthony | Supplier readiness portal and PMCM review path use scoped supplier records. | Supplier readiness tests; supplier route check; private reviews hidden from supplier. |
-| FL-008 | Gate or thin slice | Francis | Anthony | Choose one coordinator/staffing slice only if scoped data is ready. | Chosen slice test/route evidence or explicit gate/post-July row. |
+| FL-008 | Gate or thin slice | Francis | Anthony | Choose one coordinator/staffing slice only if scoped data is ready. | Chosen slice test/route evidence or explicit gate/deferred row. |
 | FL-009 | Gate or thin slice | Francis | Anthony | Risk/change register ships only as bounded PMCM evidence unless contracts are added. | PMCM-only route evidence or documented missing contract. |
 | FL-010 | Thin slice | Francis | Ethan, Anthony | Billing milestones/statements appear safely in PMCM/client surfaces; corrections/disputes gated. | Client cannot edit payment records; PMCM internal costs hidden from portals. |
 | FL-011 | Finish boundary, thin eligibility | Francis | Ethan, Anthony, Maxine | PMCM owns official floorplans; client sees read-only official snapshots and preference/comment actions. | Client official mutation denial test/evidence; route screenshots if touched. |
 | FL-012 | Thin slice | Ethan | Anthony, Maxine | Guest access-code, consent, check-in, and moderated feedback ship without QR/camera. | Valid/invalid access-code tests; consent/check-in/feedback tests; QR gate documented. |
-| FL-013 | Thin slice | Francis | Ethan, Anthony | Closure/readiness evidence uses close gates and file matrix; archive comparison remains post-July unless already supported. | Close gate evidence; private notes hidden from portals; docs row updated. |
+| FL-013 | Thin slice | Francis | Ethan, Anthony | Closure/readiness evidence uses close gates and file matrix; archive comparison remains deferred unless already supported. | Close gate evidence; private notes hidden from portals; docs row updated. |
 | FL-014 | Gate/thin queue state | Anthony | Ethan, Francis | Existing notification queue state may be shown; production SendGrid/Viber and AI drafts remain gated. | Notification service tests if touched; adapter gate documented. |
 | FL-015 | Finish evidence/gate external auth | Anthony | Maxine | Audit/privacy evidence remains PMCM-scoped; external auth and AI/ZDR stay gated. | Forbidden access/privacy/audit tests; external auth gate documented. |
 | FL-016 | Finish shell foundation | Maxine | Francis, Ethan | Shared shell/status language applies to first PMCM and portal surfaces. | UX brief; visual QA checklist; screenshots. |
 | FL-017 | Finish | Francis | Maxine, Anthony | Event Command Inbox is the primary PMCM command surface. | Command route check; shared contract source verified. |
-| FL-018 | Thin slice or post-July | Francis | Anthony, Maxine | Deterministic event health appears only if derived from scoped data; otherwise post-July. | Health calculation source documented or post-July row. |
-| FL-019 | Thin slice or post-July | Francis | Anthony | Decision log ships only if audit/override records support it. | Audit source documented or post-July row. |
+| FL-018 | Thin slice or defer | Francis | Anthony, Maxine | Deterministic event health appears only if derived from scoped data; otherwise defer. | Health calculation source documented or deferred row. |
+| FL-019 | Thin slice or defer | Francis | Anthony | Decision log ships only if audit/override records support it. | Audit source documented or deferred row. |
 | FL-020 | Finish | Ethan | Maxine, Anthony | Client Action Center becomes dashboard entry point. | Client route check; next-action hierarchy screenshot. |
-| FL-021 | Thin slice or post-July | Francis | Anthony | PMCM Handoff Brief ships as evidence panel only if selected-event data supports it. | Selected-event evidence or post-July row. |
+| FL-021 | Thin slice or defer | Francis | Anthony | PMCM Handoff Brief ships as evidence panel only if selected-event data supports it. | Selected-event evidence or deferred row. |
 | FL-022 | Thin slice | Ethan | Francis, Anthony | Supplier Readiness Board is clear in supplier portal and reviewable by PMCM. | Supplier route/typecheck; PMCM review path evidence if touched. |
-| FL-023 | Gate or thin slice | Francis | Anthony | Staffing heatmap waits for availability/role contract unless chosen as Sprint 3 slice. | Contract/test evidence or explicit gate. |
+| FL-023 | Gate or thin slice | Francis | Anthony | Staffing heatmap waits for availability/role contract unless chosen as a bounded staffing slice. | Contract/test evidence or explicit gate. |
 | FL-024 | Thin slice | Anthony | Ethan, Francis, Maxine | File Requirements Matrix metadata supports PMCM/client/supplier visibility. | Type/API-client/API service tests; real upload gate. |
-| FL-025 | Gate or thin slice | Francis | Anthony | Risk/change register waits for scoped mutation contract unless chosen as Sprint 3 slice. | Contract/test evidence or explicit gate. |
-| FL-026 | Thin slice or post-July | Francis | Maxine, Anthony | Event Day Run Sheet remains time-ordered evidence if current data supports it. | PMCM route evidence or post-July row. |
-| FL-027 | Gate | Anthony | Maxine | Privacy Operations Console remains PMCM-scoped; full console can move post-July if not demo-critical. | Scope decision, privacy tests if touched, docs gate. |
-| FL-028 | Post-July | Maxine | Francis, Anthony | Workflow Template Builder is not built in July unless documented only. | Post-July row; no sprint capacity assigned. |
+| FL-025 | Gate or thin slice | Francis | Anthony | Risk/change register waits for scoped mutation contract unless chosen as a bounded control slice. | Contract/test evidence or explicit gate. |
+| FL-026 | Thin slice or defer | Francis | Maxine, Anthony | Event Day Run Sheet remains time-ordered evidence if current data supports it. | PMCM route evidence or deferred row. |
+| FL-027 | Gate | Anthony | Maxine | Privacy Operations Console remains PMCM-scoped; full console can defer if not demo-critical. | Scope decision, privacy tests if touched, docs gate. |
+| FL-028 | Defer | Maxine | Francis, Anthony | Workflow Template Builder is deferred unless explicitly scoped and documented. | Deferred row; no capacity assumed. |
 
 ## New Candidate Features Added To Scope
 
@@ -101,8 +102,9 @@ This overlay is the execution layer for the July completion push. The Active Led
 
 | Artifact | Decision | Reason | Replacement |
 | --- | --- | --- | --- |
-| May 2026 UI modernization Phase 2 plan | Retire | The named shared UI blocks and smoke script now exist, but the file still reads like an open implementation checklist. Leaving it active creates duplicate planning authority. | This ledger plus `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`. |
-| June 2026 architecture hardening plan | Removed | It used old product terminology and was not part of the active whole-app redesign model. | Current shared packages and active maturity docs. |
+| May 2026 UI modernization Phase 2 plan | Retire | The named shared UI blocks and smoke script now exist, but the file still reads like an open implementation checklist. Leaving it active creates duplicate planning authority. | This ledger plus `AGENTS.md` and `15-system-architecture.md`. |
+| June 2026 architecture hardening plan | Removed | It used old product terminology and was not part of the living redesign model. | Current shared packages and living v4 docs (`15`, this ledger, `14`). |
+| Completed superpowers plans / owner session notes | Removed | Session dumps and finished execution plans are not living product truth. | `AGENTS.md`, this ledger, `07`, `12`, `14`, `15`; recover history from git if needed. |
 
 ## Next Ledger Maintenance
 
@@ -110,3 +112,4 @@ This overlay is the execution layer for the July completion push. The Active Led
 - Keep family-level rows authoritative for product direction.
 - Add implementation PR links or commit hashes after each phase lands.
 - Do not add a new plan file when a ledger update is enough.
+- Keep rows conversation-agnostic: decisions and evidence, not chat handoff notes.

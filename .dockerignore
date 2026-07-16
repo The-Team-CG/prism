@@ -37,5 +37,17 @@ prism-event
 prism-guest
 prism-supplier
 
+# Heavy non-runtime trees (shrink build context)
+docs
+PRISM_Audits
+OwnerB_PRISM_StoryLogs
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.mp4
+**/*.pdf
+
 Thumbs.db
 .DS_Store

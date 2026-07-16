@@ -1,8 +1,8 @@
 # P.R.I.S.M Whole-App Redesign Inventory
 
-Last updated: 2026-06-15
+Last updated: 2026-07-16
 
-This is the Phase 0 redesign inventory for the whole-app capability maturity plan. It classifies current app surfaces by redesign severity so four owners can work in parallel without turning P.R.I.S.M back into an all-role shell. Owner labels here refer to the system goals defined in `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`: Owner A is Maxine, Owner B is Francis, Owner C is Ethan, and Owner D is Anthony.
+This inventory classifies current app surfaces by redesign severity so owners can work in parallel without turning P.R.I.S.M back into an all-role shell. Owner labels refer to the system goals in `AGENTS.md`: Owner A is Maxine, Owner B is Francis, Owner C is Ethan, and Owner D is Anthony.
 
 Severity scale:
 
@@ -22,7 +22,7 @@ Severity scale:
 | `apps/event` | PMCM admin and coordinator command app | Large dashboard with many filtered subroutes plus selected event workspace | S3 | Owner B (Francis) | Make PMCM and coordinator operations executable from command surfaces. | Event Command Inbox is now consumed by shell actions; selected event sections now prefer `PrismPmcmEventWorkspace`; event messages now have a route-owned workspace component. Continue workspace IA, staffing/live-ops redesign, and route consolidation. |
 | `apps/supplier` | Supplier portal | Landing, sign-in, dashboard | S2 | Owner C (Ethan) | Make supplier work limited to quote, assignment, contract, readiness, and event-day status. | Supplier Readiness Board is now visible on the dashboard; continue supplier application/status depth while preserving supplier-scoped data. |
 | `apps/guest` | Lightweight guest portal | Landing, sign-in, open code, dashboard | S1/Gate | Owner C (Ethan) | Make guest access low-friction, consented, and event-code scoped. | Use the shared Guest Event Pass contract. Keep lightweight. Gate QR/camera and media upload until HTTPS, consent, upload, and moderation are ready. |
-| `apps/api` | Shared NestJS API | Event-ops controllers/services plus plans/templates/publishing/health modules | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Highest-impact architecture hardening is the baseline; Sprint 2 policy tests now cover PMCM command inbox, client action center, supplier readiness board, official floorplan mutation, internal-cost/privacy denials, event scoping, and File Requirements Matrix role visibility. Continue contract consolidation, scoped APIs, policy tests, adapter boundaries, and the backend modular-monolith guardrails in `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith.md`. |
+| `apps/api` | Shared NestJS API | Capability modules under `libs/modules/*` plus plans/templates/publishing/health | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Highest-impact architecture hardening is the baseline; policy tests cover PMCM command inbox, client action center, supplier readiness board, official floorplan mutation, internal-cost/privacy denials, event scoping, and File Requirements Matrix role visibility. Continue contract consolidation, scoped APIs, policy tests, adapter boundaries, and modular-monolith guardrails in `15-system-architecture.md`. |
 | `packages/ui` | Shared presentation system | App shell, public shell, primitives, blocks, client/public blocks | S1 | Owner A (Maxine) | Make shared presentation patterns coherent without absorbing workflow logic. | Keep presentation-only. Continue component consolidation through actual app needs. |
 | `packages/types` | Shared contracts | Lifecycle and event-ops types | S2 | Owner D (Anthony) | Make shared contracts the source of truth for role-safe app/API integration. | Expand route/feature contracts before large app redesign. |
 | `packages/api-client` | Shared request helpers | Event-ops client and HTTP helper | S1 | Owner D (Anthony) | Make app data access typed, scoped, and migration-safe. | Keep stable, add typed clients when app surfaces stop using broad state. |
@@ -56,8 +56,8 @@ Severity scale:
 
 | Surface | Routes | Severity | Redesign direction | Must preserve |
 | --- | --- | --- | --- | --- |
-| Public entry/auth | `/`, `/sign-in` | S1 | Keep as PMCM/coordinator entry; no marketing hero. Root entry is now isolated in `EventCommandLanding` for redesign handoff. | Signed-in surfaces only after auth. |
-| Command dashboard | `/dashboard`, `/dashboard/[dashboardView]` | S3 | Replace with Event Command Inbox, health score, and focused work queues. Legacy loading states are now isolated in `event-dashboard-skeleton.tsx`, and route-to-shell metadata now lives in `event-dashboard.routing.ts` for shell redesign handoff. | PMCM-only operational visibility. |
+| Public entry/auth | `/`, `/sign-in` | S1 | Keep as PMCM/coordinator entry; no marketing hero. Root entry is isolated in `EventCommandLanding`. | Signed-in surfaces only after auth. |
+| Command dashboard | `/dashboard`, `/dashboard/[dashboardView]` | S3 | Replace with Event Command Inbox, health score, and focused work queues. Legacy loading states are isolated in `event-dashboard-skeleton.tsx`; route-to-shell metadata lives in `event-dashboard.routing.ts`. | PMCM-only operational visibility. |
 | Inquiries | `/dashboard/inquiries` | S2 | PMCM intake queue with accept/pend/decline, referrals, duplicates, conforme path. | Public inquiry role separation. |
 | Events list | `/dashboard/events`, status/by-client/by-type filters | S2 | Event portfolio with lifecycle state, health, owner, risk, next action. | No client portal behavior inside PMCM route. |
 | Selected event | `/dashboard/events/[eventId]`, overview/briefing/billing/floorplans/suppliers/coordinators/live-ops/closure/activity | S3 | Make selected event workspace the primary PMCM operating surface. | PMCM owns official floorplans and internal cost/supplier/coordinator details. |
@@ -91,29 +91,29 @@ Severity scale:
 
 | Area | Current files | Severity | Redesign direction | Owner |
 | --- | --- | --- | --- | --- |
-| Event-ops API | `apps/api/libs/modules/event-ops/src/controllers/*`, `services/*` | S2 | Continue extracting service ownership by inquiry, onboarding, billing, floorplan, supplier, coordinator, privacy, live ops, and AI through child plans of `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith.md`; keep `event-ops` compatibility-only for migrated areas. | D |
+| Capability API modules | `apps/api/libs/modules/<capability>/` | S2 | Keep write ownership in capability modules; compose cross-domain reads only in `event-read-models`; sample demo paths stay in `sample-compatibility`. See `15-system-architecture.md`. | D |
 | Plans/templates/publishing modules | `apps/api/libs/modules/plans`, `templates`, `publishing` | S1/S2 | Keep if active; verify they map to real product workflows or fold into templates/document operations. | D |
 | Shared UI | `packages/ui/src/*` | S1 | Keep presentation-only; add app-specific blocks only after route inventory demands them. | A |
-| Shared contracts | `packages/types/src/*` | S2 | PMCM command inbox, selected-event workspace, client action-center, supplier readiness-board, guest event pass, and file matrix contracts now exist. Anthony Sprint 2 gate: file UI can use `PrismFileRequirementsMatrix` for metadata status and visibility, but upload-session, signed URL, retry, progress, and bulk upload UI are blocked until the storage adapter contract is approved and tested. | D |
+| Shared contracts | `packages/types/src/*` | S2 | PMCM command inbox, selected-event workspace, client action-center, supplier readiness-board, guest event pass, and file matrix contracts exist. File UI may use `PrismFileRequirementsMatrix` for metadata status and visibility; upload-session, signed URL, retry, progress, and bulk upload UI are blocked until the storage adapter contract is approved and tested. | D |
 | API client | `packages/api-client/src/*` | S1 | PMCM command inbox, selected-event workspace, client action-center, and supplier readiness-board helpers now exist; keep removing broad state usage gradually. | D |
 
 ## System Completion Gap Map
 
-This map connects the app/package inventory to the July remediation work. It should be updated whenever an owner closes a sprint task or moves a feature family to a gate/post-July outcome.
+This map connects the app/package inventory to remaining product work. Update it when a feature family moves to delivered, thin delivered, gated, or deferred.
 
-| Area | Complete enough today | Remaining July work | DRI | Support | Verification |
+| Area | Complete enough today | Remaining work | DRI | Support | Verification |
 | --- | --- | --- | --- | --- | --- |
 | `apps/event` PMCM command | Command inbox and selected-event workspace contracts exist; root entry and several workspace components are extracted. | Make command inbox the working center, deepen one selected-event area, record which finance/files/closure/live-ops tabs remain compatibility-owned. | Francis | Maxine, Anthony | `@prism/event` typecheck; route checks for `/dashboard`, `/dashboard/events`, selected event route; screenshot. |
-| `apps/event` coordinator/live ops | Live-ops/readiness hooks and coordinator-related data exist in partial form. | Pick one Sprint 3 coordinator/staffing/live-ops slice or gate it; do not attempt heatmap, run sheet, and replacement depth together. | Francis | Anthony | Focused API/read-model tests if behavior changes; PMCM route check. |
+| `apps/event` coordinator/live ops | Live-ops/readiness hooks and coordinator-related data exist in partial form. | Pick one coordinator/staffing/live-ops slice or gate it; do not attempt heatmap, run sheet, and replacement depth together. | Francis | Anthony | Focused API/read-model tests if behavior changes; PMCM route check. |
 | `apps/client` public/auth | Public inquiry and sign-in routes exist; client session helpers are shared. | Verify public pages cannot jump to dashboard; clarify accepted inquiry/conforme requirement in copy/states. | Ethan | Anthony, Maxine | Route checks for `/`, `/inquiry`, `/sign-in`, `/dashboard`. |
 | `apps/client` dashboard/action center | `PrismClientActionCenter` feeds dashboard actions with fallback. | Make next-action hierarchy first, remove or label broad fallback, add file/billing/floorplan/closeout cards only from existing contracts. | Ethan | Maxine, Anthony | `@prism/client` typecheck; client action-center route screenshot; official floorplan read-only evidence. |
 | `apps/supplier` dashboard | Supplier readiness board is visible and supplier-scoped contracts exist. | Redesign top section around quote, assignment, readiness, contract metadata, event-day status, and application/status messaging. | Ethan | Francis, Anthony, Maxine | `@prism/supplier` typecheck; supplier readiness tests; mobile screenshot. |
 | `apps/guest` access and dashboard | Guest event pass contract exists and open-code flow is available. | Clarify code entry, consent, check-in, walk-in flag, moderated feedback, invalid code, and QR/media gates. | Ethan | Anthony, Maxine | `@prism/guest` typecheck; guest workflow tests; mobile screenshot. |
-| `apps/api` event ops | Scoped read models, policy tests, file matrix, auth/runtime DB guidance, and many workflow services exist. | Add tests only for touched Sprint 3 slices; implement Phase 0-2 backend modular-monolith guardrails first; reject new normal `/api/sample/state` dependencies and new top-level `event-ops` business services. | Anthony | Francis, Ethan | Focused API tests; `prism-api` typecheck; boundary checks; DB doctors. |
+| `apps/api` capability modules | Scoped read models, policy tests, file matrix, auth/runtime DB guidance, and many workflow services exist. | Add tests only for touched slices; reject new normal `/api/sample/state` dependencies and any recreation of a centralized god hub. | Anthony | Francis, Ethan | Focused API tests; `prism-api` typecheck; boundary checks; DB doctors. |
 | `packages/types` | Shared role read models, lifecycle helpers, session helpers, action/result/error/list/file-matrix contracts exist. | Add fields only when an app surface depends on them; avoid unused speculative types. | Anthony | Francis, Ethan, Maxine | `@prism/types` typecheck/test. |
 | `packages/api-client` | Scoped helpers exist for PMCM, client, supplier, guest, billing, event file requirements, and normalized API problems. | Add endpoint helpers before app code depends on new routes; keep sample aggregate compatibility-only. | Anthony | Francis, Ethan | `@prism/api-client` typecheck/test. |
 | `packages/ui` | Shared shell/public/client blocks exist. | Classify reusable primitives and keep workflow logic out; apply shell rules to first PMCM and portal surfaces. | Maxine | Francis, Ethan | UX brief; visual QA checklist; app typechecks. |
-| Docs/evidence | v4 docs, ledger, inventory, readiness foundation, and agile calendar exist. | Keep ledger, inventory, readiness, and calendar aligned after each sprint closeout; add screenshots and command evidence. | Anthony | Maxine, Francis, Ethan | `git diff --check`; docs closeout checklist; clean branch status. |
+| Docs/evidence | Living v4 docs, ledger, inventory, and readiness foundation. | Keep ledger, inventory, readiness, and architecture docs aligned after each merge; add screenshots and command evidence when claiming demo readiness. | Anthony | Maxine, Francis, Ethan | `git diff --check`; docs cleanup checklist; clean branch status. |
 
 ## Redesign Sequencing
 
@@ -132,5 +132,5 @@ This map connects the app/package inventory to the July remediation work. It sho
 - The PMCM app is not collapsed into the client app.
 - The client cannot mutate official floorplans.
 - Supplier, coordinator, and guest routes do not expose PMCM-only data.
-- The old standalone UI modernization plan is retired because the active maturity plan owns future redesign work.
+- The old standalone UI modernization plan is retired; future redesign work follows living docs (`AGENTS.md`, `11`, `14`, `15`).
 - Redesign branches follow `14-redesign-readiness-foundation.md` and do not add new broad sample-state, app-local session-key, or cross-role import coupling.

@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semver without v (e.g. 1.0.0)
+        required: true
+        type: string
+      changelog_entry:
+        description: One-line note
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    uses: The-Team-CG/.github/.github/workflows/release-tag.yml@main
+    with:
+      version: ${{ inputs.version }}
+      target_ref: main
+      changelog_entry: ${{ inputs.changelog_entry }}
+    secrets: inherit

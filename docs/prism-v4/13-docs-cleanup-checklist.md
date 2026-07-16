@@ -1,95 +1,89 @@
 # P.R.I.S.M Documentation Cleanup Checklist
 
-Last updated: 2026-06-20
+Last updated: 2026-07-16
 
-This checklist keeps the docs set small, current, and executable. It is the Phase 0 documentation hygiene output from the whole-app capability maturity plan.
+Keeps the docs set small, current, and executable. Full map: [`../README.md`](../README.md).
 
-## Canonical Documents
+## Tiers (summary)
+
+| Tier | What | Examples |
+| --- | --- | --- |
+| 0 | Always open | Root `AGENTS.md`, `README.md` |
+| 1 | Living build truth | `15`, `11`, `10`, `14`, `07`, `12`, this checklist |
+| 2 | Narrative | `16`, `18` |
+| 3 | Baseline catalog | `01`, `00-index` |
+
+## Canonical (living)
 
 | File | Status | Role |
 | --- | --- | --- |
-| `AGENTS.md` | Canonical | Root agent/product instruction file. |
-| `CLAUDE.md` | Symlink | Points to `AGENTS.md`; do not edit separately. |
-| `README.md` | Canonical overview | Human entrypoint for repo layout, commands, and current docs. |
-| `docs/prism-v4/00-index.md` | Canonical docs index | Navigation for the v4 docs set. |
-| `docs/prism-v4/01-complete-feature-catalog.md` | Preserve | Baseline catalog and official manuscript/defense counts. |
-| `docs/prism-v4/07-implemented-feature-revisions.md` | Active | Current implementation reality and backlog. |
-| `docs/prism-v4/10-product-evolution-and-redesign-governance.md` | Active | Rules for product evolution. |
-| `docs/prism-v4/11-feature-ledger.md` | Active | Feature-family decisions for the redesign. |
-| `docs/prism-v4/12-redesign-inventory.md` | Active | Route/app redesign severity and ownership. |
-| `docs/prism-v4/13-docs-cleanup-checklist.md` | Active | Documentation hygiene rules. |
-| `docs/prism-v4/14-redesign-readiness-foundation.md` | Active | Handoff contract for sample-state fencing, session conventions, owner boundaries, and legacy removal before redesign branches. |
-| `docs/prism-v4/15-system-architecture.md` | Active | Canonical role-app/API/package architecture, data domains, boundaries, and stop rules. |
-| `docs/prism-v4/16-actual-system.md` | Active | Full P.R.I.S.M system details: actors, lifecycle, workflows, data ownership, feature families, and completion evidence. |
-| `docs/prism-v4/17-current-state-2026-06-20.md` | Active | Dated current-state snapshot for June 20, 2026. |
-| `docs/prism-v4/18-future-state.md` | Active | July 31 and post-July future-state target for full system completion. |
-| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active | Whole-app redesign and capability maturity plan, including explicit system goals for Owner A (Maxine), Owner B (Francis), Owner C (Ethan), and Owner D (Anthony). |
-| `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` | Active | Whole-system completion sprint calendar through July 31, 2026 with actionable work for Maxine, Francis, Ethan, and Anthony. |
-| `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md` | Active companion | Current-vs-target feature audit, confidence gates, missing completion tasks, and catalog traceability check for the July completion calendar. |
-| `docs/superpowers/plans/2026-06-22-prism-backend-modular-monolith.md` | Active implementation plan | Anthony/Owner D backend modular-monolith path, July execution boundary, capability module contracts, and boundary-check guardrails. |
+| `AGENTS.md` | Canonical | Agent handbook |
+| `CLAUDE.md` | Pointer | Must point at `AGENTS.md` only |
+| `README.md` | Canonical | Human runbook |
+| `docs/README.md` | Canonical | Docs tier landing |
+| `docs/architecture.md` | Stub | Links to `15-system-architecture.md` |
+| `docs/portal-accounts.md` | Ops | Sample logins |
+| `docs/docker-dev-testing-guide.md` | Ops | Docker detail |
+| `docs/prism-v4/00-index.md` | Index | Living vs baseline navigation |
+| `docs/prism-v4/01-complete-feature-catalog.md` | Baseline | Catalog / defense counts |
+| `docs/prism-v4/07-implemented-feature-revisions.md` | Living | Implementation reality |
+| `docs/prism-v4/10-product-evolution-and-redesign-governance.md` | Living | Evolution rules |
+| `docs/prism-v4/11-feature-ledger.md` | Living | Feature decisions |
+| `docs/prism-v4/12-redesign-inventory.md` | Living | Route inventory |
+| `docs/prism-v4/13-docs-cleanup-checklist.md` | Living | This file |
+| `docs/prism-v4/14-redesign-readiness-foundation.md` | Living | Sample-state / session contract |
+| `docs/prism-v4/15-system-architecture.md` | Living | **Architecture source of truth** |
+| `docs/prism-v4/16-actual-system.md` | Narrative | Full system story |
+| `docs/prism-v4/18-future-state.md` | Narrative | Target state |
 
-## Files To Keep
-
-| Path | Reason |
-| --- | --- |
-| `docs/prism-v4/02-system-behaviors.md` | Source-preserving behavior rules and AI-related automatic behavior notes. |
-| `docs/prism-v4/03-ai-features-and-security.md` | AI/security summary for review and defense. |
-| `docs/prism-v4/04-implementation-plan.md` | Catalog-to-build mapping, still useful for traceability. |
-| `docs/prism-v4/05-prism-defense-sample-guide.md` | Defense/sample story and fallback evidence. |
-| `docs/prism-v4/06-chapter-3-cross-reference.md` | Manuscript mapping. |
-| `docs/prism-v4/08-revision-phase-plan.md` | Historical revision-first roadmap. |
-| `docs/prism-v4/09-defense-sample-runbook.md` | Local defense rehearsal runbook. |
-| `docs/prism-v4/features/*.md` | Persona-specific source slices from the catalog. |
-| `docs/prism-v4/page-screenshots/2026-05-07/*` | Visual evidence snapshot. Keep until replaced by a newer verified screenshot set. |
-
-## Retired Or Removed Files
+## Retired (2026-07 aggressive cleanup)
 
 | Path | Decision | Reason |
 | --- | --- | --- |
-| May 2026 UI modernization Phase 2 plan | Removed | Its deliverables now exist, but it still reads as an unchecked implementation plan. Future UI work belongs in the active capability maturity plan plus `11-feature-ledger.md` and `12-redesign-inventory.md`. |
-| June 2026 architecture hardening plan | Removed | Stale old-name planning artifact. |
-| Root `Prism-CHECKLIST.md`, `prism-strategy.md`, `prism-feature-list.md`, `DESIGN.md` | Removed earlier | Superseded by `docs/prism-v4`. |
-| `apps/api/README.md` | Removed | App-local module guidance described stale module boundaries and duplicated setup instructions that now belong in root `README.md` plus the active v4 docs. |
-| `apps/event/docs/prism-feature-soundness-review.md` and `apps/event/docs/prism-maintainability-tech-debt-audit.md` | Removed | App-local snapshots were stale and competed with the current v4 docs, redesign inventory, and readiness foundation. |
+| `docs/superpowers/**` | Removed | Completed plans/specs; owner goals live in `AGENTS.md` + living v4 docs |
+| `docs/ethan/**` | Removed | Owner working notes, not product canon |
+| Root `PRISM_Audits/`, `OwnerB_PRISM_StoryLogs/` | Removed | Session dumps; not living docs |
+| `prism-v4/02`–`06`, `08`–`09`, `17` | Removed | Historical plan/defense/snapshot clutter |
+| `prism-v4/features/*`, `page-screenshots/*`, `MANIFEST.md` | Removed | Persona slices and old screenshot evidence |
+| `scripts/capture-prism-feature-pages.mjs` | Removed | Screenshot pipeline for deleted evidence set |
+| `apps/api/scripts/db-setup.mjs`, `db-reset.mjs` | Removed | Orphaned; package scripts call Prisma directly |
+| `apps/client/practice/*` | Removed | Practice-only files |
 
-## Cleanup Rules
+Recover any of the above from **git history** if needed for panel or forensics.
 
-1. Keep one active plan for the whole redesign: `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`.
-2. Do not create a new `docs/superpowers/plans/*` file unless it is a short-lived execution plan for an approved phase or an active companion review for the July 31 system-completion calendar; the active calendar is `docs/superpowers/plans/2026-06-15-prism-redesign-agile-calendar.md` and its active completion review is `docs/superpowers/plans/2026-06-20-prism-system-completion-review.md`.
-3. When a plan is completed, either convert it into a closeout note inside the active docs or remove it.
-4. Do not keep unchecked implementation checklists after the implementation exists.
-5. Do not duplicate `AGENTS.md` into `CLAUDE.md`; `CLAUDE.md` must remain a symlink.
-6. Keep `00-index.md` and `MANIFEST.md` updated when adding governing docs.
-7. Preserve catalog and manuscript docs even when feature decisions change.
-8. Remove docs that contradict role-specific app boundaries.
-9. Rewrite docs that imply `apps/client` is an all-role PMCM shell.
-10. Keep public pages and signed-in dashboard boundaries explicit in docs.
-11. Redesign or implementation plans must state which owner system goal they advance.
-12. Owner labels must not be used as vague assignees; link them to the system goals in the maturity plan and the named owners Maxine, Francis, Ethan, and Anthony.
-13. Sample-state guidance belongs in `14-redesign-readiness-foundation.md`; app-local docs should not reintroduce `/api/sample/state` as a normal read path.
-14. Session/storage conventions belong in `@prism/types`; docs should not endorse app-local literal `prism:*` keys.
+## Cleanup rules
 
-## Verification Commands
+1. **No long-lived `docs/superpowers/` tree.** Short execution plans only if explicitly approved; delete when done.
+2. **No root-level audit dumps or story logs.** Promote findings into code, tests, or living docs (`11`, `15`, `07`) instead.
+3. **No app-local competing product docs** that restate architecture or invent sample-state as the normal path.
+4. Do not duplicate `AGENTS.md` into `CLAUDE.md`.
+5. Keep `docs/README.md`, `00-index.md`, and this checklist updated when adding governing docs.
+6. Preserve `01-complete-feature-catalog.md` for manuscript/defense counts; do not treat it as a hard ceiling.
+7. Remove or rewrite docs that imply `apps/client` is an all-role PMCM shell.
+8. Keep public vs signed-in dashboard boundaries explicit.
+9. Sample-state guidance belongs in `14`; do not reintroduce `/api/sample/state` as a normal read path.
+10. Session/storage keys belong in `@prism/types`; docs must not endorse new app-local `prism:*` keys.
+11. Single architecture source: `15-system-architecture.md` (optional stub `docs/architecture.md` only).
+12. Single feature-decision source: `11-feature-ledger.md`.
+13. Do not keep unchecked implementation checklists after the work exists.
+14. Owner labels must map to system goals (A Maxine / B Francis / C Ethan / D Anthony).
+15. **Conversation-agnostic living docs.** Write durable product/engineering truth that any reader can use cold. Do not leave chat handoff notes, session diaries (“resolution captured…”, “as discussed…”), sprint closeout voice, or references to deleted plans/calendars as if they were still active.
 
-Run these after documentation cleanup:
+## Verification
 
 ```bash
 git status --short --branch
-git ls-files -s CLAUDE.md AGENTS.md
-rg -n -i "old-name-token-one|old-name-token-two" docs/prism-v4 docs/superpowers README.md AGENTS.md
-Test-Path docs/superpowers/plans
-rg -n "10-product-evolution|11-feature-ledger|12-redesign-inventory|13-docs-cleanup-checklist|15-system-architecture|16-actual-system|17-current-state-2026-06-20|18-future-state" docs/prism-v4 README.md AGENTS.md
-rg -n "Owner system goal|Owner System Goals|system goal" docs/prism-v4 docs/superpowers/specs README.md AGENTS.md
-npm --workspace prism-api run db:doctor:runtime
-git diff --check
+git ls-files PRISM_Audits OwnerB_PRISM_StoryLogs docs/ethan docs/superpowers
+git ls-files docs/prism-v4/04-implementation-plan.md docs/prism-v4/features docs/prism-v4/page-screenshots
+git ls-files apps/client/practice scripts/capture-prism-feature-pages.mjs apps/api/scripts/db-setup.mjs apps/api/scripts/db-reset.mjs
+# CLAUDE.md should point at AGENTS.md
+rg -n "15-system-architecture|11-feature-ledger|docs/README" AGENTS.md README.md docs/README.md docs/prism-v4/00-index.md
+rg -n "Owner system goal|Owner A|Owner B|Owner C|Owner D" AGENTS.md docs/prism-v4
 ```
 
 Expected:
 
-- `CLAUDE.md` is mode `120000` and targets `AGENTS.md`.
-- No stale old-name terms appear in active docs.
-- `docs/superpowers/plans` does not exist unless a short-lived approved execution plan is active.
-- New governing docs are linked from the index and manifest.
-- Owner system goals are discoverable from the active maturity plan and supporting docs.
-- API-backed sample auth and sample-state compatibility paths have a valid database configuration, or failures return the documented service-unavailable guidance.
+- Zero tracked files under retired paths above.
+- Tier landing and architecture links resolve.
+- Owner system goals remain discoverable from `AGENTS.md` and living docs.
 - Working tree contains only intentional changes before commit.

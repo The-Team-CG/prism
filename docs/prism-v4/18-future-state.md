@@ -1,40 +1,40 @@
 # P.R.I.S.M Future State
 
-Date: 2026-06-20
-Status: Target-state document for July 31, 2026 completion planning and post-July maturity
+Date: 2026-07-16
+Status: Target-state document for system maturity planning
 
-This document describes where P.R.I.S.M should land after the July completion calendar and what remains for post-July maturity. It should be read after `15-system-architecture.md` for architecture, `16-actual-system.md` for full system details, and `17-current-state-2026-06-20.md` for the dated implementation snapshot.
+This document describes where P.R.I.S.M should land for full-system maturity. Read after `15-system-architecture.md` for architecture and `16-actual-system.md` for current system detail.
 
 ## Target System Statement
 
 P.R.I.S.M should become PMCM's trusted internal event operating system: a role-safe, evidence-backed command layer that carries an event from public inquiry through client onboarding, planning, supplier and coordinator execution, guest operations, event-day control, closure, archive, and learning loop.
 
-The future state is not "every catalog item is production-grade by July 31." The future state is:
+The future state is not "every catalog item is production-grade immediately." The future state is:
 
 1. Every feature family has an explicit outcome.
 2. Every lifecycle step has a working route-safe slice or a named gate.
-3. Every high-risk dependency has an approved implementation path or post-July owner.
+3. Every high-risk dependency has an approved implementation path or a named deferred owner.
 4. Every role app preserves its boundary.
 5. The system can be demonstrated as one coherent PMCM story.
 
-## July 31 Target State
+## Near-Term Target State
 
-| Area | July 31 target |
+| Area | Near-term target |
 | --- | --- |
 | Lifecycle continuity | Inquiry -> accepted inquiry -> signed conforme -> planning -> event day -> closure/archive can be demonstrated with route, actor, contract, screenshot/route check, and known gates. |
-| PMCM command | `apps/event` starts from the Event Command Inbox and selected-event workspace. Remaining broad dashboard sections are documented as compatibility or post-July. |
+| PMCM command | `apps/event` starts from the Event Command Inbox and selected-event workspace. Remaining broad dashboard sections are documented as compatibility or deferred. |
 | Client portal | `apps/client` starts from a next-action center with client-safe event tasks, documents, billing, floorplan review, and closeout signals. |
 | Supplier portal | `apps/supplier` clearly shows supplier quote/assignment/readiness/contract/event-day status for assigned supplier scope. |
 | Guest portal | `apps/guest` supports event-code access, consent, check-in, walk-in flagging, attendance, and moderated feedback without QR overclaiming. |
 | Files | File Requirements Matrix is metadata-complete and role-visible; real storage remains gated unless explicitly approved. |
 | Floorplans | PMCM official floorplan ownership is preserved; clients only submit preferences/comments and review submitted/approved official snapshots read-only. |
-| Billing | Billing evidence is client-safe and source-linked; disputes, waivers, corrections, and additional billing are gated or post-July unless implemented with tests. |
+| Billing | Billing evidence is client-safe and source-linked; disputes, waivers, corrections, and additional billing are gated or deferred unless implemented with tests. |
 | Compliance and risk | Compliance rule/override evidence is live; broader risk/change register is gated or selected as one PMCM thin slice. |
 | Closure | Close gates and lifecycle transition rules support closure/readiness evidence. |
 | Security and privacy | Sample auth/RBAC, privacy request handling, consent, redaction, audit integrity, and role boundaries are verified. External auth remains gated unless approved. |
 | AI | AI governance foundation is visible. Live AI and autonomous action remain gated behind ZDR/provider approval and PMCM approval workflow. |
-| UX | Maxine's route-review log covers touched PMCM/client/supplier/guest surfaces with route, viewport, pass/fail, and fix/approval notes. |
-| Evidence | Anthony's final evidence packet links FL outcomes, route checks, screenshots, tests, dependency decisions, and docs updates. |
+| UX | Route-review evidence covers touched PMCM/client/supplier/guest surfaces with route, viewport, pass/fail, and fix/approval notes. |
+| Evidence | Evidence packets link FL outcomes, route checks, screenshots, tests, dependency decisions, and docs updates. |
 
 ## Future Architecture Target
 
@@ -66,23 +66,23 @@ flowchart TD
 | Owner | Future outcome |
 | --- | --- |
 | Maxine | The whole system feels coherent across PMCM, client, supplier, and guest routes without violating role boundaries. Each touched surface has responsive state language, dense operational layout, and no banned visual treatments. |
-| Francis | PMCM and coordinator operations are usable: command inbox, selected event workspace, supplier/quote/floorplan/billing/compliance/live-ops/closure evidence, and exactly chosen Sprint 3 depth slice. |
+| Francis | PMCM and coordinator operations are usable: command inbox, selected event workspace, supplier/quote/floorplan/billing/compliance/live-ops/closure evidence, and exactly one chosen staffing/live-ops depth slice when scoped. |
 | Ethan | External portals are safe and useful: client action center, supplier readiness board, guest access/check-in/feedback, with no PMCM data leakage or hidden broad sample dependency. |
-| Anthony | Platform trust is explicit: scoped contracts, file matrix, session keys, privacy/audit, auth/runtime decisions, dependency gates, route evidence, source-ID traceability, and final completion matrix. |
+| Anthony | Platform trust is explicit: scoped contracts, file matrix, session keys, privacy/audit, auth/runtime decisions, dependency gates, route evidence, source-ID traceability, and completion matrix. |
 
 ## Future State By Feature Outcome
 
-| Outcome | Meaning | Expected July examples |
+| Outcome | Meaning | Expected near-term examples |
 | --- | --- | --- |
-| Delivered | The route, contract, role boundary, failure state, and evidence are complete enough for July. | Event Command Inbox, Client Action Center if fallback is closed or clearly bounded. |
+| Delivered | The route, contract, role boundary, failure state, and evidence are complete enough to claim the family. | Event Command Inbox, Client Action Center if fallback is closed or clearly bounded. |
 | Thin delivered | A bounded working slice is complete and honest about remaining maturity. | File Requirements Matrix metadata, supplier readiness board, guest access-code/check-in, close gates. |
 | Gated | Work is blocked until a prerequisite is approved or implemented. | Storage, production notifications, external auth, QR/camera, live AI, broader risk/change if not selected. |
-| Deferred | Valid but not part of July completion. | Deeper billing disputes, archive comparison, testimonial library, supplier application status center if not needed for demo. |
-| Post-July | Explicitly outside July build capacity with a future owner. | Workflow Template Builder, health formula editor, storage adapter readiness console if not approved. |
+| Deferred | Valid but not in the current delivery slice. | Deeper billing disputes, archive comparison, testimonial library, supplier application status center if not needed for demo. |
+| Later maturity | Explicitly outside current build capacity with a named future owner. | Workflow Template Builder, health formula editor, storage adapter readiness console if not approved. |
 
-## Post-July Target State
+## Later Maturity Target State
 
-| Area | Post-July maturity target |
+| Area | Later maturity target |
 | --- | --- |
 | External auth | Replace sample auth/RBAC with approved provider integration, migration path, session tests, and rollback/fallback behavior. |
 | Storage | Add storage adapter, signed URLs, upload progress/retry, download/delete audit, file previews where appropriate, and storage readiness console. |
@@ -108,7 +108,7 @@ flowchart TD
 | 5 | Confirm supplier and guest route evidence before expanding client polish. | Ethan |
 | 6 | Apply route-review log to touched real surfaces. | Maxine |
 | 7 | Keep storage, notifications, auth, QR, and AI gated unless approved with tests and fallback behavior. | Anthony |
-| 8 | Add post-July queue grouped by PMCM, client, supplier, guest, platform, and UX. | Anthony |
+| 8 | Maintain a deferred/later queue grouped by PMCM, client, supplier, guest, platform, and UX. | Anthony |
 
 ## Future Dependency Decisions
 
@@ -123,7 +123,7 @@ flowchart TD
 
 ## Future Backend Modular Monolith Target
 
-The post-July backend target is a modular monolith, not microservices. `apps/api` remains the single shared NestJS API, and Prisma remains the shared data-access layer, but workflow ownership moves out of the `event-ops` hub into capability modules with explicit public ports.
+The backend target is a modular monolith, not microservices. `apps/api` remains the single shared NestJS API, and Prisma remains the shared data-access layer. The legacy `event-ops` hub is already removed; workflow ownership stays in capability modules with explicit public ports.
 
 Long-term backend completion requires these conditions:
 
@@ -132,13 +132,11 @@ Long-term backend completion requires these conditions:
 3. Audit, notification outbox, access policy, workflow command history, and transaction semantics are injected through stable ports.
 4. `event-core` remains narrow: event identity, lifecycle invariants, status transitions, and command history only.
 5. `closure-ops` assembles closure/archive readiness from public reader ports rather than pulling private services into a new hub.
-6. `event-ops` is retired or remains compatibility-only after routes move to owning modules.
-7. Every extraction has Owner D evidence: feature-ledger row, route/app/actor, contract touched, fallback state, forbidden-role test, query budget or command side-effect mode, route-smoke evidence, and docs updated.
-
-This target supports the July completion goal by making platform trust explicit while keeping broad extraction work out of July unless a child plan proves it is necessary and bounded.
+6. Sample demo routes stay in `sample-compatibility` only; do not recreate a god hub.
+7. Every capability change has Owner D evidence: feature-ledger row, route/app/actor, contract touched, fallback state, forbidden-role test, query budget or command side-effect mode, route-smoke evidence, and docs updated.
 ## Future Evidence Packet
 
-By July 31, the completion packet should include:
+A completion claim should include:
 
 1. Feature outcome matrix for FL-001 through FL-028.
 2. Catalog ID traceability audit output.
@@ -147,17 +145,17 @@ By July 31, the completion packet should include:
 5. External dependency decision table.
 6. UX route-review log.
 7. Test/build/typecheck command results relevant to changed areas.
-8. Final docs sync list.
-9. Post-July queue with owner and reason.
+8. Docs sync list for living Tier 1 files touched by the claim.
+9. Deferred/later queue with owner and reason.
 
 ## Future Completion Rule
 
-The whole system is complete enough for the July 31 milestone when each lifecycle step can be demonstrated honestly and every incomplete piece is either:
+The whole system is complete enough for a milestone claim when each lifecycle step can be demonstrated honestly and every incomplete piece is either:
 
 - Delivered with evidence.
 - Thin delivered with explicit remaining work.
 - Gated with prerequisite and owner.
 - Deferred with reason.
-- Post-July with owner and expected maturity path.
+- Later maturity with owner and expected path.
 
-No future review should call the system complete if it only has static UI, mock state, or untested role boundaries.
+Do not call the system complete if it only has static UI, mock state, or untested role boundaries.
