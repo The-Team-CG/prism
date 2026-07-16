@@ -38,7 +38,7 @@ The redesign should not start from ambiguous product truth, broad demo state, co
 
 Sample state means either:
 
-- API compatibility aggregate: `GET /api/sample/state`, `POST /api/sample/reset`, and `POST /api/sample/seed`.
+- API compatibility aggregate: `GET /api/sample/state` and `POST /api/sample/reset` (no dedicated seed endpoint).
 - Client local fallback: `apps/client/src/mock/prism-sample-state.ts` plus browser storage under `PRISM_SAMPLE_STATE_STORAGE_KEY`.
 
 Allowed use:

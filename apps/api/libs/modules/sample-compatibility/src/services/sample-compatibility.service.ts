@@ -433,6 +433,19 @@ const SEEDED_SUPPLIERS = [
     performanceNotes: 'Approved application awaiting first PMCM event.',
     certifications: ['Portfolio links.pdf'],
   },
+  {
+    id: 'sup_bloom',
+    categoryId: 'supcat_production',
+    name: 'Bloom Florals',
+    contactName: 'Patricia Flores',
+    email: 'flowers@bloom.test',
+    phone: '+63 917 555 0113',
+    tier: 'tier_2',
+    bniMember: false,
+    serviceInclusions: 'Floral arrangements, entrance decor, centerpieces, and styling crew.',
+    performanceNotes: 'Tier 2 floral sample supplier for supplier-portal sign-in demos.',
+    certifications: ['Floral design portfolio.pdf'],
+  },
 ];
 
 const COORDINATOR_ROLE_REQUIREMENTS = [
@@ -683,10 +696,6 @@ export class SampleCompatibilityService implements OnModuleInit {
 
   async resetSample() {
     return this.sampleStateService.resetSample(() => this.seedSample(), () => this.state());
-  }
-
-  async seedSampleState() {
-    return this.sampleStateService.seedSampleState(() => this.ensureSeeded(), () => this.state());
   }
 
   private async login(email: string, password: string) {
@@ -2182,6 +2191,16 @@ export class SampleCompatibilityService implements OnModuleInit {
             password: AuthSecurityService.hashPassword('prism-supplier'),
             role: 'supplier',
             organization: 'XPERTO Registration',
+            approvalStatus: 'approved',
+            createdAt,
+          },
+          {
+            id: 'usr_supplier_bloom',
+            name: 'Bloom Florals',
+            email: 'flowers@bloom.test',
+            password: AuthSecurityService.hashPassword('prism-supplier'),
+            role: 'supplier',
+            organization: 'Bloom Florals',
             approvalStatus: 'approved',
             createdAt,
           },

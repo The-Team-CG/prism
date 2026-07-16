@@ -1030,7 +1030,7 @@ function mockApiData(url, method, context) {
 
   if (method === "OPTIONS") return { status: 204, body: null };
   if (pathName === "/health" || pathName === "/api/health") return { body: { status: "ok", service: "p.r.i.s.m api mock" } };
-  if (pathName === "/api/sample/state" || pathName === "/api/sample/reset" || pathName === "/api/sample/seed") return { body: state };
+  if (pathName === "/api/sample/state" || pathName === "/api/sample/reset") return { body: state };
   if (pathName === "/api/client/workspace") return { body: state };
   if (pathName === "/api/onboarding") return { body: { inquiries: state.inquiries, documents: state.documents } };
   if (pathName === "/api/events") return { body: state.events };

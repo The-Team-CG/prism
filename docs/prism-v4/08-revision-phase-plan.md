@@ -33,7 +33,7 @@ Goal: make `docs/prism-v4` the active documentation home.
 | V4 navigation | Link this file from `00-index.md` and `MANIFEST.md`. |
 | Root references | Keep `README.md`, `CLAUDE.md`, and `AGENTS.md` pointed at `docs/prism-v4`. |
 | Superseded files | Remove `Prism-CHECKLIST.md`, `prism-strategy.md`, `prism-feature-list.md`, and `DESIGN.md` from the root workspace. |
-| Kept root files | Keep `README.md`, `CLAUDE.md`, `AGENTS.md`, `.impeccable.md`, `.gitignore`, `skills-lock.json`, `start-prism.*`, and `stop-prism.*`. |
+| Kept root files | Keep `README.md`, `CLAUDE.md`, `AGENTS.md`, `.impeccable.md`, `.gitignore`, `start-prism.*`, and `stop-prism.*`. |
 
 Verification:
 

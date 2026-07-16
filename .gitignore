@@ -43,6 +43,8 @@ prism-guest/
 .claude/
 .codex/
 .github/skills/
+skills-lock.json
+**/skills-lock.json
 .tmp/
 .tmp-pmcm-standalone-assets/
 
