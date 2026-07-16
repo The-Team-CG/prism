@@ -977,6 +977,7 @@ function createSampleCompatibilityService(prisma: any) {
     auditWriter,
     notificationOutboxWriter,
     workflowCommandService,
+    eventAccessPolicyService,
   );
   const liveOperationsService = new LiveOperationsService(
     prisma,
