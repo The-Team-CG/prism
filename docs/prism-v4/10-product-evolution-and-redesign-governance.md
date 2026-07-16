@@ -1,8 +1,8 @@
 # P.R.I.S.M Product Evolution and Redesign Governance
 
-Last updated: 2026-06-15
+Last updated: 2026-07-16
 
-This document defines how P.R.I.S.M can evolve beyond the original Version 4 catalog. The catalog remains a valuable baseline, but it is not a hard ceiling. During the whole-app redesign, features may be added, revised, merged, deferred, or retired when doing so makes the product clearer, safer, more usable, or more aligned with PMCM operations.
+This document defines how P.R.I.S.M can evolve beyond the original Version 4 catalog. The catalog remains a valuable baseline, but it is not a hard ceiling. Features may be added, revised, merged, deferred, or retired when doing so makes the product clearer, safer, more usable, or more aligned with PMCM operations.
 
 ## Product Authority Model
 
@@ -10,18 +10,19 @@ This document defines how P.R.I.S.M can evolve beyond the original Version 4 cat
 | --- | --- |
 | `01-complete-feature-catalog.md` | Baseline feature inventory and original manuscript/defense reference. |
 | `07-implemented-feature-revisions.md` | Current implementation reality and revision backlog. |
-| `08-revision-phase-plan.md` | Historical revision-first roadmap. |
-| `14-redesign-readiness-foundation.md` | Handoff rules for sample-state fencing, session conventions, owner boundaries, and legacy removal before UI redesign work. |
-| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan. |
-| This document | Rules for changing the feature set during redesign. |
+| `11-feature-ledger.md` | Active feature-family decisions. |
+| `14-redesign-readiness-foundation.md` | Sample-state fencing, session conventions, owner boundaries, and legacy removal rules. |
+| `15-system-architecture.md` | Architecture, module ownership, and stop rules. |
+| `AGENTS.md` | App boundaries, owner goals, and agent stop rules. |
+| This document | Rules for changing the feature set. |
 
 If these documents conflict, use this order for product planning:
 
 1. Current app boundaries in `AGENTS.md`.
-2. Whole-app redesign plan.
+2. Architecture and feature ledger (`15`, `11`).
 3. This product evolution governance document.
-4. Current implementation backlog.
-5. Original feature catalog.
+4. Current implementation backlog (`07`).
+5. Original feature catalog (`01`).
 
 The original catalog should still be preserved for traceability, but implementation should not blindly ship catalog items that are outdated, redundant, unsafe, or weak from a product perspective.
 
@@ -118,9 +119,9 @@ Retire a feature from active scope when:
 
 Retired features should remain traceable in the ledger with a short reason. Do not delete the historical catalog row unless the document is explicitly being regenerated as a new catalog version.
 
-## New Features to Consider During Redesign
+## New Features to Consider
 
-These are not yet committed implementation requirements. They are candidates the redesign team should evaluate during Phase 0 and Phase 1.
+These are not yet committed implementation requirements. They are candidates for evaluation against the feature ledger and owner system goals.
 
 | Candidate | Persona | Why it may improve P.R.I.S.M |
 | --- | --- | --- |
@@ -187,21 +188,22 @@ If these cannot be answered, the feature is not ready for implementation.
 
 ## Documentation Cleanup Rules
 
-During redesign, outdated docs should be handled intentionally:
+Outdated docs should be handled intentionally:
 
 - Preserve historical catalog files unless a new catalog version is created.
 - Remove or archive planning docs that contradict the current role-specific app boundaries.
 - Rewrite planning docs that still use old product-name terminology.
-- Prefer one active plan per initiative.
-- Keep `00-index.md` current whenever new governing docs are added.
-- Keep `MANIFEST.md` current enough to help navigation, but do not treat byte counts as authoritative planning data.
+- Prefer one active plan per initiative; delete completed short execution plans when done (git history keeps them).
+- Keep `docs/README.md` and `00-index.md` current whenever new governing docs are added.
+- Keep docs **conversation-agnostic**: durable product/engineering truth only—no chat handoff notes, session diaries, or assumptions that the reader saw a prior conversation.
+- Do not treat historical file sizes or removed plan trees as planning data.
 
-## Immediate Use
+## How To Apply This Document
 
-Phase 0 of the whole-app redesign should apply this document by:
+When evolving scope:
 
-1. Creating the feature ledger.
-2. Adding `Decision` and `Decision reason` columns to the ledger.
-3. Marking each original catalog feature as keep, revise, merge, split, add, defer, retire, or gate.
-4. Adding candidate new features that materially improve PMCM operations.
-5. Removing or rewriting outdated active planning docs.
+1. Update the feature ledger (`11`) with decision and reason.
+2. Mark affected catalog features as keep, revise, merge, split, add, defer, retire, or gate.
+3. Add candidate features only when they materially improve PMCM operations.
+4. Align implementation reality in `07` and architecture stop rules in `15` when behavior changes.
+5. Remove or rewrite outdated active planning docs rather than layering new ones.

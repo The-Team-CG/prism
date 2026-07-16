@@ -8,6 +8,18 @@ export default defineConfig({
     include: ['libs/**/*.test.ts', 'apps/**/*.test.ts'],
     clearMocks: true,
     restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      reportsDirectory: './coverage',
+      // Practice bar (looser than industry 80%): raise toward 80/80/80/75 over time.
+      thresholds: {
+        lines: 50,
+        statements: 50,
+        functions: 50,
+        branches: 40,
+      },
+    },
   },
   resolve: {
     alias: {

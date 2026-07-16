@@ -1,9 +1,9 @@
 # P.R.I.S.M Actual System
 
-Date: 2026-06-20
+Date: 2026-07-16
 Status: Full system details for P.R.I.S.M as the complete PMCM event operating system
 
-This document describes the actual P.R.I.S.M system in product terms: what the complete system is, who uses it, what each workflow must do, and what information each role owns or can see. It is not the current implementation snapshot. For current implementation status as of June 20, 2026, use `17-current-state-2026-06-20.md`. For software architecture, app/package/API boundaries, and technical stop rules, use `15-system-architecture.md`. For target July and post-July maturity, use `18-future-state.md`.
+This document describes the actual P.R.I.S.M system in product terms: what the complete system is, who uses it, what each workflow must do, and what information each role owns or can see. For implementation gaps, use `07-implemented-feature-revisions.md` and `11-feature-ledger.md`. For software architecture, app/package/API boundaries, and technical stop rules, use `15-system-architecture.md`. For target maturity, use `18-future-state.md`.
 
 ## System Identity
 
@@ -185,6 +185,6 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 
 ## Actual System Completion Rule
 
-The actual P.R.I.S.M system is complete enough for the July milestone only when every lifecycle step has a working, role-safe slice or an explicit gate, every `FL-001` through `FL-028` row has an outcome, and every high-risk dependency is either approved with evidence or named as gated/post-July.
+The actual P.R.I.S.M system is complete enough for a milestone claim only when every lifecycle step has a working, role-safe slice or an explicit gate, every `FL-001` through `FL-028` row has an outcome, and every high-risk dependency is either approved with evidence or named as gated/deferred.
 
-Do not use this document to claim the current implementation is done. Use `17-current-state-2026-06-20.md` for current state and `18-future-state.md` for the target transition.
+Do not use this document to claim the current implementation is done. Use `07-implemented-feature-revisions.md` and `11-feature-ledger.md` for current gaps, and `18-future-state.md` for the target transition.

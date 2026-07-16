@@ -6,7 +6,7 @@ export class SampleController {
   constructor(private readonly sampleCompatibilityService: SampleCompatibilityService) {}
 
   /**
-   * Compatibility aggregate for local demos, seed verification, and reset flows.
+   * Compatibility aggregate for local demos and sample reset flows.
    * New role surfaces should use scoped controllers such as /client/workspace,
    * /pmcm/dashboard, /supplier/workspace, /events/:id, and /billing.
    */
@@ -19,11 +19,5 @@ export class SampleController {
   @HttpCode(HttpStatus.OK)
   reset() {
     return this.sampleCompatibilityService.resetSample();
-  }
-
-  @Post('seed')
-  @HttpCode(HttpStatus.OK)
-  seed() {
-    return this.sampleCompatibilityService.seedSampleState();
   }
 }

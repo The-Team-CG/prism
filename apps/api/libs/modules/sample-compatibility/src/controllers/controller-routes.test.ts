@@ -8,7 +8,7 @@ function controllerPath(controller: Function): string {
 
 describe('sample-compatibility controller routes', () => {
   it('keeps public controller base paths stable', () => {
-    // Sample compatibility owns the demo/seed/reset routes while capability modules own business controllers.
+    // Sample compatibility owns the demo state/reset routes while capability modules own business controllers.
     expect(SAMPLE_COMPATIBILITY_CONTROLLERS.map(controllerPath).sort()).toEqual(['sample']);
   });
 });
