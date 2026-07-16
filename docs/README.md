@@ -25,6 +25,8 @@ Open **Tier 0–1** for normal work. Narrative and baseline catalog are optional
 
 Do **not** add long-lived files under `docs/superpowers/`. Short execution plans, if ever needed, must be deleted when done (git history keeps them).
 
+Living docs are **conversation-agnostic**: durable product and engineering truth only—no chat handoffs, session diaries, or deleted-plan references as if still active.
+
 ## Tier 2 — narrative (onboarding / depth)
 
 | Doc | Role |

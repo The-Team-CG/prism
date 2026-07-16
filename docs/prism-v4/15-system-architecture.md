@@ -1,6 +1,6 @@
 # P.R.I.S.M System Architecture
 
-Date: 2026-06-20
+Date: 2026-07-16
 Status: Canonical architecture reference for the current Prism monorepo
 
 This document describes the intended architecture of P.R.I.S.M as PMCM's internal event operating system. Read it with `16-actual-system.md` for full system details and `18-future-state.md` for the target state.
