@@ -9,7 +9,8 @@ Use this file with:
 - `01-complete-feature-catalog.md` for source feature text and official counts.
 - `07-implemented-feature-revisions.md` for implementation reality.
 - `10-product-evolution-and-redesign-governance.md` for decision rules.
-- `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` for phase ownership and execution.
+- `AGENTS.md` for owner system goals (A–D) and app boundaries.
+- `15-system-architecture.md` for module ownership and technical stop rules.
 
 ## Decision Legend
 
@@ -101,7 +102,7 @@ This overlay is the execution layer for the July completion push. The Active Led
 
 | Artifact | Decision | Reason | Replacement |
 | --- | --- | --- | --- |
-| May 2026 UI modernization Phase 2 plan | Retire | The named shared UI blocks and smoke script now exist, but the file still reads like an open implementation checklist. Leaving it active creates duplicate planning authority. | This ledger plus `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md`. |
+| May 2026 UI modernization Phase 2 plan | Retire | The named shared UI blocks and smoke script now exist, but the file still reads like an open implementation checklist. Leaving it active creates duplicate planning authority. | This ledger plus `AGENTS.md` and `15-system-architecture.md`. |
 | June 2026 architecture hardening plan | Removed | It used old product terminology and was not part of the active whole-app redesign model. | Current shared packages and active maturity docs. |
 
 ## Next Ledger Maintenance

@@ -3,7 +3,7 @@
 Date: 2026-06-20
 Status: Target-state document for July 31, 2026 completion planning and post-July maturity
 
-This document describes where P.R.I.S.M should land after the July completion calendar and what remains for post-July maturity. It should be read after `15-system-architecture.md` for architecture, `16-actual-system.md` for full system details, and `17-current-state-2026-06-20.md` for the dated implementation snapshot.
+This document describes where P.R.I.S.M should land for full-system maturity. It should be read after `15-system-architecture.md` for architecture and `16-actual-system.md` for full system details.
 
 ## Target System Statement
 
@@ -123,7 +123,7 @@ flowchart TD
 
 ## Future Backend Modular Monolith Target
 
-The post-July backend target is a modular monolith, not microservices. `apps/api` remains the single shared NestJS API, and Prisma remains the shared data-access layer, but workflow ownership moves out of the `event-ops` hub into capability modules with explicit public ports.
+The backend target is a modular monolith, not microservices. `apps/api` remains the single shared NestJS API, and Prisma remains the shared data-access layer. The legacy `event-ops` hub is already removed; workflow ownership stays in capability modules with explicit public ports.
 
 Long-term backend completion requires these conditions:
 
@@ -132,10 +132,8 @@ Long-term backend completion requires these conditions:
 3. Audit, notification outbox, access policy, workflow command history, and transaction semantics are injected through stable ports.
 4. `event-core` remains narrow: event identity, lifecycle invariants, status transitions, and command history only.
 5. `closure-ops` assembles closure/archive readiness from public reader ports rather than pulling private services into a new hub.
-6. `event-ops` is retired or remains compatibility-only after routes move to owning modules.
-7. Every extraction has Owner D evidence: feature-ledger row, route/app/actor, contract touched, fallback state, forbidden-role test, query budget or command side-effect mode, route-smoke evidence, and docs updated.
-
-This target supports the July completion goal by making platform trust explicit while keeping broad extraction work out of July unless a child plan proves it is necessary and bounded.
+6. Sample demo routes stay in `sample-compatibility` only; do not recreate a god hub.
+7. Every capability change has Owner D evidence: feature-ledger row, route/app/actor, contract touched, fallback state, forbidden-role test, query budget or command side-effect mode, route-smoke evidence, and docs updated.
 ## Future Evidence Packet
 
 By July 31, the completion packet should include:

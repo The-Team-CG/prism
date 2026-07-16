@@ -10,18 +10,19 @@ This document defines how P.R.I.S.M can evolve beyond the original Version 4 cat
 | --- | --- |
 | `01-complete-feature-catalog.md` | Baseline feature inventory and original manuscript/defense reference. |
 | `07-implemented-feature-revisions.md` | Current implementation reality and revision backlog. |
-| `08-revision-phase-plan.md` | Historical revision-first roadmap. |
+| `11-feature-ledger.md` | Active feature-family decisions. |
 | `14-redesign-readiness-foundation.md` | Handoff rules for sample-state fencing, session conventions, owner boundaries, and legacy removal before UI redesign work. |
-| `docs/superpowers/specs/2026-06-11-prism-capability-maturity-plan-design.md` | Active whole-app redesign and capability maturity plan. |
+| `15-system-architecture.md` | Architecture, module ownership, and stop rules. |
+| `AGENTS.md` | App boundaries, owner goals, and agent stop rules. |
 | This document | Rules for changing the feature set during redesign. |
 
 If these documents conflict, use this order for product planning:
 
 1. Current app boundaries in `AGENTS.md`.
-2. Whole-app redesign plan.
+2. Architecture and feature ledger (`15`, `11`).
 3. This product evolution governance document.
-4. Current implementation backlog.
-5. Original feature catalog.
+4. Current implementation backlog (`07`).
+5. Original feature catalog (`01`).
 
 The original catalog should still be preserved for traceability, but implementation should not blindly ship catalog items that are outdated, redundant, unsafe, or weak from a product perspective.
 
@@ -194,7 +195,7 @@ During redesign, outdated docs should be handled intentionally:
 - Rewrite planning docs that still use old product-name terminology.
 - Prefer one active plan per initiative.
 - Keep `00-index.md` current whenever new governing docs are added.
-- Keep `MANIFEST.md` current enough to help navigation, but do not treat byte counts as authoritative planning data.
+- Keep `docs/README.md` and `00-index.md` current enough to help navigation; do not treat historical file sizes as planning data.
 
 ## Immediate Use
 
