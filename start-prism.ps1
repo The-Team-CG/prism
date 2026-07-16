@@ -3,7 +3,8 @@ param(
   [switch]$Install,
   [switch]$NoPortCleanup,
   [switch]$SkipPrismaGenerate,
-  [int]$TimeoutSeconds = 90
+  [switch]$SkipBuild,
+  [int]$TimeoutSeconds = 120
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,35 +50,35 @@ $apps = @(
     Directory = "apps\api"
     Port = 4000
     Url = "http://localhost:4000/health"
-    Args = @("run", "dev")
+    Args = @("run", "start")
   },
   [pscustomobject]@{
     Name = "client"
     Directory = "apps\client"
     Port = 3001
     Url = "http://localhost:3001/"
-    Args = @("run", "dev")
+    Args = @("run", "start")
   },
   [pscustomobject]@{
     Name = "supplier"
     Directory = "apps\supplier"
     Port = 3002
     Url = "http://localhost:3002/"
-    Args = @("run", "dev")
+    Args = @("run", "start")
   },
   [pscustomobject]@{
     Name = "guest"
     Directory = "apps\guest"
     Port = 3003
     Url = "http://localhost:3003/"
-    Args = @("run", "dev")
+    Args = @("run", "start")
   },
   [pscustomobject]@{
     Name = "event"
     Directory = "apps\event"
     Port = 3004
     Url = "http://localhost:3004/"
-    Args = @("run", "dev")
+    Args = @("run", "start")
   }
 )
 
@@ -225,20 +226,13 @@ if (-not $NoPortCleanup) {
 Ensure-WorkspaceInstall
 
 if (-not $SkipPrismaGenerate) {
-  Invoke-External -Label "Generating Prisma client in apps\api" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "db:generate")
+  Invoke-External -Label "Generating Prisma client" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "db:generate")
 }
 
-Write-Host "Seeding PARE sample data in apps\api"
-Push-Location (Join-Path $root "apps\api")
-try {
-  & node.exe --env-file=.env prisma/seed-pare.mjs
-  if ($LASTEXITCODE -ne 0) {
-    Write-Warning "PARE seed exited with code $LASTEXITCODE - continuing startup."
-  }
-} catch {
-  Write-Warning "PARE seed failed - continuing startup."
-} finally {
-  Pop-Location
+if (-not $SkipBuild) {
+  Invoke-External -Label "Building monorepo (dist / .next)" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "build")
+} else {
+  Write-Host "Skipping monorepo build (-SkipBuild)."
 }
 
 "name,pid,port,directory" | Set-Content -LiteralPath $pidFile
