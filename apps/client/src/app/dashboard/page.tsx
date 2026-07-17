@@ -1,5 +1,5 @@
-import { Dashboard } from "../components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView } from "@/features/client-dashboard/workspace";
 
 export default function ClientDashboardPage() {
-  return <Dashboard route="home" portalView="dashboard-overview" />;
+  return <ClientDashboardWorkspaceView route="home" portalView="dashboard-overview" />;
 }

@@ -2,8 +2,17 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query,
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { OpsUserRole } from '@prism/modules/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
-import type { PrismVerifiedEventActor } from '@prism/types';
-import { CreateInquiryDto, SampleActorDto, UpdateInquiryStatusDto, UploadConformeDto } from '../dto/inquiry.dto';
+import { zodBody } from '@prism/shared';
+import {
+  createPrismInquirySchema,
+  updateInquiryStatusSchema,
+  uploadConformeSchema,
+  type CreatePrismInquiryInput,
+  type PrismVerifiedEventActor,
+  type UpdateInquiryStatusInput,
+  type UploadConformeInput,
+} from '@prism/types';
+import { SampleActorDto } from '../dto/inquiry.dto';
 import { mapDocument, mapInquiry, mapOnboardingEvent } from '../mappers/inquiry.mappers';
 import { InquiriesService } from '../services/inquiries.service';
 import { InquiryWorkflowService } from '../services/inquiry-workflow.service';
@@ -37,18 +46,24 @@ export class OpsInquiriesController {
 
   @Post('log-on-behalf')
   @HttpCode(HttpStatus.CREATED)
-  logOnBehalf(@Body() dto: CreateInquiryDto, @Query() actor: SampleActorDto) {
+  logOnBehalf(
+    @Body(zodBody(createPrismInquirySchema)) dto: CreatePrismInquiryInput,
+    @Query() actor: SampleActorDto,
+  ) {
     return this.inquiryWorkflowService.logInquiryOnBehalf(dto, actor, this.inquiryWorkflowContext());
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateInquiryDto) {
+  create(@Body(zodBody(createPrismInquirySchema)) dto: CreatePrismInquiryInput) {
     return this.inquiryWorkflowService.createInquiry(dto, this.inquiryWorkflowContext());
   }
 
   @Patch(':inquiryId/status')
-  updateStatus(@Param('inquiryId') inquiryId: string, @Body() dto: UpdateInquiryStatusDto) {
+  updateStatus(
+    @Param('inquiryId') inquiryId: string,
+    @Body(zodBody(updateInquiryStatusSchema)) dto: UpdateInquiryStatusInput,
+  ) {
     return this.inquiryWorkflowService.updateInquiryStatus(inquiryId, dto, this.inquiryWorkflowContext());
   }
 
@@ -63,7 +78,7 @@ export class OpsInquiriesController {
   @UseGuards(EventSessionGuard)
   uploadConforme(
     @Param('inquiryId') inquiryId: string,
-    @Body() dto: UploadConformeDto,
+    @Body(zodBody(uploadConformeSchema)) dto: UploadConformeInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.inquiryWorkflowService.uploadConforme(inquiryId, dto, {}, this.inquiryWorkflowContext(), verifiedActor);

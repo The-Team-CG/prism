@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { RouteState } from "@/features/event-dashboard/event-dashboard.routing";
+import type { RouteState } from "@/features/event-dashboard/shell";
 
 export type EventDashboardSkeletonVariant = "command" | "event" | "suppliers" | "audit" | "coordinator";
 

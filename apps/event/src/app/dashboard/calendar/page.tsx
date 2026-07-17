@@ -1,3 +1,5 @@
-export default function EventCalendarPage() {
-  return null;
+import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+
+export default function EventDashboardRoutePage() {
+  return <EventDashboardRouteView routeKey="calendar" />;
 }

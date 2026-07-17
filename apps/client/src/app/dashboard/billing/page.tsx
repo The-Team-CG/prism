@@ -1,5 +1,5 @@
-import { Dashboard } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView } from "@/features/client-dashboard/workspace";
 
 export default function ClientDashboardBillingPage() {
-  return <Dashboard route="billing" portalView="billing-overview" />;
+  return <ClientDashboardWorkspaceView route="billing" portalView="billing-overview" />;
 }

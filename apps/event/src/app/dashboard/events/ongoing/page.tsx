@@ -1,3 +1,5 @@
-export default function OngoingEventsPage() {
-  return null;
+import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+
+export default function EventDashboardRoutePage() {
+  return <EventDashboardRouteView routeKey="events/ongoing" />;
 }

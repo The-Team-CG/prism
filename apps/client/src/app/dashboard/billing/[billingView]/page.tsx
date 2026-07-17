@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Dashboard, type ClientPortalView } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView, type ClientPortalView } from "@/features/client-dashboard/workspace";
 
 const billingViews: Record<string, ClientPortalView> = {
   quotations: "billing-quotations",
@@ -10,17 +10,11 @@ const billingViews: Record<string, ClientPortalView> = {
   balance: "billing-balance",
 };
 
-type ClientDashboardBillingViewPageProps = {
-  params: Promise<{ billingView: string }>;
-};
+type Props = { params: Promise<{ billingView: string }> };
 
-export default async function ClientDashboardBillingViewPage({ params }: ClientDashboardBillingViewPageProps) {
+export default async function ClientDashboardBillingViewPage({ params }: Props) {
   const { billingView } = await params;
   const portalView = billingViews[billingView];
-
-  if (!portalView) {
-    notFound();
-  }
-
-  return <Dashboard route="billing" portalView={portalView} />;
+  if (!portalView) notFound();
+  return <ClientDashboardWorkspaceView route="billing" portalView={portalView} />;
 }

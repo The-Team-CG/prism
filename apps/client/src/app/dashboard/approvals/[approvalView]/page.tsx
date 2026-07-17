@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Dashboard, type ClientPortalView } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView, type ClientPortalView } from "@/features/client-dashboard/workspace";
 
 const approvalViews: Record<string, ClientPortalView> = {
   pending: "approvals-pending",
@@ -10,17 +10,11 @@ const approvalViews: Record<string, ClientPortalView> = {
   "final-confirmation": "approvals-final-confirmation",
 };
 
-type ClientDashboardApprovalViewPageProps = {
-  params: Promise<{ approvalView: string }>;
-};
+type Props = { params: Promise<{ approvalView: string }> };
 
-export default async function ClientDashboardApprovalViewPage({ params }: ClientDashboardApprovalViewPageProps) {
+export default async function ClientDashboardApprovalViewPage({ params }: Props) {
   const { approvalView } = await params;
   const portalView = approvalViews[approvalView];
-
-  if (!portalView) {
-    notFound();
-  }
-
-  return <Dashboard route="approvals" portalView={portalView} />;
+  if (!portalView) notFound();
+  return <ClientDashboardWorkspaceView route="approvals" portalView={portalView} />;
 }
