@@ -13,7 +13,7 @@ import {
   type PrismFloorPlanPreference,
   type PrismUser,
 } from "@/lib/prism-api";
-import type { Project } from "@/app/components/editor/types";
+import type { Project } from "@/features/floorplan/editor/types";
 import type { ClientSession } from "../model/client-dashboard.types";
 
 export type FloorPlanPreferenceInput = {

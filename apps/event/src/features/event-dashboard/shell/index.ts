@@ -1,4 +1,5 @@
 export { EventDashboardShellView as default, EventDashboardShellView } from "./views/event-dashboard-shell-view";
+export { EventDashboardRouteView } from "./views/event-dashboard-route-view";
 export type { EventDashboardClientProps } from "./model/event-dashboard-routing";
 export type {
   DashboardSection,

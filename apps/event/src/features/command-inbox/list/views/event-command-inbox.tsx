@@ -4,8 +4,8 @@ import { AlertTriangle, CheckCircle2, Eye, Inbox, RotateCcw } from "lucide-react
 import type { PrismCommandInboxItem, PrismCommandInboxSeverity, PrismPmcmCommandInbox } from "@prism/types";
 import { selectCommandInboxGroupedBySeverity } from "../model/command-inbox-selectors";
 import { Button } from "@/app/components/ui/button";
-import { compactTimestamp, cx, label, severityTone } from "@/app/components/pmcm/helpers";
-import { Panel } from "@/app/components/pmcm/primitives";
+import { compactTimestamp, cx, label, severityTone } from "@/features/pmcm-kit";
+import { Panel } from "@/features/pmcm-kit";
 
 const SEVERITY_LABEL: Record<PrismCommandInboxSeverity, string> = {
   critical: "Emergency",

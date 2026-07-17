@@ -57,8 +57,8 @@ import {
   PrismDashboardShell,
 } from "@prism/ui";
 import { cn } from "@/app/components/ui/utils";
-import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/app/components/editor/templates";
-import type { CanvasObject as VenueObject, Project } from "@/app/components/editor/types";
+import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/features/floorplan/editor/templates";
+import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/editor/types";
 import {
   ClientBillingTab,
   ClientBriefingTab,
@@ -102,7 +102,7 @@ import type {
 export type { ClientDashboardRoute, ClientPortalView };
 
 const EditorShell = dynamic(
-  () => import("@/app/components/editor/EditorShell").then((mod) => mod.EditorShell),
+  () => import("@/features/floorplan/editor/EditorShell").then((mod) => mod.EditorShell),
   {
     ssr: false,
     loading: () => (

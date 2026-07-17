@@ -1,5 +1,5 @@
 import { createInitialPrismSampleState } from "@/mock/prism-sample-state";
-import type { Project } from "@/app/components/editor/types";
+import type { Project } from "@/features/floorplan/editor/types";
 import { createEventOpsClient } from "@prism/api-client";
 import { PRISM_SAMPLE_STATE_STORAGE_KEY, PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
 
