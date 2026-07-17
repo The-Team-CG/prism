@@ -8,11 +8,12 @@ Follow this file first. Deepen only via the docs index below when incomplete or 
 | Do | Don't |
 | --- | --- |
 | Feature branch + PR; conventional commits (`feat:`, `fix:`, `refactor:`, …) | Push / force-push `main`; amend published commits without ask |
-| New shared contracts: **Zod + `z.infer` in `@prism/types`** | Parallel hand types; `as any`; app-local shared schemas |
+| **Shared contracts: Zod schema + `z.infer` in `@prism/types` only** | Parallel hand types; `as any`; app-local shared schemas; type-only DTOs without schema |
 | Own API work in `apps/api/libs/modules/<capability>/` | God `event-ops` hub; private cross-module service imports |
 | Role app for the actor; thin `app/` routes; logic in `features/` | Rebuild `apps/client` as all-role PMCM shell; cross-import apps |
-| Scoped APIs + typed contracts for new surfaces | Primary path via `/api/sample/state` or local sample state |
+| Scoped APIs + package contracts for new surfaces | Primary path via `/api/sample/state` or local sample state |
 | Session/sample keys only in `@prism/types` | New app-local `prism:*` storage keys |
+| Import packages by role (table below); thin `lib/prism-api` | Re-export domain types from app facades; fat god facades for new code |
 | Name owner goal A–D on redesign/capability work | Treat owners as loose assignees |
 | Typecheck + tests for touched packages; `check:boundaries` on import moves | Commit secrets / `.env*` with credentials; casual `db:reset` |
 | Preserve unrelated uncommitted work | Drive-by reverts outside task scope |
@@ -52,21 +53,53 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 
 ```text
 apps/api/          Nest modular monolith + Prisma (port 4000)
-  apps/api/src/    bootstrap (prefix `api`, ValidationPipe, Prisma filter)
-  libs/modules/    capability modules (controllers, dto, mappers, ports, services, *.test.ts)
+  apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter)
+  libs/modules/    capability modules (controllers, mappers, ports, services, *.test.ts)
+  libs/shared/     ZodValidationPipe (`zodBody`), shared domain helpers
   prisma/          schema + migrations
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
-packages/types       @prism/types     Zod contracts, session keys, shared types
+packages/types       @prism/types     Zod write schemas + domain types + session keys
 packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsClient, PrismApiError
-packages/ui          shells/primitives only — no workflows / role data rules
-packages/tokens      theme tokens
+packages/ui          shells/brand/public blocks only — no workflows / role data rules
+packages/tokens      theme + typography CSS (+ token object)
 docs/                product + architecture (see docs/README.md)
 ```
 
 **Module map (writes):** `inquiry-onboarding`, `commercial-ops`, `supplier-ops`, `staffing-ops`, `finance-ops`, `compliance-ops`, `floorplan`, `file-ops`, `guest-ops`, `closure-ops`, `live-ops`, `event-core` (narrow lifecycle/commands), `access-control`, `identity-ops`, `trust-ops`, `notification-ops`, `ai-governance`, `sample-compatibility` (`/sample/*` only).  
 **Read-only composition:** `event-read-models` only. Full ownership: `docs/prism-v4/15-system-architecture.md`.
 
-**FE (new screens):** `page → View → ViewModel → use-case → data → api-client`. No HTTP/rules in `page.tsx`. Prefer single-screen form/list over wizards unless requested.
+**FE (new screens):** `page → View → ViewModel → use-case → data → @prism/api-client` (or thin portal adapter). No HTTP/rules in `page.tsx`. Prefer single-screen forms/lists over wizards unless requested.
+
+---
+
+## Monorepo packages (efficient use)
+
+| Package | Owns | Import when | Never |
+| --- | --- | --- | --- |
+| **`@prism/types`** | Zod **write** schemas + `z.infer` types; domain **read** interfaces; session/storage keys; `parseContract` | Any shared contract, FE model, API body, repository typing | App-local copy of the same shape |
+| **`@prism/api-client`** | HTTP transport + `createEventOpsClient` | **`features/**/data/*` only** (and thin `lib/prism-api` adapters) | Views, pages, view-models calling HTTP |
+| **`@prism/ui`** | Shells, brand, public marketing blocks, shared empty/status chrome | Cross-portal chrome | Role workflows, business rules |
+| **`@prism/tokens`** | `theme.css`, `typography.css`, `prismTokens` | Portal global CSS / design tokens | Per-app one-off color systems for shared brand |
+
+**Default import map**
+
+```text
+Domain type / Zod schema / session key  →  @prism/types
+Parse untrusted form/API body           →  parseContract / schema.safeParse (@prism/types)
+HTTP                                    →  @prism/api-client in data/
+Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/dashboard-shell)
+Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
+Sample/mock-only / legacy compat        →  thin @/lib/prism-api (no type re-exports for new code)
+```
+
+**Portal `lib/prism-api` policy**
+
+- Keep **thin**: wire `createEventOpsClient` + role-specific helpers only.
+- **Do not** re-export `Prism*` domain types for new code — import from `@prism/types`.
+- Guest/supplier should stay near zero custom types; client/event may still hold sample/local helpers until fully retired.
+- New repositories prefer `@prism/api-client` + `@prism/types` directly (see guest).
+
+**After changing `@prism/types`:** `npm --workspace @prism/types run build` (or `dev:api:watch`). Stale `dist/` breaks API/portal typecheck.
 
 ---
 
@@ -117,40 +150,53 @@ npm --workspace @prism/api-client run test
 
 ## Patterns
 
-### Zod (`@prism/types`) — new contracts only
+### Zod (`@prism/types`) — default for all contracts
 
-Add `zod` to `packages/types` on first use. Export schema + type from package index. Rebuild types (`build` or `dev:api:watch`) after changes.
+**Canonical location:** `packages/types/src/schemas/` (export via package index).
 
 ```typescript
 import { z } from "zod";
 
-export const createInquirySchema = z.object({
-  clientName: z.string().min(1),
+export const createPrismInquirySchema = z.object({
+  clientName: z.string().trim().min(1),
   email: z.string().email(),
-  eventName: z.string().min(1),
+  eventName: z.string().trim().min(1),
   eventDate: z.string().min(1),
-  companyName: z.string().optional(),
+  // …
 });
-export type CreateInquiryInput = z.infer<typeof createInquirySchema>;
+export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
 ```
 
-- Parse untrusted input at boundaries (`safeParse` → 400 problem details; no raw `ZodError` to clients).
-- Existing Nest DTOs: `class-validator` + global `ValidationPipe` — leave alone unless touching; then migrate toward Zod in `@prism/types`, no mass rewrites.
-- UI + API + api-client share the same schema. No OpenAPI/Kubb codegen today.
+| Layer | Rule |
+| --- | --- |
+| **Write / mutate** | Always Zod schema + `z.infer` in `@prism/types`. FE + Nest share it. |
+| **Read models** | TypeScript interfaces in `@prism/types` (`event-ops.ts`, etc.) until a boundary must validate them; then add Zod. |
+| **FE boundary** | `parseContract(schema, data, "Label")` or `schema.safeParse` in use-cases / form submit — never trust raw form objects. |
+| **Nest boundary** | `@Body(zodBody(schema))` from `@prism/shared` (`ZodValidationPipe`). Prefer over new `class-validator` DTOs. |
+| **Errors** | `safeParse` → 400 problem details / user-safe message; no raw `ZodError` to clients. |
+
+**Migrated Nest write surfaces (Zod):** inquiry create/status/conforme, guest check-in/feedback, supplier quote submit/revise, live-ops task/issue/attendance, supplier event-status.  
+**Still class-validator:** remaining DTOs — **when you touch a module**, migrate that body/query to Zod in `@prism/types` + `zodBody`; do not add new class-validator DTOs for shared writes.
+
+**Do not** invent a second DTO type in the app or api-client. api-client may re-export inferred types for convenience; **schemas live only in `@prism/types`**.
+
+No OpenAPI/Kubb codegen today.
 
 ### API surface
 
 1. Own module under `libs/modules/<capability>/`.
-2. Zod contract in `@prism/types`.
-3. ports → services → thin controller → mappers (no Prisma models as public API).
+2. **Zod contract in `@prism/types`** (write) before controller work.
+3. ports → services → thin controller (`zodBody` / legacy DTO) → mappers (no Prisma models as public API).
 4. Cross-domain **reads** via `event-read-models` readers only.
-5. Client helper in `@prism/api-client` when portals need it.
+5. Portal HTTP via `@prism/api-client` (data layer).
 6. Co-located tests; **forbidden-role** cases on sensitive mutations.
 7. Docs/ledger updates only when governance requires (`10-…`, `11-feature-ledger.md`).
 
 ### FE surface
 
-Correct role app → `src/features/<domain>/` → thin route → same Zod schema for shared input → visual rules above.
+Correct role app → `src/features/<domain>/` → thin route → **same Zod schema** for shared input → ViewModel/use-case → `data/` → `@prism/api-client`. Visual rules above.
+
+Naming (feature architecture): `features/<domain>/<action>/{model,view-models,views,use-cases,data}` · `DomainActionView` · `useDomainActionViewModel` · kebab files.
 
 ---
 
@@ -179,7 +225,8 @@ Paths under `docs/prism-v4/` unless noted. Drift → prefer `15` + `11`; smalles
 | --- | --- |
 | API down | `apps/api/.env` DB URLs, port 4000, `db:generate` |
 | Portal ↔ API | API up, CORS, portal `NEXT_PUBLIC_*` |
-| Stale types | rebuild `@prism/types` / `dev:api:watch` |
+| Stale types / Zod | rebuild `@prism/types` / `dev:api:watch` |
+| Zod 400s | shared schema in `@prism/types`; Nest uses `zodBody`; FE uses `parseContract` |
 | Migrate vs pooler | migrations use `DIRECT_URL` |
 | Boundary fail | no cross-app imports; share via `packages/*` or API |
 | Auth oddities | sample actor/role headers + `access-control` event scope |

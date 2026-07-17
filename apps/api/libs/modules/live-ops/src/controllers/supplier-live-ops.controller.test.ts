@@ -15,7 +15,7 @@ describe('SupplierLiveOpsController', () => {
     const commandService = { updateSupplierEventStatus: vi.fn(async () => ({ id: 'qr_sample' })) };
     const controller = new SupplierLiveOpsController(commandService as any);
     const actor = { actorRole: 'supplier', supplierId: 'sup_technical' };
-    const dto = { status: 'arrived', notes: 'At dock', photo: { fileName: 'dock.jpg' } };
+    const dto = { status: 'arrived' as const, notes: 'At dock', photo: { fileName: 'dock.jpg' } };
 
     await controller.updateEventStatus('qr_sample', dto, actor);
 

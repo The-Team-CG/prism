@@ -1,0 +1,115 @@
+"use client";
+
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  Download,
+  Eye,
+  FileCheck2,
+  FileSignature,
+  FileText,
+  Grid2X2,
+  LayoutGrid,
+  List,
+  MapPinned,
+  MessageSquareText,
+  MoreHorizontal,
+  Pencil,
+  ReceiptText,
+  RotateCcw,
+  Search,
+  Settings,
+  Share2,
+  ShieldCheck,
+  Upload,
+} from "lucide-react";
+import { Button } from "@/app/components/ui/button";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { Badge } from "@/app/components/ui/badge";
+import { formatShortDate, humanizeToken } from "@/features/event-ops";
+import type { EventSession } from "@/app/lib/session";
+import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmDashboardWorkspace, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
+import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
+import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
+import type { EventFileHubItem } from "./event-file-types";
+
+
+export function EventQueueCard({
+  events,
+  selectedEventId,
+  onSelectEvent,
+  onReset,
+  onNavigateEvent,
+}: {
+  events: PrismEvent[];
+  selectedEventId?: string;
+  onSelectEvent: (id: string) => void;
+  onReset: () => void;
+  onNavigateEvent: (id: string) => void;
+}) {
+  function statusAccent(status: string) {
+    if (/approved|confirmed|complete|paid/i.test(status)) return "border-l-(--prism-success)";
+    if (/planning|in_progress|active|draft/i.test(status)) return "border-l-(--prism-signal)";
+    if (/pending|review/i.test(status)) return "border-l-(--prism-amber)";
+    return "border-l-border";
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <SectionAccent>Active events</SectionAccent>
+            <h2 className="mt-1 text-base font-bold text-foreground">
+              {events.length} confirmed workspace{events.length === 1 ? "" : "s"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onReset}
+            title="Reset sample data"
+            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-(--prism-signal)/30 hover:text-foreground"
+          >
+            <RotateCcw className="size-3" /> Reset sample
+          </button>
+        </div>
+      </CardHeader>
+      {events.length === 0 ? (
+        <CardBody>
+          <EmptyState
+            icon={CalendarDays}
+            title="No confirmed events"
+            description="Accept an inquiry and upload signed conforme to activate an event workspace."
+          />
+        </CardBody>
+      ) : (
+        <div className="divide-y divide-border">
+          {events.map((ev) => (
+            <button
+              key={ev.id}
+              type="button"
+              onClick={() => onNavigateEvent(ev.id)}
+              className={`group flex w-full items-center justify-between gap-4 border-l-4 ${statusAccent(ev.status)} px-6 py-4 text-left transition hover:bg-muted/30`}
+            >
+              <div className="min-w-0">
+                <p className={`truncate text-sm font-bold ${ev.id === selectedEventId ? "text-(--prism-signal)" : "text-foreground"}`}>
+                  {ev.eventName}
+                </p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><CalendarDays className="size-3" />{ev.eventDate ?? "Date pending"}</span>
+                  <span>{ev.clientName}</span>
+                </div>
+              </div>
+              <StatusBadge status={ev.status} />
+            </button>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
