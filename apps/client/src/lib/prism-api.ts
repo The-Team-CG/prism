@@ -1,10 +1,12 @@
 import { createInitialPrismSampleState } from "@/mock/prism-sample-state";
 import type { Project } from "@/features/floorplan/editor/types";
+import { createEventOpsClient } from "@prism/api-client";
 import {
-  createEventOpsClient,
-  type CreatePrismInquiryInput as ApiCreatePrismInquiryInput,
-} from "@prism/api-client";
-import { PRISM_SAMPLE_STATE_STORAGE_KEY, PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
+  PRISM_SAMPLE_STATE_STORAGE_KEY,
+  PRISM_SESSION_STORAGE_KEYS,
+  isPrismAuthenticatedSession,
+  type CreatePrismInquiryInput,
+} from "@prism/types";
 
 import type {
   SampleRole,
@@ -65,8 +67,8 @@ export type PrivacyConsentInput = {
   marketingConsentAccepted?: boolean;
 };
 
-/** Shared inquiry write DTO — owned by `@prism/api-client`. */
-export type CreatePrismInquiryInput = ApiCreatePrismInquiryInput;
+/** Shared inquiry write DTO — owned by `@prism/types` (Zod). */
+export type { CreatePrismInquiryInput };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const USE_REMOTE_API = process.env.NEXT_PUBLIC_Prism_API_MODE !== "local";
