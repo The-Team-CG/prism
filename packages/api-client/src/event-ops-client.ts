@@ -36,19 +36,26 @@ import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
 export type EventOpsActorQuery = PrismEventOpsActorContext;
 
-/** Re-export write DTOs from `@prism/types` (Zod schemas + `z.infer`). */
+/**
+ * Re-export write DTOs from `@prism/types` (Zod schemas + `z.infer`).
+ * Prefer importing schemas/types from `@prism/types` directly in new code.
+ */
 export type {
   ConfirmSupplierReadinessInput,
   CreateEventDayTaskInput,
+  CreateFloorPlanPreferenceInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   CreatePrismInquiryInput,
   CreateUrgentIssueInput,
+  SubmitSupplierQuoteInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
+  UpdateInquiryStatusInput,
   UpdateSupplierEventStatusInput,
+  UploadConformeInput,
   UploadContractInput,
-};
+} from "@prism/types";
 
 export interface EventOpsClientOptions {
   baseUrl?: string;

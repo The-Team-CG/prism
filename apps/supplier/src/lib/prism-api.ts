@@ -14,15 +14,16 @@ export type {
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
+  SubmitSupplierQuoteInput as SubmitQuoteInput,
 } from "@prism/types";
 
 import { createEventOpsClient } from "@prism/api-client";
 import type {
-  PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
+  SubmitSupplierQuoteInput,
 } from "@prism/types";
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
@@ -34,13 +35,6 @@ export type QuoteRequestDetail = {
   eventName: string;
   clientName: string | null;
   eventDate: string | null;
-};
-
-export type SubmitQuoteInput = {
-  amount: number;
-  inclusions?: string[];
-  paymentTerms?: string;
-  notes?: string;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -88,12 +82,12 @@ export const prismApi = {
       actorEmail: session.email,
     }),
   quoteRequest: (token: string) => request<QuoteRequestDetail>(`/api/quote-requests/${token}`),
-  submitQuote: (token: string, input: SubmitQuoteInput) =>
+  submitQuote: (token: string, input: SubmitSupplierQuoteInput) =>
     request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  reviseQuote: (token: string, input: SubmitQuoteInput) =>
+  reviseQuote: (token: string, input: SubmitSupplierQuoteInput) =>
     request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {
       method: "PATCH",
       body: JSON.stringify(input),
