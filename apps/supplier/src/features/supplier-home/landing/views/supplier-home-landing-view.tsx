@@ -136,6 +136,7 @@ export function SupplierHomeLandingView() {
               ].map(([label, href]) => (
                 <a key={label} href={href} className="rounded-md px-2 py-2 transition hover:text-primary">{label}</a>
               ))}
+              <a href="/apply" className="rounded-md px-2 py-2 transition hover:text-primary">Apply</a>
             </nav>
             <a href="/sign-in" className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-black text-primary-foreground shadow-[0_16px_36px_rgba(192,24,103,0.22)]">
               <LockKeyhole className="size-4" />
@@ -157,8 +158,8 @@ export function SupplierHomeLandingView() {
                 <a href="/sign-in" className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-primary px-6 text-base font-black text-primary-foreground shadow-[0_18px_40px_rgba(192,24,103,0.22)]">
                   Supplier sign in <ArrowRight className="size-5" />
                 </a>
-                <a href="#quotes" className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-card px-6 text-base font-black text-foreground">
-                  See how it works
+                <a href="/apply" className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-card px-6 text-base font-black text-foreground">
+                  Become a supplier
                 </a>
               </div>
               <div className="mt-10 grid grid-cols-2 gap-5 sm:grid-cols-4">
@@ -337,7 +338,7 @@ export function SupplierHomeLandingView() {
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
             <a href="/sign-in" className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Supplier sign in</a>
-            <a href="#quotes" className="inline-flex h-12 items-center justify-center rounded-md border border-white/20 bg-white px-6 font-black text-foreground">See how it works</a>
+            <a href="/apply" className="inline-flex h-12 items-center justify-center rounded-md border border-white/20 bg-white px-6 font-black text-foreground">Apply to join</a>
           </div>
         </div>
       </section>

@@ -20,7 +20,6 @@ export type {
 
 import { createEventOpsClient } from "@prism/api-client";
 import type {
-  PrismSupplier,
   PrismSupplierApplication,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
