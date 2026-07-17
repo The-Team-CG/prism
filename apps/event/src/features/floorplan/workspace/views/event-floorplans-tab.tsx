@@ -7,6 +7,10 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import type { FloorPlanTemplate } from "@/app/components/editor/templates";
 import { label } from "@/app/components/pmcm/helpers";
 import { Panel } from "@/app/components/pmcm/primitives";
+import {
+  canApproveFloorPlanDraft,
+  canSubmitFloorPlanDraft,
+} from "../model/floorplan-workspace-rules";
 
 export function EventFloorplansTab({
   event,
@@ -89,12 +93,12 @@ export function EventFloorplansTab({
                   >
                     Open/Edit
                   </Button>
-                  {draft.status !== "in_review" && draft.status !== "approved" && (
+                  {canSubmitFloorPlanDraft(draft.status) && (
                     <Button size="sm" className="rounded-lg font-bold" onClick={() => onSubmitDraft(draft)}>
                       Submit
                     </Button>
                   )}
-                  {draft.status !== "approved" && (
+                  {canApproveFloorPlanDraft(draft.status) && (
                     <Button
                       size="sm"
                       variant="outline"

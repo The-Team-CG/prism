@@ -1,11 +1,23 @@
 import { useState } from "react";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
-import { apiUrl, type PrismBillingStatement, type PrismEvent, type PrismInquiry, type PrismNotificationLog, type PrismPaymentMilestone } from "@/lib/prism-api";
+import {
+  apiUrl,
+  type PrismBillingStatement,
+  type PrismEvent,
+  type PrismInquiry,
+  type PrismNotificationLog,
+  type PrismPaymentMilestone,
+} from "@/lib/prism-api";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { label, money } from "@/app/components/pmcm/helpers";
+import {
+  isPaymentOverdue,
+  parseRecordPaymentAmount,
+  sumPaymentAmounts,
+} from "../model/finance-workspace-rules";
 
 type RecordPaymentInput = {
   amountReceived: number;
@@ -13,10 +25,6 @@ type RecordPaymentInput = {
   paymentMethod: "Bank Transfer" | "GCash" | "Cheque";
   referenceNumber?: string;
 };
-
-function isOverdue(status: string, dueDate: string) {
-  return status !== "paid" && new Date(dueDate) < new Date();
-}
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>;
@@ -66,10 +74,8 @@ export function FinancialWorkspace({
   const [paymentMethod, setPaymentMethod] = useState<RecordPaymentInput["paymentMethod"]>("Bank Transfer");
   const [referenceNumber, setReferenceNumber] = useState("");
 
-  const totalDue = payments.reduce((s, p) => s + p.amount, 0);
-  const totalPaid = payments.reduce((s, p) => s + p.amountPaid, 0);
-  const totalRemaining = payments.reduce((s, p) => s + p.remainingBalance, 0);
-  const openMilestones = payments.filter((p) => p.status !== "paid").length;
+  const { totalDue, totalPaid, totalRemaining, openMilestones } =
+    sumPaymentAmounts(payments);
   const balance = payments.find((p) => p.label.toLowerCase().includes("balance"));
   const paymentAtRisk = Boolean(balance && balance.status === "at_risk");
 
@@ -84,7 +90,7 @@ export function FinancialWorkspace({
   async function submitRecordPayment() {
     if (!activePayment) return;
     await onRecordPayment(activePayment.id, {
-      amountReceived: Number(amountReceived),
+      amountReceived: parseRecordPaymentAmount(amountReceived),
       paymentDate,
       paymentMethod,
       referenceNumber,
@@ -252,7 +258,7 @@ export function FinancialWorkspace({
               <EmptyState icon={WalletCards} title="No milestones yet" description="Milestones appear after the billing statement is posted." />
             ) : (
               payments.map((payment) => {
-                const overdue = isOverdue(payment.status, payment.dueDate);
+                const overdue = isPaymentOverdue(payment.status, payment.dueDate);
                 return (
                   <div key={payment.id} className="rounded-xl border border-border bg-muted/30 p-4">
                     <div className="flex items-start justify-between gap-3">
