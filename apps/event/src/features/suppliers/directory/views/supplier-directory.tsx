@@ -4,7 +4,7 @@ import { ArrowLeft, Check, FilePlus2, Plus, Search, Star } from "lucide-react";
 import type { PrismSupplier, PrismSupplierCategory } from "@/lib/prism-api";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
-import { cx, RatingStars, SupplierTierBadge } from "@/app/components/pmcm/helpers";
+import { cx, RatingStars, SupplierTierBadge } from "@/features/pmcm-kit";
 import { isSupplierCreateDraftValid } from "../model/suppliers-directory-rules";
 
 export function SupplierDirectory({

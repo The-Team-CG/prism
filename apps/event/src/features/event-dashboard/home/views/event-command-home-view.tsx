@@ -44,17 +44,15 @@ import {
 } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
-import { EventCommandLanding } from "@/app/components/public/event-command-landing";
-import {
-  AdminApprovalsPanel,
-  AuditTrailPanel,
-  ClientOnboardingTracker,
-  EventActivityPanel,
-  EventBriefingPanel,
-  EventRoleLoadingState,
-  InquiryIntakeLog,
-  Phase4Workspace,
-} from "@/app/components/pmcm";
+import { EventCommandLanding } from "@/features/event-public/landing";
+import { AdminApprovalsPanel } from "@/features/approvals/admin";
+import { AuditTrailPanel } from "@/features/audit/trail";
+import { ClientOnboardingTracker } from "@/features/clients/onboarding";
+import { EventActivityPanel } from "@/features/events/activity";
+import { EventBriefingPanel } from "@/features/events/briefing";
+import { EventRoleLoadingState } from "@/features/event-dashboard/loading";
+import { InquiryIntakeLog } from "@/features/inquiries/intake";
+import { Phase4Workspace } from "@/features/closure/phase4";
 import { CoordinatorAssignmentDesk, CoordinatorView } from "@/features/coordinators/desk";
 import {
   EventOverviewPanels,
@@ -69,8 +67,8 @@ import { FinancialWorkspace } from "@/features/finance/workspace";
 import { EventFloorplansTab } from "@/features/floorplan/workspace";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { EventSuppliersTab, SupplierDirectory } from "@/features/suppliers/directory";
-import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/app/components/editor/templates";
-import type { Project } from "@/app/components/editor/types";
+import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/features/floorplan/editor/templates";
+import type { Project } from "@/features/floorplan/editor/types";
 import {
   selectActiveEvents,
   selectSelectedEventWorkspaceResources,
@@ -90,7 +88,7 @@ import {
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 
 const EditorShell = dynamic(
-  () => import("@/app/components/editor/EditorShell").then((mod) => mod.EditorShell),
+  () => import("@/features/floorplan/editor/EditorShell").then((mod) => mod.EditorShell),
   {
     ssr: false,
     loading: () => (

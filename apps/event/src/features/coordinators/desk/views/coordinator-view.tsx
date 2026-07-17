@@ -39,8 +39,8 @@ import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { label } from "@/app/components/pmcm/helpers";
-import type { PmcmEventSession } from "@/app/components/pmcm/types";
+import { label } from "@/features/pmcm-kit";
+import type { PmcmEventSession } from "@/features/pmcm-kit";
 
 /* ── Inline primitives (replacing @prism/ui blocks) ────────────── */
 

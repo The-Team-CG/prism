@@ -1,3 +1,5 @@
-export default function EventCommandInboxPage() {
-  return null;
+import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+
+export default function EventDashboardRoutePage() {
+  return <EventDashboardRouteView routeKey="command-inbox" />;
 }

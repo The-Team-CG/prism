@@ -12,7 +12,7 @@ import {
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { label, money } from "@/app/components/pmcm/helpers";
+import { label, money } from "@/features/pmcm-kit";
 import {
   isPaymentOverdue,
   parseRecordPaymentAmount,
