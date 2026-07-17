@@ -33,11 +33,11 @@
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.95.0",
-        "@prism/types": "*",
         "@nestjs/common": "^11.1.19",
         "@nestjs/config": "^4.0.4",
         "@nestjs/core": "^11.1.19",
         "@nestjs/platform-express": "^11.1.19",
+        "@prism/types": "*",
         "@prisma/adapter-pg": "^7.8.0",
         "@prisma/client": "^7.8.0",
         "class-transformer": "^0.5.1",
@@ -45,7 +45,8 @@
         "pg": "^8.16.0",
         "prisma": "^7.8.0",
         "reflect-metadata": "^0.2.2",
-        "rxjs": "^7.8.1"
+        "rxjs": "^7.8.1",
+        "zod": "^4.4.3"
     },
     "devDependencies": {
         "@nestjs/cli": "^11.0.21",

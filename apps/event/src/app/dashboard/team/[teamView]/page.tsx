@@ -1,3 +1,5 @@
-export default function TeamSubviewPage() {
-  return null;
+import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+
+export default function EventDashboardRoutePage() {
+  return <EventDashboardRouteView routeKey="team/[teamView]" />;
 }

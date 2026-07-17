@@ -1,4 +1,10 @@
 import type {
+  ConfirmSupplierReadinessInput,
+  CreateEventDayTaskInput,
+  CreateGuestCheckInInput,
+  CreateGuestFeedbackInput,
+  CreatePrismInquiryInput,
+  CreateUrgentIssueInput,
   PrismBillingWorkspace,
   PrismClientActionCenter,
   PrismClientWorkspace,
@@ -21,93 +27,35 @@ import type {
   PrismEventDayTask,
   PrismUrgentIssue,
   PrismCoordinatorAssignment,
+  UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  UpdateSupplierEventStatusInput,
+  UploadContractInput,
 } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
 export type EventOpsActorQuery = PrismEventOpsActorContext;
 
-export interface CreatePrismInquiryInput {
-  clientName: string;
-  companyName?: string;
-  email: string;
-  eventName: string;
-  eventType?: string;
-  eventDate: string;
-  clientType: string;
-  source?: string;
-  referralDetails?: string;
-  message: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-}
-
-export interface CreateGuestCheckInInput {
-  guestName: string;
-  checkInMode?: string;
-  walkIn?: boolean;
-  verificationStatus?: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-}
-
-export interface CreateGuestFeedbackInput {
-  guestName: string;
-  rating: number;
-  comment?: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-}
-
-export interface ConfirmSupplierReadinessInput {
-  notes?: string;
-}
-
-export interface UploadContractInput {
-  fileName: string;
-  mimeType?: string;
-  sizeBytes?: number;
-}
-
-export interface UpdateSupplierEventStatusInput {
-  status: "arrived" | "set_up_ready" | "done_leaving";
-  notes?: string;
-}
-
-export interface CreateEventDayTaskInput {
-  title: string;
-  assignedRole?: string;
-  ownerName?: string;
-  priority?: string;
-  notes?: string;
-  dueAt?: string;
-  slaDueAt?: string;
-}
-
-export interface UpdateEventDayTaskInput {
-  status?: string;
-  notes?: string;
-  ownerName?: string;
-  slaDueAt?: string;
-}
-
-export interface UpdateCoordinatorAttendanceInput {
-  status: string;
-  notes?: string;
-  markedBy?: string;
-}
-
-export interface CreateUrgentIssueInput {
-  title: string;
-  description?: string;
-  severity?: string;
-  ownerRole?: string;
-  ownerName?: string;
-  openedBy?: string;
-  slaDueAt?: string;
-}
+/**
+ * Re-export write DTOs from `@prism/types` (Zod schemas + `z.infer`).
+ * Prefer importing schemas/types from `@prism/types` directly in new code.
+ */
+export type {
+  ConfirmSupplierReadinessInput,
+  CreateEventDayTaskInput,
+  CreateFloorPlanPreferenceInput,
+  CreateGuestCheckInInput,
+  CreateGuestFeedbackInput,
+  CreatePrismInquiryInput,
+  CreateUrgentIssueInput,
+  SubmitSupplierQuoteInput,
+  UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  UpdateInquiryStatusInput,
+  UpdateSupplierEventStatusInput,
+  UploadConformeInput,
+  UploadContractInput,
+} from "@prism/types";
 
 export interface EventOpsClientOptions {
   baseUrl?: string;
