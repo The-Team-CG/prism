@@ -1,93 +1,162 @@
 import { z } from "zod";
-import { isoDateStringSchema, nonEmptyStringSchema, privacyConsentSchema } from "./common.js";
+import {
+  isoDateStringSchema,
+  nonEmptyStringSchema,
+  optionalTrimmedStringSchema,
+  privacyConsentSchema,
+  uploadMetadataSchema,
+} from "./common.js";
 
 /**
- * Write DTOs for portal → API mutations.
+ * Write DTOs for portal ↔ API mutations.
  * Schemas are the source of truth; types are `z.infer`.
- * Nest `class-validator` DTOs stay until a module is actively migrated.
+ * Nest controllers should validate with `ZodValidationPipe` + these schemas.
  */
+
+/* ── Inquiry / onboarding ─────────────────────────────────────── */
 
 export const createPrismInquirySchema = privacyConsentSchema.extend({
   clientName: nonEmptyStringSchema,
-  companyName: z.string().trim().optional(),
+  companyName: optionalTrimmedStringSchema,
   email: z.string().trim().email(),
   eventName: nonEmptyStringSchema,
-  eventType: z.string().trim().optional(),
+  eventType: optionalTrimmedStringSchema,
   eventDate: isoDateStringSchema,
   clientType: nonEmptyStringSchema,
-  /** Portal / API source label; Nest may further constrain known channels. */
-  source: z.string().trim().min(1).optional(),
-  referralDetails: z.string().trim().optional(),
+  source: optionalTrimmedStringSchema,
+  referralDetails: optionalTrimmedStringSchema,
+  loggedByRole: optionalTrimmedStringSchema,
+  loggedByName: optionalTrimmedStringSchema,
   message: nonEmptyStringSchema,
 });
 export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
 
+export const updateInquiryStatusSchema = z.object({
+  status: z.enum(["new", "accepted", "pending", "declined"]),
+  declineReason: z
+    .enum(["Date Unavailable", "Outside Service Scope", "Budget Too Low", "Prior Issue", "Other"])
+    .optional(),
+});
+export type UpdateInquiryStatusInput = z.infer<typeof updateInquiryStatusSchema>;
+
+export const uploadConformeSchema = z.object({
+  type: optionalTrimmedStringSchema,
+  fileName: z
+    .string()
+    .trim()
+    .min(1)
+    .regex(/\.pdf$/i, "fileName must have a .pdf extension"),
+  mimeType: optionalTrimmedStringSchema,
+  sizeBytes: z.number().int().nonnegative().optional(),
+});
+export type UploadConformeInput = z.infer<typeof uploadConformeSchema>;
+
+export const submitBriefingSchema = z.object({
+  venue: nonEmptyStringSchema,
+  guestCount: z.number().int().min(1),
+  budgetRange: nonEmptyStringSchema,
+  serviceRequirements: z.array(z.string()),
+  notes: nonEmptyStringSchema,
+});
+export type SubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
+
+/* ── Guest ────────────────────────────────────────────────────── */
+
 export const createGuestCheckInSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,
-  checkInMode: z.string().trim().optional(),
+  checkInMode: z.enum(["name_search", "walk_in"]).or(z.string().trim().min(1)).optional(),
   walkIn: z.boolean().optional(),
-  verificationStatus: z.string().trim().optional(),
+  verificationStatus: z.enum(["verified", "flagged"]).or(z.string().trim().min(1)).optional(),
 });
 export type CreateGuestCheckInInput = z.infer<typeof createGuestCheckInSchema>;
 
 export const createGuestFeedbackSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,
-  rating: z.number().min(1).max(5),
-  comment: z.string().trim().optional(),
+  rating: z.number().int().min(1).max(5),
+  comment: optionalTrimmedStringSchema,
+  photo: uploadMetadataSchema.optional(),
+  video: uploadMetadataSchema.optional(),
 });
 export type CreateGuestFeedbackInput = z.infer<typeof createGuestFeedbackSchema>;
 
+/* ── Supplier ─────────────────────────────────────────────────── */
+
 export const confirmSupplierReadinessSchema = z.object({
-  notes: z.string().trim().optional(),
+  notes: optionalTrimmedStringSchema,
 });
 export type ConfirmSupplierReadinessInput = z.infer<typeof confirmSupplierReadinessSchema>;
 
-export const uploadContractSchema = z.object({
-  fileName: nonEmptyStringSchema,
-  mimeType: z.string().trim().optional(),
-  sizeBytes: z.number().nonnegative().optional(),
-});
+export const uploadContractSchema = uploadMetadataSchema;
 export type UploadContractInput = z.infer<typeof uploadContractSchema>;
 
 export const updateSupplierEventStatusSchema = z.object({
   status: z.enum(["arrived", "set_up_ready", "done_leaving"]),
-  notes: z.string().trim().optional(),
+  notes: optionalTrimmedStringSchema,
+  photo: uploadMetadataSchema.optional(),
 });
 export type UpdateSupplierEventStatusInput = z.infer<typeof updateSupplierEventStatusSchema>;
 
+export const submitSupplierQuoteSchema = z.object({
+  amount: z.number().min(0),
+  inclusions: z.array(z.string()).optional(),
+  paymentTerms: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+});
+export type SubmitSupplierQuoteInput = z.infer<typeof submitSupplierQuoteSchema>;
+
+/* ── Live ops ─────────────────────────────────────────────────── */
+
 export const createEventDayTaskSchema = z.object({
   title: nonEmptyStringSchema,
-  assignedRole: z.string().trim().optional(),
-  ownerName: z.string().trim().optional(),
-  priority: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
-  dueAt: z.string().trim().optional(),
-  slaDueAt: z.string().trim().optional(),
+  assignedRole: optionalTrimmedStringSchema,
+  ownerName: optionalTrimmedStringSchema,
+  priority: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+  dueAt: optionalTrimmedStringSchema,
+  slaDueAt: optionalTrimmedStringSchema,
 });
 export type CreateEventDayTaskInput = z.infer<typeof createEventDayTaskSchema>;
 
 export const updateEventDayTaskSchema = z.object({
-  status: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
-  ownerName: z.string().trim().optional(),
-  slaDueAt: z.string().trim().optional(),
+  status: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+  ownerName: optionalTrimmedStringSchema,
+  slaDueAt: optionalTrimmedStringSchema,
 });
 export type UpdateEventDayTaskInput = z.infer<typeof updateEventDayTaskSchema>;
 
 export const updateCoordinatorAttendanceSchema = z.object({
   status: nonEmptyStringSchema,
-  notes: z.string().trim().optional(),
-  markedBy: z.string().trim().optional(),
+  notes: optionalTrimmedStringSchema,
+  markedBy: optionalTrimmedStringSchema,
 });
 export type UpdateCoordinatorAttendanceInput = z.infer<typeof updateCoordinatorAttendanceSchema>;
 
 export const createUrgentIssueSchema = z.object({
   title: nonEmptyStringSchema,
-  description: z.string().trim().optional(),
-  severity: z.string().trim().optional(),
-  ownerRole: z.string().trim().optional(),
-  ownerName: z.string().trim().optional(),
-  openedBy: z.string().trim().optional(),
-  slaDueAt: z.string().trim().optional(),
+  description: optionalTrimmedStringSchema,
+  severity: optionalTrimmedStringSchema,
+  ownerRole: optionalTrimmedStringSchema,
+  ownerName: optionalTrimmedStringSchema,
+  openedBy: optionalTrimmedStringSchema,
+  slaDueAt: optionalTrimmedStringSchema,
 });
 export type CreateUrgentIssueInput = z.infer<typeof createUrgentIssueSchema>;
+
+/* ── Floorplan preference (client layout notes) ───────────────── */
+
+export const createFloorPlanPreferenceSchema = z.object({
+  name: nonEmptyStringSchema,
+  seatingStyle: optionalTrimmedStringSchema,
+  stagePreference: optionalTrimmedStringSchema,
+  flowNotes: optionalTrimmedStringSchema,
+  guestCount: z.number().int().min(1).optional(),
+  constraints: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+  venue: optionalTrimmedStringSchema,
+  width: z.number().positive().optional(),
+  height: z.number().positive().optional(),
+  gridSize: z.number().positive().optional(),
+  objects: z.array(z.unknown()).optional(),
+});
+export type CreateFloorPlanPreferenceInput = z.infer<typeof createFloorPlanPreferenceSchema>;
