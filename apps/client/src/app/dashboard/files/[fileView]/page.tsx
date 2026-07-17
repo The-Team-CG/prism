@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Dashboard, type ClientPortalView } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView, type ClientPortalView } from "@/features/client-dashboard/workspace";
 
 const fileViews: Record<string, ClientPortalView> = {
   contracts: "files-contracts",
@@ -10,17 +10,11 @@ const fileViews: Record<string, ClientPortalView> = {
   shared: "files-shared",
 };
 
-type ClientDashboardFileViewPageProps = {
-  params: Promise<{ fileView: string }>;
-};
+type Props = { params: Promise<{ fileView: string }> };
 
-export default async function ClientDashboardFileViewPage({ params }: ClientDashboardFileViewPageProps) {
+export default async function ClientDashboardFileViewPage({ params }: Props) {
   const { fileView } = await params;
   const portalView = fileViews[fileView];
-
-  if (!portalView) {
-    notFound();
-  }
-
-  return <Dashboard route="files" portalView={portalView} />;
+  if (!portalView) notFound();
+  return <ClientDashboardWorkspaceView route="files" portalView={portalView} />;
 }

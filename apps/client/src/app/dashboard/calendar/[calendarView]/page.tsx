@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Dashboard, type ClientPortalView } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView, type ClientPortalView } from "@/features/client-dashboard/workspace";
 
 const calendarViews: Record<string, ClientPortalView> = {
   "event-dates": "calendar-event-dates",
@@ -9,17 +9,11 @@ const calendarViews: Record<string, ClientPortalView> = {
   "approval-deadlines": "calendar-approval-deadlines",
 };
 
-type ClientDashboardCalendarViewPageProps = {
-  params: Promise<{ calendarView: string }>;
-};
+type Props = { params: Promise<{ calendarView: string }> };
 
-export default async function ClientDashboardCalendarViewPage({ params }: ClientDashboardCalendarViewPageProps) {
+export default async function ClientDashboardCalendarViewPage({ params }: Props) {
   const { calendarView } = await params;
   const portalView = calendarViews[calendarView];
-
-  if (!portalView) {
-    notFound();
-  }
-
-  return <Dashboard route="calendar" portalView={portalView} />;
+  if (!portalView) notFound();
+  return <ClientDashboardWorkspaceView route="calendar" portalView={portalView} />;
 }

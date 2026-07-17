@@ -1,0 +1,9 @@
+export { ClientOverviewTab } from "./views/client-overview-tab";
+export { ClientEventWorkspaceView } from "./views/client-event-workspace-view";
+export { ClientEventDetailsView } from "./views/client-event-details-view";
+export { ClientProgressView } from "./views/client-progress-view";
+export { ClientScheduleView } from "./views/client-schedule-view";
+export { ClientGuestsView } from "./views/client-guests-view";
+export { ClientPreferencesView } from "./views/client-preferences-view";
+export { ClientFloorPlanView } from "./views/client-floorplan-view";
+export { ClientFinalSummaryView } from "./views/client-final-summary-view";

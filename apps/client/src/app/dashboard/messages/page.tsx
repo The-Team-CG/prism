@@ -1,5 +1,5 @@
-import { Dashboard } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView } from "@/features/client-dashboard/workspace";
 
 export default function ClientDashboardMessagesPage() {
-  return <Dashboard route="messages" />;
+  return <ClientDashboardWorkspaceView route="messages" />;
 }
