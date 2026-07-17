@@ -11,12 +11,7 @@ import {
   MAX_VIDEO_DURATION_S,
   POLL_INTERVAL_MS,
 } from "../model/guest-dashboard-rules";
-import type {
-  CheckInMode,
-  GuestBusyAction,
-  GuestDashboardStatus,
-  GuestSession,
-} from "../model/guest-dashboard-types";
+import type { CheckInMode, GuestBusyAction, GuestDashboardStatus, GuestSession } from "../model/guest-dashboard-types";
 import {
   leaveGuestEvent,
   loadGuestDashboardSession,

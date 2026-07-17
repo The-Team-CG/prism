@@ -1,7 +1,4 @@
-import {
-  type PrismCoordinatorWorkspace,
-  type PrismPmcmDashboardWorkspace,
-} from "@/lib/prism-api";
+import type { PrismCoordinatorWorkspace, PrismPmcmDashboardWorkspace } from "@prism/types";
 import { eventOpsRepository } from "@/features/event-ops";
 import type { EventSession } from "@/app/lib/session";
 

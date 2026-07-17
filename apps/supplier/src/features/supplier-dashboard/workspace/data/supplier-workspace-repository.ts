@@ -3,12 +3,7 @@ import {
   clearPrismSession,
   readPrismSession,
 } from "@prism/types";
-import {
-  prismApi,
-  type SubmitQuoteInput,
-  type SupplierSession,
-  type SupplierWorkspace,
-} from "@/lib/prism-api";
+import { prismApi, type SubmitQuoteInput, type SupplierSession, type SupplierWorkspace } from "@/lib/prism-api";
 import type { PrismSupplierReadinessBoard } from "../model/supplier-workspace-types";
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;

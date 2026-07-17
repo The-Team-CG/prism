@@ -1,6 +1,6 @@
 import { LayoutGrid, MapPinned } from "lucide-react";
 
-import type { PrismEvent, PrismFloorPlanDraft } from "@/lib/prism-api";
+import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";

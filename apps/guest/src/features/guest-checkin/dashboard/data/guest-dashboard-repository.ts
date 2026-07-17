@@ -7,11 +7,7 @@ import {
 } from "@prism/types";
 import { guestJson } from "@/features/guest-shared/guest-http";
 import { guestApiPath } from "../model/guest-dashboard-rules";
-import type {
-  CheckInPayload,
-  FeedbackPayload,
-  GuestSession,
-} from "../model/guest-dashboard-types";
+import type { CheckInPayload, FeedbackPayload, GuestSession } from "../model/guest-dashboard-types";
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.guest;
 

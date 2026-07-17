@@ -3,11 +3,11 @@
 import { Send } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
-import { FieldGroup } from "../../workspace/views/sections/shell-presentational";
-import { CLIENT_PORTAL_VIEW_META } from "../../workspace/model/client-dashboard.navigation";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { FieldGroup } from "../../workspace/shared";
+import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientRequestPage() {
+export function ClientRequestView() {
   const {
     portalView,
     session,

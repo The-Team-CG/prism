@@ -7,19 +7,19 @@ import { ClientBriefingTab } from "../../briefing";
 import { ClientDocumentsTab } from "../../documents";
 import { ClientProposalTab } from "../../proposal";
 import { ClientActionGroup } from "../../shared/client-action-group";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { useClientWorkspace } from "../../workspace/shared";
 import { ClientOverviewTab } from "./client-overview-tab";
-import { ClientEventDetailsPage } from "./client-event-details-page";
-import { ClientProgressPage } from "./client-progress-page";
-import { ClientSchedulePage } from "./client-schedule-page";
-import { ClientGuestsPage } from "./client-guests-page";
-import { ClientPreferencesPage } from "./client-preferences-page";
-import { ClientFloorPlanPage } from "./client-floorplan-page";
-import { ClientFinalSummaryPage } from "./client-final-summary-page";
-import { ClientMessagesPage } from "../../messages";
-import { ClientApprovalsPage } from "../../approvals";
+import { ClientEventDetailsView } from "./client-event-details-view";
+import { ClientProgressView } from "./client-progress-view";
+import { ClientScheduleView } from "./client-schedule-view";
+import { ClientGuestsView } from "./client-guests-view";
+import { ClientPreferencesView } from "./client-preferences-view";
+import { ClientFloorPlanView } from "./client-floorplan-view";
+import { ClientFinalSummaryView } from "./client-final-summary-view";
+import { ClientMessagesView } from "../../messages";
+import { ClientApprovalsView } from "../../approvals";
 
-export function ClientEventWorkspacePage() {
+export function ClientEventWorkspaceView() {
   const {
     route,
     selectedEvent,
@@ -73,11 +73,11 @@ export function ClientEventWorkspacePage() {
           setTab={(next) => navigateToEventRoute(next)}
         />
       )}
-      {route === "details" && <ClientEventDetailsPage />}
-      {route === "progress" && <ClientProgressPage />}
-      {route === "schedule" && <ClientSchedulePage />}
-      {route === "guests" && <ClientGuestsPage />}
-      {route === "preferences" && <ClientPreferencesPage />}
+      {route === "details" && <ClientEventDetailsView />}
+      {route === "progress" && <ClientProgressView />}
+      {route === "schedule" && <ClientScheduleView />}
+      {route === "guests" && <ClientGuestsView />}
+      {route === "preferences" && <ClientPreferencesView />}
       {route === "actions" && (
         <div className="grid gap-4 xl:grid-cols-3">
           <ClientActionGroup
@@ -111,11 +111,11 @@ export function ClientEventWorkspacePage() {
           setTab={(next) => navigateToEventRoute(next)}
         />
       )}
-      {route === "approvals" && <ClientApprovalsPage />}
-      {route === "floorplan" && <ClientFloorPlanPage />}
+      {route === "approvals" && <ClientApprovalsView />}
+      {route === "floorplan" && <ClientFloorPlanView />}
       {route === "documents" && <ClientDocumentsTab documents={documents} />}
       {route === "billing" && <ClientBillingTab payments={payments} billing={billing} />}
-      {route === "messages" && <ClientMessagesPage />}
+      {route === "messages" && <ClientMessagesView />}
       {route === "changes" && (
         <ClientActionGroup
           title="Change requests"
@@ -124,7 +124,7 @@ export function ClientEventWorkspacePage() {
           onAction={runClientAction}
         />
       )}
-      {route === "summary" && <ClientFinalSummaryPage />}
+      {route === "summary" && <ClientFinalSummaryView />}
     </div>
   );
 }

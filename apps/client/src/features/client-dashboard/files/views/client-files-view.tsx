@@ -1,14 +1,14 @@
 "use client";
 
 import { FileText, MoreVertical } from "lucide-react";
-import type { PrismDocument } from "@/lib/prism-api";
+import type { PrismDocument } from "@prism/types";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { cn } from "@/app/components/ui/utils";
-import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { formatStatusLabel } from "../../workspace/shared";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientFilesPage() {
+export function ClientFilesView() {
   const {
     router,
     portalView,

@@ -1,1 +1,1 @@
-export { ClientMessagesPage } from "./views/client-messages-page";
+export { ClientMessagesView } from "./views/client-messages-view";

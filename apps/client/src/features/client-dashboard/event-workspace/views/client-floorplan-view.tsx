@@ -5,12 +5,12 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { FieldGroup } from "../../workspace/views/sections/shell-presentational";
-import { LayoutPreview } from "../../workspace/views/sections/layout-preview";
-import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { FieldGroup } from "../../workspace/shared";
+import { LayoutPreview } from "../../workspace/shared";
+import { formatStatusLabel } from "../../workspace/shared";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientFloorPlanPage() {
+export function ClientFloorPlanView() {
   const {
     officialDraft,
     preferenceDrafts,

@@ -1,10 +1,4 @@
-import type {
-  CheckInMode,
-  CheckInPayload,
-  FeedbackMediaMeta,
-  FeedbackPayload,
-  GuestSession,
-} from "./guest-dashboard-types";
+import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestSession } from "./guest-dashboard-types";
 
 export const PRIVACY_NOTICE_VERSION = "2026-05-01";
 export const POLL_INTERVAL_MS = 20_000;

@@ -1,14 +1,8 @@
 import { useState } from "react";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
-import {
-  apiUrl,
-  type PrismBillingStatement,
-  type PrismEvent,
-  type PrismInquiry,
-  type PrismNotificationLog,
-  type PrismPaymentMilestone,
-} from "@/lib/prism-api";
+import { apiUrl } from "@/lib/prism-api";
+import type { PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";

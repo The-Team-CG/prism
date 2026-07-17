@@ -7,14 +7,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
-import type {
-  ClientDashboardRoute,
-  ClientPortalView,
-  ClientSidebarLink,
-  ClientSidebarNavItem,
-  ClientSidebarSubItem,
-  DetailTab,
-} from "./client-dashboard.types";
+import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
 
 export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
   {

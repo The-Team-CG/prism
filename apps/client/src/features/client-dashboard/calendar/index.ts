@@ -1,1 +1,1 @@
-export { ClientCalendarPage } from "./views/client-calendar-page";
+export { ClientCalendarView } from "./views/client-calendar-view";

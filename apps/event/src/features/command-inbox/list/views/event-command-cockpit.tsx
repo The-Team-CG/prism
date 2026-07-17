@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 
-import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, SampleRole } from "@/lib/prism-api";
+import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, SampleRole } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";

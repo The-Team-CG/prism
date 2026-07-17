@@ -4,14 +4,7 @@ import {
   parseQuoteForm,
   quoteSubmitSuccessNotice,
 } from "../model/supplier-workspace-rules";
-import type {
-  PrismSupplierQuote,
-  PrismSupplierQuoteRequest,
-  PrismSupplierReadinessBoard,
-  QuoteFormState,
-  SupplierSession,
-  SupplierWorkspace,
-} from "../model/supplier-workspace-types";
+import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierSession, SupplierWorkspace } from "../model/supplier-workspace-types";
 
 export function loadSupplierDashboardSession(): SupplierSession | null {
   return supplierWorkspaceRepository.readSession();

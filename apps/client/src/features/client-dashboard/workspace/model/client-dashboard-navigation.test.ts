@@ -4,7 +4,7 @@ import {
   dashboardHref,
   dashboardLoadingVariant,
   sidebarActiveItemId,
-} from "./client-dashboard.navigation";
+} from "./client-dashboard-navigation";
 
 describe("client-dashboard navigation", () => {
   it("builds portal and event hrefs", () => {

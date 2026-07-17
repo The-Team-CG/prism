@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 import { cn } from "@/app/components/ui/utils";
-import type { ClientSidebarRenderItem } from "../../model/client-dashboard.types";
+import type { ClientSidebarRenderItem } from "../../model/client-dashboard-types";
 
 export function ClientPortalSidebar({
   navItems,

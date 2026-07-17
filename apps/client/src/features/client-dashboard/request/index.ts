@@ -1,1 +1,1 @@
-export { ClientRequestPage } from "./views/client-request-page";
+export { ClientRequestView } from "./views/client-request-view";

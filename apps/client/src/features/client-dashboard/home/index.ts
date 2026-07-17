@@ -1,1 +1,1 @@
-export { ClientHomePage } from "./views/client-home-page";
+export { ClientHomeView } from "./views/client-home-view";

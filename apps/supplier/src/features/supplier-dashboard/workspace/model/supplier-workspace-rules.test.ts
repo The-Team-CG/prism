@@ -22,11 +22,7 @@ import {
   parseQuoteForm,
   quoteSubmitSuccessNotice,
 } from "./supplier-workspace-rules";
-import type {
-  PrismSupplierQuote,
-  PrismSupplierQuoteRequest,
-  SupplierWorkspace,
-} from "./supplier-workspace-types";
+import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
 
 function makeRequest(
   overrides: Partial<PrismSupplierQuoteRequest> & { id: string },

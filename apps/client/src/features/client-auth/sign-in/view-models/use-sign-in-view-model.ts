@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { PrismUser } from "@/lib/prism-api";
+import type { PrismUser } from "@prism/types";
 import { samplePasswordFor } from "../model/sign-in-rules";
 import {
   CLIENT_SAMPLE_USERS,

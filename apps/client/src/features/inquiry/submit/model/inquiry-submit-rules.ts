@@ -1,4 +1,4 @@
-import type { CreatePrismInquiryInput } from "@/lib/prism-api";
+import type { CreatePrismInquiryInput } from "@prism/api-client";
 import type { InquiryForm } from "./inquiry-submit-types";
 import { INQUIRY_WIZARD_STEPS } from "./inquiry-submit-types";
 

@@ -1,9 +1,6 @@
 import { PRISM_SESSION_STORAGE_KEYS, savePrismSession } from "@prism/types";
-import {
-  prismApi,
-  type PrismUser,
-  type PrivacyConsentInput,
-} from "@/lib/prism-api";
+import { prismApi, type PrivacyConsentInput } from "@/lib/prism-api";
+import type { PrismUser } from "@prism/types";
 
 export type ClientAuthSession = Awaited<ReturnType<typeof prismApi.login>>;
 

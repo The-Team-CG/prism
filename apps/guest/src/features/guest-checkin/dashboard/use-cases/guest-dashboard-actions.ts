@@ -3,10 +3,7 @@ import {
   buildFeedbackPayload,
   checkInSuccessNotice,
 } from "../model/guest-dashboard-rules";
-import type {
-  CheckInMode,
-  GuestSession,
-} from "../model/guest-dashboard-types";
+import type { CheckInMode, GuestSession } from "../model/guest-dashboard-types";
 import { guestDashboardRepository } from "../data/guest-dashboard-repository";
 
 export function loadGuestDashboardSession(): GuestSession | null {

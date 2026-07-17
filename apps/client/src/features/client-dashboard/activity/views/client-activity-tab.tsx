@@ -18,15 +18,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
-import type {
-  PrismAuditLog,
-  PrismBillingStatement,
-  PrismBriefing,
-  PrismDocument,
-  PrismEvent,
-  PrismFloorPlanDraft,
-  PrismPaymentMilestone,
-} from "@/lib/prism-api";
+import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -47,7 +39,7 @@ import {
   portalBadgeStatus,
   portalStatusLabel,
 } from "../../shared/tab-ui";
-import type { DetailTab } from "../../workspace/model/client-dashboard.types";
+import type { DetailTab } from "../../workspace/shared";
 
 
 export function ClientActivityTab({ audit }: { audit: PrismAuditLog[] }) {

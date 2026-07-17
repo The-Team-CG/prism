@@ -1,4 +1,4 @@
-import type { PrismSampleState } from "@/lib/prism-api";
+import type { PrismSampleState } from "@prism/types";
 
 export function createInitialPrismSampleState(createdAt = new Date().toISOString()): PrismSampleState {
   return {

@@ -1,10 +1,4 @@
-import type {
-  PrismSupplier,
-  PrismSupplierQuote,
-  PrismSupplierQuoteRequest,
-  PrismSupplierReadinessBoard,
-  PrismSupplierWorkspace,
-} from "@prism/types";
+import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, PrismSupplierWorkspace } from "@prism/types";
 import type { SupplierSession } from "@/lib/prism-api";
 
 export type {

@@ -7,7 +7,7 @@ import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import type { PrismInquiry } from "@/lib/prism-api";
+import type { PrismInquiry } from "@prism/types";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 
 const inquirySources = ["Facebook", "Website", "BNI", "Walk-In", "Log on Behalf"];

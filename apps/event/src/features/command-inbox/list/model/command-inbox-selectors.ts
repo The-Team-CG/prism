@@ -1,7 +1,4 @@
-import type {
-  PrismCommandInboxItem,
-  PrismCommandInboxSeverity,
-} from "@prism/types";
+import type { PrismCommandInboxItem, PrismCommandInboxSeverity } from "@prism/types";
 
 const SEVERITY_RANK: Record<PrismCommandInboxSeverity, number> = {
   critical: 0,

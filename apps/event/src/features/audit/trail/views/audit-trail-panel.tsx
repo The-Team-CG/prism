@@ -18,18 +18,8 @@ import {
   UserRound,
 } from "lucide-react";
 
-import {
-  type PrismApprovalRequest,
-  type PrismAuditIntegrity,
-  type PrismAuditLog,
-  type PrismEvent,
-  type PrismLoginHistory,
-  type PrismPrivacyInventory,
-  type PrismPrivacyRequest,
-  type PrismPrivacyRetentionPolicy,
-  type PrismSecurityAlert,
-  type PrismUser
-} from "@/lib/prism-api";
+import type { PrismAuditIntegrity, PrismLoginHistory, PrismPrivacyInventory, PrismPrivacyRequest, PrismPrivacyRetentionPolicy, PrismSecurityAlert } from "@/lib/prism-api";
+import type { PrismApprovalRequest, PrismAuditLog, PrismEvent, PrismUser } from "@prism/types";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";

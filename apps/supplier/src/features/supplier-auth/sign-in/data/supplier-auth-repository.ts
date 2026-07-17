@@ -4,10 +4,7 @@ import {
   savePrismSession,
 } from "@prism/types";
 import { SUPPLIER_AUTH_API_OFFLINE_MESSAGE } from "../model/supplier-sign-in-rules";
-import type {
-  SupplierAuthUser,
-  SupplierSession,
-} from "../model/supplier-sign-in-types";
+import type { SupplierAuthUser, SupplierSession } from "../model/supplier-sign-in-types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;

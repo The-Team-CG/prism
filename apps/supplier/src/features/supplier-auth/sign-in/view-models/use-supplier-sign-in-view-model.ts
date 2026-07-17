@@ -10,11 +10,7 @@ import {
   mapSupplierSignInError,
   SAMPLE_SUPPLIER_ACCOUNTS,
 } from "../model/supplier-sign-in-rules";
-import type {
-  SupplierSession,
-  SupplierSignInDraft,
-  SupplierSignInStatus,
-} from "../model/supplier-sign-in-types";
+import type { SupplierSession, SupplierSignInDraft, SupplierSignInStatus } from "../model/supplier-sign-in-types";
 import {
   loadExistingSupplierSession,
   requestSupplierApproval,

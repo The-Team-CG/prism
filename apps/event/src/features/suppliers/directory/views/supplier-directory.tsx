@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Check, FilePlus2, Plus, Search, Star } from "lucide-react";
 
-import type { PrismSupplier, PrismSupplierCategory } from "@/lib/prism-api";
+import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
 import { cx, RatingStars, SupplierTierBadge } from "@/features/pmcm-kit";

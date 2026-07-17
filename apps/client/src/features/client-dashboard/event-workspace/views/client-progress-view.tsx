@@ -1,10 +1,10 @@
 "use client";
 
-import { eventProgressDots } from "../../workspace/model/client-dashboard-view-rules";
+import { eventProgressDots } from "../../workspace/shared";
 import { ClientActionGroup } from "../../shared/client-action-group";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientProgressPage() {
+export function ClientProgressView() {
   const {
     state,
     selectedEvent,

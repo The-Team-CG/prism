@@ -22,22 +22,8 @@ import {
   UserRound,
   type LucideIcon,
   } from "lucide-react";
-import {
-  type SampleRole,
-  type PrismAuditLog,
-  type PrismCoordinator,
-  type PrismCoordinatorRoleRequirement,
-  type PrismCoordinatorWorkspace,
-  type PrismPmcmDashboardWorkspace,
-  type PrismEvent,
-  type PrismFloorPlanDraft,
-  type PrismInquiry,
-  type PrismLoginHistory,
-  type PrismPmcmCommandInbox,
-  type PrismSecurityAlert,
-  type PrismSupplier,
-  type PrismSupplierCategory
-} from "@/lib/prism-api";
+import type { PrismCoordinator, PrismCoordinatorRoleRequirement, PrismLoginHistory, PrismSecurityAlert } from "@/lib/prism-api";
+import type { SampleRole, PrismAuditLog, PrismCoordinatorWorkspace, PrismPmcmDashboardWorkspace, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmCommandInbox, PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import {
   PrismDashboardShell,
   PrismSectionPanel,

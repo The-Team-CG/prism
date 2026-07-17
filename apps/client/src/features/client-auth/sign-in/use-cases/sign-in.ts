@@ -9,7 +9,7 @@ import {
 } from "../model/sign-in-rules";
 import type { SignInDraft } from "../model/sign-in-types";
 import { PRIVACY_NOTICE_VERSION } from "../model/sign-in-types";
-import type { PrismUser } from "@/lib/prism-api";
+import type { PrismUser } from "@prism/types";
 
 export type SignInResult =
   | { ok: true; session: PrismUser & { signedInAt: string }; redirectTo: string }

@@ -1,9 +1,9 @@
 "use client";
 
 import { Badge } from "@/app/components/ui/badge";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientGuestsPage() {
+export function ClientGuestsView() {
   const { selectedEvent, briefing } = useClientWorkspace();
 
   return (

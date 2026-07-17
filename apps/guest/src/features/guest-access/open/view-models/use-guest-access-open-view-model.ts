@@ -7,11 +7,7 @@ import {
   isOpenDraftValid,
   mapGuestAccessError,
 } from "../model/guest-access-open-rules";
-import type {
-  GuestAccessOpenDraft,
-  GuestAccessOpenStatus,
-  GuestSession,
-} from "../model/guest-access-open-types";
+import type { GuestAccessOpenDraft, GuestAccessOpenStatus, GuestSession } from "../model/guest-access-open-types";
 import {
   loadExistingGuestSession,
   openGuestEventPass,

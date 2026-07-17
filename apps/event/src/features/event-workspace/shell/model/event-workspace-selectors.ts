@@ -1,9 +1,4 @@
-import type {
-  PrismApprovalRequest,
-  PrismEvent,
-  PrismPmcmDashboardWorkspace,
-  PrismPmcmEventWorkspace,
-} from "@prism/types";
+import type { PrismApprovalRequest, PrismEvent, PrismPmcmDashboardWorkspace, PrismPmcmEventWorkspace } from "@prism/types";
 
 export function selectActiveEvents(
   state: Pick<PrismPmcmDashboardWorkspace, "events"> | null | undefined,
