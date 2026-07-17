@@ -1,5 +1,5 @@
-import { Dashboard } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView } from "@/features/client-dashboard/workspace";
 
 export default function ClientDashboardApprovalsPage() {
-  return <Dashboard route="approvals" />;
+  return <ClientDashboardWorkspaceView route="approvals" />;
 }

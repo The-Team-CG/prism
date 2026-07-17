@@ -1,4 +1,7 @@
 import type { LucideIcon } from "lucide-react";
+import type { PrismUser } from "@prism/types";
+
+export type ClientSession = PrismUser & { signedInAt: string };
 
 export type DetailTab =
   | "overview"
