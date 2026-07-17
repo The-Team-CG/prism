@@ -1,5 +1,11 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { GuestCheckInDto, GuestFeedbackDto } from '../dto/guest.dto';
+import { zodBody } from '@prism/shared';
+import {
+  createGuestCheckInSchema,
+  createGuestFeedbackSchema,
+  type CreateGuestCheckInInput,
+  type CreateGuestFeedbackInput,
+} from '@prism/types';
 import { GuestWorkflowService } from '../services/guest-workflow.service';
 
 @Controller('guest')
@@ -15,14 +21,20 @@ export class OpsGuestController {
 
   @Post('events/:accessCode/check-ins')
   @HttpCode(HttpStatus.CREATED)
-  async checkIn(@Param('accessCode') accessCode: string, @Body() dto: GuestCheckInDto) {
+  async checkIn(
+    @Param('accessCode') accessCode: string,
+    @Body(zodBody(createGuestCheckInSchema)) dto: CreateGuestCheckInInput,
+  ) {
     const checkIn = await this.guestWorkflowService.checkInByAccessCode(accessCode, dto);
     return this.guestWorkflowService.mapGuestCheckIn(checkIn);
   }
 
   @Post('events/:accessCode/feedback')
   @HttpCode(HttpStatus.CREATED)
-  async submitFeedback(@Param('accessCode') accessCode: string, @Body() dto: GuestFeedbackDto) {
+  async submitFeedback(
+    @Param('accessCode') accessCode: string,
+    @Body(zodBody(createGuestFeedbackSchema)) dto: CreateGuestFeedbackInput,
+  ) {
     const feedback = await this.guestWorkflowService.submitFeedbackByAccessCode(accessCode, dto);
     return this.guestWorkflowService.mapGuestFeedback(feedback);
   }

@@ -1,5 +1,5 @@
-import { SignInPage } from "../components/auth/SignInPage";
+import { SignInView } from "@/features/client-auth/sign-in";
 
 export default function Page() {
-  return <SignInPage />;
+  return <SignInView />;
 }

@@ -1,4 +1,4 @@
-import type { Project } from "@/app/components/editor/types";
+import type { Project } from "@/features/floorplan/editor/types";
 import { createEventOpsClient } from "@prism/api-client";
 
 import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";

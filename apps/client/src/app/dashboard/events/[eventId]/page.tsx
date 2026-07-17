@@ -1,4 +1,4 @@
-import { Dashboard } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView } from "@/features/client-dashboard/workspace";
 
 type ClientEventPageProps = {
   params: Promise<{ eventId: string }>;
@@ -6,6 +6,5 @@ type ClientEventPageProps = {
 
 export default async function ClientEventPage({ params }: ClientEventPageProps) {
   const { eventId } = await params;
-
-  return <Dashboard route="overview" eventId={eventId} />;
+  return <ClientDashboardWorkspaceView route="overview" eventId={eventId} />;
 }
