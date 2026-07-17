@@ -1,4 +1,8 @@
-import type { CreatePrismInquiryInput } from "@prism/api-client";
+import {
+  createPrismInquirySchema,
+  parseContract,
+  type CreatePrismInquiryInput,
+} from "@prism/types";
 import type { InquiryForm } from "./inquiry-submit-types";
 import { INQUIRY_WIZARD_STEPS } from "./inquiry-submit-types";
 
@@ -41,24 +45,32 @@ export function buildInquiryPayload(form: InquiryForm): CreatePrismInquiryInput 
     form.message || "No additional notes provided.",
   ].join("\n");
 
-  return {
-    clientName: form.clientName.trim(),
-    companyName: form.companyName.trim(),
-    email: form.email.trim(),
-    eventName: form.eventName.trim(),
-    eventType: form.eventType,
-    eventDate: form.eventDate,
-    clientType: form.clientType,
-    source: form.source,
-    message: reviewNotes,
-    privacyConsentAccepted: form.privacyConsentAccepted,
-    privacyNoticeVersion: form.privacyNoticeVersion,
-    marketingConsentAccepted: form.marketingConsentAccepted,
-  };
+  return parseContract(
+    createPrismInquirySchema,
+    {
+      clientName: form.clientName.trim(),
+      companyName: form.companyName.trim() || undefined,
+      email: form.email.trim(),
+      eventName: form.eventName.trim(),
+      eventType: form.eventType || undefined,
+      eventDate: form.eventDate,
+      clientType: form.clientType,
+      source: form.source || undefined,
+      message: reviewNotes,
+      privacyConsentAccepted: form.privacyConsentAccepted,
+      privacyNoticeVersion: form.privacyNoticeVersion,
+      marketingConsentAccepted: form.marketingConsentAccepted,
+    },
+    "Create inquiry",
+  );
 }
 
 export function mapInquirySubmitError(error: unknown, fallback = "Unable to submit inquiry"): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
+  if (error instanceof Error && error.message.trim()) {
+    // Surface first Zod boundary issue without the "Create inquiry failed validation:" prefix when possible.
+    const stripped = error.message.replace(/^Create inquiry failed validation:\s*/i, "");
+    return stripped || error.message;
+  }
   return fallback;
 }
 

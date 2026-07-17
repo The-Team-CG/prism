@@ -36,8 +36,12 @@ import {
   ShieldCheck,
   WalletCards,
 } from "lucide-react";
-import type { PrismClientActionItem, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { CreatePrismInquiryInput } from "@prism/api-client";
+import type {
+  CreatePrismInquiryInput,
+  PrismClientActionItem,
+  PrismEvent,
+  PrismFloorPlanDraft,
+} from "@prism/types";
 import {
   loadFloorPlanProject,
   loadOfficialFloorPlan,

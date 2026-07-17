@@ -62,6 +62,10 @@ describe("inquiry-submit-rules", () => {
         clientName: "  Ana Reyes ",
         email: " ana@ayala.test ",
         phoneNumber: "0917",
+        clientType: "Corporate",
+        eventName: "Leadership Summit",
+        eventType: "Conference",
+        eventDate: "2026-08-01",
         expectedGuests: "200",
         message: "Need staging",
         privacyConsentAccepted: true,
@@ -69,6 +73,7 @@ describe("inquiry-submit-rules", () => {
     );
     expect(payload.clientName).toBe("Ana Reyes");
     expect(payload.email).toBe("ana@ayala.test");
+    expect(payload.eventDate).toBe("2026-08-01");
     expect(payload.message).toContain("Phone: 0917");
     expect(payload.message).toContain("Need staging");
     expect(payload.privacyConsentAccepted).toBe(true);

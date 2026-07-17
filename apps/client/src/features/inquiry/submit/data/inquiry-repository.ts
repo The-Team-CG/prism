@@ -1,6 +1,5 @@
 import { prismApi } from "@/lib/prism-api";
-import type { PrismInquiry } from "@prism/types";
-import type { CreatePrismInquiryInput } from "@prism/api-client";
+import type { CreatePrismInquiryInput, PrismInquiry } from "@prism/types";
 
 export const inquiryRepository = {
   create(input: CreatePrismInquiryInput): Promise<PrismInquiry> {
