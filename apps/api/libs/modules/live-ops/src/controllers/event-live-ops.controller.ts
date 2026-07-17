@@ -1,12 +1,19 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { zodBody } from '@prism/shared';
 import {
-  CreateEventDayTaskDto,
-  CreateUrgentIssueDto,
+  createEventDayTaskSchema,
+  createUrgentIssueSchema,
+  updateCoordinatorAttendanceSchema,
+  updateEventDayTaskSchema,
+  type CreateEventDayTaskInput,
+  type CreateUrgentIssueInput,
+  type UpdateCoordinatorAttendanceInput,
+  type UpdateEventDayTaskInput,
+} from '@prism/types';
+import {
   EscalateLiveOpsRecordDto,
   LiveOpsActorDto,
   ReplaceCoordinatorAssignmentDto,
-  UpdateCoordinatorAttendanceDto,
-  UpdateEventDayTaskDto,
   UpdateUrgentIssueDto,
   VerifySupplierStatusDto,
 } from '../dto/live-ops.dto';
@@ -34,7 +41,7 @@ export class EventLiveOpsController {
   @HttpCode(HttpStatus.CREATED)
   createEventDayTask(
     @Param('eventId') eventId: string,
-    @Body() dto: CreateEventDayTaskDto,
+    @Body(zodBody(createEventDayTaskSchema)) dto: CreateEventDayTaskInput,
     @Query() actor: LiveOpsActorDto,
   ) {
     return this.commandService.createEventDayTask(eventId, dto, actor);
@@ -44,7 +51,7 @@ export class EventLiveOpsController {
   updateEventDayTask(
     @Param('eventId') eventId: string,
     @Param('taskId') taskId: string,
-    @Body() dto: UpdateEventDayTaskDto,
+    @Body(zodBody(updateEventDayTaskSchema)) dto: UpdateEventDayTaskInput,
     @Query() actor: LiveOpsActorDto,
   ) {
     return this.commandService.updateEventDayTask(eventId, taskId, dto, actor);
@@ -65,7 +72,7 @@ export class EventLiveOpsController {
   @HttpCode(HttpStatus.CREATED)
   createUrgentIssue(
     @Param('eventId') eventId: string,
-    @Body() dto: CreateUrgentIssueDto,
+    @Body(zodBody(createUrgentIssueSchema)) dto: CreateUrgentIssueInput,
     @Query() actor: LiveOpsActorDto,
   ) {
     return this.commandService.createUrgentIssue(eventId, dto, actor);
@@ -96,7 +103,7 @@ export class EventLiveOpsController {
   updateCoordinatorAttendance(
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
-    @Body() dto: UpdateCoordinatorAttendanceDto,
+    @Body(zodBody(updateCoordinatorAttendanceSchema)) dto: UpdateCoordinatorAttendanceInput,
     @Query() actor: LiveOpsActorDto,
   ) {
     return this.commandService.updateCoordinatorAttendance(eventId, assignmentId, dto, actor);

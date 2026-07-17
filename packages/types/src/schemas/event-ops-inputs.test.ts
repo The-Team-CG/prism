@@ -3,6 +3,8 @@ import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
   updateSupplierEventStatusSchema,
+  submitSupplierQuoteSchema,
+  updateInquiryStatusSchema,
   parseContract,
   PrismContractError,
 } from "./index.js";
@@ -27,7 +29,7 @@ describe("event-ops write schemas", () => {
       clientName: "Maria",
       email: "not-an-email",
       eventName: "Forum",
-      eventDate: "18-06-2026",
+      eventDate: "not-a-date",
       clientType: "Corporate",
       message: "Hello",
     });
@@ -50,21 +52,23 @@ describe("event-ops write schemas", () => {
   });
 
   it("validates supplier event-day status enum", () => {
-    expect(
-      updateSupplierEventStatusSchema.safeParse({ status: "arrived" }).success,
-    ).toBe(true);
-    expect(
-      updateSupplierEventStatusSchema.safeParse({ status: "maybe" }).success,
-    ).toBe(false);
+    expect(updateSupplierEventStatusSchema.safeParse({ status: "arrived" }).success).toBe(true);
+    expect(updateSupplierEventStatusSchema.safeParse({ status: "maybe" }).success).toBe(false);
+  });
+
+  it("validates supplier quote amount", () => {
+    expect(submitSupplierQuoteSchema.safeParse({ amount: 12000 }).success).toBe(true);
+    expect(submitSupplierQuoteSchema.safeParse({ amount: -1 }).success).toBe(false);
+  });
+
+  it("validates inquiry status transitions", () => {
+    expect(updateInquiryStatusSchema.safeParse({ status: "accepted" }).success).toBe(true);
+    expect(updateInquiryStatusSchema.safeParse({ status: "nope" }).success).toBe(false);
   });
 
   it("parseContract throws PrismContractError with issues", () => {
     expect(() =>
-      parseContract(
-        createPrismInquirySchema,
-        { clientName: "" },
-        "Create inquiry",
-      ),
+      parseContract(createPrismInquirySchema, { clientName: "" }, "Create inquiry"),
     ).toThrow(PrismContractError);
   });
 });
