@@ -4,9 +4,9 @@ import type { PrismEvent, PrismFloorPlanDraft } from "@/lib/prism-api";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import type { FloorPlanTemplate } from "@/app/components/editor/templates";
-import { label } from "@/app/components/pmcm/helpers";
-import { Panel } from "@/app/components/pmcm/primitives";
+import type { FloorPlanTemplate } from "@/features/floorplan/editor/templates";
+import { label } from "@/features/pmcm-kit";
+import { Panel } from "@/features/pmcm-kit";
 import {
   canApproveFloorPlanDraft,
   canSubmitFloorPlanDraft,

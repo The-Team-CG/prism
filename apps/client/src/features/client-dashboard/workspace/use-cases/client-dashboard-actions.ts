@@ -3,7 +3,7 @@ import {
   type FloorPlanPreferenceInput,
 } from "../data/client-dashboard-repository";
 import type { CreatePrismInquiryInput, PrismUser } from "@/lib/prism-api";
-import type { Project } from "@/app/components/editor/types";
+import type { Project } from "@/features/floorplan/editor/types";
 
 export function readClientSession() {
   return clientDashboardRepository.readSession();

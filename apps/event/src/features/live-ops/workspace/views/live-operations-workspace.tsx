@@ -24,7 +24,7 @@ import {
   type PrismSupplierQuoteRequest,
   type PrismUrgentIssue,
 } from "@/lib/prism-api";
-import { cx, label } from "@/app/components/pmcm/helpers";
+import { cx, label } from "@/features/pmcm-kit";
 import {
   asIsoDateTime,
   computeLiveOpsMetrics,

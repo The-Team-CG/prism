@@ -7,8 +7,8 @@ import type {
   SupplierQuoteRow,
   SupplierQuoteSelectHandler,
   SupplierRequestHandler,
-} from "@/app/components/pmcm/types";
-import { Panel } from "@/app/components/pmcm/primitives";
+} from "@/features/pmcm-kit";
+import { Panel } from "@/features/pmcm-kit";
 
 export function EventSuppliersTab({
   categories,

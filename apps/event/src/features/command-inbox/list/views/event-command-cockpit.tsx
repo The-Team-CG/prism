@@ -27,7 +27,7 @@ import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, SampleRole
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { label } from "@/app/components/pmcm/helpers";
+import { label } from "@/features/pmcm-kit";
 
 /* ── Inline primitives (replacing @prism/ui blocks) ────────────── */
 

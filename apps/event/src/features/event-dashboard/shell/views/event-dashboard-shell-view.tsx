@@ -68,14 +68,12 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Badge } from "@/app/components/ui/badge";
-import {
-  AuditTrailPanel,
-  ClientOnboardingTracker,
-  ConformeUploadModal,
-  InquiryIntakeLog,
-  PAREPanel,
-  Phase4Workspace,
-} from "@/app/components/pmcm";
+import { AuditTrailPanel } from "@/features/audit/trail";
+import { ClientOnboardingTracker } from "@/features/clients/onboarding";
+import { ConformeUploadModal } from "@/features/conforme/upload";
+import { InquiryIntakeLog } from "@/features/inquiries/intake";
+import { PAREPanel } from "@/features/pare/panel";
+import { Phase4Workspace } from "@/features/closure/phase4";
 import { CoordinatorAssignmentDesk, CoordinatorView } from "@/features/coordinators/desk";
 import { EventCommandInbox, EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
@@ -88,8 +86,8 @@ import {
   SkeletonLine,
   eventDashboardSkeletonVariant,
 } from "@/app/dashboard/components/event-dashboard-skeleton";
-import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/app/components/editor/templates";
-import type { Project } from "@/app/components/editor/types";
+import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/features/floorplan/editor/templates";
+import type { Project } from "@/features/floorplan/editor/types";
 import { clearEventSession, readStoredEventSession, type EventSession } from "@/app/lib/session";
 import {
   selectActiveEvents,
@@ -138,7 +136,7 @@ import { EventMessagesWorkspace } from "@/app/dashboard/components/event-message
 export type { EventDashboardClientProps };
 
 const EditorShell = dynamic(
-  () => import("@/app/components/editor/EditorShell").then((mod) => mod.EditorShell),
+  () => import("@/features/floorplan/editor/EditorShell").then((mod) => mod.EditorShell),
   {
     ssr: false,
     loading: () => (
