@@ -1,0 +1,35 @@
+# Soft/hard gate for trunk-based flow:
+# - staging is the trunk (day-to-day integration)
+# - main only receives pull requests from staging (release lane)
+#
+# Note: classic branch protection / rulesets require GitHub Team (or public repo)
+# on private orgs. This workflow enforces the staging→main PR policy in CI.
+# Upgrade the org to enable required status checks + block direct pushes to main.
+name: Protect main
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  only-from-staging:
+    name: Require staging head
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject PRs not opened from staging
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          echo "PR ${BASE_REF} <- ${HEAD_REF}"
+          if [ "${HEAD_REF}" != "staging" ]; then
+            echo "::error::main only accepts pull requests from staging (got head branch: ${HEAD_REF})"
+            echo "Trunk-based flow: develop on short-lived branches → merge to staging → open staging→main PR for release."
+            exit 1
+          fi
+          echo "OK: PR into main is from staging."
