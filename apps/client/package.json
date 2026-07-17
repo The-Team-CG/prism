@@ -8,8 +8,8 @@
     "start": "next start --port 3001",
     "typecheck": "tsc --noEmit",
     "lint": "next lint",
-    "test": "node --test practice/**/*.test.mjs",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=50 --test-coverage-functions=50 --test-coverage-branches=40 practice/**/*.test.mjs"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -83,6 +83,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.2.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

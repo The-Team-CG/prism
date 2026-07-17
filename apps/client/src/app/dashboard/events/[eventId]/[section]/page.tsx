@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Dashboard, type ClientDashboardRoute } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView, type ClientDashboardRoute } from "@/features/client-dashboard/workspace";
 
 const sectionRoutes: Record<string, ClientDashboardRoute> = {
   overview: "overview",
@@ -32,5 +32,5 @@ export default async function ClientEventSectionPage({ params }: ClientEventSect
     notFound();
   }
 
-  return <Dashboard route={route} eventId={eventId} />;
+  return <ClientDashboardWorkspaceView route={route} eventId={eventId} />;
 }

@@ -1,5 +1,5 @@
-import { PublicInquiryPage } from "../components/public-inquiry/PublicInquiryPage";
+import { InquirySubmitView } from "@/features/inquiry/submit";
 
 export default function InquiryPage() {
-  return <PublicInquiryPage />;
+  return <InquirySubmitView />;
 }

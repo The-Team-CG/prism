@@ -1,26 +1,20 @@
 import { notFound } from "next/navigation";
-import { Dashboard, type ClientPortalView } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView, type ClientPortalView } from "@/features/client-dashboard/workspace";
 
 const messageViews: Record<string, ClientPortalView> = {
-  recent: "dashboard-recent-messages",
   inbox: "messages-inbox",
   "event-conversations": "messages-event-conversations",
   "organizer-updates": "messages-organizer-updates",
   announcements: "messages-announcements",
   archived: "messages-archived",
+  recent: "dashboard-recent-messages",
 };
 
-type ClientDashboardMessageViewPageProps = {
-  params: Promise<{ messageView: string }>;
-};
+type Props = { params: Promise<{ messageView: string }> };
 
-export default async function ClientDashboardMessageViewPage({ params }: ClientDashboardMessageViewPageProps) {
+export default async function ClientDashboardMessageViewPage({ params }: Props) {
   const { messageView } = await params;
   const portalView = messageViews[messageView];
-
-  if (!portalView) {
-    notFound();
-  }
-
-  return <Dashboard route="messages" portalView={portalView} />;
+  if (!portalView) notFound();
+  return <ClientDashboardWorkspaceView route="messages" portalView={portalView} />;
 }
