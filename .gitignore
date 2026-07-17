@@ -4,7 +4,7 @@ node_modules/
 .pnp.js
 
 # Ethan
-dosc/ethan/
+docs/ethan/
 docs/ethan/*
 
 # Build output
