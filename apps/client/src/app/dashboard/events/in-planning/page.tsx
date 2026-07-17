@@ -1,5 +1,5 @@
-import { Dashboard } from "@/app/components/dashboard/Dashboard";
+import { ClientDashboardWorkspaceView } from "@/features/client-dashboard/workspace";
 
 export default function ClientDashboardInPlanningEventsPage() {
-  return <Dashboard route="events" portalView="events-in-planning" />;
+  return <ClientDashboardWorkspaceView route="events" portalView="events-in-planning" />;
 }

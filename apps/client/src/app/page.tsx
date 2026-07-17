@@ -1,5 +1,5 @@
-import App from "./App";
+import { ClientHomeLandingView } from "@/features/client-home/landing";
 
-export default function ClientHome() {
-  return <App />;
+export default function ClientHomePage() {
+  return <ClientHomeLandingView />;
 }
