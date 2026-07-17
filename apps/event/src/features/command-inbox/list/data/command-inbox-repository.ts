@@ -1,4 +1,7 @@
-import { prismApi, type PrismPmcmCommandInbox } from "@/lib/prism-api";
+import {
+  type PrismPmcmCommandInbox,
+} from "@/lib/prism-api";
+import { eventOpsRepository } from "@/features/event-ops";
 
 type TimedCache<T> = { value: T; loadedAt: number };
 
@@ -22,7 +25,7 @@ export const commandInboxRepository = {
     }
     if (!force && commandInboxRequest) return commandInboxRequest;
 
-    commandInboxRequest = prismApi
+    commandInboxRequest = eventOpsRepository
       .pmcmCommandInbox()
       .then((next) => {
         commandInboxCache = { value: next, loadedAt: Date.now() };

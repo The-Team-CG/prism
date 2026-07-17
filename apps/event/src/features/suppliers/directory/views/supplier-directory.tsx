@@ -5,6 +5,7 @@ import type { PrismSupplier, PrismSupplierCategory } from "@/lib/prism-api";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
 import { cx, RatingStars, SupplierTierBadge } from "@/app/components/pmcm/helpers";
+import { isSupplierCreateDraftValid } from "../model/suppliers-directory-rules";
 
 export function SupplierDirectory({
   categories,
@@ -121,7 +122,7 @@ export function SupplierDirectory({
   }, [selectedSupplier?.id]);
 
   async function submitCreate() {
-    if (!createForm.name.trim() || !createForm.categoryId) return;
+    if (!isSupplierCreateDraftValid(createForm) || !createForm.categoryId) return;
     await onCreateSupplier(createForm);
     setCreateForm((current) => ({ ...current, name: "", contactName: "", email: "", phone: "", serviceInclusions: "", performanceNotes: "" }));
     setShowCreate(false);

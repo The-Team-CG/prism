@@ -1,8 +1,14 @@
 "use client";
 
+
+import { useEventOpsCommands } from "@/features/event-ops";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import {
+  useEffect,
+  useMemo,
+  useState } from "react";
+import { usePathname,
+  useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Archive,
@@ -37,9 +43,8 @@ import {
   Upload,
   UsersRound,
   type LucideIcon,
-} from "lucide-react";
+  } from "lucide-react";
 import {
-  prismApi,
   type PrismApprovalRequest,
   type PrismBillingStatement,
   type PrismBriefing,
@@ -1128,6 +1133,7 @@ export function EventDashboardShellView({
   clientId: initialClientId,
   view: initialView,
 }: EventDashboardClientProps = {}) {
+  const ops = useEventOpsCommands();
   const router = useRouter();
   const pathname = usePathname();
   const routeState = useMemo<RouteState>(() => {
@@ -1459,7 +1465,7 @@ export function EventDashboardShellView({
 
   async function createTemplateDraft(template: FloorPlanTemplate) {
     if (!selectedEvent) return;
-    const draft = await prismApi.createFloorPlanDraft(selectedEvent.id, {
+    const draft = await ops.createFloorPlanDraft(selectedEvent.id, {
       name: `${template.name} PMCM draft`,
       sourceType: "template",
       venue: template.venue || selectedEvent.eventName,
@@ -1475,7 +1481,7 @@ export function EventDashboardShellView({
   }
 
   async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
-    const project = await prismApi.loadPlan(draft.floorPlanId);
+    const project = await ops.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
 
@@ -1722,10 +1728,10 @@ export function EventDashboardShellView({
           eventName={screen.event.eventName}
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
-          onSave={(project) => prismApi.savePlan(project)}
+          onSave={(project) => ops.savePlan(project)}
           onSubmit={async (project) => {
-            await prismApi.savePlan(project);
-            await prismApi.submitFloorPlanDraft(screen.event.id, screen.draft.id);
+            await ops.savePlan(project);
+            await ops.submitFloorPlanDraft(screen.event.id, screen.draft.id);
             await refresh(session);
             setScreen({ name: "portal" });
           }}
@@ -2057,15 +2063,15 @@ export function EventDashboardShellView({
             </Card>
             <InquiryIntakeLog
               inquiries={state.inquiries}
-              onAccept={(inq) => run("accept inquiry", () => prismApi.acceptInquiry(inq.id))}
-              onPend={(inq) => run("pend inquiry", () => prismApi.pendInquiry(inq.id))}
-              onDecline={(inq, reason) => run("decline inquiry", () => prismApi.declineInquiry(inq.id, reason))}
+              onAccept={(inq) => run("accept inquiry", () => ops.acceptInquiry(inq.id))}
+              onPend={(inq) => run("pend inquiry", () => ops.pendInquiry(inq.id))}
+              onDecline={(inq, reason) => run("decline inquiry", () => ops.declineInquiry(inq.id, reason))}
               busy={Boolean(busy)}
             />
             <ClientOnboardingTracker
               inquiries={state.inquiries}
               onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
-              onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
+              onSendReminder={(inq) => run("conforme reminder", () => ops.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
           </>
@@ -2078,7 +2084,7 @@ export function EventDashboardShellView({
               roleRequirements={coordinatorRoleRequirements}
               busy={Boolean(busy)}
               onAssign={(coordinator, role, override) => run("coordinator assignment", () =>
-                prismApi.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
+                ops.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
               )}
             />
           ) : (
@@ -2145,8 +2151,8 @@ export function EventDashboardShellView({
               payments={payments}
               notificationLogs={notificationLogs}
               busy={Boolean(busy)}
-              onRecordPayment={(milestoneId, input) => run("record payment", () => prismApi.recordPayment(selectedEvent.id, milestoneId, input))}
-              onSendBilling={(billingId) => run("send billing", () => prismApi.sendBillingStatement(selectedEvent.id, billingId))}
+              onRecordPayment={(milestoneId, input) => run("record payment", () => ops.recordPayment(selectedEvent.id, milestoneId, input))}
+              onSendBilling={(billingId) => run("send billing", () => ops.sendBillingStatement(selectedEvent.id, billingId))}
             />
           ) : (
             <EmptyState icon={ReceiptText} title="Select an event" description="Finance opens inside a confirmed event so billing can stay tied to proposal and conforme records." />
@@ -2155,12 +2161,12 @@ export function EventDashboardShellView({
           <SupplierDirectory
             categories={supplierCategories}
             suppliers={suppliers}
-            onToggleBni={(supplier, value) => run("supplier BNI flag", () => prismApi.updateSupplier(supplier.id, { bniMember: value }))}
-            onCreateSupplier={(input) => run("create supplier", () => prismApi.createSupplier(input))}
-            onUpdateSupplier={(supplierId, input) => run("update supplier", () => prismApi.updateSupplier(supplierId, input))}
-            onChangeTier={(supplierId, tier, reason) => run("supplier tier change", () => prismApi.changeSupplierTier(supplierId, { tier, reason }))}
-            onAddReview={(supplierId, input) => run("supplier private review", () => prismApi.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }))}
-            onAddCertification={(supplierId, input) => run("supplier certification", () => prismApi.addSupplierCertification(supplierId, input))}
+            onToggleBni={(supplier, value) => run("supplier BNI flag", () => ops.updateSupplier(supplier.id, { bniMember: value }))}
+            onCreateSupplier={(input) => run("create supplier", () => ops.createSupplier(input))}
+            onUpdateSupplier={(supplierId, input) => run("update supplier", () => ops.updateSupplier(supplierId, input))}
+            onChangeTier={(supplierId, tier, reason) => run("supplier tier change", () => ops.changeSupplierTier(supplierId, { tier, reason }))}
+            onAddReview={(supplierId, input) => run("supplier private review", () => ops.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }))}
+            onAddCertification={(supplierId, input) => run("supplier certification", () => ops.addSupplierCertification(supplierId, input))}
             onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
             busy={Boolean(busy)}
           />
@@ -2170,15 +2176,15 @@ export function EventDashboardShellView({
           <>
             <InquiryIntakeLog
               inquiries={state.inquiries}
-              onAccept={(inq) => run("accept inquiry", () => prismApi.acceptInquiry(inq.id))}
-              onPend={(inq) => run("pend inquiry", () => prismApi.pendInquiry(inq.id))}
-              onDecline={(inq, reason) => run("decline inquiry", () => prismApi.declineInquiry(inq.id, reason))}
+              onAccept={(inq) => run("accept inquiry", () => ops.acceptInquiry(inq.id))}
+              onPend={(inq) => run("pend inquiry", () => ops.pendInquiry(inq.id))}
+              onDecline={(inq, reason) => run("decline inquiry", () => ops.declineInquiry(inq.id, reason))}
               busy={Boolean(busy)}
             />
             <ClientOnboardingTracker
               inquiries={state.inquiries}
               onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
-              onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
+              onSendReminder={(inq) => run("conforme reminder", () => ops.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
           </>
@@ -2187,7 +2193,7 @@ export function EventDashboardShellView({
             events={eventsForView}
             selectedEventId={selectedEvent?.id}
             onSelectEvent={(id) => navigateEvent(id)}
-            onReset={() => run("reset", prismApi.reset)}
+            onReset={() => run("reset", ops.reset)}
             onNavigateEvent={(id) => navigateEvent(id, "overview")}
           />
         ) : isHome ? (
@@ -2202,22 +2208,22 @@ export function EventDashboardShellView({
               defenseReadiness={defenseReadiness}
               onNavigateSection={navigateSection}
               onNavigateEvent={navigateEvent}
-              onReset={() => run("reset", prismApi.reset)}
+              onReset={() => run("reset", ops.reset)}
             />
 
             {/* Inquiry + onboarding below the command grid */}
             <InquiryIntakeLog
               inquiries={state.inquiries}
-              onAccept={(inq) => run("accept inquiry", () => prismApi.acceptInquiry(inq.id))}
-              onPend={(inq) => run("pend inquiry", () => prismApi.pendInquiry(inq.id))}
-              onDecline={(inq, reason) => run("decline inquiry", () => prismApi.declineInquiry(inq.id, reason))}
+              onAccept={(inq) => run("accept inquiry", () => ops.acceptInquiry(inq.id))}
+              onPend={(inq) => run("pend inquiry", () => ops.pendInquiry(inq.id))}
+              onDecline={(inq, reason) => run("decline inquiry", () => ops.declineInquiry(inq.id, reason))}
               busy={Boolean(busy)}
             />
 
             <ClientOnboardingTracker
               inquiries={state.inquiries}
               onUploadConforme={(inq) => { setConformeUploadTarget(inq); return Promise.resolve(); }}
-              onSendReminder={(inq) => run("conforme reminder", () => prismApi.sendConformeReminder(inq.id))}
+              onSendReminder={(inq) => run("conforme reminder", () => ops.sendConformeReminder(inq.id))}
               busy={Boolean(busy)}
             />
 
@@ -2241,10 +2247,10 @@ export function EventDashboardShellView({
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-wrap gap-2">
-                        <Button size="sm" disabled={!!busy} onClick={() => run("approve account", () => prismApi.approveApprovalRequest(request.id))} className="rounded-lg font-bold">
+                        <Button size="sm" disabled={!!busy} onClick={() => run("approve account", () => ops.approveApprovalRequest(request.id))} className="rounded-lg font-bold">
                           Approve
                         </Button>
-                        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => run("decline account", () => prismApi.declineApprovalRequest(request.id))} className="rounded-lg font-bold">
+                        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => run("decline account", () => ops.declineApprovalRequest(request.id))} className="rounded-lg font-bold">
                           Decline
                         </Button>
                       </div>
@@ -2270,7 +2276,7 @@ export function EventDashboardShellView({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" className="rounded-lg font-bold" onClick={() => run("briefing", () => prismApi.submitBriefing(selectedEvent.id))}>
+                  <Button size="sm" className="rounded-lg font-bold" onClick={() => run("briefing", () => ops.submitBriefing(selectedEvent.id))}>
                     Submit briefing
                   </Button>
                   <Button size="sm" variant="outline" className="rounded-lg font-bold" onClick={() => navigateEventTab("suppliers")}>
@@ -2291,9 +2297,9 @@ export function EventDashboardShellView({
                   quoteRequestCount={quoteRequests.length}
                   quoteCount={quotes.length}
                   openCheckCount={openCheckCount}
-                  onSubmitBriefing={() => run("briefing", () => prismApi.submitBriefing(selectedEvent.id))}
+                  onSubmitBriefing={() => run("briefing", () => ops.submitBriefing(selectedEvent.id))}
                   onOpenSupplierDesk={() => navigateEventTab("suppliers")}
-                  onRunCompliance={() => run("compliance", () => prismApi.runCompliance(selectedEvent.id, "planning"))}
+                  onRunCompliance={() => run("compliance", () => ops.runCompliance(selectedEvent.id, "planning"))}
                   onOpenCoordinatorDesk={() => navigateEventTab("coordinators")}
                   onOpenLiveOps={() => navigateEventTab("live-ops")}
                   onOpenFloorplans={() => navigateEventTab("floorplans")}
@@ -2364,12 +2370,12 @@ export function EventDashboardShellView({
                                   Open / Edit
                                 </Button>
                                 {draft.status !== "in_review" && draft.status !== "approved" && (
-                                  <Button size="sm" className="rounded-lg font-bold" onClick={() => run("submit draft", () => prismApi.submitFloorPlanDraft(selectedEvent.id, draft.id))}>
+                                  <Button size="sm" className="rounded-lg font-bold" onClick={() => run("submit draft", () => ops.submitFloorPlanDraft(selectedEvent.id, draft.id))}>
                                     Submit
                                   </Button>
                                 )}
                                 {draft.status !== "approved" && (
-                                  <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/15" onClick={() => run("approve draft", () => prismApi.approveFloorPlanDraft(selectedEvent.id, draft.id))}>
+                                  <Button size="sm" variant="outline" className="rounded-lg border-(--prism-success)/25 bg-(--prism-success)/8 font-bold text-(--prism-success) hover:bg-(--prism-success)/15" onClick={() => run("approve draft", () => ops.approveFloorPlanDraft(selectedEvent.id, draft.id))}>
                                     Approve
                                   </Button>
                                 )}
@@ -2428,8 +2434,8 @@ export function EventDashboardShellView({
                         suppliers={suppliers}
                         requests={quoteRequests}
                         quotes={quotes}
-                        onRequestQuotes={(input) => run("request supplier quotes", () => prismApi.requestSupplierQuotes(selectedEvent.id, input))}
-                        onSelectQuote={(quoteId) => run("select supplier quote", () => prismApi.selectSupplierQuote(selectedEvent.id, quoteId))}
+                        onRequestQuotes={(input) => run("request supplier quotes", () => ops.requestSupplierQuotes(selectedEvent.id, input))}
+                        onSelectQuote={(quoteId) => run("select supplier quote", () => ops.selectSupplierQuote(selectedEvent.id, quoteId))}
                         busy={Boolean(busy)}
                       />
                     </CardBody>
@@ -2456,7 +2462,7 @@ export function EventDashboardShellView({
                         eventId={selectedEvent.id}
                         assignedRequests={quoteRequests.filter((r) => r.assignmentStatus === "confirmed")}
                         suppliers={suppliers}
-                        onWithdraw={(requestId) => run("withdraw supplier", () => prismApi.withdrawSupplier(selectedEvent.id, requestId))}
+                        onWithdraw={(requestId) => run("withdraw supplier", () => ops.withdrawSupplier(selectedEvent.id, requestId))}
                         busy={Boolean(busy)}
                       />
                     </CardBody>
@@ -2472,7 +2478,7 @@ export function EventDashboardShellView({
                   roleRequirements={coordinatorRoleRequirements}
                   busy={Boolean(busy)}
                   onAssign={(coordinator, role, override) => run("coordinator assignment", () =>
-                    prismApi.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
+                    ops.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict: override })
                   )}
                 />
               )}
@@ -2485,20 +2491,20 @@ export function EventDashboardShellView({
                   coordinators={coordinators}
                   busy={Boolean(busy)}
                   onReload={loadLiveOps}
-                  onCreateTask={(input) => runLiveOps("create task", () => prismApi.createEventDayTask(selectedEvent.id, input))}
-                  onUpdateTask={(taskId, input) => runLiveOps("update task", () => prismApi.updateEventDayTask(selectedEvent.id, taskId, input))}
-                  onEscalateTask={(taskId, input) => runLiveOps("escalate task", () => prismApi.escalateEventDayTask(selectedEvent.id, taskId, input))}
-                  onCreateIssue={(input) => runLiveOps("create issue", () => prismApi.createUrgentIssue(selectedEvent.id, input))}
-                  onUpdateIssue={(issueId, input) => runLiveOps("update issue", () => prismApi.updateUrgentIssue(selectedEvent.id, issueId, input))}
-                  onEscalateIssue={(issueId, input) => runLiveOps("escalate issue", () => prismApi.escalateUrgentIssue(selectedEvent.id, issueId, input))}
+                  onCreateTask={(input) => runLiveOps("create task", () => ops.createEventDayTask(selectedEvent.id, input))}
+                  onUpdateTask={(taskId, input) => runLiveOps("update task", () => ops.updateEventDayTask(selectedEvent.id, taskId, input))}
+                  onEscalateTask={(taskId, input) => runLiveOps("escalate task", () => ops.escalateEventDayTask(selectedEvent.id, taskId, input))}
+                  onCreateIssue={(input) => runLiveOps("create issue", () => ops.createUrgentIssue(selectedEvent.id, input))}
+                  onUpdateIssue={(issueId, input) => runLiveOps("update issue", () => ops.updateUrgentIssue(selectedEvent.id, issueId, input))}
+                  onEscalateIssue={(issueId, input) => runLiveOps("escalate issue", () => ops.escalateUrgentIssue(selectedEvent.id, issueId, input))}
                   onUpdateCoordinatorAttendance={(assignmentId, input) => runLiveOps("attendance", () =>
-                    prismApi.updateCoordinatorAttendance(selectedEvent.id, assignmentId, { ...input, markedBy: session.name })
+                    ops.updateCoordinatorAttendance(selectedEvent.id, assignmentId, { ...input, markedBy: session.name })
                   )}
                   onReplaceCoordinator={(assignmentId, input) => runLiveOps("replace coordinator", () =>
-                    prismApi.replaceCoordinator(selectedEvent.id, assignmentId, input)
+                    ops.replaceCoordinator(selectedEvent.id, assignmentId, input)
                   )}
                   onVerifySupplierStatus={(requestId, input) => runLiveOps("verify supplier", () =>
-                    prismApi.verifySupplierStatus(selectedEvent.id, requestId, { ...input, verifiedBy: session.name })
+                    ops.verifySupplierStatus(selectedEvent.id, requestId, { ...input, verifiedBy: session.name })
                   )}
                 />
               )}
@@ -2511,8 +2517,8 @@ export function EventDashboardShellView({
                   payments={payments}
                   notificationLogs={notificationLogs}
                   busy={Boolean(busy)}
-                  onRecordPayment={(milestoneId, input) => run("record payment", () => prismApi.recordPayment(selectedEvent.id, milestoneId, input))}
-                  onSendBilling={(billingId) => run("send billing", () => prismApi.sendBillingStatement(selectedEvent.id, billingId))}
+                  onRecordPayment={(milestoneId, input) => run("record payment", () => ops.recordPayment(selectedEvent.id, milestoneId, input))}
+                  onSendBilling={(billingId) => run("send billing", () => ops.sendBillingStatement(selectedEvent.id, billingId))}
                 />
               )}
 
@@ -2525,21 +2531,21 @@ export function EventDashboardShellView({
                   billingStatements={billingStatements}
                   insights={eventInsights}
                   busy={Boolean(busy)}
-                  onCreateRule={(input) => run("create compliance rule", () => prismApi.createComplianceRule(input))}
-                  onRunCompliance={(phase) => run("run compliance", () => prismApi.runCompliance(selectedEvent.id, phase))}
+                  onCreateRule={(input) => run("create compliance rule", () => ops.createComplianceRule(input))}
+                  onRunCompliance={(phase) => run("run compliance", () => ops.runCompliance(selectedEvent.id, phase))}
                   onResolveCompliance={(checkId) => run("resolve compliance", () =>
-                    prismApi.resolveCompliance(selectedEvent.id, checkId, { action: "resolve", note: "Resolved during PMCM review.", actorName: "Ms. Mys" })
+                    ops.resolveCompliance(selectedEvent.id, checkId, { action: "resolve", note: "Resolved during PMCM review.", actorName: "Ms. Mys" })
                   )}
                   onOverrideCompliance={(checkId, reason) => run("override compliance", () =>
-                    prismApi.resolveCompliance(selectedEvent.id, checkId, { action: "override", overrideReason: reason, actorName: "Ms. Mys" })
+                    ops.resolveCompliance(selectedEvent.id, checkId, { action: "override", overrideReason: reason, actorName: "Ms. Mys" })
                   )}
-                  onCreateBillingSource={(input) => run("create billing source", () => prismApi.createBillingSource(selectedEvent.id, input))}
-                  onApproveBillingSource={(sourceId) => run("approve billing source", () => prismApi.approveBillingSource(selectedEvent.id, sourceId, "Approved by PMCM."))}
-                  onGenerateBillingStatement={(sourceId) => run("generate billing statement", () => prismApi.generateBillingStatement(selectedEvent.id, sourceId))}
-                  onLoadCloseGates={() => prismApi.closeGates(selectedEvent.id)}
-                  onArchive={(reason) => run("archive event", () => prismApi.archiveEvent(selectedEvent.id, reason))}
-                  onLoadInsights={() => prismApi.eventInsights(selectedEvent.id)}
-                  onGenerateInsights={() => run("generate insights", () => prismApi.generateEventInsights(selectedEvent.id))}
+                  onCreateBillingSource={(input) => run("create billing source", () => ops.createBillingSource(selectedEvent.id, input))}
+                  onApproveBillingSource={(sourceId) => run("approve billing source", () => ops.approveBillingSource(selectedEvent.id, sourceId, "Approved by PMCM."))}
+                  onGenerateBillingStatement={(sourceId) => run("generate billing statement", () => ops.generateBillingStatement(selectedEvent.id, sourceId))}
+                  onLoadCloseGates={() => ops.closeGates(selectedEvent.id)}
+                  onArchive={(reason) => run("archive event", () => ops.archiveEvent(selectedEvent.id, reason))}
+                  onLoadInsights={() => ops.eventInsights(selectedEvent.id)}
+                  onGenerateInsights={() => run("generate insights", () => ops.generateEventInsights(selectedEvent.id))}
                 />
               )}
 
@@ -2569,7 +2575,7 @@ export function EventDashboardShellView({
         <ConformeUploadModal
           inquiry={conformeUploadTarget}
           onUpload={async (file) => {
-            await prismApi.uploadConforme(conformeUploadTarget.id, {
+            await ops.uploadConforme(conformeUploadTarget.id, {
               fileName: file.name,
               mimeType: file.type,
               sizeBytes: file.size,
