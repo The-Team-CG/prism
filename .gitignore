@@ -77,3 +77,4 @@ Thumbs.db
 # locally for reference, must not be swept back in by git add -A/-u)
 OwnerB_PRISM_StoryLogs/
 PRISM_Audits/
+handoffs_archive/
