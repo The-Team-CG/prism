@@ -1,8 +1,7 @@
 import type { PrismGuestEventPass } from "@prism/types";
 import type { GuestEventInfoRow } from "./guest-event-info-types";
 
-export const GUEST_INFO_API_OFFLINE_MESSAGE =
-  "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
+export { GUEST_API_OFFLINE_MESSAGE as GUEST_INFO_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-http";
 
 export function decodeAccessCodeParam(raw: string): string {
   return decodeURIComponent(raw);
