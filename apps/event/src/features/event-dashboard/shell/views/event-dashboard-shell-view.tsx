@@ -53,24 +53,7 @@ import {
   UsersRound,
   type LucideIcon,
   } from "lucide-react";
-import {
-  type PrismApprovalRequest,
-  type PrismBillingStatement,
-  type PrismBriefing,
-  type PrismComplianceCheck,
-  type PrismCoordinatorWorkspace,
-  type PrismDefenseReadiness,
-  type PrismDocument,
-  type PrismEvent,
-  type PrismEventDayStatusFeed,
-  type PrismFloorPlanDraft,
-  type PrismInquiry,
-  type PrismLiveOps,
-  type PrismPostEventDocument,
-  type PrismPmcmCommandInbox,
-  type PrismPmcmDashboardWorkspace,
-  type PrismSupplierQuoteRequest,
-} from "@/lib/prism-api";
+import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismCoordinatorWorkspace, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismEventDayStatusFeed, PrismFloorPlanDraft, PrismInquiry, PrismLiveOps, PrismPostEventDocument, PrismPmcmCommandInbox, PrismPmcmDashboardWorkspace, PrismSupplierQuoteRequest } from "@prism/types";
 import { PrismDashboardShell, type PrismNavItem } from "@prism/ui";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";

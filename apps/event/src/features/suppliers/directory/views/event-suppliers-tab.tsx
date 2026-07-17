@@ -1,13 +1,8 @@
 import { Truck } from "lucide-react";
 
-import type { PrismSupplier, PrismSupplierCategory } from "@/lib/prism-api";
+import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { SupplierQuotePlanner } from "./supplier-quote-planner";
-import type {
-  SupplierQuoteRequestRow,
-  SupplierQuoteRow,
-  SupplierQuoteSelectHandler,
-  SupplierRequestHandler,
-} from "@/features/pmcm-kit";
+import type { SupplierQuoteRequestRow, SupplierQuoteRow, SupplierQuoteSelectHandler, SupplierRequestHandler } from "@/features/pmcm-kit";
 import { Panel } from "@/features/pmcm-kit";
 
 export function EventSuppliersTab({

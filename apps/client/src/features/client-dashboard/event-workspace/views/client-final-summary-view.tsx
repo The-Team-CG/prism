@@ -1,10 +1,10 @@
 "use client";
 
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { formatStatusLabel } from "../../workspace/shared";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientFinalSummaryPage() {
+export function ClientFinalSummaryView() {
   const { selectedEvent, officialDraft, billing, documents } = useClientWorkspace();
 
   return (

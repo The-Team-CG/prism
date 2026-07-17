@@ -13,17 +13,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EventSummaryCard } from "../../workspace/views/sections/shell-presentational";
+import { EventSummaryCard } from "../../workspace/shared";
 import {
   eventProgressDots,
   formatStatusLabel,
   greetingByTime,
-} from "../../workspace/model/client-dashboard-view-rules";
-import { dashboardHref } from "../../workspace/model/client-dashboard.navigation";
+} from "../../workspace/shared";
+import { dashboardHref } from "../../workspace/shared";
 import { ClientActionGroup } from "../../shared/client-action-group";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientHomePage() {
+export function ClientHomeView() {
   const {
     router,
     session,

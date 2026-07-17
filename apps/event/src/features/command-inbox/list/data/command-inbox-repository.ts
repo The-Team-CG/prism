@@ -1,6 +1,4 @@
-import {
-  type PrismPmcmCommandInbox,
-} from "@/lib/prism-api";
+import type { PrismPmcmCommandInbox } from "@prism/types";
 import { eventOpsRepository } from "@/features/event-ops";
 
 type TimedCache<T> = { value: T; loadedAt: number };

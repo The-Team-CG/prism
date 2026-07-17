@@ -6,9 +6,9 @@ import {
   clientActivityActor,
   clientActivityTitle,
 } from "../../shared/tab-ui";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientMessagesPage() {
+export function ClientMessagesView() {
   const {
     session,
     selectedEvent,

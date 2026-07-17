@@ -1,11 +1,6 @@
 import { MessageSquareText } from "lucide-react";
 
-import type {
-  PrismAuditLog,
-  PrismCoordinatorAssignment,
-  PrismEvent,
-  PrismNotificationLog,
-} from "@/lib/prism-api";
+import type { PrismAuditLog, PrismCoordinatorAssignment, PrismEvent, PrismNotificationLog } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { cx, label } from "@/features/pmcm-kit";
 import { Panel } from "@/features/pmcm-kit";

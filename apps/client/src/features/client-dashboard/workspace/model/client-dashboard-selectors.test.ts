@@ -4,7 +4,7 @@ import {
   selectEventDrafts,
   selectEventWorkspaceResources,
   selectSelectedClientEvent,
-} from "./client-dashboard.selectors";
+} from "./client-dashboard-selectors";
 import type { PrismClientWorkspace, PrismEvent, PrismUser } from "@prism/types";
 
 const session = { name: "Ana Reyes" } as Pick<PrismUser, "name">;

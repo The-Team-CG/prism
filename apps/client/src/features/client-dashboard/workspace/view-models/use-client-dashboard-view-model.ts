@@ -2,13 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PrismClientActionCenter, PrismClientWorkspace, PrismUser } from "@/lib/prism-api";
-import { dashboardHref } from "../model/client-dashboard.navigation";
-import type {
-  ClientDashboardRoute,
-  ClientPortalView,
-  ClientSession,
-} from "../model/client-dashboard.types";
+import type { PrismClientActionCenter, PrismClientWorkspace, PrismUser } from "@prism/types";
+import { dashboardHref } from "../model/client-dashboard-navigation";
+import type { ClientDashboardRoute, ClientPortalView, ClientSession } from "../model/client-dashboard-types";
 import {
   loadClientActionCenter,
   loadClientWorkspace,
@@ -83,7 +79,7 @@ async function loadActionCenterCached(session: Pick<PrismUser, "email" | "name">
   return request;
 }
 
-export function useClientDashboardState({
+export function useClientDashboardViewModel({
   route,
   eventId,
   portalView,

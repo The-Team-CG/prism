@@ -1,1 +1,1 @@
-export { ClientFilesPage } from "./views/client-files-page";
+export { ClientFilesView } from "./views/client-files-view";

@@ -1,9 +1,4 @@
-import type {
-  PrismClientWorkspace,
-  PrismEvent,
-  PrismFloorPlanDraft,
-  PrismUser,
-} from "@prism/types";
+import type { PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft, PrismUser } from "@prism/types";
 
 export function selectClientEvents(
   state: Pick<PrismClientWorkspace, "events"> | null | undefined,

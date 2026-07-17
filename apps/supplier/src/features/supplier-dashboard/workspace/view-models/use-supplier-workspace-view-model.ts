@@ -9,14 +9,7 @@ import {
   mergeQuoteForms,
   sectionMeta,
 } from "../model/supplier-workspace-rules";
-import type {
-  PrismSupplierQuoteRequest,
-  PrismSupplierReadinessBoard,
-  QuoteFormState,
-  SupplierDashboardSection,
-  SupplierSession,
-  SupplierWorkspace,
-} from "../model/supplier-workspace-types";
+import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierSession, SupplierWorkspace } from "../model/supplier-workspace-types";
 import {
   confirmSupplierAssignment,
   confirmSupplierReadiness,

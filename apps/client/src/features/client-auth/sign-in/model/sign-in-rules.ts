@@ -1,4 +1,4 @@
-import type { PrismUser } from "@/lib/prism-api";
+import type { PrismUser } from "@prism/types";
 import type { SignInDraft } from "./sign-in-types";
 import { CLIENT_SAMPLE_USERS, SAMPLE_PASSWORDS } from "./sign-in-types";
 

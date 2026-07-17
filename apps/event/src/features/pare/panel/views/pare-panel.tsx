@@ -19,11 +19,7 @@ import {
   UserX,
   Zap,
 } from "lucide-react";
-import {
-  type PrismSupplier,
-  type PAREApprovalRecord,
-  type PARERisk
-} from "@/lib/prism-api";
+import type { PrismSupplier, PAREApprovalRecord, PARERisk } from "@prism/types";
 import type { SupplierQuoteRequestRow } from "@/features/pmcm-kit";
 import { money } from "@/features/pmcm-kit";
 

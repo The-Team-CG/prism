@@ -1,4 +1,4 @@
-import type { PrismSupplier, PrismSupplierQuoteRequest } from "@/lib/prism-api";
+import type { PrismSupplier, PrismSupplierQuoteRequest } from "@prism/types";
 import type { PrismAuthenticatedSession } from "@prism/types";
 
 export type PmcmEventSession = PrismAuthenticatedSession;

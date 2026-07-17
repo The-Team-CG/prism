@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  PrismApprovalRequest,
-  PrismEvent,
-  PrismPmcmDashboardWorkspace,
-  PrismPmcmEventWorkspace,
-} from "@prism/types";
+import type { PrismApprovalRequest, PrismEvent, PrismPmcmDashboardWorkspace, PrismPmcmEventWorkspace } from "@prism/types";
 import {
   selectActiveEvents,
   selectEventWorkspaceResources,

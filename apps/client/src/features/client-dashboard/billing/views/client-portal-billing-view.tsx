@@ -2,12 +2,12 @@
 
 import { WalletCards } from "lucide-react";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { PageHeader } from "../../workspace/views/sections/shell-presentational";
-import { CLIENT_PORTAL_VIEW_META } from "../../workspace/model/client-dashboard.navigation";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { PageHeader } from "../../workspace/shared";
+import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
+import { useClientWorkspace } from "../../workspace/shared";
 import { ClientBillingTab } from "./client-billing-tab";
 
-export function ClientPortalBillingPage() {
+export function ClientPortalBillingView() {
   const {
     portalView,
     selectedEvent,

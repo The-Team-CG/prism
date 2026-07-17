@@ -4,11 +4,11 @@ import { CalendarDays } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { cn } from "@/app/components/ui/utils";
-import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
-import { CLIENT_PORTAL_VIEW_META } from "../../workspace/model/client-dashboard.navigation";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { formatStatusLabel } from "../../workspace/shared";
+import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientCalendarPage() {
+export function ClientCalendarView() {
   const {
     portalView,
     state,

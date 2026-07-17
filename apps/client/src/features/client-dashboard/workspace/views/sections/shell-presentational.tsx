@@ -12,12 +12,8 @@ import { Button } from "@/app/components/ui/button";
 import { Label } from "@/app/components/ui/label";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { cn } from "@/app/components/ui/utils";
-import type {
-  PrismBillingStatement,
-  PrismBriefing,
-  PrismEvent,
-} from "@/lib/prism-api";
-import type { ClientSidebarSubItem } from "../../model/client-dashboard.types";
+import type { PrismBillingStatement, PrismBriefing, PrismEvent } from "@prism/types";
+import type { ClientSidebarSubItem } from "../../model/client-dashboard-types";
 import {
   eventDateParts,
   formatEventDate,

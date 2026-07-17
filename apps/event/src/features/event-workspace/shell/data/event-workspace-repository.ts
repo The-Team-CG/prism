@@ -1,10 +1,4 @@
-import {
-  type PrismApprovalRequest,
-  type PrismDefenseReadiness,
-  type PrismEventDayStatusFeed,
-  type PrismLiveOps,
-  type PrismPmcmEventWorkspace,
-} from "@/lib/prism-api";
+import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFeed, PrismLiveOps, PrismPmcmEventWorkspace } from "@prism/types";
 import { eventOpsRepository } from "@/features/event-ops";
 
 type TimedCache<T> = { value: T; loadedAt: number };
