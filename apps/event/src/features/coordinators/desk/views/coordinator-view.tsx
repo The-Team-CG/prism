@@ -1,6 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+
+import {
+  useEffect,
+  useState } from "react";
+import {
+  acknowledgeAndRefreshRoleView,
+  loadCoordinatorRoleView,
+} from "../use-cases/coordinator-desk-actions";
+import {
+  isRegistrationCoordinatorRole,
+  pickActiveAssignment,
+  sameCoordinatorName,
+} from "../model/coordinators-desk-rules";
 import {
   AlertTriangle,
   BadgeCheck,
@@ -16,9 +28,12 @@ import {
   Truck,
   UserCheck,
   UsersRound,
-} from "lucide-react";
+  } from "lucide-react";
 
-import { prismApi, type PrismCoordinatorRoleView, type PrismCoordinatorWorkspace } from "@/lib/prism-api";
+import {
+  type PrismCoordinatorRoleView,
+  type PrismCoordinatorWorkspace,
+} from "@/lib/prism-api";
 import { PrismDashboardShell } from "@prism/ui";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
@@ -160,14 +175,6 @@ function CompactRecordList({ items, emptyText = "No records available." }: { ite
   );
 }
 
-function sameText(left?: string | null, right?: string | null) {
-  return (left ?? "").trim().toLowerCase() === (right ?? "").trim().toLowerCase();
-}
-
-function isRegistrationRole(role?: string | null) {
-  return Boolean(role && role.toLowerCase().includes("registration"));
-}
-
 /* ── Card primitives ─────────────────────────────────────────── */
 
 function CCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -209,8 +216,10 @@ export function CoordinatorView({
   onRefresh: () => Promise<void>;
   onSignOut?: () => void;
 }) {
-  const assignments = state.assignments.filter((item) => sameText(item.coordinatorName, session.name));
-  const assignment = assignments.find((item) => item.attendanceStatus !== "replaced" && item.status !== "replaced") ?? assignments[0];
+  const assignments = state.assignments.filter((item) =>
+    sameCoordinatorName(item.coordinatorName, session.name),
+  );
+  const assignment = pickActiveAssignment(assignments);
   const event = assignment ? state.events.find((item) => item.id === assignment.eventId) : undefined;
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event?.id && draft.isActive);
   const [busy, setBusy] = useState(false);
@@ -229,7 +238,7 @@ export function CoordinatorView({
     let alive = true;
     setRoleViewLoading(true);
     setRoleViewError(null);
-    prismApi.coordinatorRoleView(session, event.id)
+    loadCoordinatorRoleView(session, event.id)
       .then((next) => { if (alive) setRoleView(next); })
       .catch((err) => {
         if (!alive) return;
@@ -244,11 +253,16 @@ export function CoordinatorView({
     if (!event || !assignment) return;
     setBusy(true);
     try {
-      await prismApi.acknowledgeCoordinator(event.id, assignment.id);
       setRoleViewLoading(true);
       setRoleViewError(null);
       try {
-        setRoleView(await prismApi.coordinatorRoleView(session, event.id));
+        setRoleView(
+          await acknowledgeAndRefreshRoleView({
+            session,
+            eventId: event.id,
+            assignmentId: assignment.id,
+          }),
+        );
       } catch (err) {
         setRoleView(null);
         setRoleViewError(err instanceof Error ? err.message : "Unable to refresh role-safe event data.");
@@ -263,7 +277,7 @@ export function CoordinatorView({
 
   const roleName = assignment?.role ?? label(session.role);
   const attendanceStatus = assignment?.attendanceStatus ?? assignment?.status ?? "pending";
-  const registrationRole = isRegistrationRole(assignment?.role);
+  const registrationRole = isRegistrationCoordinatorRole(assignment?.role);
   const roleDataStatus = roleViewLoading ? "loading" : roleViewError ? "unavailable" : roleView ? "ready" : "pending";
 
   const taskActionDescription = roleViewLoading

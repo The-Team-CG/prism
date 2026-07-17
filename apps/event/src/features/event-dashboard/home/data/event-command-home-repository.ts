@@ -1,7 +1,7 @@
 /**
  * I/O facade for the PMCM command home surface.
- * Presentation imports this repository rather than calling prism-api directly.
+ * Prefer view-model commands (`useEventOpsCommands`); this repo remains for non-view loaders.
  */
-import { prismApi } from "@/lib/prism-api";
+import { eventOpsRepository } from "@/features/event-ops";
 
-export const eventCommandHomeRepository = prismApi;
+export const eventCommandHomeRepository = eventOpsRepository;

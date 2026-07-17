@@ -1,8 +1,8 @@
 import {
-  prismApi,
   type PrismCoordinatorWorkspace,
   type PrismPmcmDashboardWorkspace,
 } from "@/lib/prism-api";
+import { eventOpsRepository } from "@/features/event-ops";
 import type { EventSession } from "@/app/lib/session";
 
 type TimedCache<T> = { value: T; loadedAt: number };
@@ -35,7 +35,7 @@ export const pmcmDashboardRepository = {
     }
     if (!force && pmcmStateRequest) return pmcmStateRequest;
 
-    pmcmStateRequest = prismApi
+    pmcmStateRequest = eventOpsRepository
       .pmcmState()
       .then((next) => {
         pmcmStateCache = { value: next, loadedAt: Date.now() };
@@ -60,7 +60,7 @@ export const pmcmDashboardRepository = {
     const existing = coordinatorWorkspaceRequests.get(key);
     if (!force && existing) return existing;
 
-    const request = prismApi
+    const request = eventOpsRepository
       .coordinatorWorkspace(session)
       .then((next) => {
         coordinatorWorkspaceCache.set(key, { value: next, loadedAt: Date.now() });

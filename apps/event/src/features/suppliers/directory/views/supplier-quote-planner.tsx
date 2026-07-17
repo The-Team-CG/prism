@@ -4,6 +4,10 @@ import { CalendarDays, Check, ChevronDown, Flag, Send, ShieldOff, X } from "luci
 import type { PrismSupplier, PrismSupplierCategory } from "@/lib/prism-api";
 import { cx, label, money, RatingStars, tierLabel } from "@/app/components/pmcm/helpers";
 import type { SupplierQuoteRequestRow, SupplierQuoteRow, SupplierQuoteSelectHandler, SupplierRequestHandler } from "@/app/components/pmcm/types";
+import {
+  isQuoteRequestReady,
+  toggleSupplierSelection,
+} from "../model/suppliers-directory-rules";
 
 export function SupplierQuotePlanner({
   categories,
@@ -64,12 +68,11 @@ export function SupplierQuotePlanner({
   }
 
   function toggleSupplier(supplierId: string) {
-    setSelectedSupplierIds((current) =>
-      current.includes(supplierId) ? current.filter((id) => id !== supplierId) : [...current, supplierId],
-    );
+    setSelectedSupplierIds((current) => toggleSupplierSelection(current, supplierId));
   }
 
   async function submitQuoteRequest() {
+    if (!isQuoteRequestReady({ supplierIds: selectedAvailableSupplierIds })) return;
     await onRequestQuotes({
       categoryId,
       supplierIds: selectedAvailableSupplierIds,
