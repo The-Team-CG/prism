@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useEventOpsCommands } from "@/features/event-ops";
+import { formatShortDate, humanizeToken, useEventOpsCommands } from "@/features/event-ops";
 import dynamic from "next/dynamic";
 import {
   useEffect,
@@ -153,18 +153,7 @@ type Screen =
   | { name: "portal" }
   | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project };
 
-function lbl(value: string) {
-  return value.replaceAll("_", " ");
-}
-
 const phpMoney = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
-
-function shortDate(value?: string | null) {
-  if (!value) return "No date";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
 
 const EVENT_WORKSPACE_CACHE_MS = 20_000;
 
@@ -423,9 +412,9 @@ function EventFileHub({
       id: `document-${document.id}`,
       title: document.fileName,
       subtitle: "Uploaded file",
-      category: lbl(document.type),
-      status: lbl(document.status),
-      date: shortDate(document.uploadedAt),
+      category: humanizeToken(document.type),
+      status: humanizeToken(document.status),
+      date: formatShortDate(document.uploadedAt),
       owner: event.clientName,
       extension: document.fileName.split(".").pop()?.toUpperCase() || "FILE",
       kind: "document" as const,
@@ -438,9 +427,9 @@ function EventFileHub({
       title: `${draft.name}.floorplan`,
       subtitle: "Official layout",
       category: "Floorplans",
-      status: lbl(draft.status),
-      date: shortDate(draft.approvedAt ?? draft.submittedAt ?? draft.updatedAt),
-      owner: draft.createdByRole ? lbl(draft.createdByRole) : "PMCM",
+      status: humanizeToken(draft.status),
+      date: formatShortDate(draft.approvedAt ?? draft.submittedAt ?? draft.updatedAt),
+      owner: draft.createdByRole ? humanizeToken(draft.createdByRole) : "PMCM",
       extension: "PLAN",
       kind: "floorplan" as const,
       meta: `Floor plan ${draft.floorPlanId}`,
@@ -452,8 +441,8 @@ function EventFileHub({
       title: `Billing Statement ${statement.number}.pdf`,
       subtitle: "Invoice PDF",
       category: "Billing",
-      status: lbl(statement.status),
-      date: shortDate(statement.sentAt ?? statement.generatedAt),
+      status: humanizeToken(statement.status),
+      date: formatShortDate(statement.sentAt ?? statement.generatedAt),
       owner: statement.clientName || event.clientName,
       extension: "PDF",
       kind: "invoice" as const,
@@ -469,8 +458,8 @@ function EventFileHub({
         title: `${request.supplierName} Contract.pdf`,
         subtitle: request.category,
         category: "Supplier Contracts",
-        status: lbl(request.assignmentStatus ?? request.status),
-        date: shortDate(request.createdAt),
+        status: humanizeToken(request.assignmentStatus ?? request.status),
+        date: formatShortDate(request.createdAt),
         owner: request.supplierName,
         extension: "PDF",
         kind: "contract" as const,
@@ -486,7 +475,7 @@ function EventFileHub({
             subtitle: "Event dossier",
             category: "Briefing",
             status: "Submitted",
-            date: shortDate(briefing.submittedAt),
+            date: formatShortDate(briefing.submittedAt),
             owner: event.clientName,
             extension: "PDF",
             kind: "briefing" as const,
@@ -501,7 +490,7 @@ function EventFileHub({
             subtitle: "Compliance report",
             category: "Closeout",
             status: `${checks.filter((check) => check.status === "open").length} open`,
-            date: shortDate(checks[0]?.resolvedAt),
+            date: formatShortDate(checks[0]?.resolvedAt),
             owner: "PMCM",
             extension: "PDF",
             kind: "closeout" as const,
@@ -514,7 +503,7 @@ function EventFileHub({
         title: `${document.title}.pdf`,
         subtitle: "Post-event document",
         category: "Closeout",
-        status: lbl(document.status),
+        status: humanizeToken(document.status),
         date: event.eventDate,
         owner: "PMCM",
         extension: "PDF",
@@ -704,7 +693,7 @@ function EventCalendarWorkspace({
               className="flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-muted/30 data-[active=true]:bg-primary/5"
             >
               <span className="grid size-11 shrink-0 place-items-center rounded-md bg-primary/10 text-xs font-black text-primary">
-                {shortDate(event.eventDate).split(" ").slice(0, 2).join(" ")}
+                {formatShortDate(event.eventDate).split(" ").slice(0, 2).join(" ")}
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-black text-foreground">{event.eventName}</span>
@@ -833,7 +822,7 @@ function EventSettingsWorkspace({ session, selectedEvent }: { session: EventSess
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       {[
-        { label: "Signed in as", value: session.name, detail: lbl(session.role) },
+        { label: "Signed in as", value: session.name, detail: humanizeToken(session.role) },
         { label: "Default workspace", value: selectedEvent?.eventName ?? "No event selected", detail: selectedEvent?.clientName ?? "Pick an event from Events." },
         { label: "Notifications", value: "Email + Viber", detail: "Production adapters are still gated by notification infrastructure." },
       ].map((item) => (
@@ -1113,7 +1102,7 @@ function CommandHomePage({
               {pendingApprovals.slice(0, 3).map((req) => (
                 <div key={req.id} className="px-6 py-3.5">
                   <p className="truncate text-sm font-bold text-foreground">{req.name}</p>
-                  <p className="text-xs text-muted-foreground">{req.email} - {lbl(req.role)}</p>
+                  <p className="text-xs text-muted-foreground">{req.email} - {humanizeToken(req.role)}</p>
                 </div>
               ))}
             </div>
@@ -1787,7 +1776,7 @@ export function EventDashboardShellView({
         navItems={loadingShellNavItems(Boolean(routeState.eventId))}
         sidebarMode="single"
         onNavSelect={handleSidebarNav}
-        user={{ name: session.name, detail: lbl(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
+        user={{ name: session.name, detail: humanizeToken(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
         searchPlaceholder="Search events, suppliers, inquiries..."
         showTopBarSearch={false}
         onSignOut={signOut}
@@ -1900,7 +1889,7 @@ export function EventDashboardShellView({
       navItems={shellNavItems}
       sidebarMode="single"
       onNavSelect={handleSidebarNav}
-      user={{ name: session.name, detail: lbl(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
+      user={{ name: session.name, detail: humanizeToken(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       searchPlaceholder="Search events, suppliers, inquiries..."
       showTopBarSearch={false}
       onSignOut={signOut}
@@ -2243,7 +2232,7 @@ export function EventDashboardShellView({
                         <p className="truncate text-sm font-bold text-foreground">{request.name}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{request.email}</p>
                         <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-(--prism-amber)">
-                          {lbl(request.role)} — {request.organization}
+                          {humanizeToken(request.role)} — {request.organization}
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-wrap gap-2">
@@ -2272,7 +2261,7 @@ export function EventDashboardShellView({
                   <p className="mt-1 text-sm text-muted-foreground">{selectedEvent.clientName} — {selectedEvent.eventDate}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <StatusBadge status={selectedEvent.status} />
-                    <StatusBadge status={selectedEvent.floorPlanStatus} label={`Floorplan ${lbl(selectedEvent.floorPlanStatus)}`} />
+                    <StatusBadge status={selectedEvent.floorPlanStatus} label={`Floorplan ${humanizeToken(selectedEvent.floorPlanStatus)}`} />
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -2355,7 +2344,7 @@ export function EventDashboardShellView({
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                   <p className="truncate text-sm font-bold text-foreground">{draft.name}</p>
-                                  <p className="mt-0.5 text-xs text-muted-foreground">{lbl(draft.sourceType)} — {draft.createdByRole ?? "pmcm-admin"}</p>
+                                  <p className="mt-0.5 text-xs text-muted-foreground">{humanizeToken(draft.sourceType)} — {draft.createdByRole ?? "pmcm-admin"}</p>
                                 </div>
                                 <StatusBadge status={draft.status} />
                               </div>
