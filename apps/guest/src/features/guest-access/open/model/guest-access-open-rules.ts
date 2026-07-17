@@ -1,8 +1,7 @@
 import type { PrismGuestEventPass } from "@prism/types";
 import type { GuestAccessOpenDraft, GuestSession } from "./guest-access-open-types";
 
-export const GUEST_ACCESS_API_OFFLINE_MESSAGE =
-  "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
+export { GUEST_API_OFFLINE_MESSAGE as GUEST_ACCESS_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-http";
 
 export function normalizeAccessCode(raw: string): string {
   return raw.trim().toUpperCase();

@@ -1,64 +1,10 @@
 import { eventOpsRepository } from "../data/event-ops-repository";
 
 /**
- * Application commands for PMCM product actions.
- * View-models expose this object; views must not call the HTTP client.
+ * Application command surface for PMCM product actions.
+ * Same object as the repository today — a dedicated use-case module keeps
+ * the import direction ViewModel → use-case → data when we add orchestration.
  */
-export const eventOpsCommands = {
-  acceptInquiry: eventOpsRepository.acceptInquiry,
-  acknowledgeCoordinator: eventOpsRepository.acknowledgeCoordinator,
-  addSupplierCertification: eventOpsRepository.addSupplierCertification,
-  addSupplierReview: eventOpsRepository.addSupplierReview,
-  approvalRequests: eventOpsRepository.approvalRequests,
-  approveApprovalRequest: eventOpsRepository.approveApprovalRequest,
-  approveBillingSource: eventOpsRepository.approveBillingSource,
-  approveFloorPlanDraft: eventOpsRepository.approveFloorPlanDraft,
-  archiveEvent: eventOpsRepository.archiveEvent,
-  assignCoordinator: eventOpsRepository.assignCoordinator,
-  changeSupplierTier: eventOpsRepository.changeSupplierTier,
-  closeGates: eventOpsRepository.closeGates,
-  coordinatorRoleView: eventOpsRepository.coordinatorRoleView,
-  coordinatorWorkspace: eventOpsRepository.coordinatorWorkspace,
-  createBillingSource: eventOpsRepository.createBillingSource,
-  createComplianceRule: eventOpsRepository.createComplianceRule,
-  createEventDayTask: eventOpsRepository.createEventDayTask,
-  createFloorPlanDraft: eventOpsRepository.createFloorPlanDraft,
-  createSupplier: eventOpsRepository.createSupplier,
-  createUrgentIssue: eventOpsRepository.createUrgentIssue,
-  declineApprovalRequest: eventOpsRepository.declineApprovalRequest,
-  declineInquiry: eventOpsRepository.declineInquiry,
-  defenseReadiness: eventOpsRepository.defenseReadiness,
-  escalateEventDayTask: eventOpsRepository.escalateEventDayTask,
-  escalateUrgentIssue: eventOpsRepository.escalateUrgentIssue,
-  eventDayStatusFeed: eventOpsRepository.eventDayStatusFeed,
-  eventInsights: eventOpsRepository.eventInsights,
-  generateBillingStatement: eventOpsRepository.generateBillingStatement,
-  generateEventInsights: eventOpsRepository.generateEventInsights,
-  liveOps: eventOpsRepository.liveOps,
-  loadPlan: eventOpsRepository.loadPlan,
-  pendInquiry: eventOpsRepository.pendInquiry,
-  pmcmCommandInbox: eventOpsRepository.pmcmCommandInbox,
-  pmcmEventWorkspace: eventOpsRepository.pmcmEventWorkspace,
-  pmcmState: eventOpsRepository.pmcmState,
-  recordPayment: eventOpsRepository.recordPayment,
-  replaceCoordinator: eventOpsRepository.replaceCoordinator,
-  requestSupplierQuotes: eventOpsRepository.requestSupplierQuotes,
-  reset: eventOpsRepository.reset,
-  resolveCompliance: eventOpsRepository.resolveCompliance,
-  runCompliance: eventOpsRepository.runCompliance,
-  savePlan: eventOpsRepository.savePlan,
-  selectSupplierQuote: eventOpsRepository.selectSupplierQuote,
-  sendBillingStatement: eventOpsRepository.sendBillingStatement,
-  sendConformeReminder: eventOpsRepository.sendConformeReminder,
-  submitBriefing: eventOpsRepository.submitBriefing,
-  submitFloorPlanDraft: eventOpsRepository.submitFloorPlanDraft,
-  updateCoordinatorAttendance: eventOpsRepository.updateCoordinatorAttendance,
-  updateEventDayTask: eventOpsRepository.updateEventDayTask,
-  updateSupplier: eventOpsRepository.updateSupplier,
-  updateUrgentIssue: eventOpsRepository.updateUrgentIssue,
-  uploadConforme: eventOpsRepository.uploadConforme,
-  verifySupplierStatus: eventOpsRepository.verifySupplierStatus,
-  withdrawSupplier: eventOpsRepository.withdrawSupplier,
-} as const;
+export const eventOpsCommands = eventOpsRepository;
 
 export type EventOpsCommands = typeof eventOpsCommands;
