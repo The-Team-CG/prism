@@ -10,11 +10,15 @@ export * from './services/supplier-network-workflow.service';
 export * from './services/supplier-profile-commands.service';
 
 export * from './controllers/event-supplier-withdrawal.controller';
+export * from './controllers/supplier-applications.controller';
 export * from './controllers/supplier-directory.controller';
 export * from './controllers/supplier-pare.controller';
 export * from './controllers/supplier-workspace-commands.controller';
 export * from './controllers/suppliers.controller';
 export * from './dto/supplier.dto';
+export * from './dto/supplier-application.dto';
+export * from './mappers/supplier-application.mappers';
 export * from './mappers/supplier-quote-request.mapper';
+export { SupplierApplicationService } from './services/supplier-application.service';
 export { SuppliersService } from './services/suppliers.service';
 export type { AddSupplierQuoteInput } from './services/suppliers.service';
