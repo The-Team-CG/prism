@@ -36,12 +36,8 @@ import {
   ShieldCheck,
   WalletCards,
 } from "lucide-react";
-import {
-  type CreatePrismInquiryInput,
-  type PrismClientActionItem,
-  type PrismEvent,
-  type PrismFloorPlanDraft,
-} from "@/lib/prism-api";
+import type { PrismClientActionItem, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
+import type { CreatePrismInquiryInput } from "@prism/api-client";
 import {
   loadFloorPlanProject,
   loadOfficialFloorPlan,
@@ -62,15 +58,15 @@ import {
   DashboardSkeleton,
   DashboardSessionSkeleton,
 } from "./dashboard-tabs";
-import { ClientHomePage } from "../../home";
-import { ClientEventsPage } from "../../events";
-import { ClientRequestPage } from "../../request";
-import { ClientCalendarPage } from "../../calendar";
-import { ClientApprovalsPage } from "../../approvals";
-import { ClientFilesPage } from "../../files";
-import { ClientMessagesPage } from "../../messages";
-import { ClientPortalBillingPage } from "../../billing";
-import { ClientEventWorkspacePage } from "../../event-workspace";
+import { ClientHomeView } from "../../home";
+import { ClientEventsView } from "../../events";
+import { ClientRequestView } from "../../request";
+import { ClientCalendarView } from "../../calendar";
+import { ClientApprovalsView } from "../../approvals";
+import { ClientFilesView } from "../../files";
+import { ClientMessagesView } from "../../messages";
+import { ClientPortalBillingView } from "../../billing";
+import { ClientEventWorkspaceView } from "../../event-workspace";
 import {
   CLIENT_PORTAL_VIEW_META,
   CLIENT_SIDEBAR_ITEMS,
@@ -84,19 +80,15 @@ import {
   findClientSidebarLink,
   portalViewFromLink,
   sidebarActiveItemId,
-} from "../model/client-dashboard.navigation";
+} from "../model/client-dashboard-navigation";
 import {
   selectClientEvents,
   selectEventDrafts,
   selectEventWorkspaceResources,
   selectSelectedClientEvent,
-} from "../model/client-dashboard.selectors";
-import { useClientDashboardState } from "../view-models/use-client-dashboard-state";
-import type {
-  ClientDashboardRoute,
-  ClientPortalView,
-  DetailTab,
-} from "../model/client-dashboard.types";
+} from "../model/client-dashboard-selectors";
+import { useClientDashboardViewModel } from "../view-models/use-client-dashboard-view-model";
+import type { ClientDashboardRoute, ClientPortalView, DetailTab } from "../model/client-dashboard-types";
 
 export type { ClientDashboardRoute, ClientPortalView };
 
@@ -148,7 +140,7 @@ export function ClientDashboardWorkspaceView({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
-  const { actionCenter, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardState({
+  const { actionCenter, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardViewModel({
     route,
     eventId,
     portalView,
@@ -743,15 +735,15 @@ export function ClientDashboardWorkspaceView({
         <div className="space-y-5">
           {error && <NoticeBanner tone="danger">{error}</NoticeBanner>}
           {notice && <NoticeBanner tone="success">{notice}</NoticeBanner>}
-          {route === "home" && <ClientHomePage />}
-          {route === "request" && <ClientRequestPage />}
-          {route === "events" && <ClientEventsPage />}
-          {route === "calendar" && <ClientCalendarPage />}
-          {route === "approvals" && !isEventScopedView && <ClientApprovalsPage />}
-          {route === "messages" && !isEventScopedView && <ClientMessagesPage />}
-          {route === "files" && <ClientFilesPage />}
-          {route === "billing" && !isEventScopedView && <ClientPortalBillingPage />}
-          {isEventScopedView && <ClientEventWorkspacePage />}
+          {route === "home" && <ClientHomeView />}
+          {route === "request" && <ClientRequestView />}
+          {route === "events" && <ClientEventsView />}
+          {route === "calendar" && <ClientCalendarView />}
+          {route === "approvals" && !isEventScopedView && <ClientApprovalsView />}
+          {route === "messages" && !isEventScopedView && <ClientMessagesView />}
+          {route === "files" && <ClientFilesView />}
+          {route === "billing" && !isEventScopedView && <ClientPortalBillingView />}
+          {isEventScopedView && <ClientEventWorkspaceView />}
         </div>
       </PrismDashboardShell>
     </ClientWorkspaceProvider>

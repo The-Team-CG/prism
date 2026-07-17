@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { MessageSquareText, Search, Send } from "lucide-react";
 
-import type { PrismAuditLog, PrismEvent, PrismNotificationLog } from "@/lib/prism-api";
+import type { PrismAuditLog, PrismEvent, PrismNotificationLog } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import type { EventSession } from "@/app/lib/session";
 

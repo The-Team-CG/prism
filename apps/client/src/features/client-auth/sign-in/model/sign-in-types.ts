@@ -1,4 +1,4 @@
-import type { PrismUser } from "@/lib/prism-api";
+import type { PrismUser } from "@prism/types";
 
 export type SignInDraft = {
   email: string;

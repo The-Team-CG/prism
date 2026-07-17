@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileUp, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import type { PrismInquiry } from "@/lib/prism-api";
+import type { PrismInquiry } from "@prism/types";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 

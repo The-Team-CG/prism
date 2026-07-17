@@ -30,10 +30,8 @@ import {
   UsersRound,
   } from "lucide-react";
 
-import {
-  type PrismCoordinatorRoleView,
-  type PrismCoordinatorWorkspace,
-} from "@/lib/prism-api";
+import type { PrismCoordinatorRoleView } from "@/lib/prism-api";
+import type { PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";

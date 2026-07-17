@@ -14,16 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import {
-  type PrismCoordinator,
-  type PrismCoordinatorAssignment,
-  type PrismEvent,
-  type PrismEventDayStatusFeed,
-  type PrismEventDayTask,
-  type PrismLiveOps,
-  type PrismSupplierQuoteRequest,
-  type PrismUrgentIssue,
-} from "@/lib/prism-api";
+import type { PrismCoordinator } from "@/lib/prism-api";
+import type { PrismCoordinatorAssignment, PrismEvent, PrismEventDayStatusFeed, PrismEventDayTask, PrismLiveOps, PrismSupplierQuoteRequest, PrismUrgentIssue } from "@prism/types";
 import { cx, label } from "@/features/pmcm-kit";
 import {
   asIsoDateTime,

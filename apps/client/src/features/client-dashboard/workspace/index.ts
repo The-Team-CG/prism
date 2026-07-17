@@ -1,13 +1,7 @@
+/** App-route public surface for the client dashboard workspace. */
 export { ClientDashboardWorkspaceView } from "./views/client-dashboard-workspace-view";
-export {
-  ClientWorkspaceProvider,
-  useClientWorkspace,
-  type ClientWorkspaceValue,
-  type PreferenceForm,
-  type ClientRequestForm,
-} from "./client-workspace-context";
 export type {
   ClientDashboardRoute,
   ClientPortalView,
   ClientSession,
-} from "./model/client-dashboard.types";
+} from "./model/client-dashboard-types";

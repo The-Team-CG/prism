@@ -32,20 +32,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { Badge } from "@/app/components/ui/badge";
 import { formatShortDate, humanizeToken } from "@/features/event-ops";
 import type { EventSession } from "@/app/lib/session";
-import type {
-  PrismApprovalRequest,
-  PrismBillingStatement,
-  PrismBriefing,
-  PrismComplianceCheck,
-  PrismDefenseReadiness,
-  PrismDocument,
-  PrismEvent,
-  PrismFloorPlanDraft,
-  PrismInquiry,
-  PrismPmcmDashboardWorkspace,
-  PrismPostEventDocument,
-  PrismSupplierQuoteRequest,
-} from "@/lib/prism-api";
+import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmDashboardWorkspace, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
 import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
 import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
 import { CommandStat } from "./command-stat";

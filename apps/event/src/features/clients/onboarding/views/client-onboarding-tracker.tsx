@@ -1,6 +1,6 @@
 import { CheckCircle2, Circle, FileCheck2 } from "lucide-react";
 
-import type { PrismInquiry } from "@/lib/prism-api";
+import type { PrismInquiry } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";

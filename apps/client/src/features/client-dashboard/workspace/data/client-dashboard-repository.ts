@@ -3,18 +3,16 @@ import {
   PRISM_SESSION_STORAGE_KEYS,
   clearPrismSession,
   readPrismSession,
-} from "@prism/types";
-import {
-  prismApi,
-  type CreatePrismInquiryInput,
   type PrismClientActionCenter,
   type PrismClientWorkspace,
   type PrismFloorPlanDraft,
   type PrismFloorPlanPreference,
   type PrismUser,
-} from "@/lib/prism-api";
+} from "@prism/types";
+import type { CreatePrismInquiryInput } from "@prism/api-client";
+import { prismApi } from "@/lib/prism-api";
 import type { Project } from "@/features/floorplan/editor/types";
-import type { ClientSession } from "../model/client-dashboard.types";
+import type { ClientSession } from "../model/client-dashboard-types";
 
 export type FloorPlanPreferenceInput = {
   name: string;

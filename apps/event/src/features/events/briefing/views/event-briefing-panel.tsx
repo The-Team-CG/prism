@@ -1,6 +1,6 @@
 import { FileCheck2 } from "lucide-react";
 
-import type { PrismBriefing } from "@/lib/prism-api";
+import type { PrismBriefing } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Panel } from "@/features/pmcm-kit";
 

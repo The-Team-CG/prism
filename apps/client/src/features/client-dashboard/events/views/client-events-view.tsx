@@ -1,19 +1,19 @@
 "use client";
 
 import { CalendarDays, Send } from "lucide-react";
-import type { PrismEvent } from "@/lib/prism-api";
+import type { PrismEvent } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { cn } from "@/app/components/ui/utils";
-import { EventSummaryCard } from "../../workspace/views/sections/shell-presentational";
-import { eventProgressDots } from "../../workspace/model/client-dashboard-view-rules";
+import { EventSummaryCard } from "../../workspace/shared";
+import { eventProgressDots } from "../../workspace/shared";
 import {
   CLIENT_PORTAL_VIEW_META,
   dashboardHref,
-} from "../../workspace/model/client-dashboard.navigation";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+} from "../../workspace/shared";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientEventsPage() {
+export function ClientEventsView() {
   const {
     router,
     portalView,

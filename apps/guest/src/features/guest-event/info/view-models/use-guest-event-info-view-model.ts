@@ -3,10 +3,7 @@
 import { useEffect, useState } from "react";
 import type { PrismGuestEventPass } from "@prism/types";
 import { mapGuestEventInfoError } from "../model/guest-event-info-rules";
-import type {
-  GuestEventInfoRow,
-  GuestEventInfoStatus,
-} from "../model/guest-event-info-types";
+import type { GuestEventInfoRow, GuestEventInfoStatus } from "../model/guest-event-info-types";
 import { loadGuestEventInfo } from "../use-cases/guest-event-info-load";
 
 export function useGuestEventInfoViewModel(params: Promise<{ accessCode: string }>) {

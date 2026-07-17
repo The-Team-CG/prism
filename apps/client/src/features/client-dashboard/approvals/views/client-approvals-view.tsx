@@ -3,12 +3,12 @@
 import { BadgeCheck, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { PageHeader } from "../../workspace/views/sections/shell-presentational";
-import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
-import { CLIENT_PORTAL_VIEW_META } from "../../workspace/model/client-dashboard.navigation";
-import { useClientWorkspace } from "../../workspace/client-workspace-context";
+import { PageHeader } from "../../workspace/shared";
+import { formatStatusLabel } from "../../workspace/shared";
+import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
+import { useClientWorkspace } from "../../workspace/shared";
 
-export function ClientApprovalsPage() {
+export function ClientApprovalsView() {
   const {
     router,
     portalView,
