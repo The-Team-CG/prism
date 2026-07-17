@@ -6,6 +6,7 @@ import { EventCoreModule } from '@prism/modules/event-core';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsEventSupplierWithdrawalController } from './controllers/event-supplier-withdrawal.controller';
+import { OpsSupplierApplicationsController } from './controllers/supplier-applications.controller';
 import { OpsSupplierDirectoryController } from './controllers/supplier-directory.controller';
 import { OpsSupplierPareController } from './controllers/supplier-pare.controller';
 import { OpsSupplierWorkspaceCommandsController } from './controllers/supplier-workspace-commands.controller';
@@ -18,6 +19,7 @@ import {
   SUPPLIER_PARE_AUTOMATION,
 } from './ports/supplier-ops.tokens';
 import type { SupplierLiveOperations } from './ports/supplier-live-operations.port';
+import { SupplierApplicationService } from './services/supplier-application.service';
 import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
 import { SupplierProfileCommandsService } from './services/supplier-profile-commands.service';
 import { SuppliersService } from './services/suppliers.service';
@@ -42,6 +44,7 @@ const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
   imports: [DatabaseModule, AccessControlModule, AiGovernanceModule, EventCoreModule, TrustOpsModule, FileOpsModule],
   controllers: [
     OpsEventSupplierWithdrawalController,
+    OpsSupplierApplicationsController,
     OpsSupplierDirectoryController,
     OpsSuppliersController,
     OpsSupplierWorkspaceCommandsController,
@@ -49,6 +52,7 @@ const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
   ],
   providers: [
     SuppliersService,
+    SupplierApplicationService,
     supplierDirectoryProvider,
     SupplierProfileCommandsService,
     SupplierNetworkWorkflowService,
