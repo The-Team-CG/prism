@@ -98,6 +98,7 @@ export function mapUser(user: OpsUser) {
 
 export function mapInquiry(inquiry: OpsInquiry) {
   const triage = inquiry as OpsInquiry & {
+    channel?: string | null;
     normalizedEmail?: string;
     referralDetails?: string;
     loggedByRole?: string | null;
@@ -132,6 +133,7 @@ export function mapInquiry(inquiry: OpsInquiry) {
     eventDate: isoDate(inquiry.eventDate),
     clientType: inquiry.clientType,
     source: inquiry.source,
+    channel: triage.channel ?? null,
     normalizedEmail: triage.normalizedEmail ?? inquiry.email.trim().toLowerCase(),
     referralDetails: triage.referralDetails ?? '',
     loggedByRole: triage.loggedByRole ?? null,

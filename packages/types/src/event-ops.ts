@@ -156,6 +156,7 @@ export interface PrismInquiry {
   eventDate: string;
   clientType: string;
   source: "Facebook" | "Website" | "BNI" | "Walk-In" | "Log on Behalf" | string;
+  channel?: string | null;
   normalizedEmail?: string;
   referralDetails?: string;
   loggedByRole?: string | null;
