@@ -18,6 +18,7 @@ export type CreateInquiryInput = {
   eventDate: string;
   clientType: string;
   source?: string;
+  channel?: string;
   referralDetails?: string;
   loggedByRole?: string;
   loggedByName?: string;
@@ -486,6 +487,7 @@ export class InquiriesService {
             eventDate,
             clientType: input.clientType,
             source,
+            channel: input.channel ?? null,
             referralDetails: input.referralDetails ?? '',
             loggedByRole: allowLogOnBehalf ? input.loggedByRole ?? OpsUserRole.PmcmAdmin : null,
             loggedByName: allowLogOnBehalf ? input.loggedByName ?? 'PMCM Admin' : null,

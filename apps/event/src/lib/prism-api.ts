@@ -413,6 +413,18 @@ function withCoordinatorActor(path: string, session: { name: string; email: stri
   return `${path}${path.includes("?") ? "&" : "?"}${coordinatorActorQuery(session)}`;
 }
 
+function pmcmAdminActorQuery(session: { name: string; email: string; role: string }) {
+  return new URLSearchParams({
+    actorRole: "pmcm-admin",
+    actorName: session.name,
+    actorEmail: session.email,
+  }).toString();
+}
+
+function withPmcmAdminActor(path: string, session: { name: string; email: string; role: string }) {
+  return `${path}${path.includes("?") ? "&" : "?"}${pmcmAdminActorQuery(session)}`;
+}
+
 export const prismApi = {
   pmcmState: () =>
     eventOpsClient.pmcmDashboard.detail({
@@ -489,18 +501,22 @@ export const prismApi = {
       method: "PATCH",
       body: JSON.stringify({ status: "pending" }),
     }),
-  logInquiryOnBehalf: (input: {
-    clientName: string;
-    companyName?: string;
-    email: string;
-    eventName: string;
-    eventType?: string;
-    eventDate: string;
-    clientType: string;
-    referralDetails?: string;
-    message: string;
-  }) =>
-    request<PrismInquiry>("/api/inquiries/log-on-behalf?actorRole=pmcm-admin&actorName=Ms.%20Mys&actorEmail=mys%40pmcm.test", {
+  logInquiryOnBehalf: (
+    input: {
+      clientName: string;
+      companyName?: string;
+      email: string;
+      eventName: string;
+      eventType?: string;
+      eventDate: string;
+      clientType: string;
+      channel?: string;
+      referralDetails?: string;
+      message: string;
+    },
+    session: { name: string; email: string; role: string },
+  ) =>
+    request<PrismInquiry>(withPmcmAdminActor("/api/inquiries/log-on-behalf", session), {
       method: "POST",
       body: JSON.stringify(input),
     }),

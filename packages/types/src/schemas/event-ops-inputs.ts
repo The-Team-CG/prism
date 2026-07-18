@@ -24,6 +24,7 @@ export const createPrismInquirySchema = privacyConsentSchema.extend({
   eventDate: isoDateStringSchema,
   clientType: nonEmptyStringSchema,
   source: optionalTrimmedStringSchema,
+  channel: optionalTrimmedStringSchema,
   referralDetails: optionalTrimmedStringSchema,
   loggedByRole: optionalTrimmedStringSchema,
   loggedByName: optionalTrimmedStringSchema,
