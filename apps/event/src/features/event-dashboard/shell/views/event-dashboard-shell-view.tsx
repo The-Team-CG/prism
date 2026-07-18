@@ -1161,6 +1161,7 @@ export function EventDashboardShellView({
               onAccept={(inq) => run("accept inquiry", () => ops.acceptInquiry(inq.id))}
               onPend={(inq) => run("pend inquiry", () => ops.pendInquiry(inq.id))}
               onDecline={(inq, reason) => run("decline inquiry", () => ops.declineInquiry(inq.id, reason))}
+              onLogOnBehalf={(input) => run("log inquiry on behalf", () => ops.logInquiryOnBehalf(input, session))}
               busy={Boolean(busy)}
             />
             <ClientOnboardingTracker
@@ -1274,6 +1275,7 @@ export function EventDashboardShellView({
               onAccept={(inq) => run("accept inquiry", () => ops.acceptInquiry(inq.id))}
               onPend={(inq) => run("pend inquiry", () => ops.pendInquiry(inq.id))}
               onDecline={(inq, reason) => run("decline inquiry", () => ops.declineInquiry(inq.id, reason))}
+              onLogOnBehalf={(input) => run("log inquiry on behalf", () => ops.logInquiryOnBehalf(input, session))}
               busy={Boolean(busy)}
             />
             <ClientOnboardingTracker
@@ -1312,6 +1314,7 @@ export function EventDashboardShellView({
               onAccept={(inq) => run("accept inquiry", () => ops.acceptInquiry(inq.id))}
               onPend={(inq) => run("pend inquiry", () => ops.pendInquiry(inq.id))}
               onDecline={(inq, reason) => run("decline inquiry", () => ops.declineInquiry(inq.id, reason))}
+              onLogOnBehalf={(input) => run("log inquiry on behalf", () => ops.logInquiryOnBehalf(input, session))}
               busy={Boolean(busy)}
             />
 
