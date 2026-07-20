@@ -121,6 +121,7 @@ model OpsUser {
   lockedUntil      DateTime? @map("locked_until")
   permanentLockout Boolean   @default(false) @map("permanent_lockout")
   lastLoginAt      DateTime? @map("last_login_at")
+  twoFactorSecret  String?   @map("two_factor_secret")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   loginHistory       OpsLoginHistory[]

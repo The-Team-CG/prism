@@ -914,8 +914,9 @@ export class SampleCompatibilityService implements OnModuleInit {
   private async uploadConforme(
     inquiryId: string,
     input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    actorInput: SampleActorInput = {},
   ) {
-    return this.inquiryWorkflowService.uploadConforme(inquiryId, input, {}, this.inquiryWorkflowContext());
+    return this.inquiryWorkflowService.uploadConforme(inquiryId, input, actorInput, this.inquiryWorkflowContext());
   }
 
   private async listEvents(actorInput: SampleActorInput = {}) {
