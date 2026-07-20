@@ -60,7 +60,12 @@ export class DataSanitizerService {
       key === 'clientname' ||
       key === 'contactname' ||
       key === 'clientcontact' ||
-      key === 'guestname'
+      key === 'guestname' ||
+      key === 'suppliername' ||
+      key === 'supplier_name' ||
+      key === 'companyname' ||
+      key === 'company_name' ||
+      key === 'name'
     );
   }
 

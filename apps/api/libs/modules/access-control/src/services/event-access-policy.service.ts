@@ -33,7 +33,7 @@ export class EventAccessPolicyService {
 
   resolveActor(input: EventOpsActorInput = {}, verifiedActor?: PrismVerifiedEventActor): ResolvedEventOpsActor {
     if (verifiedActor) return this.resolveVerifiedActor(verifiedActor, input);
-    const requestedRole = (input.actorRole ?? input.role ?? OpsUserRole.PmcmAdmin).trim().toLowerCase();
+    const requestedRole = (input.actorRole ?? input.role ?? OpsUserRole.Unknown).trim().toLowerCase();
     const knownRoles = Object.values(OpsUserRole) as OpsUserRoleValue[];
     const role = knownRoles.includes(requestedRole as OpsUserRoleValue)
       ? (requestedRole as OpsUserRoleValue)

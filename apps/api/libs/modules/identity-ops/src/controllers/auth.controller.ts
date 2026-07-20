@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
-import { LoginDto, RequestApprovalDto } from '../dto/auth.dto';
+import { zodBody } from '@prism/shared';
+import { loginSchema, requestApprovalSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type LoginInput, type RequestApprovalInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
 import { AuthOperationsService } from '../services/auth-operations.service';
 
 @Controller('auth')
@@ -8,13 +9,25 @@ export class OpsAuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto) {
+  login(@Body(zodBody(loginSchema)) dto: LoginInput) {
     return this.authOperationsService.login(dto.email, dto.password);
+  }
+
+  @Post('2fa/setup')
+  @HttpCode(HttpStatus.OK)
+  setupTwoFactor(@Body(zodBody(twoFactorTokenSchema)) dto: TwoFactorTokenInput) {
+    return this.authOperationsService.setupTwoFactor(dto.token);
+  }
+
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  verifyTwoFactor(@Body(zodBody(verifyTwoFactorSchema)) dto: VerifyTwoFactorInput) {
+    return this.authOperationsService.verifyTwoFactor(dto.token, dto.code);
   }
 
   @Post('approval-requests')
   @HttpCode(HttpStatus.CREATED)
-  requestApproval(@Body() dto: RequestApprovalDto) {
+  requestApproval(@Body(zodBody(requestApprovalSchema)) dto: RequestApprovalInput) {
     return this.authOperationsService.requestApproval(dto);
   }
 

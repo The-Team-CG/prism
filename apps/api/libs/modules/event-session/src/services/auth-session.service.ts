@@ -22,6 +22,14 @@ type SessionTokenPayload = {
   exp: number;
 };
 
+export type TwoFactorTokenPurpose = 'setup' | 'challenge';
+
+export type VerifiedTwoFactorToken = {
+  userId: string;
+  email: string;
+  role: 'pmcm-admin';
+  purpose: TwoFactorTokenPurpose;
+};
 function encodeJson(value: unknown) {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
 }
@@ -82,7 +90,37 @@ export class AuthSessionService {
     };
   }
 
-  private signPayload(payload: SessionTokenPayload) {
+  issueTwoFactorToken(
+    input: { userId: string; email: string; role: 'pmcm-admin' },
+    purpose: TwoFactorTokenPurpose,
+    issuedAt = new Date(),
+  ) {
+    const issuedAtSeconds = Math.floor(issuedAt.getTime() / 1000);
+    return this.signPayload({
+      sub: input.userId,
+      email: input.email,
+      role: input.role,
+      purpose,
+      iat: issuedAtSeconds,
+      exp: issuedAtSeconds + 10 * 60,
+    });
+  }
+
+  verifyTwoFactorToken(token: string): VerifiedTwoFactorToken {
+    const payload = this.verifySignedPayload(token);
+    if (
+      !isRecord(payload) ||
+      typeof payload.sub !== 'string' ||
+      typeof payload.email !== 'string' ||
+      payload.role !== 'pmcm-admin' ||
+      (payload.purpose !== 'setup' && payload.purpose !== 'challenge')
+    ) {
+      throw new UnauthorizedException('Invalid two-factor token');
+    }
+    return { userId: payload.sub, email: payload.email, role: payload.role, purpose: payload.purpose };
+  }
+
+  private signPayload(payload: Record<string, unknown>) {
     const encodedHeader = encodeJson(TOKEN_HEADER);
     const encodedPayload = encodeJson(payload);
     const signature = this.sign(`${encodedHeader}.${encodedPayload}`);
@@ -90,15 +128,16 @@ export class AuthSessionService {
   }
 
   private verifyPayload(token: string): SessionTokenPayload {
-    const [encodedHeader, encodedPayload, signature, extra] = token.split('.');
-    if (!encodedHeader || !encodedPayload || !signature || extra) {
-      throw new UnauthorizedException('Invalid session token');
-    }
+    const payload = this.verifySignedPayload(token);
+    if (!this.isSessionPayload(payload)) throw new UnauthorizedException('Invalid session token');
+    return payload;
+  }
 
+  private verifySignedPayload(token: string): unknown {
+    const [encodedHeader, encodedPayload, signature, extra] = token.split('.');
+    if (!encodedHeader || !encodedPayload || !signature || extra) throw new UnauthorizedException('Invalid session token');
     const expectedSignature = this.sign(`${encodedHeader}.${encodedPayload}`);
-    if (!this.equalSignatures(signature, expectedSignature)) {
-      throw new UnauthorizedException('Invalid session token');
-    }
+    if (!this.equalSignatures(signature, expectedSignature)) throw new UnauthorizedException('Invalid session token');
 
     let payload: unknown;
     try {
@@ -106,15 +145,8 @@ export class AuthSessionService {
     } catch {
       throw new UnauthorizedException('Invalid session token');
     }
-
-    if (!this.isSessionPayload(payload)) {
-      throw new UnauthorizedException('Invalid session token');
-    }
-
-    if (payload.exp <= Math.floor(Date.now() / 1000)) {
-      throw new UnauthorizedException('Session token expired');
-    }
-
+    if (!isRecord(payload) || typeof payload.exp !== 'number') throw new UnauthorizedException('Invalid session token');
+    if (payload.exp <= Math.floor(Date.now() / 1000)) throw new UnauthorizedException('Session token expired');
     return payload;
   }
 

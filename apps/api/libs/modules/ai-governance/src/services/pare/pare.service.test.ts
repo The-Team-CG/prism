@@ -140,7 +140,7 @@ describe('PAREService', () => {
         eventId: 'evt_sample',
         withdrawnSupplier: {
           id: 'sup_sonicline',
-          name: 'SonicLine Technicals',
+          name: 'S. [SURNAME]',
           category: 'Technicals',
           quotedAmount: 0,
         },
@@ -148,7 +148,7 @@ describe('PAREService', () => {
           feasible: true,
           selectedCandidate: {
             supplierId: 'sup_avbackup',
-            supplierName: 'AV Backup Crew',
+            supplierName: 'A. [SURNAME]',
             quotedAmount: 0,
           },
         },
@@ -175,7 +175,7 @@ describe('PAREService', () => {
       pareResult: {
         budgetAnalysis: {
           selectedCandidate: {
-            supplierName: 'AV Backup Crew',
+            supplierName: 'A. [SURNAME]',
           },
         },
       },

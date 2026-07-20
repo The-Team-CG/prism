@@ -50,14 +50,14 @@ return (
             {/* Form body */}
             <div className="bg-[#f6f6f6] px-4 py-6 sm:px-8 sm:py-8">
               <form className="space-y-5" onSubmit={onSubmit}>
-                <div>
+                <div hidden={vm.phase !== "password"}>
                   <label htmlFor="email" className="mb-2 block text-base font-medium text-[#171216] sm:text-sm">
                     Email address
                   </label>
                   <Input
                     id="email"
                     type="email"
-                    required
+                    required={vm.phase === "password"}
                     value={vm.email}
                     onChange={(e) => vm.setEmail(e.target.value)}
                     placeholder="mys@pmcm.test"
@@ -65,7 +65,7 @@ return (
                   />
                 </div>
 
-                <div>
+                <div hidden={vm.phase !== "password"}>
                   <label htmlFor="password" className="mb-2 block text-base font-medium text-[#171216] sm:text-sm">
                     Password
                   </label>
@@ -73,7 +73,7 @@ return (
                     <Input
                       id="password"
                       type={vm.showPassword ? "text" : "password"}
-                      required
+                      required={vm.phase === "password"}
                       value={vm.password}
                       onChange={(e) => vm.setPassword(e.target.value)}
                       placeholder="Enter your password"
@@ -90,6 +90,43 @@ return (
                   </div>
                 </div>
 
+                {vm.phase !== "password" && (
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-base font-semibold text-[#171216]">
+                        {vm.phase === "setup" ? "Set up two-factor authentication" : "Enter your authenticator code"}
+                      </p>
+                      <p className="mt-1 text-sm text-[#666]">
+                        {vm.phase === "setup"
+                          ? "Add this account to an authenticator app, then enter the generated six-digit code."
+                          : "Enter the current six-digit code from your authenticator app to finish signing in."}
+                      </p>
+                      {vm.setupSecret && (
+                        <p className="mt-2 break-all text-xs text-[#666]">
+                          Setup key: <code className="font-mono text-[#171216]">{vm.setupSecret}</code>
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor="two-factor-code" className="mb-2 block text-base font-medium text-[#171216] sm:text-sm">
+                        Authenticator code
+                      </label>
+                      <Input
+                        id="two-factor-code"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        pattern="[0-9]{6}"
+                        maxLength={6}
+                        required
+                        value={vm.code}
+                        onChange={(e) => vm.setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="000000"
+                        className="h-13 rounded-lg border-[#d9d9d9] bg-white text-base tracking-[0.3em] text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {vm.error && (
                   <p className="text-sm text-[#b4233a]" role="alert">{vm.error}</p>
                 )}
@@ -99,12 +136,12 @@ return (
                   disabled={vm.busy}
                   className="flex h-14 w-full items-center justify-center rounded-lg bg-[#c01867] text-lg font-semibold text-white transition hover:bg-[#a81459] disabled:cursor-not-allowed disabled:opacity-70 sm:h-12 sm:text-base"
                 >
-                  {vm.busy ? "Signing in..." : "Sign in"}
+                  {vm.busy ? "Checking..." : vm.phase === "password" ? "Sign in" : "Verify code"}
                 </button>
               </form>
 
               {/* Sample accounts */}
-              <div className="mt-6 border-t border-[#d9d9d9] pt-5">
+              <div hidden={vm.phase !== "password"} className="mt-6 border-t border-[#d9d9d9] pt-5">
                 <p className="mb-3 text-sm font-medium text-[#888888]">Sample accounts</p>
                 <div className="flex flex-col gap-2">
                   {vm.sampleAccounts.map((sample) => (
