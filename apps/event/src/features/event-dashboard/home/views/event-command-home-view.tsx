@@ -37,7 +37,7 @@ import { ClientOnboardingTracker } from "@/features/clients/onboarding";
 import { EventActivityPanel } from "@/features/events/activity";
 import { EventBriefingPanel } from "@/features/events/briefing";
 import { EventRoleLoadingState } from "@/features/event-dashboard/loading";
-import { InquiryIntakeLog } from "@/features/inquiries/intake";
+import { InquiryIntakeLog, type LogInquiryOnBehalfInput } from "@/features/inquiries/intake";
 import { Phase4Workspace } from "@/features/closure/phase4";
 import { CoordinatorAssignmentDesk, CoordinatorView } from "@/features/coordinators/desk";
 import {
@@ -252,6 +252,10 @@ function PmcmPortal({
 
   async function declineInquiry(inquiry: PrismInquiry, reason: string) {
     await run("decline inquiry", () => ops.declineInquiry(inquiry.id, reason));
+  }
+
+  async function logInquiryOnBehalf(input: LogInquiryOnBehalfInput) {
+    await run("log inquiry on behalf", () => ops.logInquiryOnBehalf(input, session));
   }
 
   async function sendConformeReminder(inquiry: PrismInquiry) {
@@ -640,6 +644,7 @@ function PmcmPortal({
           onAccept={acceptInquiry}
           onPend={pendInquiry}
           onDecline={declineInquiry}
+          onLogOnBehalf={logInquiryOnBehalf}
           busy={Boolean(busy)}
         />
 

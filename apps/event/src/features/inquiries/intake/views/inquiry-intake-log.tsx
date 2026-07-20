@@ -1,7 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { CalendarDays, ClipboardList, Eye, Mail, MessageSquareText, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  AlertCircle,
+  CalendarDays,
+  ClipboardList,
+  Eye,
+  Mail,
+  MessageSquareText,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 
 import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
@@ -12,6 +22,43 @@ import { compactTimestamp, label } from "@/features/pmcm-kit";
 
 const inquirySources = ["Facebook", "Website", "BNI", "Walk-In", "Log on Behalf"];
 const declineReasons = ["Date Unavailable", "Outside Service Scope", "Budget Too Low", "Prior Issue", "Other"];
+const logFormEventTypes = [
+  "Corporate event",
+  "Conference",
+  "Gala",
+  "Product launch",
+  "Private celebration",
+  "Training or workshop",
+  "Other",
+];
+const logFormClientTypes = ["Corporate", "Private", "Government", "School", "Non-profit", "Other"];
+const logFormChannels = ["Walk-In", "Phone"];
+
+export interface LogInquiryOnBehalfInput {
+  clientName: string;
+  companyName?: string;
+  email: string;
+  eventName: string;
+  eventType?: string;
+  eventDate: string;
+  clientType: string;
+  channel?: string;
+  referralDetails?: string;
+  message: string;
+}
+
+const initialLogForm = {
+  clientName: "",
+  companyName: "",
+  email: "",
+  eventName: "",
+  eventType: "",
+  eventDate: "",
+  clientType: "",
+  channel: logFormChannels[0],
+  referralDetails: "",
+  message: "",
+};
 
 function dateRangeMatches(value: string, range: string) {
   if (range === "all") return true;
@@ -45,12 +92,14 @@ export function InquiryIntakeLog({
   onAccept,
   onPend,
   onDecline,
+  onLogOnBehalf,
   busy,
 }: {
   inquiries: PrismInquiry[];
   onAccept: (inquiry: PrismInquiry) => Promise<void>;
   onPend: (inquiry: PrismInquiry) => Promise<void>;
   onDecline: (inquiry: PrismInquiry, reason: string) => Promise<void>;
+  onLogOnBehalf: (input: LogInquiryOnBehalfInput) => Promise<void>;
   busy: boolean;
 }) {
   const [query, setQuery] = useState("");
@@ -61,6 +110,25 @@ export function InquiryIntakeLog({
   const [opened, setOpened] = useState<PrismInquiry | null>(null);
   const [declining, setDeclining] = useState<PrismInquiry | null>(null);
   const [declineReason, setDeclineReason] = useState(declineReasons[0]);
+  const [loggingOnBehalf, setLoggingOnBehalf] = useState(false);
+  const [logForm, setLogForm] = useState(initialLogForm);
+  const [logPhase, setLogPhase] = useState<"idle" | "submitting" | "error">("idle");
+  const [logError, setLogError] = useState<string | null>(null);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const logFormFirstFieldRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!loggingOnBehalf) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && logPhase !== "submitting") closeLogForm();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [loggingOnBehalf, logPhase]);
+
+  useEffect(() => {
+    if (loggingOnBehalf) logFormFirstFieldRef.current?.focus();
+  }, [loggingOnBehalf]);
 
   const unreviewedCount = inquiries.filter((inq) => inq.status === "new").length;
   const clientTypes = Array.from(new Set(inquiries.map((inq) => inq.clientType).filter(Boolean))).sort();
@@ -83,6 +151,49 @@ export function InquiryIntakeLog({
     setDeclineReason(declineReasons[0]);
   }
 
+  function canSubmitLogForm() {
+    return Boolean(
+      logForm.clientName.trim() &&
+        logForm.email.trim() &&
+        logForm.eventName.trim() &&
+        logForm.eventType &&
+        logForm.eventDate &&
+        logForm.clientType &&
+        logForm.channel &&
+        logForm.message.trim(),
+    );
+  }
+
+  function closeLogForm() {
+    setLoggingOnBehalf(false);
+    setLogForm(initialLogForm);
+    setLogPhase("idle");
+    setLogError(null);
+  }
+
+  async function submitLogOnBehalf() {
+    setLogPhase("submitting");
+    setLogError(null);
+    try {
+      await onLogOnBehalf({
+        clientName: logForm.clientName.trim(),
+        companyName: logForm.companyName.trim() || undefined,
+        email: logForm.email.trim(),
+        eventName: logForm.eventName.trim(),
+        eventType: logForm.eventType,
+        eventDate: logForm.eventDate,
+        clientType: logForm.clientType,
+        channel: logForm.channel,
+        referralDetails: logForm.referralDetails.trim() || undefined,
+        message: logForm.message.trim(),
+      });
+      closeLogForm();
+    } catch (err) {
+      setLogError(err instanceof Error ? err.message : "Failed to log inquiry");
+      setLogPhase("error");
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-6 py-4">
@@ -91,11 +202,17 @@ export function InquiryIntakeLog({
             <ClipboardList className="size-4 text-(--prism-signal)" />
             <h2 className="text-sm font-bold text-foreground">Inquiry intake</h2>
           </div>
-          {unreviewedCount > 0 && (
-            <span className="rounded-full bg-(--prism-amber)/10 px-2.5 py-1 text-xs font-bold text-(--prism-amber)">
-              {unreviewedCount} unreviewed
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {unreviewedCount > 0 && (
+              <span className="rounded-full bg-(--prism-amber)/10 px-2.5 py-1 text-xs font-bold text-(--prism-amber)">
+                {unreviewedCount} unreviewed
+              </span>
+            )}
+            <Button size="sm" onClick={() => setLoggingOnBehalf(true)} className="rounded-lg font-bold">
+              <Plus className="size-3.5" />
+              Log inquiry
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -254,9 +371,10 @@ export function InquiryIntakeLog({
                 </p>
               </section>
 
-              {(opened.referralDetails || opened.loggedByName || opened.duplicateOfInquiryId || opened.previousDeclineReason || opened.declineReason) && (
+              {(opened.referralDetails || opened.loggedByName || opened.channel || opened.duplicateOfInquiryId || opened.previousDeclineReason || opened.declineReason) && (
                 <section className="space-y-2">
                   {opened.referralDetails && <DetailField label="Referral" value={opened.referralDetails} />}
+                  {opened.channel && <DetailField label="Channel" value={opened.channel} />}
                   {opened.loggedByName && <DetailField label="Logged by" value={opened.loggedByName} />}
                   {opened.duplicateOfInquiryId && <DetailField label="Duplicate of" value={opened.duplicateOfInquiryId} />}
                   {opened.previousDeclineReason && <DetailField label="Previous decline" value={opened.previousDeclineReason} />}
@@ -333,6 +451,192 @@ export function InquiryIntakeLog({
                 className="rounded-lg border-destructive/25 bg-destructive font-bold text-white hover:bg-destructive/90"
               >
                 Save decline
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loggingOnBehalf && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Log inquiry on behalf of a client"
+        >
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-foreground">Log inquiry on behalf</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Record an inquiry a client gave you by phone or in person.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeLogForm}
+                disabled={logPhase === "submitting"}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Client name
+                </span>
+                <Input
+                  ref={logFormFirstFieldRef}
+                  value={logForm.clientName}
+                  onChange={(e) => setLogForm((f) => ({ ...f, clientName: e.target.value }))}
+                  placeholder="Full name"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Company (optional)
+                </span>
+                <Input
+                  value={logForm.companyName}
+                  onChange={(e) => setLogForm((f) => ({ ...f, companyName: e.target.value }))}
+                  placeholder="Company / organization"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Email
+                </span>
+                <Input
+                  type="email"
+                  value={logForm.email}
+                  onChange={(e) => setLogForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="client@example.com"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Channel
+                </span>
+                <select
+                  value={logForm.channel}
+                  onChange={(e) => setLogForm((f) => ({ ...f, channel: e.target.value }))}
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                >
+                  {logFormChannels.map((channelOption) => (
+                    <option key={channelOption} value={channelOption}>
+                      {channelOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Event name
+                </span>
+                <Input
+                  value={logForm.eventName}
+                  onChange={(e) => setLogForm((f) => ({ ...f, eventName: e.target.value }))}
+                  placeholder="Event name"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Event type
+                </span>
+                <select
+                  value={logForm.eventType}
+                  onChange={(e) => setLogForm((f) => ({ ...f, eventType: e.target.value }))}
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                >
+                  <option value="" disabled>
+                    Select event type
+                  </option>
+                  {logFormEventTypes.map((eventTypeOption) => (
+                    <option key={eventTypeOption} value={eventTypeOption}>
+                      {eventTypeOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Event date
+                </span>
+                <Input
+                  type="date"
+                  min={todayIso}
+                  value={logForm.eventDate}
+                  onChange={(e) => setLogForm((f) => ({ ...f, eventDate: e.target.value }))}
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Client type
+                </span>
+                <select
+                  value={logForm.clientType}
+                  onChange={(e) => setLogForm((f) => ({ ...f, clientType: e.target.value }))}
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                >
+                  <option value="" disabled>
+                    Select client type
+                  </option>
+                  {logFormClientTypes.map((clientTypeOption) => (
+                    <option key={clientTypeOption} value={clientTypeOption}>
+                      {clientTypeOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm sm:col-span-2">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Referral details (optional)
+                </span>
+                <Input
+                  value={logForm.referralDetails}
+                  onChange={(e) => setLogForm((f) => ({ ...f, referralDetails: e.target.value }))}
+                  placeholder="How did they hear about PMCM?"
+                />
+              </label>
+              <label className="text-sm sm:col-span-2">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Message
+                </span>
+                <textarea
+                  value={logForm.message}
+                  onChange={(e) => setLogForm((f) => ({ ...f, message: e.target.value }))}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                  placeholder="What the client told you about the event"
+                />
+              </label>
+            </div>
+
+            {logError && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                <p className="text-xs text-destructive">{logError}</p>
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                className="rounded-lg font-bold"
+                onClick={closeLogForm}
+                disabled={logPhase === "submitting"}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="rounded-lg font-bold"
+                disabled={!canSubmitLogForm() || logPhase === "submitting"}
+                onClick={submitLogOnBehalf}
+              >
+                {logPhase === "submitting" ? "Saving…" : "Save inquiry"}
               </Button>
             </div>
           </div>
