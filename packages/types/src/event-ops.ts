@@ -133,6 +133,28 @@ export interface PrismAuthenticatedSession extends PrismUser {
   signedInAt: string;
   tokenType?: "Bearer";
 }
+export interface PrismTwoFactorSetupRequired {
+  kind: 'two_factor_setup_required';
+  token: string;
+}
+
+export interface PrismTwoFactorRequired {
+  kind: 'two_factor_required';
+  token: string;
+}
+
+export interface PrismTwoFactorSetup {
+  kind: 'two_factor_setup';
+  token: string;
+  secret: string;
+  otpauthUri: string;
+}
+
+export type PrismAuthResponse =
+  | PrismAuthenticatedSession
+  | PrismTwoFactorSetupRequired
+  | PrismTwoFactorRequired;
+
 
 export interface PrismVerifiedEventActor extends PrismEventOpsActorContext {
   id: string;

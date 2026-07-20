@@ -44,6 +44,16 @@ export {
 } from "./event-ops-inputs.js";
 
 export {
+  loginSchema,
+  requestApprovalSchema,
+  twoFactorTokenSchema,
+  verifyTwoFactorSchema,
+  type LoginInput,
+  type RequestApprovalInput,
+  type TwoFactorTokenInput,
+  type VerifyTwoFactorInput,
+} from "./auth-inputs.js";
+export {
   PrismContractError,
   parseContract,
   contractErrorMessage,

@@ -53,6 +53,8 @@ import type {
   PrismUrgentIssue,
   PAREApprovalRecord,
   PAREResult,
+  PrismAuthResponse,
+  PrismTwoFactorSetup,
   PARERisk,
   PrismUser,
   PrismAuthenticatedSession,
@@ -433,8 +435,18 @@ export const prismApi = {
       actorEmail: "mys@pmcm.test",
     }),
   reset: () => eventOpsClient.sample.reset(),
+  setupTwoFactor: (token: string) =>
+    request<PrismTwoFactorSetup>("/api/auth/2fa/setup", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+  verifyTwoFactor: (token: string, code: string) =>
+    request<PrismAuthenticatedSession>("/api/auth/2fa/verify", {
+      method: "POST",
+      body: JSON.stringify({ token, code }),
+    }),
   login: (input: { email: string; password: string }) =>
-    request<PrismAuthenticatedSession>("/api/auth/login", {
+    request<PrismAuthResponse>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(input),
     }),
