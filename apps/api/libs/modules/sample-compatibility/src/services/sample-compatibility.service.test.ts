@@ -969,8 +969,8 @@ function createSampleCompatibilityService(prisma: any) {
     notificationOutboxService,
     workflowCommandService,
   );
-  const authSessionService = { issueSession: (user: any) => ({ ...user, accessToken: 'test-token', expiresAt: new Date(Date.now() + 3600000).toISOString(), signedInAt: new Date().toISOString(), tokenType: 'Bearer' }) };
-  const authOperationsService = new AuthOperationsService(prisma, auditService, inquiriesService, authSessionService as any);
+  const authSessionService = { issueSession: (user: any) => ({ ...user, accessToken: 'test-token', expiresAt: new Date(Date.now() + 3600000).toISOString(), signedInAt: new Date().toISOString(), tokenType: 'Bearer' }), issueTwoFactorToken: () => 'test-2fa-token', verifyTwoFactorToken: () => ({ userId: 'usr_pmcm', email: 'mys@pmcm.test', role: 'pmcm-admin', purpose: 'challenge' }) };
+  const authOperationsService = new AuthOperationsService(prisma, auditService, inquiriesService, authSessionService as any, {} as any);
   const privacyOperationsService = new PrivacyOperationsService(prisma, auditService);
   const coordinatorsService = new CoordinatorsService(
     prisma,
@@ -1245,7 +1245,7 @@ describe('SampleCompatibilityService', () => {
     const document = await (service as any).uploadConforme('inq_sample', {
       type: 'signed_conforme',
       fileName: 'signed-conforme.pdf',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(document.status).toBe('approved');
     expect(fake.state.events[0].clientPortalStatus).toBe('unlocked');
@@ -2529,14 +2529,14 @@ describe('SampleCompatibilityService', () => {
         { label: 'Downpayment', percentage: 50 },
         { label: 'Balance', percentage: 50 },
       ],
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     await expect((service as any).generateBillingStatement('evt_sample', source.id)).rejects.toBeInstanceOf(BadRequestException);
 
     await (service as any).approveBillingSource('evt_sample', source.id, {
       approvedBy: 'Ms. Mys',
       approvalNotes: 'Client approved proposal total.',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
     const statement = await (service as any).generateBillingStatement('evt_sample', source.id);
 
     expect(statement.sourceId).toBe(source.id);
@@ -2589,7 +2589,7 @@ describe('SampleCompatibilityService', () => {
 
     const blocked = await (service as any).getCloseGates('evt_sample');
     expect(blocked.ready).toBe(false);
-    await expect((service as any).archiveEvent('evt_sample')).rejects.toBeInstanceOf(BadRequestException);
+    await expect((service as any).archiveEvent('evt_sample', { actorRole: OpsUserRole.PmcmAdmin })).rejects.toBeInstanceOf(BadRequestException);
 
     fake.state.documents.push({ id: 'doc_close', eventId: 'evt_sample', type: 'post_event_report', fileName: 'report.pdf', status: 'submitted', uploadedAt: new Date() });
     fake.state.postEventDocuments.push({ id: 'ped_feedback', eventId: 'evt_sample', title: 'Client feedback form', status: 'submitted' });
@@ -2598,7 +2598,7 @@ describe('SampleCompatibilityService', () => {
 
     const ready = await (service as any).getCloseGates('evt_sample');
     expect(ready.ready).toBe(true);
-    const archived = await (service as any).archiveEvent('evt_sample');
+    const archived = await (service as any).archiveEvent('evt_sample', { actorRole: OpsUserRole.PmcmAdmin });
     expect(archived.archived).toBe(true);
   });
 
@@ -2642,11 +2642,11 @@ describe('SampleCompatibilityService', () => {
     });
     const service = createSampleCompatibilityService(fake.prisma as any);
 
-    await expect((service as any).archiveEvent('evt_sample', { overrideReason: '' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect((service as any).archiveEvent('evt_sample', { overrideReason: '', actorRole: OpsUserRole.PmcmAdmin })).rejects.toBeInstanceOf(BadRequestException);
 
     const archived = await (service as any).archiveEvent('evt_sample', {
       overrideReason: 'Client feedback will arrive after holiday closure.',
-      actorName: 'Ms. Mys',
+      actorName: 'Ms. Mys', actorRole: OpsUserRole.PmcmAdmin,
     });
 
     expect(archived.archived).toBe(true);
@@ -2676,7 +2676,7 @@ describe('SampleCompatibilityService', () => {
     fake.state.documents.push({ id: 'doc_sample', eventId: 'evt_sample', type: 'post_event_report', fileName: 'report.pdf', status: 'submitted', uploadedAt: new Date() });
     const service = createSampleCompatibilityService(fake.prisma as any);
 
-    const insight = await (service as any).generateEventInsights('evt_sample');
+    const insight = await (service as any).generateEventInsights('evt_sample', { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(insight.summary).toContain('Ayala Summit');
     expect(insight.supplierNotes[0].notes).toContain('Excellent');
@@ -3283,13 +3283,13 @@ describe('SampleCompatibilityService', () => {
       title: 'Open registration counters',
       assignedRole: 'Registration Staff',
       priority: 'high',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
     expect(task.status).toBe('open');
 
     const completed = await (service as any).updateEventDayTask('evt_sample', task.id, {
       status: 'done',
       notes: 'All counters open.',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
     expect(completed.completedAt).toBeTruthy();
 
     const issue = await (service as any).createUrgentIssue('evt_sample', {
@@ -3297,11 +3297,11 @@ describe('SampleCompatibilityService', () => {
       severity: 'high',
       ownerRole: 'Ingress and Egress Assistant',
       description: 'Queue exceeds holding area.',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
     const resolved = await (service as any).updateUrgentIssue('evt_sample', issue.id, {
       status: 'resolved',
       resolution: 'Opened second VIP entrance lane.',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(resolved.status).toBe('resolved');
     expect(fake.state.eventDayLogs.map((log) => log.actionType)).toEqual(
@@ -3341,7 +3341,7 @@ describe('SampleCompatibilityService', () => {
     const late = await (service as any).updateCoordinatorAttendance('evt_sample', 'coord_asg_reg', {
       status: 'late',
       notes: 'Arrived 18 minutes after call time.',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(late.attendanceStatus).toBe('late');
     expect(fake.state.coordinatorReliabilityNotes).toHaveLength(1);
@@ -3468,7 +3468,7 @@ describe('SampleCompatibilityService', () => {
       verificationStatus: 'verified',
       verifiedBy: 'Marco Santos',
       notes: 'Physically checked at stage left.',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(verified.eventDayVerificationStatus).toBe('verified');
     expect(verified.eventDayVerifiedBy).toBe('Marco Santos');
@@ -3576,12 +3576,12 @@ describe('SampleCompatibilityService', () => {
       escalationLevel: 'pmcm',
       notes: 'Registration has not opened by call time.',
       ownerName: 'Marco Santos',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'PMCM Admin' });
     const issue = await (service as any).escalateUrgentIssue('evt_sample', 'urg_escalate', {
       escalationLevel: 'critical',
       notes: 'Queue is blocking VIP ingress.',
       ownerRole: 'Event Day System Operator',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'PMCM Admin' });
 
     expect(task).toMatchObject({ escalationLevel: 'pmcm', escalatedBy: 'PMCM Admin' });
     expect(issue).toMatchObject({ escalationLevel: 'critical', ownerRole: 'Event Day System Operator' });
@@ -3625,7 +3625,7 @@ describe('SampleCompatibilityService', () => {
       replacementCoordinatorId: 'coord_ina',
       role: 'Stage Director',
       reason: 'Marco cannot reach the venue before doors open.',
-    });
+    }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(replacement.replacedAssignment).toMatchObject({
       id: 'coord_asg_reg',
