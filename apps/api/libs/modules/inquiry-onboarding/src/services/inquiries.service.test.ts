@@ -110,6 +110,27 @@ describe('InquiriesService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('persists the channel and real actor identity when logging an inquiry on behalf of a client', async () => {
+    const { service } = createService([]);
+
+    const created = await service.logInquiryOnBehalf(
+      {
+        clientName: 'Walk In Client',
+        email: 'walkin@example.test',
+        eventName: 'Walk In Product Launch',
+        eventDate: '2026-07-10',
+        clientType: 'Corporate',
+        channel: 'Walk-In',
+        message: 'Client gave details at PMCM office',
+      },
+      { actorRole: 'pmcm-admin', actorName: 'Marco' },
+    );
+
+    expect((created as any).channel).toBe('Walk-In');
+    expect((created as any).source).toBe('Log on Behalf');
+    expect((created as any).loggedByName).toBe('Marco');
+  });
+
   it('links duplicate and previous declined inquiries by normalized email', async () => {
     const { service } = createService([
       inquiry({ id: 'inq_same_window', eventDate: new Date('2026-07-01T00:00:00.000Z') }),
