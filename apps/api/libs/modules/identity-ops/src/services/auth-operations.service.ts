@@ -6,20 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
-import type { PrismUser } from '@prism/types';
+import type { PrismUser, RequestApprovalInput } from '@prism/types';
 import { PrismaService } from '@prism/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/modules/event-core';
 import { AuditService } from '@prism/modules/trust-ops';
 import { AuthSessionService } from '@prism/modules/event-session';
 import { AuthSecurityService } from './auth-security.service';
+import { TotpService } from './totp.service';
 import { InquiriesService } from '@prism/modules/inquiry-onboarding';
-
-type RequestApprovalInput = {
-  email: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-};
 
 function timestamp(value: Date) {
   return value.toISOString();
@@ -32,6 +26,7 @@ export class AuthOperationsService {
     private readonly auditService: AuditService,
     private readonly inquiriesService: InquiriesService,
     private readonly authSessionService: AuthSessionService,
+    private readonly totpService: TotpService,
   ) {}
 
   async login(email: string, password: string) {
@@ -103,7 +98,76 @@ export class AuthOperationsService {
       await this.inquiriesService.markPortalInvitationOpenedByEmail(updated.email);
     }
 
+    if (updated.role === OpsUserRole.PmcmAdmin) {
+      return {
+        kind: updated.twoFactorSecret ? 'two_factor_required' : 'two_factor_setup_required',
+        token: this.authSessionService.issueTwoFactorToken(
+          { userId: updated.id, email: updated.email, role: 'pmcm-admin' },
+          updated.twoFactorSecret ? 'challenge' : 'setup',
+        ),
+      };
+    }
+
     return this.authSessionService.issueSession(this.mapUser(updated), new Date());
+  }
+
+  async setupTwoFactor(token: string) {
+    const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
+    if (verifiedToken.purpose !== 'setup') throw new ForbiddenException('Two-factor setup is not available for this token');
+    const user = await this.findTwoFactorUser(verifiedToken);
+    const secret = this.totpService.generateSecret();
+    await this.prisma.opsUser.update({
+      where: { id: user.id },
+      data: { twoFactorSecret: this.totpService.encryptSecret(secret) },
+    });
+    return {
+      kind: 'two_factor_setup' as const,
+      token,
+      secret,
+      otpauthUri: this.totpService.otpauthUri(secret, user.email),
+    };
+  }
+
+  async verifyTwoFactor(token: string, code: string) {
+    const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
+    const user = await this.findTwoFactorUser(verifiedToken);
+    if (!user.twoFactorSecret) throw new ForbiddenException('Two-factor setup is required before sign-in');
+    let secret: string;
+    try {
+      secret = this.totpService.decryptSecret(user.twoFactorSecret);
+    } catch {
+      throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
+    }
+    if (!this.totpService.verifyCode(secret, code)) {
+      await this.auditService.handleFailedLogin(user);
+      throw new UnauthorizedException('Invalid two-factor code');
+    }
+
+    const updated = await this.prisma.opsUser.update({
+      where: { id: user.id },
+      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+    });
+    await Promise.all([
+      this.auditService.recordLoginHistory(updated, user.email, 'success'),
+      this.auditService.audit(undefined, updated.name, `Signed in to ${updated.role} portal`, {
+        actorRole: updated.role,
+        actorEmail: updated.email,
+        actionType: AuditActionType.Login,
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedId: updated.id,
+        affectedLabel: updated.email,
+      }),
+    ]);
+    return this.authSessionService.issueSession(this.mapUser(updated), new Date());
+  }
+
+  private async findTwoFactorUser(verifiedToken: { userId: string; email: string; role: 'pmcm-admin' }) {
+    const user = await this.prisma.opsUser.findUnique({ where: { id: verifiedToken.userId } });
+    if (!user || user.email !== verifiedToken.email || user.role !== OpsUserRole.PmcmAdmin) {
+      throw new UnauthorizedException('Invalid two-factor token');
+    }
+    return user as OpsUser & { twoFactorSecret?: string | null };
   }
 
   async requestApproval(input: string | RequestApprovalInput) {
