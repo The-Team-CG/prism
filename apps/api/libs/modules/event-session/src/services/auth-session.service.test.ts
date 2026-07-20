@@ -48,4 +48,19 @@ describe('AuthSessionService', () => {
 
     expect(() => service.verifyAccessToken(`${session.accessToken}x`)).toThrow(UnauthorizedException);
   });
+
+  it('issues scoped, short-lived PMCM Admin two-factor tokens', () => {
+    const service = createService();
+    const token = service.issueTwoFactorToken(
+      { userId: 'user_pmcm', email: 'mys@pmcm.test', role: 'pmcm-admin' },
+      'challenge',
+    );
+
+    expect(service.verifyTwoFactorToken(token)).toEqual({
+      userId: 'user_pmcm',
+      email: 'mys@pmcm.test',
+      role: 'pmcm-admin',
+      purpose: 'challenge',
+    });
+  });
 });
