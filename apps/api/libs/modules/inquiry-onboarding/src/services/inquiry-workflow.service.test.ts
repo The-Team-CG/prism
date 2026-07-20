@@ -11,6 +11,7 @@ function createService() {
   };
   const context = {
     inquiriesService: {
+      logInquiryOnBehalf: vi.fn(async () => ({ id: 'inq_logged' })),
       uploadConforme: vi.fn(async () => ({ id: 'doc_sample' })),
     } as any,
     resolveActor: vi.fn((input: any = {}, verifiedActor?: any) =>
@@ -45,6 +46,30 @@ describe('InquiryWorkflowService', () => {
     expect(prisma.opsInquiry.findMany).not.toHaveBeenCalled();
     expect(prisma.opsEvent.findMany).not.toHaveBeenCalled();
     expect(prisma.opsDocument.findMany).not.toHaveBeenCalled();
+  });
+
+  it('denies non-PMCM actors before logging inquiries on behalf of clients', async () => {
+    const { service, context } = createService();
+    const input = {
+      clientName: 'Walk In Client',
+      email: 'walkin@example.test',
+      eventName: 'Walk In Product Launch',
+      eventDate: '2026-07-10',
+      clientType: 'Corporate',
+      message: 'Client gave details at PMCM office',
+    };
+
+    await expect(service.logInquiryOnBehalf(input, { actorRole: OpsUserRole.Client }, context as any)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+
+    expect(context.resolveActor).toHaveBeenCalledWith({ actorRole: OpsUserRole.Client });
+    expect(context.requireActorRole).toHaveBeenCalledWith(
+      { role: OpsUserRole.Client, name: 'anonymous' },
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'log inquiry on behalf',
+    );
+    expect(context.inquiriesService.logInquiryOnBehalf).not.toHaveBeenCalled();
   });
 
   it('denies non-PmcmAdmin actors from uploading conforme documents', async () => {
