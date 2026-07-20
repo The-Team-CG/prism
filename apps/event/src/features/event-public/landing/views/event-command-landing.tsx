@@ -194,7 +194,12 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
     setBusy(true);
     setError(null);
     try {
-      const session = await prismApi.login({ email, password });
+      const response = await prismApi.login({ email, password });
+      if ("kind" in response) {
+        window.location.assign("/sign-in");
+        return;
+      }
+      const session = response;
       if (session.role !== "pmcm-admin" && session.role !== "coordinator") {
         setError(session.role === "client" ? "Client accounts belong in prism-client at http://localhost:3001." : "Supplier accounts belong in prism-supplier at http://localhost:3002.");
         return;
