@@ -15,6 +15,7 @@ export type CreateInquiryInput = {
   eventDate: string;
   clientType: string;
   source?: string;
+  channel?: string;
   referralDetails?: string;
   loggedByRole?: string;
   loggedByName?: string;
