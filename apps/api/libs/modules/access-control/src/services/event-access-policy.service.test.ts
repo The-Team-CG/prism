@@ -9,6 +9,16 @@ function createPolicy() {
 }
 
 describe('EventAccessPolicyService', () => {
+  it('fails closed when no actor role is supplied', async () => {
+    const { policy } = createPolicy();
+    const actor = policy.resolveActor({});
+
+    expect(actor).toMatchObject({ role: OpsUserRole.Unknown, explicit: false });
+    await expect(policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'PMCM command inbox')).rejects.toThrow(
+      'unknown cannot access PMCM command inbox',
+    );
+  });
+
   it('allows suppliers to read only events explicitly scoped to their supplier assignments', () => {
     const { policy } = createPolicy();
     const actor = policy.resolveActor({
