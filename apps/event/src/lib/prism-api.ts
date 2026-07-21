@@ -171,6 +171,8 @@ type CreateSupplierReviewInput = {
   rating: number;
   notes: string;
   reviewedBy?: string;
+  dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
+  idempotencyKey?: string;
 };
 
 type CreateSupplierCertificationInput = {
@@ -623,8 +625,8 @@ export const prismApi = {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
-  addSupplierReview: (supplierId: string, input: CreateSupplierReviewInput) =>
-    request<PrismSupplier>(withPmcmActor(`/api/suppliers/${supplierId}/reviews`), {
+  addSupplierReview: (supplierId: string, input: CreateSupplierReviewInput, session: { name: string; email: string; role: string }) =>
+    request<PrismSupplier>(withPmcmAdminActor(`/api/suppliers/${supplierId}/reviews`, session), {
       method: "POST",
       body: JSON.stringify(input),
     }),

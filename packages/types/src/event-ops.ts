@@ -405,6 +405,14 @@ export interface PrismSupplierQuoteRequest {
 
 export type PrismSupplierTier = "tier_1" | "tier_2" | "pending_first_event" | string;
 
+export interface PrismSupplierReviewDimension {
+  id: string;
+  slug: string;
+  name: string;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface PrismSupplierCategory {
   id: string;
   slug: string;
@@ -413,6 +421,7 @@ export interface PrismSupplierCategory {
   active: boolean;
   acceptableMin?: number | null;
   acceptableMax?: number | null;
+  reviewDimensions: PrismSupplierReviewDimension[];
 }
 
 export interface PrismSupplierPastEvent {
@@ -420,6 +429,12 @@ export interface PrismSupplierPastEvent {
   eventName: string;
   clientName: string;
   eventDate: string;
+}
+
+export interface PrismSupplierReviewDimensionRating {
+  dimensionId: string;
+  dimensionName: string;
+  rating: number;
 }
 
 export interface PrismSupplierReview {
@@ -430,6 +445,7 @@ export interface PrismSupplierReview {
   eventId?: string | null;
   eventName?: string | null;
   createdAt: string;
+  dimensionRatings: PrismSupplierReviewDimensionRating[];
 }
 
 export interface PrismSupplierReliabilityNote {

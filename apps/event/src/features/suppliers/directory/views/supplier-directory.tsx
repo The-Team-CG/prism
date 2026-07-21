@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Check, FilePlus2, Plus, Search, Star } from "lucide-react";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
+import type { EventSession } from "@/app/lib/session";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
 import { cx, RatingStars, SupplierTierBadge } from "@/features/pmcm-kit";
@@ -10,6 +11,7 @@ import { isSupplierCreateDraftValid } from "../model/suppliers-directory-rules";
 export function SupplierDirectory({
   categories,
   suppliers,
+  session,
   onToggleBni,
   onCreateSupplier,
   onUpdateSupplier,
@@ -21,6 +23,7 @@ export function SupplierDirectory({
 }: {
   categories: PrismSupplierCategory[];
   suppliers: PrismSupplier[];
+  session: EventSession;
   onToggleBni: (supplier: PrismSupplier, nextValue: boolean) => Promise<void>;
   onCreateSupplier: (input: {
     categoryId: string;
@@ -41,7 +44,13 @@ export function SupplierDirectory({
     performanceNotes?: string;
   }) => Promise<void>;
   onChangeTier: (supplierId: string, tier: "tier_1" | "tier_2" | "pending_first_event", reason: string) => Promise<void>;
-  onAddReview: (supplierId: string, input: { rating: number; notes: string; reviewedBy?: string }) => Promise<void>;
+  onAddReview: (supplierId: string, input: {
+    rating: number;
+    notes: string;
+    reviewedBy?: string;
+    dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
+    idempotencyKey?: string;
+  }) => Promise<void>;
   onAddCertification: (supplierId: string, input: {
     fileName: string;
     documentType: string;
@@ -72,6 +81,8 @@ export function SupplierDirectory({
   const [editForm, setEditForm] = useState({ name: "", contactName: "", email: "", phone: "", serviceInclusions: "", performanceNotes: "" });
   const [tierForm, setTierForm] = useState({ tier: "pending_first_event" as "tier_1" | "tier_2" | "pending_first_event", reason: "" });
   const [reviewForm, setReviewForm] = useState({ rating: "4", notes: "" });
+  const [reviewDimensionRatings, setReviewDimensionRatings] = useState<Record<string, string>>({});
+  const [reviewIdempotencyKey, setReviewIdempotencyKey] = useState(() => crypto.randomUUID());
   const [certForm, setCertForm] = useState({
     fileName: "",
     documentType: "",
@@ -99,6 +110,9 @@ export function SupplierDirectory({
   const selectedSupplier = selectedSupplierId
     ? suppliers.find((supplier) => supplier.id === selectedSupplierId)
     : undefined;
+  const activeReviewDimensions = selectedSupplier
+    ? (categories.find((category) => category.id === selectedSupplier.categoryId)?.reviewDimensions ?? [])
+    : [];
 
   useEffect(() => {
     if (!createForm.categoryId && categories[0]?.id) {
@@ -118,6 +132,8 @@ export function SupplierDirectory({
     });
     setTierForm({ tier: selectedSupplier.tier as "tier_1" | "tier_2" | "pending_first_event", reason: "" });
     setReviewForm({ rating: "4", notes: "" });
+    setReviewDimensionRatings({});
+    setReviewIdempotencyKey(crypto.randomUUID());
     setCertForm({ fileName: "", documentType: "", issuer: "", expiresAt: "", status: "submitted", notes: "" });
   }, [selectedSupplier?.id]);
 
@@ -141,8 +157,19 @@ export function SupplierDirectory({
 
   async function submitReview() {
     if (!selectedSupplier || !reviewForm.notes.trim()) return;
-    await onAddReview(selectedSupplier.id, { rating: Number(reviewForm.rating), notes: reviewForm.notes, reviewedBy: "Ms. Mys" });
+    const dimensionRatings = Object.entries(reviewDimensionRatings)
+      .filter(([, value]) => value)
+      .map(([dimensionId, value]) => ({ dimensionId, rating: Number(value) }));
+    await onAddReview(selectedSupplier.id, {
+      rating: Number(reviewForm.rating),
+      notes: reviewForm.notes,
+      reviewedBy: session.name,
+      dimensionRatings: dimensionRatings.length ? dimensionRatings : undefined,
+      idempotencyKey: reviewIdempotencyKey,
+    });
     setReviewForm({ rating: "4", notes: "" });
+    setReviewDimensionRatings({});
+    setReviewIdempotencyKey(crypto.randomUUID());
   }
 
   async function submitCertification() {
@@ -368,6 +395,24 @@ export function SupplierDirectory({
                 </select>
                 <textarea value={reviewForm.notes} onChange={(event) => setReviewForm((current) => ({ ...current, notes: event.target.value }))} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Private review notes" />
               </div>
+              {activeReviewDimensions.length > 0 && (
+                <div className="mt-3 grid gap-2">
+                  <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">Category dimensions</p>
+                  {activeReviewDimensions.map((dimension) => (
+                    <div key={dimension.id} className="flex items-center justify-between gap-3">
+                      <span className="text-sm">{dimension.name}</span>
+                      <select
+                        value={reviewDimensionRatings[dimension.id] ?? ""}
+                        onChange={(event) => setReviewDimensionRatings((current) => ({ ...current, [dimension.id]: event.target.value }))}
+                        className="h-9 rounded-md border border-border bg-white px-2 text-sm"
+                      >
+                        <option value="">Not rated</option>
+                        {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
               <button type="button" disabled={busy || !reviewForm.notes.trim()} onClick={submitReview} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
                 <Star className="size-4" /> Add review
               </button>
