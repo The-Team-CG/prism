@@ -94,7 +94,7 @@ const defaultInquiryInput: CreatePrismInquiryInput = {
   eventType: "Leadership Forum",
   eventDate: "2026-06-18",
   clientType: "Corporate",
-  source: "Website",
+  source: "P.R.I.S.M Website",
   message: "Need end-to-end planning, registration, staging, and post-event documentation.",
   privacyConsentAccepted: true,
   privacyNoticeVersion: "2026-05-01",

@@ -52,6 +52,14 @@ export const INQUIRY_BUDGET_RANGES = [
   "TBD / Flexible",
 ] as const;
 export const INQUIRY_PRIORITY_OPTIONS = ["Standard", "Urgent", "Date-sensitive"] as const;
+export const INQUIRY_REFERRAL_SOURCES = [
+  "P.R.I.S.M Website",
+  "PMCM Facebook",
+  "BNI Referral",
+  "Colleague or Friend",
+  "Attended a PMCM Event",
+  "Other",
+] as const;
 
 export const INITIAL_INQUIRY_FORM: InquiryForm = {
   clientName: "",
@@ -69,7 +77,7 @@ export const INITIAL_INQUIRY_FORM: InquiryForm = {
   budgetRange: "",
   inquiryPriority: "",
   message: "",
-  source: "Website",
+  source: "",
   privacyConsentAccepted: false,
   privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
   marketingConsentAccepted: false,
