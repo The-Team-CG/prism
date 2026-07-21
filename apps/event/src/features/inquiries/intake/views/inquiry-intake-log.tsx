@@ -33,6 +33,14 @@ const logFormEventTypes = [
 ];
 const logFormClientTypes = ["Corporate", "Private", "Government", "School", "Non-profit", "Other"];
 const logFormChannels = ["Walk-In", "Phone"];
+const logFormReferralSources = [
+  "P.R.I.S.M Website",
+  "PMCM Facebook",
+  "BNI Referral",
+  "Colleague or Friend",
+  "Attended a PMCM Event",
+  "Other",
+];
 
 export interface LogInquiryOnBehalfInput {
   clientName: string;
@@ -42,6 +50,7 @@ export interface LogInquiryOnBehalfInput {
   eventType?: string;
   eventDate: string;
   clientType: string;
+  source?: string;
   channel?: string;
   referralDetails?: string;
   message: string;
@@ -55,6 +64,7 @@ const initialLogForm = {
   eventType: "",
   eventDate: "",
   clientType: "",
+  source: logFormReferralSources[0],
   channel: logFormChannels[0],
   referralDetails: "",
   message: "",
@@ -159,6 +169,7 @@ export function InquiryIntakeLog({
         logForm.eventType &&
         logForm.eventDate &&
         logForm.clientType &&
+        logForm.source &&
         logForm.channel &&
         logForm.message.trim(),
     );
@@ -183,6 +194,7 @@ export function InquiryIntakeLog({
         eventType: logForm.eventType,
         eventDate: logForm.eventDate,
         clientType: logForm.clientType,
+        source: logForm.source,
         channel: logForm.channel,
         referralDetails: logForm.referralDetails.trim() || undefined,
         message: logForm.message.trim(),
@@ -528,6 +540,23 @@ export function InquiryIntakeLog({
                   {logFormChannels.map((channelOption) => (
                     <option key={channelOption} value={channelOption}>
                       {channelOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm">
+                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Referral Source
+                </span>
+                <select
+                  value={logForm.source}
+                  onChange={(e) => setLogForm((f) => ({ ...f, source: e.target.value }))}
+                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                  aria-label="How did you hear about us?"
+                >
+                  {logFormReferralSources.map((sourceOption) => (
+                    <option key={sourceOption} value={sourceOption}>
+                      {sourceOption}
                     </option>
                   ))}
                 </select>

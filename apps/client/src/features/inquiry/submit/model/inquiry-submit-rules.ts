@@ -8,7 +8,7 @@ import { INQUIRY_WIZARD_STEPS } from "./inquiry-submit-types";
 
 export function isInquiryStepValid(form: InquiryForm, step: number): boolean {
   if (step === 0) {
-    return Boolean(form.clientName.trim() && form.email.trim() && form.phoneNumber.trim() && form.clientType);
+    return Boolean(form.clientName.trim() && form.email.trim() && form.phoneNumber.trim() && form.clientType && form.source);
   }
   if (step === 1) {
     return Boolean(form.eventName.trim() && form.eventType && form.eventDate && form.expectedGuests.trim());
@@ -55,7 +55,7 @@ export function buildInquiryPayload(form: InquiryForm): CreatePrismInquiryInput 
       eventType: form.eventType || undefined,
       eventDate: form.eventDate,
       clientType: form.clientType,
-      source: form.source || undefined,
+      source: form.source,
       message: reviewNotes,
       privacyConsentAccepted: form.privacyConsentAccepted,
       privacyNoticeVersion: form.privacyNoticeVersion,
