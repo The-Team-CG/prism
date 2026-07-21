@@ -1257,11 +1257,12 @@ export function EventDashboardShellView({
           <SupplierDirectory
             categories={supplierCategories}
             suppliers={suppliers}
+            session={session}
             onToggleBni={(supplier, value) => run("supplier BNI flag", () => ops.updateSupplier(supplier.id, { bniMember: value }))}
             onCreateSupplier={(input) => run("create supplier", () => ops.createSupplier(input))}
             onUpdateSupplier={(supplierId, input) => run("update supplier", () => ops.updateSupplier(supplierId, input))}
             onChangeTier={(supplierId, tier, reason) => run("supplier tier change", () => ops.changeSupplierTier(supplierId, { tier, reason }))}
-            onAddReview={(supplierId, input) => run("supplier private review", () => ops.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }))}
+            onAddReview={(supplierId, input) => run("supplier private review", () => ops.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }, session))}
             onAddCertification={(supplierId, input) => run("supplier certification", () => ops.addSupplierCertification(supplierId, input))}
             onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
             busy={Boolean(busy)}
