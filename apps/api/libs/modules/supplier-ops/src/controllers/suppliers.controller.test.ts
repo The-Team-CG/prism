@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
+import { EventSessionGuard } from '@prism/modules/event-session';
 import { OpsSuppliersController } from './suppliers.controller';
 
 function controllerPath(controller: Function): string {
@@ -9,6 +10,35 @@ function controllerPath(controller: Function): string {
 describe('OpsSuppliersController', () => {
   it('keeps the public suppliers route base stable under supplier-ops command ownership', () => {
     expect(controllerPath(OpsSuppliersController)).toBe('suppliers');
+  });
+
+  it('requires a verified session actor for supplier review writes', async () => {
+    const guards = Reflect.getMetadata('__guards__', OpsSuppliersController.prototype.addReview);
+    expect(guards).toContain(EventSessionGuard);
+
+    const actor = { role: 'pmcm-admin', name: 'Real Admin', email: 'admin@pmcm.test' };
+    const verifiedActor = {
+      actorId: 'user_real_admin',
+      actorRole: 'pmcm-admin',
+      actorName: 'Real Admin',
+      actorEmail: 'admin@pmcm.test',
+    };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn(() => actor),
+    };
+    const supplierCommands = {
+      addSupplierReview: vi.fn(async () => ({ id: 'sup_review' })),
+    };
+    const controller = new OpsSuppliersController(eventAccessPolicyService as any, supplierCommands as any);
+    const spoofedQuery = { actorRole: 'pmcm-admin', actorName: 'Spoofed Admin', actorEmail: 'spoofed@example.com' };
+    const review = { rating: 5, notes: 'Excellent' };
+
+    await expect(controller.addReview('sup_1', review, spoofedQuery, verifiedActor as any)).resolves.toEqual({
+      id: 'sup_review',
+    });
+
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
+    expect(supplierCommands.addSupplierReview).toHaveBeenCalledWith('sup_1', review, actor);
   });
 
   it('delegates supplier writes through the supplier command port with a resolved actor', async () => {
@@ -35,7 +65,7 @@ describe('OpsSuppliersController', () => {
     await expect(controller.changeTier('sup_1', { tier: 'preferred', reason: 'Reliable' }, actorInput)).resolves.toEqual({
       id: 'sup_tier',
     });
-    await expect(controller.addReview('sup_1', { rating: 5, notes: 'Excellent' }, actorInput)).resolves.toEqual({
+    await expect(controller.addReview('sup_1', { rating: 5, notes: 'Excellent' }, actorInput, undefined as any)).resolves.toEqual({
       id: 'sup_review',
     });
     await expect(
