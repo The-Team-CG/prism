@@ -1,4 +1,14 @@
-import { IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+
+export class SupplierReviewDimensionRatingDto {
+  @IsString()
+  dimensionId!: string;
+
+  @IsInt()
+  @Min(1)
+  rating!: number;
+}
 
 export class SupplierActorDto {
   @IsOptional()
@@ -115,6 +125,16 @@ export class CreateSupplierReviewDto {
   @IsOptional()
   @IsString()
   reviewedBy?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SupplierReviewDimensionRatingDto)
+  dimensionRatings?: SupplierReviewDimensionRatingDto[];
+
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
 
 export class CreateSupplierCertificationDto {
