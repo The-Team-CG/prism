@@ -17,6 +17,7 @@ describe("event-ops write schemas", () => {
       eventName: "Leadership Forum",
       eventDate: "2026-06-18",
       clientType: "Corporate",
+      source: "P.R.I.S.M Website",
       message: "Need full planning support.",
       privacyConsentAccepted: true,
     });
