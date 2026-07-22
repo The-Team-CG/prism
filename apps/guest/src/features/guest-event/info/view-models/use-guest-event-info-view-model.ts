@@ -6,7 +6,7 @@ import { mapGuestEventInfoError } from "../model/guest-event-info-rules";
 import type { GuestEventInfoRow, GuestEventInfoStatus } from "../model/guest-event-info-types";
 import { loadGuestEventInfo } from "../use-cases/guest-event-info-load";
 
-export function useGuestEventInfoViewModel(params: Promise<{ accessCode: string }>) {
+export function useGuestEventInfoViewModel(accessCode: string) {
   const [event, setEvent] = useState<PrismGuestEventPass | null>(null);
   const [infoRows, setInfoRows] = useState<GuestEventInfoRow[]>([]);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
@@ -16,8 +16,7 @@ export function useGuestEventInfoViewModel(params: Promise<{ accessCode: string 
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
-    params
-      .then(({ accessCode }) => loadGuestEventInfo(accessCode))
+    loadGuestEventInfo(accessCode)
       .then((result) => {
         if (cancelled) return;
         setEvent(result.event);
@@ -37,7 +36,7 @@ export function useGuestEventInfoViewModel(params: Promise<{ accessCode: string 
     return () => {
       cancelled = true;
     };
-  }, [params]);
+  }, [accessCode]);
 
   return { event, infoRows, qrUrl, status, error };
 }

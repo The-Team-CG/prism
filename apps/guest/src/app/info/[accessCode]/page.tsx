@@ -1,9 +1,10 @@
 import { GuestEventInfoView } from "@/features/guest-event/info";
 
-export default function GuestEventInfoPage({
+export default async function GuestEventInfoPage({
   params,
 }: {
   params: Promise<{ accessCode: string }>;
 }) {
-  return <GuestEventInfoView params={params} />;
+  const { accessCode } = await params;
+  return <GuestEventInfoView accessCode={accessCode} />;
 }
