@@ -102,7 +102,7 @@ export class SupplierProfileCommandsService {
       write: () =>
         this.suppliersService.addSupplierReview(supplierId, {
           ...input,
-          reviewedBy: input.reviewedBy ?? actor.name,
+          reviewedBy: actor.name || input.reviewedBy || 'System',
         }),
       sideEffects: async (supplier) => {
         await this.auditService.audit(input.eventId, actor.name, `Added private supplier review: ${supplier.name}`, {
