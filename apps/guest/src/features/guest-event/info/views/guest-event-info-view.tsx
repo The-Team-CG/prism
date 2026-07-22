@@ -6,11 +6,11 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 import { useGuestEventInfoViewModel } from "../view-models/use-guest-event-info-view-model";
 
 export function GuestEventInfoView({
-  params,
+  accessCode,
 }: {
-  params: Promise<{ accessCode: string }>;
+  accessCode: string;
 }) {
-  const vm = useGuestEventInfoViewModel(params);
+  const vm = useGuestEventInfoViewModel(accessCode);
 
   if (vm.status === "loading" || vm.status === "idle") {
     return (
