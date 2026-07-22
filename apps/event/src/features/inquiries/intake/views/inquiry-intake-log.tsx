@@ -20,7 +20,6 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import type { PrismInquiry } from "@prism/types";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 
-const inquirySources = ["Facebook", "Website", "BNI", "Walk-In", "Log on Behalf"];
 const declineReasons = ["Date Unavailable", "Outside Service Scope", "Budget Too Low", "Prior Issue", "Other"];
 const logFormEventTypes = [
   "Corporate event",
@@ -246,7 +245,7 @@ export function InquiryIntakeLog({
             },
             {
               value: source, onChange: setSource,
-              options: [["all", "All sources"], ...inquirySources.map((s) => [s, s])],
+              options: [["all", "All sources"], ...logFormReferralSources.map((s) => [s, s])],
             },
             {
               value: clientType, onChange: setClientType,
