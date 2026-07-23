@@ -9,6 +9,7 @@ export type SupplierSession = {
 
 export type {
   PrismSupplier,
+  PrismSupplierApplication,
   PrismSupplierCertification,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -19,12 +20,16 @@ export type {
 
 import { createEventOpsClient } from "@prism/api-client";
 import type {
+  PrismSupplierApplication,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
   SubmitSupplierQuoteInput,
 } from "@prism/types";
+import type { CreateSupplierApplicationInput } from "@prism/api-client";
+
+export type { CreateSupplierApplicationInput } from "@prism/api-client";
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
 
@@ -108,4 +113,11 @@ export const prismApi = {
       { status: status as "arrived" | "set_up_ready" | "done_leaving", notes },
       actorFromSession(session),
     ),
+  createSupplierApplication: (input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication> =>
+    request("/api/supplier-applications", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>
+    request("/api/supplier-applications/categories"),
 };

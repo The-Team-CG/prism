@@ -490,6 +490,33 @@ export interface PrismSupplier {
   certifications: PrismSupplierCertification[];
 }
 
+export type PrismSupplierApplicationStatus =
+  | "pending"
+  | "under_review"
+  | "proposal_requested"
+  | "meeting_scheduled"
+  | "approved"
+  | "declined";
+
+export interface PrismSupplierApplication {
+  id: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  pastEvents: string;
+  serviceInclusions: string;
+  certifications: string;
+  priceRange: string;
+  bniMember: boolean;
+  portfolioUrl: string;
+  additionalNotes: string;
+  status: PrismSupplierApplicationStatus;
+  createdAt: string;
+}
+
 export interface PrismCoordinatorAssignment {
   id: string;
   eventId: string;
@@ -1176,6 +1203,23 @@ type CreateSupplierCertificationInput = {
   expiresAt?: string;
   status?: "submitted" | "verified" | "expired" | "rejected";
   notes?: string;
+};
+
+type CreateSupplierApplicationInput = {
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone?: string;
+  categoryId?: string;
+  pastEvents?: string;
+  serviceInclusions?: string;
+  certifications?: string;
+  priceRange?: string;
+  bniMember?: boolean;
+  portfolioUrl?: string;
+  additionalNotes?: string;
+  privacyConsentAccepted?: boolean;
+  privacyNoticeVersion?: string;
 };
 
 type RecordPaymentInput = {
