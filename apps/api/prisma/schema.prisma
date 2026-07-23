@@ -440,10 +440,11 @@ model OpsSupplierCategory {
   acceptableMax Int?     @map("acceptable_max")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  suppliers        OpsSupplier[]
-  quoteRequests    OpsSupplierQuoteRequest[]
-  quotes           OpsSupplierQuote[]
-  reviewDimensions OpsSupplierReviewDimension[]
+  suppliers            OpsSupplier[]
+  quoteRequests        OpsSupplierQuoteRequest[]
+  quotes               OpsSupplierQuote[]
+  reviewDimensions     OpsSupplierReviewDimension[]
+  supplierApplications OpsSupplierApplication[]
 
   @@index([active, sortOrder], map: "supplier_categories_active_sort_order_idx")
   @@map("supplier_categories")
@@ -561,6 +562,38 @@ model OpsSupplierCertification {
 
   @@index([supplierId, uploadedAt], map: "supplier_certifications_supplier_id_uploaded_at_idx")
   @@map("supplier_certifications")
+  @@schema("supplier_ops")
+}
+
+model OpsSupplierApplication {
+  id                      String    @id
+  companyName             String    @map("company_name")
+  contactName             String    @map("contact_name")
+  email                   String
+  normalizedEmail         String    @default("") @map("normalized_email")
+  phone                   String    @default("")
+  categoryId              String?   @map("category_id")
+  pastEvents              String    @default("") @map("past_events")
+  serviceInclusions       String    @default("") @map("service_inclusions")
+  certifications          String    @default("")
+  priceRange              String    @default("") @map("price_range")
+  bniMember               Boolean   @default(false) @map("bni_member")
+  portfolioUrl            String    @default("") @map("portfolio_url")
+  additionalNotes         String    @default("") @map("additional_notes")
+  status                  String    @default("pending")
+  declineReason           String?   @map("decline_reason")
+  reviewedAt              DateTime? @map("reviewed_at")
+  approvedAt              DateTime? @map("approved_at")
+  privacyConsentAccepted  Boolean   @default(false) @map("privacy_consent_accepted")
+  privacyNoticeVersion    String    @default("") @map("privacy_notice_version")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  category OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([normalizedEmail, createdAt], map: "supplier_applications_normalized_email_created_at_idx")
+  @@index([status], map: "supplier_applications_status_idx")
+  @@map("supplier_applications")
   @@schema("supplier_ops")
 }
 
