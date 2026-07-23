@@ -27,6 +27,7 @@ import type {
   PrismEventDayTask,
   PrismUrgentIssue,
   PrismCoordinatorAssignment,
+  PrismSupplierApplication,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateSupplierEventStatusInput,
@@ -56,6 +57,23 @@ export type {
   UploadConformeInput,
   UploadContractInput,
 } from "@prism/types";
+
+export interface CreateSupplierApplicationInput {
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone?: string;
+  categoryId?: string;
+  pastEvents?: string;
+  serviceInclusions?: string;
+  certifications?: string;
+  priceRange?: string;
+  bniMember?: boolean;
+  portfolioUrl?: string;
+  additionalNotes?: string;
+  privacyConsentAccepted?: boolean;
+  privacyNoticeVersion?: string;
+}
 
 export interface EventOpsClientOptions {
   baseUrl?: string;
@@ -130,6 +148,10 @@ export interface EventOpsClient {
     updateTask(eventId: string, taskId: string, input: UpdateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
     updateCoordinatorAttendance(eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
     createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor?: EventOpsActorQuery): Promise<PrismUrgentIssue>;
+  };
+  supplierApplications: {
+    create(input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication>;
+    listCategories(): Promise<{ id: string; name: string }[]>;
   };
 }
 
@@ -237,6 +259,18 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<PrismUrgentIssue>(
           actorPath(`/events/${eventId}/urgent-issues`, actor),
           withBase(options, { method: "POST", body: input }),
+        ),
+    },
+    supplierApplications: {
+      create: (input) =>
+        prismRequest<PrismSupplierApplication>(
+          "/supplier-applications",
+          withBase(options, { method: "POST", body: input }),
+        ),
+      listCategories: () =>
+        prismRequest<{ id: string; name: string }[]>(
+          "/supplier-applications/categories",
+          withBase(options),
         ),
     },
   };
