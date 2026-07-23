@@ -369,7 +369,11 @@ export function ClientDashboardWorkspaceView({
         eventType: requestForm.eventType,
         eventName: requestForm.eventName,
         eventDate: requestForm.eventDate,
-        source: "Client Portal",
+        // Placeholder: repeat clients have no real referral-source answer here.
+        // Flagged to Anthony, needs proper handling (trace back to original
+        // inquiry's source once that link exists). Do not add "Client Portal"
+        // as a new enum value.
+        source: "Other",
         referralDetails: "Signed-in client request",
         message: [
           requestForm.message,

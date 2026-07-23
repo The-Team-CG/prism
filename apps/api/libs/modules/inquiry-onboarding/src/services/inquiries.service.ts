@@ -99,7 +99,6 @@ export class InquiriesService {
     return this.createInquiryRecord(
       {
         ...input,
-        source: 'Log on Behalf',
         loggedByRole: role,
         loggedByName: actorInput.actorName ?? actorInput.name ?? actorInput.actorEmail ?? actorInput.email ?? 'PMCM Admin',
       },

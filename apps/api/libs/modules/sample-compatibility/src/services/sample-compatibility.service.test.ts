@@ -1226,13 +1226,14 @@ describe('SampleCompatibilityService', () => {
         eventName: 'Walk In Product Launch',
         eventDate: '2026-07-10',
         clientType: 'Corporate',
+        source: 'BNI Referral',
         referralDetails: 'Walk-in inquiry encoded by PMCM',
         message: 'Client gave details at PMCM office',
       },
       { actorRole: 'pmcm-admin', actorName: 'Ms. Mys', actorEmail: 'mys@pmcm.test' },
     );
 
-    expect(created.source).toBe('Log on Behalf');
+    expect(created.source).toBe('BNI Referral');
     expect(created.loggedByRole).toBe('pmcm-admin');
     expect(created.loggedByName).toBe('Ms. Mys');
     expect(created.referralDetails).toBe('Walk-in inquiry encoded by PMCM');
