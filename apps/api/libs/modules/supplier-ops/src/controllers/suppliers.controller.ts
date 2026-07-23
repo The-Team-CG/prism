@@ -1,5 +1,7 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import {
   ChangeSupplierTierDto,
   CreateSupplierCertificationDto,
@@ -42,12 +44,14 @@ export class OpsSuppliersController {
 
   @Post(':supplierId/reviews')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
   addReview(
     @Param('supplierId') supplierId: string,
     @Body() dto: CreateSupplierReviewDto,
-    @Query() actorInput: SupplierActorDto,
+    @Query() _actorInput: SupplierActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.supplierCommands.addSupplierReview(supplierId, dto, actor);
   }
 
