@@ -36,6 +36,7 @@ import {
   INQUIRY_DATE_OPTIONS,
   INQUIRY_EVENT_TYPES,
   INQUIRY_PRIORITY_OPTIONS,
+  INQUIRY_REFERRAL_SOURCES,
   INQUIRY_VENUE_OPTIONS,
   INQUIRY_WIZARD_STEPS,
 } from "../model/inquiry-submit-types";
@@ -48,6 +49,7 @@ const dateOptions = INQUIRY_DATE_OPTIONS;
 const venueOptions = INQUIRY_VENUE_OPTIONS;
 const budgetRanges = INQUIRY_BUDGET_RANGES;
 const priorityOptions = INQUIRY_PRIORITY_OPTIONS;
+const referralSources = INQUIRY_REFERRAL_SOURCES;
 
 const compactControlClass =
   "h-14 rounded-lg border-[#DDE3EA] bg-white/90 px-5 text-base shadow-sm placeholder:text-muted-foreground/75 focus-visible:border-primary/45 focus-visible:ring-primary/15";
@@ -311,6 +313,23 @@ export function InquirySubmitView() {
                               {clientTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                   {type}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field>
+                        <FieldLabel>Referral Source</FieldLabel>
+                        <Select value={form.source} onValueChange={(value) => update("source", value)}>
+                          <SelectTrigger className={compactSelectTriggerClass}>
+                            <SelectValue placeholder="How did you hear about us?" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {referralSources.map((sourceOption) => (
+                                <SelectItem key={sourceOption} value={sourceOption}>
+                                  {sourceOption}
                                 </SelectItem>
                               ))}
                             </SelectGroup>

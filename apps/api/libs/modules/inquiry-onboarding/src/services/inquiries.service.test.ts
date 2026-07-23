@@ -120,6 +120,7 @@ describe('InquiriesService', () => {
         eventName: 'Walk In Product Launch',
         eventDate: '2026-07-10',
         clientType: 'Corporate',
+        source: 'BNI Referral',
         channel: 'Walk-In',
         message: 'Client gave details at PMCM office',
       },
@@ -127,7 +128,7 @@ describe('InquiriesService', () => {
     );
 
     expect((created as any).channel).toBe('Walk-In');
-    expect((created as any).source).toBe('Log on Behalf');
+    expect((created as any).source).toBe('BNI Referral');
     expect((created as any).loggedByName).toBe('Marco');
   });
 

@@ -25,6 +25,7 @@ describe("inquiry-submit-rules", () => {
           email: "ana@test.com",
           phoneNumber: "0917",
           clientType: "Corporate",
+          source: "PMCM Facebook",
         }),
         0,
       ),
@@ -48,7 +49,7 @@ describe("inquiry-submit-rules", () => {
   });
 
   it("advances and retreats wizard steps within bounds", () => {
-    expect(canAdvanceInquiryStep(form({ clientName: "A", email: "a@b.c", phoneNumber: "1", clientType: "Corporate" }), 0)).toBe(true);
+    expect(canAdvanceInquiryStep(form({ clientName: "A", email: "a@b.c", phoneNumber: "1", clientType: "Corporate", source: "PMCM Facebook" }), 0)).toBe(true);
     expect(canAdvanceInquiryStep(form({ privacyConsentAccepted: true }), 3)).toBe(false);
     expect(nextInquiryStep(0)).toBe(1);
     expect(nextInquiryStep(3)).toBe(3);
@@ -67,6 +68,7 @@ describe("inquiry-submit-rules", () => {
         eventType: "Conference",
         eventDate: "2026-08-01",
         expectedGuests: "200",
+        source: "PMCM Facebook",
         message: "Need staging",
         privacyConsentAccepted: true,
       }),
