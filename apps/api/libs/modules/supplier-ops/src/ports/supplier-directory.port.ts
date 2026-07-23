@@ -28,6 +28,8 @@ export type CreateSupplierReviewInput = {
   rating: number;
   notes: string;
   reviewedBy?: string;
+  dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
+  idempotencyKey?: string;
 };
 
 export type CreateSupplierCertificationInput = {
@@ -44,11 +46,16 @@ export type ChangeSupplierTierResult = {
   oldTier?: string | null;
 };
 
+export type AddSupplierReviewResult = {
+  supplier: SupplierProfile;
+  reviewId: string;
+};
+
 export interface SupplierDirectory {
   createSupplier(input: CreateSupplierInput): Promise<SupplierProfile>;
   updateSupplier(supplierId: string, input: UpdateSupplierInput): Promise<SupplierProfile>;
   changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput): Promise<ChangeSupplierTierResult>;
-  addSupplierReview(supplierId: string, input: CreateSupplierReviewInput): Promise<SupplierProfile>;
+  addSupplierReview(supplierId: string, input: CreateSupplierReviewInput): Promise<AddSupplierReviewResult>;
   addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput): Promise<SupplierProfile>;
   listSuppliers(): Promise<SupplierProfile[]>;
 }
