@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type {
   OpsEvent,
   OpsSupplier,
@@ -6,10 +7,20 @@ import type {
   OpsSupplierCertification,
   OpsSupplierReliabilityNote,
   OpsSupplierReview,
+  OpsSupplierReviewDimension,
+  OpsSupplierReviewDimensionRating,
 } from '@prisma/client';
 import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { SupplierTier } from '@prism/modules/event-core';
+
+function isIdempotencyKeyViolation(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
+  const target = error.meta?.target;
+  if (Array.isArray(target)) return target.includes('idempotencyKey') || target.includes('idempotency_key');
+  if (typeof target === 'string') return target.includes('idempotency_key');
+  return false;
+}
 
 export type AddSupplierQuoteInput = {
   requestId?: string;
@@ -48,6 +59,8 @@ export type CreateSupplierReviewInput = {
   rating: number;
   notes: string;
   reviewedBy?: string;
+  dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
+  idempotencyKey?: string;
 };
 
 export type CreateSupplierCertificationInput = {
@@ -59,12 +72,16 @@ export type CreateSupplierCertificationInput = {
   notes?: string;
 };
 
+type ReviewDimensionRatingWithDimension = OpsSupplierReviewDimensionRating & { dimension: OpsSupplierReviewDimension };
+
 type SupplierWithProfile = OpsSupplier & {
   category: OpsSupplierCategory;
-  reviews: Array<OpsSupplierReview & { event: OpsEvent | null }>;
+  reviews: Array<OpsSupplierReview & { event: OpsEvent | null; dimensionRatings: ReviewDimensionRatingWithDimension[] }>;
   reliabilityNotes: Array<OpsSupplierReliabilityNote & { event: OpsEvent | null }>;
   certifications: OpsSupplierCertification[];
 };
+
+type CategoryWithDimensions = OpsSupplierCategory & { reviewDimensions: OpsSupplierReviewDimension[] };
 
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -82,8 +99,14 @@ export class SuppliersService {
     const categories = await this.prisma.opsSupplierCategory.findMany({
       where: { active: true },
       orderBy: { sortOrder: 'asc' },
+      include: {
+        reviewDimensions: {
+          where: { active: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
     });
-    return categories.map((category: OpsSupplierCategory) => this.mapSupplierCategory(category));
+    return categories.map((category: CategoryWithDimensions) => this.mapSupplierCategory(category));
   }
 
   async listSuppliers() {
@@ -153,21 +176,54 @@ export class SuppliersService {
   }
 
   async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput) {
-    await this.supplierRow(supplierId);
+    const supplier = await this.supplierRow(supplierId);
     if (input.rating < 1 || input.rating > 5) throw new BadRequestException('Supplier review rating must be 1 to 5');
 
-    await this.prisma.opsSupplierReview.create({
-      data: {
-        id: `review_${randomUUID()}`,
-        supplierId,
-        eventId: input.eventId ?? null,
-        rating: input.rating,
-        notes: input.notes,
-        reviewedBy: input.reviewedBy ?? 'PMCM Admin',
-      },
-    });
+    const dimensionRatings = input.dimensionRatings ?? [];
+    if (dimensionRatings.length > 0) {
+      const validDimensions = await this.prisma.opsSupplierReviewDimension.findMany({
+        where: { categoryId: supplier.categoryId, id: { in: dimensionRatings.map((rating) => rating.dimensionId) } },
+        select: { id: true },
+      });
+      const validDimensionIds = new Set(validDimensions.map((dimension) => dimension.id));
+      const invalidRating = dimensionRatings.find((rating) => !validDimensionIds.has(rating.dimensionId));
+      if (invalidRating) {
+        throw new BadRequestException("Dimension rating does not belong to the supplier's category");
+      }
+    }
 
-    return this.mapSupplier(await this.supplierRow(supplierId));
+    const reviewId = `review_${randomUUID()}`;
+    try {
+      await this.prisma.opsSupplierReview.create({
+        data: {
+          id: reviewId,
+          supplierId,
+          eventId: input.eventId ?? null,
+          rating: input.rating,
+          notes: input.notes,
+          reviewedBy: input.reviewedBy ?? 'PMCM Admin',
+          idempotencyKey: input.idempotencyKey ?? null,
+          dimensionRatings: dimensionRatings.length
+            ? {
+                create: dimensionRatings.map((rating) => ({
+                  id: `dimr_${randomUUID()}`,
+                  dimensionId: rating.dimensionId,
+                  rating: rating.rating,
+                })),
+              }
+            : undefined,
+        },
+      });
+    } catch (error) {
+      if (!input.idempotencyKey || !isIdempotencyKeyViolation(error)) throw error;
+      const existing = await this.prisma.opsSupplierReview.findFirst({
+        where: { idempotencyKey: input.idempotencyKey },
+      });
+      if (!existing) throw error;
+      return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId: existing.id };
+    }
+
+    return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId };
   }
 
   async addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput) {
@@ -195,7 +251,7 @@ export class SuppliersService {
       include: {
         category: true,
         reviews: {
-          include: { event: true },
+          include: { event: true, dimensionRatings: { include: { dimension: true } } },
           orderBy: { createdAt: 'desc' },
         },
         reliabilityNotes: {
@@ -233,7 +289,7 @@ export class SuppliersService {
     return this.supplierRow(tierOneSupplier.id);
   }
 
-  mapSupplierCategory(category: OpsSupplierCategory) {
+  mapSupplierCategory(category: CategoryWithDimensions) {
     return {
       id: category.id,
       slug: category.slug,
@@ -242,6 +298,13 @@ export class SuppliersService {
       active: category.active,
       acceptableMin: category.acceptableMin ?? null,
       acceptableMax: category.acceptableMax ?? null,
+      reviewDimensions: category.reviewDimensions.map((dimension) => ({
+        id: dimension.id,
+        slug: dimension.slug,
+        name: dimension.name,
+        sortOrder: dimension.sortOrder,
+        active: dimension.active,
+      })),
     };
   }
 
@@ -287,6 +350,11 @@ export class SuppliersService {
         eventId: review.eventId,
         eventName: review.event?.eventName ?? null,
         createdAt: timestamp(review.createdAt),
+        dimensionRatings: (review.dimensionRatings ?? []).map((dimensionRating) => ({
+          dimensionId: dimensionRating.dimensionId,
+          dimensionName: dimensionRating.dimension.name,
+          rating: dimensionRating.rating,
+        })),
       })),
       reliabilityNotes: supplier.reliabilityNotes.map((note) => ({
         id: note.id,
@@ -329,7 +397,7 @@ export class SuppliersService {
       include: {
         category: true,
         reviews: {
-          include: { event: true },
+          include: { event: true, dimensionRatings: { include: { dimension: true } } },
           orderBy: { createdAt: 'desc' },
         },
         reliabilityNotes: {
