@@ -1,6 +1,35 @@
 import { BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { SuppliersService } from '@prism/modules/supplier-ops';
+
+function makeP2002(target: string[] | string): unknown {
+  const error = Object.create(Prisma.PrismaClientKnownRequestError.prototype);
+  error.code = 'P2002';
+  error.meta = { target };
+  error.message = 'Unique constraint failed';
+  return error;
+}
+
+function baseSupplierRow() {
+  return {
+    id: 'sup_1',
+    name: 'Acme AV',
+    categoryId: 'cat_prod',
+    category: { id: 'cat_prod', name: 'Production', slug: 'production', sortOrder: 1, active: true },
+    contactName: '',
+    email: '',
+    phone: '',
+    tier: 'tier_1',
+    bniMember: false,
+    serviceInclusions: '',
+    performanceNotes: '',
+    applicationDate: new Date('2026-01-01'),
+    reviews: [],
+    reliabilityNotes: [],
+    certifications: [],
+  };
+}
 
 describe('SuppliersService', () => {
   it('auto-selects the Tier 1 supplier for a requested category', async () => {
@@ -42,5 +71,111 @@ describe('SuppliersService', () => {
     await expect(service.resolveQuoteSupplier({ categoryId: 'cat_doc' })).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  it('creates dimension ratings alongside a review when provided', async () => {
+    const createCalls: any[] = [];
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsSupplierReviewDimension: {
+        findMany: async () => [{ id: 'dim_quality' }],
+      },
+      opsSupplierReview: {
+        create: async (args: any) => {
+          createCalls.push(args);
+          return { id: args.data.id };
+        },
+      },
+    };
+
+    const service = new SuppliersService(prisma as any);
+    const result = await service.addSupplierReview('sup_1', {
+      rating: 5,
+      notes: 'Great work',
+      dimensionRatings: [{ dimensionId: 'dim_quality', rating: 4 }],
+    });
+
+    expect(createCalls).toHaveLength(1);
+    expect(createCalls[0].data.dimensionRatings.create).toEqual([
+      expect.objectContaining({ dimensionId: 'dim_quality', rating: 4 }),
+    ]);
+    expect(result.reviewId).toBeTruthy();
+  });
+
+  it('maps an existing review with no dimension ratings back without error', () => {
+    const service = new SuppliersService({} as any);
+    const mapped = service.mapSupplier({
+      id: 'sup_1',
+      name: 'Acme AV',
+      categoryId: 'cat_prod',
+      category: { id: 'cat_prod', name: 'Production', slug: 'production' },
+      contactName: '',
+      email: '',
+      phone: '',
+      tier: 'tier_1',
+      bniMember: false,
+      serviceInclusions: '',
+      performanceNotes: '',
+      applicationDate: new Date('2026-01-01'),
+      reviews: [
+        {
+          id: 'rev_1',
+          rating: 5,
+          notes: '',
+          reviewedBy: 'PMCM Admin',
+          eventId: null,
+          event: null,
+          createdAt: new Date('2026-01-02'),
+          dimensionRatings: [],
+        },
+      ],
+      reliabilityNotes: [],
+      certifications: [],
+    } as any);
+
+    expect(mapped.reviews[0].dimensionRatings).toEqual([]);
+    expect(mapped.aggregateRating).toBe(5);
+  });
+
+  it('returns the existing review when a retry raises a P2002 on the idempotency key', async () => {
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsSupplierReview: {
+        create: async () => {
+          throw makeP2002(['idempotencyKey']);
+        },
+        findFirst: async () => ({ id: 'review_existing' }),
+      },
+    };
+
+    const service = new SuppliersService(prisma as any);
+    const result = await service.addSupplierReview('sup_1', {
+      rating: 5,
+      notes: 'Retry',
+      idempotencyKey: 'draft-key-1',
+    });
+
+    expect(result.reviewId).toBe('review_existing');
+  });
+
+  it('rethrows a P2002 that does not name the idempotency key (e.g. a PK collision)', async () => {
+    const error = makeP2002(['id']);
+    const prisma = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsSupplierReview: {
+        create: async () => {
+          throw error;
+        },
+        findFirst: async () => {
+          throw new Error('should not be called: this P2002 does not name the idempotency key');
+        },
+      },
+    };
+
+    const service = new SuppliersService(prisma as any);
+
+    await expect(
+      service.addSupplierReview('sup_1', { rating: 5, notes: 'Retry', idempotencyKey: 'draft-key-1' }),
+    ).rejects.toBe(error);
   });
 });
