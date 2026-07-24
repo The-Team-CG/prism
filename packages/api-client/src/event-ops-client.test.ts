@@ -312,6 +312,7 @@ describe("createEventOpsClient", () => {
       eventName: "Acme Summit",
       eventDate: "2026-07-01",
       clientType: "corporate",
+      source: "PMCM Facebook",
       message: "Need planning support.",
       privacyConsentAccepted: true,
     });
@@ -324,6 +325,7 @@ describe("createEventOpsClient", () => {
         eventName: "Acme Summit",
         eventDate: "2026-07-01",
         clientType: "corporate",
+        source: "PMCM Facebook",
         message: "Need planning support.",
         privacyConsentAccepted: true,
       }),

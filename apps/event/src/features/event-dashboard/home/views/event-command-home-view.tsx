@@ -294,8 +294,14 @@ function PmcmPortal({
     await run("supplier tier change", () => ops.changeSupplierTier(supplierId, { tier, reason }));
   }
 
-  async function addSupplierReview(supplierId: string, input: { rating: number; notes: string; reviewedBy?: string }) {
-    await run("supplier private review", () => ops.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }));
+  async function addSupplierReview(supplierId: string, input: {
+    rating: number;
+    notes: string;
+    reviewedBy?: string;
+    dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
+    idempotencyKey?: string;
+  }) {
+    await run("supplier private review", () => ops.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }, session));
   }
 
   async function addSupplierCertification(supplierId: string, input: {
@@ -618,6 +624,7 @@ function PmcmPortal({
           <SupplierDirectory
             categories={supplierCategories}
             suppliers={suppliers}
+            session={session}
             onToggleBni={toggleSupplierBni}
             onCreateSupplier={createSupplier}
             onUpdateSupplier={updateSupplierProfile}
