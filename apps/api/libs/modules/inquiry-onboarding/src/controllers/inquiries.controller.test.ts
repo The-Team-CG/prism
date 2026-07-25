@@ -29,6 +29,11 @@ describe('OpsInquiriesController', () => {
     expect(guards).toContain(EventSessionGuard);
   });
 
+  it('guards logOnBehalf with EventSessionGuard (PA-275)', () => {
+    const guards = Reflect.getMetadata('__guards__', OpsInquiriesController.prototype.logOnBehalf);
+    expect(guards).toContain(EventSessionGuard);
+  });
+
   it('serves inquiry routes through InquiryWorkflowService with inquiry-owned context', async () => {
     const inquiriesService = {};
     const inquiryWorkflowService = {
@@ -50,7 +55,9 @@ describe('OpsInquiriesController', () => {
     );
 
     await expect(controller.list({ actorRole: 'pmcm-admin' })).resolves.toEqual([{ id: 'inq_sample' }]);
-    await expect(controller.logOnBehalf({ clientName: 'Ana', email: 'ana@example.com' } as any, { actorRole: 'pmcm-admin' })).resolves.toEqual({
+    await expect(
+      controller.logOnBehalf({ clientName: 'Ana', email: 'ana@example.com' } as any, verifiedPmcmActor as any),
+    ).resolves.toEqual({
       id: 'inq_logged',
     });
     await expect(controller.create({ clientName: 'Ana', email: 'ana@example.com' } as any)).resolves.toEqual({
@@ -76,8 +83,9 @@ describe('OpsInquiriesController', () => {
     );
     expect(inquiryWorkflowService.logInquiryOnBehalf).toHaveBeenCalledWith(
       expect.objectContaining({ clientName: 'Ana' }),
-      { actorRole: 'pmcm-admin' },
+      {},
       expect.objectContaining({ inquiriesService }),
+      verifiedPmcmActor,
     );
     expect(inquiryWorkflowService.createInquiry).toHaveBeenCalledWith(
       expect.objectContaining({ clientName: 'Ana' }),
