@@ -86,8 +86,9 @@ export class InquiryWorkflowService {
     input: CreateInquiryInput,
     actorInput: PrismEventOpsActorContext = {},
     context: InquiryWorkflowContext,
+    verifiedActor?: PrismVerifiedEventActor,
   ) {
-    const actor = context.resolveActor(actorInput);
+    const actor = verifiedActor ? context.resolveActor({}, verifiedActor) : context.resolveActor(actorInput);
     await context.requireActorRole(actor, context.allowedAdminRoles, 'log inquiry on behalf');
 
     const inquiry = await context.inquiriesService.logInquiryOnBehalf(input, actor);
