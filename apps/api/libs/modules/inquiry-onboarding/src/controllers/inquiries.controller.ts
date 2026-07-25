@@ -46,11 +46,12 @@ export class OpsInquiriesController {
 
   @Post('log-on-behalf')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
   logOnBehalf(
     @Body(zodBody(createPrismInquirySchema)) dto: CreatePrismInquiryInput,
-    @Query() actor: SampleActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    return this.inquiryWorkflowService.logInquiryOnBehalf(dto, actor, this.inquiryWorkflowContext());
+    return this.inquiryWorkflowService.logInquiryOnBehalf(dto, {}, this.inquiryWorkflowContext(), verifiedActor);
   }
 
   @Post()

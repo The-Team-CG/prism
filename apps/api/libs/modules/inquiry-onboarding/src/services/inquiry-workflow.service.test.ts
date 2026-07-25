@@ -72,6 +72,54 @@ describe('InquiryWorkflowService', () => {
     expect(context.inquiriesService.logInquiryOnBehalf).not.toHaveBeenCalled();
   });
 
+  it('denies a verified non-PmcmAdmin/System actor from logging inquiries on behalf', async () => {
+    const { service, context } = createService();
+    const verifiedActor = { actorRole: 'client', actorName: 'A Client' };
+    const input = {
+      clientName: 'Walk In Client',
+      email: 'walkin@example.test',
+      eventName: 'Walk In Product Launch',
+      eventDate: '2026-07-10',
+      clientType: 'Corporate',
+      message: 'Client gave details at PMCM office',
+    };
+
+    await expect(service.logInquiryOnBehalf(input, {}, context as any, verifiedActor as any)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+
+    expect(context.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
+    expect(context.requireActorRole).toHaveBeenCalledWith(
+      { role: 'client', name: 'A Client' },
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'log inquiry on behalf',
+    );
+    expect(context.inquiriesService.logInquiryOnBehalf).not.toHaveBeenCalled();
+  });
+
+  it('allows a verified PmcmAdmin actor to log inquiries on behalf', async () => {
+    const { service, context } = createService();
+    const verifiedActor = { actorRole: 'pmcm-admin', actorName: 'Ms. Mys' };
+    const input = {
+      clientName: 'Walk In Client',
+      email: 'walkin@example.test',
+      eventName: 'Walk In Product Launch',
+      eventDate: '2026-07-10',
+      clientType: 'Corporate',
+      message: 'Client gave details at PMCM office',
+    };
+
+    await expect(service.logInquiryOnBehalf(input, {}, context as any, verifiedActor as any)).resolves.toEqual({
+      id: 'inq_logged',
+    });
+
+    expect(context.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
+    expect(context.inquiriesService.logInquiryOnBehalf).toHaveBeenCalledWith(input, {
+      role: 'pmcm-admin',
+      name: 'Ms. Mys',
+    });
+  });
+
   it('denies non-PmcmAdmin actors from uploading conforme documents', async () => {
     const { service, context } = createService();
 
