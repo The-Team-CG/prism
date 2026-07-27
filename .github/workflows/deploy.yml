@@ -10,12 +10,34 @@ permissions:
   packages: write
 
 jobs:
+  check-deploy-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      staging_ready: ${{ steps.check.outputs.staging_ready }}
+      production_ready: ${{ steps.check.outputs.production_ready }}
+    steps:
+      - id: check
+        env:
+          STAGING_HOOK: ${{ secrets.RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL }}
+          PRODUCTION_HOOK: ${{ secrets.RENDER_PRISM_API_PRODUCTION_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$STAGING_HOOK" ] && [ -n "${{ vars.PRISM_API_STAGING_URL }}" ]; then
+            echo "staging_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "staging_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$PRODUCTION_HOOK" ] && [ -n "${{ vars.PRISM_API_PRODUCTION_URL }}" ]; then
+            echo "production_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "production_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy-api-staging:
+    needs: check-deploy-secrets
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
-      secrets.RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL != '' &&
-      vars.PRISM_API_STAGING_URL != ''
+      needs.check-deploy-secrets.outputs.staging_ready == 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@main
     with:
       environment: staging
@@ -28,11 +50,11 @@ jobs:
       RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL }}
 
   deploy-api-production:
+    needs: check-deploy-secrets
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main' &&
-      secrets.RENDER_PRISM_API_PRODUCTION_DEPLOY_HOOK_URL != '' &&
-      vars.PRISM_API_PRODUCTION_URL != ''
+      needs.check-deploy-secrets.outputs.production_ready == 'true'
     uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@main
     with:
       environment: production
