@@ -19,6 +19,7 @@
         "db:status": "npm run db:doctor && prisma migrate status",
         "db:setup": "npm run db:doctor && prisma migrate deploy",
         "db:migrate": "npm run db:doctor && prisma migrate dev",
+        "db:migrate:deploy": "prisma migrate deploy",
         "db:generate": "prisma generate",
         "db:verify:offline": "npm run prisma:validate && prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script",
         "db:verify": "npm run db:doctor && npm run prisma:validate && prisma migrate status && npm run db:verify:offline",
