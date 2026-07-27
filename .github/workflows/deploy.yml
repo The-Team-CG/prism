@@ -66,58 +66,138 @@ jobs:
     secrets:
       RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_PRISM_API_PRODUCTION_DEPLOY_HOOK_URL }}
 
-  deploy-frontends-staging:
+  deploy-frontend-client-staging:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
-      vars[matrix.project_var] != ''
-    strategy:
-      matrix:
-        include:
-          - app: client
-            project_var: PRISM_VERCEL_PROJECT_ID_CLIENT
-          - app: event
-            project_var: PRISM_VERCEL_PROJECT_ID_EVENT
-          - app: guest
-            project_var: PRISM_VERCEL_PROJECT_ID_GUEST
-          - app: supplier
-            project_var: PRISM_VERCEL_PROJECT_ID_SUPPLIER
+      vars.PRISM_VERCEL_PROJECT_ID_CLIENT != ''
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
     with:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
-      working_directory: apps/${{ matrix.app }}
+      working_directory: apps/client
       node_version: "24"
-      vercel_project_id: ${{ vars[matrix.project_var] }}
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_CLIENT }}
       run_smoke: true
       smoke_path: /
     secrets: inherit
 
-  deploy-frontends-production:
+  deploy-frontend-event-staging:
+    needs: deploy-api-staging
+    if: >-
+      needs.deploy-api-staging.result == 'success' &&
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_VERCEL_PROJECT_ID_EVENT != ''
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: staging
+      ref: ${{ github.event.workflow_run.head_sha }}
+      working_directory: apps/event
+      node_version: "24"
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_EVENT }}
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit
+
+  deploy-frontend-guest-staging:
+    needs: deploy-api-staging
+    if: >-
+      needs.deploy-api-staging.result == 'success' &&
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_VERCEL_PROJECT_ID_GUEST != ''
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: staging
+      ref: ${{ github.event.workflow_run.head_sha }}
+      working_directory: apps/guest
+      node_version: "24"
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_GUEST }}
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit
+
+  deploy-frontend-supplier-staging:
+    needs: deploy-api-staging
+    if: >-
+      needs.deploy-api-staging.result == 'success' &&
+      github.event.workflow_run.head_branch == 'staging' &&
+      vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER != ''
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: staging
+      ref: ${{ github.event.workflow_run.head_sha }}
+      working_directory: apps/supplier
+      node_version: "24"
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER }}
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit
+
+  deploy-frontend-client-production:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
       github.event.workflow_run.head_branch == 'main' &&
-      vars[matrix.project_var] != ''
-    strategy:
-      matrix:
-        include:
-          - app: client
-            project_var: PRISM_VERCEL_PROJECT_ID_CLIENT
-          - app: event
-            project_var: PRISM_VERCEL_PROJECT_ID_EVENT
-          - app: guest
-            project_var: PRISM_VERCEL_PROJECT_ID_GUEST
-          - app: supplier
-            project_var: PRISM_VERCEL_PROJECT_ID_SUPPLIER
+      vars.PRISM_VERCEL_PROJECT_ID_CLIENT != ''
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
     with:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
-      working_directory: apps/${{ matrix.app }}
+      working_directory: apps/client
       node_version: "24"
-      vercel_project_id: ${{ vars[matrix.project_var] }}
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_CLIENT }}
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit
+
+  deploy-frontend-event-production:
+    needs: deploy-api-production
+    if: >-
+      needs.deploy-api-production.result == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      vars.PRISM_VERCEL_PROJECT_ID_EVENT != ''
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: production
+      ref: ${{ github.event.workflow_run.head_sha }}
+      working_directory: apps/event
+      node_version: "24"
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_EVENT }}
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit
+
+  deploy-frontend-guest-production:
+    needs: deploy-api-production
+    if: >-
+      needs.deploy-api-production.result == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      vars.PRISM_VERCEL_PROJECT_ID_GUEST != ''
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: production
+      ref: ${{ github.event.workflow_run.head_sha }}
+      working_directory: apps/guest
+      node_version: "24"
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_GUEST }}
+      run_smoke: true
+      smoke_path: /
+    secrets: inherit
+
+  deploy-frontend-supplier-production:
+    needs: deploy-api-production
+    if: >-
+      needs.deploy-api-production.result == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER != ''
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    with:
+      environment: production
+      ref: ${{ github.event.workflow_run.head_sha }}
+      working_directory: apps/supplier
+      node_version: "24"
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER }}
       run_smoke: true
       smoke_path: /
     secrets: inherit
