@@ -81,6 +81,7 @@ import {
 import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/features/floorplan/editor/templates";
 import type { Project } from "@/features/floorplan/editor/types";
 import { clearEventSession, readStoredEventSession, type EventSession } from "@/app/lib/session";
+import { isPmcmAdmin } from "@/app/lib/role-guards";
 import {
   selectActiveEvents,
   selectClientRecords,
@@ -576,6 +577,7 @@ export function EventDashboardShellView({
   }
 
   async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft) {
+    if (!session || !isPmcmAdmin(session.role)) return;
     const project = await ops.loadPlan(draft.floorPlanId);
     setScreen({ name: "editor", event, draft, project });
   }
@@ -823,6 +825,7 @@ export function EventDashboardShellView({
           eventName={screen.event.eventName}
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
+          readOnly={!isPmcmAdmin(session.role)}
           onSave={(project) => ops.savePlan(project)}
           onSubmit={async (project) => {
             await ops.savePlan(project);
