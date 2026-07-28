@@ -351,7 +351,7 @@ export class InquiriesService {
                 totalAmount,
                 status: 'approved',
                 approvedAt: now,
-                approvedBy: 'PMCM Admin',
+                approvedBy: actor.name,
                 approvalNotes: 'Generated from signed conforme onboarding source.',
               },
             });
