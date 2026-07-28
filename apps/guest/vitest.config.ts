@@ -16,5 +16,12 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     clearMocks: true,
     restoreMocks: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      reportsDirectory: "./coverage",
+      exclude: ["**/guest-shared/**"],
+      thresholds: { lines: 50, statements: 50, functions: 50, branches: 40 },
+    },
   },
 });
