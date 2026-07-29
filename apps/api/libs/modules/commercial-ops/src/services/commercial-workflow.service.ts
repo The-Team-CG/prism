@@ -405,6 +405,9 @@ export class CommercialWorkflowService {
         ) {
           throw new BadRequestException('Supplier quote is already locked');
         }
+        if (quote && quote.revisionNumber >= 2) {
+          throw new BadRequestException('Quote has already been revised and cannot be revised again.');
+        }
         effectiveMode = quote ? 'revise' : 'submit';
         if (effectiveMode === 'submit' && input.amount === undefined) {
           throw new BadRequestException('Quote amount is required');
