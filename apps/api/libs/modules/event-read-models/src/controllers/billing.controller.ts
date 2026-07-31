@@ -1,7 +1,8 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { BillingOperationsService } from '@prism/modules/finance-ops';
-import { SampleActorDto } from '../dto/read-model.dto';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { createBillingReadModelMappers } from '../mappers/event-read-model.mappers';
 import { mapBillingEvent } from '../mappers/billing-read-model.mappers';
 import { EventReadModelsService } from '../services/event-read-models.service';
@@ -15,8 +16,9 @@ export class OpsBillingController {
   ) {}
 
   @Get()
-  list(@Query() actorInput: SampleActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventReadModelsService.billing(
       actor,
       createBillingReadModelMappers({
