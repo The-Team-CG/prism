@@ -76,7 +76,11 @@ describe('OpsClientController', () => {
       clientActionCenter: vi.fn(async () => ({ items: [{ id: 'briefing:evt_sample' }] })),
     };
     const eventAccessPolicyService = {
-      resolveActor: vi.fn((input) => ({ role: input.actorRole, clientName: input.clientName, name: input.clientName })),
+      resolveActor: vi.fn((_input: any, verified: any) => ({
+        role: verified.actorRole,
+        clientName: verified.actorRole === 'client' ? verified.actorName : undefined,
+        name: verified.actorName,
+      })),
     };
     const billingOperationsService = {
       mapBillingStatement: vi.fn((statement) => ({ kind: 'statement', id: statement.id })),
@@ -92,9 +96,19 @@ describe('OpsClientController', () => {
       auditService as any,
     );
 
-    const actor = { actorRole: 'client', clientName: 'Ana Reyes' };
-    const workspace = await controller.getClientWorkspace(actor);
-    const actionCenter = await controller.actionCenter(actor);
+    const verifiedActor = {
+      id: 'user_client',
+      actorId: 'user_client',
+      role: 'client',
+      actorRole: 'client',
+      email: 'ana@ayala.test',
+      actorEmail: 'ana@ayala.test',
+      name: 'Ana Reyes',
+      actorName: 'Ana Reyes',
+      expiresAt: '2026-07-03T12:00:00.000Z',
+    };
+    const workspace = await controller.getClientWorkspace(verifiedActor as any);
+    const actionCenter = await controller.actionCenter(verifiedActor as any);
 
     expect(workspace.events[0]).toMatchObject({
       id: 'evt_sample',
@@ -108,6 +122,7 @@ describe('OpsClientController', () => {
     expect(workspace.floorPlanDrafts[0]).toMatchObject({ id: 'fpd_1', status: 'submitted' });
     expect(workspace.auditLogs).toEqual([{ kind: 'audit', id: 'aud_1' }]);
     expect(actionCenter).toEqual({ items: [{ id: 'briefing:evt_sample' }] });
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(eventReadModelsService.clientWorkspace).toHaveBeenCalledWith(
       { role: 'client', clientName: 'Ana Reyes', name: 'Ana Reyes' },
       expect.objectContaining({
