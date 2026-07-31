@@ -1,8 +1,49 @@
+import { createHmac } from 'node:crypto';
+
 const baseUrl = process.env.PRISM_API_URL ?? 'http://localhost:4000';
 
 const jsonHeaders = {
   'content-type': 'application/json',
 };
+
+const TOTP_PERIOD_SECONDS = 30;
+const TOTP_DIGITS = 6;
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function base32Decode(value) {
+  let bits = 0;
+  let buffer = 0;
+  const bytes = [];
+
+  for (const character of value.replace(/=+$/, '').toUpperCase()) {
+    const index = BASE32_ALPHABET.indexOf(character);
+    if (index < 0) throw new Error('Invalid TOTP secret');
+    buffer = (buffer << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((buffer >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(bytes);
+}
+
+function totpCodeAt(secret, counter) {
+  const key = base32Decode(secret);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+  const digest = createHmac('sha1', key).update(counterBuffer).digest();
+  const offset = digest[digest.length - 1] & 0x0f;
+  const binary = ((digest[offset] & 0x7f) << 24)
+    | ((digest[offset + 1] & 0xff) << 16)
+    | ((digest[offset + 2] & 0xff) << 8)
+    | (digest[offset + 3] & 0xff);
+  return String(binary % 1_000_000).padStart(TOTP_DIGITS, '0');
+}
+
+function currentTotpCode(secret, nowMs = Date.now()) {
+  return totpCodeAt(secret, Math.floor(nowMs / 1000 / TOTP_PERIOD_SECONDS));
+}
 
 async function request(path, init = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -140,11 +181,24 @@ if (!sample.events?.[0]?.id || !sample.inquiries?.[0]?.id) {
   throw new Error(`event ops reset returned incomplete state: ${JSON.stringify(sample)}`);
 }
 
-await expectOk('event ops auth login', '/api/auth/login', {
+const opsLogin = await expectOk('event ops auth login', '/api/auth/login', {
   method: 'POST',
   body: JSON.stringify({
     email: 'mys@pmcm.test',
     password: 'prism-admin',
+  }),
+});
+
+const opsTwoFactorSetup = await expectOk('event ops 2fa setup', '/api/auth/2fa/setup', {
+  method: 'POST',
+  body: JSON.stringify({ token: opsLogin.token }),
+});
+
+const opsSession = await expectOk('event ops 2fa verify', '/api/auth/2fa/verify', {
+  method: 'POST',
+  body: JSON.stringify({
+    token: opsTwoFactorSetup.token,
+    code: currentTotpCode(opsTwoFactorSetup.secret),
   }),
 });
 
@@ -206,7 +260,9 @@ await expectOk('accept event ops inquiry', `/api/inquiries/${opsInquiry.id}/stat
   body: JSON.stringify({ status: 'accepted' }),
 });
 
-let opsEvents = await expectOk('read scoped event list', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin');
+let opsEvents = await expectOk('read scoped event list', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin', {
+  headers: { Authorization: `Bearer ${opsSession.accessToken}` },
+});
 let opsEvent = opsEvents.find((item) => item.inquiryId === opsInquiry.id);
 
 if (opsEvent?.id) {
@@ -223,7 +279,9 @@ await expectOk('upload event ops conforme', `/api/inquiries/${opsInquiry.id}/con
   }),
 });
 
-opsEvents = await expectOk('read scoped event list after conforme', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin');
+opsEvents = await expectOk('read scoped event list after conforme', '/api/events?actorRole=pmcm-admin&actorName=PMCM%20Admin', {
+  headers: { Authorization: `Bearer ${opsSession.accessToken}` },
+});
 opsEvent = opsEvents.find((item) => item.inquiryId === opsInquiry.id);
 
 if (!opsEvent?.id) {
@@ -376,6 +434,7 @@ await expectOk('ack event ops coordinator', `/api/events/${opsEvent.id}/coordina
 const billingWorkspace = await expectOk(
   'read scoped billing workspace after milestones',
   '/api/billing?actorRole=pmcm-admin&actorName=PMCM%20Admin',
+  { headers: { Authorization: `Bearer ${opsSession.accessToken}` } },
 );
 const closeGates = await expectOk('read scoped close gates after milestones', `/api/events/${opsEvent.id}/close-gates`);
 const payment = billingWorkspace.paymentMilestones.find((item) => item.eventId === opsEvent.id);

@@ -16,21 +16,29 @@ describe('OpsPmcmCommandInboxController', () => {
       pmcmCommandInbox: vi.fn(async () => ({ items: [{ id: 'inquiry:inq_sample' }] })),
     };
     const eventAccessPolicyService = {
-      resolveActor: vi.fn((input) => ({ role: input.actorRole, name: input.actorName ?? input.actorRole })),
+      resolveActor: vi.fn((_input: any, verified: any) => ({ role: verified.actorRole, name: verified.actorName })),
     };
     const controller = new OpsPmcmCommandInboxController(
       eventReadModelsService as any,
       eventAccessPolicyService as any,
     );
+    const verifiedActor = {
+      id: 'user_pmcm',
+      actorId: 'user_pmcm',
+      role: 'pmcm-admin',
+      actorRole: 'pmcm-admin',
+      email: 'mys@pmcm.test',
+      actorEmail: 'mys@pmcm.test',
+      name: 'Maxine',
+      actorName: 'Maxine',
+      expiresAt: '2026-07-03T12:00:00.000Z',
+    };
 
-    await expect(controller.commandInbox({ actorRole: 'pmcm-admin', actorName: 'Maxine' })).resolves.toEqual({
+    await expect(controller.commandInbox(verifiedActor as any)).resolves.toEqual({
       items: [{ id: 'inquiry:inq_sample' }],
     });
 
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({
-      actorRole: 'pmcm-admin',
-      actorName: 'Maxine',
-    });
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(eventReadModelsService.pmcmCommandInbox).toHaveBeenCalledWith({ role: 'pmcm-admin', name: 'Maxine' });
   });
 });
