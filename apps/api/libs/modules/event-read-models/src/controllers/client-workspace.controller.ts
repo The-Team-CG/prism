@@ -1,8 +1,9 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { BillingOperationsService } from '@prism/modules/finance-ops';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { AuditService } from '@prism/modules/trust-ops';
-import { SampleActorDto } from '../dto/read-model.dto';
 import { mapBillingEvent, mapReadModelFloorPlanDraft } from '../mappers/billing-read-model.mappers';
 import { mapClientBriefing, mapClientDocument } from '../mappers/client-read-model.mappers';
 import { createClientWorkspaceMappers } from '../mappers/event-read-model.mappers';
@@ -18,8 +19,9 @@ export class OpsClientController {
   ) {}
 
   @Get('workspace')
-  getClientWorkspace(@Query() actorInput: SampleActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  getClientWorkspace(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventReadModelsService.clientWorkspace(
       actor,
       createClientWorkspaceMappers({
@@ -35,8 +37,9 @@ export class OpsClientController {
   }
 
   @Get('action-center')
-  actionCenter(@Query() actorInput: SampleActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  actionCenter(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventReadModelsService.clientActionCenter(actor);
   }
 }
