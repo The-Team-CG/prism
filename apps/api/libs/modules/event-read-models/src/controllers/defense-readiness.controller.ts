@@ -1,6 +1,7 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
-import { SampleActorDto } from '../dto/read-model.dto';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { EventReadModelsService } from '../services/event-read-models.service';
 
 @Controller('events')
@@ -11,8 +12,9 @@ export class OpsDefenseReadinessController {
   ) {}
 
   @Get(':eventId/defense-readiness')
-  defenseReadiness(@Param('eventId') eventId: string, @Query() actorInput: SampleActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  defenseReadiness(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventReadModelsService.defenseReadiness(actor, eventId);
   }
 }
