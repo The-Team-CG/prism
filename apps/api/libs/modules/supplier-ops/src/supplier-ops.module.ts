@@ -3,6 +3,7 @@ import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { AiGovernanceModule, PAREService } from '@prism/modules/ai-governance';
 import { EventCoreModule } from '@prism/modules/event-core';
+import { EventSessionModule } from '@prism/modules/event-session';
 import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsEventSupplierWithdrawalController } from './controllers/event-supplier-withdrawal.controller';
@@ -41,7 +42,7 @@ const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
 };
 
 @Module({
-  imports: [DatabaseModule, AccessControlModule, AiGovernanceModule, EventCoreModule, TrustOpsModule, FileOpsModule],
+  imports: [DatabaseModule, AccessControlModule, AiGovernanceModule, EventCoreModule, TrustOpsModule, FileOpsModule, EventSessionModule],
   controllers: [
     OpsEventSupplierWithdrawalController,
     OpsSupplierApplicationsController,
