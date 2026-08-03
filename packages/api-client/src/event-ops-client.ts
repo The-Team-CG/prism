@@ -132,8 +132,10 @@ export interface EventOpsClient {
     feedback(accessCode: string, input: CreateGuestFeedbackInput): Promise<PrismGuestFeedback>;
   };
   supplierWorkspace: {
-    detail(actor?: EventOpsActorQuery): Promise<PrismSupplierWorkspace>;
-    readinessBoard(actor?: EventOpsActorQuery): Promise<PrismSupplierReadinessBoard>;
+    /** Identity comes from the session bearer token (PA-284); no actor query. */
+    detail(): Promise<PrismSupplierWorkspace>;
+    /** Identity comes from the session bearer token (PA-284); no actor query. */
+    readinessBoard(): Promise<PrismSupplierReadinessBoard>;
     confirmAssignment(requestId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
     confirmReadiness(requestId: string, input: ConfirmSupplierReadinessInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
     uploadContract(requestId: string, input: UploadContractInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
@@ -181,10 +183,9 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<PrismClientActionCenter>(actorPath("/client/action-center", actor), withBase(options)),
     },
     supplierWorkspace: {
-      detail: (actor = {}) =>
-        prismRequest<PrismSupplierWorkspace>(actorPath("/supplier/workspace", actor), withBase(options)),
-      readinessBoard: (actor = {}) =>
-        prismRequest<PrismSupplierReadinessBoard>(actorPath("/supplier/readiness-board", actor), withBase(options)),
+      detail: () => prismRequest<PrismSupplierWorkspace>("/supplier/workspace", withBase(options)),
+      readinessBoard: () =>
+        prismRequest<PrismSupplierReadinessBoard>("/supplier/readiness-board", withBase(options)),
       confirmAssignment: (requestId, actor = {}) =>
         prismRequest<PrismSupplierQuoteRequest>(
           actorPath(`/supplier/quote-requests/${requestId}/assignment/confirm`, actor),
