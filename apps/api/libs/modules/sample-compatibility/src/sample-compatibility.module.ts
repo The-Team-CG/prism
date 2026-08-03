@@ -18,7 +18,9 @@ import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { SupplierOpsModule } from '@prism/modules/supplier-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
+import { EventSessionModule } from '@prism/modules/event-session';
 import { SAMPLE_COMPATIBILITY_CONTROLLERS } from './controllers';
+import { SampleResetGuard } from './guards/sample-reset.guard';
 import { SampleCompatibilityService } from './services/sample-compatibility.service';
 import { SampleStateService } from './services/sample-state.service';
 
@@ -26,6 +28,10 @@ import { SampleStateService } from './services/sample-state.service';
   imports: [
     DatabaseModule,
     EventCoreModule,
+    // Depended on directly by SampleResetGuard. Previously reached only
+    // transitively via IdentityOpsModule's re-export; naming it here keeps the
+    // guard working if that re-export is ever tightened (cf. PA-280).
+    EventSessionModule,
     TrustOpsModule,
     NotificationOpsModule,
     AccessControlModule,
@@ -45,6 +51,6 @@ import { SampleStateService } from './services/sample-state.service';
     EventReadModelsModule,
   ],
   controllers: SAMPLE_COMPATIBILITY_CONTROLLERS,
-  providers: [SampleStateService, SampleCompatibilityService],
+  providers: [SampleStateService, SampleCompatibilityService, SampleResetGuard],
 })
 export class SampleCompatibilityModule {}
