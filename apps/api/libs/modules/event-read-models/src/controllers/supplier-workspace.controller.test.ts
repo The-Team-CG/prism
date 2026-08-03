@@ -1,10 +1,28 @@
 import 'reflect-metadata';
+import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/modules/event-core';
+import { EventSessionGuard } from '@prism/modules/identity-ops';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsSupplierWorkspaceReadsController } from './supplier-workspace.controller';
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
+}
+
+function verifiedActor(role: string, overrides: Partial<PrismVerifiedEventActor> = {}) {
+  return {
+    id: 'user_supplier',
+    actorId: 'user_supplier',
+    role,
+    actorRole: role,
+    email: 'supplier@example.com',
+    actorEmail: 'supplier@example.com',
+    name: 'SonicLine Technicals',
+    actorName: 'SonicLine Technicals',
+    expiresAt: '2026-08-04T00:00:00.000Z',
+    ...overrides,
+  } as PrismVerifiedEventActor;
 }
 
 describe('OpsSupplierWorkspaceReadsController', () => {
@@ -64,15 +82,16 @@ describe('OpsSupplierWorkspaceReadsController', () => {
     const actor = { role: OpsUserRole.Supplier, supplierId: 'sup_sonic', name: 'SonicLine Technicals' };
     const eventAccessPolicyService = {
       resolveActor: vi.fn(() => actor),
+      requireActorRole: vi.fn(async () => undefined),
     };
     const controller = new OpsSupplierWorkspaceReadsController(
       eventReadModelsService as any,
       eventAccessPolicyService as any,
     );
-    const actorQuery = { actorRole: OpsUserRole.Supplier, actorName: 'SonicLine Technicals', supplierId: 'sup_sonic' };
+    const session = verifiedActor(OpsUserRole.Supplier);
 
-    const workspace = await controller.getSupplierWorkspace(actorQuery);
-    const board = await controller.readinessBoard(actorQuery);
+    const workspace = await controller.getSupplierWorkspace(session);
+    const board = await controller.readinessBoard(session);
 
     expect(workspace.quoteRequests[0]).toMatchObject({
       id: 'qr_sonic',
@@ -90,5 +109,52 @@ describe('OpsSupplierWorkspaceReadsController', () => {
       }),
     );
     expect(eventReadModelsService.supplierReadinessBoard).toHaveBeenCalledWith(actor);
+    // Identity must come from the verified session only - resolveActor gets an empty
+    // request input, so nothing from the query string can influence the actor (PA-284).
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, session);
+  });
+
+  it('guards both reads with EventSessionGuard', () => {
+    for (const handler of ['getSupplierWorkspace', 'readinessBoard'] as const) {
+      const guards = Reflect.getMetadata('__guards__', OpsSupplierWorkspaceReadsController.prototype[handler]);
+      expect(guards, `${handler} must be session-guarded`).toContain(EventSessionGuard);
+    }
+  });
+
+  it('accepts no query parameters, so ?actorRole= cannot reach resolveActor', () => {
+    // Zero declared route params means a forged ?actorRole=supplier is simply ignored.
+    for (const handler of ['getSupplierWorkspace', 'readinessBoard'] as const) {
+      const params = Reflect.getMetadata(
+        '__routeArguments__',
+        OpsSupplierWorkspaceReadsController,
+        handler,
+      ) as Record<string, unknown> | undefined;
+      const queryParams = Object.keys(params ?? {}).filter((key) => key.startsWith('3:'));
+      expect(queryParams, `${handler} must not declare @Query params`).toEqual([]);
+    }
+  });
+
+  it('rejects a session whose role is neither supplier nor pmcm-admin', async () => {
+    const eventReadModelsService = {
+      supplierWorkspace: vi.fn(),
+      supplierReadinessBoard: vi.fn(),
+    };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn(() => ({ role: OpsUserRole.Guest, name: 'Nosy Guest' })),
+      requireActorRole: vi.fn(async () => {
+        throw new ForbiddenException('Forbidden');
+      }),
+    };
+    const controller = new OpsSupplierWorkspaceReadsController(
+      eventReadModelsService as any,
+      eventAccessPolicyService as any,
+    );
+
+    await expect(controller.getSupplierWorkspace(verifiedActor(OpsUserRole.Guest))).rejects.toThrow(
+      ForbiddenException,
+    );
+    await expect(controller.readinessBoard(verifiedActor(OpsUserRole.Guest))).rejects.toThrow(ForbiddenException);
+    expect(eventReadModelsService.supplierWorkspace).not.toHaveBeenCalled();
+    expect(eventReadModelsService.supplierReadinessBoard).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,9 @@ export type SupplierSession = {
   role: string;
   organization: string;
   signedInAt: string;
+  /** See supplier-sign-in-types.ts - persisted for authenticated reads (PA-284). */
+  accessToken: string;
+  expiresAt: string;
 };
 
 export type {
@@ -19,6 +22,7 @@ export type {
 } from "@prism/types";
 
 import { createEventOpsClient } from "@prism/api-client";
+import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
 import type {
   PrismSupplierApplication,
   PrismSupplierQuote,
@@ -44,7 +48,28 @@ export type QuoteRequestDetail = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const API_OFFLINE_MESSAGE = "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
-const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
+
+/**
+ * Mirrors storedClientAccessToken in apps/client. Reads the persisted supplier
+ * session and returns its bearer token so eventOpsClient can authenticate every
+ * supplier call, rather than the server trusting a forgeable ?actorRole= param.
+ */
+export function storedSupplierAccessToken() {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(PRISM_SESSION_STORAGE_KEYS.supplier);
+  if (!raw) return null;
+  try {
+    const session = JSON.parse(raw) as unknown;
+    return isPrismAuthenticatedSession(session) ? session.accessToken : null;
+  } catch {
+    return null;
+  }
+}
+
+const eventOpsClient = createEventOpsClient({
+  baseUrl: `${API_URL}/api`,
+  getAuthToken: storedSupplierAccessToken,
+});
 
 function actorFromSession(session: SupplierSession) {
   return { actorRole: "supplier" as const, actorName: session.name, actorEmail: session.email };
@@ -74,18 +99,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const prismApi = {
-  supplierWorkspace: (session: SupplierSession) =>
-    eventOpsClient.supplierWorkspace.detail({
-      actorRole: "supplier",
-      actorName: session.name,
-      actorEmail: session.email,
-    }),
-  supplierReadinessBoard: (session: SupplierSession): Promise<PrismSupplierReadinessBoard> =>
-    eventOpsClient.supplierWorkspace.readinessBoard({
-      actorRole: "supplier",
-      actorName: session.name,
-      actorEmail: session.email,
-    }),
+  // Identity now comes from the bearer token that getAuthToken attaches, so these
+  // reads no longer pass an actor at all - the server derives it from the verified
+  // session (PA-284). The `session` parameter is retained so callers still have to
+  // hold a session to reach these, and so the signature stays stable.
+  supplierWorkspace: (_session: SupplierSession) => eventOpsClient.supplierWorkspace.detail(),
+  supplierReadinessBoard: (_session: SupplierSession): Promise<PrismSupplierReadinessBoard> =>
+    eventOpsClient.supplierWorkspace.readinessBoard(),
   quoteRequest: (token: string) => request<QuoteRequestDetail>(`/api/quote-requests/${token}`),
   submitQuote: (token: string, input: SubmitSupplierQuoteInput) =>
     request<PrismSupplierQuote>(`/api/quote-requests/${token}/quote`, {
