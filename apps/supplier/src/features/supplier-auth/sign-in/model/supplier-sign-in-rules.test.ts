@@ -36,11 +36,17 @@ describe("supplier-sign-in-rules", () => {
         email: "ops@xperto.test",
         role: "supplier",
         organization: "Xperto",
+        accessToken: "supplier-token",
+        expiresAt: "2026-07-02T00:00:00.000Z",
       },
       "2026-07-01T00:00:00.000Z",
     );
     expect(session.signedInAt).toBe("2026-07-01T00:00:00.000Z");
     expect(session.email).toBe("ops@xperto.test");
+    // PA-284: the bearer token must survive into the persisted session, otherwise
+    // supplier reads fall back to unauthenticated calls.
+    expect(session.accessToken).toBe("supplier-token");
+    expect(session.expiresAt).toBe("2026-07-02T00:00:00.000Z");
   });
 
   it("resolves post sign-in path safely", () => {
@@ -57,6 +63,8 @@ describe("supplier-sign-in-rules", () => {
       role: "supplier",
       organization: "Xperto",
       signedInAt: "2026-07-01T00:00:00.000Z",
+      accessToken: "supplier-token",
+      expiresAt: "2026-07-02T00:00:00.000Z",
     };
     expect(isExistingSupplierSession(ok)).toBe(true);
     expect(isExistingSupplierSession({ ...ok, role: "client" })).toBe(false);
