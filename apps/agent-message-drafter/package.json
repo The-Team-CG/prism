@@ -1,0 +1,32 @@
+{
+  "name": "prism-agent-message-drafter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Drafts the supplier and client messages for a PARE supplier replacement.",
+  "engines": {
+    "node": ">=24"
+  },
+  "imports": {
+    "#*": "./agent/*",
+    "#evals/*": "./evals/*"
+  },
+  "scripts": {
+    "build": "eve build",
+    "dev": "eve dev",
+    "start": "eve start",
+    "typecheck": "tsc",
+    "eval": "eve eval"
+  },
+  "dependencies": {
+    "@prism/pare-core": "*",
+    "@prism/types": "*",
+    "@vercel/connect": "0.4.3",
+    "ai": "^7.0.48",
+    "eve": "^0.29.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24"
+  }
+}

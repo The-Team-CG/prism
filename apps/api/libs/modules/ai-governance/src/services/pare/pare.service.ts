@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/database';
-import { DataSanitizerService } from './data-sanitizer.service';
-import { EventContextAgent } from './agents/event-context.agent';
-import { SupplierFinderAgent } from './agents/supplier-finder.agent';
-import { BudgetAgent } from './agents/budget.agent';
-import { RiskAgent } from './agents/risk.agent';
-import { MessageDrafterAgent } from './agents/message-drafter.agent';
+import {
+  buildPareEventContext,
+  noCandidateBudgetAnalysis,
+  rankSupplierCandidates,
+  sanitizePareData,
+} from '@prism/pare-core';
 import type {
   PAREApprovalRecord,
   PAREApprovalStatus,
@@ -16,9 +16,10 @@ import type {
   PAREDrafts,
   PAREResult,
   PARERisk,
-} from './pare.types';
+} from '@prism/types';
+import { PARE_LIVE_MODEL_VERSION, PareAgentGateway, type PareMode } from './pare-agent.gateway';
+import { PareSourceService } from './pare-source.service';
 
-type PAREMode = 'mock' | 'live';
 type ApprovalRow = {
   id: string;
   aiAuditLogId: string;
@@ -36,28 +37,28 @@ type AuditRow = {
   createdAt?: Date | string | null;
 };
 
+/**
+ * PARE's interface: run a withdrawal through the engine, record what it saw, and
+ * park the recommendation behind human approval.
+ *
+ * The decision logic lives in `@prism/pare-core`; the reasoning steps are the
+ * `apps/agent-*` eve apps, reached through {@link PareAgentGateway}. Nothing here
+ * acts on a recommendation — a PMCM Admin approves or rejects it first.
+ */
 @Injectable()
 export class PAREService {
-  private readonly mode: PAREMode;
-  private readonly sanitizer: DataSanitizerService;
-  private readonly eventContextAgent: EventContextAgent;
-  private readonly supplierFinderAgent: SupplierFinderAgent;
-  private readonly budgetAgent: BudgetAgent;
-  private readonly riskAgent: RiskAgent;
-  private readonly messageDrafterAgent: MessageDrafterAgent;
+  private readonly mode: PareMode;
+  private readonly source: PareSourceService;
+  private readonly agents: PareAgentGateway;
 
   // In-memory fallback store — used when DB is unreachable
   private readonly memoryAuditLogs = new Map<string, AuditRow>();
   private readonly memoryApprovals = new Map<string, ApprovalRow>();
 
   constructor(private readonly prisma: PrismaService) {
-    this.mode = (process.env.PARE_MODE as PAREMode) ?? 'mock';
-    this.sanitizer = new DataSanitizerService();
-    this.eventContextAgent = new EventContextAgent(prisma);
-    this.supplierFinderAgent = new SupplierFinderAgent(prisma);
-    this.budgetAgent = new BudgetAgent(this.mode);
-    this.riskAgent = new RiskAgent(this.mode);
-    this.messageDrafterAgent = new MessageDrafterAgent(this.mode);
+    this.mode = (process.env.PARE_MODE as PareMode) ?? 'mock';
+    this.source = new PareSourceService(prisma);
+    this.agents = new PareAgentGateway(this.mode);
   }
 
   private async dbCreate<T>(model: any, data: Record<string, unknown>, memoryStore: Map<string, any>): Promise<T> {
@@ -84,22 +85,25 @@ export class PAREService {
   async handleEmergencyTrigger(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREApprovalRecord> {
     const triggeredAt = new Date();
 
-    // Agent 1 — event context
-    const ctx: PAREContext = await this.eventContextAgent.buildPareEventContext(triggerId, prefetched);
+    // Step 1 — event context
+    const ctx: PAREContext = buildPareEventContext(
+      await this.source.loadTriggerInput(triggerId, prefetched),
+    );
 
-    // Agent 2 — find replacement candidates
-    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx);
+    // Step 2 — shortlist replacement candidates
+    ctx.candidates = rankSupplierCandidates(ctx, await this.source.loadCandidateSuppliers(ctx));
+    const top = ctx.candidates[0];
 
-    // Agents 3 + 4 — run in parallel (independent of each other)
+    // Steps 3 + 4 — independent of each other, so run them together
     const [budgetAnalysis, riskAssessment] = await Promise.all([
-      this.budgetAgent.runPareBudgetAgent(ctx),
-      this.riskAgent.runPareRiskAgent(ctx),
+      top ? this.agents.runBudgetAgent(ctx, top) : Promise.resolve(noCandidateBudgetAnalysis()),
+      this.agents.runRiskAgent(ctx),
     ]);
     ctx.budgetAnalysis = budgetAnalysis;
     ctx.riskAssessment = riskAssessment;
 
-    // Agent 5 — draft messages
-    ctx.drafts = await this.messageDrafterAgent.runPareMessageDraftAgent(ctx);
+    // Step 5 — draft the messages PMCM will review
+    ctx.drafts = await this.agents.runMessageDrafterAgent(ctx);
 
     const pareResult: PAREResult = {
       requestId: ctx.triggerId,
@@ -115,7 +119,7 @@ export class PAREService {
     };
 
     // Log to OpsAiAuditLog (ZDR sanitized)
-    const { data: sanitizedPayload, dataCategories } = this.sanitizer.sanitize(
+    const { data: sanitizedPayload, dataCategories } = sanitizePareData(
       pareResult as unknown as Record<string, unknown>,
     );
     const aiAuditLogId = randomUUID();
@@ -125,7 +129,7 @@ export class PAREService {
         id: aiAuditLogId,
         eventId: ctx.eventId,
         featureName: 'PARE',
-        modelVersion: this.mode === 'live' ? 'claude-sonnet-4-6' : 'mock',
+        modelVersion: this.mode === 'live' ? PARE_LIVE_MODEL_VERSION : 'mock',
         dataCategories,
         sanitizedPayload,
         zdrConfirmed: this.mode === 'live' ? false : true,
@@ -238,8 +242,9 @@ export class PAREService {
   private mapPareResult(payload: unknown, record: ApprovalRow, audit: AuditRow | null): PAREResult {
     const data = this.asRecord(payload);
     const withdrawnSupplier = this.asRecord(data.withdrawnSupplier);
-    const fallbackCandidate = this.fallbackCandidate('No candidate found', 'No PARE candidate payload was stored.');
-    const fallbackBudget = this.fallbackBudgetAnalysis(fallbackCandidate);
+    // Distinct from `noCandidateBudgetAnalysis()`: that means "the category had no
+    // replacement", this means "the stored payload could not be read".
+    const fallbackBudget = this.unreadablePayloadBudgetAnalysis();
     const fallbackRisk: PARERisk = {
       level: 'HIGH',
       factors: ['PARE analysis payload was unavailable.'],
@@ -265,8 +270,28 @@ export class PAREService {
       budgetAnalysis: this.asBudgetAnalysis(data.budgetAnalysis, fallbackBudget),
       riskAssessment: this.asRiskAssessment(data.riskAssessment, fallbackRisk),
       drafts: this.asDrafts(data.drafts, fallbackDrafts),
-      mode: data.mode === 'live' || audit?.modelVersion === 'claude-sonnet-4-6' ? 'live' : 'mock',
+      mode: data.mode === 'live' || audit?.modelVersion === PARE_LIVE_MODEL_VERSION ? 'live' : 'mock',
       triggeredAt: this.asString(data.triggeredAt) || this.toIso(record.requestedAt ?? audit?.createdAt ?? new Date()),
+    };
+  }
+
+  /** Shown when an audit row exists but its sanitized payload cannot be read. */
+  private unreadablePayloadBudgetAnalysis(): PAREBudgetAnalysis {
+    return {
+      feasible: false,
+      selectedCandidate: {
+        supplierId: '',
+        supplierName: 'No candidate found',
+        tier: 'unknown',
+        quotedAmount: 0,
+        reliabilityScore: 0,
+        halal: false,
+        priorPmcmEvents: 0,
+        reason: 'No PARE candidate payload was stored.',
+      },
+      costDelta: 0,
+      costDeltaLabel: 'N/A',
+      summary: 'PARE analysis payload was unavailable.',
     };
   }
 
@@ -322,29 +347,6 @@ export class PAREService {
     return {
       supplierNotification: this.asString(data.supplierNotification) || fallback.supplierNotification,
       clientReassurance: this.asString(data.clientReassurance) || fallback.clientReassurance,
-    };
-  }
-
-  private fallbackCandidate(supplierName: string, reason: string): PARECandidate {
-    return {
-      supplierId: '',
-      supplierName,
-      tier: 'unknown',
-      quotedAmount: 0,
-      reliabilityScore: 0,
-      halal: false,
-      priorPmcmEvents: 0,
-      reason,
-    };
-  }
-
-  private fallbackBudgetAnalysis(candidate: PARECandidate): PAREBudgetAnalysis {
-    return {
-      feasible: false,
-      selectedCandidate: candidate,
-      costDelta: 0,
-      costDeltaLabel: 'N/A',
-      summary: 'PARE analysis payload was unavailable.',
     };
   }
 

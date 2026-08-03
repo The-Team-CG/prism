@@ -3,7 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**", "!.next/cache/**"]
+      "outputs": [".next/**", "dist/**", "!.next/cache/**", ".eve/**", ".output/**"]
     },
     "typecheck": {
       "dependsOn": ["^build", "^typecheck"],
@@ -16,6 +16,16 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
+    "eval": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "outputs": []
     },
     "check:boundaries": {
       "cache": false,

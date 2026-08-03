@@ -20,6 +20,11 @@ temp/
 .vite/
 .turbo/
 
+# eve agent build artifacts (apps/agent-*)
+.eve/
+.output/
+.vercel/
+
 # TypeScript build info
 *.tsbuildinfo
 tsconfig.tsbuildinfo

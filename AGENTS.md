@@ -45,6 +45,22 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 | `event` | 3004 | PMCM, coordinators | command inbox, workspace, floorplans, suppliers, billing, compliance, live ops, closure, trust | public marketing as home; supplier/guest self-service ownership |
 | `api` | 4000 | all via HTTP | workflows, RBAC, Prisma, audit, notify, AI gov, sample compat | UI, app session storage ownership |
 
+**PARE agents (`apps/agent-*`)** — five [eve](https://vercel.com/eve) apps, one per PARE step, each deployed on its own. They reason only: context in, verdict out.
+
+| App | Step | Tool | Returns |
+| --- | --- | --- | --- |
+| `agent-event-context` | 1 | `build_pare_event_context` | normalized `PAREContext` |
+| `agent-supplier-finder` | 2 | `rank_supplier_candidates` | ranked `PARECandidate[]` (max 5) |
+| `agent-budget` | 3 | `compute_budget_baseline` | `PAREBudgetAnalysis` |
+| `agent-risk` | 4 | `compute_risk_baseline` | `PARERisk` |
+| `agent-message-drafter` | 5 | `compute_draft_baseline` | `PAREDrafts` (never sent) |
+
+- Decision logic is `@prism/pare-core`; contracts are `@prism/types`. Agents never touch Prisma, a portal, or `@prism/modules/*` — `check:boundaries` enforces this.
+- The API still owns orchestration, the ZDR audit log and the approval record (`PAREService`). No PARE output acts without PMCM Admin approval.
+- `PARE_MODE=mock` (default) answers entirely from `@prism/pare-core`. `PARE_MODE=live` delegates to the deployed agents and falls back to the deterministic verdict when one is unset, unreachable or returns nothing.
+- Live-mode env: `PRISM_PARE_BUDGET_AGENT_URL`, `PRISM_PARE_RISK_AGENT_URL`, `PRISM_PARE_DRAFTER_AGENT_URL`, optional `PRISM_PARE_AGENT_TOKEN`.
+- Per app: `npm run dev:agent-<name>` (eve TUI), `npm run eval:agents`, `npx eve info` to inspect discovery.
+
 **Visual:** no nav underlines; no eyebrow/outline/uppercase badge pills; no sidebar avatar if top-bar account menu exists.
 
 ---
@@ -58,7 +74,9 @@ apps/api/          Nest modular monolith + Prisma (port 4000)
   libs/shared/     ZodValidationPipe (`zodBody`), shared domain helpers
   prisma/          schema + migrations
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
+apps/agent-*/        eve agents (PARE steps) — one deployable per agent, no DB access
 packages/types       @prism/types     Zod write schemas + domain types + session keys
+packages/pare-core   @prism/pare-core PARE decision logic (no framework, no DB)
 packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsClient, PrismApiError
 packages/ui          shells/brand/public blocks only — no workflows / role data rules
 packages/tokens      theme + typography CSS (+ token object)
@@ -77,6 +95,7 @@ docs/                product + architecture (see docs/README.md)
 | Package | Owns | Import when | Never |
 | --- | --- | --- | --- |
 | **`@prism/types`** | Zod **write** schemas + `z.infer` types; domain **read** interfaces; session/storage keys; `parseContract` | Any shared contract, FE model, API body, repository typing | App-local copy of the same shape |
+| **`@prism/pare-core`** | PARE decision logic: context building, candidate ranking, deterministic budget/risk/draft analyses, ZDR sanitizer | API PARE orchestration; `apps/agent-*` tools | Prisma/Nest/eve imports; a second copy of a scoring rule |
 | **`@prism/api-client`** | HTTP transport + `createEventOpsClient` | **`features/**/data/*` only** (and thin `lib/prism-api` adapters) | Views, pages, view-models calling HTTP |
 | **`@prism/ui`** | Shells, brand, public marketing blocks, shared empty/status chrome | Cross-portal chrome | Role workflows, business rules |
 | **`@prism/tokens`** | `theme.css`, `typography.css`, `prismTokens` | Portal global CSS / design tokens | Per-app one-off color systems for shared brand |

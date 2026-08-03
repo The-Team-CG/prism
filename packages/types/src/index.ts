@@ -1,5 +1,6 @@
 export * from "./event-ops.js";
 export * from "./lifecycle.js";
+export * from "./pare.js";
 export * from "./session.js";
 export * from "./schemas/index.js";
 

@@ -132,6 +132,25 @@ export const boundaryRules = [
       return true;
     },
   },
+  {
+    // Agent apps deploy on their own and must stay reasoning-only: they receive
+    // context and return a verdict. Shared logic belongs in @prism/pare-core,
+    // contracts in @prism/types.
+    name: "agent apps must not import role app or API internals",
+    filePattern: /^apps\/agent-[^/]+\//,
+    importPattern:
+      /from\s+["'](?:@\/|apps\/|@prism\/(?:client|event|supplier|guest|ui|api-client|modules|shared|database))/,
+  },
+  {
+    name: "agent apps must not reach a database directly",
+    filePattern: /^apps\/agent-[^/]+\//,
+    importPattern: /from\s+["'](?:@prisma\/client|@prisma\/adapter-pg|prisma|pg)["']/,
+  },
+  {
+    name: "apps must not import agent app internals",
+    filePattern: /^apps\/(?:api|client|event|supplier|guest)\//,
+    importPattern: /from\s+["'](?:prism-agent-|apps\/agent-)/,
+  },
 ];
 
 export function listTrackedSourceFiles(root = process.cwd()) {

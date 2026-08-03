@@ -24,6 +24,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@prism/database': resolve(__dirname, './libs/database/src/index.ts'),
+      '@prism/pare-core': resolve(__dirname, '../../packages/pare-core/src/index.ts'),
       '@prism/shared': resolve(__dirname, './libs/shared/src/index.ts'),
       '@prism/modules/sample-compatibility': resolve(__dirname, './libs/modules/sample-compatibility/src/index.ts'),
       '@prism/modules/event-read-models': resolve(__dirname, './libs/modules/event-read-models/src/index.ts'),

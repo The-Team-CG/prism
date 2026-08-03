@@ -17,17 +17,29 @@
     "dev:event": "npm --workspace @prism/event run dev",
     "dev:supplier": "npm --workspace @prism/supplier run dev",
     "dev:guest": "npm --workspace @prism/guest run dev",
+    "dev:agent-event-context": "npm --workspace prism-agent-event-context run dev",
+    "dev:agent-supplier-finder": "npm --workspace prism-agent-supplier-finder run dev",
+    "dev:agent-budget": "npm --workspace prism-agent-budget run dev",
+    "dev:agent-risk": "npm --workspace prism-agent-risk run dev",
+    "dev:agent-message-drafter": "npm --workspace prism-agent-message-drafter run dev",
     "start:api": "npm --workspace prism-api run start",
     "start:client": "npm --workspace @prism/client run start",
     "start:event": "npm --workspace @prism/event run start",
     "start:supplier": "npm --workspace @prism/supplier run start",
     "start:guest": "npm --workspace @prism/guest run start",
+    "start:agent-event-context": "npm --workspace prism-agent-event-context run start",
+    "start:agent-supplier-finder": "npm --workspace prism-agent-supplier-finder run start",
+    "start:agent-budget": "npm --workspace prism-agent-budget run start",
+    "start:agent-risk": "npm --workspace prism-agent-risk run start",
+    "start:agent-message-drafter": "npm --workspace prism-agent-message-drafter run start",
     "test:api": "npm --workspace prism-api run test",
     "test:api:coverage": "npm --workspace prism-api run test:coverage",
     "db:generate": "npm --workspace prism-api run db:generate",
     "smoke:ui": "node scripts/smoke-prism-ui.mjs",
     "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs",
-    "check:boundaries": "node scripts/check-prism-boundaries.mjs"
+    "check:boundaries": "node scripts/check-prism-boundaries.mjs",
+    "eval:agents": "turbo run eval",
+    "test": "turbo run test"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
@@ -36,6 +48,7 @@
   },
   "overrides": {
     "postcss": "^8.5.25",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.3",
+    "ai": "^7.0.48"
   }
 }
