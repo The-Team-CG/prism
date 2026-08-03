@@ -29,6 +29,7 @@
         "db:audit:queries": "node scripts/db-query-audit.mjs",
         "db:perf:report": "node --env-file=.env scripts/db-performance-report.mjs",
         "db:reset": "node scripts/require-ack.mjs db:reset PRISM_API_DB_RESET_I_UNDERSTAND && npm run db:doctor && prisma migrate reset --force --skip-generate",
+    "db:reset:2fa": "node scripts/require-ack.mjs db:reset:2fa PRISM_API_2FA_RESET_I_UNDERSTAND && node --env-file=.env scripts/reset-sample-2fa.mjs",
         "postinstall": "prisma generate",
         "db:backup:json": "node --env-file=.env scripts/db-backup-json.mjs"
     },
