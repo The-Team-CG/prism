@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Eye, Inbox, RotateCcw } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, Inbox, Loader2, RotateCcw } from "lucide-react";
 import type { PrismCommandInboxItem, PrismCommandInboxSeverity, PrismPmcmCommandInbox } from "@prism/types";
 import { selectCommandInboxGroupedBySeverity } from "../model/command-inbox-selectors";
 import { Button } from "@/app/components/ui/button";
@@ -102,7 +102,15 @@ export function EventCommandInbox({
         </Button>
       </div>
 
-      {loadFailed ? (
+      {!inbox && !loadFailed ? (
+        <Panel title="Command Inbox" icon={Inbox}>
+          <div className="py-8 text-center">
+            <Loader2 className="mx-auto size-8 animate-spin text-muted-foreground" />
+            <p className="mt-3 text-sm font-black text-foreground">Loading command inbox...</p>
+            <p className="mt-1 text-xs text-muted-foreground">Fetching the latest action items.</p>
+          </div>
+        </Panel>
+      ) : loadFailed ? (
         <Panel title="Command Inbox" icon={Inbox}>
           <div className="py-8 text-center">
             <AlertTriangle className="mx-auto size-8 text-amber-500" />
