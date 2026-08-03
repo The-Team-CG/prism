@@ -564,16 +564,44 @@ function createPrisma(seedInquiry: any = inquiry()) {
         state.supplierQuotes[index] = { ...state.supplierQuotes[index], ...data };
         return state.supplierQuotes[index];
       },
-      updateMany: async ({ where, data }: { where?: { eventId?: string; category?: string; id?: { not?: string } }; data: any }) => {
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where?: {
+          eventId?: string;
+          category?: string;
+          id?: string | { not?: string };
+          revisionNumber?: { lt?: number };
+        };
+        data: any;
+      }) => {
         let count = 0;
         state.supplierQuotes = state.supplierQuotes.map((quote) => {
           if (where?.eventId && quote.eventId !== where.eventId) return quote;
           if (where?.category && quote.category !== where.category) return quote;
-          if (where?.id?.not && quote.id === where.id.not) return quote;
+          if (typeof where?.id === 'string' && quote.id !== where.id) return quote;
+          if (typeof where?.id === 'object' && where.id?.not && quote.id === where.id.not) return quote;
+          // Supports the AC4 compare-and-swap: `revisionNumber: { lt: 2 }`.
+          if (typeof where?.revisionNumber?.lt === 'number' && (quote.revisionNumber ?? 0) >= where.revisionNumber.lt) {
+            return quote;
+          }
           count += 1;
-          return { ...quote, ...data };
+          const { revisionNumber: bump, ...rest } = data as Record<string, any>;
+          const next = { ...quote, ...rest };
+          if (bump && typeof bump === 'object' && typeof bump.increment === 'number') {
+            next.revisionNumber = (quote.revisionNumber ?? 0) + bump.increment;
+          } else if (bump !== undefined) {
+            next.revisionNumber = bump;
+          }
+          return next;
         });
         return { count };
+      },
+      findUniqueOrThrow: async ({ where }: { where: { id?: string } }) => {
+        const quote = state.supplierQuotes.find((item) => item.id === where.id);
+        if (!quote) throw new Error('not found');
+        return quote;
       },
     },
     opsPostEventDocument: {
