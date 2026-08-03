@@ -429,8 +429,13 @@ export class CommercialWorkflowService {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           if (effectiveMode === 'revise') {
             if (!quote) throw new NotFoundException('Supplier quote not found');
-            const saved = await tx.opsSupplierQuote.update({
-              where: { id: quote.id },
+            // AC4 is re-asserted here as a compare-and-swap rather than trusting the
+            // validateState read: that read happens outside this transaction, so two
+            // concurrent revisions can both clear the guard. Scoping the write to
+            // `revisionNumber < 2` and incrementing atomically means the loser of the
+            // race matches no rows and is rejected instead of silently overwriting.
+            const { count } = await tx.opsSupplierQuote.updateMany({
+              where: { id: quote.id, revisionNumber: { lt: 2 } },
               data: {
                 amount,
                 ...(input.inclusions ? { inclusions: toPrismaJson(input.inclusions) } : {}),
@@ -440,10 +445,14 @@ export class CommercialWorkflowService {
                 acceptableMax: category?.acceptableMax ?? quote.acceptableMax ?? null,
                 outsideAcceptableRange,
                 status: SupplierQuoteStatus.Revised,
-                revisionNumber: quote.revisionNumber + 1,
+                revisionNumber: { increment: 1 },
                 revisedAt,
               },
             });
+            if (count === 0) {
+              throw new BadRequestException('Quote has already been revised and cannot be revised again.');
+            }
+            const saved = await tx.opsSupplierQuote.findUniqueOrThrow({ where: { id: quote.id } });
             await tx.opsSupplierQuoteRequest.update({
               where: { id: activeRequest.id },
               data: { status: SupplierQuoteRequestStatus.Revised },

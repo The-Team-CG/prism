@@ -149,27 +149,47 @@ describe('CommercialWorkflowService', () => {
   });
 });
 
-function createRevisionCapScenario(revisionNumber: number) {
+type RevisionCapQuote = {
+  id: string;
+  requestId: string;
+  status: string;
+  revisionNumber: number;
+  amount: number;
+  acceptableMin: number | null;
+  acceptableMax: number | null;
+};
+
+/**
+ * Builds a token-portal scenario for the AC4 revision cap.
+ *
+ * Pass `null` to model a request that has no quote row yet (first submission);
+ * pass a number to model an existing quote already at that revisionNumber.
+ */
+function createRevisionCapScenario(revisionNumber: number | null) {
   const request = {
     id: 'qr_sample',
     eventId: 'evt_sample',
     accessToken: 'token-sample',
-    status: 'revised',
+    status: revisionNumber === null ? 'open' : 'revised',
     dueDate: null,
     categoryId: null,
     supplierId: null,
     supplierName: 'Sonic Line Events',
     category: 'Technicals',
   };
-  const quote = {
-    id: 'quote_sample',
-    requestId: 'qr_sample',
-    status: 'revised',
-    revisionNumber,
-    amount: 50000,
-    acceptableMin: null,
-    acceptableMax: null,
-  };
+  const quote: RevisionCapQuote | null =
+    revisionNumber === null
+      ? null
+      : {
+          id: 'quote_sample',
+          requestId: 'qr_sample',
+          status: 'revised',
+          revisionNumber,
+          amount: 50000,
+          acceptableMin: null,
+          acceptableMax: null,
+        };
+  const created: Record<string, unknown>[] = [];
   const prisma = {
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async () => request),
@@ -177,7 +197,31 @@ function createRevisionCapScenario(revisionNumber: number) {
     },
     opsSupplierQuote: {
       findFirst: vi.fn(async () => quote),
-      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(quote, data)),
+      // Mirrors Prisma updateMany: the `where` predicate is re-evaluated at write
+      // time, so a caller holding a stale read matches zero rows once the cap is
+      // reached. This is what makes the concurrency assertion below meaningful.
+      updateMany: vi.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { revisionNumber?: { lt: number } };
+          data: Record<string, unknown> & { revisionNumber?: { increment: number } };
+        }) => {
+          if (!quote) return { count: 0 };
+          const cap = where.revisionNumber?.lt;
+          if (cap !== undefined && quote.revisionNumber >= cap) return { count: 0 };
+          const { revisionNumber: bump, ...rest } = data;
+          Object.assign(quote, rest);
+          if (bump?.increment) quote.revisionNumber += bump.increment;
+          return { count: 1 };
+        },
+      ),
+      findUniqueOrThrow: vi.fn(async () => quote),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        created.push(data);
+        return data;
+      }),
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => unknown) => callback(prisma)),
   };
@@ -190,17 +234,29 @@ function createRevisionCapScenario(revisionNumber: number) {
     new WorkflowCommandService(),
     {} as any,
   );
-  return { service, prisma, request, quote };
+  return { service, prisma, request, quote, created };
 }
 
 describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () => {
+  it('allows a first submission when no quote row exists yet', async () => {
+    const { service, prisma, created } = createRevisionCapScenario(null);
+
+    const result = await service.submitSupplierQuoteByToken('token-sample', { amount: 50000 });
+
+    expect(prisma.opsSupplierQuote.create).toHaveBeenCalledTimes(1);
+    expect(created).toHaveLength(1);
+    expect(created[0].revisionNumber).toBe(1);
+    expect(result.revisionNumber).toBe(1);
+    expect(lastRequestStatus(prisma)).toBe('submitted');
+  });
+
   it('blocks a second revision via the revise-mode entry point once revisionNumber is already 2', async () => {
     const { service, quote } = createRevisionCapScenario(2);
 
     await expect(service.reviseSupplierQuoteByToken('token-sample', { amount: 60000 })).rejects.toThrow(
       'Quote has already been revised and cannot be revised again.',
     );
-    expect(quote.revisionNumber).toBe(2);
+    expect(quote?.revisionNumber).toBe(2);
   });
 
   it('blocks a second revision via the submit-mode entry point once revisionNumber is already 2', async () => {
@@ -209,7 +265,7 @@ describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () =>
     await expect(service.submitSupplierQuoteByToken('token-sample', { amount: 60000 })).rejects.toThrow(
       'Quote has already been revised and cannot be revised again.',
     );
-    expect(quote.revisionNumber).toBe(2);
+    expect(quote?.revisionNumber).toBe(2);
   });
 
   it('still allows the first revision when revisionNumber is 1', async () => {
@@ -218,6 +274,34 @@ describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () =>
     const result = await service.reviseSupplierQuoteByToken('token-sample', { amount: 60000 });
 
     expect(result.revisionNumber).toBe(2);
-    expect(quote.revisionNumber).toBe(2);
+    expect(quote?.revisionNumber).toBe(2);
+  });
+
+  it('accepts only one of two concurrent revisions instead of letting the loser overwrite', async () => {
+    const { service, prisma, quote } = createRevisionCapScenario(1);
+
+    const outcomes = await Promise.allSettled([
+      service.reviseSupplierQuoteByToken('token-sample', { amount: 60000 }),
+      service.reviseSupplierQuoteByToken('token-sample', { amount: 70000 }),
+    ]);
+
+    const rejected = outcomes.filter((o) => o.status === 'rejected');
+    expect(outcomes.filter((o) => o.status === 'fulfilled')).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(quote?.revisionNumber).toBe(2);
+
+    // Both callers cleared the validateState guard on a stale read (each saw
+    // revisionNumber 1), so both reached the write. Proving updateMany ran twice
+    // is what shows the compare-and-swap — not the earlier guard — rejected the
+    // loser; without it this test would pass even with a plain update().
+    expect(prisma.opsSupplierQuote.updateMany).toHaveBeenCalledTimes(2);
+    expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
+      message: 'Quote has already been revised and cannot be revised again.',
+    });
   });
 });
+
+function lastRequestStatus(prisma: { opsSupplierQuoteRequest: { update: ReturnType<typeof vi.fn> } }) {
+  const calls = prisma.opsSupplierQuoteRequest.update.mock.calls;
+  return (calls[calls.length - 1]?.[0] as { data: { status: string } } | undefined)?.data.status;
+}
