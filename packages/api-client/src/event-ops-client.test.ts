@@ -163,58 +163,51 @@ describe("createEventOpsClient", () => {
     );
   });
 
-  it("loads scoped supplier workspace through the shared contract", async () => {
+  // PA-284: supplier reads no longer carry an actor query. Identity is taken from
+  // the session bearer token, so a caller cannot assert a role it does not hold.
+  it("loads scoped supplier workspace with no actor query", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ quoteRequests: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.supplierWorkspace.detail({ actorRole: "supplier", actorEmail: "supplier@example.com" });
+    await client.supplierWorkspace.detail();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/supplier/workspace?actorRole=supplier&actorEmail=supplier%40example.com",
-      {
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/supplier/workspace", {
+      headers: { "Content-Type": "application/json" },
+    });
   });
 
-  it("loads supplier readiness board through the shared contract", async () => {
+  it("loads supplier readiness board with no actor query", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.supplierWorkspace.readinessBoard({ actorRole: "supplier", actorEmail: "supplier@example.com" });
+    await client.supplierWorkspace.readinessBoard();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/supplier/readiness-board?actorRole=supplier&actorEmail=supplier%40example.com",
-      {
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/supplier/readiness-board", {
+      headers: { "Content-Type": "application/json" },
+    });
   });
 
-  it("accepts the full shared actor context for scoped supplier reads", async () => {
+  it("sends the supplier session bearer token on scoped supplier reads", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ quoteRequests: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const actor = {
-      actorRole: "supplier",
-      actorName: "Sonic Line Events",
-      actorEmail: "supplier@example.com",
-      supplierId: "sup_sonicline",
-      eventId: "evt_sample",
-      accessCode: "supplier-access",
-    } satisfies PrismEventOpsActorContext;
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "supplier-session-token",
+    });
+    await client.supplierWorkspace.detail();
+    await client.supplierWorkspace.readinessBoard();
 
-    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.supplierWorkspace.detail(actor);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/supplier/workspace?actorRole=supplier&actorName=Sonic+Line+Events&actorEmail=supplier%40example.com&supplierId=sup_sonicline&eventId=evt_sample&accessCode=supplier-access",
-      {
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    for (const path of ["/supplier/workspace", "/supplier/readiness-board"]) {
+      expect(fetchMock).toHaveBeenCalledWith(`http://localhost:4000/api${path}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer supplier-session-token",
+        },
+      });
+    }
   });
 
   it("loads billing as a scoped read model", async () => {
