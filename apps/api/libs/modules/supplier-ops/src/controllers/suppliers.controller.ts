@@ -21,24 +21,37 @@ export class OpsSuppliersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateSupplierDto, @Query() actorInput: SupplierActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  create(
+    @Body() dto: CreateSupplierDto,
+    @Query() _actorInput: SupplierActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.supplierCommands.createSupplier(dto, actor);
   }
 
   @Patch(':supplierId')
-  update(@Param('supplierId') supplierId: string, @Body() dto: UpdateSupplierDto, @Query() actorInput: SupplierActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  update(
+    @Param('supplierId') supplierId: string,
+    @Body() dto: UpdateSupplierDto,
+    @Query() _actorInput: SupplierActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.supplierCommands.updateSupplier(supplierId, dto, actor);
   }
 
   @Patch(':supplierId/tier')
+  @UseGuards(EventSessionGuard)
   changeTier(
     @Param('supplierId') supplierId: string,
     @Body() dto: ChangeSupplierTierDto,
-    @Query() actorInput: SupplierActorDto,
+    @Query() _actorInput: SupplierActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.supplierCommands.changeSupplierTier(supplierId, dto, actor);
   }
 
@@ -57,12 +70,14 @@ export class OpsSuppliersController {
 
   @Post(':supplierId/certifications')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
   addCertification(
     @Param('supplierId') supplierId: string,
     @Body() dto: CreateSupplierCertificationDto,
-    @Query() actorInput: SupplierActorDto,
+    @Query() _actorInput: SupplierActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.supplierCommands.addSupplierCertification(supplierId, dto, actor);
   }
 }
