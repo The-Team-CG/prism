@@ -84,7 +84,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
       needs.check-deploy-secrets.outputs.staging_ready == 'true'
-    uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@v2.1
+    uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@f5986c05d92dd3cb61a880efc3cab5ddba25cd35
     with:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -101,7 +101,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'prod' &&
       needs.check-deploy-secrets.outputs.production_ready == 'true'
-    uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@v2.1
+    uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@f5986c05d92dd3cb61a880efc3cab5ddba25cd35
     with:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}

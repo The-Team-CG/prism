@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   rollback-api:
-    uses: The-Team-CG/.github/.github/workflows/rollback-render.yml@v2.1
+    uses: The-Team-CG/.github/.github/workflows/rollback-render.yml@f5986c05d92dd3cb61a880efc3cab5ddba25cd35
     with:
       environment: ${{ inputs.environment }}
       image_name: the-team-cg/prism-api
