@@ -20,17 +20,29 @@ jobs:
         env:
           STAGING_HOOK: ${{ secrets.RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL }}
           PRODUCTION_HOOK: ${{ secrets.RENDER_PRISM_API_PRODUCTION_DEPLOY_HOOK_URL }}
+          STAGING_URL: ${{ vars.PRISM_API_STAGING_URL }}
+          PRODUCTION_URL: ${{ vars.PRISM_API_PRODUCTION_URL }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          if [ -n "$STAGING_HOOK" ] && [ -n "${{ vars.PRISM_API_STAGING_URL }}" ]; then
-            echo "staging_ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "staging_ready=false" >> "$GITHUB_OUTPUT"
-          fi
-          if [ -n "$PRODUCTION_HOOK" ] && [ -n "${{ vars.PRISM_API_PRODUCTION_URL }}" ]; then
-            echo "production_ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "production_ready=false" >> "$GITHUB_OUTPUT"
-          fi
+          set -euo pipefail
+          echo "staging_ready=false" >> "$GITHUB_OUTPUT"
+          echo "production_ready=false" >> "$GITHUB_OUTPUT"
+          case "$HEAD_BRANCH" in
+            staging)
+              test -n "$STAGING_HOOK" || { echo "::error::RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL is required"; exit 1; }
+              test -n "$STAGING_URL" || { echo "::error::PRISM_API_STAGING_URL is required"; exit 1; }
+              echo "staging_ready=true" >> "$GITHUB_OUTPUT"
+              ;;
+            prod)
+              test -n "$PRODUCTION_HOOK" || { echo "::error::RENDER_PRISM_API_PRODUCTION_DEPLOY_HOOK_URL is required"; exit 1; }
+              test -n "$PRODUCTION_URL" || { echo "::error::PRISM_API_PRODUCTION_URL is required"; exit 1; }
+              echo "production_ready=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::unsupported deployment branch: $HEAD_BRANCH"
+              exit 1
+              ;;
+          esac
 
   deploy-api-staging:
     needs: check-deploy-secrets
@@ -38,7 +50,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
       needs.check-deploy-secrets.outputs.staging_ready == 'true'
-    uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@v2
     with:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -53,9 +65,9 @@ jobs:
     needs: check-deploy-secrets
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_branch == 'prod' &&
       needs.check-deploy-secrets.outputs.production_ready == 'true'
-    uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-render.yml@v2
     with:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -72,7 +84,7 @@ jobs:
       needs.deploy-api-staging.result == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
       vars.PRISM_VERCEL_PROJECT_ID_CLIENT != ''
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -89,7 +101,7 @@ jobs:
       needs.deploy-api-staging.result == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
       vars.PRISM_VERCEL_PROJECT_ID_EVENT != ''
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -106,7 +118,7 @@ jobs:
       needs.deploy-api-staging.result == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
       vars.PRISM_VERCEL_PROJECT_ID_GUEST != ''
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -123,7 +135,7 @@ jobs:
       needs.deploy-api-staging.result == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
       vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER != ''
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -138,9 +150,9 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_branch == 'prod' &&
       vars.PRISM_VERCEL_PROJECT_ID_CLIENT != ''
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -155,9 +167,9 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_branch == 'prod' &&
       vars.PRISM_VERCEL_PROJECT_ID_EVENT != ''
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -172,9 +184,9 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_branch == 'prod' &&
       vars.PRISM_VERCEL_PROJECT_ID_GUEST != ''
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
@@ -189,9 +201,9 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_branch == 'prod' &&
       vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER != ''
-    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@main
+    uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}

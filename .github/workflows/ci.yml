@@ -1,16 +1,16 @@
 name: CI
 on:
   pull_request:
-    branches: [staging, main]
+    branches: [staging, prod]
   push:
-    branches: [staging, main]
+    branches: [staging, prod]
 permissions:
   contents: read
   security-events: write
   actions: read
 jobs:
   monorepo:
-    uses: The-Team-CG/.github/.github/workflows/ci-node.yml@main
+    uses: The-Team-CG/.github/.github/workflows/ci-node.yml@v2
     with:
       working_directory: .
       node_version: "24"
@@ -21,16 +21,8 @@ jobs:
       build_command: npm run build
     secrets: inherit
   gitleaks:
-    uses: The-Team-CG/.github/.github/workflows/security-gitleaks.yml@main
+    uses: The-Team-CG/.github/.github/workflows/security-gitleaks.yml@v2
     secrets: inherit
   codeql:
-    uses: The-Team-CG/.github/.github/workflows/security-codeql.yml@main
-    secrets: inherit
-  sonar:
-    needs: [monorepo, gitleaks]
-    uses: The-Team-CG/.github/.github/workflows/sonar.yml@main
-    with:
-      project_key: The-Team-CG_prism
-      project_name: prism
-      working_directory: .
+    uses: The-Team-CG/.github/.github/workflows/security-codeql.yml@v2
     secrets: inherit
