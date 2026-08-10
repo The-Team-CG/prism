@@ -15,11 +15,12 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
   packages: write
 
 jobs:
   rollback-api:
-    uses: The-Team-CG/.github/.github/workflows/rollback-render.yml@v2
+    uses: The-Team-CG/.github/.github/workflows/rollback-render.yml@v2.1
     with:
       environment: ${{ inputs.environment }}
       image_name: the-team-cg/prism-api
@@ -32,7 +33,7 @@ jobs:
 
   rollback-client:
     needs: rollback-api
-    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2
+    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2.1
     with:
       environment: ${{ inputs.environment }}
       working_directory: apps/client
@@ -43,7 +44,7 @@ jobs:
 
   rollback-event:
     needs: rollback-api
-    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2
+    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2.1
     with:
       environment: ${{ inputs.environment }}
       working_directory: apps/event
@@ -54,7 +55,7 @@ jobs:
 
   rollback-guest:
     needs: rollback-api
-    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2
+    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2.1
     with:
       environment: ${{ inputs.environment }}
       working_directory: apps/guest
@@ -65,7 +66,7 @@ jobs:
 
   rollback-supplier:
     needs: rollback-api
-    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2
+    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2.1
     with:
       environment: ${{ inputs.environment }}
       working_directory: apps/supplier
