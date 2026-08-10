@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   check-deploy-secrets:
+    if: github.event.workflow_run.head_branch == 'staging' || github.event.workflow_run.head_branch == 'prod'
     runs-on: ubuntu-latest
     outputs:
       staging_ready: ${{ steps.check.outputs.staging_ready }}
