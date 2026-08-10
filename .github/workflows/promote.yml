@@ -1,0 +1,24 @@
+name: Promote staging to prod
+
+on:
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: write
+
+jobs:
+  promote:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging'
+    uses: The-Team-CG/.github/.github/workflows/promote-to-prod.yml@v2
+    with:
+      source_branch: staging
+      target_branch: prod
+      head_sha: ${{ github.event.workflow_run.head_sha }}
+      deployment_summary: staging deployment and smoke checks passed
+    secrets: inherit

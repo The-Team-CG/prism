@@ -1,0 +1,27 @@
+name: Protect prod
+
+on:
+  pull_request:
+    branches: [prod]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  approved-production-source:
+    name: Require staging or hotfix source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject unapproved production PR source
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "PR $BASE_REF <- $HEAD_REF"
+          case "$HEAD_REF" in
+            staging|hotfix/*) echo "OK: approved production PR source" ;;
+            *) echo "::error::prod only accepts staging or hotfix/*"; exit 1 ;;
+          esac
