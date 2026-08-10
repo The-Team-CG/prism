@@ -1,0 +1,70 @@
+name: Sync environment secrets
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment bundle and provider target
+        required: true
+        type: choice
+        options: [staging, production]
+      dry_run:
+        description: Validate without provider mutation
+        required: true
+        type: boolean
+        default: true
+      target:
+        description: Optional logical target name; empty selects all
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-production-branch:
+    if: inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require prod dispatch ref
+        shell: bash
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$DISPATCH_REF" != "refs/heads/prod" ]; then
+            echo "Production synchronization must be dispatched from prod"
+            exit 1
+          fi
+
+  sync-staging:
+    if: inputs.environment == 'staging'
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@508c9e39b9fe822cef4bdca588a9ff7ac7133cea
+    with:
+      environment: staging
+      ref: ${{ github.sha }}
+      manifest_json: ${{ vars.ENV_SYNC_MANIFEST_JSON }}
+      repository_variables_json: ${{ toJSON(vars) }}
+      dry_run: ${{ inputs.dry_run }}
+      target: ${{ inputs.target }}
+    secrets:
+      ENV_SYNC_BUNDLE: ${{ secrets.ENV_SYNC_STAGING }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  sync-production:
+    needs: validate-production-branch
+    if: inputs.environment == 'production'
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@508c9e39b9fe822cef4bdca588a9ff7ac7133cea
+    with:
+      environment: production
+      ref: ${{ github.sha }}
+      manifest_json: ${{ vars.ENV_SYNC_MANIFEST_JSON }}
+      repository_variables_json: ${{ toJSON(vars) }}
+      dry_run: ${{ inputs.dry_run }}
+      target: ${{ inputs.target }}
+    secrets:
+      ENV_SYNC_BUNDLE: ${{ secrets.ENV_SYNC_PRODUCTION }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

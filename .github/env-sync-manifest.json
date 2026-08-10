@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "strict": true,
+  "targets": [
+    {
+      "name": "render-api-staging",
+      "provider": "render",
+      "environment": "staging",
+      "service_id_var": "PRISM_RENDER_API_STAGING_SERVICE_ID",
+      "bundle_key": "render-api",
+      "secret_names": ["SUPABASE_PROJECT_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_DB_URL", "DIRECT_URL", "CORS_ORIGIN"]
+    },
+    {
+      "name": "render-api-production",
+      "provider": "render",
+      "environment": "production",
+      "service_id_var": "PRISM_RENDER_API_PRODUCTION_SERVICE_ID",
+      "bundle_key": "render-api",
+      "secret_names": ["SUPABASE_PROJECT_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_DB_URL", "DIRECT_URL", "CORS_ORIGIN"]
+    },
+    {
+      "name": "vercel-client-staging",
+      "provider": "vercel",
+      "environment": "preview",
+      "project_id_var": "PRISM_VERCEL_PROJECT_ID_CLIENT",
+      "team_id_var": "VERCEL_ORG_ID",
+      "bundle_key": "vercel-client",
+      "secret_names": ["NEXT_PUBLIC_API_URL"]
+    },
+    {
+      "name": "vercel-client-production",
+      "provider": "vercel",
+      "environment": "production",
+      "project_id_var": "PRISM_VERCEL_PROJECT_ID_CLIENT",
+      "team_id_var": "VERCEL_ORG_ID",
+      "bundle_key": "vercel-client",
+      "secret_names": ["NEXT_PUBLIC_API_URL"]
+    },
+    {
+      "name": "vercel-event-staging",
+      "provider": "vercel",
+      "environment": "preview",
+      "project_id_var": "PRISM_VERCEL_PROJECT_ID_EVENT",
+      "team_id_var": "VERCEL_ORG_ID",
+      "bundle_key": "vercel-event",
+      "secret_names": ["NEXT_PUBLIC_API_URL"]
+    },
+    {
+      "name": "vercel-event-production",
+      "provider": "vercel",
+      "environment": "production",
+      "project_id_var": "PRISM_VERCEL_PROJECT_ID_EVENT",
+      "team_id_var": "VERCEL_ORG_ID",
+      "bundle_key": "vercel-event",
+      "secret_names": ["NEXT_PUBLIC_API_URL"]
+    },
+    {
+      "name": "vercel-guest-staging",
+      "provider": "vercel",
+      "environment": "preview",
+      "project_id_var": "PRISM_VERCEL_PROJECT_ID_GUEST",
+      "team_id_var": "VERCEL_ORG_ID",
+      "bundle_key": "vercel-guest",
+      "secret_names": ["NEXT_PUBLIC_API_URL"]
+    },
+    {
+      "name": "vercel-guest-production",
+      "provider": "vercel",
+      "environment": "production",
+      "project_id_var": "PRISM_VERCEL_PROJECT_ID_GUEST",
+      "team_id_var": "VERCEL_ORG_ID",
+      "bundle_key": "vercel-guest",
+      "secret_names": ["NEXT_PUBLIC_API_URL"]
+    },
+    {
+      "name": "vercel-supplier-staging",
+      "provider": "vercel",
+      "environment": "preview",
+      "project_id_var": "PRISM_VERCEL_PROJECT_ID_SUPPLIER",
+      "team_id_var": "VERCEL_ORG_ID",
+      "bundle_key": "vercel-supplier",
+      "secret_names": ["NEXT_PUBLIC_API_URL"]
+    },
+    {
+      "name": "vercel-supplier-production",
+      "provider": "vercel",
+      "environment": "production",
+      "project_id_var": "PRISM_VERCEL_PROJECT_ID_SUPPLIER",
+      "team_id_var": "VERCEL_ORG_ID",
+      "bundle_key": "vercel-supplier",
+      "secret_names": ["NEXT_PUBLIC_API_URL"]
+    }
+  ]
+}
