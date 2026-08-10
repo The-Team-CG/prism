@@ -43,7 +43,7 @@ jobs:
   sync-staging:
     needs: validate-dispatch-branch
     if: inputs.environment == 'staging'
-    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@508c9e39b9fe822cef4bdca588a9ff7ac7133cea
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@1c186ab95cf1432a7cbb59e24c9be19d527577cf
     with:
       environment: staging
       ref: ${{ github.sha }}
@@ -58,7 +58,7 @@ jobs:
   sync-production:
     needs: validate-dispatch-branch
     if: inputs.environment == 'production'
-    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@508c9e39b9fe822cef4bdca588a9ff7ac7133cea
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@1c186ab95cf1432a7cbb59e24c9be19d527577cf
     with:
       environment: production
       ref: ${{ github.sha }}
