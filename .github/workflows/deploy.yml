@@ -11,6 +11,38 @@ permissions:
   packages: write
 
 jobs:
+  sync-staging:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging'
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@508c9e39b9fe822cef4bdca588a9ff7ac7133cea
+    with:
+      environment: staging
+      ref: ${{ github.event.workflow_run.head_sha }}
+      manifest_json: ${{ vars.ENV_SYNC_MANIFEST_JSON }}
+      repository_variables_json: ${{ toJSON(vars) }}
+      dry_run: false
+    secrets:
+      ENV_SYNC_BUNDLE: ${{ secrets.ENV_SYNC_STAGING }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+  sync-production:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'prod'
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@508c9e39b9fe822cef4bdca588a9ff7ac7133cea
+    with:
+      environment: production
+      ref: ${{ github.event.workflow_run.head_sha }}
+      manifest_json: ${{ vars.ENV_SYNC_MANIFEST_JSON }}
+      repository_variables_json: ${{ toJSON(vars) }}
+      dry_run: false
+    secrets:
+      ENV_SYNC_BUNDLE: ${{ secrets.ENV_SYNC_PRODUCTION }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
   check-deploy-secrets:
     if: github.event.workflow_run.head_branch == 'staging' || github.event.workflow_run.head_branch == 'prod'
     runs-on: ubuntu-latest
@@ -47,7 +79,7 @@ jobs:
           esac
 
   deploy-api-staging:
-    needs: check-deploy-secrets
+    needs: [check-deploy-secrets, sync-staging]
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'staging' &&
@@ -64,7 +96,7 @@ jobs:
       RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL }}
 
   deploy-api-production:
-    needs: check-deploy-secrets
+    needs: [check-deploy-secrets, sync-production]
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'prod' &&
