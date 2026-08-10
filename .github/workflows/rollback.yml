@@ -1,0 +1,76 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target GitHub Environment
+        required: true
+        type: choice
+        options: [staging, production]
+      ref:
+        description: Exact known-good commit to redeploy
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+  packages: write
+
+jobs:
+  rollback-api:
+    uses: The-Team-CG/.github/.github/workflows/rollback-render.yml@v2.1
+    with:
+      environment: ${{ inputs.environment }}
+      image_name: the-team-cg/prism-api
+      dockerfile: Dockerfile
+      docker_target: api
+      ref: ${{ inputs.ref }}
+      health_url: ${{ inputs.environment == 'staging' && vars.PRISM_API_STAGING_URL || vars.PRISM_API_PRODUCTION_URL }}/health
+    secrets:
+      RENDER_DEPLOY_HOOK_URL: ${{ inputs.environment == 'staging' && secrets.RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL || secrets.RENDER_PRISM_API_PRODUCTION_DEPLOY_HOOK_URL }}
+
+  rollback-client:
+    needs: rollback-api
+    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2.1
+    with:
+      environment: ${{ inputs.environment }}
+      working_directory: apps/client
+      ref: ${{ inputs.ref }}
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_CLIENT }}
+      smoke_path: /
+    secrets: inherit
+
+  rollback-event:
+    needs: rollback-api
+    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2.1
+    with:
+      environment: ${{ inputs.environment }}
+      working_directory: apps/event
+      ref: ${{ inputs.ref }}
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_EVENT }}
+      smoke_path: /
+    secrets: inherit
+
+  rollback-guest:
+    needs: rollback-api
+    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2.1
+    with:
+      environment: ${{ inputs.environment }}
+      working_directory: apps/guest
+      ref: ${{ inputs.ref }}
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_GUEST }}
+      smoke_path: /
+    secrets: inherit
+
+  rollback-supplier:
+    needs: rollback-api
+    uses: The-Team-CG/.github/.github/workflows/rollback-vercel.yml@v2.1
+    with:
+      environment: ${{ inputs.environment }}
+      working_directory: apps/supplier
+      ref: ${{ inputs.ref }}
+      vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER }}
+      smoke_path: /
+    secrets: inherit

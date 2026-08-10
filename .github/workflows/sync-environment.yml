@@ -1,0 +1,72 @@
+name: Sync environment secrets
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment bundle and provider target
+        required: true
+        type: choice
+        options: [staging, production]
+      dry_run:
+        description: Validate without provider mutation
+        required: true
+        type: boolean
+        default: true
+      target:
+        description: Optional logical target name; empty selects all
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate-dispatch-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require trusted dispatch ref
+        shell: bash
+        env:
+          DISPATCH_REF: ${{ github.ref }}
+          DISPATCH_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          expected_ref="refs/heads/$DISPATCH_ENVIRONMENT"
+          if [ "$DISPATCH_REF" != "$expected_ref" ]; then
+            echo "Environment synchronization must be dispatched from its trusted branch"
+            exit 1
+          fi
+
+  sync-staging:
+    needs: validate-dispatch-branch
+    if: inputs.environment == 'staging'
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@508c9e39b9fe822cef4bdca588a9ff7ac7133cea
+    with:
+      environment: staging
+      ref: ${{ github.sha }}
+      manifest_json: ${{ vars.ENV_SYNC_MANIFEST_JSON }}
+      repository_variables_json: ${{ toJSON(vars) }}
+      dry_run: ${{ inputs.dry_run }}
+      target: ${{ inputs.target }}
+    secrets:
+      ENV_SYNC_BUNDLE: ${{ secrets.ENV_SYNC_STAGING }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  sync-production:
+    needs: validate-dispatch-branch
+    if: inputs.environment == 'production'
+    uses: The-Team-CG/.github/.github/workflows/sync-environment.yml@508c9e39b9fe822cef4bdca588a9ff7ac7133cea
+    with:
+      environment: production
+      ref: ${{ github.sha }}
+      manifest_json: ${{ vars.ENV_SYNC_MANIFEST_JSON }}
+      repository_variables_json: ${{ toJSON(vars) }}
+      dry_run: ${{ inputs.dry_run }}
+      target: ${{ inputs.target }}
+    secrets:
+      ENV_SYNC_BUNDLE: ${{ secrets.ENV_SYNC_PRODUCTION }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

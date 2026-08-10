@@ -1,0 +1,14 @@
+name: Scheduled Secret History Scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  history:
+    uses: The-Team-CG/.github/.github/workflows/security-gitleaks-history.yml@v2
+    secrets: inherit
