@@ -82,8 +82,7 @@ jobs:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
-      github.event.workflow_run.head_branch == 'staging' &&
-      vars.PRISM_VERCEL_PROJECT_ID_CLIENT != ''
+      github.event.workflow_run.head_branch == 'staging'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: staging
@@ -99,8 +98,7 @@ jobs:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
-      github.event.workflow_run.head_branch == 'staging' &&
-      vars.PRISM_VERCEL_PROJECT_ID_EVENT != ''
+      github.event.workflow_run.head_branch == 'staging'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: staging
@@ -116,8 +114,7 @@ jobs:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
-      github.event.workflow_run.head_branch == 'staging' &&
-      vars.PRISM_VERCEL_PROJECT_ID_GUEST != ''
+      github.event.workflow_run.head_branch == 'staging'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: staging
@@ -133,8 +130,7 @@ jobs:
     needs: deploy-api-staging
     if: >-
       needs.deploy-api-staging.result == 'success' &&
-      github.event.workflow_run.head_branch == 'staging' &&
-      vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER != ''
+      github.event.workflow_run.head_branch == 'staging'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: staging
@@ -150,8 +146,7 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'prod' &&
-      vars.PRISM_VERCEL_PROJECT_ID_CLIENT != ''
+      github.event.workflow_run.head_branch == 'prod'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: production
@@ -167,8 +162,7 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'prod' &&
-      vars.PRISM_VERCEL_PROJECT_ID_EVENT != ''
+      github.event.workflow_run.head_branch == 'prod'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: production
@@ -184,8 +178,7 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'prod' &&
-      vars.PRISM_VERCEL_PROJECT_ID_GUEST != ''
+      github.event.workflow_run.head_branch == 'prod'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: production
@@ -201,8 +194,7 @@ jobs:
     needs: deploy-api-production
     if: >-
       needs.deploy-api-production.result == 'success' &&
-      github.event.workflow_run.head_branch == 'prod' &&
-      vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER != ''
+      github.event.workflow_run.head_branch == 'prod'
     uses: The-Team-CG/.github/.github/workflows/deploy-vercel.yml@v2
     with:
       environment: production
