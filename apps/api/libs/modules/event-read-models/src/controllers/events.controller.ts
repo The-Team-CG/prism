@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
 import { GuestWorkflowService } from '@prism/modules/guest-ops';
-import { SampleActorDto } from '../dto/read-model.dto';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { mapEvent } from '../mappers/pmcm-read-model.mappers';
 import { EventReadModelsService } from '../services/event-read-models.service';
 
@@ -16,14 +17,16 @@ export class OpsEventReadsController {
   ) {}
 
   @Get()
-  list(@Query() actorInput: SampleActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventReadModelsService.eventList(actor, this.mappers());
   }
 
   @Get(':eventId')
-  detail(@Param('eventId') eventId: string, @Query() actorInput: SampleActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  detail(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventReadModelsService.eventDetail(actor, eventId, this.mappers());
   }
 

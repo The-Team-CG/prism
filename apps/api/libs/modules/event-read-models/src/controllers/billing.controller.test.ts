@@ -55,7 +55,11 @@ describe('OpsBillingController', () => {
       })),
     };
     const eventAccessPolicyService = {
-      resolveActor: vi.fn((input) => ({ role: input.actorRole, clientName: input.clientName, name: input.clientName })),
+      resolveActor: vi.fn((_input: any, verified: any) => ({
+        role: verified.actorRole,
+        clientName: verified.actorRole === 'client' ? verified.actorName : undefined,
+        name: verified.actorName,
+      })),
     };
     const billingOperationsService = {
       mapBillingSource: vi.fn((source) => ({ kind: 'source', id: source.id })),
@@ -68,8 +72,19 @@ describe('OpsBillingController', () => {
       eventAccessPolicyService as any,
       billingOperationsService as any,
     );
+    const verifiedActor = {
+      id: 'user_client',
+      actorId: 'user_client',
+      role: 'client',
+      actorRole: 'client',
+      email: 'ana@ayala.test',
+      actorEmail: 'ana@ayala.test',
+      name: 'Ana Reyes',
+      actorName: 'Ana Reyes',
+      expiresAt: '2026-07-03T12:00:00.000Z',
+    };
 
-    const result = await controller.list({ actorRole: 'client', clientName: 'Ana Reyes' });
+    const result = await controller.list(verifiedActor as any);
 
     expect(result.events[0]).toMatchObject({
       id: 'evt_sample',
@@ -81,10 +96,7 @@ describe('OpsBillingController', () => {
     expect(result.billingStatements).toEqual([{ kind: 'statement', id: 'bill_1' }]);
     expect(result.paymentMilestones).toEqual([{ kind: 'milestone', id: 'pay_1', history: [{ id: 'prec_1' }] }]);
     expect(result.paymentRecords).toEqual([{ kind: 'record', id: 'prec_1' }]);
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({
-      actorRole: 'client',
-      clientName: 'Ana Reyes',
-    });
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(eventReadModelsService.billing).toHaveBeenCalledWith(
       { role: 'client', clientName: 'Ana Reyes', name: 'Ana Reyes' },
       expect.objectContaining({
@@ -107,7 +119,7 @@ describe('OpsBillingController', () => {
       }),
     };
     const eventAccessPolicyService = {
-      resolveActor: vi.fn((input) => ({ role: input.actorRole, name: input.actorRole })),
+      resolveActor: vi.fn((_input: any, verified: any) => ({ role: verified.actorRole, name: verified.actorName })),
     };
     const billingOperationsService = {
       mapBillingSource: vi.fn(),
@@ -120,8 +132,19 @@ describe('OpsBillingController', () => {
       eventAccessPolicyService as any,
       billingOperationsService as any,
     );
+    const verifiedActor = {
+      id: `user_${actorRole}`,
+      actorId: `user_${actorRole}`,
+      role: actorRole,
+      actorRole,
+      email: `${actorRole}@example.test`,
+      actorEmail: `${actorRole}@example.test`,
+      name: actorRole,
+      actorName: actorRole,
+      expiresAt: '2026-07-03T12:00:00.000Z',
+    };
 
-    await expect(controller.list({ actorRole })).rejects.toThrow(ForbiddenException);
+    await expect(controller.list(verifiedActor as any)).rejects.toThrow(ForbiddenException);
     expect(eventReadModelsService.billing).toHaveBeenCalledWith(
       { role: actorRole, name: actorRole },
       expect.objectContaining({
