@@ -572,5 +572,12 @@ export class CoordinatorsService {
         throw new ForbiddenException("Coordinator cannot acknowledge another coordinator's assignment");
       }
     }
+
+    if (
+      assignment.status === CoordinatorAssignmentStatus.Cancelled ||
+      assignment.status === CoordinatorAssignmentStatus.Replaced
+    ) {
+      throw new BadRequestException('Coordinator assignment is already withdrawn or replaced');
+    }
   }
 }
