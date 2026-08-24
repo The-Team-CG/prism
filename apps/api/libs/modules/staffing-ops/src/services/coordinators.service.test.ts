@@ -295,6 +295,41 @@ describe('CoordinatorsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('rejects acknowledgeCoordinator when the assignment is already withdrawn or replaced', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as any);
+    const created = await service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+      pmcmAdminActor,
+    );
+    await service.withdrawCoordinator(event.id, created.id, {}, pmcmAdminActor);
+
+    await expect(
+      service.acknowledgeCoordinator(event.id, created.id, pmcmAdminActor),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects a non-owning Coordinator with Forbidden even when the assignment is withdrawn or replaced, ownership checked before status', async () => {
+    const fake = createPrisma();
+    const coordinatorB = { ...coordinator, id: 'coord_taylor', name: 'Taylor Cruz', email: 'taylor@pmcm.test' };
+    (fake.prisma.opsCoordinator as any).findMany = async () => [coordinator, coordinatorB];
+    (fake.prisma.opsCoordinator as any).findUnique = async ({ where }: { where: { id: string } }) =>
+      [coordinator, coordinatorB].find((item) => item.id === where.id) ?? null;
+
+    const service = createService(fake.prisma as any);
+    const assignmentForB = await service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinatorB.id, role: 'Floor Director', overrideConflict: true },
+      pmcmAdminActor,
+    );
+    await service.withdrawCoordinator(event.id, assignmentForB.id, {}, pmcmAdminActor);
+
+    await expect(
+      service.acknowledgeCoordinator(event.id, assignmentForB.id, coordinatorActor),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   describe('withdrawCoordinator', () => {
     it('withdraws a pending assignment', async () => {
       const fake = createPrisma();
