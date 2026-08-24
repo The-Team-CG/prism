@@ -1,5 +1,7 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { SupplierActorDto, SupplierContractUploadDto, SupplierReadinessDto } from '../dto/supplier.dto';
 import { mapSupplierQuoteRequest } from '../mappers/supplier-quote-request.mapper';
 import { SupplierNetworkWorkflowService } from '../services/supplier-network-workflow.service';
@@ -12,29 +14,38 @@ export class OpsSupplierWorkspaceCommandsController {
   ) {}
 
   @Patch('quote-requests/:requestId/assignment/confirm')
-  async confirmAssignment(@Param('requestId') requestId: string, @Query() actorInput: SupplierActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  async confirmAssignment(
+    @Param('requestId') requestId: string,
+    @Query() _actorInput: SupplierActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return mapSupplierQuoteRequest(await this.supplierNetworkWorkflowService.confirmSupplierAssignment(requestId, actor));
   }
 
   @Patch('quote-requests/:requestId/readiness/confirm')
+  @UseGuards(EventSessionGuard)
   async confirmReadiness(
     @Param('requestId') requestId: string,
     @Body() dto: SupplierReadinessDto,
-    @Query() actorInput: SupplierActorDto,
+    @Query() _actorInput: SupplierActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return mapSupplierQuoteRequest(await this.supplierNetworkWorkflowService.confirmSupplierReadiness(requestId, dto, actor));
   }
 
   @Post('quote-requests/:requestId/contract')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
   async uploadContract(
     @Param('requestId') requestId: string,
     @Body() dto: SupplierContractUploadDto,
-    @Query() actorInput: SupplierActorDto,
+    @Query() _actorInput: SupplierActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return mapSupplierQuoteRequest(await this.supplierNetworkWorkflowService.uploadSupplierContract(requestId, dto, actor));
   }
 }
