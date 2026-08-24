@@ -12,7 +12,7 @@ function createController() {
     eventDetail: vi.fn(async () => ({ id: 'evt_sample' })),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((input) => ({ role: input.actorRole, name: input.actorName ?? input.actorRole })),
+    resolveActor: vi.fn((_input: any, verified: any) => ({ role: verified.actorRole, name: verified.actorName })),
   };
   const floorPlanWorkflowService = { mapFloorPlanDraft: vi.fn((draft) => draft) };
   const guestWorkflowService = { guestAccessCode: vi.fn(() => 'EVENT-CODE') };
@@ -32,16 +32,25 @@ describe('OpsEventReadsController', () => {
 
   it('serves event list and detail reads through EventReadModelsService', async () => {
     const { controller, eventReadModelsService, eventAccessPolicyService } = createController();
+    const listActor = {
+      id: 'user_pmcm',
+      actorId: 'user_pmcm',
+      role: 'pmcm-admin',
+      actorRole: 'pmcm-admin',
+      email: 'mys@pmcm.test',
+      actorEmail: 'mys@pmcm.test',
+      name: 'Maxine',
+      actorName: 'Maxine',
+      expiresAt: '2026-07-03T12:00:00.000Z',
+    };
+    const detailActor = { ...listActor, name: 'pmcm-admin', actorName: 'pmcm-admin' };
 
-    await expect(controller.list({ actorRole: 'pmcm-admin', actorName: 'Maxine' })).resolves.toEqual([
+    await expect(controller.list(listActor as any)).resolves.toEqual([
       { id: 'evt_sample' },
     ]);
-    await expect(controller.detail('evt_sample', { actorRole: 'pmcm-admin' })).resolves.toEqual({ id: 'evt_sample' });
+    await expect(controller.detail('evt_sample', detailActor as any)).resolves.toEqual({ id: 'evt_sample' });
 
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({
-      actorRole: 'pmcm-admin',
-      actorName: 'Maxine',
-    });
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, listActor);
     expect(eventReadModelsService.eventList).toHaveBeenCalledWith(
       { role: 'pmcm-admin', name: 'Maxine' },
       expect.objectContaining({ mapEvent: expect.any(Function) }),
