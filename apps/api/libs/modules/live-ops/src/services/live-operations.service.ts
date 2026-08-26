@@ -40,13 +40,14 @@ export type CreateUrgentIssueInput = {
   title: string;
   description?: string;
   severity?: string;
+  affectedArea?: string;
   ownerRole?: string;
   ownerName?: string;
-  openedBy?: string;
   slaDueAt?: string;
 };
 
 export type UpdateUrgentIssueInput = {
+  affectedArea?: string;
   status?: string;
   ownerRole?: string;
   ownerName?: string;
@@ -228,9 +229,10 @@ export class LiveOperationsService {
             description: input.description?.trim() ?? '',
             severity,
             status: input.ownerRole || input.ownerName ? UrgentIssueStatus.Assigned : UrgentIssueStatus.Open,
+            affectedArea: input.affectedArea?.trim() ?? '',
             ownerRole: input.ownerRole?.trim() ?? '',
             ownerName: input.ownerName?.trim() ?? '',
-            openedBy: input.openedBy?.trim() || actor.name,
+            openedBy: actor.name,
             slaDueAt: input.slaDueAt ? new Date(input.slaDueAt) : null,
           },
         }),
@@ -279,6 +281,7 @@ export class LiveOperationsService {
           where: { id: issueId },
           data: {
             ...(status ? { status } : {}),
+            ...(input.affectedArea !== undefined ? { affectedArea: input.affectedArea.trim() } : {}),
             ...(input.ownerRole !== undefined ? { ownerRole: input.ownerRole.trim() } : {}),
             ...(input.ownerName !== undefined ? { ownerName: input.ownerName.trim() } : {}),
             ...(input.resolution !== undefined ? { resolution: input.resolution.trim() } : {}),

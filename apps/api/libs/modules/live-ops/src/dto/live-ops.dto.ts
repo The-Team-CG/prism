@@ -100,15 +100,15 @@ export class CreateUrgentIssueDto {
 
   @IsOptional()
   @IsString()
+  affectedArea?: string;
+
+  @IsOptional()
+  @IsString()
   ownerRole?: string;
 
   @IsOptional()
   @IsString()
   ownerName?: string;
-
-  @IsOptional()
-  @IsString()
-  openedBy?: string;
 
   @IsOptional()
   @IsString()
@@ -119,6 +119,10 @@ export class UpdateUrgentIssueDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  affectedArea?: string;
 
   @IsOptional()
   @IsString()

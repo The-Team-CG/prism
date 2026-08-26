@@ -38,6 +38,7 @@ export function mapUrgentIssue(issue: any, computeSlaStatus: ComputeSlaStatus) {
     description: issue.description,
     severity: issue.severity,
     status: issue.status,
+    affectedArea: issue.affectedArea ?? '',
     ownerRole: issue.ownerRole,
     ownerName: issue.ownerName,
     resolution: issue.resolution,

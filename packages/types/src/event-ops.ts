@@ -622,6 +622,7 @@ export interface PrismUrgentIssue {
   description: string;
   severity: "low" | "medium" | "high" | "critical" | string;
   status: "open" | "assigned" | "resolved" | "cancelled" | string;
+  affectedArea: string;
   ownerRole: string;
   ownerName: string;
   resolution: string;
@@ -1283,13 +1284,14 @@ type CreateUrgentIssueInput = {
   title: string;
   description?: string;
   severity?: "low" | "medium" | "high" | "critical";
+  affectedArea?: string;
   ownerRole?: string;
   ownerName?: string;
-  openedBy?: string;
   slaDueAt?: string;
 };
 
 type UpdateUrgentIssueInput = {
+  affectedArea?: string;
   status?: "open" | "assigned" | "resolved" | "cancelled";
   ownerRole?: string;
   ownerName?: string;

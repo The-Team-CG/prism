@@ -5,6 +5,7 @@ import {
   updateSupplierEventStatusSchema,
   submitSupplierQuoteSchema,
   updateInquiryStatusSchema,
+  createUrgentIssueSchema,
   parseContract,
   PrismContractError,
 } from "./index.js";
@@ -65,6 +66,18 @@ describe("event-ops write schemas", () => {
   it("validates inquiry status transitions", () => {
     expect(updateInquiryStatusSchema.safeParse({ status: "accepted" }).success).toBe(true);
     expect(updateInquiryStatusSchema.safeParse({ status: "nope" }).success).toBe(false);
+  });
+
+  it("accepts affected area without accepting a caller-supplied reporter", () => {
+    const parsed = createUrgentIssueSchema.parse({
+      title: "Power outage",
+      severity: "critical",
+      affectedArea: "North Wing",
+      openedBy: "Spoofed Administrator",
+    });
+
+    expect(parsed.affectedArea).toBe("North Wing");
+    expect(parsed).not.toHaveProperty("openedBy");
   });
 
   it("parseContract throws PrismContractError with issues", () => {

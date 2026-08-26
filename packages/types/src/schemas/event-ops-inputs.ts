@@ -144,9 +144,9 @@ export const createUrgentIssueSchema = z.object({
   title: nonEmptyStringSchema,
   description: optionalTrimmedStringSchema,
   severity: optionalTrimmedStringSchema,
+  affectedArea: optionalTrimmedStringSchema,
   ownerRole: optionalTrimmedStringSchema,
   ownerName: optionalTrimmedStringSchema,
-  openedBy: optionalTrimmedStringSchema,
   slaDueAt: optionalTrimmedStringSchema,
 });
 export type CreateUrgentIssueInput = z.infer<typeof createUrgentIssueSchema>;
