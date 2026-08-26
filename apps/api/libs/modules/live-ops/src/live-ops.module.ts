@@ -2,12 +2,11 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
-import { FloorplanModule } from '@prism/modules/floorplan';
-import { GuestOpsModule } from '@prism/modules/guest-ops';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
-import { SUPPLIER_LIVE_OPERATIONS, SupplierOpsModule } from '@prism/modules/supplier-ops';
+import { SupplierOpsModule } from '@prism/modules/supplier-ops';
+import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { CoordinatorLiveOpsController } from './controllers/coordinator-live-ops.controller';
 import { EventLiveOpsController } from './controllers/event-live-ops.controller';
@@ -24,9 +23,8 @@ import { LiveOperationsService } from './services/live-operations.service';
     TrustOpsModule,
     NotificationOpsModule,
     StaffingOpsModule,
-    FloorplanModule,
-    GuestOpsModule,
     SupplierOpsModule,
+    EventReadModelsModule,
     IdentityOpsModule,
   ],
   controllers: [EventLiveOpsController, CoordinatorLiveOpsController, SupplierLiveOpsController],
@@ -34,8 +32,7 @@ import { LiveOperationsService } from './services/live-operations.service';
     LiveOperationsService,
     EventLiveOpsReadService,
     EventLiveOpsCommandService,
-    { provide: SUPPLIER_LIVE_OPERATIONS, useExisting: LiveOperationsService },
   ],
-  exports: [LiveOperationsService, EventLiveOpsReadService, EventLiveOpsCommandService, SUPPLIER_LIVE_OPERATIONS],
+  exports: [LiveOperationsService, EventLiveOpsReadService, EventLiveOpsCommandService],
 })
 export class LiveOpsModule {}

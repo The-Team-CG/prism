@@ -1,5 +1,3 @@
-import { useEventOpsCommands } from "@/features/event-ops";
-import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ClipboardList,
@@ -18,24 +16,19 @@ import {
   UserRound,
 } from "lucide-react";
 
-import type { PrismAuditIntegrity, PrismLoginHistory, PrismPrivacyInventory, PrismPrivacyRequest, PrismPrivacyRetentionPolicy, PrismSecurityAlert } from "@/lib/prism-api";
-import type { PrismApprovalRequest, PrismAuditLog, PrismEvent, PrismUser } from "@prism/types";
+import type { PrismAuthenticatedSession, PrismEvent, PrismUser } from "@prism/types";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import {
-  auditActionTypes,
-  auditCategories,
-  auditDateRanges,
   auditTone,
   compactTimestamp,
-  csvCell,
   cx,
   label,
   severityTone,
 } from "@/features/pmcm-kit";
 import { Metric, Panel } from "@/features/pmcm-kit";
-import type { PmcmEventSession } from "@/features/pmcm-kit";
+import { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
 
 function auditIcon(category: string, severity: string) {
   if (severity === "critical" || severity === "warning") return AlertTriangle;
@@ -53,179 +46,55 @@ export function AuditTrailPanel({
 }: {
   events: PrismEvent[];
   users: PrismUser[];
-  session: PmcmEventSession;
+  session: PrismAuthenticatedSession;
 }) {
-  const ops = useEventOpsCommands();
-  const [logs, setLogs] = useState<PrismAuditLog[]>([]);
-  const [alerts, setAlerts] = useState<PrismSecurityAlert[]>([]);
-  const [auditIntegrity, setAuditIntegrity] = useState<PrismAuditIntegrity | null>(null);
-  const [privacyInventory, setPrivacyInventory] = useState<PrismPrivacyInventory | null>(null);
-  const [privacyPolicies, setPrivacyPolicies] = useState<PrismPrivacyRetentionPolicy[]>([]);
-  const [privacyRequests, setPrivacyRequests] = useState<PrismPrivacyRequest[]>([]);
-  const [approvalRequests, setApprovalRequests] = useState<PrismApprovalRequest[]>([]);
-  const [loginHistory, setLoginHistory] = useState<PrismLoginHistory[]>([]);
-  const [privacyForm, setPrivacyForm] = useState({
-    subjectType: "guest",
-    requestType: "deletion" as "access" | "correction" | "deletion" | "export",
-    subjectEmail: "",
-    subjectName: "",
-    requestNotes: "",
-  });
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("all");
-  const [eventId, setEventId] = useState("all");
-  const [actor, setActor] = useState("all");
-  const [actionType, setActionType] = useState("all");
-  const [severity, setSeverity] = useState("all");
-  const [dateRange, setDateRange] = useState("30d");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const filters = useMemo(() => ({
+  const {
+    logs,
+    alerts,
+    auditIntegrity,
+    privacyInventory,
+    privacyPolicies,
+    privacyRequests,
+    approvalRequests,
+    loginHistory,
+    privacyForm,
+    setPrivacyForm,
     query,
+    setQuery,
     category,
+    setCategory,
     eventId,
+    setEventId,
     actor,
+    setActor,
     actionType,
+    setActionType,
     severity,
+    setSeverity,
     dateRange,
-    limit: "120",
-  }), [query, category, eventId, actor, actionType, severity, dateRange]);
-
-  async function refreshAudit() {
-    setBusy(true);
-    setError(null);
-    try {
-      const [nextLogs, nextAlerts, nextHistory, nextIntegrity, nextInventory, nextApprovals, nextPolicies, nextPrivacyRequests] = await Promise.all([
-        ops.auditLogs(filters),
-        ops.securityAlerts(),
-        ops.loginHistory(session.id),
-        ops.auditIntegrity(),
-        ops.privacyInventory(eventId),
-        ops.approvalRequests(),
-        ops.privacyRetentionPolicies(),
-        ops.privacyRequests(eventId),
-      ]);
-      setLogs(nextLogs);
-      setAlerts(nextAlerts);
-      setLoginHistory(nextHistory);
-      setAuditIntegrity(nextIntegrity);
-      setPrivacyInventory(nextInventory);
-      setApprovalRequests(nextApprovals);
-      setPrivacyPolicies(nextPolicies);
-      setPrivacyRequests(nextPrivacyRequests);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load audit trail");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    refreshAudit();
-  }, [filters]);
-
-  async function exportLog() {
-    setBusy(true);
-    setError(null);
-    try {
-      const exported = await ops.exportAuditLogs(filters);
-      const header = ["Log ID", "Timestamp", "Actor", "Role", "Category", "Action Type", "Action", "Affected", "IP", "Device", "Hash"];
-      const rows = exported.rows.map((log) => [
-        log.id,
-        log.createdAt,
-        log.actor,
-        log.actorRole,
-        log.category,
-        log.actionType,
-        log.action,
-        log.affectedLabel ?? log.affectedId ?? "",
-        log.ipAddress,
-        log.device,
-        log.immutableHash,
-      ]);
-      const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `prism-audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      await refreshAudit();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to export audit log");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function logPrivacyRequest() {
-    setBusy(true);
-    setError(null);
-    try {
-      await ops.createPrivacyRequest({
-        subjectType: privacyForm.subjectType,
-        requestType: privacyForm.requestType,
-        subjectEmail: privacyForm.subjectEmail,
-        subjectName: privacyForm.subjectName,
-        eventId: eventId !== "all" ? eventId : undefined,
-        requestNotes: privacyForm.requestNotes,
-      });
-      setPrivacyForm((current) => ({ ...current, subjectEmail: "", subjectName: "", requestNotes: "" }));
-      await refreshAudit();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to log privacy request");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function reviewPrivacyRequest(requestId: string, status: "approved" | "rejected") {
-    setBusy(true);
-    setError(null);
-    try {
-      await ops.reviewPrivacyRequest(requestId, {
-        status,
-        reviewReason: status === "approved" ? "Validated by PMCM privacy review." : "Rejected by PMCM privacy review.",
-      });
-      await refreshAudit();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to review privacy request");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function executePrivacyRequest(requestId: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      await ops.executePrivacyRequest(requestId, "Executed from PMCM privacy operations panel.");
-      await refreshAudit();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to execute privacy request");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const userActionCount = logs.filter((log) => log.actorRole !== "system").length;
-  const systemActionCount = logs.filter((log) => log.actorRole === "system").length;
-  const openAlerts = alerts.filter((alert) => alert.status === "open");
-  const failedLoginCount = loginHistory.filter((entry) => entry.status !== "success").length;
-  const approvalBacklog = approvalRequests.filter((request) => request.status === "pending").length;
-  const privacyBacklog = privacyRequests.filter((request) => request.status === "submitted").length;
-  const retentionNote = privacyInventory?.retentionNotes?.[0] ?? "Sample retention notes unavailable";
-  const privacySurfaces = [
-    ...(privacyInventory?.globalSurfaces ?? []),
-    ...(privacyInventory?.events ?? []).flatMap((event) => event.surfaces),
-  ];
-  const privacyRecordCount = privacySurfaces.reduce((total, surface) => total + surface.recordCount, 0);
-  const missingConsentCount = privacySurfaces.reduce((total, surface) => total + surface.missingConsentCount, 0);
+    setDateRange,
+    advancedOpen,
+    setAdvancedOpen,
+    busy,
+    error,
+    auditCategories,
+    auditActionTypes,
+    auditDateRanges,
+    exportLog,
+    logPrivacyRequest,
+    reviewPrivacyRequest,
+    executePrivacyRequest,
+    userActionCount,
+    systemActionCount,
+    openAlertCount,
+    failedLoginCount,
+    approvalBacklog,
+    privacyBacklog,
+    privacyRecordCount,
+    missingConsentCount,
+    privacySurfaceCount,
+    retentionNote,
+  } = useAuditTrailViewModel({ session });
 
   return (
     <div className="space-y-5">
@@ -250,7 +119,7 @@ export function AuditTrailPanel({
           <Metric label="Total events (view)" value={logs.length} icon={ListFilter} />
           <Metric label="User actions" value={userActionCount} icon={UserCheck} />
           <Metric label="System events" value={systemActionCount} icon={RotateCcw} />
-          <Metric label="Alerts triggered" value={openAlerts.length} icon={AlertTriangle} />
+          <Metric label="Alerts triggered" value={openAlertCount} icon={AlertTriangle} />
           <Metric label="Failed logins" value={failedLoginCount} icon={KeyRound} />
           <Metric label="Approval backlog" value={approvalBacklog} icon={ShieldCheck} />
           <Metric label="Privacy backlog" value={privacyBacklog} icon={Database} />
@@ -277,7 +146,7 @@ export function AuditTrailPanel({
               <Database className="size-4 text-(--prism-amber)" />
             </div>
             <p className="mt-2 text-2xl font-black text-foreground">{privacyRecordCount}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{privacySurfaces.length} personal-data surfaces indexed</p>
+            <p className="mt-1 text-xs text-muted-foreground">{privacySurfaceCount} personal-data surfaces indexed</p>
           </div>
           <div className={cx(
             "rounded-lg border p-4",

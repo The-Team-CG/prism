@@ -7,7 +7,7 @@ import {
 } from "../model/event-sign-in-rules";
 
 export type EventSignInResult =
-  | { kind: "redirect"; redirectTo: string }
+  | { kind: "redirect"; redirectTo: string; session: EventSession }
   | { kind: "two_factor"; token: string; setupRequired: boolean };
 
 export async function signInToEventPortal(input: {
@@ -31,7 +31,7 @@ export async function signInToEventPortal(input: {
     return { error: eventRoleRejectionMessage(session.role) };
   }
   eventAuthRepository.persistSession(session);
-  return { kind: "redirect", redirectTo: resolveEventPostSignInPath(input.nextPath) };
+  return { kind: "redirect", redirectTo: resolveEventPostSignInPath(input.nextPath), session };
 }
 
 export async function beginEventTwoFactorSetup(token: string) {

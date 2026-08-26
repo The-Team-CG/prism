@@ -1,4 +1,5 @@
-import type { BookingStep, CalendarEventItem, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierSession, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
+import type { PrismAuthenticatedSession } from "@prism/types";
+import type { BookingStep, CalendarEventItem, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
 
 export const EVENT_STATUS_ACTIONS = [
   { status: "arrived", label: "Arrived", helper: "Onsite at venue" },
@@ -288,7 +289,7 @@ export function buildCalendarEvents(
 
 export function sectionMeta(
   section: SupplierDashboardSection,
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   workspace: SupplierWorkspace | null,
 ): SectionMeta {
   const first = firstNameFrom(session.name);

@@ -1,5 +1,5 @@
 import { createInitialPrismSampleState } from "@/mock/prism-sample-state";
-import type { Project } from "@/features/floorplan/editor/types";
+import type { Project } from "@/features/floorplan/editor";
 import { createEventOpsClient } from "@prism/api-client";
 import {
   PRISM_SAMPLE_STATE_STORAGE_KEY,
@@ -33,6 +33,7 @@ import type {
   PrismSupplierQuote,
   PrismUser,
   PrismAuthenticatedSession,
+  PrivacyConsentInput,
 } from "@prism/types";
 
 export type {
@@ -60,11 +61,7 @@ export type {
   PrismSupplierQuote,
   PrismUser,
   PrismAuthenticatedSession,
-};
-export type PrivacyConsentInput = {
-  privacyConsentAccepted: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
+  PrivacyConsentInput,
 };
 
 /** Shared inquiry write DTO — owned by `@prism/types` (Zod). */

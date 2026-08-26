@@ -23,7 +23,6 @@ export type SupplierEventStatusInput = {
 
 export type VerifySupplierEventStatusInput = {
   verificationStatus: string;
-  verifiedBy?: string;
   notes?: string;
 };
 

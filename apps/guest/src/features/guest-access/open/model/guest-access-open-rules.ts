@@ -1,7 +1,7 @@
 import type { PrismGuestEventPass } from "@prism/types";
 import type { GuestAccessOpenDraft, GuestSession } from "./guest-access-open-types";
 
-export { GUEST_API_OFFLINE_MESSAGE as GUEST_ACCESS_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-http";
+export { GUEST_API_OFFLINE_MESSAGE as GUEST_ACCESS_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-messages";
 
 export function normalizeAccessCode(raw: string): string {
   return raw.trim().toUpperCase();
