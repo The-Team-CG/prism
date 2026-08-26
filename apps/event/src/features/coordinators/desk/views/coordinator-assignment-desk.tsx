@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, UserCheck, UsersRound } from "lucide-react";
 
-import type { PrismCoordinator, PrismCoordinatorRoleRequirement } from "@/lib/prism-api";
-import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
+import type { PrismCoordinator, PrismCoordinatorAssignment, PrismCoordinatorRoleRequirement, PrismEvent } from "@prism/types";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";

@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { OpsSupplierApplication, OpsSupplierCategory } from '@prisma/client';
 import { PrismaService } from '@prism/database';
+import type { CreateSupplierApplicationInput } from '@prism/types';
 import { randomUUID } from 'node:crypto';
-import type { CreateSupplierApplicationDto } from '../dto/supplier-application.dto';
 import { mapSupplierApplication } from '../mappers/supplier-application.mappers';
 
 function normalizeEmail(value: string) {
@@ -17,7 +17,7 @@ function daysBetween(left: Date, right: Date) {
 export class SupplierApplicationService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createSupplierApplication(input: CreateSupplierApplicationDto) {
+  async createSupplierApplication(input: CreateSupplierApplicationInput) {
     if (!input.privacyConsentAccepted) {
       throw new BadRequestException('Privacy consent is required before submitting an application');
     }

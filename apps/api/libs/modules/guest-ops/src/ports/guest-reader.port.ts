@@ -1,4 +1,5 @@
 import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback } from '@prisma/client';
+import type { PrismGuestCheckIn, PrismGuestFeedback } from '@prism/types';
 import type { EventWithDrafts } from '../services/guest-workflow.service';
 
 export interface GuestReader {
@@ -10,6 +11,6 @@ export interface GuestReader {
   listFeedbackForEvents(eventIds: string[]): Promise<OpsGuestFeedback[]>;
   guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>): string;
   mapGuestEvent(event: EventWithDrafts, attendanceCount?: number): unknown;
-  mapGuestCheckIn(checkIn: OpsGuestCheckIn): unknown;
-  mapGuestFeedback(feedback: OpsGuestFeedback): unknown;
+  mapGuestCheckIn(checkIn: OpsGuestCheckIn): PrismGuestCheckIn;
+  mapGuestFeedback(feedback: OpsGuestFeedback): PrismGuestFeedback;
 }

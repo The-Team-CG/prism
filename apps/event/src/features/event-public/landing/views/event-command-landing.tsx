@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, type ReactNode } from "react";
+import { FormEvent, type ReactNode } from "react";
 import {
   ArrowRight,
   ArchiveRestore,
@@ -15,12 +15,12 @@ import {
 } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 
-import { prismApi } from "@/lib/prism-api";
 import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
-import { saveEventSession, type EventSession } from "@/app/lib/session";
+import type { EventSession } from "@/app/lib/session";
+import { useEventCommandLandingViewModel } from "../view-models/use-event-command-landing-view-model";
 
 function cx(...classes: Array<string | false | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -183,34 +183,11 @@ function EventCommandMock() {
 }
 
 export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: EventSession) => void }) {
-  const [email, setEmail] = useState("mys@pmcm.test");
-  const [password, setPassword] = useState("prism-admin");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [accessOpen, setAccessOpen] = useState(false);
+  const vm = useEventCommandLandingViewModel({ onSignedIn });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await prismApi.login({ email, password });
-      if ("kind" in response) {
-        window.location.assign("/sign-in");
-        return;
-      }
-      const session = response;
-      if (session.role !== "pmcm-admin" && session.role !== "coordinator") {
-        setError(session.role === "client" ? "Client accounts belong in prism-client at http://localhost:3001." : "Supplier accounts belong in prism-supplier at http://localhost:3002.");
-        return;
-      }
-      saveEventSession(session);
-      onSignedIn(session);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sign in failed");
-    } finally {
-      setBusy(false);
-    }
+    await vm.submit();
   }
 
   return (
@@ -461,7 +438,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
         </div>
       </footer>
 
-      {accessOpen && (
+      {vm.accessOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(23,18,22,0.55)] p-5 backdrop-blur-sm">
           <section id="event-sign-in" className="w-full max-w-md rounded-lg border border-border bg-card p-5 text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
             <form onSubmit={submit}>
@@ -469,20 +446,20 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
                 <span className="grid size-11 place-items-center rounded-md bg-secondary text-primary">
                   <KeyRound className="size-5" />
                 </span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setAccessOpen(false)} className="rounded-md font-black">Close</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => vm.setAccessOpen(false)} className="rounded-md font-black">Close</Button>
               </div>
               <h2 className="mt-4 text-2xl font-black text-foreground">Sign in</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">Use an approved PMCM or coordinator account.</p>
               <div className="mt-5 flex flex-col gap-3">
-                <Input value={email} onChange={(ev) => setEmail(ev.target.value)} className="h-11" placeholder="Email" />
-                <Input value={password} onChange={(ev) => setPassword(ev.target.value)} type="password" className="h-11" placeholder="Password" />
-                {error && (
+                <Input value={vm.email} onChange={(ev) => vm.setEmail(ev.target.value)} className="h-11" placeholder="Email" />
+                <Input value={vm.password} onChange={(ev) => vm.setPassword(ev.target.value)} type="password" className="h-11" placeholder="Password" />
+                {vm.error && (
                   <Alert variant="destructive" className="rounded-md">
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>{vm.error}</AlertDescription>
                   </Alert>
                 )}
-                <Button disabled={busy} className="h-11 w-full rounded-md font-black">
-                  {busy ? "Signing in..." : "Sign in"} <ArrowRight className="size-4" />
+                <Button disabled={vm.busy} className="h-11 w-full rounded-md font-black">
+                  {vm.busy ? "Signing in..." : "Sign in"} <ArrowRight className="size-4" />
                 </Button>
               </div>
             </form>

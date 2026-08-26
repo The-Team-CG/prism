@@ -14,7 +14,6 @@ function createService() {
     eventDayVerificationStatus: SupplierVerificationStatus.SelfReported,
   };
   const audit = vi.fn();
-  const eventDayLog = vi.fn();
   const suppliers = {
     listSuppliers: vi.fn(async () => [
       { id: 'sup_sonicline', name: 'Sonic Line Events', email: 'supplier@example.com' },
@@ -35,35 +34,27 @@ function createService() {
     eventAccessPolicyService,
     new WorkflowCommandService(),
     {} as any,
-    { recordEventDayLog: eventDayLog } as any,
     {} as any,
   );
-  return { service, prisma, audit, eventDayLog, request, suppliers };
+  return { service, prisma, audit, request, suppliers };
 }
 
 describe('SupplierNetworkWorkflowService', () => {
-  it('verifies supplier event-day status through the supplier workflow command', async () => {
-    const { service, prisma, audit, eventDayLog } = createService();
+  it('verifies supplier event-day status with the trusted actor identity', async () => {
+    const { service, prisma, audit } = createService();
 
+    const input = { verificationStatus: SupplierVerificationStatus.Verified, verifiedBy: 'Ms. Mys', notes: 'Setup checked.' };
     const updated = await service.verifySupplierEventStatus(
       'evt_sample',
       'qr_sonic',
-      { verificationStatus: SupplierVerificationStatus.Verified, verifiedBy: 'Ms. Mys', notes: 'Setup checked.' },
+      input,
       { name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin, explicit: true },
     );
 
     expect(updated.eventDayVerificationStatus).toBe(SupplierVerificationStatus.Verified);
-    expect(updated.eventDayVerifiedBy).toBe('Ms. Mys');
+    expect(updated.eventDayVerifiedBy).toBe('PMCM Admin');
+    expect(updated.eventDayVerifiedBy).not.toBe('Ms. Mys');
     expect(prisma.opsSupplierQuoteRequest.findUnique).toHaveBeenCalledWith({ where: { id: 'qr_sonic' } });
-    expect(eventDayLog).toHaveBeenCalledWith(
-      'evt_sample',
-      'supplier_status_verified',
-      expect.objectContaining({ name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin }),
-      'Marked supplier setup verified: Sonic Line Events',
-      'supplier_quote_request',
-      'qr_sonic',
-      { verificationStatus: SupplierVerificationStatus.Verified, verifiedBy: 'Ms. Mys', notes: 'Setup checked.' },
-    );
     expect(audit).toHaveBeenCalledWith(
       'evt_sample',
       'PMCM Admin',
@@ -71,7 +62,7 @@ describe('SupplierNetworkWorkflowService', () => {
       expect.objectContaining({
         actorRole: OpsUserRole.PmcmAdmin,
         affectedId: 'qr_sonic',
-        metadata: { verificationStatus: SupplierVerificationStatus.Verified, verifiedBy: 'Ms. Mys', notes: 'Setup checked.' },
+        metadata: { verificationStatus: SupplierVerificationStatus.Verified, verifiedBy: 'PMCM Admin', notes: 'Setup checked.' },
       }),
     );
   });

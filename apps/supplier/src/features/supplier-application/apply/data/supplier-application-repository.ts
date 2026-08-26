@@ -1,5 +1,5 @@
-import { prismApi, type CreateSupplierApplicationInput } from "@/lib/prism-api";
-import type { PrismSupplierApplication } from "@prism/types";
+import { prismApi } from "@/lib/prism-api";
+import type { CreateSupplierApplicationInput, PrismSupplierApplication } from "@prism/types";
 
 export const supplierApplicationRepository = {
   create(input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication> {

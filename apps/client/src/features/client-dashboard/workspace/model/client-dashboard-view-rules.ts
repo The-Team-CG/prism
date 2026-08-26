@@ -8,7 +8,7 @@ import {
   ReceiptText,
 } from "lucide-react";
 import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/editor/types";
+import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/editor";
 import type { DetailTab } from "./client-dashboard-types";
 
 export function draftIsOfficial(draft: PrismFloorPlanDraft) {

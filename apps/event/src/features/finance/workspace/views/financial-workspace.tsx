@@ -1,24 +1,13 @@
-import { useState } from "react";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
-import { apiUrl } from "@/lib/prism-api";
 import type { PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { label, money } from "@/features/pmcm-kit";
-import {
-  isPaymentOverdue,
-  parseRecordPaymentAmount,
-  sumPaymentAmounts,
-} from "../model/finance-workspace-rules";
-
-type RecordPaymentInput = {
-  amountReceived: number;
-  paymentDate: string;
-  paymentMethod: "Bank Transfer" | "GCash" | "Cheque";
-  referenceNumber?: string;
-};
+import { isPaymentOverdue, sumPaymentAmounts } from "../model/finance-workspace-rules";
+import { useFinancialWorkspaceViewModel } from "../view-models/use-financial-workspace-view-model";
+import type { RecordPaymentInput } from "../model/finance-workspace-types";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>;
@@ -62,35 +51,26 @@ export function FinancialWorkspace({
   onSendBilling: (billingId: string) => Promise<void>;
 }) {
   const statement = billingStatements.find((b) => b.eventId === event.id);
-  const [activePayment, setActivePayment] = useState<PrismPaymentMilestone | null>(null);
-  const [amountReceived, setAmountReceived] = useState("");
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [paymentMethod, setPaymentMethod] = useState<RecordPaymentInput["paymentMethod"]>("Bank Transfer");
-  const [referenceNumber, setReferenceNumber] = useState("");
+  const {
+    activePayment,
+    amountReceived,
+    paymentDate,
+    paymentMethod,
+    referenceNumber,
+    billingStatementHref,
+    openRecordModal,
+    submitRecordPayment,
+    setActivePayment,
+    setAmountReceived,
+    setPaymentDate,
+    setPaymentMethod,
+    setReferenceNumber,
+  } = useFinancialWorkspaceViewModel({ statement, busy, onRecordPayment });
 
   const { totalDue, totalPaid, totalRemaining, openMilestones } =
     sumPaymentAmounts(payments);
   const balance = payments.find((p) => p.label.toLowerCase().includes("balance"));
   const paymentAtRisk = Boolean(balance && balance.status === "at_risk");
-
-  function openRecordModal(payment: PrismPaymentMilestone) {
-    setActivePayment(payment);
-    setAmountReceived(String(payment.remainingBalance || payment.amount));
-    setPaymentDate(new Date().toISOString().slice(0, 10));
-    setPaymentMethod("Bank Transfer");
-    setReferenceNumber("");
-  }
-
-  async function submitRecordPayment() {
-    if (!activePayment) return;
-    await onRecordPayment(activePayment.id, {
-      amountReceived: parseRecordPaymentAmount(amountReceived),
-      paymentDate,
-      paymentMethod,
-      referenceNumber,
-    });
-    setActivePayment(null);
-  }
 
   return (
     <div className="space-y-5">
@@ -215,7 +195,7 @@ export function FinancialWorkspace({
               {/* Actions */}
               <div className="flex flex-wrap gap-2 pt-1">
                 <a
-                  href={apiUrl(statement.pdfUrl)}
+                  href={billingStatementHref}
                   target="_blank"
                   className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold text-foreground transition hover:bg-muted"
                 >

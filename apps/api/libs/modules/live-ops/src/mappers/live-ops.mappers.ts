@@ -1,13 +1,22 @@
 import { CoordinatorAttendanceStatus, LiveOpsEscalationLevel } from '@prism/modules/event-core';
+import type { OpsCoordinatorAssignment, OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue } from '@prisma/client';
 
-type ComputeSlaStatus = (record: any) => string;
-type CoordinatorAssignmentMapper = (assignment: any) => Record<string, unknown>;
+type SlaRecord = {
+  status?: string | null;
+  slaStatus?: string | null;
+  slaDueAt?: Date | null;
+  dueAt?: Date | null;
+  resolvedAt?: Date | null;
+  completedAt?: Date | null;
+};
+type ComputeSlaStatus = (record: SlaRecord) => string;
+type CoordinatorAssignmentMapper = (assignment: OpsCoordinatorAssignment) => Record<string, unknown>;
 
 function timestamp(value: Date) {
   return value.toISOString();
 }
 
-export function mapEventDayTask(task: any, computeSlaStatus: ComputeSlaStatus) {
+export function mapEventDayTask(task: OpsEventDayTask, computeSlaStatus: ComputeSlaStatus) {
   return {
     id: task.id,
     eventId: task.eventId,
@@ -30,7 +39,7 @@ export function mapEventDayTask(task: any, computeSlaStatus: ComputeSlaStatus) {
   };
 }
 
-export function mapUrgentIssue(issue: any, computeSlaStatus: ComputeSlaStatus) {
+export function mapUrgentIssue(issue: OpsUrgentIssue, computeSlaStatus: ComputeSlaStatus) {
   return {
     id: issue.id,
     eventId: issue.eventId,
@@ -38,6 +47,7 @@ export function mapUrgentIssue(issue: any, computeSlaStatus: ComputeSlaStatus) {
     description: issue.description,
     severity: issue.severity,
     status: issue.status,
+    affectedArea: issue.affectedArea ?? '',
     ownerRole: issue.ownerRole,
     ownerName: issue.ownerName,
     resolution: issue.resolution,
@@ -54,7 +64,7 @@ export function mapUrgentIssue(issue: any, computeSlaStatus: ComputeSlaStatus) {
   };
 }
 
-export function mapEventDayLog(log: any) {
+export function mapEventDayLog(log: OpsEventDayLog) {
   return {
     id: log.id,
     eventId: log.eventId,
@@ -70,7 +80,7 @@ export function mapEventDayLog(log: any) {
 }
 
 export function mapCoordinatorAssignmentForEventDay(
-  assignment: any,
+  assignment: OpsCoordinatorAssignment,
   mapCoordinatorAssignment: CoordinatorAssignmentMapper,
 ) {
   return {

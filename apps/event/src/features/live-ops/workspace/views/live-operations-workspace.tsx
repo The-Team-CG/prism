@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   BellRing,
@@ -14,14 +13,28 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import type { PrismCoordinator } from "@/lib/prism-api";
-import type { PrismCoordinatorAssignment, PrismEvent, PrismEventDayStatusFeed, PrismEventDayTask, PrismLiveOps, PrismSupplierQuoteRequest, PrismUrgentIssue } from "@prism/types";
+import type {
+  CreateEventDayTaskInput,
+  CreateUrgentIssueInput,
+  EscalateLiveOpsInput,
+  PrismCoordinator,
+  PrismCoordinatorAssignment,
+  PrismEvent,
+  PrismEventDayStatusFeed,
+  PrismEventDayTask,
+  PrismLiveOps,
+  PrismSupplierQuoteRequest,
+  PrismUrgentIssue,
+  ReplaceCoordinatorAssignmentInput,
+  UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  UpdateUrgentIssueInput,
+  VerifySupplierStatusInput,
+} from "@prism/types";
 import { cx, label } from "@/features/pmcm-kit";
-import {
-  asIsoDateTime,
-  computeLiveOpsMetrics,
-  liveOpsPillClass,
-} from "../model/live-ops-workspace-rules";
+import { liveOpsPillClass } from "../model/live-ops-workspace-rules";
+import { useCoordinatorRowViewModel } from "../view-models/use-coordinator-row-view-model";
+import { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
 
 function Pill({ value }: { value: string }) {
   return (
@@ -54,38 +67,17 @@ export function LiveOperationsWorkspace({
   coordinators: PrismCoordinator[];
   busy: boolean;
   onReload: () => Promise<void>;
-  onCreateTask: (input: { title: string; assignedRole?: string; ownerName?: string; priority?: string; notes?: string; slaDueAt?: string }) => Promise<void>;
-  onUpdateTask: (taskId: string, input: { status?: "open" | "in_progress" | "done" | "blocked"; notes?: string }) => Promise<void>;
-  onEscalateTask: (taskId: string, input: { escalationLevel: "role_lead" | "pmcm" | "critical"; notes: string; ownerRole?: string; ownerName?: string }) => Promise<void>;
-  onCreateIssue: (input: { title: string; severity?: "low" | "medium" | "high" | "critical"; ownerRole?: string; description?: string; slaDueAt?: string }) => Promise<void>;
-  onUpdateIssue: (issueId: string, input: { status?: "open" | "assigned" | "resolved" | "cancelled"; resolution?: string }) => Promise<void>;
-  onEscalateIssue: (issueId: string, input: { escalationLevel: "role_lead" | "pmcm" | "critical"; notes: string; ownerRole?: string; ownerName?: string }) => Promise<void>;
-  onUpdateCoordinatorAttendance: (assignmentId: string, input: { status: "present" | "late" | "absent" | "replaced"; notes?: string }) => Promise<void>;
-  onReplaceCoordinator: (assignmentId: string, input: { replacementCoordinatorId: string; role: string; reason: string }) => Promise<void>;
-  onVerifySupplierStatus: (requestId: string, input: { verificationStatus: "self_reported" | "verified" | "disputed"; notes?: string }) => Promise<void>;
+  onCreateTask: (input: CreateEventDayTaskInput) => Promise<void>;
+  onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
+  onEscalateTask: (taskId: string, input: EscalateLiveOpsInput) => Promise<void>;
+  onCreateIssue: (input: CreateUrgentIssueInput) => Promise<void>;
+  onUpdateIssue: (issueId: string, input: UpdateUrgentIssueInput) => Promise<void>;
+  onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
+  onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
+  onReplaceCoordinator: (assignmentId: string, input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
 }) {
-  const [taskTitle, setTaskTitle] = useState("");
-  const [taskRole, setTaskRole] = useState("General Coordinator");
-  const [taskPriority, setTaskPriority] = useState("normal");
-  const [taskSlaDueAt, setTaskSlaDueAt] = useState("");
-  const [issueTitle, setIssueTitle] = useState("");
-  const [issueSeverity, setIssueSeverity] = useState<"low" | "medium" | "high" | "critical">("high");
-  const [issueOwnerRole, setIssueOwnerRole] = useState("Event Day System Operator");
-  const [issueSlaDueAt, setIssueSlaDueAt] = useState("");
-
-  const metrics = useMemo(() => computeLiveOpsMetrics(liveOps), [liveOps]);
-
-  async function createTask() {
-    await onCreateTask({ title: taskTitle, assignedRole: taskRole, priority: taskPriority, slaDueAt: asIsoDateTime(taskSlaDueAt) });
-    setTaskTitle("");
-    setTaskSlaDueAt("");
-  }
-
-  async function createIssue() {
-    await onCreateIssue({ title: issueTitle, severity: issueSeverity, ownerRole: issueOwnerRole, slaDueAt: asIsoDateTime(issueSlaDueAt) });
-    setIssueTitle("");
-    setIssueSlaDueAt("");
-  }
+  const vm = useLiveOperationsWorkspaceViewModel({ liveOps, busy, onCreateTask, onCreateIssue });
 
   return (
     <div className="space-y-5">
@@ -105,10 +97,10 @@ export function LiveOperationsWorkspace({
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-5">
           <MetricTile label="Guest attendance" value={liveOps?.guestAttendanceCount ?? 0} icon={UsersRound} />
-          <MetricTile label="Tasks done" value={metrics.completedTasks} icon={ClipboardList} />
-          <MetricTile label="Open issues" value={metrics.openIssues} icon={AlertTriangle} />
-          <MetricTile label="Suppliers verified" value={metrics.verifiedSuppliers} icon={Truck} />
-          <MetricTile label="Coord. present" value={metrics.presentCoordinators} icon={UserCheck} />
+          <MetricTile label="Tasks done" value={vm.metrics.completedTasks} icon={ClipboardList} />
+          <MetricTile label="Open issues" value={vm.metrics.openIssues} icon={AlertTriangle} />
+          <MetricTile label="Suppliers verified" value={vm.metrics.verifiedSuppliers} icon={Truck} />
+          <MetricTile label="Coord. present" value={vm.metrics.presentCoordinators} icon={UserCheck} />
         </div>
         <div className="mt-4 flex items-start gap-3 rounded-md border border-(--prism-amber)/20 bg-(--prism-amber)/8 p-3 text-sm leading-6 text-(--prism-amber)">
           <ShieldCheck className="mt-0.5 size-4 shrink-0" />
@@ -196,12 +188,20 @@ export function LiveOperationsWorkspace({
               <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
                 <label className="grid gap-1.5">
                   <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Issue title</span>
-                  <input value={issueTitle} onChange={(event) => setIssueTitle(event.target.value)} placeholder="Supplier late, walk-in queue, program blocker" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
+                  <input value={vm.issueTitle} onChange={(event) => vm.setIssueTitle(event.target.value)} placeholder="Supplier late, walk-in queue, program blocker" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Issue description</span>
+                  <textarea value={vm.issueDescription} onChange={(event) => vm.setIssueDescription(event.target.value)} placeholder="What happened, and what needs attention?" rows={3} className="rounded-md border border-border bg-white px-3 py-2 text-sm" />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Affected area</span>
+                  <input value={vm.issueAffectedArea} onChange={(event) => vm.setIssueAffectedArea(event.target.value)} placeholder="Registration, stage, ingress, or guest services" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-1.5">
                     <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Severity</span>
-                    <select value={issueSeverity} onChange={(event) => setIssueSeverity(event.target.value as typeof issueSeverity)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
+                    <select value={vm.issueSeverity} onChange={(event) => vm.setIssueSeverity(event.target.value as typeof vm.issueSeverity)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
                       <option value="high">High</option>
@@ -210,7 +210,7 @@ export function LiveOperationsWorkspace({
                   </label>
                   <label className="grid gap-1.5">
                     <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Owner role</span>
-                    <select value={issueOwnerRole} onChange={(event) => setIssueOwnerRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
+                    <select value={vm.issueOwnerRole} onChange={(event) => vm.setIssueOwnerRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
                       <option>Event Day System Operator</option>
                       <option>Registration Staff</option>
                       <option>Floor Director</option>
@@ -224,15 +224,15 @@ export function LiveOperationsWorkspace({
                   <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">SLA due time</span>
                   <input
                     type="datetime-local"
-                    value={issueSlaDueAt}
-                    onChange={(event) => setIssueSlaDueAt(event.target.value)}
+                    value={vm.issueSlaDueAt}
+                    onChange={(event) => vm.setIssueSlaDueAt(event.target.value)}
                     className="h-11 rounded-md border border-border bg-white px-3 text-sm"
                   />
                 </label>
                 <p className="text-xs leading-5 text-muted-foreground">
                   Urgent issues are operational blockers. Escalation notifies PMCM/operator context; it does not expose finance, audit, or private supplier review data.
                 </p>
-                <button disabled={busy || !issueTitle.trim()} onClick={createIssue} className="h-12 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+                <button disabled={busy || !vm.issueTitle.trim()} onClick={vm.createIssue} className="h-12 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
                   Open urgent issue
                 </button>
               </div>
@@ -248,7 +248,7 @@ export function LiveOperationsWorkspace({
                       onEscalateIssue(issue.id, {
                         escalationLevel: issue.severity === "critical" ? "critical" : "pmcm",
                         notes: `Escalated from PMCM live desk: ${issue.title}`,
-                        ownerRole: issue.ownerRole || issueOwnerRole,
+                        ownerRole: issue.ownerRole || vm.issueOwnerRole,
                       })
                     }
                   />
@@ -261,12 +261,12 @@ export function LiveOperationsWorkspace({
               <div className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
                 <label className="grid gap-1.5">
                   <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Task title</span>
-                  <input value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} placeholder="Registration dry run, stage cue check, ingress sweep" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
+                  <input value={vm.taskTitle} onChange={(event) => vm.setTaskTitle(event.target.value)} placeholder="Registration dry run, stage cue check, ingress sweep" className="h-11 rounded-md border border-border bg-white px-3 text-sm" />
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="grid gap-1.5">
                     <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Role</span>
-                    <select value={taskRole} onChange={(event) => setTaskRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
+                    <select value={vm.taskRole} onChange={(event) => vm.setTaskRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
                       <option>General Coordinator</option>
                       <option>Event Day System Operator</option>
                       <option>Registration Staff</option>
@@ -278,7 +278,7 @@ export function LiveOperationsWorkspace({
                   </label>
                   <label className="grid gap-1.5">
                     <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Priority</span>
-                    <select value={taskPriority} onChange={(event) => setTaskPriority(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
+                    <select value={vm.taskPriority} onChange={(event) => vm.setTaskPriority(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
                       <option value="normal">Normal</option>
                       <option value="high">High</option>
                       <option value="critical">Critical</option>
@@ -289,12 +289,12 @@ export function LiveOperationsWorkspace({
                   <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">SLA due time</span>
                   <input
                     type="datetime-local"
-                    value={taskSlaDueAt}
-                    onChange={(event) => setTaskSlaDueAt(event.target.value)}
+                    value={vm.taskSlaDueAt}
+                    onChange={(event) => vm.setTaskSlaDueAt(event.target.value)}
                     className="h-11 rounded-md border border-border bg-white px-3 text-sm"
                   />
                 </label>
-                <button disabled={busy || !taskTitle.trim()} onClick={createTask} className="h-12 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
+                <button disabled={busy || !vm.taskTitle.trim()} onClick={vm.createTask} className="h-12 rounded-md bg-(--prism-ink) px-3 text-sm font-black text-sidebar-foreground disabled:opacity-60">
                   Add task
                 </button>
               </div>
@@ -404,20 +404,9 @@ function CoordinatorRow({
   coordinators: PrismCoordinator[];
   busy: boolean;
   onStatus: (status: "present" | "late" | "absent" | "replaced") => Promise<void>;
-  onReplace: (input: { replacementCoordinatorId: string; role: string; reason: string }) => Promise<void>;
+  onReplace: (input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
 }) {
-  const status = assignment.attendanceStatus ?? "pending";
-  const [replacementCoordinatorId, setReplacementCoordinatorId] = useState("");
-  const [replacementRole, setReplacementRole] = useState(assignment.role);
-  const [replacementReason, setReplacementReason] = useState("");
-  const eligibleCoordinators = coordinators.filter((coordinator) => coordinator.id !== assignment.coordinatorId && coordinator.active);
-
-  async function replace() {
-    if (!replacementCoordinatorId || !replacementReason.trim()) return;
-    await onReplace({ replacementCoordinatorId, role: replacementRole || assignment.role, reason: replacementReason.trim() });
-    setReplacementCoordinatorId("");
-    setReplacementReason("");
-  }
+  const vm = useCoordinatorRowViewModel({ assignment, coordinators, busy, onReplace });
 
   return (
     <div className="rounded-md border border-border bg-background p-3">
@@ -427,14 +416,14 @@ function CoordinatorRow({
           <p className="mt-1 text-sm text-muted-foreground">{assignment.role} - {label(assignment.status)}</p>
           {assignment.replacementReason && <p className="mt-1 text-xs text-muted-foreground">Replacement: {assignment.replacementReason}</p>}
         </div>
-        <Pill value={status} />
+        <Pill value={vm.attendanceStatus} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || status === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
-        <button disabled={busy || status === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
-        <button disabled={busy || status === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
+        <button disabled={busy || vm.attendanceStatus === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
+        <button disabled={busy || vm.attendanceStatus === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
+        <button disabled={busy || vm.attendanceStatus === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
       </div>
-      {status !== "replaced" && (
+      {vm.attendanceStatus !== "replaced" && (
         <div className="mt-3 grid gap-2 rounded-md border border-dashed border-border bg-white p-3">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-muted-foreground">
             <UserPlus className="size-4 text-(--prism-amber)" />
@@ -445,36 +434,29 @@ function CoordinatorRow({
           </p>
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
             <select
-              value={replacementCoordinatorId}
-              onChange={(event) => {
-                const nextCoordinatorId = event.target.value;
-                setReplacementCoordinatorId(nextCoordinatorId);
-                const nextCoordinator = coordinators.find((coordinator) => coordinator.id === nextCoordinatorId);
-                if (nextCoordinator?.roleTags?.length && !nextCoordinator.roleTags.includes(replacementRole)) {
-                  setReplacementRole(nextCoordinator.roleTags[0]);
-                }
-              }}
+              value={vm.replacementCoordinatorId}
+              onChange={(event) => vm.selectReplacementCoordinator(event.target.value)}
               className="h-10 rounded-md border border-border bg-white px-2 text-xs"
             >
               <option value="">Select coordinator</option>
-              {eligibleCoordinators.map((coordinator) => (
+              {vm.eligibleCoordinators.map((coordinator) => (
                 <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>
               ))}
             </select>
-            <input value={replacementRole} onChange={(event) => setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs" />
+            <input value={vm.replacementRole} onChange={(event) => vm.setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs" />
           </div>
           <input
-            value={replacementReason}
-            onChange={(event) => setReplacementReason(event.target.value)}
+            value={vm.replacementReason}
+            onChange={(event) => vm.setReplacementReason(event.target.value)}
             placeholder="Replacement reason required for live log"
             className="h-10 rounded-md border border-border bg-white px-2 text-xs"
           />
-          <button disabled={busy || !replacementCoordinatorId || !replacementReason.trim()} onClick={replace} className="h-10 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+          <button disabled={busy || !vm.replacementCoordinatorId || !vm.replacementReason.trim()} onClick={vm.replace} className="h-10 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
             Replace coordinator
           </button>
         </div>
       )}
-      {status === "replaced" && (
+      {vm.attendanceStatus === "replaced" && (
         <div className="mt-3 rounded-md border border-border bg-white p-3 text-xs leading-5 text-muted-foreground">
           Replacement recorded. This row is retained as operational context; the replacement coordinator receives a pending assignment.
         </div>
@@ -500,6 +482,7 @@ function IssueRow({
         <div>
           <p className="font-black">{issue.title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{issue.ownerRole || "Unassigned"} - {issue.description || "No description"}</p>
+          <p className="mt-1 text-xs text-muted-foreground"><span className="font-black text-foreground">Affected area:</span> {issue.affectedArea || "Not specified"}</p>
           <SlaLine slaStatus={issue.slaStatus} slaDueAt={issue.slaDueAt} escalationLevel={issue.escalationLevel} escalatedBy={issue.escalatedBy} />
         </div>
         <div className="flex flex-wrap gap-2">

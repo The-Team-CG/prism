@@ -1,4 +1,4 @@
-import type { Project } from "@/features/floorplan/editor/types";
+import type { Project } from "@/features/floorplan/editor";
 import { createEventOpsClient } from "@prism/api-client";
 
 import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
@@ -58,6 +58,17 @@ import type {
   PARERisk,
   PrismUser,
   PrismAuthenticatedSession,
+  CreateEventDayTaskInput,
+  EscalateLiveOpsInput,
+  ReplaceCoordinatorAssignmentInput,
+  UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  UpdateUrgentIssueInput,
+  CreateUrgentIssueInput,
+  VerifySupplierStatusInput,
+  CreatePrivacyRequestInput,
+  ReviewPrivacyRequestInput,
+  AuditLogFilters,
 } from "@prism/types";
 
 export type {
@@ -224,90 +235,7 @@ type AssignCoordinatorInput = {
   overrideConflict?: boolean;
 };
 
-type CreateEventDayTaskInput = {
-  title: string;
-  assignedRole?: string;
-  ownerName?: string;
-  priority?: string;
-  notes?: string;
-  dueAt?: string;
-  slaDueAt?: string;
-};
-
-type UpdateEventDayTaskInput = {
-  status?: "open" | "in_progress" | "done" | "blocked";
-  notes?: string;
-  ownerName?: string;
-  slaDueAt?: string;
-};
-
-type CreateUrgentIssueInput = {
-  title: string;
-  description?: string;
-  severity?: "low" | "medium" | "high" | "critical";
-  ownerRole?: string;
-  ownerName?: string;
-  openedBy?: string;
-  slaDueAt?: string;
-};
-
-type UpdateUrgentIssueInput = {
-  status?: "open" | "assigned" | "resolved" | "cancelled";
-  ownerRole?: string;
-  ownerName?: string;
-  resolution?: string;
-  slaDueAt?: string;
-};
-
-type EscalateLiveOpsInput = {
-  escalationLevel: "role_lead" | "pmcm" | "critical";
-  notes: string;
-  ownerRole?: string;
-  ownerName?: string;
-};
-
-type ReplaceCoordinatorInput = {
-  replacementCoordinatorId: string;
-  role: string;
-  reason: string;
-};
-
-type UpdateCoordinatorAttendanceInput = {
-  status: "present" | "late" | "absent" | "replaced";
-  notes?: string;
-  markedBy?: string;
-};
-
-type VerifySupplierStatusInput = {
-  verificationStatus: "self_reported" | "verified" | "disputed";
-  verifiedBy?: string;
-  notes?: string;
-};
-
-type CreatePrivacyRequestInput = {
-  subjectType: string;
-  subjectEmail?: string;
-  subjectName?: string;
-  eventId?: string;
-  requestType: "access" | "correction" | "deletion" | "export";
-  requestNotes?: string;
-};
-
-type ReviewPrivacyRequestInput = {
-  status: "approved" | "rejected";
-  reviewReason?: string;
-};
-
-type AuditLogFilters = {
-  query?: string;
-  category?: string;
-  eventId?: string;
-  actor?: string;
-  actionType?: string;
-  severity?: string;
-  dateRange?: string;
-  limit?: string;
-};
+type ReplaceCoordinatorInput = ReplaceCoordinatorAssignmentInput;
 
 interface ApiFloorPlan {
   id: string;

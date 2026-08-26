@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { CreateSupplierApplicationDto } from '../dto/supplier-application.dto';
+import { createSupplierApplicationSchema, type CreateSupplierApplicationInput } from '@prism/types';
+import { zodBody } from '@prism/shared';
 import { SupplierApplicationService } from '../services/supplier-application.service';
 
 @Controller('supplier-applications')
@@ -8,8 +9,8 @@ export class OpsSupplierApplicationsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateSupplierApplicationDto) {
-    return this.supplierApplicationService.createSupplierApplication(dto);
+  create(@Body(zodBody(createSupplierApplicationSchema)) input: CreateSupplierApplicationInput) {
+    return this.supplierApplicationService.createSupplierApplication(input);
   }
 
   @Get('categories')

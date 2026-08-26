@@ -166,7 +166,6 @@ type UpdateInquiryStatusInput = {
 
 type VerifySupplierStatusInput = {
   verificationStatus: string;
-  verifiedBy?: string;
   notes?: string;
 };
 
@@ -1241,6 +1240,15 @@ export class SampleCompatibilityService implements OnModuleInit {
   ) {
     const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'supplier setup verification');
     const request = await this.supplierNetworkWorkflowService.verifySupplierEventStatus(eventId, requestId, input, actor);
+    await this.recordEventDayLog(
+      eventId,
+      'supplier_status_verified',
+      actor,
+      `Marked supplier setup ${input.verificationStatus}: ${request.supplierName}`,
+      'supplier_quote_request',
+      request.id,
+      { verificationStatus: input.verificationStatus, verifiedBy: actor.name, notes: input.notes ?? '' },
+    );
     return this.mapSupplierQuoteRequest(request);
   }
 
@@ -1444,6 +1452,15 @@ export class SampleCompatibilityService implements OnModuleInit {
   ) {
     const actor = this.resolveActor(actorInput);
     const updated = await this.supplierNetworkWorkflowService.updateSupplierEventStatus(requestId, input, actor);
+    await this.recordEventDayLog(
+      updated.eventId,
+      'supplier_status_updated',
+      actor,
+      `Supplier status update: ${input.status}`,
+      'supplier_quote_request',
+      updated.id,
+      { status: input.status, notes: input.notes ?? '', photoFileName: input.photo?.fileName ?? null },
+    );
     return this.mapSupplierQuoteRequest(updated);
   }
 

@@ -12,6 +12,7 @@ import {
 } from "../use-cases/client-dashboard-actions";
 
 export type { ClientSession };
+export type ClientDashboardStatus = "idle" | "loading" | "success" | "error";
 
 const CLIENT_STATE_CACHE_MS = 30_000;
 const clientStateCache = new Map<string, { state: PrismClientWorkspace; loadedAt: number }>();
@@ -152,6 +153,8 @@ export function useClientDashboardViewModel({
     };
   }, [eventId, portalView, route, router]);
 
+  const status: ClientDashboardStatus = error ? "error" : state ? "success" : session ? "loading" : "idle";
+
   const refresh = useCallback(async () => {
     if (!session) return;
     const [next, nextActionCenter] = await Promise.all([
@@ -165,6 +168,7 @@ export function useClientDashboardViewModel({
   return {
     actionCenter,
     error,
+    status,
     refresh,
     selectedEventId,
     session,

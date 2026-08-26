@@ -4,6 +4,7 @@ import type {
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   CreatePrismInquiryInput,
+  CreateSupplierApplicationInput,
   CreateUrgentIssueInput,
   PrismBillingWorkspace,
   PrismClientActionCenter,
@@ -47,6 +48,7 @@ export type {
   CreateFloorPlanPreferenceInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
+  CreateSupplierApplicationInput,
   CreatePrismInquiryInput,
   CreateUrgentIssueInput,
   SubmitSupplierQuoteInput,
@@ -57,23 +59,6 @@ export type {
   UploadConformeInput,
   UploadContractInput,
 } from "@prism/types";
-
-export interface CreateSupplierApplicationInput {
-  companyName: string;
-  contactName: string;
-  email: string;
-  phone?: string;
-  categoryId?: string;
-  pastEvents?: string;
-  serviceInclusions?: string;
-  certifications?: string;
-  priceRange?: string;
-  bniMember?: boolean;
-  portfolioUrl?: string;
-  additionalNotes?: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-}
 
 export interface EventOpsClientOptions {
   baseUrl?: string;

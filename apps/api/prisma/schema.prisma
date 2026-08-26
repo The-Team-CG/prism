@@ -685,6 +685,7 @@ model OpsUrgentIssue {
   description     String    @default("")
   severity        String    @default("medium")
   status          String    @default("open")
+  affectedArea    String    @default("") @map("affected_area")
   ownerRole       String    @default("") @map("owner_role")
   ownerName       String    @default("") @map("owner_name")
   resolution      String    @default("")

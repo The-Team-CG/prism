@@ -47,13 +47,14 @@ import {
   isRequestClosed,
   readinessTone,
 } from "../../model/supplier-workspace-rules";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierSession, SupplierWorkspace } from "../../model/supplier-workspace-types";
+import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
 
 
 import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
 
-export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; session: SupplierSession }) {
+export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; session: PrismAuthenticatedSession }) {
   return (
     <div className="space-y-4">
       {/* Identity */}

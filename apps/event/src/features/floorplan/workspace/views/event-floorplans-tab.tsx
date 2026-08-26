@@ -4,7 +4,7 @@ import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import type { FloorPlanTemplate } from "@/features/floorplan/editor/templates";
+import type { FloorPlanTemplate } from "@/features/floorplan/editor";
 import { label } from "@/features/pmcm-kit";
 import { Panel } from "@/features/pmcm-kit";
 import {

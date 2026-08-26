@@ -1,4 +1,5 @@
-import type { SupplierAuthUser, SupplierSampleAccount, SupplierSession, SupplierSignInDraft } from "./supplier-sign-in-types";
+import type { PrismAuthenticatedSession } from "@prism/types";
+import type { SupplierAuthUser, SupplierSampleAccount, SupplierSignInDraft } from "./supplier-sign-in-types";
 
 export const SUPPLIER_AUTH_API_OFFLINE_MESSAGE =
   "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
@@ -43,7 +44,7 @@ export function mapWrongPortalMessage(role: string): string {
 export function buildSupplierSession(
   user: SupplierAuthUser,
   signedInAt: string = new Date().toISOString(),
-): SupplierSession {
+): PrismAuthenticatedSession {
   return {
     ...user,
     signedInAt,
@@ -55,7 +56,7 @@ export function resolvePostSignInPath(nextParam: string | null | undefined): str
   return "/dashboard";
 }
 
-export function isExistingSupplierSession(session: SupplierSession | null): session is SupplierSession {
+export function isExistingSupplierSession(session: PrismAuthenticatedSession | null): session is PrismAuthenticatedSession {
   return Boolean(session && session.role === "supplier");
 }
 

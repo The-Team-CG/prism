@@ -22,12 +22,10 @@ import {
 } from '../ports/supplier-directory.port';
 import type { SupplierEventStatusInput, SupplierReadinessInput, VerifySupplierEventStatusInput } from '../ports/supplier-commands.port';
 import type { SupplierDocumentVault, UploadMetadataInput, ValidatedUploadMetadata } from '../ports/supplier-document-vault.port';
-import type { SupplierLiveOperations } from '../ports/supplier-live-operations.port';
 import type { SupplierPareApprovalRecord, SupplierPareAutomation } from '../ports/supplier-pare-automation.port';
 import {
   SUPPLIER_DIRECTORY,
   SUPPLIER_DOCUMENT_VAULT,
-  SUPPLIER_LIVE_OPERATIONS,
   SUPPLIER_PARE_AUTOMATION,
 } from '../ports/supplier-ops.tokens';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
@@ -44,7 +42,6 @@ export class SupplierNetworkWorkflowService {
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(SUPPLIER_PARE_AUTOMATION) private readonly pareService: SupplierPareAutomation,
-    @Inject(SUPPLIER_LIVE_OPERATIONS) private readonly liveOperationsService: SupplierLiveOperations,
     @Inject(SUPPLIER_DOCUMENT_VAULT) private readonly documentVaultService: SupplierDocumentVault,
   ) {}
 
@@ -266,11 +263,19 @@ export class SupplierNetworkWorkflowService {
   ) {
     let request: OpsSupplierQuoteRequest | null = null;
     let verificationStatus: SupplierVerificationStatus | null = null;
-    let verifiedBy = actor.name;
+    const verifiedBy = actor.name;
 
     return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'verify_supplier_event_status',
       eventId,
+      validatePermission: async () => {
+        await this.eventAccessPolicyService.requireActorRole(
+          actor,
+          [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator],
+          'supplier setup verification',
+          eventId,
+        );
+      },
       validateState: async () => {
         const requestedStatus = input.verificationStatus?.trim();
         if (!isOpsConstantValue(SupplierVerificationStatus, requestedStatus)) {
@@ -280,7 +285,6 @@ export class SupplierNetworkWorkflowService {
         request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
         if (request?.eventId !== eventId) request = null;
         if (!request) throw new NotFoundException('Supplier quote request not found');
-        verifiedBy = input.verifiedBy?.trim() || actor.name;
       },
       write: () => {
         if (!verificationStatus) throw new BadRequestException('Unsupported supplier verification status');
@@ -297,27 +301,16 @@ export class SupplierNetworkWorkflowService {
       sideEffects: async (updated) => {
         if (!verificationStatus) return;
         const metadata = { verificationStatus, verifiedBy, notes: input.notes ?? '' };
-        await Promise.all([
-          this.liveOperationsService.recordEventDayLog(
-            eventId,
-            'supplier_status_verified',
-            actor,
-            `Marked supplier setup ${verificationStatus}: ${updated.supplierName}`,
-            'supplier_quote_request',
-            updated.id,
-            metadata,
-          ),
-          this.auditService.audit(eventId, actor.name, `Marked supplier setup ${verificationStatus}: ${updated.supplierName}`, {
-            actorRole: actor.role,
-            actorEmail: actor.email,
-            actionType: AuditActionType.Update,
-            category: AuditCategory.Suppliers,
-            affectedType: 'supplier_quote_request',
-            affectedId: updated.id,
-            affectedLabel: updated.supplierName,
-            metadata,
-          }),
-        ]);
+        await this.auditService.audit(eventId, actor.name, `Marked supplier setup ${verificationStatus}: ${updated.supplierName}`, {
+          actorRole: actor.role,
+          actorEmail: actor.email,
+          actionType: AuditActionType.Update,
+          category: AuditCategory.Suppliers,
+          affectedType: 'supplier_quote_request',
+          affectedId: updated.id,
+          affectedLabel: updated.supplierName,
+          metadata,
+        });
       },
     });
   }

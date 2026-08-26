@@ -2,8 +2,7 @@
 
 import { createContext, useContext, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import type { PrismBillingStatement, PrismBriefing, PrismClientActionCenter, PrismClientWorkspace, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismAuditLog, PrismNotificationLog } from "@prism/types";
-import type { FloorPlanTemplate } from "@/features/floorplan/editor/templates";
-import type { Project } from "@/features/floorplan/editor/types";
+import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
 import type { ClientDashboardRoute, ClientPortalView, ClientSession, DetailTab } from "./model/client-dashboard-types";
 import type { ClientDashboardAction } from "./model/client-dashboard-view-rules";
 

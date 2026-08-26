@@ -2,8 +2,9 @@
  * Shared guest-portal HTTP helper (DRY across feature repositories).
  */
 
-export const GUEST_API_OFFLINE_MESSAGE =
-  "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
+import { GUEST_API_OFFLINE_MESSAGE } from "./guest-messages";
+
+export { GUEST_API_OFFLINE_MESSAGE } from "./guest-messages";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 

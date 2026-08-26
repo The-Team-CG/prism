@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { PrismAuthenticatedSession } from "@prism/types";
 import {
   DEFAULT_SIGN_IN_DRAFT,
   isExistingSupplierSession,
@@ -10,7 +11,7 @@ import {
   mapSupplierSignInError,
   SAMPLE_SUPPLIER_ACCOUNTS,
 } from "../model/supplier-sign-in-rules";
-import type { SupplierSession, SupplierSignInDraft, SupplierSignInStatus } from "../model/supplier-sign-in-types";
+import type { SupplierSignInDraft, SupplierSignInStatus } from "../model/supplier-sign-in-types";
 import {
   loadExistingSupplierSession,
   requestSupplierApproval,
@@ -26,7 +27,7 @@ export function useSupplierSignInViewModel() {
   const [approvalConsentAccepted, setApprovalConsentAccepted] = useState(false);
   const [showApproval, setShowApproval] = useState(false);
   const [status, setStatus] = useState<SupplierSignInStatus>("idle");
-  const [existing, setExisting] = useState<SupplierSession | null>(null);
+  const [existing, setExisting] = useState<PrismAuthenticatedSession | null>(null);
 
   useEffect(() => {
     const current = loadExistingSupplierSession();
@@ -92,6 +93,7 @@ export function useSupplierSignInViewModel() {
     showApproval,
     setShowApproval,
     existing,
+    status,
     busy: status === "loading",
     sampleAccounts: SAMPLE_SUPPLIER_ACCOUNTS,
     updateEmail,
