@@ -56,8 +56,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
   PrismDashboardShell,
 } from "@prism/ui";
-import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate } from "@/features/floorplan/editor/templates";
-import type { Project } from "@/features/floorplan/editor/types";
+import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
 import {
   DashboardSkeleton,
   DashboardSessionSkeleton,
@@ -97,7 +96,7 @@ import type { ClientDashboardRoute, ClientPortalView, DetailTab } from "../model
 export type { ClientDashboardRoute, ClientPortalView };
 
 const EditorShell = dynamic(
-  () => import("@/features/floorplan/editor/EditorShell").then((mod) => mod.EditorShell),
+  () => import("@/features/floorplan/editor").then((mod) => mod.EditorShell),
   {
     ssr: false,
     loading: () => (

@@ -150,4 +150,59 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
     expect(updated.affectedArea).toBe('Entire North Wing');
     expect(updated.status).toBe('assigned');
   });
+
+  it('uses the verified actor for coordinator attendance attribution', async () => {
+    const existing = {
+      id: 'coord_asg_test_1',
+      eventId: 'evt_001',
+      coordinatorId: 'coord_1',
+      coordinatorName: 'Alex Coordinator',
+      role: 'Registration Staff',
+      attendanceStatus: 'pending',
+    };
+    const mockPrisma = {
+      opsCoordinatorAssignment: {
+        findUnique: vi.fn(async () => existing),
+        update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...existing, ...data })),
+      },
+      opsCoordinatorReliabilityNote: {
+        create: vi.fn(async () => ({ id: 'reliability_1' })),
+      },
+      opsEventDayLog: {
+        create: vi.fn(async () => ({ id: 'log_3' })),
+      },
+    };
+    const mockAuditService = {
+      audit: vi.fn(async () => undefined),
+    };
+    const service = new LiveOperationsService(
+      mockPrisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
+      mockAuditService as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
+      mockNotificationOutboxService as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
+      mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
+    );
+
+    const actor = {
+      id: 'usr_admin',
+      name: 'Anthony Admin',
+      email: 'anthony@pmcm.test',
+      role: 'pmcm-admin',
+    };
+    const input = { status: 'present', notes: 'Checked in at registration.', markedBy: 'Spoofed Operator' };
+
+    await service.updateCoordinatorAttendance('evt_001', existing.id, input, actor);
+
+    expect(mockAuditService.audit).toHaveBeenCalledWith(
+      'evt_001',
+      'Anthony Admin',
+      'Updated coordinator attendance: Alex Coordinator',
+      expect.objectContaining({ metadata: { status: 'present', notes: 'Checked in at registration.', markedBy: 'Anthony Admin' } }),
+    );
+    expect(mockAuditService.audit).not.toHaveBeenCalledWith(
+      'evt_001',
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ metadata: expect.objectContaining({ markedBy: 'Spoofed Operator' }) }),
+    );
+  });
 });

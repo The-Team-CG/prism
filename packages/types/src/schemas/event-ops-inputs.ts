@@ -89,6 +89,24 @@ export type CreateGuestFeedbackInput = z.infer<typeof createGuestFeedbackSchema>
 
 /* ── Supplier ─────────────────────────────────────────────────── */
 
+export const createSupplierApplicationSchema = z.object({
+  companyName: nonEmptyStringSchema,
+  contactName: nonEmptyStringSchema,
+  email: z.string().trim().email(),
+  phone: optionalTrimmedStringSchema,
+  categoryId: optionalTrimmedStringSchema,
+  pastEvents: optionalTrimmedStringSchema,
+  serviceInclusions: optionalTrimmedStringSchema,
+  certifications: optionalTrimmedStringSchema,
+  priceRange: optionalTrimmedStringSchema,
+  bniMember: z.boolean().optional(),
+  portfolioUrl: optionalTrimmedStringSchema,
+  additionalNotes: optionalTrimmedStringSchema,
+  privacyConsentAccepted: z.boolean().optional(),
+  privacyNoticeVersion: optionalTrimmedStringSchema,
+});
+export type CreateSupplierApplicationInput = z.infer<typeof createSupplierApplicationSchema>;
+
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,
 });
@@ -136,7 +154,6 @@ export type UpdateEventDayTaskInput = z.infer<typeof updateEventDayTaskSchema>;
 export const updateCoordinatorAttendanceSchema = z.object({
   status: nonEmptyStringSchema,
   notes: optionalTrimmedStringSchema,
-  markedBy: optionalTrimmedStringSchema,
 });
 export type UpdateCoordinatorAttendanceInput = z.infer<typeof updateCoordinatorAttendanceSchema>;
 
@@ -150,6 +167,67 @@ export const createUrgentIssueSchema = z.object({
   slaDueAt: optionalTrimmedStringSchema,
 });
 export type CreateUrgentIssueInput = z.infer<typeof createUrgentIssueSchema>;
+
+export const updateUrgentIssueSchema = z.object({
+  status: optionalTrimmedStringSchema,
+  affectedArea: optionalTrimmedStringSchema,
+  ownerRole: optionalTrimmedStringSchema,
+  ownerName: optionalTrimmedStringSchema,
+  resolution: optionalTrimmedStringSchema,
+  slaDueAt: optionalTrimmedStringSchema,
+});
+export type UpdateUrgentIssueInput = z.infer<typeof updateUrgentIssueSchema>;
+
+export const escalateLiveOpsRecordSchema = z.object({
+  escalationLevel: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+  ownerRole: optionalTrimmedStringSchema,
+  ownerName: optionalTrimmedStringSchema,
+});
+export type EscalateLiveOpsInput = z.infer<typeof escalateLiveOpsRecordSchema>;
+
+export const replaceCoordinatorAssignmentSchema = z.object({
+  replacementCoordinatorId: nonEmptyStringSchema,
+  role: nonEmptyStringSchema,
+  reason: nonEmptyStringSchema,
+});
+export type ReplaceCoordinatorAssignmentInput = z.infer<typeof replaceCoordinatorAssignmentSchema>;
+
+export const verifySupplierStatusSchema = z.object({
+  verificationStatus: z.enum(["verified", "disputed"]),
+  notes: optionalTrimmedStringSchema,
+});
+export type VerifySupplierStatusInput = z.infer<typeof verifySupplierStatusSchema>;
+
+/* ── Audit and privacy operations ────────────────────────────── */
+
+export const createPrivacyRequestSchema = z.object({
+  subjectType: nonEmptyStringSchema,
+  subjectEmail: optionalTrimmedStringSchema,
+  subjectName: optionalTrimmedStringSchema,
+  eventId: optionalTrimmedStringSchema,
+  requestType: z.enum(["access", "correction", "deletion", "export"]),
+  requestNotes: optionalTrimmedStringSchema,
+});
+export type CreatePrivacyRequestInput = z.infer<typeof createPrivacyRequestSchema>;
+
+export const reviewPrivacyRequestSchema = z.object({
+  status: z.enum(["approved", "rejected"]),
+  reviewReason: optionalTrimmedStringSchema,
+});
+export type ReviewPrivacyRequestInput = z.infer<typeof reviewPrivacyRequestSchema>;
+
+export const auditLogFiltersSchema = z.object({
+  query: optionalTrimmedStringSchema,
+  category: optionalTrimmedStringSchema,
+  eventId: optionalTrimmedStringSchema,
+  actor: optionalTrimmedStringSchema,
+  actionType: optionalTrimmedStringSchema,
+  severity: optionalTrimmedStringSchema,
+  dateRange: optionalTrimmedStringSchema,
+  limit: optionalTrimmedStringSchema,
+});
+export type AuditLogFilters = z.infer<typeof auditLogFiltersSchema>;
 
 /* ── Floorplan preference (client layout notes) ───────────────── */
 

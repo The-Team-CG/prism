@@ -1,0 +1,318 @@
+import 'reflect-metadata';
+import { describe, expect, it, vi } from 'vitest';
+import type {
+  OpsCoordinatorAssignment,
+  OpsEvent,
+  OpsEventDayLog,
+  OpsEventDayTask,
+  OpsFloorPlanDraft,
+  OpsGuestCheckIn,
+  OpsSupplierQuoteRequest,
+  OpsUrgentIssue,
+} from '@prisma/client';
+import type {
+  PrismCoordinatorAssignment,
+  PrismGuestCheckIn,
+} from '@prism/types';
+import { OpsUserRole } from '@prism/modules/event-core';
+import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
+import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
+import { GUEST_READER, type GuestReader } from '@prism/modules/guest-ops';
+import { STAFFING_READER, type StaffingReader } from '@prism/modules/staffing-ops';
+import { EventReadModelQueries } from '../queries/event-read-models.queries';
+import { LiveOpsReadModelsService } from './live-ops-read-models.service';
+
+const EVENT_ID = 'evt_live_ops';
+const CREATED_AT = new Date('2026-08-01T09:00:00.000Z');
+
+function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
+  return {
+    id: EVENT_ID,
+    inquiryId: 'inq_1',
+    clientName: 'Ana Reyes',
+    eventName: 'Ayala Summit',
+    eventDate: new Date('2026-08-20T00:00:00.000Z'),
+    status: 'planning',
+    clientPortalStatus: 'unlocked',
+    readiness: 'ready',
+    archived: false,
+    archivedAt: null,
+    archiveOverrideReason: null,
+    archiveOverrideBy: null,
+    archiveChecklist: {},
+    floorPlanStatus: 'approved',
+    floorPlanId: null,
+    floorPlanSubmittedAt: null,
+    floorPlanReviewedAt: null,
+    createdAt: CREATED_AT,
+    updatedAt: CREATED_AT,
+    floorPlanDrafts: [],
+  } as OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] };
+}
+
+function taskFixture(id: string, assignedRole: string): OpsEventDayTask {
+  return {
+    id,
+    eventId: EVENT_ID,
+    title: `${assignedRole} task`,
+    assignedRole,
+    ownerName: '',
+    priority: 'normal',
+    status: 'open',
+    notes: '',
+    dueAt: null,
+    slaDueAt: null,
+    slaStatus: 'on_track',
+    escalationLevel: 'none',
+    escalatedAt: null,
+    escalatedBy: null,
+    escalationNotes: '',
+    completedAt: null,
+    createdAt: CREATED_AT,
+    updatedAt: CREATED_AT,
+  };
+}
+
+function issueFixture(id: string, ownerRole: string, ownerName = ''): OpsUrgentIssue {
+  return {
+    id,
+    eventId: EVENT_ID,
+    title: `${id} issue`,
+    description: 'Power interruption near the stage.',
+    severity: 'high',
+    status: 'open',
+    affectedArea: 'Main Stage',
+    ownerRole,
+    ownerName,
+    resolution: '',
+    openedBy: 'Francis Coordinator',
+    slaDueAt: null,
+    slaStatus: 'on_track',
+    escalationLevel: 'none',
+    escalatedAt: null,
+    escalatedBy: null,
+    escalationNotes: '',
+    resolvedAt: null,
+    createdAt: CREATED_AT,
+    updatedAt: CREATED_AT,
+  };
+}
+
+function supplierRequestFixture(): OpsSupplierQuoteRequest {
+  return {
+    id: 'quote_request_1',
+    eventId: EVENT_ID,
+    supplierId: 'supplier_1',
+    categoryId: 'category_1',
+    supplierName: 'Sonic Line Events',
+    category: 'Technicals',
+    message: 'Provide event-day support.',
+    dueDate: null,
+    accessToken: 'secret-quote-token',
+    confidentialBid: true,
+    status: 'open',
+    assignmentStatus: 'confirmed',
+    assignmentConfirmedAt: CREATED_AT,
+    readinessStatus: 'ready',
+    readinessConfirmedAt: CREATED_AT,
+    readinessNotes: 'Ready to load in.',
+    eventDayStatus: 'set_up_ready',
+    eventDayStatusAt: CREATED_AT,
+    eventDayNotes: 'Setup complete.',
+    eventDayVerificationStatus: 'verified',
+    eventDayVerifiedAt: CREATED_AT,
+    eventDayVerifiedBy: 'Ms. Mys',
+    eventDayVerificationNotes: 'Verified at gate.',
+    statusPhotoFileName: 'setup.jpg',
+    contractDocumentId: 'doc_1',
+    createdAt: CREATED_AT,
+  };
+}
+
+function logFixture(): OpsEventDayLog {
+  return {
+    id: 'event_day_log_1',
+    eventId: EVENT_ID,
+    actionType: 'supplier_verified',
+    actor: 'Ms. Mys',
+    actorRole: 'pmcm-admin',
+    message: 'Supplier status verified.',
+    relatedType: 'quote_request',
+    relatedId: 'quote_request_1',
+    metadata: { verificationStatus: 'verified' },
+    createdAt: CREATED_AT,
+  };
+}
+
+function assignmentFixture(role: string): OpsCoordinatorAssignment {
+  return {
+    id: 'assignment_1',
+    eventId: EVENT_ID,
+    coordinatorId: 'coordinator_1',
+    coordinatorName: 'Francis Coordinator',
+    role,
+    status: 'acknowledged',
+    attendanceStatus: 'present',
+    attendanceMarkedAt: CREATED_AT,
+    attendanceNotes: 'On site.',
+    replacedByAssignmentId: null,
+    replacementReason: '',
+    replacedAt: null,
+    replacedBy: null,
+    doubleBookingWarning: false,
+    eventDate: new Date('2026-08-20T00:00:00.000Z'),
+    conflictEventId: null,
+    conflictEventName: null,
+    acknowledgedAt: CREATED_AT,
+    createdAt: CREATED_AT,
+  };
+}
+
+function guestFixture(): OpsGuestCheckIn {
+  return {
+    id: 'check_in_1',
+    eventId: EVENT_ID,
+    guestName: 'Guest One',
+    checkInMode: 'name_search',
+    status: 'checked_in',
+    walkIn: false,
+    verificationStatus: 'verified',
+    privacyConsentAccepted: true,
+    privacyNoticeVersion: '2026-05-01',
+    marketingConsentAccepted: false,
+    checkedInAt: CREATED_AT,
+  };
+}
+
+function actor(role: ResolvedEventOpsActor['role']): ResolvedEventOpsActor {
+  return {
+    id: 'user_1',
+    role,
+    email: 'francis@pmcm.test',
+    name: role === OpsUserRole.Coordinator ? 'Francis Coordinator' : 'Ms. Mys',
+    coordinatorId: role === OpsUserRole.Coordinator ? 'coordinator_1' : undefined,
+    explicit: true,
+  };
+}
+
+function createService(input: {
+  tasks?: OpsEventDayTask[];
+  urgentIssues?: OpsUrgentIssue[];
+  supplierRequests?: OpsSupplierQuoteRequest[];
+  eventDayLogs?: OpsEventDayLog[];
+  assignment?: OpsCoordinatorAssignment;
+  guestCheckIns?: OpsGuestCheckIn[];
+}) {
+  const assignment = input.assignment;
+  const guestCheckIns = input.guestCheckIns ?? [];
+  const mappedAssignment: PrismCoordinatorAssignment = {
+    id: assignment?.id ?? 'assignment_1',
+    eventId: EVENT_ID,
+    coordinatorId: assignment?.coordinatorId ?? 'coordinator_1',
+    coordinatorName: assignment?.coordinatorName ?? 'Francis Coordinator',
+    role: assignment?.role ?? 'Logistics Coordinator',
+    status: assignment?.status ?? 'acknowledged',
+    doubleBookingWarning: false,
+  };
+  const mappedGuest = (checkIn: OpsGuestCheckIn): PrismGuestCheckIn => ({
+    id: checkIn.id,
+    eventId: checkIn.eventId,
+    guestName: checkIn.guestName,
+    checkInMode: checkIn.checkInMode,
+    status: checkIn.status,
+    walkIn: checkIn.walkIn,
+    verificationStatus: checkIn.verificationStatus,
+    checkedInAt: checkIn.checkedInAt.toISOString(),
+  });
+  const queries = {
+    liveOpsForEvent: vi.fn(async () => ({
+      event: eventFixture(),
+      tasks: input.tasks ?? [],
+      urgentIssues: input.urgentIssues ?? [],
+      supplierRequests: input.supplierRequests ?? [],
+      eventDayLogs: input.eventDayLogs ?? [],
+    })),
+  } as unknown as EventReadModelQueries;
+  const policy = {
+    requireActorRole: vi.fn(async () => undefined),
+    recordForbiddenAccess: vi.fn(async () => undefined),
+    sameText: (left?: string | null, right?: string | null) =>
+      Boolean(left && right && left.trim().toLowerCase() === right.trim().toLowerCase()),
+  } as unknown as EventAccessPolicyService;
+  const floorPlanWorkflowService = {
+    mapFloorPlanDraft: vi.fn(),
+  } as unknown as FloorPlanWorkflowService;
+  const guestReader = {
+    listCheckInsForEvent: vi.fn(async () => guestCheckIns),
+    mapGuestCheckIn: vi.fn(mappedGuest),
+    guestAccessCode: vi.fn(() => 'EVENT-CODE'),
+  } as unknown as GuestReader;
+  const staffingReader = {
+    listAssignmentsForEvent: vi.fn(async () => (assignment ? [assignment] : [])),
+    findAssignmentForEventActor: vi.fn(async () => assignment ?? null),
+    mapCoordinatorAssignment: vi.fn(() => mappedAssignment),
+  } as unknown as StaffingReader;
+
+  const service = new LiveOpsReadModelsService(
+    queries,
+    policy,
+    floorPlanWorkflowService,
+    guestReader,
+    staffingReader,
+  );
+  return { service, guestReader, staffingReader };
+}
+
+describe('LiveOpsReadModelsService', () => {
+  it('composes the PMCM live-ops read model with affected areas and event-day logs', async () => {
+    const { service } = createService({
+      tasks: [taskFixture('task_1', 'General Coordinator')],
+      urgentIssues: [issueFixture('issue_1', 'Audio Lead')],
+      supplierRequests: [supplierRequestFixture()],
+      eventDayLogs: [logFixture()],
+    });
+
+    const result = await service.getEventLiveOps(EVENT_ID, actor(OpsUserRole.PmcmAdmin));
+
+    expect(result.urgentIssues[0]).toMatchObject({
+      id: 'issue_1',
+      affectedArea: 'Main Stage',
+      openedBy: 'Francis Coordinator',
+    });
+    expect(result.supplierStatuses[0]).toMatchObject({
+      supplierName: 'Sonic Line Events',
+      eventDayVerificationStatus: 'verified',
+      verifiedBy: 'Ms. Mys',
+    });
+    expect(result.eventDayLogs).toEqual([
+      expect.objectContaining({ actionType: 'supplier_verified', relatedId: 'quote_request_1' }),
+    ]);
+  });
+
+  it('scopes coordinator data and strips supplier and guest details outside registration', async () => {
+    const assignment = assignmentFixture('Logistics Coordinator');
+    const { service } = createService({
+      tasks: [taskFixture('task_visible', 'Logistics Coordinator'), taskFixture('task_hidden', 'Registration Staff')],
+      urgentIssues: [issueFixture('issue_visible', 'Logistics Coordinator'), issueFixture('issue_unassigned', '')],
+      supplierRequests: [supplierRequestFixture()],
+      assignment,
+      guestCheckIns: [guestFixture()],
+    });
+
+    const result = await service.getEventLiveOps(EVENT_ID, actor(OpsUserRole.Coordinator));
+
+    expect(result.role).toBe('Logistics Coordinator');
+    expect(result.tasks.map((task) => task.id)).toEqual(['task_visible']);
+    expect(result.urgentIssues.map((issue) => issue.id)).toEqual(['issue_visible', 'issue_unassigned']);
+    expect(result.guestAttendanceCount).toBe(1);
+    expect(result.guestCheckIns).toEqual([]);
+    expect(result.supplierStatuses[0]).toMatchObject({
+      id: 'quote_request_1',
+      eventDayStatus: 'set_up_ready',
+      verificationStatus: 'verified',
+    });
+    expect(result.supplierStatuses[0]).not.toHaveProperty('accessToken');
+    expect(result.supplierStatuses[0]).not.toHaveProperty('confidentialBid');
+    expect(result.supplierStatuses[0]).not.toHaveProperty('eventDayVerificationNotes');
+  });
+});

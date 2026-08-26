@@ -1,6 +1,6 @@
 "use client";
 
-import type { Project } from "@/features/floorplan/editor/types";
+import type { Project } from "@/features/floorplan/editor";
 import { objectBox } from "../../model/client-dashboard-view-rules";
 
 export function LayoutPreview({ project }: { project: Project | null }) {

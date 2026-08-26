@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { PrismAuthenticatedSession } from "@prism/types";
 import {
   deriveWorkspace,
   initialForm,
@@ -9,7 +10,14 @@ import {
   mergeQuoteForms,
   sectionMeta,
 } from "../model/supplier-workspace-rules";
-import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierSession, SupplierWorkspace } from "../model/supplier-workspace-types";
+import type {
+  PrismSupplierQuoteRequest,
+  PrismSupplierReadinessBoard,
+  QuoteFormState,
+  SupplierDashboardSection,
+  SupplierWorkspace,
+  SupplierWorkspaceStatus,
+} from "../model/supplier-workspace-types";
 import {
   confirmSupplierAssignment,
   confirmSupplierReadiness,
@@ -23,7 +31,7 @@ import {
 
 export function useSupplierWorkspaceViewModel() {
   const router = useRouter();
-  const [session, setSession] = useState<SupplierSession | null>(null);
+  const [session, setSession] = useState<PrismAuthenticatedSession | null>(null);
   const [workspace, setWorkspace] = useState<SupplierWorkspace | null>(null);
   const [readinessBoard, setReadinessBoard] = useState<PrismSupplierReadinessBoard | null>(
     null,
@@ -127,6 +135,7 @@ export function useSupplierWorkspaceViewModel() {
 
   const meta =
     session != null ? sectionMeta(section, session, workspace) : null;
+  const status: SupplierWorkspaceStatus = error ? "error" : workspace ? "success" : session ? "loading" : "idle";
 
   return {
     session,
@@ -141,6 +150,7 @@ export function useSupplierWorkspaceViewModel() {
     error,
     notice,
     busy,
+    status,
     derived,
     meta,
     updateForm,

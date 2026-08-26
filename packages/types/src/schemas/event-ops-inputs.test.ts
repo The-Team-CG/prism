@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
+  createSupplierApplicationSchema,
   updateSupplierEventStatusSchema,
   submitSupplierQuoteSchema,
   updateInquiryStatusSchema,
   createUrgentIssueSchema,
+  updateUrgentIssueSchema,
+  escalateLiveOpsRecordSchema,
+  replaceCoordinatorAssignmentSchema,
+  updateCoordinatorAttendanceSchema,
+  verifySupplierStatusSchema,
   parseContract,
   PrismContractError,
 } from "./index.js";
@@ -68,6 +74,24 @@ describe("event-ops write schemas", () => {
     expect(updateInquiryStatusSchema.safeParse({ status: "nope" }).success).toBe(false);
   });
 
+  it("validates supplier application input", () => {
+    expect(
+      createSupplierApplicationSchema.safeParse({
+        companyName: "Northstar Events",
+        contactName: "Ava Cruz",
+        email: "ava@northstar.test",
+        privacyConsentAccepted: true,
+      }).success,
+    ).toBe(true);
+    expect(
+      createSupplierApplicationSchema.safeParse({
+        companyName: "Northstar Events",
+        contactName: "Ava Cruz",
+        email: "not-an-email",
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts affected area without accepting a caller-supplied reporter", () => {
     const parsed = createUrgentIssueSchema.parse({
       title: "Power outage",
@@ -78,6 +102,23 @@ describe("event-ops write schemas", () => {
 
     expect(parsed.affectedArea).toBe("North Wing");
     expect(parsed).not.toHaveProperty("openedBy");
+  });
+
+  it("covers the remaining live-ops write contracts", () => {
+    const attendance = updateCoordinatorAttendanceSchema.parse({ status: "present", markedBy: "Spoofed Operator" });
+    expect(attendance).not.toHaveProperty("markedBy");
+    expect(updateUrgentIssueSchema.safeParse({ affectedArea: "North Wing" }).success).toBe(true);
+    expect(escalateLiveOpsRecordSchema.safeParse({ notes: "Need backup" }).success).toBe(true);
+    expect(
+      replaceCoordinatorAssignmentSchema.safeParse({
+        replacementCoordinatorId: "coord_backup",
+        role: "Usher",
+        reason: "Sick leave",
+      }).success,
+    ).toBe(true);
+    const verification = verifySupplierStatusSchema.parse({ verificationStatus: "verified", verifiedBy: "Spoofed Operator" });
+    expect(verification).not.toHaveProperty("verifiedBy");
+    expect(verifySupplierStatusSchema.safeParse({ verificationStatus: "self_reported" }).success).toBe(false);
   });
 
   it("parseContract throws PrismContractError with issues", () => {

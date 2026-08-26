@@ -47,7 +47,8 @@ import {
   isRequestClosed,
   readinessTone,
 } from "../../model/supplier-workspace-rules";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierSession, SupplierWorkspace } from "../../model/supplier-workspace-types";
+import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
 
 
@@ -59,7 +60,7 @@ export function BookingsPage({
   onConfirmAssignment, onConfirmReadiness, onSaveContract, onUpdateStatus,
 }: {
   selectedRequests: PrismSupplierQuoteRequest[];
-  session: SupplierSession;
+  session: PrismAuthenticatedSession;
   readinessNotes: Record<string, string>;
   contractFiles: Record<string, string>;
   statusNotes: Record<string, string>;

@@ -76,6 +76,7 @@ export function useSupplierApplicationViewModel() {
   return {
     form,
     currentStep,
+    status,
     submitted,
     busy,
     error,

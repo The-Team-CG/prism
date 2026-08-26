@@ -4,7 +4,7 @@ export const PRIVACY_NOTICE_VERSION = "2026-05-01";
 export const POLL_INTERVAL_MS = 20_000;
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_DURATION_S = 60;
-export { GUEST_API_OFFLINE_MESSAGE as GUEST_DASHBOARD_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-http";
+export { GUEST_API_OFFLINE_MESSAGE as GUEST_DASHBOARD_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-messages";
 
 export function guestApiPath(session: GuestSession, suffix = ""): string {
   return `/api/guest/events/${encodeURIComponent(session.guestAccessCode)}${suffix}`;

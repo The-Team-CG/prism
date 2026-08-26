@@ -1088,7 +1088,6 @@ function createSampleCompatibilityService(prisma: any) {
     eventAccessPolicyService,
     workflowCommandService,
     pareService,
-    liveOperationsService,
     documentVaultService,
   );
 
@@ -3500,7 +3499,8 @@ describe('SampleCompatibilityService', () => {
     }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(verified.eventDayVerificationStatus).toBe('verified');
-    expect(verified.eventDayVerifiedBy).toBe('Marco Santos');
+    expect(verified.eventDayVerifiedBy).toBe('Ms. Mys');
+    expect(verified.eventDayVerifiedBy).not.toBe('Marco Santos');
     expect(JSON.stringify(verified)).not.toContain('Private setup problem note.');
     expect(fake.state.eventDayLogs.some((log) => log.actionType === 'supplier_status_verified')).toBe(true);
   });

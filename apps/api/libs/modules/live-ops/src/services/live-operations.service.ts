@@ -2,6 +2,15 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, OpsEventDayTask, OpsUrgentIssue, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
+import type {
+  CreateEventDayTaskInput,
+  CreateUrgentIssueInput,
+  EscalateLiveOpsInput,
+  ReplaceCoordinatorAssignmentInput,
+  UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  UpdateUrgentIssueInput,
+} from '@prism/types';
 import { randomUUID } from 'node:crypto';
 import {
   AuditActionType,
@@ -19,60 +28,15 @@ import {
 import { AuditService } from '@prism/modules/trust-ops';
 import { NotificationOutboxService } from '@prism/modules/notification-ops';
 
-export type CreateEventDayTaskInput = {
-  title: string;
-  assignedRole?: string;
-  ownerName?: string;
-  priority?: string;
-  notes?: string;
-  dueAt?: string;
-  slaDueAt?: string;
-};
-
-export type UpdateEventDayTaskInput = {
-  status?: string;
-  notes?: string;
-  ownerName?: string;
-  slaDueAt?: string;
-};
-
-export type CreateUrgentIssueInput = {
-  title: string;
-  description?: string;
-  severity?: string;
-  affectedArea?: string;
-  ownerRole?: string;
-  ownerName?: string;
-  slaDueAt?: string;
-};
-
-export type UpdateUrgentIssueInput = {
-  affectedArea?: string;
-  status?: string;
-  ownerRole?: string;
-  ownerName?: string;
-  resolution?: string;
-  slaDueAt?: string;
-};
-
-export type EscalateLiveOpsInput = {
-  escalationLevel?: string;
-  notes?: string;
-  ownerRole?: string;
-  ownerName?: string;
-};
-
-export type ReplaceCoordinatorAssignmentInput = {
-  replacementCoordinatorId: string;
-  role: string;
-  reason: string;
-};
-
-export type UpdateCoordinatorAttendanceInput = {
-  status: string;
-  notes?: string;
-  markedBy?: string;
-};
+export type {
+  CreateEventDayTaskInput,
+  CreateUrgentIssueInput,
+  EscalateLiveOpsInput,
+  ReplaceCoordinatorAssignmentInput,
+  UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  UpdateUrgentIssueInput,
+} from '@prism/types';
 
 export type LiveOpsActor = {
   name: string;
@@ -628,7 +592,7 @@ export class LiveOperationsService {
             `Marked ${assignment.coordinatorName} ${status}`,
             'coordinator_assignment',
             assignment.id,
-            { status, notes: input.notes ?? '', markedBy: input.markedBy ?? actor.name },
+            { status, notes: input.notes ?? '', markedBy: actor.name },
           ),
           auditService.audit(eventId, actor.name, `Updated coordinator attendance: ${assignment.coordinatorName}`, {
             actorRole: actor.role,
@@ -638,7 +602,7 @@ export class LiveOperationsService {
             affectedType: 'coordinator_assignment',
             affectedId: assignment.id,
             affectedLabel: `${assignment.coordinatorName} - ${assignment.role}`,
-            metadata: { status, notes: input.notes ?? '', markedBy: input.markedBy ?? actor.name },
+            metadata: { status, notes: input.notes ?? '', markedBy: actor.name },
           }),
         ]);
       },

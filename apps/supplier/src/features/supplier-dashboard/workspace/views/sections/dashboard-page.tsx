@@ -48,7 +48,8 @@ import {
   isRequestClosed,
   readinessTone,
 } from "../../model/supplier-workspace-rules";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierSession, SupplierWorkspace } from "../../model/supplier-workspace-types";
+import type { PrismAuthenticatedSession } from "@prism/types";
+import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
 
 
@@ -59,7 +60,7 @@ export function DashboardPage({
   selectedQuotes, quoteNeedingSubmission, handoffPending, needsActionCount,
   eventsThisMonth, readinessBoard, onNavigate,
 }: {
-  session: SupplierSession;
+  session: PrismAuthenticatedSession;
   workspace: SupplierWorkspace;
   quoteByRequest: Map<string, PrismSupplierQuote>;
   openRequests: PrismSupplierQuoteRequest[];

@@ -2,9 +2,10 @@ import {
   PRISM_SESSION_STORAGE_KEYS,
   readPrismSession,
   savePrismSession,
+  type PrismAuthenticatedSession,
 } from "@prism/types";
 import { SUPPLIER_AUTH_API_OFFLINE_MESSAGE } from "../model/supplier-sign-in-rules";
-import type { SupplierAuthUser, SupplierSession } from "../model/supplier-sign-in-types";
+import type { SupplierAuthUser } from "../model/supplier-sign-in-types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;
@@ -29,11 +30,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const supplierAuthRepository = {
-  readSession(): SupplierSession | null {
-    return readPrismSession<SupplierSession>(SESSION_KEY);
+  readSession(): PrismAuthenticatedSession | null {
+    return readPrismSession<PrismAuthenticatedSession>(SESSION_KEY);
   },
 
-  saveSession(session: SupplierSession): void {
+  saveSession(session: PrismAuthenticatedSession): void {
     savePrismSession(SESSION_KEY, session);
   },
 

@@ -11,7 +11,7 @@ import {
   type PrismUser,
 } from "@prism/types";
 import { prismApi } from "@/lib/prism-api";
-import type { Project } from "@/features/floorplan/editor/types";
+import type { Project } from "@/features/floorplan/editor";
 import type { ClientSession } from "../model/client-dashboard-types";
 
 export type FloorPlanPreferenceInput = {

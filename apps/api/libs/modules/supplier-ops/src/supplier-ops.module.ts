@@ -16,10 +16,8 @@ import {
   SUPPLIER_COMMANDS,
   SUPPLIER_DIRECTORY,
   SUPPLIER_DOCUMENT_VAULT,
-  SUPPLIER_LIVE_OPERATIONS,
   SUPPLIER_PARE_AUTOMATION,
 } from './ports/supplier-ops.tokens';
-import type { SupplierLiveOperations } from './ports/supplier-live-operations.port';
 import { SupplierApplicationService } from './services/supplier-application.service';
 import { SupplierNetworkWorkflowService } from './services/supplier-network-workflow.service';
 import { SupplierProfileCommandsService } from './services/supplier-profile-commands.service';
@@ -33,12 +31,6 @@ const supplierDirectoryProvider = {
 const supplierCommandsProvider = {
   provide: SUPPLIER_COMMANDS,
   useExisting: SupplierNetworkWorkflowService,
-};
-
-const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
-  recordEventDayLog: async () => {
-    throw new Error('Supplier live operations are still owned by event-ops until the live-ops split moves.');
-  },
 };
 
 @Module({
@@ -59,7 +51,6 @@ const unsupportedSupplierLiveOperations: SupplierLiveOperations = {
     SupplierNetworkWorkflowService,
     supplierCommandsProvider,
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DocumentVaultService },
-    { provide: SUPPLIER_LIVE_OPERATIONS, useValue: unsupportedSupplierLiveOperations },
     { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
   ],
   exports: [

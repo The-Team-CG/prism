@@ -2,13 +2,7 @@ import { createEventOpsClient } from "@prism/api-client";
 import type {
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
-  PrismGuestEventPass,
 } from "@prism/types";
-
-export type GuestSession = PrismGuestEventPass & {
-  guestName: string;
-  openedAt: string;
-};
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const eventOpsClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });

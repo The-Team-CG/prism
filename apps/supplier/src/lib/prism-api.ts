@@ -1,15 +1,3 @@
-export type SupplierSession = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  organization: string;
-  signedInAt: string;
-  /** See supplier-sign-in-types.ts - persisted for authenticated reads (PA-284). */
-  accessToken: string;
-  expiresAt: string;
-};
-
 export type {
   PrismSupplier,
   PrismSupplierApplication,
@@ -24,16 +12,17 @@ export type {
 import { createEventOpsClient } from "@prism/api-client";
 import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
 import type {
+  PrismAuthenticatedSession,
   PrismSupplierApplication,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
+  CreateSupplierApplicationInput,
   SubmitSupplierQuoteInput,
 } from "@prism/types";
-import type { CreateSupplierApplicationInput } from "@prism/api-client";
 
-export type { CreateSupplierApplicationInput } from "@prism/api-client";
+export type { CreateSupplierApplicationInput } from "@prism/types";
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
 
@@ -71,7 +60,7 @@ const eventOpsClient = createEventOpsClient({
   getAuthToken: storedSupplierAccessToken,
 });
 
-function actorFromSession(session: SupplierSession) {
+function actorFromSession(session: PrismAuthenticatedSession) {
   return { actorRole: "supplier" as const, actorName: session.name, actorEmail: session.email };
 }
 
@@ -103,8 +92,8 @@ export const prismApi = {
   // reads no longer pass an actor at all - the server derives it from the verified
   // session (PA-284). The `session` parameter is retained so callers still have to
   // hold a session to reach these, and so the signature stays stable.
-  supplierWorkspace: (_session: SupplierSession) => eventOpsClient.supplierWorkspace.detail(),
-  supplierReadinessBoard: (_session: SupplierSession): Promise<PrismSupplierReadinessBoard> =>
+  supplierWorkspace: (_session: PrismAuthenticatedSession) => eventOpsClient.supplierWorkspace.detail(),
+  supplierReadinessBoard: (_session: PrismAuthenticatedSession): Promise<PrismSupplierReadinessBoard> =>
     eventOpsClient.supplierWorkspace.readinessBoard(),
   quoteRequest: (token: string) => request<QuoteRequestDetail>(`/api/quote-requests/${token}`),
   submitQuote: (token: string, input: SubmitSupplierQuoteInput) =>
@@ -117,17 +106,17 @@ export const prismApi = {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
-  confirmAssignment: (session: SupplierSession, requestId: string) =>
+  confirmAssignment: (session: PrismAuthenticatedSession, requestId: string) =>
     eventOpsClient.supplierWorkspace.confirmAssignment(requestId, actorFromSession(session)),
-  confirmReadiness: (session: SupplierSession, requestId: string, notes: string) =>
+  confirmReadiness: (session: PrismAuthenticatedSession, requestId: string, notes: string) =>
     eventOpsClient.supplierWorkspace.confirmReadiness(requestId, { notes }, actorFromSession(session)),
-  uploadContract: (session: SupplierSession, requestId: string, fileName: string) =>
+  uploadContract: (session: PrismAuthenticatedSession, requestId: string, fileName: string) =>
     eventOpsClient.supplierWorkspace.uploadContract(
       requestId,
       { fileName, mimeType: "application/pdf", sizeBytes: 2048 },
       actorFromSession(session),
     ),
-  updateEventStatus: (session: SupplierSession, requestId: string, status: string, notes: string) =>
+  updateEventStatus: (session: PrismAuthenticatedSession, requestId: string, status: string, notes: string) =>
     eventOpsClient.supplierWorkspace.updateEventStatus(
       requestId,
       { status: status as "arrived" | "set_up_ready" | "done_leaving", notes },

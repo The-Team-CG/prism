@@ -6,13 +6,12 @@ import { PrismBillingMilestoneList } from "@prism/ui/blocks";
 import { PrismStatusBadge } from "@prism/ui/status-badge";
 import { Card, CardHeader, CardBody, SectionLabel } from "@/features/client-dashboard/shared/tab-ui";
 import { ClientActionGroup } from "@/features/client-dashboard/shared/client-action-group";
-import { useClientWorkspace } from "@/features/client-dashboard/workspace/shared";
 import { useEventProgressView } from "../view-models/use-event-progress-view";
 import { PRISM_LIFECYCLE_STAGES } from "@prism/types";
 
 export function EventProgressView() {
-  const { clientActions, runClientAction } = useClientWorkspace();
   const progress = useEventProgressView();
+  const { clientActions, runClientAction } = progress;
 
   if (!progress.hasEvent) {
     return null;

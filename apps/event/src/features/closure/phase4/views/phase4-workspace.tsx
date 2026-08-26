@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, Plus, ReceiptText, ShieldCheck, XCircle } from "lucide-react";
 
-import type { PrismBillingSource, PrismCloseGates, PrismComplianceRule, PrismEventInsight } from "@/lib/prism-api";
-import type { PrismBillingStatement, PrismComplianceCheck, PrismEvent } from "@prism/types";
+import type {
+  PrismBillingSource,
+  PrismBillingStatement,
+  PrismCloseGates,
+  PrismComplianceCheck,
+  PrismEvent,
+  PrismComplianceRule,
+  PrismEventInsight,
+} from "@prism/types";
 import { cx, label } from "@/features/pmcm-kit";
 
 const money = new Intl.NumberFormat("en-PH", {
