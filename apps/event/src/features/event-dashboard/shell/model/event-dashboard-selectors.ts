@@ -96,10 +96,10 @@ export {
   selectPendingApprovals,
   selectSelectedEvent,
   selectSelectedEventWorkspaceResources,
-} from "@/features/event-workspace/shell";
+} from "@/features/event-workspace/shell/model/event-workspace-selectors";
 
 // Re-export command-inbox selectors for shell composition convenience
 export {
   selectCommandInboxGroupedBySeverity,
   selectCommandInboxItemsBySeverity,
-} from "@/features/command-inbox/list";
+} from "@/features/command-inbox/list/model/command-inbox-selectors";

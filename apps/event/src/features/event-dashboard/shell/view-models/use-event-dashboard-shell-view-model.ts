@@ -1,7 +1,7 @@
 "use client";
 
 import { useEventOpsCommands } from "@/features/event-ops";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Archive,
@@ -197,6 +197,18 @@ export function useEventDashboardShellViewModel({
   const [conformeUploadTarget, setConformeUploadTarget] = useState<PrismInquiry | null>(null);
   const [commandInboxLoadFailed, setCommandInboxLoadFailed] = useState(false);
 
+  const reportSelectedEventWorkspaceError = useCallback((err: unknown) => {
+    setError(err instanceof Error ? err.message : "Unable to load selected event workspace");
+  }, []);
+  const {
+    refresh: refreshSelectedEventWorkspace,
+    workspace: selectedEventWorkspace,
+  } = usePmcmSelectedEventWorkspace({
+    eventId: session && isPmcmAdmin(session.role) ? selectedEventId : null,
+    loadWorkspace: ops.pmcmEventWorkspace,
+    onError: reportSelectedEventWorkspaceError,
+  });
+
   async function refresh(current = session) {
     if (!current) return;
     if (current.role === "coordinator") {
@@ -372,7 +384,7 @@ export function useEventDashboardShellViewModel({
     postEventDocuments,
     quoteRequests,
     quotes,
-  } = selectEventWorkspaceResources(state, selectedEvent);
+  } = selectEventWorkspaceResources(state, selectedEvent, selectedEventWorkspace);
   const selectedInquiry = inquiries.find((item) => item.id === selectedEvent?.inquiryId);
   const pendingApprovals = selectPendingApprovals(approvalRequests);
   const clientRecords = useMemo(() => selectClientRecords(events, inquiries), [events, inquiries]);
@@ -466,6 +478,7 @@ export function useEventDashboardShellViewModel({
     try {
       await action();
       await refresh();
+      await refreshSelectedEventWorkspace();
       await refreshApprovals();
       if (selectedEvent?.id) {
         await loadEventCommandData(selectedEvent.id, true).then(applyEventCommandData).catch(() => undefined);

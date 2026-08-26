@@ -260,7 +260,7 @@ function createService(input: {
     guestReader,
     staffingReader,
   );
-  return { service, guestReader, staffingReader };
+  return { service, guestReader, staffingReader, queries };
 }
 
 describe('LiveOpsReadModelsService', () => {
@@ -314,5 +314,25 @@ describe('LiveOpsReadModelsService', () => {
     expect(result.supplierStatuses[0]).not.toHaveProperty('accessToken');
     expect(result.supplierStatuses[0]).not.toHaveProperty('confidentialBid');
     expect(result.supplierStatuses[0]).not.toHaveProperty('eventDayVerificationNotes');
+  });
+
+  it('does not query live-ops data before confirming coordinator assignment', async () => {
+    const { service, queries } = createService({});
+
+    await expect(service.getEventLiveOps(EVENT_ID, actor(OpsUserRole.Coordinator))).rejects.toThrow(
+      'Coordinator is not assigned to this event',
+    );
+    expect(queries.liveOpsForEvent).not.toHaveBeenCalled();
+  });
+
+  it('omits event-day logs from the coordinator role view', async () => {
+    const { service } = createService({
+      assignment: assignmentFixture('Logistics Coordinator'),
+      eventDayLogs: [logFixture()],
+    });
+
+    const result = await service.getCoordinatorRoleView(EVENT_ID, actor(OpsUserRole.Coordinator));
+
+    expect(result).not.toHaveProperty('eventDayLogs');
   });
 });

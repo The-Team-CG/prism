@@ -711,7 +711,7 @@ export interface PrismCoordinatorLiveOps extends Omit<PrismLiveOps, "supplierSta
   supplierStatuses: PrismCoordinatorSupplierStatus[];
 }
 
-export interface PrismCoordinatorRoleView extends PrismCoordinatorLiveOps {
+export interface PrismCoordinatorRoleView extends Omit<PrismCoordinatorLiveOps, "eventDayLogs"> {
   assignment: PrismCoordinatorAssignment;
 }
 

@@ -52,13 +52,12 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       eventId,
     );
 
-    const data = await this.queries.liveOpsForEvent(eventId);
-    if (!data.event) throw new NotFoundException('Event not found');
-
     const coordinatorAssignment =
       actor.role === OpsUserRole.Coordinator
         ? await this.requireCoordinatorAssignmentForEvent(eventId, actor)
         : null;
+    const data = await this.queries.liveOpsForEvent(eventId);
+    if (!data.event) throw new NotFoundException('Event not found');
     const [coordinatorAssignments, guestCheckIns] = await Promise.all([
       coordinatorAssignment ? Promise.resolve([coordinatorAssignment]) : this.staffingReader.listAssignmentsForEvent(eventId),
       this.guestReader.listCheckInsForEvent(eventId),
@@ -161,9 +160,11 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator role view', eventId);
     const assignment = await this.requireCoordinatorAssignmentForEvent(eventId, actor);
     const liveOps = await this.getEventLiveOps(eventId, actor);
+    const { eventDayLogs: _eventDayLogs, ...coordinatorLiveOps } = liveOps;
+    void _eventDayLogs;
 
     return {
-      ...liveOps,
+      ...coordinatorLiveOps,
       assignment: mapCoordinatorAssignmentForEventDay(
         assignment,
         this.staffingReader.mapCoordinatorAssignment(assignment),
