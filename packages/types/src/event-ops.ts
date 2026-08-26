@@ -622,6 +622,7 @@ export interface PrismUrgentIssue {
   description: string;
   severity: "low" | "medium" | "high" | "critical" | string;
   status: "open" | "assigned" | "resolved" | "cancelled" | string;
+  affectedArea: string;
   ownerRole: string;
   ownerName: string;
   resolution: string;
@@ -689,9 +690,29 @@ export interface PrismCoordinatorWorkspace {
   events: PrismEvent[];
 }
 
-export interface PrismCoordinatorRoleView extends PrismLiveOps {
-  assignment: PrismCoordinatorAssignment;
+export type PrismCoordinatorSupplierStatus = Pick<
+  PrismSupplierQuoteRequest,
+  | "id"
+  | "eventId"
+  | "supplierId"
+  | "supplierName"
+  | "category"
+  | "assignmentStatus"
+  | "readinessStatus"
+  | "eventDayStatus"
+  | "eventDayNotes"
+  | "verificationStatus"
+  | "verifiedAt"
+  | "verifiedBy"
+>;
+
+export interface PrismCoordinatorLiveOps extends Omit<PrismLiveOps, "supplierStatuses" | "role"> {
   role: string;
+  supplierStatuses: PrismCoordinatorSupplierStatus[];
+}
+
+export interface PrismCoordinatorRoleView extends Omit<PrismCoordinatorLiveOps, "eventDayLogs"> {
+  assignment: PrismCoordinatorAssignment;
 }
 
 export interface PrismComplianceCheck {
@@ -1205,23 +1226,6 @@ type CreateSupplierCertificationInput = {
   notes?: string;
 };
 
-type CreateSupplierApplicationInput = {
-  companyName: string;
-  contactName: string;
-  email: string;
-  phone?: string;
-  categoryId?: string;
-  pastEvents?: string;
-  serviceInclusions?: string;
-  certifications?: string;
-  priceRange?: string;
-  bniMember?: boolean;
-  portfolioUrl?: string;
-  additionalNotes?: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-};
-
 type RecordPaymentInput = {
   amountReceived: number;
   paymentDate: string;
@@ -1283,13 +1287,14 @@ type CreateUrgentIssueInput = {
   title: string;
   description?: string;
   severity?: "low" | "medium" | "high" | "critical";
+  affectedArea?: string;
   ownerRole?: string;
   ownerName?: string;
-  openedBy?: string;
   slaDueAt?: string;
 };
 
 type UpdateUrgentIssueInput = {
+  affectedArea?: string;
   status?: "open" | "assigned" | "resolved" | "cancelled";
   ownerRole?: string;
   ownerName?: string;
@@ -1313,38 +1318,11 @@ type ReplaceCoordinatorInput = {
 type UpdateCoordinatorAttendanceInput = {
   status: "present" | "late" | "absent" | "replaced";
   notes?: string;
-  markedBy?: string;
 };
 
 type VerifySupplierStatusInput = {
   verificationStatus: "self_reported" | "verified" | "disputed";
-  verifiedBy?: string;
   notes?: string;
-};
-
-type CreatePrivacyRequestInput = {
-  subjectType: string;
-  subjectEmail?: string;
-  subjectName?: string;
-  eventId?: string;
-  requestType: "access" | "correction" | "deletion" | "export";
-  requestNotes?: string;
-};
-
-type ReviewPrivacyRequestInput = {
-  status: "approved" | "rejected";
-  reviewReason?: string;
-};
-
-type AuditLogFilters = {
-  query?: string;
-  category?: string;
-  eventId?: string;
-  actor?: string;
-  actionType?: string;
-  severity?: string;
-  dateRange?: string;
-  limit?: string;
 };
 
 // PARE types

@@ -1,7 +1,7 @@
 import type { PrismGuestEventPass } from "@prism/types";
 import type { GuestEventInfoRow } from "./guest-event-info-types";
 
-export { GUEST_API_OFFLINE_MESSAGE as GUEST_INFO_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-http";
+export { GUEST_API_OFFLINE_MESSAGE as GUEST_INFO_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-messages";
 
 export function decodeAccessCodeParam(raw: string): string {
   return decodeURIComponent(raw);

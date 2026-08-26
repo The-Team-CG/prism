@@ -2,12 +2,10 @@ import { useEffect, useState } from "react";
 import { Save, Trash2, Check, Download, Search, Layers } from "lucide-react";
 import { useEditor } from "./store";
 import {
-  addTemplate,
   cloneTemplateObjects,
-  loadTemplates,
-  removeTemplate,
   type FloorPlanTemplate,
 } from "./templates";
+import { addTemplate, loadTemplates, removeTemplate } from "./data/templates-repository";
 
 function ThumbSvg({ t }: { t: FloorPlanTemplate }) {
   const W = 96;

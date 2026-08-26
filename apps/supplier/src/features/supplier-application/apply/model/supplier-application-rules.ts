@@ -1,4 +1,4 @@
-import type { CreateSupplierApplicationInput } from "@prism/api-client";
+import type { CreateSupplierApplicationInput } from "@prism/types";
 import type { SupplierApplicationForm } from "./supplier-application-types";
 import { APPLICATION_WIZARD_STEPS } from "./supplier-application-types";
 

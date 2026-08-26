@@ -1,7 +1,4 @@
 import type { PrismSupplier, PrismSupplierQuoteRequest } from "@prism/types";
-import type { PrismAuthenticatedSession } from "@prism/types";
-
-export type PmcmEventSession = PrismAuthenticatedSession;
 
 export type SupplierQuoteRow = {
   id: string;

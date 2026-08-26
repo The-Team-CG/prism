@@ -29,6 +29,7 @@ export function useSignUpViewModel() {
 
   return {
     draft,
+    status,
     sent: status === "sent",
     gatePoints: ACCESS_GATE_POINTS,
     update,

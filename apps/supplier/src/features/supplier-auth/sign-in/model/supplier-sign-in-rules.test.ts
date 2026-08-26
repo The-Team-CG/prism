@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PrismAuthenticatedSession } from "@prism/types";
 import {
   approvalRequestPayload,
   buildSupplierSession,
@@ -9,7 +10,6 @@ import {
   PRIVACY_NOTICE_VERSION,
   resolvePostSignInPath,
 } from "./supplier-sign-in-rules";
-import type { SupplierSession } from "./supplier-sign-in-types";
 
 describe("supplier-sign-in-rules", () => {
   it("validates sign-in draft", () => {
@@ -36,6 +36,7 @@ describe("supplier-sign-in-rules", () => {
         email: "ops@xperto.test",
         role: "supplier",
         organization: "Xperto",
+        approvalStatus: "approved",
         accessToken: "supplier-token",
         expiresAt: "2026-07-02T00:00:00.000Z",
       },
@@ -56,12 +57,13 @@ describe("supplier-sign-in-rules", () => {
   });
 
   it("detects existing supplier sessions", () => {
-    const ok: SupplierSession = {
+    const ok: PrismAuthenticatedSession = {
       id: "1",
       name: "Ops",
       email: "ops@xperto.test",
       role: "supplier",
       organization: "Xperto",
+      approvalStatus: "approved",
       signedInAt: "2026-07-01T00:00:00.000Z",
       accessToken: "supplier-token",
       expiresAt: "2026-07-02T00:00:00.000Z",

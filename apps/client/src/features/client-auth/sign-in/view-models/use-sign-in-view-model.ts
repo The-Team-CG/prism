@@ -75,6 +75,7 @@ export function useSignInViewModel() {
   return {
     draft,
     showPassword,
+    status,
     error,
     pendingUser,
     signedInUser,

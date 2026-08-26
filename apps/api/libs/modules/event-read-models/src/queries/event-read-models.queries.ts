@@ -46,6 +46,23 @@ export class EventReadModelQueries {
     });
   }
 
+  // Query budget: one selected event query plus four event-day relation queries, no per-row Prisma loop.
+  liveOpsForEvent(eventId: string) {
+    return Promise.all([
+      this.eventWithDrafts(eventId),
+      this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsEventDayLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 50 }),
+    ]).then(([event, tasks, urgentIssues, supplierRequests, eventDayLogs]) => ({
+      event,
+      tasks,
+      urgentIssues,
+      supplierRequests,
+      eventDayLogs,
+    }));
+  }
+
   // Query budget: one selected event query plus seven event-scoped readiness queries, no per-row Prisma loop.
   defenseReadiness(eventId: string) {
     return Promise.all([

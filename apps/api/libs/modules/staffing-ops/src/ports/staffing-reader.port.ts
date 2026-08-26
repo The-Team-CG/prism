@@ -1,4 +1,5 @@
 import type { OpsCoordinator, OpsCoordinatorAssignment } from '@prisma/client';
+import type { PrismCoordinator, PrismCoordinatorAssignment } from '@prism/types';
 
 export type StaffingActorLookup = {
   coordinatorId?: string | null;
@@ -15,6 +16,6 @@ export interface StaffingReader {
   listAssignmentsForEvent(eventId: string): Promise<OpsCoordinatorAssignment[]>;
   resolveCoordinatorForActor(actor: StaffingActorLookup): Promise<OpsCoordinator>;
   findAssignmentForEventActor(eventId: string, actor: StaffingActorLookup): Promise<OpsCoordinatorAssignment | null>;
-  mapCoordinator(coordinator: OpsCoordinator): unknown;
-  mapCoordinatorAssignment(assignment: OpsCoordinatorAssignment): unknown;
+  mapCoordinator(coordinator: OpsCoordinator): PrismCoordinator;
+  mapCoordinatorAssignment(assignment: OpsCoordinatorAssignment): PrismCoordinatorAssignment;
 }

@@ -1,32 +1,27 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsSupplierQuoteRequest } from '@prisma/client';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@prism/database';
 import {
   EventAccessPolicyService,
   type ResolvedEventOpsActor,
 } from '@prism/modules/access-control';
-import {
-  AuditActionType,
-  AuditCategory,
-  isOpsConstantValue,
-  OpsUserRole,
-  SupplierVerificationStatus,
-} from '@prism/modules/event-core';
+import type {
+  CreateEventDayTaskInput,
+  CreateUrgentIssueInput,
+  EscalateLiveOpsInput,
+  ReplaceCoordinatorAssignmentInput,
+  UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  UpdateSupplierEventStatusInput,
+  UpdateUrgentIssueInput,
+  VerifySupplierStatusInput,
+} from '@prism/types';
+import { OpsUserRole } from '@prism/modules/event-core';
 import { CoordinatorsService } from '@prism/modules/staffing-ops';
-import { mapSupplierQuoteRequest, SuppliersService } from '@prism/modules/supplier-ops';
-import { AuditService } from '@prism/modules/trust-ops';
 import {
-  CreateEventDayTaskDto,
-  CreateUrgentIssueDto,
-  EscalateLiveOpsRecordDto,
-  LiveOpsActorDto,
-  ReplaceCoordinatorAssignmentDto,
-  SupplierEventStatusDto,
-  UpdateCoordinatorAttendanceDto,
-  UpdateEventDayTaskDto,
-  UpdateUrgentIssueDto,
-  VerifySupplierStatusDto,
-} from '../dto/live-ops.dto';
+  mapSupplierQuoteRequest,
+  SUPPLIER_COMMANDS,
+  type SupplierCommands,
+} from '@prism/modules/supplier-ops';
 import {
   mapCoordinatorAssignmentForEventDay,
   mapEventDayTask,
@@ -41,12 +36,11 @@ export class EventLiveOpsCommandService {
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly liveOperationsService: LiveOperationsService,
     private readonly coordinatorsService: CoordinatorsService,
-    private readonly suppliersService: SuppliersService,
-    private readonly auditService: AuditService,
+    @Inject(SUPPLIER_COMMANDS) private readonly supplierCommands: SupplierCommands,
   ) {}
 
-  async createEventDayTask(eventId: string, input: CreateEventDayTaskDto, actorInput: LiveOpsActorDto = {}) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day tasks');
+  async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: ResolvedEventOpsActor) {
+    await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
     const task = await this.liveOperationsService.createEventDayTask(eventId, input, actor);
     return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -54,10 +48,10 @@ export class EventLiveOpsCommandService {
   async updateEventDayTask(
     eventId: string,
     taskId: string,
-    input: UpdateEventDayTaskDto,
-    actorInput: LiveOpsActorDto = {},
+    input: UpdateEventDayTaskInput,
+    actor: ResolvedEventOpsActor,
   ) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day tasks');
+    await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
     const task = await this.liveOperationsService.updateEventDayTask(eventId, taskId, input, actor);
     return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -65,16 +59,16 @@ export class EventLiveOpsCommandService {
   async escalateEventDayTask(
     eventId: string,
     taskId: string,
-    input: EscalateLiveOpsRecordDto,
-    actorInput: LiveOpsActorDto = {},
+    input: EscalateLiveOpsInput,
+    actor: ResolvedEventOpsActor,
   ) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'event-day task escalation');
+    await this.requireEventDayWriteActor(eventId, actor, 'event-day task escalation');
     const task = await this.liveOperationsService.escalateEventDayTask(eventId, taskId, input, actor);
     return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
 
-  async createUrgentIssue(eventId: string, input: CreateUrgentIssueDto, actorInput: LiveOpsActorDto = {}) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issues');
+  async createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor: ResolvedEventOpsActor) {
+    await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
     const issue = await this.liveOperationsService.createUrgentIssue(eventId, input, actor);
     return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -82,10 +76,10 @@ export class EventLiveOpsCommandService {
   async updateUrgentIssue(
     eventId: string,
     issueId: string,
-    input: UpdateUrgentIssueDto,
-    actorInput: LiveOpsActorDto = {},
+    input: UpdateUrgentIssueInput,
+    actor: ResolvedEventOpsActor,
   ) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issues');
+    await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
     const issue = await this.liveOperationsService.updateUrgentIssue(eventId, issueId, input, actor);
     return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -93,10 +87,10 @@ export class EventLiveOpsCommandService {
   async escalateUrgentIssue(
     eventId: string,
     issueId: string,
-    input: EscalateLiveOpsRecordDto,
-    actorInput: LiveOpsActorDto = {},
+    input: EscalateLiveOpsInput,
+    actor: ResolvedEventOpsActor,
   ) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'urgent issue escalation');
+    await this.requireEventDayWriteActor(eventId, actor, 'urgent issue escalation');
     const issue = await this.liveOperationsService.escalateUrgentIssue(eventId, issueId, input, actor);
     return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -104,10 +98,10 @@ export class EventLiveOpsCommandService {
   async updateCoordinatorAttendance(
     eventId: string,
     assignmentId: string,
-    input: UpdateCoordinatorAttendanceDto,
-    actorInput: LiveOpsActorDto = {},
+    input: UpdateCoordinatorAttendanceInput,
+    actor: ResolvedEventOpsActor,
   ) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'coordinator attendance');
+    await this.requireEventDayWriteActor(eventId, actor, 'coordinator attendance');
     const assignment = await this.liveOperationsService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
     return mapCoordinatorAssignmentForEventDay(
       assignment,
@@ -118,10 +112,9 @@ export class EventLiveOpsCommandService {
   async replaceCoordinatorAssignment(
     eventId: string,
     assignmentId: string,
-    input: ReplaceCoordinatorAssignmentDto,
-    actorInput: LiveOpsActorDto = {},
+    input: ReplaceCoordinatorAssignmentInput,
+    actor: ResolvedEventOpsActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
@@ -146,101 +139,46 @@ export class EventLiveOpsCommandService {
   async verifySupplierEventStatus(
     eventId: string,
     requestId: string,
-    input: VerifySupplierStatusDto,
-    actorInput: LiveOpsActorDto = {},
+    input: VerifySupplierStatusInput,
+    actor: ResolvedEventOpsActor,
   ) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'supplier setup verification');
-    const requestedStatus = input.verificationStatus?.trim();
-    if (!isOpsConstantValue(SupplierVerificationStatus, requestedStatus)) {
-      throw new BadRequestException('Unsupported supplier verification status');
-    }
-    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
-    if (request?.eventId !== eventId) throw new NotFoundException('Supplier quote request not found');
+    await this.requireEventDayWriteActor(eventId, actor, 'supplier setup verification');
+    const updated = await this.supplierCommands.verifySupplierEventStatus(eventId, requestId, input, actor);
     const verifiedBy = actor.name;
-    const updated = await this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: requestId },
-      data: {
-        eventDayVerificationStatus: requestedStatus,
-        eventDayVerifiedAt: new Date(),
-        eventDayVerifiedBy: verifiedBy,
-        eventDayVerificationNotes: input.notes?.trim() ?? '',
-      },
-    });
-
-    const metadata = { verificationStatus: requestedStatus, verifiedBy, notes: input.notes ?? '' };
-    await Promise.all([
-      this.liveOperationsService.recordEventDayLog(
-        eventId,
-        'supplier_status_verified',
-        actor,
-        `Marked supplier setup ${requestedStatus}: ${updated.supplierName}`,
-        'supplier_quote_request',
-        updated.id,
-        metadata,
-      ),
-      this.auditService.audit(eventId, actor.name, `Marked supplier setup ${requestedStatus}: ${updated.supplierName}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Suppliers,
-        affectedType: 'supplier_quote_request',
-        affectedId: updated.id,
-        affectedLabel: updated.supplierName,
-        metadata,
-      }),
-    ]);
+    const metadata = { verificationStatus: input.verificationStatus, verifiedBy, notes: input.notes ?? '' };
+    await this.liveOperationsService.recordEventDayLog(
+      eventId,
+      'supplier_status_verified',
+      actor,
+      `Marked supplier setup ${input.verificationStatus}: ${updated.supplierName}`,
+      'supplier_quote_request',
+      updated.id,
+      metadata,
+    );
 
     return mapSupplierQuoteRequest(updated);
   }
 
   async updateSupplierEventStatus(
     requestId: string,
-    input: SupplierEventStatusDto,
-    actorInput: LiveOpsActorDto = {},
+    input: UpdateSupplierEventStatusInput,
+    actor: ResolvedEventOpsActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
-    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Supplier], 'supplier event-day status');
-    const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
-    if (!allowed.includes(input.status)) throw new BadRequestException('Unsupported supplier event-day status');
+    const request = await this.supplierCommands.updateSupplierEventStatus(requestId, input, actor);
+    await this.liveOperationsService.recordEventDayLog(
+      request.eventId,
+      'supplier_status_updated',
+      actor,
+      `Supplier status update: ${input.status}`,
+      'supplier_quote_request',
+      request.id,
+      { status: input.status, notes: input.notes ?? '', photoFileName: input.photo?.fileName ?? null },
+    );
 
-    const request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
-    const updated = await this.prisma.opsSupplierQuoteRequest.update({
-      where: { id: request.id },
-      data: {
-        eventDayStatus: input.status,
-        eventDayStatusAt: new Date(),
-        eventDayNotes: input.notes?.trim() ?? '',
-        statusPhotoFileName: input.photo?.fileName?.trim() || null,
-      },
-    });
-
-    await Promise.all([
-      this.liveOperationsService.recordEventDayLog(
-        request.eventId,
-        'supplier_status_updated',
-        actor,
-        `Supplier status update: ${input.status}`,
-        'supplier_quote_request',
-        request.id,
-        { status: input.status, notes: input.notes ?? '', photoFileName: input.photo?.fileName ?? null },
-      ),
-      this.auditService.audit(request.eventId, actor.name, `Supplier status update: ${input.status}`, {
-        actorRole: actor.role,
-        actorEmail: actor.email,
-        actionType: AuditActionType.Update,
-        category: AuditCategory.Suppliers,
-        affectedType: 'supplier_quote_request',
-        affectedId: request.id,
-        affectedLabel: request.supplierName,
-        metadata: { status: input.status, notes: input.notes ?? '', photoFileName: input.photo?.fileName ?? null },
-      }),
-    ]);
-
-    return mapSupplierQuoteRequest(updated);
+    return mapSupplierQuoteRequest(request);
   }
 
-  private async requireEventDayWriteActor(eventId: string, actorInput: LiveOpsActorDto, resource: string) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  private async requireEventDayWriteActor(eventId: string, actor: ResolvedEventOpsActor, resource: string) {
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator],
@@ -270,21 +208,4 @@ export class EventLiveOpsCommandService {
     return assignment;
   }
 
-  private async requireSupplierQuoteRequestForActor(requestId: string, actor: ResolvedEventOpsActor) {
-    const suppliers = await this.suppliersService.listSuppliers();
-    const supplier = suppliers.find(
-      (item) =>
-        this.eventAccessPolicyService.sameText(actor.supplierId, item.id) ||
-        this.eventAccessPolicyService.sameText(actor.email, item.email) ||
-        this.eventAccessPolicyService.sameText(actor.name, item.name),
-    );
-    if (!supplier) throw new NotFoundException('Supplier profile not found for actor');
-
-    const request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
-    if (!request || request.supplierId !== supplier.id) {
-      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'supplier event-day status', request?.eventId);
-      throw new ForbiddenException('Supplier cannot update this quote request');
-    }
-    return request as OpsSupplierQuoteRequest;
-  }
 }

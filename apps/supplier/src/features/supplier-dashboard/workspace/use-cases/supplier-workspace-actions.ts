@@ -1,12 +1,13 @@
 import { supplierWorkspaceRepository } from "../data/supplier-workspace-repository";
+import type { PrismAuthenticatedSession } from "@prism/types";
 import {
   eventStatusSuccessNotice,
   parseQuoteForm,
   quoteSubmitSuccessNotice,
 } from "../model/supplier-workspace-rules";
-import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierSession, SupplierWorkspace } from "../model/supplier-workspace-types";
+import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierWorkspace } from "../model/supplier-workspace-types";
 
-export function loadSupplierDashboardSession(): SupplierSession | null {
+export function loadSupplierDashboardSession(): PrismAuthenticatedSession | null {
   return supplierWorkspaceRepository.readSession();
 }
 
@@ -14,7 +15,7 @@ export function signOutSupplier(): void {
   supplierWorkspaceRepository.clearSession();
 }
 
-export async function loadSupplierWorkspace(session: SupplierSession): Promise<{
+export async function loadSupplierWorkspace(session: PrismAuthenticatedSession): Promise<{
   workspace: SupplierWorkspace;
   readinessBoard: PrismSupplierReadinessBoard | null;
 }> {
@@ -43,7 +44,7 @@ export async function submitOrReviseQuote(input: {
 }
 
 export async function confirmSupplierAssignment(
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   request: PrismSupplierQuoteRequest,
 ): Promise<{ notice: string }> {
   await supplierWorkspaceRepository.confirmAssignment(session, request.id);
@@ -51,7 +52,7 @@ export async function confirmSupplierAssignment(
 }
 
 export async function confirmSupplierReadiness(
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   request: PrismSupplierQuoteRequest,
   notes: string,
 ): Promise<{ notice: string }> {
@@ -60,7 +61,7 @@ export async function confirmSupplierReadiness(
 }
 
 export async function saveSupplierContract(
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   request: PrismSupplierQuoteRequest,
   fileName: string,
 ): Promise<{ notice: string }> {
@@ -69,7 +70,7 @@ export async function saveSupplierContract(
 }
 
 export async function updateSupplierEventStatus(
-  session: SupplierSession,
+  session: PrismAuthenticatedSession,
   request: PrismSupplierQuoteRequest,
   status: string,
   notes: string,

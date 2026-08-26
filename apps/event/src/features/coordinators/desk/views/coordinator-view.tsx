@@ -2,18 +2,6 @@
 
 
 import {
-  useEffect,
-  useState } from "react";
-import {
-  acknowledgeAndRefreshRoleView,
-  loadCoordinatorRoleView,
-} from "../use-cases/coordinator-desk-actions";
-import {
-  isRegistrationCoordinatorRole,
-  pickActiveAssignment,
-  sameCoordinatorName,
-} from "../model/coordinators-desk-rules";
-import {
   AlertTriangle,
   BadgeCheck,
   BellRing,
@@ -30,15 +18,14 @@ import {
   UsersRound,
   } from "lucide-react";
 
-import type { PrismCoordinatorRoleView } from "@/lib/prism-api";
-import type { PrismCoordinatorWorkspace } from "@prism/types";
+import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label } from "@/features/pmcm-kit";
-import type { PmcmEventSession } from "@/features/pmcm-kit";
+import { useCoordinatorViewModel } from "../view-models/use-coordinator-view-model";
 
 /* ── Inline primitives (replacing @prism/ui blocks) ────────────── */
 
@@ -209,75 +196,27 @@ export function CoordinatorView({
   onRefresh,
   onSignOut,
 }: {
-  session: PmcmEventSession;
+  session: PrismAuthenticatedSession;
   state: PrismCoordinatorWorkspace;
   onRefresh: () => Promise<void>;
   onSignOut?: () => void;
 }) {
-  const assignments = state.assignments.filter((item) =>
-    sameCoordinatorName(item.coordinatorName, session.name),
-  );
-  const assignment = pickActiveAssignment(assignments);
-  const event = assignment ? state.events.find((item) => item.id === assignment.eventId) : undefined;
-  const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event?.id && draft.isActive);
-  const [busy, setBusy] = useState(false);
-  const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
-  const [roleViewLoading, setRoleViewLoading] = useState(false);
-  const [roleViewError, setRoleViewError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState("coord-home");
-
-  useEffect(() => {
-    if (!event?.id) {
-      setRoleView(null);
-      setRoleViewLoading(false);
-      setRoleViewError(null);
-      return;
-    }
-    let alive = true;
-    setRoleViewLoading(true);
-    setRoleViewError(null);
-    loadCoordinatorRoleView(session, event.id)
-      .then((next) => { if (alive) setRoleView(next); })
-      .catch((err) => {
-        if (!alive) return;
-        setRoleView(null);
-        setRoleViewError(err instanceof Error ? err.message : "Unable to load role-safe event data.");
-      })
-      .finally(() => { if (alive) setRoleViewLoading(false); });
-    return () => { alive = false; };
-  }, [event?.id, session.email, session.name]);
-
-  async function ack() {
-    if (!event || !assignment) return;
-    setBusy(true);
-    try {
-      setRoleViewLoading(true);
-      setRoleViewError(null);
-      try {
-        setRoleView(
-          await acknowledgeAndRefreshRoleView({
-            session,
-            eventId: event.id,
-            assignmentId: assignment.id,
-          }),
-        );
-      } catch (err) {
-        setRoleView(null);
-        setRoleViewError(err instanceof Error ? err.message : "Unable to refresh role-safe event data.");
-      } finally {
-        setRoleViewLoading(false);
-      }
-      await onRefresh();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const vm = useCoordinatorViewModel({ session, state, onRefresh });
+  const {
+    activeDraft,
+    activeSection,
+    assignment,
+    busy,
+    event,
+    registrationRole,
+    roleDataStatus,
+    roleView,
+    roleViewError,
+    roleViewLoading,
+  } = vm;
 
   const roleName = assignment?.role ?? label(session.role);
   const attendanceStatus = assignment?.attendanceStatus ?? assignment?.status ?? "pending";
-  const registrationRole = isRegistrationCoordinatorRole(assignment?.role);
-  const roleDataStatus = roleViewLoading ? "loading" : roleViewError ? "unavailable" : roleView ? "ready" : "pending";
-
   const taskActionDescription = roleViewLoading
     ? "Loading assigned role tasks."
     : roleViewError
@@ -303,7 +242,7 @@ export function CoordinatorView({
   }
 
   function handleNav(id: string) {
-    setActiveSection(id);
+    vm.selectSection(id);
     if (id === "coord-queue") scrollTo("coordinator-role-queue");
     if (id === "coord-issues") scrollTo("coordinator-live-data");
     if (id === "coord-attendance") scrollTo("coordinator-attendance");
@@ -349,7 +288,7 @@ export function CoordinatorView({
               {assignment?.status !== "acknowledged" && assignment && (
                 <Button
                   className="mt-5 rounded-lg bg-white font-bold text-(--prism-signal) hover:bg-white/90"
-                  onClick={ack}
+                  onClick={vm.acknowledge}
                   disabled={busy}
                 >
                   <BadgeCheck className="size-4" /> Acknowledge role
@@ -455,7 +394,7 @@ export function CoordinatorView({
                   status: assignment?.status ?? "pending",
                   active: assignment?.status === "acknowledged",
                   disabled: busy || !assignment || assignment.status === "acknowledged",
-                  onSelect: ack,
+                  onSelect: vm.acknowledge,
                 },
                 {
                   id: "queue",
@@ -556,7 +495,7 @@ export function CoordinatorView({
                   {assignment.status !== "acknowledged" && (
                     <Button
                       disabled={busy}
-                      onClick={ack}
+                      onClick={vm.acknowledge}
                       className="mt-4 w-full rounded-xl font-bold"
                     >
                       <CheckCircle2 className="size-4" /> Acknowledge role

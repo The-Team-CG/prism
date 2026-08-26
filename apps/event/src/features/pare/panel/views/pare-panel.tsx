@@ -1,7 +1,6 @@
 "use client";
 
-import { useEventOpsCommands } from "@/features/event-ops";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   AlertTriangle,
   Bot,
@@ -22,6 +21,7 @@ import {
 import type { PrismSupplier, PAREApprovalRecord, PARERisk } from "@prism/types";
 import type { SupplierQuoteRequestRow } from "@/features/pmcm-kit";
 import { money } from "@/features/pmcm-kit";
+import { useParePanelViewModel } from "../view-models/use-pare-panel-view-model";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -262,69 +262,17 @@ export function PAREPanel({
   onWithdraw: (requestId: string) => Promise<void>;
   busy: boolean;
 }) {
-  const ops = useEventOpsCommands();
-  const [approvals, setApprovals] = useState<PAREApprovalRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [actionBusy, setActionBusy] = useState(false);
-  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const eventApprovals = approvals.filter((a) => a.eventId === eventId);
-
-  const fetchApprovals = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await ops.pareGetPending();
-      setApprovals(data);
-    } catch {
-      // non-fatal — PARE may not have run yet
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchApprovals();
-  }, [fetchApprovals]);
-
-  async function handleWithdraw(requestId: string) {
-    setWithdrawingId(requestId);
-    setError(null);
-    try {
-      await onWithdraw(requestId);
-      // Give API 800ms to fire PARE non-blocking then refresh
-      await new Promise((r) => setTimeout(r, 800));
-      await fetchApprovals();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Withdraw failed");
-    } finally {
-      setWithdrawingId(null);
-    }
-  }
-
-  async function handleApprove(id: string) {
-    setActionBusy(true);
-    try {
-      const updated = await ops.pareApprove(id);
-      setApprovals((prev) => prev.map((a) => (a.id === id ? updated : a)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Approve failed");
-    } finally {
-      setActionBusy(false);
-    }
-  }
-
-  async function handleReject(id: string) {
-    setActionBusy(true);
-    try {
-      const updated = await ops.pareReject(id);
-      setApprovals((prev) => prev.map((a) => (a.id === id ? updated : a)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Reject failed");
-    } finally {
-      setActionBusy(false);
-    }
-  }
+  const {
+    eventApprovals,
+    loading,
+    actionBusy,
+    withdrawingId,
+    error,
+    fetchApprovals,
+    handleWithdraw,
+    handleApprove,
+    handleReject,
+  } = useParePanelViewModel({ eventId, onWithdraw });
 
   return (
     <div className="space-y-6">

@@ -69,6 +69,7 @@ export function useInquirySubmitViewModel() {
   return {
     form,
     currentStep,
+    status,
     submitted,
     busy,
     error,

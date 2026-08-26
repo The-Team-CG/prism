@@ -5,20 +5,24 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-o
 import {
   createEventDayTaskSchema,
   createUrgentIssueSchema,
+  escalateLiveOpsRecordSchema,
+  replaceCoordinatorAssignmentSchema,
   updateCoordinatorAttendanceSchema,
   updateEventDayTaskSchema,
+  updateUrgentIssueSchema,
+  verifySupplierStatusSchema,
   type CreateEventDayTaskInput,
   type CreateUrgentIssueInput,
+  type EscalateLiveOpsInput,
+  type ReplaceCoordinatorAssignmentInput,
   type UpdateCoordinatorAttendanceInput,
   type UpdateEventDayTaskInput,
+  type UpdateUrgentIssueInput,
+  type VerifySupplierStatusInput,
   type PrismVerifiedEventActor,
 } from '@prism/types';
 import {
-  EscalateLiveOpsRecordDto,
   LiveOpsActorDto,
-  ReplaceCoordinatorAssignmentDto,
-  UpdateUrgentIssueDto,
-  VerifySupplierStatusDto,
 } from '../dto/live-ops.dto';
 import { EventLiveOpsCommandService } from '../services/event-live-ops-command.service';
 import { EventLiveOpsReadService } from '../services/event-live-ops-read.service';
@@ -85,7 +89,7 @@ export class EventLiveOpsController {
   escalateEventDayTask(
     @Param('eventId') eventId: string,
     @Param('taskId') taskId: string,
-    @Body() dto: EscalateLiveOpsRecordDto,
+    @Body(zodBody(escalateLiveOpsRecordSchema)) dto: EscalateLiveOpsInput,
     @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
@@ -111,7 +115,7 @@ export class EventLiveOpsController {
   updateUrgentIssue(
     @Param('eventId') eventId: string,
     @Param('issueId') issueId: string,
-    @Body() dto: UpdateUrgentIssueDto,
+    @Body(zodBody(updateUrgentIssueSchema)) dto: UpdateUrgentIssueInput,
     @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
@@ -125,7 +129,7 @@ export class EventLiveOpsController {
   escalateUrgentIssue(
     @Param('eventId') eventId: string,
     @Param('issueId') issueId: string,
-    @Body() dto: EscalateLiveOpsRecordDto,
+    @Body(zodBody(escalateLiveOpsRecordSchema)) dto: EscalateLiveOpsInput,
     @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
@@ -152,7 +156,7 @@ export class EventLiveOpsController {
   replaceCoordinatorAssignment(
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
-    @Body() dto: ReplaceCoordinatorAssignmentDto,
+    @Body(zodBody(replaceCoordinatorAssignmentSchema)) dto: ReplaceCoordinatorAssignmentInput,
     @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
@@ -165,7 +169,7 @@ export class EventLiveOpsController {
   verifySupplierStatus(
     @Param('eventId') eventId: string,
     @Param('requestId') requestId: string,
-    @Body() dto: VerifySupplierStatusDto,
+    @Body(zodBody(verifySupplierStatusSchema)) dto: VerifySupplierStatusInput,
     @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {

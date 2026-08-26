@@ -1,18 +1,4 @@
-export type SupplierSession = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  organization: string;
-  signedInAt: string;
-  /**
-   * Bearer token issued by POST /api/auth/login. Persisted so supplier reads can
-   * authenticate as themselves instead of asserting `?actorRole=supplier` in the
-   * query string, which any caller could forge (PA-284).
-   */
-  accessToken: string;
-  expiresAt: string;
-};
+import type { PrismAuthenticatedSession } from "@prism/types";
 
 export type SupplierSignInDraft = {
   email: string;
@@ -28,4 +14,4 @@ export type SupplierSampleAccount = {
   tier: string;
 };
 
-export type SupplierAuthUser = Omit<SupplierSession, "signedInAt">;
+export type SupplierAuthUser = Omit<PrismAuthenticatedSession, "signedInAt">;
