@@ -70,10 +70,10 @@ import {
   SkeletonCard,
   SkeletonLine,
   eventDashboardSkeletonVariant,
-} from "@/app/dashboard/components/event-dashboard-skeleton";
+} from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
 import { type EventSession } from "@/app/lib/session";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
-import { EventMessagesWorkspace } from "@/app/dashboard/components/event-messages-workspace";
+import { EventMessagesWorkspace } from "@/app/(portal)/dashboard/components/event-messages-workspace";
 import type { EventDashboardClientProps } from "../model/event-dashboard-routing";
 import { useEventDashboardShellViewModel } from "../view-models/use-event-dashboard-shell-view-model";
 
