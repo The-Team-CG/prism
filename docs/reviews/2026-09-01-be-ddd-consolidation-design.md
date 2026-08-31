@@ -108,6 +108,41 @@ directory/path-alias renames).
 | - | --- | --- | --- |
 | 1 | `floorplan` | `floorplan`, `floorplan-authoring` | Already recognized as one concern by the prior plan (Task 10 merged 4 libs into `floorplan-authoring`); this step merges that with the sibling `floorplan` (live per-event floorplan) library. Same domain (physical event layout), different lifecycle stage (authoring/template vs. live per-event) — becomes `core/authoring` and `core/live` (or similar) sub-areas under one context, not two libraries. 10+0 fan-in, lowest risk to start with. |
 | 2 | `operations` | `live-ops`, `staffing-ops`, `guest-ops` | Event-day execution: urgent issues/tasks, coordinator staffing, guest check-in/feedback. All three read `OpsEvent`/`OpsCoordinator` and write day-of-event tables. `live-ops` already has a real `domain/` folder (urgent-issue + escalation policy) that moves in as-is. |
+
+**Correction (2026-09-01, during execution, before Context 2 migration):** the
+"operations" grouping above (`live-ops` + `staffing-ops` + `guest-ops`) is not
+buildable as one merged Nest library. Evidence: `LiveOpsModule` imports
+`EventReadModelsModule` (its own `EventLiveOpsReadService` delegates to the
+`LIVE_OPS_READ_MODEL` token, which `event-read-models`' `LiveOpsReadModelsService`
+provides by composing across `staffing-ops`, `guest-ops`, `commercial-ops`, and
+`floorplan` reader ports — this is the correct, already-documented,
+read-only-by-design cross-domain composition pattern from AGENTS.md, not a bug).
+`EventReadModelsModule` in turn imports `StaffingOpsModule` and `GuestOpsModule`
+directly (to consume their reader ports). Merging all three into one
+`OperationsModule` would make that module both a dependency of
+`EventReadModelsModule` and a dependent on it — a circular Nest module import,
+which NestJS's DI container cannot resolve without `forwardRef` (a code smell,
+not an acceptable structural fix here).
+
+`staffing-ops` and `guest-ops` have zero dependency back on `event-read-models`,
+so they merge safely into one `operations` context. `live-ops` sits
+structurally *above* `event-read-models` in the dependency graph (it consumes
+the read composition, it does not feed it), so it cannot join that merge.
+
+**Revised Context 2 shape:**
+- `operations` bounded context = `staffing-ops` + `guest-ops` only (merged,
+  same treatment as the `floorplan` context above).
+- `live-ops` becomes its own single-module bounded context (renamed into
+  `libs/contexts/live-ops`, not merged with any sibling) — it still gets the
+  DDD folder-shape upgrade (`contracts/`, `application/`, `api/`) and keeps its
+  existing `domain/` folder (urgent-issue status + escalation policy, added in
+  the prior architecture-alignment plan) unchanged. This is a rename/reshape,
+  not a merge, and does not reduce the total context count claim below — it is
+  now its own numbered context rather than folded into "operations."
+- Total business-context count becomes 8 (not 7): floorplan, operations
+  (staffing+guest), live-ops, commercial, event-lifecycle, platform-ops,
+  identity-access, read-models.
+
 | 3 | `commercial` | `commercial-ops`, `supplier-ops`, `finance-ops` | Supplier sourcing -> quote -> billing pipeline. `commercial-ops` already has a real `domain/` folder (quote-request lifecycle policy, added this session) that moves in as-is. |
 | 4 | `event-lifecycle` | `inquiry-onboarding`, `compliance-ops`, `closure-ops`, `file-ops` | Inquiry through closure: the event record's own lifecycle (create, compliance gate, document/file requirements, closure/insights). `inquiry-onboarding` owns `OpsEvent` itself; the other three write status/derived fields onto it or its related records. |
 | 5 | `platform-ops` | `trust-ops`, `notification-ops`, `ai-governance` | **Kept as the goal originally specified**, despite trust-ops/notification-ops' kernel-like fan-in, because unlike event-core/access-control/event-session they *do* own real business tables (`OpsAuditLog`, `OpsPrivacyRequest`, `OpsSecurityAlert`, `OpsNotificationLog`, `OpsAiApprovalRecord`, `OpsAiAuditLog`) and real business rules (GDPR erasure, lockout policy, AI approval gating) — they are business capabilities that happen to be consumed everywhere, not technical infrastructure. This is a judgment call flagged for review before execution (see Open Questions). |
@@ -211,4 +246,3 @@ route paths change).
 This document will be updated with a "Result" section per completed migration step, and
 a final section reconciling the design against actual post-migration state before the
 goal is marked complete.
-
