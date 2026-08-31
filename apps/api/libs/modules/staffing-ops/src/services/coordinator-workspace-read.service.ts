@@ -3,7 +3,7 @@ import type { OpsEvent, OpsFloorPlanDraft } from '@prisma/client';
 import { PrismaService } from '@prism/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
 import { OpsUserRole } from '@prism/modules/event-core';
-import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
+import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { GuestWorkflowService } from '@prism/modules/guest-ops';
 import { CoordinatorsService } from './coordinators.service';
 

@@ -2,7 +2,7 @@
   "extends": "../../../../tsconfig.json",
   "compilerOptions": {
     "declaration": true,
-    "outDir": "../../../../dist/libs/modules/floorplan"
+    "outDir": "../../../../dist/libs/contexts/floorplan"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]

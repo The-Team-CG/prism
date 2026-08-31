@@ -10,9 +10,8 @@ import { EventCoreModule } from '@prism/modules/event-core';
 import { SampleCompatibilityModule } from '@prism/modules/sample-compatibility';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { FileOpsModule } from '@prism/modules/file-ops';
-import { FloorplanAuthoringModule } from '@prism/modules/floorplan-authoring';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
-import { FloorplanModule } from '@prism/modules/floorplan';
+import { FloorplanModule } from '@prism/contexts/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
 import { HealthModule } from '@prism/modules/health';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
@@ -28,7 +27,6 @@ import { TransformInterceptor } from './common/transform.interceptor';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
-    FloorplanAuthoringModule,
     EventCoreModule,
     TrustOpsModule,
     NotificationOpsModule,

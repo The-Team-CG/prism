@@ -3,7 +3,7 @@ import type {
   CreateFloorPlanDraftInput,
   CreateFloorPlanPreferenceInput,
   FloorPlanActor,
-} from '../services/floor-plan-workflow.service';
+} from '../application/live/floor-plan-workflow.service';
 
 export interface FloorplanCommands {
   createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanActor): Promise<unknown>;

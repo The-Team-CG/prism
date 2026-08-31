@@ -16,7 +16,7 @@ import type {
 } from '@prism/types';
 import { OpsUserRole } from '@prism/modules/event-core';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
-import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
+import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { GUEST_READER, type GuestReader } from '@prism/modules/guest-ops';
 import { STAFFING_READER, type StaffingReader } from '@prism/modules/staffing-ops';
 import { EventReadModelQueries } from '../queries/event-read-models.queries';

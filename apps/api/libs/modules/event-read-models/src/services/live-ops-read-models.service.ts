@@ -15,7 +15,7 @@ import {
   SupplierQuoteRequestStatus,
   SupplierVerificationStatus,
 } from '@prism/modules/event-core';
-import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
+import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { GUEST_READER, type GuestReader } from '@prism/modules/guest-ops';
 import { STAFFING_READER, type StaffingReader } from '@prism/modules/staffing-ops';
 import { mapSupplierQuoteRequest } from '@prism/modules/commercial-ops';

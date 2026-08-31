@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { CreateEventDto } from '../dto/create-event.dto';
-import { LayoutEventsService } from '../services/layout-events.service';
+import { CreateEventDto } from './create-event.dto';
+import { LayoutEventsService } from '../../application/authoring/layout-events.service';
 
 @Controller('layout-events')
 export class LayoutEventsController {

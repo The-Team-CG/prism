@@ -3,7 +3,7 @@ import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FileOpsModule } from '@prism/modules/file-ops';
-import { FloorplanModule } from '@prism/modules/floorplan';
+import { FloorplanModule } from '@prism/contexts/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';

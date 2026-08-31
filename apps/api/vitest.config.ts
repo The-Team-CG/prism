@@ -39,7 +39,7 @@ export default defineConfig({
       '@prism/modules/inquiry-onboarding': resolve(__dirname, './libs/modules/inquiry-onboarding/src/index.ts'),
       '@prism/modules/commercial-ops': resolve(__dirname, './libs/modules/commercial-ops/src/index.ts'),
       '@prism/modules/compliance-ops': resolve(__dirname, './libs/modules/compliance-ops/src/index.ts'),
-      '@prism/modules/floorplan': resolve(__dirname, './libs/modules/floorplan/src/index.ts'),
+      '@prism/contexts/floorplan': resolve(__dirname, './libs/contexts/floorplan/src/index.ts'),
       '@prism/modules/guest-ops': resolve(__dirname, './libs/modules/guest-ops/src/index.ts'),
       '@prism/modules/identity-ops': resolve(__dirname, './libs/modules/identity-ops/src/index.ts'),
       '@prism/modules/event-session': resolve(__dirname, './libs/modules/event-session/src/index.ts'),

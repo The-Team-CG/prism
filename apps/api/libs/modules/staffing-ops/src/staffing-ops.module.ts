@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
-import { FloorplanModule } from '@prism/modules/floorplan';
+import { FloorplanModule } from '@prism/contexts/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';

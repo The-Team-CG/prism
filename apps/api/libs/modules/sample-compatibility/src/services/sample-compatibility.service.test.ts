@@ -19,7 +19,7 @@ import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventClosureService } from '@prism/modules/closure-ops';
 import { EventLifecycleService } from '@prism/modules/event-core';
 import { EventReadModelQueries, EventReadModelsService } from '@prism/modules/event-read-models';
-import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
+import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { GuestWorkflowService } from '@prism/modules/guest-ops';
 import { LiveOperationsService } from '@prism/modules/live-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';

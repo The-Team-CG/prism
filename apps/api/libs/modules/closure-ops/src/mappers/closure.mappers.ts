@@ -1,5 +1,5 @@
 import type { OpsEvent, OpsEventInsight, OpsFloorPlanDraft, OpsPostEventDocument } from '@prisma/client';
-import type { FloorplanReader } from '@prism/modules/floorplan';
+import type { FloorplanReader } from '@prism/contexts/floorplan';
 import type { GuestReader } from '@prism/modules/guest-ops';
 
 function isoDate(value: Date) {

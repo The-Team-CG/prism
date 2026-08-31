@@ -8,8 +8,8 @@ import {
   CreateFloorPlanPreferenceDto,
   FloorPlanActorDto,
   FloorPlanSnapshotQueryDto,
-} from '../dto/floorplan.dto';
-import { FloorPlanWorkflowService } from '../services/floor-plan-workflow.service';
+} from './floorplan.dto';
+import { FloorPlanWorkflowService } from '../../application/live/floor-plan-workflow.service';
 
 @Controller('events')
 export class OpsEventFloorplansController {

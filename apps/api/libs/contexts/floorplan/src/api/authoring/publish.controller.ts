@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { PublishService } from '../services/publish.service';
+import { PublishService } from '../../application/authoring/publish.service';
 
 @Controller('publish')
 export class PublishController {

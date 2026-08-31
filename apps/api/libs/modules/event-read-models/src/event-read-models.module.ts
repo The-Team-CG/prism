@@ -3,7 +3,7 @@ import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { ClosureOpsModule } from '@prism/modules/closure-ops';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
-import { FloorplanModule } from '@prism/modules/floorplan';
+import { FloorplanModule } from '@prism/contexts/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { CommercialOpsModule } from '@prism/modules/commercial-ops';

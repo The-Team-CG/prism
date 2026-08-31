@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
-import { CreateTemplateDto } from '../dto/create-template.dto';
-import { UpdateTemplateDto } from '../dto/update-template.dto';
-import { TemplatesService } from '../services/templates.service';
+import { CreateTemplateDto } from './create-template.dto';
+import { UpdateTemplateDto } from './update-template.dto';
+import { TemplatesService } from '../../application/authoring/templates.service';
 
 @Controller('templates')
 export class TemplatesController {

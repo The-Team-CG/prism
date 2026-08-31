@@ -14,7 +14,7 @@ import type {
 import type { AuditService } from '@prism/modules/trust-ops';
 import type { BillingOperationsService } from '@prism/modules/finance-ops';
 import type { CoordinatorsService } from '@prism/modules/staffing-ops';
-import type { FloorPlanWorkflowService } from '@prism/modules/floorplan';
+import type { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import type { GuestWorkflowService } from '@prism/modules/guest-ops';
 import { mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/modules/commercial-ops';
 import { createPmcmDashboardMappers } from './event-read-model.mappers';

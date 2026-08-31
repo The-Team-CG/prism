@@ -1,7 +1,7 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { BillingOperationsService } from '@prism/modules/finance-ops';
-import { FloorPlanWorkflowService } from '@prism/modules/floorplan';
+import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { GuestWorkflowService } from '@prism/modules/guest-ops';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
 import type { PrismVerifiedEventActor } from '@prism/types';
