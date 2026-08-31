@@ -3,8 +3,8 @@ import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import type { Response } from 'express';
-import { UpdatePlanDto } from './dto/update-plan.dto';
-import { PlansService } from './plans.service';
+import { UpdatePlanDto } from '../dto/update-plan.dto';
+import { PlansService } from '../services/plans.service';
 
 @Controller('plans')
 export class PlansController {

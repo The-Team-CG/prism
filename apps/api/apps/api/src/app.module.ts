@@ -9,8 +9,8 @@ import { ComplianceOpsModule } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { SampleCompatibilityModule } from '@prism/modules/sample-compatibility';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
-import { EventsModule } from '@prism/modules/events';
 import { FileOpsModule } from '@prism/modules/file-ops';
+import { FloorplanAuthoringModule } from '@prism/modules/floorplan-authoring';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
 import { FloorplanModule } from '@prism/modules/floorplan';
 import { GuestOpsModule } from '@prism/modules/guest-ops';
@@ -19,11 +19,8 @@ import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
 import { LiveOpsModule } from '@prism/modules/live-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
-import { PlansModule } from '@prism/modules/plans';
-import { PublishingModule } from '@prism/modules/publishing';
 import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { SupplierOpsModule } from '@prism/modules/supplier-ops';
-import { TemplatesModule } from '@prism/modules/templates';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { TransformInterceptor } from './common/transform.interceptor';
 
@@ -31,8 +28,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
-    TemplatesModule,
-    EventsModule,
+    FloorplanAuthoringModule,
     EventCoreModule,
     TrustOpsModule,
     NotificationOpsModule,
@@ -52,8 +48,6 @@ import { TransformInterceptor } from './common/transform.interceptor';
     ClosureOpsModule,
     EventReadModelsModule,
     SampleCompatibilityModule,
-    PlansModule,
-    PublishingModule,
   ],
   providers: [
     {

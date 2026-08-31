@@ -1,10 +1,10 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { CreateEventDto } from './dto/create-event.dto';
-import { EventsService } from './events.service';
+import { CreateEventDto } from '../dto/create-event.dto';
+import { LayoutEventsService } from '../services/layout-events.service';
 
 @Controller('layout-events')
-export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+export class LayoutEventsController {
+  constructor(private readonly eventsService: LayoutEventsService) {}
 
   @Get()
   list() {

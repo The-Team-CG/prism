@@ -31,36 +31,18 @@
                                           "@prism/database/*":  [
                                                                     "libs/database/src/*"
                                                                 ],
-                                          "@prism/modules/plans":  [
-                                                                       "libs/modules/plans/src/index"
+                                          "@prism/modules/floorplan-authoring":  [
+                                                                       "libs/modules/floorplan-authoring/src/index"
                                                                    ],
-                                          "@prism/modules/plans/*":  [
-                                                                         "libs/modules/plans/src/*"
+                                          "@prism/modules/floorplan-authoring/*":  [
+                                                                         "libs/modules/floorplan-authoring/src/*"
                                                                      ],
-                                          "@prism/modules/templates":  [
-                                                                           "libs/modules/templates/src/index"
-                                                                       ],
-                                          "@prism/modules/templates/*":  [
-                                                                             "libs/modules/templates/src/*"
-                                                                         ],
-                                          "@prism/modules/events":  [
-                                                                        "libs/modules/events/src/index"
-                                                                    ],
-                                          "@prism/modules/events/*":  [
-                                                                          "libs/modules/events/src/*"
-                                                                      ],
                                           "@prism/modules/sample-compatibility":  [
                                                                            "libs/modules/sample-compatibility/src/index"
                                                                        ],
                                           "@prism/modules/sample-compatibility/*":  [
                                                                              "libs/modules/sample-compatibility/src/*"
                                                                          ],
-                                          "@prism/modules/publishing":  [
-                                                                            "libs/modules/publishing/src/index"
-                                                                        ],
-                                          "@prism/modules/publishing/*":  [
-                                                                              "libs/modules/publishing/src/*"
-                                                                          ],
                                           "@prism/modules/health":  [
                                                                         "libs/modules/health/src/index"
                                                                     ],

@@ -33,33 +33,15 @@
                                                               "tsConfigPath":  "libs/database/tsconfig.lib.json"
                                                           }
                                   },
-                     "plans":  {
+                     "floorplan-authoring":  {
                                    "type":  "library",
-                                   "root":  "libs/modules/plans",
+                                   "root":  "libs/modules/floorplan-authoring",
                                    "entryFile":  "index",
-                                   "sourceRoot":  "libs/modules/plans/src",
+                                   "sourceRoot":  "libs/modules/floorplan-authoring/src",
                                    "compilerOptions":  {
-                                                           "tsConfigPath":  "libs/modules/plans/tsconfig.lib.json"
+                                                           "tsConfigPath":  "libs/modules/floorplan-authoring/tsconfig.lib.json"
                                                        }
                                },
-                     "templates":  {
-                                       "type":  "library",
-                                       "root":  "libs/modules/templates",
-                                       "entryFile":  "index",
-                                       "sourceRoot":  "libs/modules/templates/src",
-                                       "compilerOptions":  {
-                                                               "tsConfigPath":  "libs/modules/templates/tsconfig.lib.json"
-                                                           }
-                                   },
-                     "events":  {
-                                    "type":  "library",
-                                    "root":  "libs/modules/events",
-                                    "entryFile":  "index",
-                                    "sourceRoot":  "libs/modules/events/src",
-                                    "compilerOptions":  {
-                                                            "tsConfigPath":  "libs/modules/events/tsconfig.lib.json"
-                                                        }
-                                },
                      "sample-compatibility":  {
                                        "type":  "library",
                                        "root":  "libs/modules/sample-compatibility",
@@ -69,15 +51,6 @@
                                                                "tsConfigPath":  "libs/modules/sample-compatibility/tsconfig.lib.json"
                                                            }
                                    },
-                     "publishing":  {
-                                        "type":  "library",
-                                        "root":  "libs/modules/publishing",
-                                        "entryFile":  "index",
-                                        "sourceRoot":  "libs/modules/publishing/src",
-                                        "compilerOptions":  {
-                                                                "tsConfigPath":  "libs/modules/publishing/tsconfig.lib.json"
-                                                            }
-                                    },
                      "health":  {
                                     "type":  "library",
                                     "root":  "libs/modules/health",

@@ -5,7 +5,7 @@ import type { CanvasObject, EventInstance, Seat, SeatCategory } from '@prism/sha
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
-export class EventsService {
+export class LayoutEventsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listEvents(): Promise<EventInstance[]> {
