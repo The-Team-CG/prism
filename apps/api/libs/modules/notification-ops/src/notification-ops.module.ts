@@ -10,6 +10,10 @@ const notificationOutboxWriterProvider = {
   useExisting: NotificationOutboxWriterAdapter,
 };
 
+/**
+ * Owned tables: OpsNotificationLog (notification-ops writes queued/sent notifications; trust-ops also writes here for its own audit-triggered notifications).
+ * Read-only: none.
+ */
 @Module({
   imports: [DatabaseModule],
   controllers: [OpsNotificationsController],

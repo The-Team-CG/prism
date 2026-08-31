@@ -15,6 +15,10 @@ import { EventLiveOpsCommandService } from './services/event-live-ops-command.se
 import { EventLiveOpsReadService } from './services/event-live-ops-read.service';
 import { LiveOperationsService } from './services/live-operations.service';
 
+/**
+ * Owned tables: OpsCoordinatorAssignment (live-ops-triggered updates; day-to-day staffing assignment owned by staffing-ops), OpsCoordinatorReliabilityNote, OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue.
+ * Read-only: OpsCoordinator (sample-seeded only; no owning module), OpsEvent (via inquiry-onboarding).
+ */
 @Module({
   imports: [
     DatabaseModule,

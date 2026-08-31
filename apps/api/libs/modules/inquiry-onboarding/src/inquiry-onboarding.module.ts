@@ -14,6 +14,10 @@ import { InquiriesService } from './services/inquiries.service';
 import { InquiryConformeReminderScheduler } from './services/inquiry-conforme-reminder.scheduler';
 import { InquiryWorkflowService } from './services/inquiry-workflow.service';
 
+/**
+ * Owned tables: OpsBillingSource (initial creation only; ongoing billing owned by finance-ops), OpsBillingStatement (initial creation only; ongoing billing owned by finance-ops), OpsBriefing, OpsDocument (inquiry/onboarding document kinds), OpsEvent, OpsInquiry, OpsPaymentMilestone (initial creation only; ongoing billing owned by finance-ops), OpsPostEventDocument.
+ * Read-only: none.
+ */
 @Module({
   imports: [DatabaseModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, AccessControlModule, EventSessionModule],
   controllers: [OpsInquiriesController, OpsOnboardingController, OpsEventBriefingController],
