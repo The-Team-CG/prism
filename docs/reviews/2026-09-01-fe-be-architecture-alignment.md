@@ -242,6 +242,17 @@ justify a module") is violated in two directions at once:
   None of their 3 controllers (`templates`, `plans`, `publish`) are called by
   any of the 4 FE apps' `lib/prism-api.ts` today — they read as an early or
   parked surface, not active product routes.
+**Correction (2026-09-01, during plan execution):** the claim above that
+`/api/templates`, `/api/plans`, `/api/publish`, `/api/layout-events` have
+"0 current FE callers" was wrong for `/api/plans/:planId` — both
+`apps/client` and `apps/event` call it via `lib/prism-api.ts` for floorplan
+editing, and `apps/api/scripts/smoke-api.mjs` exercises all four route
+groups end-to-end. The merge in Task 10 of the implementation plan proceeded
+anyway because it is a pure reorganization (module/file ownership only, zero
+route or behavior change), verified by the full 340-test backend suite,
+typecheck, build, and `prisma:validate` all passing unchanged. The routes
+are real and active; only their internal module boundaries changed.
+
 - `health` (3 files) and `event-session` (7 files) are legitimately tiny but
   are **cross-cutting infrastructure concerns** (liveness probe;
   session/auth-guard primitives used by every other module), not business
