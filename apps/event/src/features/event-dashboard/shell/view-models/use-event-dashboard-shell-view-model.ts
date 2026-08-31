@@ -3,28 +3,6 @@
 import { useEventOpsCommands } from "@/features/event-ops";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Archive,
-  CalendarClock,
-  CalendarDays,
-  ClipboardCheck,
-  CircleUserRound,
-  FileCheck2,
-  FileSignature,
-  Home,
-  Inbox,
-  LayoutGrid,
-  MapPinned,
-  MessageSquareText,
-  Radio,
-  ReceiptText,
-  Settings,
-  ShieldCheck,
-  Tags,
-  Truck,
-  UsersRound,
-  type LucideIcon,
-} from "lucide-react";
 import type {
   PrismApprovalRequest,
   PrismCoordinatorWorkspace,
@@ -38,10 +16,10 @@ import type {
   PrismPmcmDashboardWorkspace,
   PrismSupplier,
 } from "@prism/types";
-import { type PrismNavItem } from "@prism/ui";
 import { loadTemplates, type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
 import { clearEventSession, readStoredEventSession, type EventSession } from "@/app/lib/session";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
+import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import {
   selectActiveEvents,
   selectClientRecords,
@@ -99,61 +77,6 @@ const EVENT_WORKSPACE_CACHE_MS = 20_000;
 function isFresh(loadedAt: number, ttl?: number) {
   if (ttl == null) return isDashboardCacheFresh(loadedAt);
   return Date.now() - loadedAt < ttl;
-}
-
-function loadingShellNavItems(hasEvent: boolean): PrismNavItem[] {
-  return eventPortalNavItems({ hasEvent });
-}
-
-function eventPortalNavItems({
-  hasEvent,
-  eventName,
-  inquiryCount,
-  taskCount,
-  commandInboxCount,
-  assignmentCount,
-  quoteCount,
-  draftCount,
-  paymentCount,
-  closeoutCount,
-}: {
-  hasEvent: boolean;
-  eventName?: string;
-  inquiryCount?: number;
-  taskCount?: number;
-  commandInboxCount?: number | string;
-  assignmentCount?: number;
-  quoteCount?: number;
-  draftCount?: number;
-  paymentCount?: number;
-  closeoutCount?: number;
-}): PrismNavItem[] {
-  const eventSection = eventName ? "Current event" : "Event workspace";
-  return [
-    { id: "dashboard", icon: Home, label: "Dashboard", section: "PMCM" },
-    { id: "inquiries", icon: FileSignature, label: "Inquiries", section: "PMCM", badge: inquiryCount || undefined },
-    { id: "clients", icon: CircleUserRound, label: "Clients", section: "PMCM" },
-    { id: "events-list", icon: CalendarDays, label: "Events", section: "PMCM" },
-    { id: "calendar", icon: CalendarClock, label: "Calendar", section: "PMCM" },
-    { id: "tasks", icon: ClipboardCheck, label: "Tasks", section: "PMCM", badge: taskCount || undefined },
-    { id: "command-inbox", icon: Inbox, label: "Command Inbox", section: "PMCM", badge: commandInboxCount || undefined },
-    ...(hasEvent
-      ? [
-          { id: "event-overview", icon: LayoutGrid, label: "Overview", section: eventSection },
-          { id: "event-planning", icon: FileCheck2, label: "Briefing", section: eventSection },
-          { id: "event-files", icon: MapPinned, label: "Floorplans", section: eventSection, badge: draftCount || undefined },
-          { id: "event-suppliers", icon: Truck, label: "Suppliers", section: eventSection, badge: quoteCount || undefined },
-          { id: "event-staff", icon: UsersRound, label: "Coordinators", section: eventSection, badge: assignmentCount || undefined },
-          { id: "event-timeline", icon: Radio, label: "Live Ops", section: eventSection },
-          { id: "event-budget", icon: ReceiptText, label: "Billing", section: eventSection, badge: paymentCount || undefined },
-          { id: "event-report", icon: Archive, label: "Closure", section: eventSection, badge: closeoutCount || undefined },
-          { id: "event-messages", icon: MessageSquareText, label: "Activity", section: eventSection },
-        ]
-      : []),
-    { id: "suppliers", icon: Tags, label: "Supplier Directory", section: "Management" },
-    { id: "audit", icon: ShieldCheck, label: "Audit Trail", section: "System" },
-    { id: "settings", icon: Settings, label: "Settings", section: "System" },
-  ];
 }
 
 export function useEventDashboardShellViewModel({

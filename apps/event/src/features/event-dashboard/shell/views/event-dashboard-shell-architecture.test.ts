@@ -9,4 +9,12 @@ describe("event dashboard shell architecture", () => {
     expect(source).not.toContain("useEventOpsCommands");
     expect(source).not.toMatch(/use(?:State|Effect)\(/);
   });
+
+  it("keeps static nav configuration out of the main view-model file", () => {
+    const vmSource = readFileSync(
+      new URL("../view-models/use-event-dashboard-shell-view-model.ts", import.meta.url),
+      "utf8",
+    );
+    expect(vmSource).not.toContain("lucide-react");
+  });
 });
