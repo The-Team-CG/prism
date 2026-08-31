@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   OpsBillingStatement,
   OpsDocument,
@@ -33,6 +33,12 @@ export type FileRequirementsMatrix = {
 @Injectable()
 export class FileRequirementsMatrixService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async requireEvent(eventId: string): Promise<OpsEvent> {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    return event;
+  }
 
   async buildForEvent(eventId: string): Promise<FileRequirementsMatrix> {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });

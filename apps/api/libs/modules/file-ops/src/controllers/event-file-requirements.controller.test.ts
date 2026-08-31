@@ -20,6 +20,7 @@ function createController() {
   };
   const fileRequirementsMatrixService = {
     buildForEvent: vi.fn(async () => matrix),
+    requireEvent: vi.fn(async () => ({ id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' })),
   };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((input = {}) => ({
@@ -29,17 +30,11 @@ function createController() {
     })),
     requireCanReadEvent: vi.fn(async () => undefined),
   };
-  const prisma = {
-    opsEvent: {
-      findUnique: vi.fn(async () => ({ id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' })),
-    },
-  };
   const controller = new OpsEventFileRequirementsController(
     fileRequirementsMatrixService as any,
     eventAccessPolicyService as any,
-    prisma as any,
   );
-  return { controller, fileRequirementsMatrixService, eventAccessPolicyService, prisma };
+  return { controller, fileRequirementsMatrixService, eventAccessPolicyService };
 }
 
 describe('OpsEventFileRequirementsController', () => {
@@ -47,8 +42,13 @@ describe('OpsEventFileRequirementsController', () => {
     expect(controllerPath(OpsEventFileRequirementsController)).toBe('events');
   });
 
+  it('does not inject PrismaService into the controller', () => {
+    const { controller } = createController();
+    expect((controller as unknown as Record<string, unknown>).prisma).toBeUndefined();
+  });
+
   it('serves PMCM-visible file requirements through FileOps', async () => {
-    const { controller, fileRequirementsMatrixService, eventAccessPolicyService, prisma } = createController();
+    const { controller, fileRequirementsMatrixService, eventAccessPolicyService } = createController();
 
     await expect(controller.fileRequirements('evt_file', { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine' })).resolves.toEqual({
       eventId: 'evt_file',
@@ -60,7 +60,7 @@ describe('OpsEventFileRequirementsController', () => {
       ],
     });
 
-    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith({ where: { id: 'evt_file' } });
+    expect(fileRequirementsMatrixService.requireEvent).toHaveBeenCalledWith('evt_file');
     expect(eventAccessPolicyService.requireCanReadEvent).toHaveBeenCalledWith(
       { role: OpsUserRole.PmcmAdmin, name: 'Maxine', clientName: undefined },
       { id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' },
@@ -93,13 +93,12 @@ describe('OpsEventFileRequirementsController', () => {
   });
 
   it('does not build the matrix when the event is missing or access is denied', async () => {
-    const { controller, fileRequirementsMatrixService, eventAccessPolicyService, prisma } = createController();
-    prisma.opsEvent.findUnique.mockResolvedValueOnce(null as any);
+    const { controller, fileRequirementsMatrixService, eventAccessPolicyService } = createController();
+    fileRequirementsMatrixService.requireEvent.mockRejectedValueOnce(new NotFoundException('Event not found'));
 
     await expect(controller.fileRequirements('evt_missing', { actorRole: OpsUserRole.PmcmAdmin })).rejects.toBeInstanceOf(NotFoundException);
     expect(fileRequirementsMatrixService.buildForEvent).not.toHaveBeenCalled();
 
-    prisma.opsEvent.findUnique.mockResolvedValueOnce({ id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' });
     eventAccessPolicyService.requireCanReadEvent.mockRejectedValueOnce(
       new ForbiddenException('guest cannot access file requirements matrix'),
     );

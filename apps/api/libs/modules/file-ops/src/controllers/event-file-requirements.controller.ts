@@ -1,5 +1,4 @@
-import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
-import { PrismaService } from '@prism/database';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { FileRequirementsActorDto } from '../dto/file-requirements.dto';
 import { FileRequirementsMatrixService } from '../services/file-requirements-matrix.service';
@@ -9,14 +8,12 @@ export class OpsEventFileRequirementsController {
   constructor(
     private readonly fileRequirementsMatrixService: FileRequirementsMatrixService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly prisma: PrismaService,
   ) {}
 
   @Get(':eventId/file-requirements')
   async fileRequirements(@Param('eventId') eventId: string, @Query() actorInput: FileRequirementsActorDto) {
     const actor = this.eventAccessPolicyService.resolveActor(actorInput);
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
-    if (!event) throw new NotFoundException('Event not found');
+    const event = await this.fileRequirementsMatrixService.requireEvent(eventId);
 
     await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'file requirements matrix');
 
