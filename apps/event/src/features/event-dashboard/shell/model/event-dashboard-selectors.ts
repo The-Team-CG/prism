@@ -89,17 +89,19 @@ export function selectEventsForView(events: PrismEvent[], view: string): PrismEv
   }
 }
 
-// Re-export workspace selectors for shell composition convenience
+// Re-export workspace selectors for shell composition convenience.
+// Imported via the feature barrel, not the internal model/ file — see
+// docs/reviews/2026-09-01-fe-be-architecture-alignment.md (finding F1).
 export {
   selectActiveEvents,
   selectEventWorkspaceResources,
   selectPendingApprovals,
   selectSelectedEvent,
   selectSelectedEventWorkspaceResources,
-} from "@/features/event-workspace/shell/model/event-workspace-selectors";
+} from "@/features/event-workspace/shell";
 
-// Re-export command-inbox selectors for shell composition convenience
+// Re-export command-inbox selectors for shell composition convenience.
 export {
   selectCommandInboxGroupedBySeverity,
   selectCommandInboxItemsBySeverity,
-} from "@/features/command-inbox/list/model/command-inbox-selectors";
+} from "@/features/command-inbox/list";
