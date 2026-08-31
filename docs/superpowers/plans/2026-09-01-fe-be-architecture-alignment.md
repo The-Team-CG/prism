@@ -1548,6 +1548,21 @@ pattern for `apps/client`'s `events/{upcoming,cancelled,completed,draft-requests
 and `apps/event`'s `events/{cancelled,completed,draft,ongoing,upcoming}`
 families, one family per PR, using this task as the template.
 
+**Correction (2026-09-01, during execution):** Step 3 as originally written
+(create a new `[clientListView]` dynamic segment alongside the existing
+`[clientId]` segment) is not possible — Next.js App Router rejects two
+differently-named dynamic segments at the same path depth
+("Ambiguous app routes detected"). The actual fix: since
+`clients/[clientId]/page.tsx` was already a `return null` shim identical in
+shape to the 4 literal folders, and `routeStateFromPath` already treats an
+unrecognized `parts[2]` value as falling through to the `clientId` branch
+(exactly as anticipated in this task's own Step 6), the 4 literal folders
+were simply deleted with no replacement folder needed — the existing
+`[clientId]` catch-all now serves those routes. Verified: build succeeds,
+all 4 URLs preserved (now server-rendered on demand instead of statically
+prerendered, with identical VM-driven output), 48/48 tests still pass,
+`event-dashboard-routing.ts` untouched.
+
 ---
 
 ### Task 14: Real per-section page for `audit` in the event app (F4c)
