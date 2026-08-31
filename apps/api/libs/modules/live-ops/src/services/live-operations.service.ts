@@ -27,6 +27,8 @@ import {
 } from '@prism/modules/event-core';
 import { AuditService } from '@prism/modules/trust-ops';
 import { NotificationOutboxService } from '@prism/modules/notification-ops';
+import { resolveUrgentIssueStatusOnCreate } from '../domain/urgent-issue-status.policy';
+import { EscalationPolicyViolation, resolveEscalationLevel } from '../domain/live-ops-escalation.policy';
 
 export type {
   CreateEventDayTaskInput,
@@ -192,7 +194,7 @@ export class LiveOperationsService {
             title,
             description: input.description?.trim() ?? '',
             severity,
-            status: input.ownerRole || input.ownerName ? UrgentIssueStatus.Assigned : UrgentIssueStatus.Open,
+            status: resolveUrgentIssueStatusOnCreate(input),
             affectedArea: input.affectedArea?.trim() ?? '',
             ownerRole: input.ownerRole?.trim() ?? '',
             ownerName: input.ownerName?.trim() ?? '',
@@ -287,7 +289,14 @@ export class LiveOperationsService {
       name: 'escalate_event_day_task',
       eventId,
       validateState: async () => {
-        escalationLevel = this.validateEscalationLevel(input.escalationLevel);
+        try {
+          escalationLevel = resolveEscalationLevel(input.escalationLevel);
+        } catch (error) {
+          if (error instanceof EscalationPolicyViolation) {
+            throw new BadRequestException(error.message);
+          }
+          throw error;
+        }
         notes = input.notes?.trim() ?? '';
         if (!notes) throw new BadRequestException('Escalation notes are required');
         current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
@@ -347,7 +356,14 @@ export class LiveOperationsService {
       name: 'escalate_urgent_issue',
       eventId,
       validateState: async () => {
-        escalationLevel = this.validateEscalationLevel(input.escalationLevel);
+        try {
+          escalationLevel = resolveEscalationLevel(input.escalationLevel);
+        } catch (error) {
+          if (error instanceof EscalationPolicyViolation) {
+            throw new BadRequestException(error.message);
+          }
+          throw error;
+        }
         notes = input.notes?.trim() ?? '';
         if (!notes) throw new BadRequestException('Escalation notes are required');
         current = await prisma.opsUrgentIssue.findUnique({ where: { id: issueId } });
@@ -711,22 +727,5 @@ export class LiveOperationsService {
   private requireNotificationOutboxService() {
     if (!this.notificationOutboxService) throw new Error('NotificationOutboxService is required for live operations writes');
     return this.notificationOutboxService;
-  }
-
-  private validateEscalationLevel(value?: string) {
-    const escalationLevel = value?.trim();
-    const allowed = [
-      LiveOpsEscalationLevel.RoleLead,
-      LiveOpsEscalationLevel.Pmcm,
-      LiveOpsEscalationLevel.Critical,
-    ];
-    if (!escalationLevel) return LiveOpsEscalationLevel.RoleLead;
-    if (
-      !isOpsConstantValue(LiveOpsEscalationLevel, escalationLevel) ||
-      !allowed.some((allowedLevel) => allowedLevel === escalationLevel)
-    ) {
-      throw new BadRequestException('Unsupported escalation level');
-    }
-    return escalationLevel;
   }
 }
