@@ -1,5 +1,4 @@
 import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { PrismaService } from '@prism/database';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { OpsUserRole } from '@prism/modules/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
@@ -17,7 +16,6 @@ export class OpsEventFloorplansController {
   constructor(
     private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly prisma: PrismaService,
   ) {}
 
   @Post(':eventId/floorplans')
@@ -112,6 +110,6 @@ export class OpsEventFloorplansController {
   }
 
   private requireEvent(eventId: string) {
-    return this.prisma.opsEvent.findUniqueOrThrow({ where: { id: eventId } });
+    return this.floorPlanWorkflowService.requireEvent(eventId);
   }
 }
