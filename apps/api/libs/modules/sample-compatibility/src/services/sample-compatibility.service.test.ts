@@ -5,13 +5,13 @@ import { SampleCompatibilityService } from './sample-compatibility.service';
 import { AiGovernanceService } from '@prism/modules/ai-governance';
 import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/modules/trust-ops';
 import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
-import { BillingOperationsService } from '@prism/modules/finance-ops';
+import { BillingOperationsService } from '@prism/contexts/commercial';
 import {
   ClientOnboardingWorkflowService,
   InquiriesService,
   InquiryWorkflowService,
 } from '@prism/modules/inquiry-onboarding';
-import { CommercialWorkflowService } from '@prism/modules/commercial-ops';
+import { CommercialWorkflowService } from '@prism/contexts/commercial';
 import { ComplianceWorkflowService } from '@prism/modules/compliance-ops';
 import { CoordinatorsService } from '@prism/contexts/operations';
 import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modules/file-ops';
@@ -25,7 +25,7 @@ import { LiveOperationsService } from '@prism/contexts/live-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from '@prism/modules/ai-governance';
 import { SampleStateService } from './sample-state.service';
-import { SupplierNetworkWorkflowService, SupplierProfileCommandsService, SuppliersService } from '@prism/modules/supplier-ops';
+import { SupplierNetworkWorkflowService, SupplierProfileCommandsService, SuppliersService } from '@prism/contexts/commercial';
 import { OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';
 
 function inquiry(overrides: Record<string, unknown> = {}) {

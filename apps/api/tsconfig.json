@@ -85,18 +85,6 @@
       "@prism/modules/ai-governance/*": [
         "libs/modules/ai-governance/src/*"
       ],
-      "@prism/modules/supplier-ops": [
-        "libs/modules/supplier-ops/src/index"
-      ],
-      "@prism/modules/supplier-ops/*": [
-        "libs/modules/supplier-ops/src/*"
-      ],
-      "@prism/modules/finance-ops": [
-        "libs/modules/finance-ops/src/index"
-      ],
-      "@prism/modules/finance-ops/*": [
-        "libs/modules/finance-ops/src/*"
-      ],
       "@prism/modules/file-ops": [
         "libs/modules/file-ops/src/index"
       ],
@@ -108,12 +96,6 @@
       ],
       "@prism/modules/inquiry-onboarding/*": [
         "libs/modules/inquiry-onboarding/src/*"
-      ],
-      "@prism/modules/commercial-ops": [
-        "libs/modules/commercial-ops/src/index"
-      ],
-      "@prism/modules/commercial-ops/*": [
-        "libs/modules/commercial-ops/src/*"
       ],
       "@prism/modules/compliance-ops": [
         "libs/modules/compliance-ops/src/index"
@@ -150,6 +132,12 @@
       ],
       "@prism/contexts/live-ops/*": [
         "libs/contexts/live-ops/src/*"
+      ],
+      "@prism/contexts/commercial": [
+        "libs/contexts/commercial/src/index"
+      ],
+      "@prism/contexts/commercial/*": [
+        "libs/contexts/commercial/src/*"
       ]
     }
   }

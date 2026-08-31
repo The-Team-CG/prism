@@ -60,6 +60,15 @@
         "tsConfigPath": "libs/contexts/live-ops/tsconfig.lib.json"
       }
     },
+    "commercial": {
+      "type": "library",
+      "root": "libs/contexts/commercial",
+      "entryFile": "index",
+      "sourceRoot": "libs/contexts/commercial/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/contexts/commercial/tsconfig.lib.json"
+      }
+    },
     "sample-compatibility": {
       "type": "library",
       "root": "libs/modules/sample-compatibility",
@@ -132,24 +141,6 @@
         "tsConfigPath": "libs/modules/access-control/tsconfig.lib.json"
       }
     },
-    "supplier-ops": {
-      "type": "library",
-      "root": "libs/modules/supplier-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/supplier-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/supplier-ops/tsconfig.lib.json"
-      }
-    },
-    "finance-ops": {
-      "type": "library",
-      "root": "libs/modules/finance-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/finance-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/finance-ops/tsconfig.lib.json"
-      }
-    },
     "file-ops": {
       "type": "library",
       "root": "libs/modules/file-ops",
@@ -166,15 +157,6 @@
       "sourceRoot": "libs/modules/inquiry-onboarding/src",
       "compilerOptions": {
         "tsConfigPath": "libs/modules/inquiry-onboarding/tsconfig.lib.json"
-      }
-    },
-    "commercial-ops": {
-      "type": "library",
-      "root": "libs/modules/commercial-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/commercial-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/commercial-ops/tsconfig.lib.json"
       }
     },
     "compliance-ops": {

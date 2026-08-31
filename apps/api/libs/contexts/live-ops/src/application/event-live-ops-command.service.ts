@@ -21,7 +21,7 @@ import {
   mapSupplierQuoteRequest,
   SUPPLIER_COMMANDS,
   type SupplierCommands,
-} from '@prism/modules/supplier-ops';
+} from '@prism/contexts/commercial';
 import {
   mapCoordinatorAssignmentForEventDay,
   mapEventDayTask,

@@ -17,7 +17,7 @@ import {
 } from '@prism/modules/event-core';
 import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { GUEST_READER, type GuestReader, STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
-import { mapSupplierQuoteRequest } from '@prism/modules/commercial-ops';
+import { mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import { EventReadModelQueries } from '../queries/event-read-models.queries';
 import {
   buildStatusFeed,

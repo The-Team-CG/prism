@@ -34,7 +34,7 @@ import {
   type AddSupplierQuoteInput,
   type RequestSupplierQuotesInput,
   type SubmitSupplierQuoteInput,
-} from '@prism/modules/commercial-ops';
+} from '@prism/contexts/commercial';
 import { DocumentVaultService, FileRequirementsMatrixService, type UploadMetadataInput } from '@prism/modules/file-ops';
 import {
   ClientOnboardingWorkflowService,
@@ -53,12 +53,12 @@ import {
   type CreateSupplierReviewInput,
   SuppliersService,
   type UpdateSupplierInput,
-} from '@prism/modules/supplier-ops';
+} from '@prism/contexts/commercial';
 import {
   SupplierNetworkWorkflowService,
   type SupplierEventStatusInput,
   type SupplierReadinessInput,
-} from '@prism/modules/supplier-ops';
+} from '@prism/contexts/commercial';
 import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,
@@ -117,7 +117,7 @@ import {
   BillingOperationsService,
   type CreateBillingSourceInput,
   type RecordPaymentInput,
-} from '@prism/modules/finance-ops';
+} from '@prism/contexts/commercial';
 import {
   type CreateFloorPlanDraftInput,
   type CreateFloorPlanPreferenceInput,

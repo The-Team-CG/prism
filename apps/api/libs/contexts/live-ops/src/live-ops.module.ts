@@ -5,7 +5,7 @@ import { EventCoreModule } from '@prism/modules/event-core';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { OperationsModule } from '@prism/contexts/operations';
-import { SupplierOpsModule } from '@prism/modules/supplier-ops';
+import { CommercialModule } from '@prism/contexts/commercial';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { CoordinatorLiveOpsController } from './api/coordinator-live-ops.controller';
@@ -27,7 +27,7 @@ import { LiveOperationsService } from './application/live-operations.service';
     TrustOpsModule,
     NotificationOpsModule,
     OperationsModule,
-    SupplierOpsModule,
+    CommercialModule,
     EventReadModelsModule,
     IdentityOpsModule,
   ],

@@ -4,13 +4,12 @@ import { ConfigModule } from '@nestjs/config';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { AiGovernanceModule } from '@prism/modules/ai-governance';
 import { ClosureOpsModule } from '@prism/modules/closure-ops';
-import { CommercialOpsModule } from '@prism/modules/commercial-ops';
+import { CommercialModule } from '@prism/contexts/commercial';
 import { ComplianceOpsModule } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { SampleCompatibilityModule } from '@prism/modules/sample-compatibility';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { FileOpsModule } from '@prism/modules/file-ops';
-import { FinanceOpsModule } from '@prism/modules/finance-ops';
 import { FloorplanModule } from '@prism/contexts/floorplan';
 import { OperationsModule } from '@prism/contexts/operations';
 import { HealthModule } from '@prism/modules/health';
@@ -18,7 +17,6 @@ import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
 import { LiveOpsModule } from '@prism/contexts/live-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
-import { SupplierOpsModule } from '@prism/modules/supplier-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { TransformInterceptor } from './common/transform.interceptor';
 
@@ -32,13 +30,11 @@ import { TransformInterceptor } from './common/transform.interceptor';
     AccessControlModule,
     IdentityOpsModule,
     InquiryOnboardingModule,
-    CommercialOpsModule,
+    CommercialModule,
     ComplianceOpsModule,
     FloorplanModule,
     FileOpsModule,
-    FinanceOpsModule,
     OperationsModule,
-    SupplierOpsModule,
     AiGovernanceModule,
     LiveOpsModule,
     ClosureOpsModule,

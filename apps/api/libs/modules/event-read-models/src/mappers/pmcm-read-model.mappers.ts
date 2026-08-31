@@ -12,10 +12,10 @@ import type {
   OpsUser,
 } from '@prisma/client';
 import type { AuditService } from '@prism/modules/trust-ops';
-import type { BillingOperationsService } from '@prism/modules/finance-ops';
+import type { BillingOperationsService } from '@prism/contexts/commercial';
 import type { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import type { CoordinatorsService, GuestWorkflowService } from '@prism/contexts/operations';
-import { mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/modules/commercial-ops';
+import { mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import { createPmcmDashboardMappers } from './event-read-model.mappers';
 
 const COORDINATOR_ROLE_REQUIREMENTS = [
