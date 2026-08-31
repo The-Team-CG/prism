@@ -24,6 +24,12 @@ import { SampleResetGuard } from './guards/sample-reset.guard';
 import { SampleCompatibilityService } from './services/sample-compatibility.service';
 import { SampleStateService } from './services/sample-state.service';
 
+/**
+ * Owned tables: none.
+ * Read-only: none.
+ *
+ * Legacy `/sample/*` compatibility layer only: seeds and reads nearly every model in the schema for local/demo bootstrapping. Not counted as a real owner for any model above; every model it touches is owned by its real domain module.
+ */
 @Module({
   imports: [
     DatabaseModule,

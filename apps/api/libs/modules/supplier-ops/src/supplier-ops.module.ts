@@ -33,6 +33,10 @@ const supplierCommandsProvider = {
   useExisting: SupplierNetworkWorkflowService,
 };
 
+/**
+ * Owned tables: OpsDocument (supplier document kinds), OpsSupplier, OpsSupplierApplication, OpsSupplierCertification, OpsSupplierReview.
+ * Read-only: OpsEvent (via inquiry-onboarding), OpsSupplierCategory (sample-seeded only; no owning module), OpsSupplierQuoteRequest (via commercial-ops), OpsSupplierReviewDimension (sample-seeded only; no owning module).
+ */
 @Module({
   imports: [DatabaseModule, AccessControlModule, AiGovernanceModule, EventCoreModule, TrustOpsModule, FileOpsModule, EventSessionModule],
   controllers: [

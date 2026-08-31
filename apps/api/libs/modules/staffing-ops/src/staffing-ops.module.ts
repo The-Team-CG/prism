@@ -14,6 +14,10 @@ import { STAFFING_COMMANDS, STAFFING_READER } from './ports/staffing-ops.tokens'
 import { CoordinatorWorkspaceReadService } from './services/coordinator-workspace-read.service';
 import { CoordinatorsService } from './services/coordinators.service';
 
+/**
+ * Owned tables: OpsCoordinatorAssignment (day-to-day staffing assignment; live-ops also writes here for event-day updates).
+ * Read-only: OpsCoordinator (sample-seeded only; no owning module), OpsEvent (via inquiry-onboarding).
+ */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, FloorplanModule, GuestOpsModule, IdentityOpsModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController],
