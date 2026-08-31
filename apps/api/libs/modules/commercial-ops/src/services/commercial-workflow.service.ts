@@ -6,6 +6,11 @@ import { randomUUID } from 'node:crypto';
 import { AuditCategory, SupplierQuoteRequestStatus, SupplierQuoteStatus, WorkflowCommandService, isOpsConstantValue } from '@prism/modules/event-core';
 import { NotificationOutboxService } from '@prism/modules/notification-ops';
 import { AuditService } from '@prism/modules/trust-ops';
+import {
+  isSupplierQuoteLocked,
+  isSupplierQuoteRequestClosed,
+  resolveExpiredQuoteRequestStatus,
+} from '../domain/supplier-quote-request.policy';
 import type { AddSupplierQuoteInput } from '../ports/commercial-workflow-commands.port';
 import { QUOTE_SUPPLIER_RESOLVER } from '../ports/commercial-ops.tokens';
 import type { QuoteSupplierResolver } from '../ports/quote-supplier-resolver.port';
@@ -308,10 +313,7 @@ export class CommercialWorkflowService {
       },
       write: async () => {
         if (!quote) throw new NotFoundException('Supplier quote not found');
-        if (
-          isOpsConstantValue(SupplierQuoteStatus, quote.status) &&
-          (quote.status === SupplierQuoteStatus.Selected || quote.status === SupplierQuoteStatus.Locked)
-        ) {
+        if (isSupplierQuoteLocked(quote.status)) {
           return { quote, selectedNow: false };
         }
 
@@ -385,24 +387,13 @@ export class CommercialWorkflowService {
 
         request = await this.expireQuoteRequestIfNeeded(foundRequest);
         const requestStatus = request.status;
-        if (
-          isOpsConstantValue(SupplierQuoteRequestStatus, requestStatus) &&
-          [
-            SupplierQuoteRequestStatus.Selected,
-            SupplierQuoteRequestStatus.Closed,
-            SupplierQuoteRequestStatus.Expired,
-          ].some((status) => status === requestStatus)
-        ) {
+        if (isSupplierQuoteRequestClosed(requestStatus)) {
           throw new BadRequestException('Quote request is already closed');
         }
 
         quote = await this.prisma.opsSupplierQuote.findFirst({ where: { requestId: request.id } });
         if (requestedMode === 'revise' && !quote) throw new NotFoundException('Supplier quote not found');
-        if (
-          quote &&
-          isOpsConstantValue(SupplierQuoteStatus, quote.status) &&
-          (quote.status === SupplierQuoteStatus.Selected || quote.status === SupplierQuoteStatus.Locked)
-        ) {
+        if (quote && isSupplierQuoteLocked(quote.status)) {
           throw new BadRequestException('Supplier quote is already locked');
         }
         if (quote && quote.revisionNumber >= 2) {
@@ -513,14 +504,9 @@ export class CommercialWorkflowService {
   }
 
   private withExpiredQuoteRequestStatus(request: OpsSupplierQuoteRequest) {
-    if (
-      request.dueDate &&
-      request.dueDate.getTime() < Date.now() &&
-      isOpsConstantValue(SupplierQuoteRequestStatus, request.status) &&
-      (request.status === SupplierQuoteRequestStatus.Open ||
-        request.status === SupplierQuoteRequestStatus.RevisionRequested)
-    ) {
-      return { ...request, status: SupplierQuoteRequestStatus.Expired } as OpsSupplierQuoteRequest;
+    const resolvedStatus = resolveExpiredQuoteRequestStatus({ status: request.status, dueDate: request.dueDate });
+    if (resolvedStatus !== request.status) {
+      return { ...request, status: resolvedStatus } as OpsSupplierQuoteRequest;
     }
     return request;
   }
