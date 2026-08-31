@@ -7,14 +7,17 @@ import type {
   PrismApprovalRequest,
   PrismAuditIntegrity,
   PrismAuditLog,
+  PrismEvent,
   PrismLoginHistory,
   PrismPrivacyInventory,
   PrismPrivacyRequest,
   PrismPrivacyRetentionPolicy,
   PrismSecurityAlert,
   PrismAuthenticatedSession,
+  PrismUser,
   ReviewPrivacyRequestInput,
 } from "@prism/types";
+import { readStoredEventSession } from "@/app/lib/session";
 import { useEventOpsCommands } from "@/features/event-ops";
 import {
   auditActionTypes,
@@ -35,13 +38,18 @@ const initialPrivacyForm: PrivacyForm = {
   requestNotes: "",
 };
 
-export function useAuditTrailViewModel({
-  session,
-}: {
-  session: PrismAuthenticatedSession;
-}) {
+/**
+ * Self-sufficient audit trail ViewModel: reads its own verified session and
+ * loads the PMCM event/user roster it needs directly, instead of depending
+ * on the dashboard shell VM to prop-drill them in (see
+ * docs/reviews/2026-09-01-fe-be-architecture-alignment.md, finding F4c).
+ */
+export function useAuditTrailViewModel() {
   const commands = useEventOpsCommands();
   const repository = useMemo(() => createAuditTrailRepository(commands), [commands]);
+  const [session, setSession] = useState<PrismAuthenticatedSession | null>(null);
+  const [events, setEvents] = useState<PrismEvent[]>([]);
+  const [users, setUsers] = useState<PrismUser[]>([]);
   const [logs, setLogs] = useState<PrismAuditLog[]>([]);
   const [alerts, setAlerts] = useState<PrismSecurityAlert[]>([]);
   const [auditIntegrity, setAuditIntegrity] = useState<PrismAuditIntegrity | null>(null);
@@ -62,6 +70,25 @@ export function useAuditTrailViewModel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setSession(readStoredEventSession());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    commands
+      .pmcmState()
+      .then((state) => {
+        if (cancelled) return;
+        setEvents(state.events);
+        setUsers(state.users);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [commands]);
+
   const filters = useMemo<AuditLogFilters>(() => ({
     query,
     category,
@@ -74,6 +101,7 @@ export function useAuditTrailViewModel({
   }), [query, category, eventId, actor, actionType, severity, dateRange]);
 
   const refreshAudit = useCallback(async () => {
+    if (!session) return;
     setBusy(true);
     setError(null);
     try {
@@ -91,7 +119,7 @@ export function useAuditTrailViewModel({
     } finally {
       setBusy(false);
     }
-  }, [eventId, filters, repository, session.id]);
+  }, [eventId, filters, repository, session]);
 
   useEffect(() => {
     void refreshAudit();
@@ -166,6 +194,9 @@ export function useAuditTrailViewModel({
   }), [alerts, approvalRequests, loginHistory, logs, privacyInventory, privacyRequests]);
 
   return {
+    session,
+    events,
+    users,
     logs,
     alerts,
     auditIntegrity,

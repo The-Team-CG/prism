@@ -53,7 +53,6 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Badge } from "@/app/components/ui/badge";
-import { AuditTrailPanel } from "@/features/audit/trail";
 import { ClientOnboardingTracker } from "@/features/clients/onboarding";
 import { ConformeUploadModal } from "@/features/conforme/upload";
 import { InquiryIntakeLog } from "@/features/inquiries/intake";
@@ -668,7 +667,7 @@ export function EventDashboardShellView(props: EventDashboardClientProps = {}) {
             busy={Boolean(busy)}
           />
         ) : section === "audit" ? (
-          <AuditTrailPanel events={events} users={state.users} session={session} />
+          null
         ) : isInquiries ? (
           <>
             <InquiryIntakeLog
