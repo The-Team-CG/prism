@@ -1774,6 +1774,51 @@ git add apps/api/libs/modules/supplier-ops
 git commit -m "refactor(supplier-ops): extract quote-request status transitions into domain/"
 ```
 
+**Correction (2026-09-01, during execution):** Step 1 (finding the current
+status-transition checks in `supplier-network-workflow.service.ts`)
+revealed the plan's premise was wrong for this task. That service only
+references `SupplierVerificationStatus` (an unrelated status enum for
+supplier setup verification onboarding) — it contains no
+`SupplierQuoteRequestStatus` or `SupplierQuoteStatus` logic at all. The
+real quote-request/quote lifecycle state machine
+(`SupplierQuoteRequestStatus`: Open -> Submitted/RevisionRequested ->
+Revised -> Selected/Closed/Expired, and `SupplierQuoteStatus`: Received ->
+Revised -> Selected/Locked/NotSelected) lives in
+`apps/api/libs/modules/commercial-ops/src/services/commercial-workflow.service.ts`.
+
+The task was executed against the correct module instead:
+- Created `apps/api/libs/modules/commercial-ops/src/domain/supplier-quote-request.policy.ts`
+  with 3 functions matching the real invariants found by inspection (not a
+  generic from/to adjacency map, since the existing code expresses these as
+  boolean membership checks, not a transition table):
+  - `isSupplierQuoteRequestClosed(status)` — Selected/Closed/Expired
+  - `isSupplierQuoteLocked(status)` — Selected/Locked
+  - `resolveExpiredQuoteRequestStatus({status, dueDate})` — auto-expires an
+    Open/RevisionRequested request past its due date, passthrough otherwise
+- Created `apps/api/libs/modules/commercial-ops/src/domain/supplier-quote-request.policy.test.ts`
+  (12 cases covering all 3 functions) — verified RED before the
+  implementation existed, then GREEN after.
+- Wired all 3 call sites in `commercial-workflow.service.ts` to the new
+  policy functions, preserving one inline check (the duplicate-active-request
+  filter around line 109) as-is since its semantics differ from
+  `isSupplierQuoteRequestClosed` (it excludes only Closed/Expired, not
+  Selected, when finding suppliers who already have an active request).
+  `isOpsConstantValue`, `SupplierQuoteRequestStatus`, and
+  `SupplierQuoteStatus` remain imported/used elsewhere in the file for
+  status assignments and that preserved check, so those imports were kept.
+- Exported the new policy from `apps/api/libs/modules/commercial-ops/src/index.ts`.
+- Verified: full `commercial-ops` suite (22 tests) passes, full backend
+  suite (350 tests) passes, `tsc --noEmit` clean, boundary check on
+  `libs/modules/commercial-ops` reports 0 errors/0 warnings.
+- Committed as `refactor(commercial-ops): extract quote-request lifecycle
+  policy into domain/` — **not** `supplier-ops`, since that module was
+  never touched.
+
+`apps/api/libs/modules/supplier-ops` itself was left unchanged — it has no
+quote-request-status logic to extract; its only status enum
+(`SupplierVerificationStatus`) is unrelated and already correctly scoped
+inside that module.
+
 ---
 
 ### Task 16: Document owned/read-only Prisma tables per module (B2)

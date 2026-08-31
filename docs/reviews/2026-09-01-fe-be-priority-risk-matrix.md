@@ -75,6 +75,23 @@ them as safe to fold together.
 | B2 | Document owned/read-only Prisma tables per module (one paragraph per module, in-module README or `.module.ts` comment) | Medium (documentation debt, compounds over time) — currently no module states which Prisma models it's allowed to touch beyond its own | **Very low** — pure documentation, no code change | S (~1–2 hrs for all 24 modules, can be split module-by-module) | None | Peer review only — no automated check exists for this today; could seed a future `check-boundaries`-style script |
 | B1b | Extend the same `domain/` treatment (B1) to `supplier-ops` (`SupplierQuoteRequestStatus`, `SupplierQuoteStatus`, `SupplierVerificationStatus`, `SupplierTier` transitions) | High (strategic) — `supplier-ops` is the single largest module (29 files) with real invariants and zero domain code | **Medium** — same shape/risk as B1, larger surface (largest module) | L (~1–2 days) | Do after B1 (live-ops) proves the pattern | Same shape as B1: `test:api` (supplier-ops suite) + new domain unit tests + `check-boundaries.mjs` |
 
+**Correction (2026-09-01, during plan execution):** the B1b row above assumed
+`SupplierQuoteRequestStatus`, `SupplierQuoteStatus`, `SupplierVerificationStatus`,
+and `SupplierTier` transitions all live in `supplier-ops`. Execution found
+this was only true for `SupplierVerificationStatus` (supplier setup
+verification, correctly scoped in `supplier-ops`). The quote-request and
+quote lifecycle transitions (`SupplierQuoteRequestStatus`,
+`SupplierQuoteStatus`) actually live in
+`commercial-ops/src/services/commercial-workflow.service.ts`, not
+`supplier-ops`. The domain-layer extraction for those two enums was done
+against `commercial-ops` instead (3 policy functions:
+`isSupplierQuoteRequestClosed`, `isSupplierQuoteLocked`,
+`resolveExpiredQuoteRequestStatus`), verified with 12 new unit tests, the
+full 350-test backend suite, typecheck, and a clean boundary check. Any
+follow-up work on `SupplierTier` transitions, or on
+`SupplierVerificationStatus` inside `supplier-ops` itself, remains
+open and unstarted — it was not part of what B1b's premise actually pointed at.
+
 ---
 
 ## Priority 3 — defer / informational only (no action needed now)
@@ -101,7 +118,7 @@ them as safe to fold together.
 9. F3    — split the 941-line mega-VM                     (P2, needs F1 done, pairs with F6)
 10. F4b  — collapse literal filter folders into [param]   (P2, needs F1 done, do one family at a time)
 11. F4c  — real per-section pages in event app             (P2, needs F1+F3+F6 done, do one section at a time)
-12. B1b  — supplier-ops domain layer                       (P2, needs B1 pattern proven)
+12. B1b  — commercial-ops quote-request domain layer (actual module; see correction) (P2, needs B1 pattern proven)
 13. B2   — document owned/read-only tables per module      (P2, anytime, no dependency)
 ```
 
