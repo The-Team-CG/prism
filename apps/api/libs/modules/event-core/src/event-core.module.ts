@@ -10,6 +10,10 @@ const workflowCommandLogProvider = {
   useExisting: WorkflowCommandService,
 };
 
+/**
+ * Owned tables: none.
+ * Read-only: none.
+ */
 @Module({
   imports: [DatabaseModule],
   providers: [PrismTransactionRunner, EventLifecycleService, WorkflowCommandService, workflowCommandLogProvider],

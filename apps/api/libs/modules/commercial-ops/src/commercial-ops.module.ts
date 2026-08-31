@@ -10,6 +10,10 @@ import { COMMERCIAL_WORKFLOW_COMMANDS, PROPOSAL_READER, QUOTE_SUPPLIER_RESOLVER 
 import { CommercialWorkflowService } from './services/commercial-workflow.service';
 import { PrismaQuoteSupplierResolver } from './services/prisma-quote-supplier-resolver.service';
 
+/**
+ * Owned tables: OpsSupplierQuote, OpsSupplierQuoteRequest.
+ * Read-only: OpsEvent (via inquiry-onboarding), OpsSupplier (via supplier-ops), OpsSupplierCategory (sample-seeded only; no owning module).
+ */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, NotificationOpsModule],
   controllers: [OpsQuoteRequestsController, OpsEventCommercialController],

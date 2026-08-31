@@ -8,6 +8,10 @@ const eventAccessPolicyProvider = {
   useExisting: EventAccessPolicyService,
 };
 
+/**
+ * Owned tables: none.
+ * Read-only: none.
+ */
 @Module({
   imports: [TrustOpsModule],
   providers: [EventAccessPolicyService, eventAccessPolicyProvider],

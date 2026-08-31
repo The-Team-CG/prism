@@ -8,6 +8,10 @@ import { OpsEventComplianceController } from './controllers/event-compliance.con
 import { COMPLIANCE_COMMANDS, COMPLIANCE_READER } from './ports/compliance-ops.tokens';
 import { ComplianceWorkflowService } from './services/compliance-workflow.service';
 
+/**
+ * Owned tables: OpsComplianceCheck, OpsComplianceRule, OpsEvent (compliance-status fields only; primary event lifecycle owned by inquiry-onboarding).
+ * Read-only: OpsInquiry (via inquiry-onboarding).
+ */
 @Module({
   imports: [DatabaseModule, EventCoreModule, TrustOpsModule, AccessControlModule],
   controllers: [OpsComplianceController, OpsEventComplianceController],

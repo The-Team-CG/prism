@@ -11,6 +11,10 @@ import { OpsEventClosureController } from './controllers/event-closure.controlle
 import { CLOSURE_COMMANDS, CLOSURE_READINESS_READER } from './ports/closure-ops.tokens';
 import { EventClosureService } from './services/event-closure.service';
 
+/**
+ * Owned tables: OpsEventInsight.
+ * Read-only: OpsBillingStatement (via finance-ops), OpsComplianceCheck (via compliance-ops), OpsDocument (via finance-ops, inquiry-onboarding, supplier-ops), OpsEvent (via inquiry-onboarding), OpsPaymentMilestone (via finance-ops), OpsPostEventDocument (via inquiry-onboarding), OpsSupplierReview (via supplier-ops).
+ */
 @Module({
   imports: [
     DatabaseModule,
