@@ -3,7 +3,7 @@ import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/modules/event-core';
-import { CoordinatorsService } from '../services/coordinators.service';
+import { CoordinatorsService } from '../../application/staffing/coordinators.service';
 
 @Controller('coordinators')
 export class OpsCoordinatorsController {

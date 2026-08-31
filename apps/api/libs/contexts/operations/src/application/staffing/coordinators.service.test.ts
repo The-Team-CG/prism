@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { PrismTransactionRunner } from '../../../../core/shared-kernel/src';
+import { PrismTransactionRunner } from '../../../../../core/shared-kernel/src';
 import { AuditService, AuditWriterAdapter } from '@prism/modules/trust-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';

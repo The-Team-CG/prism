@@ -6,8 +6,8 @@ import {
   CreateCoordinatorAssignmentDto,
   ReplaceCoordinatorAssignmentDto,
   WithdrawCoordinatorAssignmentDto,
-} from '../dto/staffing-ops.dto';
-import { CoordinatorsService } from '../services/coordinators.service';
+} from './staffing-ops.dto';
+import { CoordinatorsService } from '../../application/staffing/coordinators.service';
 
 @Controller('events')
 export class OpsEventCoordinatorAssignmentsController {

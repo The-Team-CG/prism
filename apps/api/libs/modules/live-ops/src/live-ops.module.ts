@@ -4,7 +4,7 @@ import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
-import { StaffingOpsModule } from '@prism/modules/staffing-ops';
+import { OperationsModule } from '@prism/contexts/operations';
 import { SupplierOpsModule } from '@prism/modules/supplier-ops';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
@@ -26,7 +26,7 @@ import { LiveOperationsService } from './services/live-operations.service';
     EventCoreModule,
     TrustOpsModule,
     NotificationOpsModule,
-    StaffingOpsModule,
+    OperationsModule,
     SupplierOpsModule,
     EventReadModelsModule,
     IdentityOpsModule,

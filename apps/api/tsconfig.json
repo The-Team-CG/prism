@@ -121,23 +121,11 @@
       "@prism/modules/compliance-ops/*": [
         "libs/modules/compliance-ops/src/*"
       ],
-      "@prism/modules/guest-ops": [
-        "libs/modules/guest-ops/src/index"
-      ],
-      "@prism/modules/guest-ops/*": [
-        "libs/modules/guest-ops/src/*"
-      ],
       "@prism/modules/identity-ops": [
         "libs/modules/identity-ops/src/index"
       ],
       "@prism/modules/identity-ops/*": [
         "libs/modules/identity-ops/src/*"
-      ],
-      "@prism/modules/staffing-ops": [
-        "libs/modules/staffing-ops/src/index"
-      ],
-      "@prism/modules/staffing-ops/*": [
-        "libs/modules/staffing-ops/src/*"
       ],
       "@prism/modules/live-ops": [
         "libs/modules/live-ops/src/index"
@@ -156,6 +144,12 @@
       ],
       "@prism/contexts/floorplan/*": [
         "libs/contexts/floorplan/src/*"
+      ],
+      "@prism/contexts/operations": [
+        "libs/contexts/operations/src/index"
+      ],
+      "@prism/contexts/operations/*": [
+        "libs/contexts/operations/src/*"
       ]
     }
   }

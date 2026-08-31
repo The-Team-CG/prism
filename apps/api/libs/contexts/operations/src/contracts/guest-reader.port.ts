@@ -1,6 +1,6 @@
 import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback } from '@prisma/client';
 import type { PrismGuestCheckIn, PrismGuestFeedback } from '@prism/types';
-import type { EventWithDrafts } from '../services/guest-workflow.service';
+import type { EventWithDrafts } from '../application/guest/guest-workflow.service';
 
 export interface GuestReader {
   getEventByAccessCode(accessCode: string): Promise<EventWithDrafts>;

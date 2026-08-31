@@ -6,7 +6,7 @@ import {
   type CreateGuestCheckInInput,
   type CreateGuestFeedbackInput,
 } from '@prism/types';
-import { GuestWorkflowService } from '../services/guest-workflow.service';
+import { GuestWorkflowService } from '../../application/guest/guest-workflow.service';
 
 @Controller('guest')
 export class OpsGuestController {

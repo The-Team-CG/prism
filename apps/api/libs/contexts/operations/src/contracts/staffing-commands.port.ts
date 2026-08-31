@@ -3,7 +3,7 @@ import type {
   CreateCoordinatorAssignmentInput,
   ReplaceCoordinatorAssignmentInput,
   WithdrawCoordinatorAssignmentInput,
-} from '../services/coordinators.service';
+} from '../application/staffing/coordinators.service';
 
 export interface StaffingCommands {
   assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput, actor: ResolvedEventOpsActor): Promise<unknown>;

@@ -12,13 +12,12 @@ import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { FileOpsModule } from '@prism/modules/file-ops';
 import { FinanceOpsModule } from '@prism/modules/finance-ops';
 import { FloorplanModule } from '@prism/contexts/floorplan';
-import { GuestOpsModule } from '@prism/modules/guest-ops';
+import { OperationsModule } from '@prism/contexts/operations';
 import { HealthModule } from '@prism/modules/health';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
 import { LiveOpsModule } from '@prism/modules/live-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
-import { StaffingOpsModule } from '@prism/modules/staffing-ops';
 import { SupplierOpsModule } from '@prism/modules/supplier-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { TransformInterceptor } from './common/transform.interceptor';
@@ -38,8 +37,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
     FloorplanModule,
     FileOpsModule,
     FinanceOpsModule,
-    GuestOpsModule,
-    StaffingOpsModule,
+    OperationsModule,
     SupplierOpsModule,
     AiGovernanceModule,
     LiveOpsModule,

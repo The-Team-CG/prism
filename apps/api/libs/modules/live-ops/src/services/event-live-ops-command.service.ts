@@ -16,7 +16,7 @@ import type {
   VerifySupplierStatusInput,
 } from '@prism/types';
 import { OpsUserRole } from '@prism/modules/event-core';
-import { CoordinatorsService } from '@prism/modules/staffing-ops';
+import { CoordinatorsService } from '@prism/contexts/operations';
 import {
   mapSupplierQuoteRequest,
   SUPPLIER_COMMANDS,

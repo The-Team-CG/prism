@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent } from '@prisma/client';
 import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
-import type { PrismCommandContext } from '../../../../core/shared-kernel/src';
+import type { PrismCommandContext } from '../../../../../core/shared-kernel/src';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/modules/event-core';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
 import { AUDIT_WRITER, type AuditWriter } from '@prism/modules/trust-ops';

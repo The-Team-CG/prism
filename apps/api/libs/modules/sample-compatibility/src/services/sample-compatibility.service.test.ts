@@ -13,14 +13,14 @@ import {
 } from '@prism/modules/inquiry-onboarding';
 import { CommercialWorkflowService } from '@prism/modules/commercial-ops';
 import { ComplianceWorkflowService } from '@prism/modules/compliance-ops';
-import { CoordinatorsService } from '@prism/modules/staffing-ops';
+import { CoordinatorsService } from '@prism/contexts/operations';
 import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modules/file-ops';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventClosureService } from '@prism/modules/closure-ops';
 import { EventLifecycleService } from '@prism/modules/event-core';
 import { EventReadModelQueries, EventReadModelsService } from '@prism/modules/event-read-models';
 import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
-import { GuestWorkflowService } from '@prism/modules/guest-ops';
+import { GuestWorkflowService } from '@prism/contexts/operations';
 import { LiveOperationsService } from '@prism/modules/live-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from '@prism/modules/ai-governance';

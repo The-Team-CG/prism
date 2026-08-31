@@ -4,7 +4,7 @@ import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FileOpsModule } from '@prism/modules/file-ops';
 import { FloorplanModule } from '@prism/contexts/floorplan';
-import { GuestOpsModule } from '@prism/modules/guest-ops';
+import { OperationsModule } from '@prism/contexts/operations';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsEventClosureController } from './controllers/event-closure.controller';
@@ -23,7 +23,7 @@ import { EventClosureService } from './services/event-closure.service';
     AccessControlModule,
     NotificationOpsModule,
     FileOpsModule,
-    GuestOpsModule,
+    OperationsModule,
     FloorplanModule,
   ],
   controllers: [OpsEventClosureController],

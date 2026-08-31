@@ -1,7 +1,7 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
-import { GuestWorkflowService } from '@prism/modules/guest-ops';
+import { GuestWorkflowService } from '@prism/contexts/operations';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { mapEvent } from '../mappers/pmcm-read-model.mappers';

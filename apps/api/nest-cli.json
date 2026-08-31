@@ -42,6 +42,15 @@
         "tsConfigPath": "libs/contexts/floorplan/tsconfig.lib.json"
       }
     },
+    "operations": {
+      "type": "library",
+      "root": "libs/contexts/operations",
+      "entryFile": "index",
+      "sourceRoot": "libs/contexts/operations/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/contexts/operations/tsconfig.lib.json"
+      }
+    },
     "sample-compatibility": {
       "type": "library",
       "root": "libs/modules/sample-compatibility",
@@ -166,24 +175,6 @@
       "sourceRoot": "libs/modules/compliance-ops/src",
       "compilerOptions": {
         "tsConfigPath": "libs/modules/compliance-ops/tsconfig.lib.json"
-      }
-    },
-    "guest-ops": {
-      "type": "library",
-      "root": "libs/modules/guest-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/guest-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/guest-ops/tsconfig.lib.json"
-      }
-    },
-    "staffing-ops": {
-      "type": "library",
-      "root": "libs/modules/staffing-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/staffing-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/staffing-ops/tsconfig.lib.json"
       }
     }
   }

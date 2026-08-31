@@ -62,7 +62,10 @@ import {
 import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,
-} from '@prism/modules/staffing-ops';
+  GuestWorkflowService,
+  type GuestCheckInInput,
+  type GuestFeedbackInput,
+} from '@prism/contexts/operations';
 import {
   AuditActionType,
   AuditCategory,
@@ -127,11 +130,6 @@ import {
   type ResolveComplianceInput,
   type UpdateComplianceRuleInput,
 } from '@prism/modules/compliance-ops';
-import {
-  GuestWorkflowService,
-  type GuestCheckInInput,
-  type GuestFeedbackInput,
-} from '@prism/modules/guest-ops';
 import { AiGovernanceService } from '@prism/modules/ai-governance';
 
 type CreateInquiryInput = {
