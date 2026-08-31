@@ -26,7 +26,7 @@ import {
   mapCoordinatorAssignmentForEventDay,
   mapEventDayTask,
   mapUrgentIssue,
-} from '../mappers/live-ops.mappers';
+} from './live-ops.mappers';
 import { LiveOperationsService } from './live-operations.service';
 
 @Injectable()

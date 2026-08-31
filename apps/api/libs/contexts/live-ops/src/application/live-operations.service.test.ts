@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { LiveOperationsService } from './live-operations.service';
-import { mapUrgentIssue } from '../mappers/live-ops.mappers';
+import { mapUrgentIssue } from './live-ops.mappers';
 
 type WorkflowCommandInput = {
   validateState?: () => Promise<void> | void;

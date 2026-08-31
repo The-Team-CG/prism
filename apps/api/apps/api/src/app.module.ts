@@ -16,7 +16,7 @@ import { OperationsModule } from '@prism/contexts/operations';
 import { HealthModule } from '@prism/modules/health';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
-import { LiveOpsModule } from '@prism/modules/live-ops';
+import { LiveOpsModule } from '@prism/contexts/live-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { SupplierOpsModule } from '@prism/modules/supplier-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';

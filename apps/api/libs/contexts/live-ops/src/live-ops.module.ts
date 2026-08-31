@@ -8,12 +8,12 @@ import { OperationsModule } from '@prism/contexts/operations';
 import { SupplierOpsModule } from '@prism/modules/supplier-ops';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
-import { CoordinatorLiveOpsController } from './controllers/coordinator-live-ops.controller';
-import { EventLiveOpsController } from './controllers/event-live-ops.controller';
-import { SupplierLiveOpsController } from './controllers/supplier-live-ops.controller';
-import { EventLiveOpsCommandService } from './services/event-live-ops-command.service';
-import { EventLiveOpsReadService } from './services/event-live-ops-read.service';
-import { LiveOperationsService } from './services/live-operations.service';
+import { CoordinatorLiveOpsController } from './api/coordinator-live-ops.controller';
+import { EventLiveOpsController } from './api/event-live-ops.controller';
+import { SupplierLiveOpsController } from './api/supplier-live-ops.controller';
+import { EventLiveOpsCommandService } from './application/event-live-ops-command.service';
+import { EventLiveOpsReadService } from './application/event-live-ops-read.service';
+import { LiveOperationsService } from './application/live-operations.service';
 
 /**
  * Owned tables: OpsCoordinatorAssignment (live-ops-triggered updates; day-to-day staffing assignment owned by staffing-ops), OpsCoordinatorReliabilityNote, OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue.

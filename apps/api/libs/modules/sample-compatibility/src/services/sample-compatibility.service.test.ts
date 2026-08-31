@@ -21,7 +21,7 @@ import { EventLifecycleService } from '@prism/modules/event-core';
 import { EventReadModelQueries, EventReadModelsService } from '@prism/modules/event-read-models';
 import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { GuestWorkflowService } from '@prism/contexts/operations';
-import { LiveOperationsService } from '@prism/modules/live-ops';
+import { LiveOperationsService } from '@prism/contexts/live-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
 import { PAREService } from '@prism/modules/ai-governance';
 import { SampleStateService } from './sample-state.service';

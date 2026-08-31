@@ -127,12 +127,6 @@
       "@prism/modules/identity-ops/*": [
         "libs/modules/identity-ops/src/*"
       ],
-      "@prism/modules/live-ops": [
-        "libs/modules/live-ops/src/index"
-      ],
-      "@prism/modules/live-ops/*": [
-        "libs/modules/live-ops/src/*"
-      ],
       "@prism/modules/event-session": [
         "libs/modules/event-session/src/index"
       ],
@@ -150,6 +144,12 @@
       ],
       "@prism/contexts/operations/*": [
         "libs/contexts/operations/src/*"
+      ],
+      "@prism/contexts/live-ops": [
+        "libs/contexts/live-ops/src/index"
+      ],
+      "@prism/contexts/live-ops/*": [
+        "libs/contexts/live-ops/src/*"
       ]
     }
   }

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { EventAccessPolicyService } from '@prism/modules/access-control';
 import { EventSessionGuard } from '@prism/modules/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import type { EventLiveOpsCommandService } from '../services/event-live-ops-command.service';
+import type { EventLiveOpsCommandService } from '../application/event-live-ops-command.service';
 import { SupplierLiveOpsController } from './supplier-live-ops.controller';
 
 function controllerPath(controller: Function): string {

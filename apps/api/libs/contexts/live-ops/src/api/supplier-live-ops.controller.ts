@@ -7,8 +7,8 @@ import {
   type UpdateSupplierEventStatusInput,
   type PrismVerifiedEventActor,
 } from '@prism/types';
-import { LiveOpsActorDto } from '../dto/live-ops.dto';
-import { EventLiveOpsCommandService } from '../services/event-live-ops-command.service';
+import { LiveOpsActorDto } from './live-ops.dto';
+import { EventLiveOpsCommandService } from '../application/event-live-ops-command.service';
 
 @Controller('supplier')
 export class SupplierLiveOpsController {

@@ -23,9 +23,9 @@ import {
 } from '@prism/types';
 import {
   LiveOpsActorDto,
-} from '../dto/live-ops.dto';
-import { EventLiveOpsCommandService } from '../services/event-live-ops-command.service';
-import { EventLiveOpsReadService } from '../services/event-live-ops-read.service';
+} from './live-ops.dto';
+import { EventLiveOpsCommandService } from '../application/event-live-ops-command.service';
+import { EventLiveOpsReadService } from '../application/event-live-ops-read.service';
 
 @Controller('events')
 export class EventLiveOpsController {

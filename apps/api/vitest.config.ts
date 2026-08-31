@@ -43,7 +43,7 @@ export default defineConfig({
       '@prism/contexts/operations': resolve(__dirname, './libs/contexts/operations/src/index.ts'),
       '@prism/modules/identity-ops': resolve(__dirname, './libs/modules/identity-ops/src/index.ts'),
       '@prism/modules/event-session': resolve(__dirname, './libs/modules/event-session/src/index.ts'),
-      '@prism/modules/live-ops': resolve(__dirname, './libs/modules/live-ops/src/index.ts'),
+      '@prism/contexts/live-ops': resolve(__dirname, './libs/contexts/live-ops/src/index.ts'),
     },
   },
 });

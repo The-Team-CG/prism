@@ -84,13 +84,13 @@ import {
   type UpdateCoordinatorAttendanceInput,
   type UpdateEventDayTaskInput,
   type UpdateUrgentIssueInput,
-} from '@prism/modules/live-ops';
+} from '@prism/contexts/live-ops';
 import {
   mapCoordinatorAssignmentForEventDay as mapLiveOpsCoordinatorAssignmentForEventDay,
   mapEventDayLog as mapLiveOpsEventDayLog,
   mapEventDayTask as mapLiveOpsEventDayTask,
   mapUrgentIssue as mapLiveOpsUrgentIssue,
-} from '@prism/modules/live-ops';
+} from '@prism/contexts/live-ops';
 import { SampleStateService } from './sample-state.service';
 import {
   EventAccessPolicyService,

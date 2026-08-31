@@ -51,6 +51,15 @@
         "tsConfigPath": "libs/contexts/operations/tsconfig.lib.json"
       }
     },
+    "live-ops": {
+      "type": "library",
+      "root": "libs/contexts/live-ops",
+      "entryFile": "index",
+      "sourceRoot": "libs/contexts/live-ops/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/contexts/live-ops/tsconfig.lib.json"
+      }
+    },
     "sample-compatibility": {
       "type": "library",
       "root": "libs/modules/sample-compatibility",

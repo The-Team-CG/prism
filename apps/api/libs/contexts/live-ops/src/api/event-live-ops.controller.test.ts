@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { EventSessionGuard } from '@prism/modules/event-session';
 import type { EventAccessPolicyService } from '@prism/modules/access-control';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import type { EventLiveOpsCommandService } from '../services/event-live-ops-command.service';
-import type { EventLiveOpsReadService } from '../services/event-live-ops-read.service';
+import type { EventLiveOpsCommandService } from '../application/event-live-ops-command.service';
+import type { EventLiveOpsReadService } from '../application/event-live-ops-read.service';
 import { EventLiveOpsController } from './event-live-ops.controller';
 
 function controllerPath(controller: Function): string {
