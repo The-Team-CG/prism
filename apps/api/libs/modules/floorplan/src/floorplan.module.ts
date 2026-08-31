@@ -9,6 +9,10 @@ import { OpsEventFloorplansController } from './controllers/event-floorplans.con
 import { FLOORPLAN_COMMANDS, FLOORPLAN_READER } from './ports/floorplan.tokens';
 import { FloorPlanWorkflowService } from './services/floor-plan-workflow.service';
 
+/**
+ * Owned tables: FloorPlan, FloorPlanObject, OpsFloorPlanDraft, OpsEvent (floorplan-status fields only; primary event lifecycle owned by inquiry-onboarding).
+ * Read-only: none.
+ */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, IdentityOpsModule],
   controllers: [OpsEventFloorplansController],

@@ -9,6 +9,12 @@ import { FileRequirementsMatrixService } from './services/file-requirements-matr
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
+/**
+ * Owned tables: none.
+ * Read-only: OpsBillingStatement (via finance-ops, inquiry-onboarding), OpsDocument (via finance-ops, inquiry-onboarding, supplier-ops), OpsEvent (via inquiry-onboarding), OpsPaymentMilestone (via finance-ops, inquiry-onboarding), OpsPostEventDocument (via inquiry-onboarding), OpsSupplierReview (via supplier-ops).
+ *
+ * Read-only-by-design: serves a requirements-matrix view over documents owned elsewhere; writes no Prisma models itself.
+ */
 @Module({
   imports: [DatabaseModule, AccessControlModule],
   controllers: [OpsEventFileRequirementsController],
