@@ -1,7 +1,8 @@
 # P.R.I.S.M Agent Instructions
 
-Follow this file first. Deepen only via the docs index below when incomplete or wrong.  
-`CLAUDE.md` → this file (single agent entrypoint).
+Follow this file first. Deepen only via the canonical bundle in `docs/index.md`
+when incomplete or wrong. `CLAUDE.md` is a pointer to this file; this is the
+single agent entrypoint.
 
 ## Hard rules
 
@@ -9,13 +10,14 @@ Follow this file first. Deepen only via the docs index below when incomplete or 
 | --- | --- |
 | Feature branch + PR; conventional commits (`feat:`, `fix:`, `refactor:`, …) | Push / force-push `main`; amend published commits without ask |
 | **Shared contracts: Zod schema + `z.infer` in `@prism/types` only** | Parallel hand types; `as any`; app-local shared schemas; type-only DTOs without schema |
-| Own API work in `apps/api/libs/modules/<capability>/` | God `event-ops` hub; private cross-module service imports |
+| Own API work in `apps/api/src/modules/<bounded-context>/`; keep cross-cutting concerns in `src/kernel/` | God `event-ops` hub; private cross-context service imports |
 | Role app for the actor; thin `app/` routes; logic in `features/` | Rebuild `apps/client` as all-role PMCM shell; cross-import apps |
 | Scoped APIs + package contracts for new surfaces | Primary path via `/api/sample/state` or local sample state |
 | Session/sample keys only in `@prism/types` | New app-local `prism:*` storage keys |
 | Import packages by role (table below); thin `lib/prism-api` | Re-export domain types from app facades; fat god facades for new code |
 | Name owner goal A–D on redesign/capability work | Treat owners as loose assignees |
 | Typecheck + tests for touched packages; `check:boundaries` on import moves | Commit secrets / `.env*` with credentials; casual `db:reset` |
+| Update root `CHANGELOG.md` for every user-requested code, architecture, documentation, or operational delivery; update `docs/log.md` for documentation-bundle changes | Leave a delivery undocumented |
 | Preserve unrelated uncommitted work | Drive-by reverts outside task scope |
 
 **Owners:** A Maxine (UX) · B Francis (PMCM ops) · C Ethan (external portals) · D Anthony (platform trust).
@@ -54,19 +56,20 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 ```text
 apps/api/          Nest modular monolith + Prisma (port 4000)
   apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter)
-  libs/modules/    capability modules (controllers, mappers, ports, services, *.test.ts)
-  libs/shared/     ZodValidationPipe (`zodBody`), shared domain helpers
+    modules/       bounded contexts (api, application, contracts, domain, infrastructure as needed)
+    kernel/        database, shared helpers, session/auth primitives, access control, health
+    compatibility/ sample/demo compatibility routes only
   prisma/          schema + migrations
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
 packages/types       @prism/types     Zod write schemas + domain types + session keys
 packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsClient, PrismApiError
 packages/ui          shells/brand/public blocks only — no workflows / role data rules
 packages/tokens      theme + typography CSS (+ token object)
-docs/                product + architecture (see docs/README.md)
+docs/                OKF product, architecture, roadmap, runbook, and reference bundle (see docs/index.md)
 ```
 
-**Module map (writes):** `inquiry-onboarding`, `commercial-ops`, `supplier-ops`, `staffing-ops`, `finance-ops`, `compliance-ops`, `floorplan`, `file-ops`, `guest-ops`, `closure-ops`, `live-ops`, `event-core` (narrow lifecycle/commands), `access-control`, `identity-ops`, `trust-ops`, `notification-ops`, `ai-governance`, `sample-compatibility` (`/sample/*` only).  
-**Read-only composition:** `event-read-models` only. Full ownership: `docs/prism-v4/15-system-architecture.md`.
+**Bounded-context map (writes):** `event-lifecycle` (`onboarding`, `compliance`, `closure`, `files`), `commercial` (`quotes`, `suppliers`, `billing`), `operations` (`staffing`, `guest`), `floorplan` (`live`, `authoring`), `live-ops`, `identity-access`, and `platform-ops` (`trust`, `notifications`, `ai-governance`).
+**Read-only composition:** `read-models`. **Kernel:** `event-core`, `access-control`, `event-session`, `database`, `shared`, `shared-kernel`, and `health`. **Compatibility leaf:** `compatibility/sample` (`/sample/*` only). Full ownership: `docs/architecture/current-architecture.md`.
 
 **FE (new screens):** `page → View → ViewModel → use-case → data → @prism/api-client` (or thin portal adapter). No HTTP/rules in `page.tsx`. Prefer single-screen forms/lists over wizards unless requested.
 
@@ -89,7 +92,7 @@ Parse untrusted form/API body           →  parseContract / schema.safeParse (@
 HTTP                                    →  @prism/api-client in data/
 Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/dashboard-shell)
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
-Sample/mock-only / legacy compat        →  thin @/lib/prism-api (no type re-exports for new code)
+Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample` (API only); portal adapters remain thin
 ```
 
 **Portal `lib/prism-api` policy**
@@ -140,7 +143,7 @@ npm --workspace @prism/types run build|test|typecheck
 npm --workspace @prism/api-client run test
 ```
 
-**Env:** `apps/api/.env` ← `.env.example` (`SUPABASE_DB_URL`/`DATABASE_URL`, `DIRECT_URL` for migrations, `CORS_ORIGIN`, `PARE_MODE=mock`). Docker: `.env.docker` ← `.env.docker.example`. Portals: each `.env.example` → `.env.local`. **Never commit secrets.** Accounts: `docs/portal-accounts.md`.
+**Env:** `apps/api/.env` ← `.env.example` (`SUPABASE_DB_URL`/`DATABASE_URL`, `DIRECT_URL` for migrations, `CORS_ORIGIN`, `PARE_MODE=mock`). Docker: `.env.docker` ← `.env.docker.example`. Portals: each `.env.example` → `.env.local`. **Never commit secrets.** Accounts: `docs/runbooks/portal-accounts.md`.
 
 **Env limits:** live DB audits / `db:perf:report` need DB creds; `smoke:ui` needs running stack; Docker scripts need Desktop (or `-Local` / `dev:*`). Failures in typecheck, unit tests, boundaries, `prisma:validate` are real bugs.
 
@@ -172,7 +175,7 @@ export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
 | **Write / mutate** | Always Zod schema + `z.infer` in `@prism/types`. FE + Nest share it. |
 | **Read models** | TypeScript interfaces in `@prism/types` (`event-ops.ts`, etc.) until a boundary must validate them; then add Zod. |
 | **FE boundary** | `parseContract(schema, data, "Label")` or `schema.safeParse` in use-cases / form submit — never trust raw form objects. |
-| **Nest boundary** | `@Body(zodBody(schema))` from `@prism/shared` (`ZodValidationPipe`). Prefer over new `class-validator` DTOs. |
+| **Nest boundary** | `@Body(zodBody(schema))` from `@prism/kernel/shared` (`ZodValidationPipe`). Prefer over new `class-validator` DTOs. |
 | **Errors** | `safeParse` → 400 problem details / user-safe message; no raw `ZodError` to clients. |
 
 **Migrated Nest write surfaces (Zod):** inquiry create/status/conforme, guest check-in/feedback, supplier quote submit/revise, live-ops task/issue/attendance, supplier event-status.  
@@ -184,10 +187,10 @@ No OpenAPI/Kubb codegen today.
 
 ### API surface
 
-1. Own module under `libs/modules/<capability>/`.
+1. Own bounded context under `apps/api/src/modules/<bounded-context>/`; keep the module file and public `index.ts` at that boundary.
 2. **Zod contract in `@prism/types`** (write) before controller work.
 3. ports → services → thin controller (`zodBody` / legacy DTO) → mappers (no Prisma models as public API).
-4. Cross-domain **reads** via `event-read-models` readers only.
+4. Cross-domain **reads** via `read-models` readers only; writers expose focused contracts/ports from their public index.
 5. Portal HTTP via `@prism/api-client` (data layer).
 6. Co-located tests; **forbidden-role** cases on sensitive mutations.
 7. Docs/ledger updates only when governance requires (`10-…`, `11-feature-ledger.md`).
@@ -202,20 +205,26 @@ Naming (feature architecture): `features/<domain>/<action>/{model,view-models,vi
 
 ## Docs index (on demand)
 
-Full map: `docs/README.md`. **Build from living docs only.** Completed execution plans were removed; recover from git history if needed.
+Full map: `docs/index.md`. **Build from the semantic living bundle only.**
+Completed execution plans are promoted and removed; recover original working
+artifacts from Git history if forensic context is needed.
 
 | Need | Read |
 | --- | --- |
-| Docs map | `docs/README.md` |
-| Architecture | `docs/architecture.md` → `docs/prism-v4/15-system-architecture.md` |
-| Decisions / inventory | `11-feature-ledger.md`, `12-redesign-inventory.md`, `07-implemented-feature-revisions.md` |
-| Governance / readiness | `10-product-evolution-and-redesign-governance.md`, `14-redesign-readiness-foundation.md` |
-| Run / Docker / accounts | root `README.md`, `docs/docker-dev-testing-guide.md`, `docs/portal-accounts.md` |
-| Narrative / target | `16-actual-system.md`, `18-future-state.md` |
-| Baseline catalog | `01-complete-feature-catalog.md` (traceability; not a hard ceiling) |
-| Doc hygiene | `13-docs-cleanup-checklist.md` |
+| Docs map and reading order | `docs/index.md` |
+| Invariants and documentation rules | `docs/constitution.md` |
+| Architecture and context ownership | `docs/architecture/current-architecture.md` |
+| Architecture decisions and seams | `docs/architecture/decisions/` and `docs/architecture/context-contracts.md` |
+| Product decisions and implementation reality | `docs/product/feature-ledger.md`, `docs/product/actual-system.md` |
+| Governance and readiness | `docs/product/evolution-governance.md`, `docs/product/readiness-foundation.md` |
+| Redesign inventory and priority/risk matrix | `docs/product/redesign-inventory.md`, `docs/roadmap/architecture-priority-risk-matrix.md` |
+| Runbooks and demo accounts | `docs/runbooks/` |
+| Current system and target state | `docs/product/actual-system.md`, `docs/product/future-state.md` |
+| V4 baseline catalog | `docs/reference/prism-v4/complete-feature-catalog.md` (traceability; not a hard ceiling) |
 
-Paths under `docs/prism-v4/` unless noted. Drift → prefer `15` + `11`; smallest safe fix.
+Typed concept documents use OKF-style frontmatter with authority, owner, scope,
+and verification metadata plus an at-a-glance summary. Directory indexes are
+navigation only, and completed plans are not current sources of truth.
 
 ---
 

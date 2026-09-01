@@ -1,7 +1,0 @@
-export * from './identity-ops.module';
-export * from './controllers/auth.controller';
-export * from './dto/auth.dto';
-export * from './services/auth-operations.service';
-export * from './services/auth-security.service';
-export * from './services/totp.service';
-export * from '@prism/modules/event-session';
