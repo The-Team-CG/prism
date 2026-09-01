@@ -1,130 +1,129 @@
-# FE/BE Architecture — Priority & Risk Matrix
+# FE/BE Architecture — Priority and Risk Matrix
 
 **Date:** 2026-09-01
-**Companion to:** [`2026-09-01-fe-be-architecture-alignment.md`](./2026-09-01-fe-be-architecture-alignment.md)
+**Companion:** [`2026-09-01-fe-be-architecture-alignment.md`](./2026-09-01-fe-be-architecture-alignment.md)
 **Branch:** `codex/architecture-alignment-fe-be`
-**Purpose:** sequence every finding from the alignment review by priority and
-risk so work can be picked up as scoped, independently-shippable slices.
-**Update (2026-09-01, same day):** incorporated §4 of the alignment report —
-a cross-repo comparison against `alphaci-enterprise-fe`/`-be` (same author,
-same skills). That comparison provided working proof for `F4a` (route groups)
-and `B1` (domain layer), and added two new findings — `F5` (one-line barrel
-`page.tsx`) and `F6` (scope layouts to the route group, not globally) — which
-changes the FE sequencing below: `F4a` moves to P0 and `F6` is promoted to P1
-as the real prerequisite for `F4c` paying off.
+**Purpose:** sequence the completed work and every material follow-up found in
+the frontend/backend architecture review. This matrix is a delivery aid, not
+permission to perform the future FE work in the current BE change.
 
-## How to read this
+## Scoring
 
-- **Impact** — cost of *not* fixing it (drift, incidents, extraction cost).
-- **Fix risk** — chance the fix itself breaks something (URLs, behavior, data).
-- **Effort** — rough size as a standalone PR.
-- **Priority** — P0 (do first / blocking), P1 (do soon), P2 (opportunistic),
-  P3 (defer / informational only).
-- **Verification** — the minimum check required before calling it done, per
-  `AGENTS.md`'s "narrow → wide" rule and the `verification-before-completion`
-  discipline.
+- **Priority:** P0 = safety/blocker or prerequisite; P1 = do soon; P2 =
+  planned debt; P3 = monitor/opportunistic.
+- **Impact:** consequence of leaving the item unresolved.
+- **Fix risk:** chance the change itself regresses behavior.
+- **Effort:** XS, S, M, or L for an independently reviewable slice.
+- Every row needs the listed verification before it is marked complete.
 
----
+## Completed in the current backend consolidation
 
-## Priority 0 — do first (small, safe, unblocks nothing else but should not wait)
-
-| # | Item | Impact | Fix risk | Effort | Verification |
-| --- | --- | --- | --- | --- | --- |
-| B4 | Move `opsEvent` Prisma lookups out of `file-ops` and `floorplan` controllers into their existing services (`FileRequirementsMatrixService`, `FloorPlanWorkflowService`) | Medium — 2 of 41 controllers violate presentation/persistence separation; blocks clean extraction later | **Low** — mechanical move, same query, same return shape, both services already exist | XS (~30–60 min) | `npm run typecheck` (apps/api) + existing controller/service tests for both modules + `check-boundaries.mjs` |
-| FE-cleanup | Delete (or relocate) `apps/client/src/app/App.tsx` | Low — dead file outside App Router convention; confusing to new contributors | **Low** — confirmed zero importers anywhere in `apps/client/src` | XS (~10 min) | grep confirms no remaining references + `npm run build` (apps/client) |
-| F4a | Introduce route groups `(portal)/dashboard`, `(auth)/sign-in`+`sign-up` in all 4 apps — organization only, invisible in URL. **Promoted from P2**: `alphaci-enterprise-fe` runs this exact pattern in production today (`(access)`, `(platform)`, `(public)`) — it is proven, not speculative | Medium — makes the top-level route intent legible; currently auth and portal routes sit as unrelated siblings | **Low** — Next.js route groups are purely organizational, no URL change by definition; sibling repo is the working reference to copy from | S per app (~1–2 hrs each × 4 apps) | `npm run build` per app + manual click-through of sign-in → dashboard flow + confirm URLs identical via `smoke:ui` if stack is up |
-| F5 | Simplify shim `page.tsx` files to the one-line barrel re-export convention: `export { XView as default } from "@/features/.../x";` (matches `alphaci-enterprise-fe` exactly, and the skill's own 80% example) instead of `export default function Page() { return <XView />; }` | Low — pure style/ceremony reduction, no behavior change | **Very low** — mechanical, one line per file, TypeScript catches any export-name mismatch immediately | XS (~10 min per already-correct page; fold into F4a/F4c as those are touched rather than a standalone sweep) | `npm run typecheck` for the touched app |
-
-**Why P0:** all four are isolated or purely organizational, already have
-passing tests or a proven external reference to copy from, and reduce
-confusion for anyone touching those areas next. F4a and F5 do not require new
-design — the shape already exists and works in `alphaci-enterprise-fe`.
-
----
-
-## Priority 1 — do soon (real debt, contained blast radius, no design ambiguity)
-
-| # | Item | Impact | Fix risk | Effort | Dependencies | Verification |
-| --- | --- | --- | --- | --- | --- | --- |
-| F1 | Consolidate duplicated selectors: `event-workspace/shell/model` ↔ `event-dashboard/shell/model` ↔ `command-inbox/list/model` into one canonical home | Medium — active boundary-checker violation; every future selector change risks touching 3 files instead of 1 | **Medium** — used by the 941-line mega-VM (F3) and by `event-workspace` tests; needs careful re-export cleanup, not a rename | S–M (~half day) | None (do before F3, since F3's split is easier once selectors have one home) | `check-boundaries.mjs --paths features/event-dashboard,features/event-workspace,features/command-inbox` shows 0 findings + existing selector `.test.ts` files still pass + manual smoke of dashboard, workspace, command-inbox screens |
-| B1 | Add a thin `domain/` layer for `live-ops` (start here, not `supplier-ops`) — status-transition guards for `UrgentIssueStatus`, `LiveOpsEscalationLevel`, `LiveOpsSlaStatus` extracted from `event-core/ops.constants.ts` and inline service `if`-checks | High (strategic) — this module was already touched twice recently (PR #28, #29) and is the most state-machine-heavy path in the API; every future rule change currently means finding scattered `if`s | **Medium** — pure refactor if done as "extract, don't rewrite" (per `extract-module.md` anti-pattern: don't extract and rewrite simultaneously); risk is behavior drift if transition rules are subtly rephrased | M (~1 day) | None, but do before any new live-ops feature work so the new work lands on the improved shape | `npm run test:api` (live-ops suite) unchanged pass/fail count + new domain-layer unit tests for each transition guard + `check-boundaries.mjs` |
-| Merge | Merge `events`, `plans`, `templates`, `publishing` (4 Nest library modules, same-commit origin, 0 current FE callers) into one `floorplan-authoring` module (or fold into existing `floorplan`) | Medium — 4 modules doing 1 job inflates the "24 modules" cognitive load and the `nest-cli.json`/`app.module.ts` surface for no ownership benefit | **Low–Medium** — no active FE caller was found, but must confirm via API logs / any external consumer before deleting routes, not just static grep | M (~1 day, mostly module-registration + import-path churn) | Confirm zero external consumers first (see "before you start" below) | `npm run build && npm run typecheck` (apps/api) + `prisma:validate` (no schema change expected) + full `test:api` suite green + `check-boundaries.mjs` |
-| F6 | Scope dashboard layout composition to the route group/section that needs it (e.g. an `(portal)` shell layout for chrome shared by all sections, plus a per-section layout only where a section needs its own gate/header — following `alphaci-enterprise-fe`'s `(platform)/admin/layout.tsx` pattern of a scoped `<AdminGate>`), instead of one global `dashboard/layout.tsx` doing pathname-detection for every section via the 941-line VM | High — this is the actual structural prerequisite for F4c to pay off; without it, giving each section a real `page.tsx` (F4c) still leaves one monolithic layout doing all the section-switching work underneath | **Medium** — must not regress any section's current chrome/behavior; do after F1 (selectors) and alongside F3 (VM split), test each section's layout individually as it's carved out | M (~1 day, incremental per section as F4c proceeds — not a single big-bang PR) | Do after F1; pairs with F3 and directly enables F4c | Per-section manual QA as each layout is scoped out + existing `event-dashboard-shell-architecture.test.ts` + `check-boundaries.mjs` |
-
-**Why P1, not P0:** each has real design decisions (where exactly do the
-selectors live? which module absorbs the other three?) that benefit from a
-quick confirm before writing code, and touch more than one file/test.
-
-**Before you start the module merge:** grep alone found 0 FE callers for
-`/api/templates`, `/api/plans`, `/api/publish`, `/api/layout-events` — but
-that only proves no *static* caller in the 4 apps' `lib/prism-api.ts`. Check
-for: (a) any external/Postman/QA scripts, (b) any seed/fixture scripts under
-`apps/api/scripts` that hit these routes, (c) `docs/prism-v4/01-complete-feature-catalog.md`
-for whether these are documented as shipped-and-used features, before treating
-them as safe to fold together.
-
----
-
-## Priority 2 — opportunistic (real, but larger design surface or lower urgency)
-
-| # | Item | Impact | Fix risk | Effort | Dependencies | Verification |
-| --- | --- | --- | --- | --- | --- | --- |
-| F4b | Collapse literal enum-mirror folders into one dynamic segment where a closed value set already exists in code (e.g. `event` app's `clients/active|prospects|past|archived` → `clients/[clientView]` reusing the existing `CLIENT_LIST_ROUTE_ITEMS` map; `client` app's `events/upcoming|cancelled|completed|draft-requests|in-planning` → one dynamic segment) | Medium — removes ~10+ duplicate no-op shim files per app; makes adding a new filter a data change, not a new folder | **Medium** — must preserve every existing URL exactly (hard rule per `AGENTS.md`); do one filter family at a time with a redirect/alias check, not all at once | M (~half day per app, do incrementally) | Do after F1 (cleaner selector ownership makes this safer) | Route-by-route manual URL check (old path still resolves, same content) + `check-boundaries.mjs` + no change to `event-dashboard-routing.ts`'s public route-item exports |
-| F4c | For the `event` app specifically: let real `page.tsx` files render their matching feature view directly (per `feature-composition.md` and the one-line `export { X as default }` convention from F5) instead of `return null` + pathname-sniffing in `EventDashboardShellView`/the 941-line VM | High (structural) — this is the actual fix for "top app routes not optimized"; today the App Router's own matching is fully bypassed. `alphaci-enterprise-fe` proves the target shape works (every page there is a 1-line feature-view export) | **High** — this is the riskiest item in the whole matrix: it touches the rendering path for every dashboard screen in the largest, most-used portal | L (multi-day, must be done **one section at a time**, e.g. just `audit`, verify, then `calendar`, verify...) | **Do only after F1, F3, and F6** (selectors consolidated, mega-VM split by concern, layouts already scoped per section) — attempting this first multiplies the blast radius | Per-section: visual regression / manual QA of that one section + `check-boundaries.mjs --paths features/event-dashboard` + confirm `EventDashboardRouteView` shim count decreasing section by section, not all at once |
-| F3 | Split the 941-line `use-event-dashboard-shell-view-model.ts` by concern (nav/icon config vs. routing vs. dashboard data selection) | Low–Medium — no rule violation, but this file is the single largest source of merge-conflict risk and blocks F4c from being low-risk | **Medium** — large file, but splitting by already-distinct concern (imports are already grouped that way) is mechanical if selectors are consolidated first (F1) | M (~1 day) | Do after F1, before F4c | Existing `event-dashboard-shell-architecture.test.ts` still passes + `npm run test` for touched feature + manual smoke of dashboard shell |
-| B2 | Document owned/read-only Prisma tables per module (one paragraph per module, in-module README or `.module.ts` comment) | Medium (documentation debt, compounds over time) — currently no module states which Prisma models it's allowed to touch beyond its own | **Very low** — pure documentation, no code change | S (~1–2 hrs for all 24 modules, can be split module-by-module) | None | Peer review only — no automated check exists for this today; could seed a future `check-boundaries`-style script |
-| B1b | Extend the same `domain/` treatment (B1) to `supplier-ops` (`SupplierQuoteRequestStatus`, `SupplierQuoteStatus`, `SupplierVerificationStatus`, `SupplierTier` transitions) | High (strategic) — `supplier-ops` is the single largest module (29 files) with real invariants and zero domain code | **Medium** — same shape/risk as B1, larger surface (largest module) | L (~1–2 days) | Do after B1 (live-ops) proves the pattern | Same shape as B1: `test:api` (supplier-ops suite) + new domain unit tests + `check-boundaries.mjs` |
-
-**Correction (2026-09-01, during plan execution):** the B1b row above assumed
-`SupplierQuoteRequestStatus`, `SupplierQuoteStatus`, `SupplierVerificationStatus`,
-and `SupplierTier` transitions all live in `supplier-ops`. Execution found
-this was only true for `SupplierVerificationStatus` (supplier setup
-verification, correctly scoped in `supplier-ops`). The quote-request and
-quote lifecycle transitions (`SupplierQuoteRequestStatus`,
-`SupplierQuoteStatus`) actually live in
-`commercial-ops/src/services/commercial-workflow.service.ts`, not
-`supplier-ops`. The domain-layer extraction for those two enums was done
-against `commercial-ops` instead (3 policy functions:
-`isSupplierQuoteRequestClosed`, `isSupplierQuoteLocked`,
-`resolveExpiredQuoteRequestStatus`), verified with 12 new unit tests, the
-full 350-test backend suite, typecheck, and a clean boundary check. Any
-follow-up work on `SupplierTier` transitions, or on
-`SupplierVerificationStatus` inside `supplier-ops` itself, remains
-open and unstarted — it was not part of what B1b's premise actually pointed at.
-
----
-
-## Priority 3 — defer / informational only (no action needed now)
-
-| # | Item | Why deferred |
+| ID | Completed item | Evidence / residual note |
 | --- | --- | --- |
-| F2 | `event-ops` facade fan-in (6 domains importing one thin I/O barrel) | Not a rule violation today (barrel-only imports, boundary checker passes). Correct move is passive: stop adding a 7th consumer, migrate opportunistically when those domains are next touched for other reasons. No standalone PR justified. |
-| B3 | `sample-compatibility` importing 18/24 modules | Confirmed intentional and correctly scoped behind its own `/sample/*` route prefix per `AGENTS.md`. Not a finding — informational only, kept here so it isn't miscounted as an anti-pattern later. |
-| Platform relabel | Visually separating `health`/`event-session` from business modules (e.g. a `platform/` grouping in `nest-cli.json`) | Nice-to-have organizational clarity, zero functional impact, no urgency. Bundle into the P1 module-merge PR if convenient, otherwise skip. |
+| BE-C1 | Consolidated commercial + supplier + finance ownership into `apps/api/apps/api/src/modules/commercial` | One `commercial.module.ts` and `index.ts`; `quotes`, `suppliers`, and `billing` remain explicit sub-areas. |
+| BE-C2 | Consolidated inquiry/onboarding + compliance + closure + files into `modules/event-lifecycle` | Routes and behavior preserved; file requirements remains a lifecycle sub-area. |
+| BE-C3 | Consolidated floorplan plus events/plans/templates/publishing into `modules/floorplan` | Live and authoring sub-areas; no route deletion. |
+| BE-C4 | Consolidated staffing + guest into `modules/operations`; kept `live-ops` separate | Avoids the circular dependency found when live-ops consumes read models. |
+| BE-C5 | Consolidated trust + notifications + AI governance into `modules/platform-ops` | Public context boundary; future split requires an explicit ownership decision. |
+| BE-C6 | Rehomed `event-read-models` as read-only `modules/read-models` | Queries/mappers/services are grouped under `application`; no writes allowed. |
+| BE-C7 | Moved event-core, access-control, event-session, database, health, shared, and shared-kernel under `src/kernel` | Technical primitives are visibly separate from business contexts. |
+| BE-C8 | Isolated sample compatibility at `src/compatibility/sample` | `/sample/*` remains the only broad aggregate compatibility boundary. |
+| BE-C9 | Removed per-library Nest CLI projects and old `apps/api/libs` source roots | One Nest API source tree; public context aliases and indices are the supported surface. |
+| BE-C10 | Added/updated executable boundary checks | Backend skill checker: 0 errors/0 warnings; repository tests: 6 passed. |
+| BE-C11 | Fixed controller persistence leak | File-requirements and floorplan controllers delegate `opsEvent` lookup to services; B4 is closed. |
+| BE-C12 | Added progressive domain policies | `live-ops/domain` and `commercial/domain` contain pure invariant policies; no empty DDD ceremony added. |
 
----
+**Completed-work verification:** API typecheck, Nest build, Prisma validation,
+full API suite (80 files / 350 tests), backend boundary checker, and repository
+boundary tests passed during the source relocation. The final delivery audit
+must rerun the repository scan after staging.
 
-## Suggested execution order (respecting dependencies above)
+## Priority 0 — protect behavior and unblock the next slices
+
+| ID | Work | Impact | Fix risk | Effort | Dependencies | Required verification |
+| --- | --- | --- | --- | --- | --- | --- |
+| F4a | Add invisible `(auth)` and `(portal)` route groups in each portal | Medium — top-level intent is currently flat and hard to navigate | Low if URLs are unchanged | S per app | None; do one app per PR | App typecheck/build; route-by-route URL comparison; auth → dashboard manual flow; boundary check |
+| F5 | Use one-line feature-view exports for pages that are only wrappers | Low — removes route ceremony and matches the proven reference pattern | Very low | XS–S | Fold into F4a/F4c, not a speculative sweep | Touched-app typecheck/build; exact routes render the same view |
+| FE-cleanup | Confirm and remove `apps/client/src/app/App.tsx` if still unreferenced | Low — dead App Router-adjacent file confuses ownership | Very low | XS | Re-run import search first | No importers; client typecheck/build |
+| BE-guard | Preserve the new source boundary for all new backend changes | High — regression would recreate the 22-root problem | Low | Ongoing | None | `check-prism-boundaries.mjs`, backend skill checker, no old tracked roots |
+
+**P0 rule:** route groups are organization only. Do not combine them with a
+rendering rewrite or change any URL in the same commit.
+
+## Priority 1 — remove active boundary and composition debt
+
+| ID | Work | Impact | Fix risk | Effort | Dependencies | Required verification |
+| --- | --- | --- | --- | --- | --- | --- |
+| F1 | Move shared event selectors out of deep `event-workspace`/`command-inbox` internals into one canonical domain/read-model home | Medium — current hard FE boundary violation and duplicated selector ownership | Medium | S–M | None; do before F3/F4c | FE boundary checker 0 findings for the three features; selector tests; dashboard/workspace/inbox smoke |
+| F6 | Scope `event` layouts to route group/section ownership instead of global pathname detection | High — prerequisite for real route pages and smaller VMs | Medium | M | F1 recommended; preserve shell behavior section-by-section | Existing dashboard architecture tests; manual QA per section; boundary check |
+| F3 | Split 941-line `use-event-dashboard-shell-view-model.ts` by routing/nav, configuration, and read-model coordination | Medium — merge-conflict and change-risk hotspot | Medium | M | F1 first; pair with F6 | VM/feature tests; typecheck; dashboard manual smoke; no HTTP in VM |
+| F4c | Replace `event` no-op pages and pathname-sniffed rendering with real per-section feature-view pages | High — App Router currently does not own rendering | High | L, one section at a time | F1 + F3 + F6 | Visual/manual regression per section; URL preservation; feature boundary check; route smoke |
+| B5 | Invert `kernel/access-control` → `platform-ops` audit dependency through a focused audit-writer port | High strategic — kernel cannot be extracted cleanly while it imports business platform code | Medium–high | M | Decide port ownership and composition-root wiring first | API tests including audit; backend boundary rule for kernel direction; typecheck/build |
+| B6 | Write owned/read-only Prisma table notes per context and define intentional cross-context joins | Medium–high — shared DB can hide accidental coupling | Low | S–M | Use final context grouping | Review each context module; query audit; future static ownership rule proposal |
+| BE-compat | Verify all public alias consumers use context indices, not private paths | High — protects future extraction seams | Low | S | After any backend move | `rg` for private imports; root and backend boundary checks; full API test suite |
+
+## Priority 2 — planned structural and domain improvements
+
+| ID | Work | Impact | Fix risk | Effort | Dependencies | Required verification |
+| --- | --- | --- | --- | --- | --- | --- |
+| F4b | Collapse literal closed-value filter folders into `[filter]`/query state where URLs can remain compatible | Medium — fewer duplicate route shims and less route metadata | Medium | M per portal/family | F1; route inventory and compatibility decision | Old URLs resolve identically; new route tests; manual filter checks; boundary check |
+| B7 | Decide whether `platform-ops` should later split into trust, notifications, and AI governance contexts | Medium — broad ownership may become a future extraction bottleneck | Medium | S design, M implementation if approved | B6 and ownership review; no split by aesthetics | ADR/ledger update; focused public ports; full API suite and boundary checks |
+| B8 | Migrate remaining legacy class-validator write surfaces to `@prism/types` Zod schemas and `zodBody` when touched | Medium — duplicate contract definitions and inconsistent error boundaries | Medium | S per surface | Do with feature work, not a blind rewrite | Types build; API/FE contract tests; forbidden-role tests; typecheck |
+| B9 | Add more domain policies where invariants justify them, especially supplier verification and event lifecycle rules | High over time — rules otherwise drift into services | Medium | S–M per policy | Use live-ops/commercial pattern; identify invariant first | Pure unit tests; unchanged service tests; no Prisma/HTTP imports in domain |
+| B10 | Move any remaining broad workflow aggregation behind focused context ports | Medium — public context imports can still be too coarse for extraction | Medium | M per seam | B5/B6 ownership map | Dependency graph; DI tests; context boundary check |
+| F2 | Gradually replace `event-ops` FE facade consumers with feature-local `data/` adapters | Low–medium — prevents a new FE god hub | Low–medium | S per consumer | Only when consumer is already being changed | No direct HTTP in view/VM; feature boundary checker; focused UI smoke |
+
+## Priority 3 — monitor / do not create standalone work yet
+
+| ID | Item | Why it stays deferred |
+| --- | --- | --- |
+| FE-parallel | Parallel/intercepting route conventions | No current product requirement; route groups and real pages solve the observed problem first. |
+| FE-template | `template.tsx` transitions copied from AlphaCI | Useful only after route ownership is corrected; not an architecture prerequisite. |
+| BE-provider | Generic provider registry for every adapter | Copy AlphaCI's registry only when Prism has a genuine swappable notification/storage/deployment provider. |
+| BE-service-split | Deploy a context as an independent microservice | Shared DB, auth, audit, and runtime contracts are not yet an operational boundary; extraction is a later product/operations decision. |
+| UI-redesign | Broad visual redesign during route refactor | Keep route/architecture changes behavior-preserving and separately reviewable. |
+
+## Risk matrix by failure mode
+
+| Risk | Likelihood | Impact | Mitigation / owner |
+| --- | --- | --- | --- |
+| FE route refactor changes a public URL | Medium | High | Owner C/B; route groups first, URL snapshot/manual checks, one route family per PR. |
+| Event dashboard sections regress during real-page extraction | Medium | High | Owner B; F1 → F6 → F3 → F4c order, per-section rollout and smoke. |
+| A context becomes a new god module | Medium | High | Owner D; require a named owner goal, sub-area folders, public index, and focused ports before adding behavior. |
+| Shared Prisma writes cross ownership boundaries | Medium | High | Owner D; B6 ownership notes, read-model write prohibition, query audit, forbidden-role tests. |
+| Kernel depends on business contexts | Current | High | Owner D; track B5 and block independent extraction until audit seam is inverted. |
+| Stale generated types break API/portal builds | Medium | Medium | Rebuild `@prism/types` after contract changes; run touched workspace typechecks. |
+| Broad sample state becomes the normal product API | Low–medium | High | Keep sample under `compatibility/sample`; reject new role-feature callers in review/checker. |
+| Docs and source tree drift | Medium | Medium | Update `AGENTS.md`, canonical architecture, ledger, report, matrix, and plan in the same architecture PR. |
+
+## Recommended execution order
 
 ```text
-1. B4    — fix 2 controllers' Prisma access           (P0, standalone)
-2. FE-cleanup — delete apps/client/src/app/App.tsx    (P0, standalone)
-3. F4a   — route groups (portal)/(auth) in all 4 apps   (P0, standalone, proven pattern — do early for a quick safe win)
-4. F5    — one-line barrel page.tsx convention           (P0, fold into F4a's per-app pass)
-5. F1    — consolidate event-dashboard/workspace/command-inbox selectors (P1)
-6. B1    — live-ops domain layer                         (P1, standalone)
-7. Merge — events+plans+templates+publishing              (P1, confirm no external caller first)
-8. F6    — scope dashboard layouts per route group/section (P1, needs F1 done, pairs with F3)
-9. F3    — split the 941-line mega-VM                     (P2, needs F1 done, pairs with F6)
-10. F4b  — collapse literal filter folders into [param]   (P2, needs F1 done, do one family at a time)
-11. F4c  — real per-section pages in event app             (P2, needs F1+F3+F6 done, do one section at a time)
-12. B1b  — commercial-ops quote-request domain layer (actual module; see correction) (P2, needs B1 pattern proven)
-13. B2   — document owned/read-only tables per module      (P2, anytime, no dependency)
+Completed: BE-C1..BE-C12
+
+1. FE-cleanup + F4a + F5       route organization only, one portal at a time
+2. F1                          canonicalize event selectors
+3. F6                          scope event layouts
+4. F3                          split the event dashboard VM
+5. F4c                         real event section pages, one section at a time
+6. F4b                         dynamic/filter route cleanup after URL evidence
+7. B6                          table ownership ledger and intentional-join notes
+8. B5                          invert kernel audit dependency
+9. B8/B9/B10                   opportunistic contract, domain, and port hardening
+10. B7/F2                      split platform or retire FE facade only when evidence justifies it
 ```
 
-Note: F4a and F5 do not block or get blocked by anything else in this list —
-they are listed early because `alphaci-enterprise-fe` proves them out, not
-because anything downstream depends on them. F6 is the key addition from the
-cross-repo comparison: without scoping layouts per route group first, F4c
-(splitting the shim pages) would not actually remove the pathname-sniffing
-problem — it would just move it.
+## Definition of done for the full plan
+
+- All four portals use a legible, URL-preserving route-group/page structure.
+- `event` has no deep cross-feature import and no pathname-sniffing mega-shell.
+- Dashboard VM responsibilities are split by concern and remain free of HTTP.
+- Every backend context has one composition root and public index; kernel and
+  compatibility boundaries remain intact.
+- Context-crossing production code uses public indices, serializable contracts,
+  or focused ports; read models remain read-only.
+- Domain policies are pure and tested where invariants justify them.
+- API typecheck, build, full tests, Prisma validation, both boundary checks,
+  route/UI smoke, and `git diff --check` pass for the final release slice.
+- The remote branch tip equals the local HEAD after push; no claim of staging or
+  production deployment is made without environment evidence.

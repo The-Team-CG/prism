@@ -1,9 +1,0 @@
-{
-  "extends": "../../../../tsconfig.json",
-  "compilerOptions": {
-    "declaration": true,
-    "outDir": "../../../../dist/libs/contexts/operations"
-  },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
-}

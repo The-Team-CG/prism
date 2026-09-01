@@ -9,7 +9,7 @@ Follow this file first. Deepen only via the docs index below when incomplete or 
 | --- | --- |
 | Feature branch + PR; conventional commits (`feat:`, `fix:`, `refactor:`, …) | Push / force-push `main`; amend published commits without ask |
 | **Shared contracts: Zod schema + `z.infer` in `@prism/types` only** | Parallel hand types; `as any`; app-local shared schemas; type-only DTOs without schema |
-| Own API work in `apps/api/libs/modules/<capability>/` | God `event-ops` hub; private cross-module service imports |
+| Own API work in `apps/api/apps/api/src/modules/<bounded-context>/`; keep cross-cutting concerns in `src/kernel/` | God `event-ops` hub; private cross-context service imports |
 | Role app for the actor; thin `app/` routes; logic in `features/` | Rebuild `apps/client` as all-role PMCM shell; cross-import apps |
 | Scoped APIs + package contracts for new surfaces | Primary path via `/api/sample/state` or local sample state |
 | Session/sample keys only in `@prism/types` | New app-local `prism:*` storage keys |
@@ -54,8 +54,9 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 ```text
 apps/api/          Nest modular monolith + Prisma (port 4000)
   apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter)
-  libs/modules/    capability modules (controllers, mappers, ports, services, *.test.ts)
-  libs/shared/     ZodValidationPipe (`zodBody`), shared domain helpers
+    modules/       bounded contexts (api, application, contracts, domain, infrastructure as needed)
+    kernel/        database, shared helpers, session/auth primitives, access control, health
+    compatibility/ sample/demo compatibility routes only
   prisma/          schema + migrations
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
 packages/types       @prism/types     Zod write schemas + domain types + session keys
@@ -65,8 +66,8 @@ packages/tokens      theme + typography CSS (+ token object)
 docs/                product + architecture (see docs/README.md)
 ```
 
-**Module map (writes):** `inquiry-onboarding`, `commercial-ops`, `supplier-ops`, `staffing-ops`, `finance-ops`, `compliance-ops`, `floorplan`, `file-ops`, `guest-ops`, `closure-ops`, `live-ops`, `event-core` (narrow lifecycle/commands), `access-control`, `identity-ops`, `trust-ops`, `notification-ops`, `ai-governance`, `sample-compatibility` (`/sample/*` only).  
-**Read-only composition:** `event-read-models` only. Full ownership: `docs/prism-v4/15-system-architecture.md`.
+**Bounded-context map (writes):** `event-lifecycle` (`onboarding`, `compliance`, `closure`, `files`), `commercial` (`quotes`, `suppliers`, `billing`), `operations` (`staffing`, `guest`), `floorplan` (`live`, `authoring`), `live-ops`, `identity-access`, and `platform-ops` (`trust`, `notifications`, `ai-governance`).
+**Read-only composition:** `read-models`. **Kernel:** `event-core`, `access-control`, `event-session`, `database`, `shared`, `shared-kernel`, and `health`. **Compatibility leaf:** `compatibility/sample` (`/sample/*` only). Full ownership: `docs/prism-v4/15-system-architecture.md`.
 
 **FE (new screens):** `page → View → ViewModel → use-case → data → @prism/api-client` (or thin portal adapter). No HTTP/rules in `page.tsx`. Prefer single-screen forms/lists over wizards unless requested.
 
@@ -89,7 +90,7 @@ Parse untrusted form/API body           →  parseContract / schema.safeParse (@
 HTTP                                    →  @prism/api-client in data/
 Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/dashboard-shell)
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
-Sample/mock-only / legacy compat        →  thin @/lib/prism-api (no type re-exports for new code)
+Sample/mock-only / legacy compat        →  `apps/api/apps/api/src/compatibility/sample` (API only); portal adapters remain thin
 ```
 
 **Portal `lib/prism-api` policy**
@@ -172,7 +173,7 @@ export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
 | **Write / mutate** | Always Zod schema + `z.infer` in `@prism/types`. FE + Nest share it. |
 | **Read models** | TypeScript interfaces in `@prism/types` (`event-ops.ts`, etc.) until a boundary must validate them; then add Zod. |
 | **FE boundary** | `parseContract(schema, data, "Label")` or `schema.safeParse` in use-cases / form submit — never trust raw form objects. |
-| **Nest boundary** | `@Body(zodBody(schema))` from `@prism/shared` (`ZodValidationPipe`). Prefer over new `class-validator` DTOs. |
+| **Nest boundary** | `@Body(zodBody(schema))` from `@prism/kernel/shared` (`ZodValidationPipe`). Prefer over new `class-validator` DTOs. |
 | **Errors** | `safeParse` → 400 problem details / user-safe message; no raw `ZodError` to clients. |
 
 **Migrated Nest write surfaces (Zod):** inquiry create/status/conforme, guest check-in/feedback, supplier quote submit/revise, live-ops task/issue/attendance, supplier event-status.  
@@ -184,10 +185,10 @@ No OpenAPI/Kubb codegen today.
 
 ### API surface
 
-1. Own module under `libs/modules/<capability>/`.
+1. Own bounded context under `apps/api/apps/api/src/modules/<bounded-context>/`; keep the module file and public `index.ts` at that boundary.
 2. **Zod contract in `@prism/types`** (write) before controller work.
 3. ports → services → thin controller (`zodBody` / legacy DTO) → mappers (no Prisma models as public API).
-4. Cross-domain **reads** via `event-read-models` readers only.
+4. Cross-domain **reads** via `read-models` readers only; writers expose focused contracts/ports from their public index.
 5. Portal HTTP via `@prism/api-client` (data layer).
 6. Co-located tests; **forbidden-role** cases on sensitive mutations.
 7. Docs/ledger updates only when governance requires (`10-…`, `11-feature-ledger.md`).

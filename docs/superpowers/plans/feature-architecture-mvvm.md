@@ -26,7 +26,7 @@ with slices under `apps/<portal>/src/features/<domain>/<action>/`:
 
 ## Non-goals
 
-- API / Nest / Prisma rewrites (already modular under `apps/api/libs/modules/*`)
+- API / Nest / Prisma rewrites (the current backend context source tree is under `apps/api/apps/api/src/modules/*`; kernel primitives are under `src/kernel/*`)
 - Cross-app shared feature packages (share contracts via `@prism/types` only)
 - Visual redesign, wizardization of simple forms
 - Empty `views/steps/` “for later”

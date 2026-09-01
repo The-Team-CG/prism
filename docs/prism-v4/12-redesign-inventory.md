@@ -1,6 +1,6 @@
 # P.R.I.S.M Whole-App Redesign Inventory
 
-Last updated: 2026-07-16
+Last updated: 2026-09-01
 
 This inventory classifies current app surfaces by redesign severity so owners can work in parallel without turning P.R.I.S.M back into an all-role shell. Owner labels refer to the system goals in `AGENTS.md`: Owner A is Maxine, Owner B is Francis, Owner C is Ethan, and Owner D is Anthony.
 
@@ -22,7 +22,7 @@ Severity scale:
 | `apps/event` | PMCM admin and coordinator command app | Large dashboard with many filtered subroutes plus selected event workspace | S3 | Owner B (Francis) | Make PMCM and coordinator operations executable from command surfaces. | Event Command Inbox is now consumed by shell actions; selected event sections now prefer `PrismPmcmEventWorkspace`; event messages now have a route-owned workspace component. Continue workspace IA, staffing/live-ops redesign, and route consolidation. |
 | `apps/supplier` | Supplier portal | Landing, sign-in, dashboard | S2 | Owner C (Ethan) | Make supplier work limited to quote, assignment, contract, readiness, and event-day status. | Supplier Readiness Board is now visible on the dashboard; continue supplier application/status depth while preserving supplier-scoped data. |
 | `apps/guest` | Lightweight guest portal | Landing, sign-in, open code, dashboard | S1/Gate | Owner C (Ethan) | Make guest access low-friction, consented, and event-code scoped. | Use the shared Guest Event Pass contract. Keep lightweight. Gate QR/camera and media upload until HTTPS, consent, upload, and moderation are ready. |
-| `apps/api` | Shared NestJS API | Capability modules under `libs/modules/*` plus plans/templates/publishing/health | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Highest-impact architecture hardening is the baseline; policy tests cover PMCM command inbox, client action center, supplier readiness board, official floorplan mutation, internal-cost/privacy denials, event scoping, and File Requirements Matrix role visibility. Continue contract consolidation, scoped APIs, policy tests, adapter boundaries, and modular-monolith guardrails in `15-system-architecture.md`. |
+| `apps/api` | Shared NestJS API | One Nest source tree with DDD-shaped contexts under `apps/api/apps/api/src/modules/*`, kernel primitives under `src/kernel/*`, and `/sample/*` compatibility under `src/compatibility/sample` | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Backend context consolidation is implemented: eight context roots, seven kernel concerns, one compatibility leaf, public indices, and executable boundary checks. Continue contract consolidation, table ownership, focused ports, and modular-monolith guardrails in `15-system-architecture.md`. |
 | `packages/ui` | Shared presentation system | App shell, public shell, primitives, blocks, client/public blocks | S1 | Owner A (Maxine) | Make shared presentation patterns coherent without absorbing workflow logic. | Keep presentation-only. Continue component consolidation through actual app needs. |
 | `packages/types` | Shared contracts | Lifecycle and event-ops types | S2 | Owner D (Anthony) | Make shared contracts the source of truth for role-safe app/API integration. | Expand route/feature contracts before large app redesign. |
 | `packages/api-client` | Shared request helpers | Event-ops client and HTTP helper | S1 | Owner D (Anthony) | Make app data access typed, scoped, and migration-safe. | Keep stable, add typed clients when app surfaces stop using broad state. |
@@ -91,8 +91,8 @@ Severity scale:
 
 | Area | Current files | Severity | Redesign direction | Owner |
 | --- | --- | --- | --- | --- |
-| Capability API modules | `apps/api/libs/modules/<capability>/` | S2 | Keep write ownership in capability modules; compose cross-domain reads only in `event-read-models`; sample demo paths stay in `sample-compatibility`. See `15-system-architecture.md`. | D |
-| Plans/templates/publishing modules | `apps/api/libs/modules/plans`, `templates`, `publishing` | S1/S2 | Keep if active; verify they map to real product workflows or fold into templates/document operations. | D |
+| Backend bounded contexts | `apps/api/apps/api/src/modules/<context>/` | S2 | Keep write ownership inside the owning context; compose cross-domain reads only in `modules/read-models`; expose only public indices, serializable contracts, or focused ports. | D |
+| Backend kernel/compatibility | `apps/api/apps/api/src/kernel/<concern>/`, `apps/api/apps/api/src/compatibility/sample/` | S2 | Keep database, event-core, access/session primitives, health, and shared helpers out of business contexts; keep sample aggregation behind `/sample/*`. | D |
 | Shared UI | `packages/ui/src/*` | S1 | Keep presentation-only; add app-specific blocks only after route inventory demands them. | A |
 | Shared contracts | `packages/types/src/*` | S2 | PMCM command inbox, selected-event workspace, client action-center, supplier readiness-board, guest event pass, and file matrix contracts exist. File UI may use `PrismFileRequirementsMatrix` for metadata status and visibility; upload-session, signed URL, retry, progress, and bulk upload UI are blocked until the storage adapter contract is approved and tested. | D |
 | API client | `packages/api-client/src/*` | S1 | PMCM command inbox, selected-event workspace, client action-center, and supplier readiness-board helpers now exist; keep removing broad state usage gradually. | D |

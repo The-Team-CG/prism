@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
 
 const rootPath = fileURLToPath(new URL('../../../', import.meta.url));
-const sourceRoot = join(rootPath, 'apps', 'api', 'libs', 'modules', 'event-ops', 'src');
+const sourceRoot = join(rootPath, 'apps', 'api', 'apps', 'api', 'src');
 
 function collectTypeScriptFiles(dir) {
   const files = [];
@@ -72,4 +72,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`DB query audit passed for ${files.length} event-ops source files.`);
+console.log(`DB query audit passed for ${files.length} API source files.`);

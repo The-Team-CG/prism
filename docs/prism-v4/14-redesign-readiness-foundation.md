@@ -1,6 +1,6 @@
 # P.R.I.S.M Redesign Readiness Foundation
 
-Last updated: 2026-07-16
+Last updated: 2026-09-01
 
 This document defines durable platform rules for redesign and new feature work. It does not replace the feature ledger or architecture docs. It states sample-state fencing, session conventions, owner boundaries, contract gates, and legacy-removal conditions so any contributor can start without prior chat or sprint context.
 
@@ -32,7 +32,7 @@ Redesign and new surfaces should not start from ambiguous product truth, broad d
 | Owner A | Maxine | Make all role surfaces feel like one coherent PMCM operating system while preserving role-specific workflows. | `packages/ui`, design tokens, route inventory, status language, shared shell patterns. | Put workflow logic into `packages/ui` or create visual patterns that contradict app boundaries. |
 | Owner B | Francis | Make PMCM/coordinator work executable from inquiry through event day and archive. | `apps/event`, PMCM/coordinator scoped API calls, event workspace route inventory. | Move PMCM-only command behavior into `apps/client` or expose internal state externally. |
 | Owner C | Ethan | Make external portals narrow, safe, mobile-ready action surfaces. | `apps/client`, `apps/supplier`, `apps/guest`, public and external portal contracts. | Let external portals read PMCM-only state, mutate official floorplans directly, or depend on broad sample state. |
-| Owner D | Anthony | Make platform behavior trustworthy through contracts, permissions, audit, notifications, file/lifecycle services, tests, and docs. | `apps/api`, `packages/types`, `packages/api-client`, boundary checks, scoped controllers. | Expand `EventOpsService` or `/api/sample/state` as the default path for new surfaces. |
+| Owner D | Anthony | Make platform behavior trustworthy through contracts, permissions, audit, notifications, file/lifecycle services, tests, and docs. | `apps/api`, `packages/types`, `packages/api-client`, bounded-context/kernel boundaries, scoped controllers. | Expand `/api/sample/state` or recreate a centralized backend/portal god facade as the default path for new surfaces. |
 
 ## Sample-State Rule
 
@@ -211,7 +211,7 @@ Every PMCM-to-portal or portal-to-PMCM data flow must name these fields before a
 | Client local sample state | Fenced behind client API adapter. | Local fallback is removed after client portal reads only API-backed scoped workspaces in all supported modes. |
 | Mock client auth keys | Marked legacy and migrated by the shared reader when explicitly allowed. | Client session uses the same platform session contract as other apps. |
 | Literal session storage keys and copied localStorage mechanics | Replaced with shared constants and `readPrismSession`/`savePrismSession`/`clearPrismSession`. | External auth/session provider replaces localStorage behind the shared contract. |
-| `EventOpsService` broad orchestration | Keep extracting service boundaries and app-side feature hooks/components. | Event ops facade delegates domain behavior and PMCM screens consume focused feature hooks/selectors/components for public entry, selected-event workspace, live-ops/readiness, approval requests, admin approvals, floorplans, briefing, supplier quote planning, event messages, loading state, dashboard skeleton states, route-to-shell metadata, and action orchestration instead of broad page-owned workflow logic. |
+| Legacy backend/portal god facades | Backend workflows now live in DDD-shaped contexts; the remaining FE `event-ops` adapter is compatibility-only and must not grow. | Keep new backend work under `apps/api/apps/api/src/modules/*` or `src/kernel/*`; keep portal I/O in feature `data/` and replace the FE facade opportunistically when a consumer is already being changed. |
 | PARE/mock adapter defaults | Keep dev/test-only. | Live/test adapter modes are explicit and verified. |
 | Generated temp logs | Ignore `.tmp/`. | Dev scripts write only to ignored local output paths. |
 

@@ -1,0 +1,84 @@
+import 'reflect-metadata';
+import { describe, expect, it, vi } from 'vitest';
+import { OpsUserRole } from '@prism/kernel/event-core';
+import { OpsEventFloorplansController } from './event-floorplans.controller';
+
+function controllerPath(controller: Function): string {
+  return Reflect.getMetadata('path', controller);
+}
+
+const verifiedPmcmActor = { id: 'user_pmcm', actorId: 'user_pmcm', role: OpsUserRole.PmcmAdmin, actorRole: OpsUserRole.PmcmAdmin, email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' };
+
+function createController() {
+  const floorPlanWorkflowService = {
+    createFloorPlanDraft: vi.fn(async () => ({ id: 'fpd_new' })),
+    createFloorPlanPreference: vi.fn(async () => ({ id: 'fpd_pref' })),
+    submitFloorPlanDraft: vi.fn(async () => ({ id: 'fpd_new', status: 'submitted' })),
+    approveFloorPlanDraft: vi.fn(async () => ({ id: 'fpd_new', status: 'approved' })),
+    getFloorPlanSnapshot: vi.fn(async () => ({ objects: [] })),
+    requireEvent: vi.fn(async () => ({ id: 'evt_sample', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' })),
+  };
+  const eventAccessPolicyService = {
+    resolveActor: vi.fn((input: any = {}, verified?: any) => ({ role: verified?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin, name: verified?.actorName ?? input.actorName ?? 'Maxine' })),
+    requireCanMutateOfficialFloorplan: vi.fn(async () => undefined),
+    requireActorRole: vi.fn(async () => undefined),
+    canReadEvent: vi.fn(() => true),
+    recordForbiddenAccess: vi.fn(async () => undefined),
+  };
+  const controller = new OpsEventFloorplansController(
+    floorPlanWorkflowService as any,
+    eventAccessPolicyService as any,
+  );
+  return { controller, floorPlanWorkflowService, eventAccessPolicyService };
+}
+
+describe('OpsEventFloorplansController', () => {
+  it('keeps event floorplan routes under the events route base', () => {
+    expect(controllerPath(OpsEventFloorplansController)).toBe('events');
+  });
+
+  it('does not inject PrismaService into the controller', () => {
+    const { controller } = createController();
+    expect((controller as unknown as Record<string, unknown>).prisma).toBeUndefined();
+  });
+
+  it('serves official floorplan commands through FloorPlanWorkflowService with route policy', async () => {
+    const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
+    await expect(controller.createFloorPlanDraft('evt_sample', { name: 'Official', sourceType: 'blank' }, verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new' });
+    await expect(controller.submitFloorPlanDraft('evt_sample', 'fpd_new', verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new', status: 'submitted' });
+    await expect(controller.approveFloorPlanDraft('evt_sample', 'fpd_new', verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new', status: 'approved' });
+
+    expect(eventAccessPolicyService.requireCanMutateOfficialFloorplan).toHaveBeenCalledTimes(3);
+    expect(floorPlanWorkflowService.createFloorPlanDraft).toHaveBeenCalledWith('evt_sample', { name: 'Official', sourceType: 'blank' }, { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
+    expect(floorPlanWorkflowService.submitFloorPlanDraft).toHaveBeenCalledWith('evt_sample', 'fpd_new', { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
+    expect(floorPlanWorkflowService.approveFloorPlanDraft).toHaveBeenCalledWith('evt_sample', 'fpd_new', { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
+  });
+
+  it('serves client preferences and snapshots through floorplan ownership', async () => {
+    const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
+    const actor = { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes', clientName: 'Ana Reyes' };
+
+    await expect(
+      controller.createFloorPlanPreference(
+        'evt_sample',
+        { name: 'Client Preference', seatingStyle: 'banquet', stagePreference: 'front', flowNotes: 'Wide aisle', guestCount: 120, constraints: [] },
+        actor,
+      ),
+    ).resolves.toEqual({ id: 'fpd_pref' });
+    await expect(controller.getFloorPlanSnapshot('evt_sample', 'fpd_pref', { ...actor, type: 'submitted' }, verifiedPmcmActor as any)).resolves.toEqual({ objects: [] });
+
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
+      { role: OpsUserRole.Client, name: 'Ana Reyes' },
+      [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'client floorplan preference',
+      'evt_sample',
+    );
+    expect(floorPlanWorkflowService.requireEvent).toHaveBeenCalledWith('evt_sample');
+    expect(floorPlanWorkflowService.createFloorPlanPreference).toHaveBeenCalledWith(
+      'evt_sample',
+      expect.objectContaining({ name: 'Client Preference' }),
+      { name: 'Ana Reyes', role: OpsUserRole.Client },
+    );
+    expect(floorPlanWorkflowService.getFloorPlanSnapshot).toHaveBeenCalledWith('evt_sample', 'fpd_pref', 'submitted');
+  });
+});

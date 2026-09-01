@@ -69,9 +69,9 @@ Signing into the wrong portal with a valid account from another role returns a p
 
 | Concern | Location |
 | --- | --- |
-| Sample `OpsUser` rows + passwords (via sample reset only) | `apps/api/libs/modules/sample-compatibility/src/services/sample-compatibility.service.ts` |
+| Sample `OpsUser` rows + passwords (via sample reset only) | `apps/api/apps/api/src/compatibility/sample/services/sample-compatibility.service.ts` |
 | Sample suppliers (matched by email for supplier workspace) | same file (`SEEDED_SUPPLIERS`) |
-| Guest access-code derivation | `apps/api/libs/modules/guest-ops/src/services/guest-workflow.service.ts` (`guestAccessCode`) |
+| Guest access-code derivation | `apps/api/apps/api/src/modules/operations/application/guest/guest-workflow.service.ts` (`guestAccessCode`) |
 | Product / ops docs | `docs/README.md`, `docs/prism-v4/16-actual-system.md` |
 
 ## Security note

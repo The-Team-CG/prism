@@ -10,7 +10,7 @@
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
-        "test:sample-compatibility": "vitest run libs/modules/sample-compatibility/src",
+        "test:sample-compatibility": "vitest run apps/api/src/compatibility/sample",
         "prisma:validate": "prisma validate",
         "validate": "npm run prisma:validate && npm run typecheck && npm run build",
         "smoke": "node scripts/smoke-api.mjs",
