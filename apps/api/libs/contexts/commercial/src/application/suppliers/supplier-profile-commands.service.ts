@@ -6,7 +6,7 @@ import {
   OpsUserRole,
   WorkflowCommandService,
 } from '@prism/modules/event-core';
-import { AuditService } from '@prism/modules/trust-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 import type {
   ChangeSupplierTierInput,
   CreateSupplierCertificationInput,

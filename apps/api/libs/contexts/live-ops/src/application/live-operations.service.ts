@@ -25,8 +25,8 @@ import {
   isOpsConstantValue,
   WorkflowCommandService,
 } from '@prism/modules/event-core';
-import { AuditService } from '@prism/modules/trust-ops';
-import { NotificationOutboxService } from '@prism/modules/notification-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
+import { NotificationOutboxService } from '@prism/contexts/platform-ops';
 import { resolveUrgentIssueStatusOnCreate } from '../domain/urgent-issue-status.policy';
 import { EscalationPolicyViolation, resolveEscalationLevel } from '../domain/live-ops-escalation.policy';
 

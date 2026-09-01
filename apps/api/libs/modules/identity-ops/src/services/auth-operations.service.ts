@@ -9,7 +9,7 @@ import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
 import type { PrismUser, RequestApprovalInput } from '@prism/types';
 import { PrismaService } from '@prism/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/modules/event-core';
-import { AuditService } from '@prism/modules/trust-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 import { AuthSessionService } from '@prism/modules/event-session';
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';

@@ -6,7 +6,7 @@ import { FloorplanModule } from '@prism/contexts/floorplan';
 import { OperationsModule } from '@prism/contexts/operations';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { CommercialModule } from '@prism/contexts/commercial';
-import { TrustOpsModule } from '@prism/modules/trust-ops';
+import { PlatformOpsModule } from '@prism/contexts/platform-ops';
 import { OpsBillingController } from './controllers/billing.controller';
 import { OpsClientController } from './controllers/client-workspace.controller';
 import { OpsDefenseReadinessController } from './controllers/defense-readiness.controller';
@@ -27,7 +27,7 @@ import { LIVE_OPS_READ_MODEL } from './ports/live-ops-read-models.tokens';
  * Read-only-by-design reader module: composes cross-domain read models from every writer module above, owns no writes.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, OperationsModule, CommercialModule, FloorplanModule, TrustOpsModule, EventLifecycleModule, IdentityOpsModule],
+  imports: [DatabaseModule, AccessControlModule, OperationsModule, CommercialModule, FloorplanModule, PlatformOpsModule, EventLifecycleModule, IdentityOpsModule],
   controllers: [OpsBillingController, OpsClientController, OpsDefenseReadinessController, OpsEventReadsController, OpsPmcmCommandInboxController, OpsPmcmDashboardController, OpsSupplierWorkspaceReadsController],
   providers: [
     EventReadModelQueries,

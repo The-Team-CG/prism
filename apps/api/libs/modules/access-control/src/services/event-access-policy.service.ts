@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
 import type { PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
 import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/modules/event-core';
-import { AuditService } from '@prism/modules/trust-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 
 export type EventOpsActorInput = PrismEventOpsActorContext;
 

@@ -2,8 +2,8 @@ import { BadRequestException, ForbiddenException, UnauthorizedException } from '
 import { describe, expect, it } from 'vitest';
 import { PrismTransactionRunner } from '../../../../core/shared-kernel/src';
 import { SampleCompatibilityService } from './sample-compatibility.service';
-import { AiGovernanceService } from '@prism/modules/ai-governance';
-import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/modules/trust-ops';
+import { AiGovernanceService } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/contexts/platform-ops';
 import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
 import { BillingOperationsService } from '@prism/contexts/commercial';
 import {
@@ -22,8 +22,8 @@ import { EventReadModelQueries, EventReadModelsService } from '@prism/modules/ev
 import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { GuestWorkflowService } from '@prism/contexts/operations';
 import { LiveOperationsService } from '@prism/contexts/live-ops';
-import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/modules/notification-ops';
-import { PAREService } from '@prism/modules/ai-governance';
+import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
+import { PAREService } from '@prism/contexts/platform-ops';
 import { SampleStateService } from './sample-state.service';
 import { SupplierNetworkWorkflowService, SupplierProfileCommandsService, SuppliersService } from '@prism/contexts/commercial';
 import { OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';

@@ -5,8 +5,8 @@ import { toPrismaJson } from '@prism/database';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/modules/event-core';
-import { AuditService } from '@prism/modules/trust-ops';
-import { NotificationOutboxService } from '@prism/modules/notification-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
+import { NotificationOutboxService } from '@prism/contexts/platform-ops';
 
 export type CreateFloorPlanDraftInput = {
   name: string;

@@ -4,8 +4,8 @@ import { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditCategory, SupplierQuoteRequestStatus, SupplierQuoteStatus, WorkflowCommandService, isOpsConstantValue } from '@prism/modules/event-core';
-import { NotificationOutboxService } from '@prism/modules/notification-ops';
-import { AuditService } from '@prism/modules/trust-ops';
+import { NotificationOutboxService } from '@prism/contexts/platform-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 import {
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,

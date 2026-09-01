@@ -6,8 +6,8 @@ import type { PrismEventOpsActorContext } from '@prism/types';
 import type { ResolvedEventOpsActor } from '@prism/modules/access-control';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';
-import { NotificationOutboxService } from '@prism/modules/notification-ops';
-import { AuditService } from '@prism/modules/trust-ops';
+import { NotificationOutboxService } from '@prism/contexts/platform-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 
 export type CreateInquiryInput = {
   clientName: string;

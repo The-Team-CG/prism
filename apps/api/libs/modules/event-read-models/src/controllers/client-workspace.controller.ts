@@ -3,7 +3,7 @@ import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { BillingOperationsService } from '@prism/contexts/commercial';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import { AuditService } from '@prism/modules/trust-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 import { mapBillingEvent, mapReadModelFloorPlanDraft } from '../mappers/billing-read-model.mappers';
 import { mapClientBriefing, mapClientDocument } from '../mappers/client-read-model.mappers';
 import { createClientWorkspaceMappers } from '../mappers/event-read-model.mappers';

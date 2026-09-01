@@ -4,10 +4,10 @@ import { PrismaService } from '@prism/database';
 import { toPrismaJson } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';
-import { AuditService } from '@prism/modules/trust-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/modules/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
-import { NotificationOutboxService } from '@prism/modules/notification-ops';
+import { NotificationOutboxService } from '@prism/contexts/platform-ops';
 
 export type ArchiveEventInput = EventOpsActorInput & {
   overrideReason?: string;

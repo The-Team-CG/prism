@@ -5,8 +5,8 @@ import { randomUUID } from 'node:crypto';
 import type { PrismCommandContext } from '../../../../../core/shared-kernel/src';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/modules/event-core';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
-import { AUDIT_WRITER, type AuditWriter } from '@prism/modules/trust-ops';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/modules/notification-ops';
+import { AUDIT_WRITER, type AuditWriter } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
 
 export type CreateCoordinatorAssignmentInput = {
   coordinatorId?: string;

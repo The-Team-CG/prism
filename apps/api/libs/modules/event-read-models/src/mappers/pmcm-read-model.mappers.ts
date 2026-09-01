@@ -11,7 +11,7 @@ import type {
   OpsPostEventDocument,
   OpsUser,
 } from '@prisma/client';
-import type { AuditService } from '@prism/modules/trust-ops';
+import type { AuditService } from '@prism/contexts/platform-ops';
 import type { BillingOperationsService } from '@prism/contexts/commercial';
 import type { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import type { CoordinatorsService, GuestWorkflowService } from '@prism/contexts/operations';

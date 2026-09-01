@@ -5,7 +5,7 @@ import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { CoordinatorsService, GuestWorkflowService } from '@prism/contexts/operations';
-import { AuditService } from '@prism/modules/trust-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 import { createPmcmReadModelMappers } from '../mappers/pmcm-read-model.mappers';
 import { EventReadModelsService } from '../services/event-read-models.service';
 

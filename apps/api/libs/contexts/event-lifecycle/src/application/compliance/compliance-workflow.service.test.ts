@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { AuditService } from '@prism/modules/trust-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 import { ComplianceWorkflowService } from './compliance-workflow.service';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { WorkflowCommandService } from '@prism/modules/event-core';

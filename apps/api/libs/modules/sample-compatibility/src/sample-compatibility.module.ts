@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
-import { AiGovernanceModule } from '@prism/modules/ai-governance';
+import { PlatformOpsModule } from '@prism/contexts/platform-ops';
 import { CommercialModule } from '@prism/contexts/commercial';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
@@ -10,8 +10,6 @@ import { FloorplanModule } from '@prism/contexts/floorplan';
 import { OperationsModule } from '@prism/contexts/operations';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { LiveOpsModule } from '@prism/contexts/live-ops';
-import { NotificationOpsModule } from '@prism/modules/notification-ops';
-import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { EventSessionModule } from '@prism/modules/event-session';
 import { SAMPLE_COMPATIBILITY_CONTROLLERS } from './controllers';
 import { SampleResetGuard } from './guards/sample-reset.guard';
@@ -32,15 +30,13 @@ import { SampleStateService } from './services/sample-state.service';
     // transitively via IdentityOpsModule's re-export; naming it here keeps the
     // guard working if that re-export is ever tightened (cf. PA-280).
     EventSessionModule,
-    TrustOpsModule,
-    NotificationOpsModule,
+    PlatformOpsModule,
     AccessControlModule,
     IdentityOpsModule,
     EventLifecycleModule,
     CommercialModule,
     FloorplanModule,
     OperationsModule,
-    AiGovernanceModule,
     LiveOpsModule,
     EventReadModelsModule,
   ],

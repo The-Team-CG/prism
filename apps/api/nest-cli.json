@@ -78,6 +78,15 @@
         "tsConfigPath": "libs/contexts/event-lifecycle/tsconfig.lib.json"
       }
     },
+    "platform-ops": {
+      "type": "library",
+      "root": "libs/contexts/platform-ops",
+      "entryFile": "index",
+      "sourceRoot": "libs/contexts/platform-ops/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/contexts/platform-ops/tsconfig.lib.json"
+      }
+    },
     "sample-compatibility": {
       "type": "library",
       "root": "libs/modules/sample-compatibility",
@@ -112,24 +121,6 @@
       "sourceRoot": "libs/modules/event-core/src",
       "compilerOptions": {
         "tsConfigPath": "libs/modules/event-core/tsconfig.lib.json"
-      }
-    },
-    "trust-ops": {
-      "type": "library",
-      "root": "libs/modules/trust-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/trust-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/trust-ops/tsconfig.lib.json"
-      }
-    },
-    "notification-ops": {
-      "type": "library",
-      "root": "libs/modules/notification-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/notification-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/notification-ops/tsconfig.lib.json"
       }
     },
     "access-control": {

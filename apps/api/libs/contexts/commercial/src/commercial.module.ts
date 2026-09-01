@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
-import { AiGovernanceModule, PAREService } from '@prism/modules/ai-governance';
+import { PAREService, PlatformOpsModule } from '@prism/contexts/platform-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { EventSessionModule } from '@prism/modules/event-session';
 import { EventLifecycleModule, DocumentVaultService } from '@prism/contexts/event-lifecycle';
-import { NotificationOpsModule } from '@prism/modules/notification-ops';
-import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsEventCommercialController } from './api/quotes/event-commercial.controller';
 import { OpsQuoteRequestsController } from './api/quotes/quote-requests.controller';
 import { OpsEventSupplierWithdrawalController } from './api/suppliers/event-supplier-withdrawal.controller';
@@ -67,10 +65,8 @@ const supplierCommandsProvider = {
   imports: [
     DatabaseModule,
     AccessControlModule,
-    AiGovernanceModule,
+    PlatformOpsModule,
     EventCoreModule,
-    TrustOpsModule,
-    NotificationOpsModule,
     EventLifecycleModule,
     EventSessionModule,
   ],

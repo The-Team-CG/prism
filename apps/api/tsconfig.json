@@ -55,29 +55,11 @@
       "@prism/modules/event-core/*": [
         "libs/modules/event-core/src/*"
       ],
-      "@prism/modules/trust-ops": [
-        "libs/modules/trust-ops/src/index"
-      ],
-      "@prism/modules/trust-ops/*": [
-        "libs/modules/trust-ops/src/*"
-      ],
-      "@prism/modules/notification-ops": [
-        "libs/modules/notification-ops/src/index"
-      ],
-      "@prism/modules/notification-ops/*": [
-        "libs/modules/notification-ops/src/*"
-      ],
       "@prism/modules/access-control": [
         "libs/modules/access-control/src/index"
       ],
       "@prism/modules/access-control/*": [
         "libs/modules/access-control/src/*"
-      ],
-      "@prism/modules/ai-governance": [
-        "libs/modules/ai-governance/src/index"
-      ],
-      "@prism/modules/ai-governance/*": [
-        "libs/modules/ai-governance/src/*"
       ],
       "@prism/modules/identity-ops": [
         "libs/modules/identity-ops/src/index"
@@ -120,6 +102,12 @@
       ],
       "@prism/contexts/event-lifecycle/*": [
         "libs/contexts/event-lifecycle/src/*"
+      ],
+      "@prism/contexts/platform-ops": [
+        "libs/contexts/platform-ops/src/index"
+      ],
+      "@prism/contexts/platform-ops/*": [
+        "libs/contexts/platform-ops/src/*"
       ]
     }
   }

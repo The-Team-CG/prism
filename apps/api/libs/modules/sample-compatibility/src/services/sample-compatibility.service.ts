@@ -44,7 +44,7 @@ import {
 } from '@prism/contexts/event-lifecycle';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
-import { AuditService, PrivacyOperationsService } from '@prism/modules/trust-ops';
+import { AuditService, PrivacyOperationsService } from '@prism/contexts/platform-ops';
 import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
 import {
   type ChangeSupplierTierInput,
@@ -98,7 +98,7 @@ import {
   type ResolvedEventOpsActor,
 } from '@prism/modules/access-control';
 import { EventLifecycleService } from '@prism/modules/event-core';
-import { NotificationOutboxService } from '@prism/modules/notification-ops';
+import { NotificationOutboxService } from '@prism/contexts/platform-ops';
 import { WorkflowCommandService } from '@prism/modules/event-core';
 import {
   createBillingReadModelMappers,
@@ -130,7 +130,7 @@ import {
   type ResolveComplianceInput,
   type UpdateComplianceRuleInput,
 } from '@prism/contexts/event-lifecycle';
-import { AiGovernanceService } from '@prism/modules/ai-governance';
+import { AiGovernanceService } from '@prism/contexts/platform-ops';
 
 type CreateInquiryInput = {
   clientName: string;

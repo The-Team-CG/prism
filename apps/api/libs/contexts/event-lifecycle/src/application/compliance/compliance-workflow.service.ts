@@ -3,7 +3,7 @@ import type { OpsComplianceCheck, OpsComplianceRule, Prisma } from '@prisma/clie
 import { PrismaService } from '@prism/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/modules/event-core';
-import { AuditService } from '@prism/modules/trust-ops';
+import { AuditService } from '@prism/contexts/platform-ops';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
 
 export type ComplianceRunInput = {
