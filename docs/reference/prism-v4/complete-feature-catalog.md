@@ -5,12 +5,27 @@ description: "Source-preserving Version 4 feature tables and official manuscript
 tags: [reference, prism-v4, catalog, manuscript]
 status: reference
 updated: "2026-09-01"
+authority: reference
+owner: "Product and academic traceability"
+audience: [product, reviewers, researchers]
+scope: "P.R.I.S.M Version 4 feature catalog and source counts"
+last_verified: "V4 source"
 sources:
   - id: official-catalog
     resource: "Official P.R.I.S.M V4 feature catalog DOCX"
     title: "Source manuscript"
 ---
 # P.R.I.S.M Version 4 complete feature catalog
+
+## At a glance
+
+- **Purpose:** Preserve the Version 4 feature inventory and source counts for traceability.
+- **Authority:** Reference only; it does not override the current product ledger or architecture.
+- **Owner:** Product and academic traceability.
+- **Scope:** Manuscript/defense catalog material and its feature identifiers.
+- **Use when:** Tracing a current decision back to the Version 4 source inventory.
+- **Change when:** A new source catalog version replaces Version 4.
+- **Verify with:** The cited source artifact and the current feature ledger; catalog presence is not implementation evidence.
 
 This Markdown catalog preserves the feature tables from the official DOCX source. The count summary below is authoritative for the manuscript and defense.
 

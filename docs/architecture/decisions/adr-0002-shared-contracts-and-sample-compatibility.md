@@ -3,8 +3,13 @@ type: "Decision"
 title: "Shared contracts and sample compatibility"
 description: "Keep shared write contracts in @prism/types and fence broad sample routes to demo and compatibility use."
 tags: [architecture, decision, contracts, zod, compatibility]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "D (Anthony)"
+audience: [agents, engineers, frontend-engineers, backend-engineers]
+scope: "@prism/types, @prism/api-client, and /sample compatibility paths"
+last_verified: "581e676"
 decision_date: "2026-09-01"
 sources:
   - id: agent-rules
@@ -22,7 +27,15 @@ sources:
 ---
 # ADR-0002: Shared contracts and sample compatibility
 
-**Decision date:** 2026-09-01
+## At a glance
+
+- **Decision:** Keep shared write schemas in `@prism/types` and fence broad sample routes to compatibility use.
+- **Applies to:** Zod contracts, read models, HTTP transport, session keys, and `/sample/*` behavior.
+- **Owner:** D (Anthony).
+- **Use when:** Adding a request body, shared type, API client call, sample flow, or browser storage key.
+- **Change when:** A contract boundary or compatibility policy changes; record the successor ADR.
+- **Verify with:** Types build, touched API/portal checks, sample tests, and boundary checks.
+
 **Decision status:** Accepted
 **Scope:** HTTP request contracts, read models, API transport, and demo paths
 

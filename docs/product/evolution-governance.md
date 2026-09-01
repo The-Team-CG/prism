@@ -3,15 +3,17 @@ type: "Product Governance"
 title: "P.R.I.S.M product evolution governance"
 description: "Rules for adding, revising, merging, deferring, and retiring Prism feature families without losing role, contract, or operational clarity."
 tags: [product, governance, features, decisions]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "B (Francis)"
+audience: [product, engineering, design, agents]
+scope: "feature decisions, product documentation, ownership goals, and lifecycle governance"
+last_verified: "581e676"
 sources:
   - id: feature-ledger
     resource: "docs/product/feature-ledger.md"
     title: "Active feature-family decisions"
-  - id: implementation-revisions
-    resource: "docs/product/implementation-revisions.md"
-    title: "Implementation reality and gaps"
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
     title: "Source-preserving V4 catalog"
@@ -20,6 +22,16 @@ sources:
     title: "Prism documentation and architecture constitution"
 ---
 # P.R.I.S.M product evolution governance
+
+## At a glance
+
+- **Purpose:** Define how features are added, revised, merged, deferred, gated, or retired.
+- **Authority:** Normative product decision process; it does not replace architecture ADRs or implementation checks.
+- **Owner:** B (Francis).
+- **Scope:** Feature-family decisions, owner goals, evidence requirements, and documentation lifecycle.
+- **Use when:** Evaluating a new feature, changing scope, or deciding whether an existing feature remains justified.
+- **Change when:** Product authority, owner goals, decision states, or evidence requirements change.
+- **Verify with:** The feature ledger, product model, readiness gates, and architecture boundaries.
 
 This document defines how P.R.I.S.M can evolve beyond the original Version 4
 catalog. The catalog remains a valuable baseline, but it is not a hard ceiling.
@@ -31,7 +43,6 @@ the product clearer, safer, more usable, or more aligned with PMCM operations.
 | Source | Role |
 | --- | --- |
 | `../reference/prism-v4/complete-feature-catalog.md` | Baseline feature inventory and original manuscript/defense reference. |
-| `implementation-revisions.md` | Current implementation reality and revision backlog. |
 | `feature-ledger.md` | Active feature-family decisions. |
 | `readiness-foundation.md` | Sample-state fencing, session conventions, owner boundaries, and legacy removal rules. |
 | `../architecture/current-architecture.md` | Architecture, module ownership, and stop rules. |
@@ -43,8 +54,8 @@ If these documents conflict, use this order for product planning:
 1. Current app boundaries in `../../AGENTS.md`.
 2. Architecture and feature ledger (`../architecture/current-architecture.md`, `feature-ledger.md`).
 3. This product evolution governance document.
-4. Current implementation backlog (`07`).
-5. Original feature catalog (`01`).
+4. Current implementation evidence in the feature ledger and architecture roadmap.
+5. Original feature catalog in `../reference/prism-v4/`.
 
 The original catalog should still be preserved for traceability, but implementation should not blindly ship catalog items that are outdated, redundant, unsafe, or weak from a product perspective.
 
@@ -215,7 +226,9 @@ Outdated docs should be handled intentionally:
 - Preserve historical catalog files unless a new catalog version is created.
 - Remove or archive planning docs that contradict the current role-specific app boundaries.
 - Rewrite planning docs that still use old product-name terminology.
-- Prefer one active plan per initiative; delete completed short execution plans when done (git history keeps them).
+- Prefer one active ledger or roadmap entry per initiative; do not create a
+  long-lived execution-plan document. Delete completed execution plans after
+  promoting their durable decisions; Git history preserves the original.
 - Keep [`../index.md`](../index.md) and the relevant directory index current
   whenever new governing docs are added.
 - Keep docs **conversation-agnostic**: durable product/engineering truth only—no chat handoff notes, session diaries, or assumptions that the reader saw a prior conversation.
@@ -225,8 +238,8 @@ Outdated docs should be handled intentionally:
 
 When evolving scope:
 
-1. Update the feature ledger (`11`) with decision and reason.
+1. Update [`feature-ledger.md`](feature-ledger.md) with the decision and reason.
 2. Mark affected catalog features as keep, revise, merge, split, add, defer, retire, or gate.
 3. Add candidate features only when they materially improve PMCM operations.
-4. Align implementation reality in `07` and architecture stop rules in `15` when behavior changes.
+4. Align the product model, readiness gates, and architecture stop rules when behavior changes.
 5. Remove or rewrite outdated active planning docs rather than layering new ones.

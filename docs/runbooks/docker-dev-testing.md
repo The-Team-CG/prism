@@ -3,8 +3,13 @@ type: "Playbook"
 title: "P.R.I.S.M Docker development and testing"
 description: "Local Docker development modes, environment setup, ports, rebuilds, and troubleshooting for Prism."
 tags: [runbook, docker, development, testing]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: operational
+owner: "D (Anthony)"
+audience: [developers, QA, agents]
+scope: "local Prism Node/Docker development and verification"
+last_verified: "581e676"
 sources:
   - id: compose-local
     resource: "compose.local.yml"
@@ -17,6 +22,16 @@ sources:
     title: "Prism setup runbook"
 ---
 # P.R.I.S.M Docker development and testing
+
+## At a glance
+
+- **Purpose:** Start, stop, and verify Prism locally with Node or Docker.
+- **Authority:** Operational procedure; repository scripts and environment examples provide exact values.
+- **Owner:** D (Anthony).
+- **Scope:** Local ports, environment files, Docker modes, hot reload, logs, and troubleshooting.
+- **Use when:** Running the local stack or diagnosing local Docker/API/portal startup.
+- **Change when:** Scripts, ports, environment files, services, or supported local modes change.
+- **Verify with:** The wrapper command, service health, and relevant repository checks.
 
 This guide explains how to run P.R.I.S.M with Docker for local testing. It assumes you are new to Docker and want clear commands you can copy into a terminal.
 

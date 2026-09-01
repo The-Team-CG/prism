@@ -3,8 +3,13 @@ type: "Playbook"
 title: "P.R.I.S.M portal accounts"
 description: "Local demo accounts, access paths, and role-boundary notes for Prism portal verification."
 tags: [runbook, accounts, demo, roles]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: operational
+owner: "D (Anthony)"
+audience: [developers, QA, agents]
+scope: "local sample accounts and role-bound portal sign-in"
+last_verified: "581e676"
 sources:
   - id: sample-seed
     resource: "apps/api/apps/api/src/compatibility/sample"
@@ -14,6 +19,16 @@ sources:
     title: "Current application boundaries"
 ---
 # P.R.I.S.M portal accounts
+
+## At a glance
+
+- **Purpose:** Provide credential-free local sample sign-in details for each Prism portal role.
+- **Authority:** Operational local-demo reference; never use these values for deployed environments.
+- **Owner:** D (Anthony).
+- **Scope:** Local client, supplier, guest, and PMCM/coordinator sign-in paths.
+- **Use when:** Verifying role-specific local portal flows.
+- **Change when:** Sample actors, credentials, headers, routes, or local authentication behavior changes.
+- **Verify with:** Local API/session behavior and the affected portal sign-in flow.
 
 Sample / defense accounts for every role portal. These are **local demo credentials only** — not production users.
 

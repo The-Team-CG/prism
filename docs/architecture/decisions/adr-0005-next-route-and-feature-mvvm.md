@@ -3,8 +3,13 @@ type: "Decision"
 title: "Next route and feature MVVM architecture"
 description: "Keep Next.js App Router routes thin, preserve URLs during organization, and place screen behavior in progressive feature slices."
 tags: [architecture, decision, frontend, nextjs, mvvm, routes]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "A (Maxine), D (Anthony)"
+audience: [agents, frontend-engineers, product-reviewers]
+scope: "apps/client, apps/supplier, apps/guest, and apps/event App Router code"
+last_verified: "581e676"
 decision_date: "2026-09-01"
 sources:
   - id: agent-rules
@@ -22,7 +27,15 @@ sources:
 ---
 # ADR-0005: Next route and feature MVVM architecture
 
-**Decision date:** 2026-09-01
+## At a glance
+
+- **Decision:** Keep App Router routes thin and organize screen behavior as View → ViewModel → use-case → data.
+- **Applies to:** Top-level app folders, route groups, feature slices, URL preservation, and screen layering.
+- **Owner:** A (Maxine), D (Anthony).
+- **Use when:** Adding a screen, moving a route, introducing a dynamic segment, or extracting a dashboard section.
+- **Change when:** URL ownership, actor scope, or presentation/orchestration boundaries change.
+- **Verify with:** Touched portal checks, route inventories, URL compatibility evidence, and feature-boundary checks.
+
 **Decision status:** Accepted
 **Scope:** Next.js App Router organization, route ownership, and frontend
 feature layering

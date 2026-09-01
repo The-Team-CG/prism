@@ -3,8 +3,13 @@ type: "Product Decision Register"
 title: "P.R.I.S.M feature ledger"
 description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
 tags: [product, features, decisions, ownership]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "B (Francis)"
+audience: [product, engineering, design, agents]
+scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
+last_verified: "581e676"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
@@ -18,6 +23,16 @@ sources:
 ---
 # P.R.I.S.M feature ledger
 
+## At a glance
+
+- **Purpose:** Record the active product decision for each feature family and candidate.
+- **Authority:** Normative product decision register; implementation work must not silently change a row.
+- **Owner:** B (Francis).
+- **Scope:** Feature intent, current state, decision, ownership, dependencies, permissions, evidence, and UX surface.
+- **Use when:** Adding, revising, merging, splitting, deferring, gating, or retiring feature scope.
+- **Change when:** Product intent, owner goal, lifecycle placement, dependency, permission boundary, or completion evidence changes.
+- **Verify with:** The current product model, readiness gates, architecture, and affected app/API checks.
+
 This ledger is the product decision layer for feature work. It does not replace
 the source-preserving catalog. It decides how catalog features and redesign
 candidates should move forward.
@@ -25,7 +40,6 @@ candidates should move forward.
 Use this file with:
 
 - [`../reference/prism-v4/complete-feature-catalog.md`](../reference/prism-v4/complete-feature-catalog.md) for source feature text and official counts.
-- [`implementation-revisions.md`](implementation-revisions.md) for implementation reality.
 - [`evolution-governance.md`](evolution-governance.md) for decision rules.
 - [`../../AGENTS.md`](../../AGENTS.md) for owner system goals (A–D) and app boundaries.
 - [`../architecture/current-architecture.md`](../architecture/current-architecture.md) for module ownership and technical stop rules.
@@ -116,18 +130,10 @@ The Active Ledger above remains the product decision record. This table assigns 
 | FL-027 | Privacy Operations Console | PMCM | Add | Phase 11 | D | Turns privacy compliance into an operated workflow. |
 | FL-028 | Workflow Template Builder | PMCM | Add | Phase 10 | A, B, D | Lets PMCM define reusable event templates for docs, suppliers, coordinators, and checks. |
 
-## Retired Or Superseded Planning Artifacts
-
-| Artifact | Decision | Reason | Replacement |
-| --- | --- | --- | --- |
-| May 2026 UI modernization Phase 2 plan | Retire | The named shared UI blocks and smoke script now exist, but the file still reads like an open implementation checklist. Leaving it active creates duplicate planning authority. | This ledger plus `AGENTS.md` and `../architecture/current-architecture.md`. |
-| June 2026 architecture hardening plan | Removed | It used old product terminology and was not part of the living redesign model. | Current shared packages and living v4 docs (`15`, this ledger, `14`). |
- | Completed execution plans / owner session notes | Removed | Session dumps and finished execution plans are not living product truth. | `AGENTS.md`, this ledger, `implementation-revisions.md`, `redesign-inventory.md`, `readiness-foundation.md`, and `../architecture/current-architecture.md`; recover history from Git if needed. |
-
 ## Next Ledger Maintenance
 
 - Expand ledger rows into one row per catalog feature only when implementation teams need ticket-level traceability.
 - Keep family-level rows authoritative for product direction.
 - Add implementation PR links or commit hashes after each phase lands.
 - Do not add a new plan file when a ledger update is enough.
-- Keep rows conversation-agnostic: decisions and evidence, not chat handoff notes.
+- Keep rows portable: record durable decisions and evidence, not transient context.

@@ -214,14 +214,15 @@ artifacts from Git history if forensic context is needed.
 | Invariants and documentation rules | `docs/constitution.md` |
 | Architecture and context ownership | `docs/architecture/current-architecture.md` |
 | Architecture decisions and seams | `docs/architecture/decisions/` and `docs/architecture/context-contracts.md` |
-| Product decisions and implementation reality | `docs/product/feature-ledger.md`, `docs/product/implementation-revisions.md` |
+| Product decisions and implementation reality | `docs/product/feature-ledger.md`, `docs/product/actual-system.md` |
 | Governance and readiness | `docs/product/evolution-governance.md`, `docs/product/readiness-foundation.md` |
 | Redesign inventory and priority/risk matrix | `docs/product/redesign-inventory.md`, `docs/roadmap/architecture-priority-risk-matrix.md` |
 | Runbooks and demo accounts | `docs/runbooks/` |
 | Current system and target state | `docs/product/actual-system.md`, `docs/product/future-state.md` |
 | V4 baseline catalog | `docs/reference/prism-v4/complete-feature-catalog.md` (traceability; not a hard ceiling) |
 
-Typed concept documents use OKF-style frontmatter. Directory indexes are
+Typed concept documents use OKF-style frontmatter with authority, owner, scope,
+and verification metadata plus an at-a-glance summary. Directory indexes are
 navigation only, and completed plans are not current sources of truth.
 
 ---

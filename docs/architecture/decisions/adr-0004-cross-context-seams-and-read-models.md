@@ -3,8 +3,13 @@ type: "Decision"
 title: "Cross-context seams and read models"
 description: "Use public context surfaces, serialisable contracts, and focused ports for cross-context behavior while keeping read-model composition read-only."
 tags: [architecture, decision, ddd, boundaries, read-models, ports]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "D (Anthony)"
+audience: [agents, backend-engineers, reviewers]
+scope: "backend context dependencies, read-model composition, and persistence seams"
+last_verified: "581e676"
 decision_date: "2026-09-01"
 sources:
   - id: current-architecture
@@ -25,7 +30,15 @@ sources:
 ---
 # ADR-0004: Cross-context seams and read models
 
-**Decision date:** 2026-09-01
+## At a glance
+
+- **Decision:** Use public context surfaces, serialisable contracts, or focused ports; keep read-model composition read-only.
+- **Applies to:** Cross-context calls, Nest composition, queries, ports, and future extraction seams.
+- **Owner:** D (Anthony).
+- **Use when:** A context needs another context's data, behavior, or persistence information.
+- **Change when:** A seam becomes a supported contract or changes ownership; document the data and transition implications.
+- **Verify with:** Backend boundary checks, context tests, and read/write ownership review.
+
 **Decision status:** Accepted
 **Scope:** API context dependencies, read composition, ports, and extraction
 readiness

@@ -5,23 +5,40 @@ description: "Sequenced frontend and backend architecture follow-up with depende
 tags: [roadmap, architecture, risk, frontend, backend]
 status: active
 updated: "2026-09-01"
+authority: informative
+owner: "D (Anthony)"
+audience: [engineering, product, design, reviewers]
+scope: "frontend and backend architecture debt, dependencies, risks, owners, and closure evidence"
+last_verified: "581e676"
 sources:
-  - id: architecture-assessment
-    resource: "docs/architecture/fe-be-architecture-assessment.md"
-    title: "FE/BE architecture assessment"
   - id: current-architecture
     resource: "docs/architecture/current-architecture.md"
     title: "Current architecture reference"
+  - id: context-contracts
+    resource: "docs/architecture/context-contracts.md"
+    title: "Context contract register"
+  - id: frontend-inventory
+    resource: "docs/product/redesign-inventory.md"
+    title: "Frontend and surface redesign inventory"
   - id: constitution
     resource: "docs/constitution.md"
     title: "Prism constitution"
 ---
 # P.R.I.S.M architecture priority and risk matrix
 
-**Purpose:** Sequence the completed work and every material follow-up found in
-the frontend/backend architecture assessment. This matrix is a delivery aid,
-not permission to change product behavior without a feature-specific design,
-owner, contract, and verification evidence.
+## At a glance
+
+- **Purpose:** Track active frontend/backend architecture debt with priority, risk, ownership, dependencies, and closure evidence.
+- **Authority:** Informative delivery roadmap; it cannot authorize unplanned product or behavior changes.
+- **Owner:** D (Anthony).
+- **Scope:** Portal route organization, feature seams, API contexts, persistence ownership, contracts, and extraction readiness.
+- **Use when:** Selecting the next architecture slice or assessing the risk of a structural change.
+- **Change when:** A row is completed, reprioritized, split, deferred, or replaced by an ADR.
+- **Verify with:** The row's required evidence plus touched code checks; documentation alone cannot mark work complete.
+
+This matrix sequences completed foundation work and material architecture
+follow-up. It is a delivery aid, not permission to change product behavior
+without a feature-specific design, owner, contract, and verification evidence.
 
 ## Scoring
 

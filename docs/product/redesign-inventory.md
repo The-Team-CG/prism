@@ -5,6 +5,11 @@ description: "Current portal and API surface inventory classified by redesign se
 tags: [product, redesign, inventory, ownership, frontend, backend]
 status: active
 updated: "2026-09-01"
+authority: informative
+owner: "A (Maxine), D (Anthony)"
+audience: [design, frontend-engineers, product, reviewers]
+scope: "portal routes, API/package surfaces, redesign severity, owners, and closure evidence"
+last_verified: "581e676"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -17,6 +22,16 @@ sources:
     title: "Architecture priority and risk matrix"
 ---
 # P.R.I.S.M whole-app redesign inventory
+
+## At a glance
+
+- **Purpose:** Inventory route and surface-level redesign work without changing product ownership.
+- **Authority:** Informative active inventory; architecture ADRs and the feature ledger remain authoritative.
+- **Owner:** A (Maxine), D (Anthony).
+- **Scope:** Client, event, supplier, guest, API, and shared-package surfaces.
+- **Use when:** Selecting a frontend or cross-surface redesign slice and its evidence.
+- **Change when:** A route, surface, severity, owner, dependency, or completion condition changes.
+- **Verify with:** Route inventories, URL checks, touched-app checks, role-path evidence, and boundary checks.
 
 This inventory classifies current app surfaces by redesign severity so owners
 can work in parallel without turning P.R.I.S.M back into an all-role shell.

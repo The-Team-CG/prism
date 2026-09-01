@@ -3,8 +3,13 @@ type: "Executable Contract"
 title: "P.R.I.S.M documentation and architecture constitution"
 description: "Current invariants for role ownership, bounded contexts, shared contracts, compatibility paths, frontend layering, and documentation maintenance."
 tags: [architecture, constitution, contracts, documentation]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "D (Anthony)"
+audience: [agents, maintainers, engineers]
+scope: "repository-wide cross-cutting rules"
+last_verified: "581e676"
 sources:
   - id: prism-agent-rules
     resource: "AGENTS.md"
@@ -20,6 +25,16 @@ sources:
     title: "Shared contract source"
 ---
 # P.R.I.S.M constitution
+
+## At a glance
+
+- **Purpose:** State the invariants that keep product ownership, architecture, contracts, and documentation coherent.
+- **Authority:** Normative cross-cutting contract below `AGENTS.md` and above detailed architecture/product documents.
+- **Owner:** D (Anthony).
+- **Scope:** Role apps, API contexts, shared contracts, read models, compatibility, frontend layering, and docs.
+- **Use when:** Starting a feature, changing a boundary, or deciding whether a document is still authoritative.
+- **Change when:** A cross-cutting invariant changes; record consequential architecture changes in an ADR.
+- **Verify with:** The narrowest relevant code checks plus the documentation audits defined below.
 
 This document is the current cross-cutting contract for the Prism repository.
 When code, schemas, routes, ownership, or documentation changes, update the
@@ -120,19 +135,28 @@ The bundle uses OKF v0.2-style Markdown:
 - `docs/index.md` is the bundle landing; each directory `index.md` is a
   navigation listing; `docs/log.md` records structural/contract updates.
 - Every non-index concept under `docs/` has `type`, `title`, `description`,
-  `tags`, `status`, `updated`, and `sources` frontmatter. Prefer
-  repository-relative paths; explicitly named skills, standards, or source
-  artifacts are valid provenance when the material is not stored in this repo.
+  `tags`, `status`, `updated`, `authority`, `owner`, `audience`, `scope`,
+  `last_verified`, and `sources` frontmatter. Prefer repository-relative
+  paths; explicitly named skills, standards, or source artifacts are valid
+  provenance when the material is not stored in this repo.
+- Every non-index concept starts with an `At a glance` section that states its
+  purpose, authority, owner, scope, use/change triggers, and verification.
+- Use `status: canonical` for living sources of truth, `active` for maintained
+  inventories or roadmaps, and `reference` for preserved source material.
+- Use `authority: normative`, `informative`, `operational`, or `reference` to
+  distinguish how a document may be used; status and authority are separate.
 - Living documents are current, portable, and conversation-agnostic. They do
   not depend on a branch, machine path, chat handoff, session diary, or active
   execution plan.
+- Dates in `updated`, `last_verified`, `decision_date`, logs, and changelogs are
+  provenance only; they must not be the condition that makes a living rule true.
 - New documents use semantic lower-kebab-case names. Accepted decisions use
   numbered ADRs under `docs/architecture/decisions/`.
 - Completed plans and dated reviews are promoted into durable documents and
   removed from the working tree. Git history is the archive; the V4 catalog is
   the deliberate reference exception.
-- Root aliases `docs/README.md` and `docs/architecture.md` are pointers only;
-  they do not restate canonical content.
+- The canonical landing and directory indexes are the only navigation authority;
+  do not add duplicate pointer documents.
 
 ## Verification contract
 

@@ -3,8 +3,13 @@ type: "Readiness Contract"
 title: "P.R.I.S.M redesign readiness foundation"
 description: "Durable gates for sample state, sessions, app ownership, shared contracts, external dependencies, and safe redesign work."
 tags: [readiness, contracts, roles, compatibility, governance]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "D (Anthony)"
+audience: [agents, engineers, QA, reviewers]
+scope: "contracts, sample state, sessions, database runtime, external dependencies, and readiness gates"
+last_verified: "581e676"
 sources:
   - id: constitution
     resource: "docs/constitution.md"
@@ -21,11 +26,21 @@ sources:
 ---
 # P.R.I.S.M redesign readiness foundation
 
+## At a glance
+
+- **Purpose:** Define the gates that must be satisfied before a feature can claim reliable readiness.
+- **Authority:** Normative cross-cutting readiness contract for product and architecture work.
+- **Owner:** D (Anthony).
+- **Scope:** Shared contracts, sample compatibility, session keys, database runtime, dependencies, and evidence.
+- **Use when:** Starting a redesign slice, enabling an external integration, or deciding whether a demo path is safe to extend.
+- **Change when:** A readiness gate, dependency policy, authentication/runtime assumption, or evidence requirement changes.
+- **Verify with:** Contract builds, boundary checks, database/runtime checks, role tests, and affected route evidence.
+
 This document defines durable platform rules for redesign and new feature work.
 It does not replace the feature ledger or architecture docs. It states
 sample-state fencing, session conventions, owner boundaries, contract gates, and
-legacy-removal conditions so any contributor can start without prior chat or
-sprint context.
+legacy-removal conditions so any contributor can apply them without
+undocumented context.
 
 ## Purpose
 

@@ -3,8 +3,13 @@ type: "Product Reference"
 title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: informative
+owner: "B (Francis)"
+audience: [product, engineering, design, reviewers]
+scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
+last_verified: "1f73cea"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -18,11 +23,23 @@ sources:
 ---
 # P.R.I.S.M actual system
 
+## At a glance
+
+- **Purpose:** Describe what Prism is, who uses it, and how the event lifecycle is owned.
+- **Authority:** Informative product model; feature decisions live in the feature ledger.
+- **Owner:** B (Francis).
+- **Scope:** Actors, role surfaces, lifecycle, product workflows, and completion expectations.
+- **Use when:** Explaining product behavior without reading implementation details.
+- **Change when:** A product boundary, actor responsibility, lifecycle step, or role-visible outcome changes.
+- **Verify with:** The feature ledger, role-boundary ADR, current architecture, and affected route/contract evidence.
+
 This document describes the current P.R.I.S.M system in product terms: what the
 complete system is, who uses it, what each workflow must do, and what
-information each role owns or can see. For implementation gaps, use
-[`implementation-revisions.md`](implementation-revisions.md) and
-[`feature-ledger.md`](feature-ledger.md). For software architecture,
+information each role owns or can see. For feature decisions, use
+[`feature-ledger.md`](feature-ledger.md). For architecture and implementation
+gaps, use the
+[`architecture-priority-risk-matrix.md`](../roadmap/architecture-priority-risk-matrix.md).
+For software architecture,
 app/package/API boundaries, and technical stop rules, use
 [`../architecture/current-architecture.md`](../architecture/current-architecture.md).
 For target maturity, use [`future-state.md`](future-state.md).
@@ -209,7 +226,8 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 
 The actual P.R.I.S.M system is complete enough for a milestone claim only when every lifecycle step has a working, role-safe slice or an explicit gate, every `FL-001` through `FL-028` row has an outcome, and every high-risk dependency is either approved with evidence or named as gated/deferred.
 
-Do not use this document to claim the current implementation is done. Use
-[`implementation-revisions.md`](implementation-revisions.md) and
-[`feature-ledger.md`](feature-ledger.md) for current gaps, and
+Do not use this document to claim the current implementation is complete. Use
+[`feature-ledger.md`](feature-ledger.md) for product gaps and
+[`../roadmap/architecture-priority-risk-matrix.md`](../roadmap/architecture-priority-risk-matrix.md) for
+architecture gaps, and
 [`future-state.md`](future-state.md) for the target transition.

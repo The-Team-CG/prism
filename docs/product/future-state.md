@@ -3,8 +3,13 @@ type: "Product Target State"
 title: "P.R.I.S.M future state"
 description: "Target maturity for a role-safe, evidence-backed PMCM event operating system and its incremental migration path."
 tags: [product, target-state, maturity, roadmap]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: informative
+owner: "B (Francis)"
+audience: [product, engineering, design, reviewers]
+scope: "Prism target product outcomes, maturity, and migration direction"
+last_verified: "581e676"
 sources:
   - id: current-system
     resource: "docs/product/actual-system.md"
@@ -17,6 +22,16 @@ sources:
     title: "Architecture priority and risk matrix"
 ---
 # P.R.I.S.M future state
+
+## At a glance
+
+- **Purpose:** Describe the durable target outcomes for a trusted, role-safe PMCM event operating system.
+- **Authority:** Informative target model; the roadmap sequences active work and ADRs govern architecture.
+- **Owner:** B (Francis).
+- **Scope:** Product maturity, role outcomes, evidence, governance, and incremental migration direction.
+- **Use when:** Choosing whether proposed work advances the product target.
+- **Change when:** Target outcomes, maturity gates, or migration direction changes.
+- **Verify with:** The current product model, feature ledger, readiness foundation, and roadmap.
 
 This document describes where P.R.I.S.M should land for full-system maturity.
 Read it after [`../architecture/current-architecture.md`](../architecture/current-architecture.md)

@@ -13,5 +13,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - Restructured the documentation into an OKF-style bundle with semantic architecture, product, roadmap, runbook, and reference indexes.
 - Added the constitution and five architecture decision records for role-app boundaries, shared contracts, DDD contexts, cross-context seams, and Next route/MVVM structure.
-- Promoted the FE/BE assessment and architecture priority/risk matrix into durable documentation, reduced `CLAUDE.md` to a pointer, and removed completed plans and dated review artifacts from the working tree.
+- Promoted durable FE/BE findings into the architecture ADRs and priority/risk matrix, reduced `CLAUDE.md` to a pointer, and removed completed plans, redundant review/backlog documents, and duplicate documentation pointers.
 

@@ -14,7 +14,6 @@ Full map: [`docs/index.md`](docs/index.md). Agents: [`AGENTS.md`](AGENTS.md).
 | `docs/product/feature-ledger.md` | Feature-family decisions and verification |
 | `docs/product/evolution-governance.md` | Add / revise / merge / defer / retire rules |
 | `docs/product/readiness-foundation.md` | Sample-state fencing, session keys, owner boundaries |
-| `docs/product/implementation-revisions.md` | Implementation reality and gaps |
 | `docs/product/redesign-inventory.md` | Route inventory and redesign severity |
 | `docs/roadmap/architecture-priority-risk-matrix.md` | Architecture follow-up priorities and risks |
 | `docs/product/actual-system.md` | Actors, lifecycle, workflows |

@@ -3,8 +3,13 @@ type: "Architecture Contract Register"
 title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "D (Anthony)"
+audience: [agents, backend-engineers, reviewers]
+scope: "apps/api/apps/api/src/modules and kernel seams"
+last_verified: "581e676"
 sources:
   - id: context-source
     resource: "apps/api/apps/api/src/modules"
@@ -20,6 +25,16 @@ sources:
     title: "Current architecture reference"
 ---
 # P.R.I.S.M context contracts
+
+## At a glance
+
+- **Purpose:** Define the supported in-process seams between bounded contexts.
+- **Authority:** Normative for backend imports, ports, contracts, and read-model composition.
+- **Owner:** D (Anthony).
+- **Scope:** `apps/api/apps/api/src/modules` and `apps/api/apps/api/src/kernel`.
+- **Use when:** Adding a context dependency, public index, port, or cross-context query.
+- **Change when:** A supported seam, context owner, or extraction constraint changes.
+- **Verify with:** `scripts/check-prism-boundaries.mjs` and boundary tests.
 
 This register describes in-process dependency seams in the one NestJS
 deployable. A context index or focused port is an application contract; it is

@@ -3,8 +3,13 @@ type: "Decision"
 title: "DDD-shaped modular monolith contexts"
 description: "Keep the Prism API as one NestJS deployable organized around business bounded contexts and a technical kernel."
 tags: [architecture, decision, backend, ddd, modular-monolith]
-status: stable
+status: canonical
 updated: "2026-09-01"
+authority: normative
+owner: "D (Anthony)"
+audience: [agents, backend-engineers, reviewers]
+scope: "apps/api/apps/api/src/modules, kernel, and compatibility source"
+last_verified: "1f73cea"
 decision_date: "2026-09-01"
 sources:
   - id: agent-rules
@@ -22,7 +27,15 @@ sources:
 ---
 # ADR-0003: DDD-shaped modular monolith contexts
 
-**Decision date:** 2026-09-01
+## At a glance
+
+- **Decision:** Organize one NestJS deployable around business bounded contexts and a technical kernel.
+- **Applies to:** API source layout, Nest composition, persistence ownership, and extraction readiness.
+- **Owner:** D (Anthony).
+- **Use when:** Creating or moving a backend capability, provider, repository, or module.
+- **Change when:** Business ownership or deployment boundaries change; do not split folders by aesthetics.
+- **Verify with:** Boundary checks, API typecheck/build/tests, and Prisma validation for affected changes.
+
 **Decision status:** Accepted
 **Scope:** API source layout, Nest composition, persistence ownership, and
 future extraction readiness

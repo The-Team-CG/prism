@@ -5,10 +5,10 @@ bundle: "P.R.I.S.M"
 # P.R.I.S.M documentation bundle
 
 This is the canonical documentation entrypoint. The bundle follows the Open
-Knowledge Format (OKF) pattern used by the AlphaCI Enterprise reference:
+Knowledge Format (OKF) pattern:
 directory `index.md` files are navigation, `log.md` records bundle changes, and
-concept documents use YAML frontmatter with a type, status, update date, and
-source/provenance entries.
+concept documents use YAML frontmatter with identity, authority, ownership,
+scope, verification, and source/provenance entries.
 
 ## Reading order
 
@@ -23,6 +23,17 @@ source/provenance entries.
 5. [Runbooks](runbooks/index.md) — local operation, Docker, and demo accounts.
 6. [Reference](reference/index.md) — source-preserving V4 catalog material.
 
+## Metadata at a glance
+
+- `status: canonical` identifies a living source of truth; `active` identifies
+  a maintained inventory or roadmap; `reference` identifies preserved source
+  material.
+- `authority` distinguishes `normative` rules, `informative` models,
+  `operational` procedures, and `reference` material.
+- `owner`, `audience`, `scope`, and `last_verified` explain who maintains a
+  document, who should read it, what it covers, and which repository/source
+  evidence was last checked.
+
 ## Repository entrypoints
 
 | Concern | Source |
@@ -30,7 +41,6 @@ source/provenance entries.
 | Agent rules and ownership | [`../AGENTS.md`](../AGENTS.md) |
 | Human setup and commands | [`../README.md`](../README.md) |
 | Bundle update history | [`log.md`](log.md) |
-| AlphaCI comparison | OKF v0.2 directory/index/ADR/runbook mechanics used as a structural reference; AlphaCI product vocabulary is not a Prism dependency. |
 
 ## Authority and maintenance
 
