@@ -5,14 +5,16 @@ import type {
   PrismAuditExport,
   PrismAuditIntegrity,
   PrismAuditLog,
+  PrismEvent,
   PrismLoginHistory,
   PrismPrivacyInventory,
   PrismPrivacyRequest,
   PrismPrivacyRetentionPolicy,
   PrismSecurityAlert,
+  PrismUser,
   ReviewPrivacyRequestInput,
 } from "@prism/types";
-import type { EventOpsCommands } from "@/features/event-ops";
+import { prismApi } from "@/lib/prism-api";
 
 export type AuditTrailData = {
   logs: PrismAuditLog[];
@@ -25,8 +27,45 @@ export type AuditTrailData = {
   privacyRequests: PrismPrivacyRequest[];
 };
 
-export function createAuditTrailRepository(commands: EventOpsCommands) {
+export type AuditTrailCommands = Pick<
+  typeof prismApi,
+  | "approvalRequests"
+  | "auditIntegrity"
+  | "auditLogs"
+  | "createPrivacyRequest"
+  | "executePrivacyRequest"
+  | "exportAuditLogs"
+  | "loginHistory"
+  | "pmcmState"
+  | "privacyInventory"
+  | "privacyRequests"
+  | "privacyRetentionPolicies"
+  | "reviewPrivacyRequest"
+  | "securityAlerts"
+>;
+
+const auditTrailCommands = {
+  approvalRequests: prismApi.approvalRequests,
+  auditIntegrity: prismApi.auditIntegrity,
+  auditLogs: prismApi.auditLogs,
+  createPrivacyRequest: prismApi.createPrivacyRequest,
+  executePrivacyRequest: prismApi.executePrivacyRequest,
+  exportAuditLogs: prismApi.exportAuditLogs,
+  loginHistory: prismApi.loginHistory,
+  pmcmState: prismApi.pmcmState,
+  privacyInventory: prismApi.privacyInventory,
+  privacyRequests: prismApi.privacyRequests,
+  privacyRetentionPolicies: prismApi.privacyRetentionPolicies,
+  reviewPrivacyRequest: prismApi.reviewPrivacyRequest,
+  securityAlerts: prismApi.securityAlerts,
+} satisfies AuditTrailCommands;
+
+export function createAuditTrailRepository(commands: AuditTrailCommands = auditTrailCommands) {
   return {
+    loadContext(): Promise<{ events: PrismEvent[]; users: PrismUser[] }> {
+      return commands.pmcmState().then(({ events, users }) => ({ events, users }));
+    },
+
     load(filters: AuditLogFilters, userId: string, eventId: string): Promise<AuditTrailData> {
       return Promise.all([
         commands.auditLogs(filters),

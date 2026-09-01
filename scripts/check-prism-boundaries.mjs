@@ -3,36 +3,47 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const backendCapabilityModules = [
-  "access-control",
-  "identity-ops",
-  "trust-ops",
-  "notification-ops",
-  "event-core",
-  "inquiry-onboarding",
-  "commercial-ops",
-  "supplier-ops",
-  "staffing-ops",
-  "finance-ops",
-  "compliance-ops",
+const backendContexts = [
+  "commercial",
+  "event-lifecycle",
   "floorplan",
-  "file-ops",
-  "guest-ops",
-  "closure-ops",
-  "ai-governance",
-  "event-read-models",
-  "sample-compatibility",
+  "identity-access",
+  "live-ops",
+  "operations",
+  "platform-ops",
+  "read-models",
 ];
 
-const backendCapabilityPattern = new RegExp(
-  `^apps/api/libs/modules/(?:${backendCapabilityModules.join("|")})/src/`,
+const backendContextPattern = new RegExp(
+  "^apps/api/src/modules/(?:" + backendContexts.join("|") + ")/",
 );
-
-const eventReadModelsPattern = /^apps\/api\/libs\/modules\/event-read-models\/src\//;
-const eventReadModelsQueriesPattern = /^apps\/api\/libs\/modules\/event-read-models\/src\/queries\/.*\.ts$/;
+const backendKernelPattern = /^apps\/api\/src\/kernel\//;
+const backendSourcePattern = /^apps\/api\/src\/(?:modules|kernel|compatibility)\//;
+const readModelsPattern = /^apps\/api\/src\/modules\/read-models\//;
+const legacyBackendPattern = /^apps\/api\/libs\/(?:contexts|modules|core)\//;
 const prismaMutationPattern =
   /(?:\b(?:this\.)?prisma(?:\.[A-Za-z_$][\w$]*)*|\btx(?:\.[A-Za-z_$][\w$]*)*)\.(?:createMany|create|updateMany|update|upsert|deleteMany|delete|\$executeRawUnsafe|\$executeRaw)\s*\(/;
 const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
+
+function contextOf(normalized) {
+  return normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1] ?? null;
+}
+
+function hasPrivateModuleImport(source) {
+  return /from\s+["']@prism\/(?:contexts|kernel)\/[^/"']+\/[^"']+["']/.test(source);
+}
+
+function hasPrivateCrossContextImport(normalized, source) {
+  const owner = contextOf(normalized);
+  if (!owner) return false;
+
+  const directContextImport = /from\s+["']apps\/api\/src\/modules\/([^/"']+)\/[^"']+["']/g;
+  for (const match of source.matchAll(directContextImport)) {
+    if (match[1] !== owner) return true;
+  }
+
+  return false;
+}
 
 export const boundaryRules = [
   {
@@ -53,7 +64,7 @@ export const boundaryRules = [
   {
     name: "shared ui must not import backend modules",
     filePattern: /^packages\/ui\//,
-    importPattern: /from\s+["'](?:@prism\/modules|apps\/api\/libs\/modules)/,
+    importPattern: /from\s+["'](?:@prism\/(?:modules|kernel|contexts)|apps\/api\/)/,
   },
   {
     name: "shared types must not import React or app modules",
@@ -84,50 +95,51 @@ export const boundaryRules = [
   },
   {
     name: "backend services must not inject Prisma as any",
-    filePattern: /^apps\/api\/libs\/modules\/.*\/src\/.*service\.ts$/,
+    filePattern: /^apps\/api\/src\/(?:modules|kernel)\/.*\/.*service\.ts$/,
     importPattern: /(?:private\s+readonly\s+)?prisma\s*:\s*any\b/,
   },
   {
-    name: "backend capability modules must not import private services from other capability modules",
-    filePattern: backendCapabilityPattern,
-    check(normalized, source) {
-      const moduleName = normalized.match(/^apps\/api\/libs\/modules\/([^/]+)\//)?.[1];
-      if (!moduleName) return false;
-
-      const privateServiceImports = source.matchAll(
-        /from\s+["'](?:@prism\/modules\/|apps\/api\/libs\/modules\/|(?:\.\.\/)+)([^/"'.]+)\/src\/services\//g,
-      );
-
-      for (const privateServiceImport of privateServiceImports) {
-        if (privateServiceImport[1] !== moduleName) return true;
-      }
-
-      return false;
+    name: "backend code must use public context and kernel entrypoints",
+    filePattern: backendSourcePattern,
+    check(_normalized, source) {
+      return hasPrivateModuleImport(source);
     },
   },
   {
-    name: "backend capability modules must not import event-ops compatibility internals",
-    filePattern: backendCapabilityPattern,
-    importPattern: /from\s+["'](?:@prism\/modules\/event-ops|apps\/api\/libs\/modules\/event-ops)/,
+    name: "backend contexts must not import another context's private implementation",
+    filePattern: backendContextPattern,
+    check(normalized, source) {
+      return hasPrivateCrossContextImport(normalized, source);
+    },
   },
   {
-    name: "event-read-models must not mutate Prisma state",
-    filePattern: eventReadModelsPattern,
+    name: "backend contexts must not depend on sample compatibility",
+    filePattern: backendContextPattern,
+    importPattern: /from\s+["']@prism\/compatibility\/sample(?:["']|\/)/,
+  },
+  {
+    name: "kernel must not depend on sample compatibility",
+    filePattern: backendKernelPattern,
+    importPattern: /from\s+["']@prism\/compatibility\/sample(?:["']|\/)/,
+  },
+  {
+    name: "read models must not mutate Prisma state",
+    filePattern: readModelsPattern,
     check(_normalized, source) {
       return prismaMutationPattern.test(source);
     },
   },
   {
-    name: "event-read-models raw queries require an approved query builder with a query budget",
-    filePattern: eventReadModelsPattern,
+    name: "read models raw queries require an approved query builder with a query budget",
+    filePattern: readModelsPattern,
     check(normalized, source) {
       if (!rawQueryPattern.test(source)) return false;
-      return !eventReadModelsQueriesPattern.test(normalized) || !source.includes("Query budget:");
+      return !normalized.includes("/application/queries/") || !source.includes("Query budget:");
     },
   },
   {
-    name: "event-ops module must not contain tracked files after sample compatibility migration",
-    filePattern: /^apps\/api\/libs\/modules\/event-ops\//,
+    name: "legacy backend source roots must remain empty after DDD consolidation",
+    filePattern: legacyBackendPattern,
     check() {
       return true;
     },
@@ -157,7 +169,7 @@ export function findBoundaryViolations(fileSources, rules = boundaryRules) {
         !(rule.allowedFilePattern && rule.allowedFilePattern.test(normalized)) &&
         ((rule.importPattern && rule.importPattern.test(source)) || (rule.check && rule.check(normalized, source)))
       ) {
-        violations.push(`${normalized}: ${rule.name}`);
+        violations.push(normalized + ": " + rule.name);
       }
     }
   }
@@ -172,13 +184,11 @@ export function runBoundaryCheck(root = process.cwd()) {
 
   if (violations.length > 0) {
     console.error("P.R.I.S.M boundary violations:");
-    for (const violation of violations) {
-      console.error(`- ${violation}`);
-    }
+    for (const violation of violations) console.error("- " + violation);
     return { ok: false, checkedCount: files.length, violations };
   }
 
-  console.log(`P.R.I.S.M boundary check passed for ${files.length} files.`);
+  console.log("P.R.I.S.M boundary check passed for " + files.length + " files.");
   return { ok: true, checkedCount: files.length, violations };
 }
 

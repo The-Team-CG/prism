@@ -1,0 +1,287 @@
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
+import type { PrismUser, RequestApprovalInput } from '@prism/types';
+import { PrismaService } from '@prism/kernel/database';
+import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
+import { writeAudit } from '@prism/kernel/access-control';
+import { AuthSessionService } from '@prism/kernel/event-session';
+import { AuthSecurityService } from './auth-security.service';
+import { TotpService } from './totp.service';
+import { INQUIRY_COMMANDS, type InquiryCommands } from '@prism/contexts/event-lifecycle';
+import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
+
+function timestamp(value: Date) {
+  return value.toISOString();
+}
+
+@Injectable()
+export class AuthOperationsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(AUTH_AUDIT) private readonly authAudit: AuthAuditPort,
+    @Inject(INQUIRY_COMMANDS) private readonly inquiryCommands: InquiryCommands,
+    private readonly authSessionService: AuthSessionService,
+    private readonly totpService: TotpService,
+  ) {}
+
+  async login(email: string, password: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
+
+    if (!user) {
+      await this.authAudit.recordLoginHistory(null, normalizedEmail, 'failed', 'Unknown email');
+      await writeAudit(this.authAudit, undefined, 'Unknown user', `Failed login attempt for ${normalizedEmail}`, {
+        actorRole: OpsUserRole.Unknown,
+        actorEmail: normalizedEmail,
+        actionType: AuditActionType.LoginFailed,
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedLabel: normalizedEmail,
+        severity: 'warning',
+      });
+      throw new UnauthorizedException('Invalid mock credentials');
+    }
+
+    const now = new Date();
+    if (user.permanentLockout) {
+      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Permanent lockout');
+      throw new ForbiddenException('This account is permanently locked and requires PMCM Admin intervention');
+    }
+
+    if (user.lockedUntil && user.lockedUntil > now) {
+      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Temporary lockout');
+      throw new ForbiddenException('This account is temporarily locked after repeated failed login attempts');
+    }
+
+    const passwordMatches = AuthSecurityService.verifyPassword(user.password, password);
+    if (!passwordMatches) {
+      await this.authAudit.handleFailedLogin(user);
+      throw new UnauthorizedException('Invalid mock credentials');
+    }
+
+    if (user.approvalStatus !== 'approved') {
+      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Account waiting for approval');
+      throw new ForbiddenException('This account is waiting for admin approval');
+    }
+
+    const updated = await this.prisma.opsUser.update({
+      where: { id: user.id },
+      data: {
+        ...(!AuthSecurityService.isHashedPassword(user.password)
+          ? { password: AuthSecurityService.hashPassword(password) }
+          : {}),
+        failedLoginCount: 0,
+        lockedUntil: null,
+        lastLoginAt: now,
+      },
+    });
+
+    await Promise.all([
+      this.authAudit.recordLoginHistory(updated, normalizedEmail, 'success'),
+      writeAudit(this.authAudit, undefined, updated.name, `Signed in to ${updated.role} portal`, {
+        actorRole: updated.role,
+        actorEmail: updated.email,
+        actionType: AuditActionType.Login,
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedId: updated.id,
+        affectedLabel: updated.email,
+      }),
+    ]);
+
+    if (updated.role === OpsUserRole.Client) {
+      await this.inquiryCommands.markPortalInvitationOpenedByEmail(updated.email);
+    }
+
+    if (updated.role === OpsUserRole.PmcmAdmin) {
+      return {
+        kind: updated.twoFactorSecret ? 'two_factor_required' : 'two_factor_setup_required',
+        token: this.authSessionService.issueTwoFactorToken(
+          { userId: updated.id, email: updated.email, role: 'pmcm-admin' },
+          updated.twoFactorSecret ? 'challenge' : 'setup',
+        ),
+      };
+    }
+
+    return this.authSessionService.issueSession(this.mapUser(updated), new Date());
+  }
+
+  async setupTwoFactor(token: string) {
+    const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
+    if (verifiedToken.purpose !== 'setup') throw new ForbiddenException('Two-factor setup is not available for this token');
+    const user = await this.findTwoFactorUser(verifiedToken);
+    const secret = this.totpService.generateSecret();
+    await this.prisma.opsUser.update({
+      where: { id: user.id },
+      data: { twoFactorSecret: this.totpService.encryptSecret(secret) },
+    });
+    return {
+      kind: 'two_factor_setup' as const,
+      token,
+      secret,
+      otpauthUri: this.totpService.otpauthUri(secret, user.email),
+    };
+  }
+
+  async verifyTwoFactor(token: string, code: string) {
+    const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
+    const user = await this.findTwoFactorUser(verifiedToken);
+    if (!user.twoFactorSecret) throw new ForbiddenException('Two-factor setup is required before sign-in');
+    let secret: string;
+    try {
+      secret = this.totpService.decryptSecret(user.twoFactorSecret);
+    } catch {
+      throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
+    }
+    if (!this.totpService.verifyCode(secret, code)) {
+      await this.authAudit.handleFailedLogin(user);
+      throw new UnauthorizedException('Invalid two-factor code');
+    }
+
+    const updated = await this.prisma.opsUser.update({
+      where: { id: user.id },
+      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+    });
+    await Promise.all([
+      this.authAudit.recordLoginHistory(updated, user.email, 'success'),
+      writeAudit(this.authAudit, undefined, updated.name, `Signed in to ${updated.role} portal`, {
+        actorRole: updated.role,
+        actorEmail: updated.email,
+        actionType: AuditActionType.Login,
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedId: updated.id,
+        affectedLabel: updated.email,
+      }),
+    ]);
+    return this.authSessionService.issueSession(this.mapUser(updated), new Date());
+  }
+
+  private async findTwoFactorUser(verifiedToken: { userId: string; email: string; role: 'pmcm-admin' }) {
+    const user = await this.prisma.opsUser.findUnique({ where: { id: verifiedToken.userId } });
+    if (!user || user.email !== verifiedToken.email || user.role !== OpsUserRole.PmcmAdmin) {
+      throw new UnauthorizedException('Invalid two-factor token');
+    }
+    return user as OpsUser & { twoFactorSecret?: string | null };
+  }
+
+  async requestApproval(input: string | RequestApprovalInput) {
+    const approvalInput = typeof input === 'string' ? { email: input } : input;
+    if (!approvalInput.privacyConsentAccepted) {
+      throw new BadRequestException('Privacy consent is required before requesting account approval');
+    }
+    const user = await this.prisma.opsUser.findUnique({
+      where: { email: approvalInput.email.trim().toLowerCase() },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    const request = await this.prisma.opsApprovalRequest.upsert({
+      where: { id: `approval_${user.id}` },
+      create: {
+        id: `approval_${user.id}`,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role as PrismUser['role'],
+        organization: user.organization,
+        status: 'pending',
+        privacyConsentAccepted: true,
+        privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? '2026-05-01',
+        marketingConsentAccepted: Boolean(approvalInput.marketingConsentAccepted),
+      },
+      update: {
+        status: 'pending',
+        privacyConsentAccepted: true,
+        privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? '2026-05-01',
+        marketingConsentAccepted: Boolean(approvalInput.marketingConsentAccepted),
+        requestedAt: new Date(),
+      },
+    });
+
+    return this.mapApprovalRequest(request);
+  }
+
+  async listApprovalRequests() {
+    const requests = await this.prisma.opsApprovalRequest.findMany({
+      take: 100,
+      orderBy: [{ status: 'asc' }, { requestedAt: 'desc' }],
+    });
+
+    return requests.map((request: OpsApprovalRequest) => this.mapApprovalRequest(request));
+  }
+
+  async listLoginHistory(userId: string) {
+    return this.authAudit.listLoginHistory(userId);
+  }
+
+  async approveApprovalRequest(requestId: string) {
+    return this.updateApprovalRequest(requestId, 'approved');
+  }
+
+  async declineApprovalRequest(requestId: string) {
+    return this.updateApprovalRequest(requestId, 'declined');
+  }
+
+  private async updateApprovalRequest(requestId: string, status: 'approved' | 'declined') {
+    const request = await this.prisma.opsApprovalRequest.findUnique({ where: { id: requestId } });
+    if (!request) throw new NotFoundException('Approval request not found');
+
+    await this.prisma.opsUser.update({
+      where: { id: request.userId },
+      data: { approvalStatus: status },
+    });
+
+    const saved = await this.prisma.opsApprovalRequest.update({
+      where: { id: requestId },
+      data: { status },
+    });
+
+    await writeAudit(this.authAudit, undefined, 'PMCM Admin', `${status === 'approved' ? 'Approved' : 'Declined'} account access for ${request.email}`, {
+      actorRole: OpsUserRole.PmcmAdmin,
+      actionType: status === 'approved' ? AuditActionType.Approve : AuditActionType.Decline,
+      category: AuditCategory.Access,
+      affectedType: 'approval_request',
+      affectedId: request.id,
+      affectedLabel: request.email,
+    });
+
+    return this.mapApprovalRequest(saved);
+  }
+
+  private mapUser(user: OpsUser): PrismUser {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as PrismUser['role'],
+      organization: user.organization,
+      approvalStatus: user.approvalStatus,
+      lastLoginAt: user.lastLoginAt ? timestamp(user.lastLoginAt) : null,
+      lockedUntil: user.lockedUntil ? timestamp(user.lockedUntil) : null,
+      permanentLockout: user.permanentLockout,
+    };
+  }
+
+  private mapApprovalRequest(request: OpsApprovalRequest) {
+    return {
+      id: request.id,
+      userId: request.userId,
+      name: request.name,
+      email: request.email,
+      role: request.role,
+      organization: request.organization,
+      status: request.status,
+      privacyConsentAccepted: (request as OpsApprovalRequest & { privacyConsentAccepted?: boolean }).privacyConsentAccepted ?? false,
+      privacyNoticeVersion: (request as OpsApprovalRequest & { privacyNoticeVersion?: string }).privacyNoticeVersion ?? '',
+      marketingConsentAccepted: (request as OpsApprovalRequest & { marketingConsentAccepted?: boolean }).marketingConsentAccepted ?? false,
+      requestedAt: timestamp(request.requestedAt),
+    };
+  }
+}

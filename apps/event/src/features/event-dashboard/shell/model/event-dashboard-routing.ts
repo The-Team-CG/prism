@@ -1,4 +1,5 @@
 import type { PmcmDetailTab } from "@/features/command-inbox/list";
+import type { PrismEvent } from "@prism/types";
 export type DetailTab = PmcmDetailTab;
 export type DashboardSection =
   | "dashboard"
@@ -74,6 +75,14 @@ export const EVENT_LIST_ROUTE_ITEMS: Record<string, string> = {
   "by-client": "events-by-client",
   "by-event-type": "events-by-type",
 };
+
+export function isEventListView(value: string): boolean {
+  return Object.prototype.hasOwnProperty.call(EVENT_LIST_ROUTE_ITEMS, value);
+}
+
+export function eventListRouteState(view = "all"): RouteState {
+  return { section: "events-list", tab: "overview", view: isEventListView(view) ? view : "all" };
+}
 
 export const EVENT_WORKSPACE_ROUTE_TABS: Record<string, DetailTab> = {
   overview: "overview",
@@ -331,6 +340,59 @@ export const EVENT_DETAIL_ROUTES: Record<string, string> = {
   "event-report": "closure",
 };
 
+export function dashboardRouteState(view = "overview"): RouteState {
+  return { section: "dashboard", tab: "overview", view };
+}
+
+export function eventRouteState(eventId: string, view = "overview"): RouteState {
+  return {
+    section: "events",
+    eventId,
+    tab: EVENT_WORKSPACE_ROUTE_TABS[view] ?? EVENT_TAB_BY_ROUTE[view] ?? "overview",
+    view,
+  };
+}
+
+export function routeStateForSidebarItem(id: string): RouteState | undefined {
+  if (id === "settings-system-logs") return { section: "audit", tab: "overview", view: "system-logs" };
+
+  const dashboardView = Object.entries(DASHBOARD_ROUTE_ITEMS).find(([, itemId]) => itemId === id)?.[0];
+  if (dashboardView) return dashboardRouteState(dashboardView);
+
+  const clientView = Object.entries(CLIENT_LIST_ROUTE_ITEMS).find(([, itemId]) => itemId === id)?.[0];
+  if (clientView) return { section: "clients", tab: "overview", view: clientView };
+
+  const eventView = Object.entries(EVENT_LIST_ROUTE_ITEMS).find(([, itemId]) => itemId === id)?.[0];
+  if (eventView) return eventListRouteState(eventView);
+
+  for (const [section, items] of Object.entries(SECTION_ROUTE_ITEMS)) {
+    const view = Object.entries(items).find(([, itemId]) => itemId === id)?.[0];
+    if (view) {
+      return {
+        section: section as DashboardSection,
+        tab: section === "messages" ? "activity" : section === "finance" ? "billing" : "overview",
+        view,
+      };
+    }
+  }
+
+  if (id === "dashboard") return dashboardRouteState();
+  if (id === "inquiries") return { section: "inquiries", tab: "overview", view: "prospects" };
+  if (id === "clients") return { section: "clients", tab: "overview", view: "all" };
+  if (id === "events-list") return { section: "events-list", tab: "overview", view: "all" };
+  if (id === "calendar") return { section: "calendar", tab: "overview", view: "all" };
+  if (id === "tasks") return { section: "tasks", tab: "overview", view: "mine" };
+  if (id === "command-inbox") return { section: "command-inbox", tab: "overview", view: "all" };
+  if (id === "team") return { section: "team", tab: "coordinators", view: "all" };
+  if (id === "suppliers") return { section: "suppliers", tab: "overview", view: "all" };
+  if (id === "files") return { section: "files", tab: "floorplans", view: "all" };
+  if (id === "messages") return { section: "messages", tab: "activity", view: "inbox" };
+  if (id === "finance") return { section: "finance", tab: "billing", view: "overview" };
+  if (id === "audit") return { section: "audit", tab: "overview", view: "system-logs" };
+  if (id === "settings") return { section: "settings", tab: "overview", view: "organization-profile" };
+  return undefined;
+}
+
 export function activeSidebarItemFromRoute(routeState: RouteState) {
   if (routeState.section === "dashboard") return "dashboard";
   if (routeState.section === "suppliers") return "suppliers";
@@ -371,6 +433,71 @@ export function routeLoadingShellCopy(routeState: RouteState) {
   return { eyebrow: "Command home", title: "Event Manager" };
 }
 
+export type EventDashboardShellCopy = {
+  eyebrow: string;
+  title: string;
+  description: string;
+};
+
+const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
+  suppliers: "Master supplier directory with category tagging, tiering, and performance reviews.",
+  audit: "Complete audit trail of all actions, approvals, and system events.",
+  clients: "Client intake, conforme status, approval requests, and portal readiness.",
+  calendar: "Event dates, planning windows, supplier deadlines, and onsite schedule checkpoints.",
+  tasks: "PMCM actions across inquiries, approvals, planning, finance, live operations, and closure.",
+  "command-inbox": "Prioritized action queue across inquiries, suppliers, billing, coordinators, and closure.",
+  team: "Coordinator roster, assignment coverage, availability, and event-day staffing.",
+  files: "Operational documents, official floorplans, billing statements, contracts, and closeout records.",
+  messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
+  finance: "Billing statements, payment milestones, balances, and statement delivery.",
+  settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
+  inquiries: "Review, accept, pend, or decline incoming event inquiries.",
+  "events-list": "Confirmed event workspaces ready for planning and operations.",
+  dashboard: "Active event workspaces, inquiry intake, and client onboarding.",
+};
+
+export function routeShellCopy(
+  routeState: RouteState,
+  options: {
+    activeNavLabel?: string;
+    selectedEvent?: Pick<PrismEvent, "eventName" | "clientName" | "eventDate">;
+  } = {},
+): EventDashboardShellCopy {
+  const loadingCopy = routeLoadingShellCopy(routeState);
+  if (routeState.eventId) {
+    return {
+      eyebrow: loadingCopy.eyebrow,
+      title: options.selectedEvent?.eventName ?? "Event Manager",
+      description: options.selectedEvent
+        ? `${options.selectedEvent.clientName} — ${options.selectedEvent.eventDate}`
+        : "Select an event or accept an inquiry to begin.",
+    };
+  }
+
+  const title =
+    routeState.section === "suppliers"
+      ? "Supplier Directory"
+      : routeState.section === "audit"
+        ? "Audit Trail"
+        : routeState.section === "command-inbox"
+          ? "Command Inbox"
+          : routeState.section === "team"
+            ? "Team & Coordinators"
+            : routeState.section === "inquiries"
+              ? "Inquiry Intake"
+              : options.activeNavLabel ?? loadingCopy.title;
+
+  return {
+    eyebrow: loadingCopy.eyebrow,
+    title,
+    description: ROUTE_DESCRIPTIONS[routeState.section] ?? "Select an event or accept an inquiry to begin.",
+  };
+}
+
+/**
+ * Compatibility parser for legacy deep links. New App Router pages pass
+ * explicit route state and do not parse pathname strings in a ViewModel.
+ */
 export function routeStateFromPath(pathname: string): RouteState {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] !== "dashboard") return { section: "dashboard", tab: "overview", view: "overview" };
@@ -390,7 +517,7 @@ export function routeStateFromPath(pathname: string): RouteState {
     };
   }
   if (parts[1] === "events" && parts[2]) {
-    if (EVENT_LIST_ROUTE_ITEMS[parts[2]]) return { section: "events-list", tab: "overview", view: parts[2] };
+    if (isEventListView(parts[2])) return eventListRouteState(parts[2]);
     const eventRoute = parts[3] ?? "overview";
     return {
       section: "events",

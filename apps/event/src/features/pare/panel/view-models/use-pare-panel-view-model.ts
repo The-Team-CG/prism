@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PAREApprovalRecord } from "@prism/types";
-import { useEventOpsCommands } from "@/features/event-ops";
 import { createPareRepository } from "../data/pare-repository";
 import { selectEventPareApprovals } from "../model/pare-panel-rules";
 
@@ -13,8 +12,7 @@ export function useParePanelViewModel({
   eventId: string;
   onWithdraw: (requestId: string) => Promise<void>;
 }) {
-  const commands = useEventOpsCommands();
-  const repository = useMemo(() => createPareRepository(commands), [commands]);
+  const repository = useMemo(() => createPareRepository(), []);
   const [approvals, setApprovals] = useState<PAREApprovalRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);

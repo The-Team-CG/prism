@@ -12,6 +12,10 @@ import {
   replaceCoordinatorAssignmentSchema,
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
+  createFloorPlanDraftSchema,
+  createFloorPlanPreferenceSchema,
+  submitBriefingSchema,
+  uploadConformeSchema,
   parseContract,
   PrismContractError,
 } from "./index.js";
@@ -125,5 +129,62 @@ describe("event-ops write schemas", () => {
     expect(() =>
       parseContract(createPrismInquirySchema, { clientName: "" }, "Create inquiry"),
     ).toThrow(PrismContractError);
+  });
+
+  it("keeps floorplan writes on shared Zod contracts", () => {
+    expect(
+      createFloorPlanDraftSchema.safeParse({
+        name: "Official layout",
+        sourceType: "blank",
+        width: 1200,
+        height: 800,
+      }).success,
+    ).toBe(true);
+    expect(
+      createFloorPlanPreferenceSchema.safeParse({
+        name: "Client preference",
+        seatingStyle: "banquet",
+        stagePreference: "front",
+        flowNotes: "Keep a wide aisle",
+        guestCount: 120,
+        constraints: ["Accessible entrance"],
+      }).success,
+    ).toBe(true);
+    expect(
+      createFloorPlanPreferenceSchema.safeParse({
+        name: "Client preference",
+        seatingStyle: "banquet",
+        stagePreference: "front",
+        flowNotes: "Keep a wide aisle",
+        guestCount: 0,
+        constraints: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("validates the client briefing write contract", () => {
+    expect(
+      submitBriefingSchema.safeParse({
+        venue: "BGC Convention Hall",
+        guestCount: 250,
+        budgetRange: "500000-750000",
+        serviceRequirements: ["registration", "stage"],
+        notes: "Executive audience",
+      }).success,
+    ).toBe(true);
+    expect(
+      submitBriefingSchema.safeParse({
+        venue: "",
+        guestCount: 0,
+        budgetRange: "",
+        serviceRequirements: ["registration"],
+        notes: "",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps conforme uploads on the shared file contract", () => {
+    expect(uploadConformeSchema.safeParse({ fileName: "signed-conforme.pdf" }).success).toBe(true);
+    expect(uploadConformeSchema.safeParse({ fileName: "malware.exe" }).success).toBe(false);
   });
 });

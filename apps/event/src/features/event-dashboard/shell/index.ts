@@ -1,6 +1,27 @@
 export { EventDashboardShellView as default, EventDashboardShellView } from "./views/event-dashboard-shell-view";
 export { useEventDashboardShellViewModel } from "./view-models/use-event-dashboard-shell-view-model";
 export { EventDashboardRouteView } from "./views/event-dashboard-route-view";
+export {
+  EventDashboardAuditSectionView,
+  EventDashboardCalendarSectionView,
+  EventDashboardClientsSectionView,
+  EventDashboardCommandInboxSectionView,
+  EventDashboardEventsListSectionView,
+  EventDashboardFilesSectionView,
+  EventDashboardFinanceSectionView,
+  EventDashboardHomeSectionView,
+  EventDashboardInquiriesSectionView,
+  EventDashboardMessagesSectionView,
+  EventDashboardSettingsSectionView,
+  EventDashboardSuppliersSectionView,
+  EventDashboardTasksSectionView,
+  EventDashboardTeamSectionView,
+} from "./views/sections/event-dashboard-section-views";
+export { EventDashboardEventWorkspaceView } from "./views/sections/event-dashboard-event-workspace-view";
+export {
+  eventDashboardCommands,
+  type EventDashboardCommands,
+} from "./data/event-dashboard-commands";
 export type { EventDashboardClientProps } from "./model/event-dashboard-routing";
 export type {
   DashboardSection,
@@ -21,20 +42,18 @@ export {
   SECTION_ROUTE_ITEMS,
   SIDEBAR_STATIC_ROUTES,
   activeSidebarItemFromRoute,
+  dashboardRouteState,
+  eventListRouteState,
+  eventRouteState,
+  isEventListView,
   routeLoadingShellCopy,
+  routeStateForSidebarItem,
   routeStateFromPath,
 } from "./model/event-dashboard-routing";
 export {
-  selectActiveEvents,
   selectClientRecords,
   selectClientRecordsForView,
-  selectCommandInboxGroupedBySeverity,
-  selectCommandInboxItemsBySeverity,
-  selectEventWorkspaceResources,
   selectEventsForView,
-  selectPendingApprovals,
-  selectSelectedEvent,
-  selectSelectedEventWorkspaceResources,
   selectUnreviewedInquiryCount,
   type EventClientRecord,
 } from "./model/event-dashboard-selectors";

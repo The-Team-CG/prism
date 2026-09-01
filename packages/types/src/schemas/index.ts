@@ -33,6 +33,7 @@ export {
   createPrivacyRequestSchema,
   reviewPrivacyRequestSchema,
   auditLogFiltersSchema,
+  createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
   type CreatePrismInquiryInput,
   type UpdateInquiryStatusInput,
@@ -56,6 +57,7 @@ export {
   type CreatePrivacyRequestInput,
   type ReviewPrivacyRequestInput,
   type AuditLogFilters,
+  type CreateFloorPlanDraftInput,
   type CreateFloorPlanPreferenceInput,
 } from "./event-ops-inputs.js";
 

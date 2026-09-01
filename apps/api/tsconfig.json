@@ -1,186 +1,120 @@
 {
-    "compilerOptions":  {
-                            "module":  "commonjs",
-                            "moduleResolution":  "node",
-                            "declaration":  true,
-                            "removeComments":  true,
-                            "emitDecoratorMetadata":  true,
-                            "experimentalDecorators":  true,
-                            "allowSyntheticDefaultImports":  true,
-                            "target":  "ES2021",
-                            "sourceMap":  true,
-                            "outDir":  "./dist",
-                            "baseUrl":  "./",
-                            "ignoreDeprecations":  "6.0",
-                            "incremental":  true,
-                            "skipLibCheck":  true,
-                            "strict":  true,
-                            "useUnknownInCatchVariables":  true,
-                            "forceConsistentCasingInFileNames":  true,
-                            "noFallthroughCasesInSwitch":  true,
-                            "paths":  {
-                                          "@prism/shared":  [
-                                                                "libs/shared/src/index"
-                                                            ],
-                                          "@prism/shared/*":  [
-                                                                  "libs/shared/src/*"
-                                                              ],
-                                          "@prism/database":  [
-                                                                  "libs/database/src/index"
-                                                              ],
-                                          "@prism/database/*":  [
-                                                                    "libs/database/src/*"
-                                                                ],
-                                          "@prism/modules/plans":  [
-                                                                       "libs/modules/plans/src/index"
-                                                                   ],
-                                          "@prism/modules/plans/*":  [
-                                                                         "libs/modules/plans/src/*"
-                                                                     ],
-                                          "@prism/modules/templates":  [
-                                                                           "libs/modules/templates/src/index"
-                                                                       ],
-                                          "@prism/modules/templates/*":  [
-                                                                             "libs/modules/templates/src/*"
-                                                                         ],
-                                          "@prism/modules/events":  [
-                                                                        "libs/modules/events/src/index"
-                                                                    ],
-                                          "@prism/modules/events/*":  [
-                                                                          "libs/modules/events/src/*"
-                                                                      ],
-                                          "@prism/modules/sample-compatibility":  [
-                                                                           "libs/modules/sample-compatibility/src/index"
-                                                                       ],
-                                          "@prism/modules/sample-compatibility/*":  [
-                                                                             "libs/modules/sample-compatibility/src/*"
-                                                                         ],
-                                          "@prism/modules/publishing":  [
-                                                                            "libs/modules/publishing/src/index"
-                                                                        ],
-                                          "@prism/modules/publishing/*":  [
-                                                                              "libs/modules/publishing/src/*"
-                                                                          ],
-                                          "@prism/modules/health":  [
-                                                                        "libs/modules/health/src/index"
-                                                                    ],
-                                          "@prism/modules/health/*":  [
-                                                                          "libs/modules/health/src/*"
-                                                                      ],
-                                          "@prism/modules/event-read-models":  [
-                                                                                    "libs/modules/event-read-models/src/index"
-                                                                                ],
-                                          "@prism/modules/event-read-models/*":  [
-                                                                                      "libs/modules/event-read-models/src/*"
-                                                                                  ],
-                                          "@prism/modules/closure-ops":  [
-                                                                              "libs/modules/closure-ops/src/index"
-                                                                          ],
-                                          "@prism/modules/closure-ops/*":  [
-                                                                                "libs/modules/closure-ops/src/*"
-                                                                            ],
-                                          "@prism/modules/event-core":  [
-                                                                            "libs/modules/event-core/src/index"
-                                                                        ],
-                                          "@prism/modules/event-core/*":  [
-                                                                              "libs/modules/event-core/src/*"
-                                                                          ],
-                                          "@prism/modules/trust-ops":  [
-                                                                           "libs/modules/trust-ops/src/index"
-                                                                       ],
-                                          "@prism/modules/trust-ops/*":  [
-                                                                             "libs/modules/trust-ops/src/*"
-                                                                         ],
-                                          "@prism/modules/notification-ops":  [
-                                                                                  "libs/modules/notification-ops/src/index"
-                                                                              ],
-                                          "@prism/modules/notification-ops/*":  [
-                                                                                    "libs/modules/notification-ops/src/*"
-                                                                                ],
-                                          "@prism/modules/access-control":  [
-                                                                                "libs/modules/access-control/src/index"
-                                                                            ],
-                                          "@prism/modules/access-control/*":  [
-                                                                                  "libs/modules/access-control/src/*"
-                                                                              ],
-                                          "@prism/modules/ai-governance":  [
-                                                                                  "libs/modules/ai-governance/src/index"
-                                                                              ],
-                                          "@prism/modules/ai-governance/*":  [
-                                                                                    "libs/modules/ai-governance/src/*"
-                                                                                ],
-                                          "@prism/modules/supplier-ops":  [
-                                                                              "libs/modules/supplier-ops/src/index"
-                                                                          ],
-                                          "@prism/modules/supplier-ops/*":  [
-                                                                                "libs/modules/supplier-ops/src/*"
-                                                                            ],
-                                          "@prism/modules/finance-ops":  [
-                                                                             "libs/modules/finance-ops/src/index"
-                                                                         ],
-                                          "@prism/modules/finance-ops/*":  [
-                                                                               "libs/modules/finance-ops/src/*"
-                                                                           ],
-                                          "@prism/modules/file-ops":  [
-                                                                          "libs/modules/file-ops/src/index"
-                                                                      ],
-                                          "@prism/modules/file-ops/*":  [
-                                                                            "libs/modules/file-ops/src/*"
-                                                                        ],
-                                          "@prism/modules/inquiry-onboarding":  [
-                                                                                    "libs/modules/inquiry-onboarding/src/index"
-                                                                                ],
-                                          "@prism/modules/inquiry-onboarding/*":  [
-                                                                                      "libs/modules/inquiry-onboarding/src/*"
-                                                                                  ],
-                                          "@prism/modules/commercial-ops":  [
-                                                                                "libs/modules/commercial-ops/src/index"
-                                                                            ],
-                                          "@prism/modules/commercial-ops/*":  [
-                                                                                  "libs/modules/commercial-ops/src/*"
-                                                                              ],
-                                          "@prism/modules/compliance-ops":  [
-                                                                                "libs/modules/compliance-ops/src/index"
-                                                                            ],
-                                          "@prism/modules/compliance-ops/*":  [
-                                                                                  "libs/modules/compliance-ops/src/*"
-                                                                              ],
-                                          "@prism/modules/floorplan":  [
-                                                                            "libs/modules/floorplan/src/index"
-                                                                        ],
-                                          "@prism/modules/floorplan/*":  [
-                                                                              "libs/modules/floorplan/src/*"
-                                                                          ],
-                                          "@prism/modules/guest-ops":  [
-                                                                               "libs/modules/guest-ops/src/index"
-                                                                           ],
-                                          "@prism/modules/guest-ops/*":  [
-                                                                                 "libs/modules/guest-ops/src/*"
-                                                                             ],
-                                          "@prism/modules/identity-ops":  [
-                                                                                  "libs/modules/identity-ops/src/index"
-                                                                              ],
-                                          "@prism/modules/identity-ops/*":  [
-                                                                                    "libs/modules/identity-ops/src/*"
-                                                                                ],
-                                          "@prism/modules/staffing-ops":  [
-                                                                                 "libs/modules/staffing-ops/src/index"
-                                                                             ],
-                                          "@prism/modules/staffing-ops/*":  [
-                                                                                   "libs/modules/staffing-ops/src/*"
-                                                                               ],
-                                          "@prism/modules/live-ops":  [
-                                                                              "libs/modules/live-ops/src/index"
-                                                                          ],
-                                          "@prism/modules/live-ops/*":  [
-                                                                                "libs/modules/live-ops/src/*"
-                                                                            ],
-                                          "@prism/modules/event-session":  [
-                                                                                "libs/modules/event-session/src/index"
-                                                                            ],
-                                          "@prism/modules/event-session/*":  [
-                                                                                  "libs/modules/event-session/src/*"
-                                                                              ]
-                                      }
-                        }
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "ignoreDeprecations": "6.0",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@prism/kernel/shared": [
+        "src/kernel/shared/index"
+      ],
+      "@prism/kernel/shared/*": [
+        "src/kernel/shared/*"
+      ],
+      "@prism/kernel/database": [
+        "src/kernel/database/index"
+      ],
+      "@prism/kernel/database/*": [
+        "src/kernel/database/*"
+      ],
+      "@prism/kernel/event-core": [
+        "src/kernel/event-core/index"
+      ],
+      "@prism/kernel/event-core/*": [
+        "src/kernel/event-core/*"
+      ],
+      "@prism/kernel/access-control": [
+        "src/kernel/access-control/index"
+      ],
+      "@prism/kernel/access-control/*": [
+        "src/kernel/access-control/*"
+      ],
+      "@prism/kernel/event-session": [
+        "src/kernel/event-session/index"
+      ],
+      "@prism/kernel/event-session/*": [
+        "src/kernel/event-session/*"
+      ],
+      "@prism/kernel/health": [
+        "src/kernel/health/index"
+      ],
+      "@prism/kernel/health/*": [
+        "src/kernel/health/*"
+      ],
+      "@prism/kernel/shared-kernel": [
+        "src/kernel/shared-kernel/index"
+      ],
+      "@prism/kernel/shared-kernel/*": [
+        "src/kernel/shared-kernel/*"
+      ],
+      "@prism/compatibility/sample": [
+        "src/compatibility/sample/index"
+      ],
+      "@prism/compatibility/sample/*": [
+        "src/compatibility/sample/*"
+      ],
+      "@prism/contexts/floorplan": [
+        "src/modules/floorplan/index"
+      ],
+      "@prism/contexts/floorplan/*": [
+        "src/modules/floorplan/*"
+      ],
+      "@prism/contexts/operations": [
+        "src/modules/operations/index"
+      ],
+      "@prism/contexts/operations/*": [
+        "src/modules/operations/*"
+      ],
+      "@prism/contexts/live-ops": [
+        "src/modules/live-ops/index"
+      ],
+      "@prism/contexts/live-ops/*": [
+        "src/modules/live-ops/*"
+      ],
+      "@prism/contexts/commercial": [
+        "src/modules/commercial/index"
+      ],
+      "@prism/contexts/commercial/*": [
+        "src/modules/commercial/*"
+      ],
+      "@prism/contexts/event-lifecycle": [
+        "src/modules/event-lifecycle/index"
+      ],
+      "@prism/contexts/event-lifecycle/*": [
+        "src/modules/event-lifecycle/*"
+      ],
+      "@prism/contexts/platform-ops": [
+        "src/modules/platform-ops/index"
+      ],
+      "@prism/contexts/platform-ops/*": [
+        "src/modules/platform-ops/*"
+      ],
+      "@prism/contexts/identity-access": [
+        "src/modules/identity-access/index"
+      ],
+      "@prism/contexts/identity-access/*": [
+        "src/modules/identity-access/*"
+      ],
+      "@prism/contexts/read-models": [
+        "src/modules/read-models/index"
+      ],
+      "@prism/contexts/read-models/*": [
+        "src/modules/read-models/*"
+      ]
+    }
+  }
 }

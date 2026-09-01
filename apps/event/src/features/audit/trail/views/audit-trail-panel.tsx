@@ -1,3 +1,5 @@
+"use client";
+
 import {
   AlertTriangle,
   ClipboardList,
@@ -40,15 +42,18 @@ function auditIcon(category: string, severity: string) {
 }
 
 export function AuditTrailPanel({
-  events,
-  users,
-  session,
+  events: eventsProp,
+  users: usersProp,
+  session: sessionProp,
 }: {
-  events: PrismEvent[];
-  users: PrismUser[];
-  session: PrismAuthenticatedSession;
-}) {
+  events?: PrismEvent[];
+  users?: PrismUser[];
+  session?: PrismAuthenticatedSession;
+} = {}) {
   const {
+    session: vmSession,
+    events: vmEvents,
+    users: vmUsers,
     logs,
     alerts,
     auditIntegrity,
@@ -94,7 +99,15 @@ export function AuditTrailPanel({
     missingConsentCount,
     privacySurfaceCount,
     retentionNote,
-  } = useAuditTrailViewModel({ session });
+  } = useAuditTrailViewModel();
+
+  const session = sessionProp ?? vmSession;
+  const events = eventsProp ?? vmEvents;
+  const users = usersProp ?? vmUsers;
+
+  if (!session) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading audit trail...</div>;
+  }
 
   return (
     <div className="space-y-5">

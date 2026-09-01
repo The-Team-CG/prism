@@ -1,1 +1,0 @@
-export const EVENT_ACCESS_POLICY = Symbol.for('prism.accessControl.eventAccessPolicy');

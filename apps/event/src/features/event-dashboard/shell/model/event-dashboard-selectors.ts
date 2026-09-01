@@ -88,18 +88,3 @@ export function selectEventsForView(events: PrismEvent[], view: string): PrismEv
       return events;
   }
 }
-
-// Re-export workspace selectors for shell composition convenience
-export {
-  selectActiveEvents,
-  selectEventWorkspaceResources,
-  selectPendingApprovals,
-  selectSelectedEvent,
-  selectSelectedEventWorkspaceResources,
-} from "@/features/event-workspace/shell/model/event-workspace-selectors";
-
-// Re-export command-inbox selectors for shell composition convenience
-export {
-  selectCommandInboxGroupedBySeverity,
-  selectCommandInboxItemsBySeverity,
-} from "@/features/command-inbox/list/model/command-inbox-selectors";
