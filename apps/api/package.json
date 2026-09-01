@@ -6,11 +6,11 @@
     "scripts": {
         "dev": "node scripts/kill-prism-api-port.cjs && nest start api --watch",
         "build": "nest build api",
-        "start": "node scripts/kill-prism-api-port.cjs && node dist/apps/api/apps/api/src/main.js",
+        "start": "node scripts/kill-prism-api-port.cjs && node dist/apps/api/src/main.js",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
-        "test:sample-compatibility": "vitest run apps/api/src/compatibility/sample",
+        "test:sample-compatibility": "vitest run src/compatibility/sample",
         "prisma:validate": "prisma validate",
         "validate": "npm run prisma:validate && npm run typecheck && npm run build",
         "smoke": "node scripts/smoke-api.mjs",

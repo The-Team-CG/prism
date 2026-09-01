@@ -8,14 +8,14 @@ updated: "2026-09-01"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
-scope: "apps/api/apps/api/src/modules and kernel seams"
+scope: "apps/api/src/modules and kernel seams"
 last_verified: "581e676"
 sources:
   - id: context-source
-    resource: "apps/api/apps/api/src/modules"
+    resource: "apps/api/src/modules"
     title: "Bounded-context source tree"
   - id: kernel-source
-    resource: "apps/api/apps/api/src/kernel"
+    resource: "apps/api/src/kernel"
     title: "Technical kernel source tree"
   - id: boundary-checker
     resource: "scripts/check-prism-boundaries.mjs"
@@ -31,7 +31,7 @@ sources:
 - **Purpose:** Define the supported in-process seams between bounded contexts.
 - **Authority:** Normative for backend imports, ports, contracts, and read-model composition.
 - **Owner:** D (Anthony).
-- **Scope:** `apps/api/apps/api/src/modules` and `apps/api/apps/api/src/kernel`.
+- **Scope:** `apps/api/src/modules` and `apps/api/src/kernel`.
 - **Use when:** Adding a context dependency, public index, port, or cross-context query.
 - **Change when:** A supported seam, context owner, or extraction constraint changes.
 - **Verify with:** `scripts/check-prism-boundaries.mjs` and boundary tests.
@@ -74,7 +74,7 @@ independent service.
 ## Technical kernel surfaces
 
 The kernel contains technical primitives under
-`apps/api/apps/api/src/kernel/`: `access-control`, `database`, `event-core`,
+`apps/api/src/kernel/`: `access-control`, `database`, `event-core`,
 `event-session`, `health`, `shared`, and `shared-kernel`. Contexts may depend on
 these facilities. Kernel code must not import `modules/*`.
 

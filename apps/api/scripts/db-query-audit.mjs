@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
 
 const rootPath = fileURLToPath(new URL('../../../', import.meta.url));
-const sourceRoot = join(rootPath, 'apps', 'api', 'apps', 'api', 'src');
+const sourceRoot = join(rootPath, 'apps', 'api', 'src');
 
 function collectTypeScriptFiles(dir) {
   const files = [];

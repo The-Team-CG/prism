@@ -19,10 +19,10 @@ sources:
     resource: "docs/architecture/context-contracts.md"
     title: "Context contract register"
   - id: context-source
-    resource: "apps/api/apps/api/src/modules"
+    resource: "apps/api/src/modules"
     title: "Bounded-context modules"
   - id: kernel-source
-    resource: "apps/api/apps/api/src/kernel"
+    resource: "apps/api/src/kernel"
     title: "Technical kernel"
   - id: boundary-checks
     resource: "scripts/check-prism-boundaries.mjs"

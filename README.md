@@ -109,7 +109,7 @@ npm run check:boundaries
 
 ## Backend Architecture
 
-`apps/api` is one shared NestJS modular monolith. Bounded contexts under `apps/api/apps/api/src/modules/<bounded-context>/` own business writes, `src/kernel/` owns technical infrastructure, `src/compatibility/sample/` owns `/sample/*` compatibility, and `read-models` composes role-scoped reads only. See [`docs/architecture/current-architecture.md`](docs/architecture/current-architecture.md) and [`docs/architecture/decisions/`](docs/architecture/decisions/).
+`apps/api` is one shared NestJS modular monolith. Bounded contexts under `apps/api/src/modules/<bounded-context>/` own business writes, `src/kernel/` owns technical infrastructure, `src/compatibility/sample/` owns `/sample/*` compatibility, and `read-models` composes role-scoped reads only. See [`docs/architecture/current-architecture.md`](docs/architecture/current-architecture.md) and [`docs/architecture/decisions/`](docs/architecture/decisions/).
 
 Useful API commands:
 

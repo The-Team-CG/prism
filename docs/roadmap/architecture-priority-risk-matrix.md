@@ -53,7 +53,7 @@ without a feature-specific design, owner, contract, and verification evidence.
 
 | ID | Completed item | Evidence / residual note |
 | --- | --- | --- |
-| BE-C1 | Consolidated commercial + supplier + finance ownership into `apps/api/apps/api/src/modules/commercial` | One `commercial.module.ts` and `index.ts`; `quotes`, `suppliers`, and `billing` remain explicit sub-areas. |
+| BE-C1 | Consolidated commercial + supplier + finance ownership into `apps/api/src/modules/commercial` | One `commercial.module.ts` and `index.ts`; `quotes`, `suppliers`, and `billing` remain explicit sub-areas. |
 | BE-C2 | Consolidated inquiry/onboarding + compliance + closure + files into `modules/event-lifecycle` | Routes and behavior preserved; file requirements remains a lifecycle sub-area. |
 | BE-C3 | Consolidated floorplan plus events/plans/templates/publishing into `modules/floorplan` | Live and authoring sub-areas; no route deletion. |
 | BE-C4 | Consolidated staffing + guest into `modules/operations`; kept `live-ops` separate | Avoids the circular dependency found when live-ops consumes read models. |

@@ -8,7 +8,7 @@ updated: "2026-09-01"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
-scope: "apps/api/apps/api/src/modules, kernel, and compatibility source"
+scope: "apps/api/src/modules, kernel, and compatibility source"
 last_verified: "1f73cea"
 decision_date: "2026-09-01"
 sources:
@@ -16,10 +16,10 @@ sources:
     resource: "AGENTS.md"
     title: "Prism backend source-tree rules"
   - id: api-source
-    resource: "apps/api/apps/api/src"
+    resource: "apps/api/src"
     title: "Current DDD-shaped API source tree"
   - id: api-composition
-    resource: "apps/api/apps/api/src/app.module.ts"
+    resource: "apps/api/src/app.module.ts"
     title: "Nest application composition root"
   - id: nest-config
     resource: "apps/api/nest-cli.json"
@@ -53,7 +53,7 @@ Prism uses one NestJS modular monolith, one API project, one Prisma client, and
 business bounded-context roots under:
 
 ```text
-apps/api/apps/api/src/
+apps/api/src/
 ├── modules/
 │   ├── commercial/
 │   ├── event-lifecycle/

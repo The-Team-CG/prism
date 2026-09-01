@@ -18,7 +18,7 @@ sources:
     resource: "docs/architecture/current-architecture.md"
     title: "Current architecture reference"
   - id: api-source
-    resource: "apps/api/apps/api/src"
+    resource: "apps/api/src"
     title: "Current API source tree"
   - id: shared-contracts
     resource: "packages/types/src"
@@ -74,9 +74,9 @@ fields, audit expectation, and verification evidence.
 
 The backend is one NestJS deployable with one Prisma client. Business ownership
 lives in bounded-context roots under
-`apps/api/apps/api/src/modules/<bounded-context>/`; technical infrastructure
-lives under `apps/api/apps/api/src/kernel/`; `/sample/*` compatibility lives under
-`apps/api/apps/api/src/compatibility/sample/`.
+`apps/api/src/modules/<bounded-context>/`; technical infrastructure
+lives under `apps/api/src/kernel/`; `/sample/*` compatibility lives under
+`apps/api/src/compatibility/sample/`.
 
 Each context exposes one composition root and a public `index.ts`. Internal
 folders are progressive: use `api/`, `application/`, `contracts/`, `domain/`,

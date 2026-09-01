@@ -22,7 +22,7 @@ sources:
     resource: "packages/api-client/src"
     title: "Shared HTTP transport and clients"
   - id: sample-compatibility
-    resource: "apps/api/apps/api/src/compatibility/sample"
+    resource: "apps/api/src/compatibility/sample"
     title: "Sample and compatibility routes"
 ---
 # ADR-0002: Shared contracts and sample compatibility
@@ -58,7 +58,7 @@ that compatibility surface is intentionally broader than a role feature API.
   and view-models may not call HTTP directly.
 - Keep Prisma models private to the API. Controllers expose mapped contracts,
   not persistence types.
-- Keep `apps/api/apps/api/src/compatibility/sample/` limited to `/sample/*`
+- Keep `apps/api/src/compatibility/sample/` limited to `/sample/*`
   demo, seed, reset, and legacy compatibility behavior. New role features use
   scoped context APIs and contracts instead.
 - Keep session and sample storage keys in `@prism/types`; apps must not add

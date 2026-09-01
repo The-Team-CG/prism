@@ -15,10 +15,10 @@ sources:
     resource: "AGENTS.md"
     title: "Prism repository and ownership rules"
   - id: api-source
-    resource: "apps/api/apps/api/src"
+    resource: "apps/api/src"
     title: "Current API source tree"
   - id: app-composition
-    resource: "apps/api/apps/api/src/app.module.ts"
+    resource: "apps/api/src/app.module.ts"
     title: "Nest application composition"
   - id: portal-source
     resource: "apps"
@@ -106,7 +106,7 @@ now follows the AlphaCI Enterprise composition pattern without copying AlphaCI's
 business vocabulary:
 
 ```text
-apps/api/apps/api/src/
+apps/api/src/
   modules/<bounded-context>/
     api/
     application/
@@ -146,11 +146,11 @@ ownership/deployment decision.
 ### Kernel and compatibility
 
 ```text
-apps/api/apps/api/src/kernel/
+apps/api/src/kernel/
   access-control  database  event-core  event-session
   health          shared    shared-kernel
 
-apps/api/apps/api/src/compatibility/sample/
+apps/api/src/compatibility/sample/
 ```
 
 The kernel owns technical primitives: database access, event-core invariants and

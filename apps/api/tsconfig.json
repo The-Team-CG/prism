@@ -20,100 +20,100 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@prism/kernel/shared": [
-        "apps/api/src/kernel/shared/index"
+        "src/kernel/shared/index"
       ],
       "@prism/kernel/shared/*": [
-        "apps/api/src/kernel/shared/*"
+        "src/kernel/shared/*"
       ],
       "@prism/kernel/database": [
-        "apps/api/src/kernel/database/index"
+        "src/kernel/database/index"
       ],
       "@prism/kernel/database/*": [
-        "apps/api/src/kernel/database/*"
+        "src/kernel/database/*"
       ],
       "@prism/kernel/event-core": [
-        "apps/api/src/kernel/event-core/index"
+        "src/kernel/event-core/index"
       ],
       "@prism/kernel/event-core/*": [
-        "apps/api/src/kernel/event-core/*"
+        "src/kernel/event-core/*"
       ],
       "@prism/kernel/access-control": [
-        "apps/api/src/kernel/access-control/index"
+        "src/kernel/access-control/index"
       ],
       "@prism/kernel/access-control/*": [
-        "apps/api/src/kernel/access-control/*"
+        "src/kernel/access-control/*"
       ],
       "@prism/kernel/event-session": [
-        "apps/api/src/kernel/event-session/index"
+        "src/kernel/event-session/index"
       ],
       "@prism/kernel/event-session/*": [
-        "apps/api/src/kernel/event-session/*"
+        "src/kernel/event-session/*"
       ],
       "@prism/kernel/health": [
-        "apps/api/src/kernel/health/index"
+        "src/kernel/health/index"
       ],
       "@prism/kernel/health/*": [
-        "apps/api/src/kernel/health/*"
+        "src/kernel/health/*"
       ],
       "@prism/kernel/shared-kernel": [
-        "apps/api/src/kernel/shared-kernel/index"
+        "src/kernel/shared-kernel/index"
       ],
       "@prism/kernel/shared-kernel/*": [
-        "apps/api/src/kernel/shared-kernel/*"
+        "src/kernel/shared-kernel/*"
       ],
       "@prism/compatibility/sample": [
-        "apps/api/src/compatibility/sample/index"
+        "src/compatibility/sample/index"
       ],
       "@prism/compatibility/sample/*": [
-        "apps/api/src/compatibility/sample/*"
+        "src/compatibility/sample/*"
       ],
       "@prism/contexts/floorplan": [
-        "apps/api/src/modules/floorplan/index"
+        "src/modules/floorplan/index"
       ],
       "@prism/contexts/floorplan/*": [
-        "apps/api/src/modules/floorplan/*"
+        "src/modules/floorplan/*"
       ],
       "@prism/contexts/operations": [
-        "apps/api/src/modules/operations/index"
+        "src/modules/operations/index"
       ],
       "@prism/contexts/operations/*": [
-        "apps/api/src/modules/operations/*"
+        "src/modules/operations/*"
       ],
       "@prism/contexts/live-ops": [
-        "apps/api/src/modules/live-ops/index"
+        "src/modules/live-ops/index"
       ],
       "@prism/contexts/live-ops/*": [
-        "apps/api/src/modules/live-ops/*"
+        "src/modules/live-ops/*"
       ],
       "@prism/contexts/commercial": [
-        "apps/api/src/modules/commercial/index"
+        "src/modules/commercial/index"
       ],
       "@prism/contexts/commercial/*": [
-        "apps/api/src/modules/commercial/*"
+        "src/modules/commercial/*"
       ],
       "@prism/contexts/event-lifecycle": [
-        "apps/api/src/modules/event-lifecycle/index"
+        "src/modules/event-lifecycle/index"
       ],
       "@prism/contexts/event-lifecycle/*": [
-        "apps/api/src/modules/event-lifecycle/*"
+        "src/modules/event-lifecycle/*"
       ],
       "@prism/contexts/platform-ops": [
-        "apps/api/src/modules/platform-ops/index"
+        "src/modules/platform-ops/index"
       ],
       "@prism/contexts/platform-ops/*": [
-        "apps/api/src/modules/platform-ops/*"
+        "src/modules/platform-ops/*"
       ],
       "@prism/contexts/identity-access": [
-        "apps/api/src/modules/identity-access/index"
+        "src/modules/identity-access/index"
       ],
       "@prism/contexts/identity-access/*": [
-        "apps/api/src/modules/identity-access/*"
+        "src/modules/identity-access/*"
       ],
       "@prism/contexts/read-models": [
-        "apps/api/src/modules/read-models/index"
+        "src/modules/read-models/index"
       ],
       "@prism/contexts/read-models/*": [
-        "apps/api/src/modules/read-models/*"
+        "src/modules/read-models/*"
       ]
     }
   }

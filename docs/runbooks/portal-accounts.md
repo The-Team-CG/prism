@@ -12,7 +12,7 @@ scope: "local sample accounts and role-bound portal sign-in"
 last_verified: "581e676"
 sources:
   - id: sample-seed
-    resource: "apps/api/apps/api/src/compatibility/sample"
+    resource: "apps/api/src/compatibility/sample"
     title: "Sample account and reset compatibility"
   - id: current-architecture
     resource: "docs/architecture/current-architecture.md"
@@ -99,9 +99,9 @@ Signing into the wrong portal with a valid account from another role returns a p
 
 | Concern | Location |
 | --- | --- |
-| Sample `OpsUser` rows + passwords (via sample reset only) | `apps/api/apps/api/src/compatibility/sample/services/sample-compatibility.service.ts` |
+| Sample `OpsUser` rows + passwords (via sample reset only) | `apps/api/src/compatibility/sample/services/sample-compatibility.service.ts` |
 | Sample suppliers (matched by email for supplier workspace) | same file (`SEEDED_SUPPLIERS`) |
-| Guest access-code derivation | `apps/api/apps/api/src/modules/operations/application/guest/guest-workflow.service.ts` (`guestAccessCode`) |
+| Guest access-code derivation | `apps/api/src/modules/operations/application/guest/guest-workflow.service.ts` (`guestAccessCode`) |
 | Product / ops docs | [`../index.md`](../index.md), [`../product/actual-system.md`](../product/actual-system.md) |
 
 ## Security note

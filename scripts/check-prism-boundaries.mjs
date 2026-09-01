@@ -15,18 +15,18 @@ const backendContexts = [
 ];
 
 const backendContextPattern = new RegExp(
-  "^apps/api/apps/api/src/modules/(?:" + backendContexts.join("|") + ")/",
+  "^apps/api/src/modules/(?:" + backendContexts.join("|") + ")/",
 );
-const backendKernelPattern = /^apps\/api\/apps\/api\/src\/kernel\//;
-const backendSourcePattern = /^apps\/api\/apps\/api\/src\/(?:modules|kernel|compatibility)\//;
-const readModelsPattern = /^apps\/api\/apps\/api\/src\/modules\/read-models\//;
+const backendKernelPattern = /^apps\/api\/src\/kernel\//;
+const backendSourcePattern = /^apps\/api\/src\/(?:modules|kernel|compatibility)\//;
+const readModelsPattern = /^apps\/api\/src\/modules\/read-models\//;
 const legacyBackendPattern = /^apps\/api\/libs\/(?:contexts|modules|core)\//;
 const prismaMutationPattern =
   /(?:\b(?:this\.)?prisma(?:\.[A-Za-z_$][\w$]*)*|\btx(?:\.[A-Za-z_$][\w$]*)*)\.(?:createMany|create|updateMany|update|upsert|deleteMany|delete|\$executeRawUnsafe|\$executeRaw)\s*\(/;
 const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
 
 function contextOf(normalized) {
-  return normalized.match(/^apps\/api\/apps\/api\/src\/modules\/([^/]+)\//)?.[1] ?? null;
+  return normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1] ?? null;
 }
 
 function hasPrivateModuleImport(source) {
@@ -37,7 +37,7 @@ function hasPrivateCrossContextImport(normalized, source) {
   const owner = contextOf(normalized);
   if (!owner) return false;
 
-  const directContextImport = /from\s+["']apps\/api\/apps\/api\/src\/modules\/([^/"']+)\/[^"']+["']/g;
+  const directContextImport = /from\s+["']apps\/api\/src\/modules\/([^/"']+)\/[^"']+["']/g;
   for (const match of source.matchAll(directContextImport)) {
     if (match[1] !== owner) return true;
   }
@@ -95,7 +95,7 @@ export const boundaryRules = [
   },
   {
     name: "backend services must not inject Prisma as any",
-    filePattern: /^apps\/api\/apps\/api\/src\/(?:modules|kernel)\/.*\/.*service\.ts$/,
+    filePattern: /^apps\/api\/src\/(?:modules|kernel)\/.*\/.*service\.ts$/,
     importPattern: /(?:private\s+readonly\s+)?prisma\s*:\s*any\b/,
   },
   {

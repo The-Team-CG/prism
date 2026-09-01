@@ -10,7 +10,7 @@ single agent entrypoint.
 | --- | --- |
 | Feature branch + PR; conventional commits (`feat:`, `fix:`, `refactor:`, …) | Push / force-push `main`; amend published commits without ask |
 | **Shared contracts: Zod schema + `z.infer` in `@prism/types` only** | Parallel hand types; `as any`; app-local shared schemas; type-only DTOs without schema |
-| Own API work in `apps/api/apps/api/src/modules/<bounded-context>/`; keep cross-cutting concerns in `src/kernel/` | God `event-ops` hub; private cross-context service imports |
+| Own API work in `apps/api/src/modules/<bounded-context>/`; keep cross-cutting concerns in `src/kernel/` | God `event-ops` hub; private cross-context service imports |
 | Role app for the actor; thin `app/` routes; logic in `features/` | Rebuild `apps/client` as all-role PMCM shell; cross-import apps |
 | Scoped APIs + package contracts for new surfaces | Primary path via `/api/sample/state` or local sample state |
 | Session/sample keys only in `@prism/types` | New app-local `prism:*` storage keys |
@@ -91,7 +91,7 @@ Parse untrusted form/API body           →  parseContract / schema.safeParse (@
 HTTP                                    →  @prism/api-client in data/
 Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/dashboard-shell)
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
-Sample/mock-only / legacy compat        →  `apps/api/apps/api/src/compatibility/sample` (API only); portal adapters remain thin
+Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample` (API only); portal adapters remain thin
 ```
 
 **Portal `lib/prism-api` policy**
@@ -186,7 +186,7 @@ No OpenAPI/Kubb codegen today.
 
 ### API surface
 
-1. Own bounded context under `apps/api/apps/api/src/modules/<bounded-context>/`; keep the module file and public `index.ts` at that boundary.
+1. Own bounded context under `apps/api/src/modules/<bounded-context>/`; keep the module file and public `index.ts` at that boundary.
 2. **Zod contract in `@prism/types`** (write) before controller work.
 3. ports → services → thin controller (`zodBody` / legacy DTO) → mappers (no Prisma models as public API).
 4. Cross-domain **reads** via `read-models` readers only; writers expose focused contracts/ports from their public index.
