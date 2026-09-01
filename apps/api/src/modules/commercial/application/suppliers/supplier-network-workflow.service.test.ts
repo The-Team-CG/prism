@@ -19,7 +19,7 @@ function createService() {
       { id: 'sup_sonicline', name: 'Sonic Line Events', email: 'supplier@example.com' },
     ]),
   };
-  const eventAccessPolicyService = new EventAccessPolicyService({ audit: vi.fn() } as any);
+  const eventAccessPolicyService = new EventAccessPolicyService({ write: vi.fn() } as any);
   const prisma = {
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
@@ -30,7 +30,7 @@ function createService() {
     prisma as any,
     suppliers as any,
     {} as any,
-    { audit } as any,
+    { write: audit } as any,
     eventAccessPolicyService,
     new WorkflowCommandService(),
     {} as any,
@@ -56,14 +56,15 @@ describe('SupplierNetworkWorkflowService', () => {
     expect(updated.eventDayVerifiedBy).not.toBe('Ms. Mys');
     expect(prisma.opsSupplierQuoteRequest.findUnique).toHaveBeenCalledWith({ where: { id: 'qr_sonic' } });
     expect(audit).toHaveBeenCalledWith(
-      'evt_sample',
-      'PMCM Admin',
-      'Marked supplier setup verified: Sonic Line Events',
       expect.objectContaining({
+        eventId: 'evt_sample',
+        actor: 'PMCM Admin',
+        action: 'Marked supplier setup verified: Sonic Line Events',
         actorRole: OpsUserRole.PmcmAdmin,
         affectedId: 'qr_sonic',
         metadata: { verificationStatus: SupplierVerificationStatus.Verified, verifiedBy: 'PMCM Admin', notes: 'Setup checked.' },
       }),
+      undefined,
     );
   });
 

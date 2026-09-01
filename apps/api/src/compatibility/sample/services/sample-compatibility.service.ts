@@ -632,11 +632,10 @@ export class SampleCompatibilityService implements OnModuleInit {
 
   private pmcmReadModelMappers(): PmcmDashboardMappers {
     return createPmcmReadModelMappers({
-      auditService: this.auditService,
-      billingOperationsService: this.billingOperationsService,
-      coordinatorsService: this.coordinatorsService,
-      floorPlanWorkflowService: this.floorPlanWorkflowService,
-      guestWorkflowService: this.guestWorkflowService,
+      financeCommands: this.billingOperationsService,
+      staffingReader: this.coordinatorsService,
+      floorplanReader: this.floorPlanWorkflowService,
+      guestReader: this.guestWorkflowService,
     });
   }
   async state() {

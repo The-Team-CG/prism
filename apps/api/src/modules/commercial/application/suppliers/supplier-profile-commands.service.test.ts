@@ -8,14 +8,14 @@ describe('SupplierProfileCommandsService', () => {
     const suppliersService = {
       addSupplierReview: vi.fn(async () => ({ supplier: { id: 'sup_1', name: 'Acme AV' }, reviewId: 'review_abc123' })),
     };
-    const auditService = {
-      audit: vi.fn(async () => {}),
+    const auditWriter = {
+      write: vi.fn(async () => {}),
     };
     const eventAccessPolicyService = { requireActorRole: vi.fn(async () => {}) };
     const workflowCommandService = new WorkflowCommandService();
     const service = new SupplierProfileCommandsService(
       suppliersService as any,
-      auditService as any,
+      auditWriter as any,
       eventAccessPolicyService as any,
       workflowCommandService,
     );
@@ -26,16 +26,17 @@ describe('SupplierProfileCommandsService', () => {
     ).resolves.toEqual({ id: 'sup_1', name: 'Acme AV' });
 
     expect(suppliersService.addSupplierReview).toHaveBeenCalledTimes(1);
-    expect(auditService.audit).toHaveBeenCalledWith(
-      undefined,
-      'Real Admin',
-      'Added private supplier review: Acme AV',
+    expect(auditWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
+        eventId: undefined,
+        actor: 'Real Admin',
+        action: 'Added private supplier review: Acme AV',
         actorRole: 'pmcm-admin',
         actorEmail: 'admin@pmcm.test',
         affectedType: 'supplier_review',
         affectedId: 'review_abc123',
       }),
+      undefined,
     );
   });
 });

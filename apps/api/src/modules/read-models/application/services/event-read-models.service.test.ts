@@ -71,7 +71,7 @@ function createSupplierWorkspaceService() {
       ]),
     },
   };
-  const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+  const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
   const supplierRows = [
     {
       id: 'sup_sonicline',
@@ -269,7 +269,7 @@ function createPmcmReadModelService() {
       ]),
     },
   };
-  const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+  const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
   const guestReader = createGuestReader();
   const staffingReader = createStaffingReader();
   const service = new EventReadModelsService(
@@ -325,7 +325,7 @@ describe('EventReadModelsService', () => {
   });
 
   it('builds a PMCM-only defense readiness checklist through reader ports', async () => {
-    const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+    const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const event = {
       id: 'evt_sample',
       eventName: 'Ayala Summit',
@@ -401,7 +401,7 @@ describe('EventReadModelsService', () => {
   });
 
   it('denies non-PMCM actors from defense readiness before querying', async () => {
-    const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+    const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const queries = { defenseReadiness: vi.fn() };
     const service = new EventReadModelsService(
       queries as any,
@@ -561,7 +561,7 @@ describe('EventReadModelsService', () => {
   });
 
   it('uses one bounded query-builder pass for high-volume PMCM dashboard records', async () => {
-    const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+    const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const queries = {
       pmcmDashboard: vi.fn(async () => [
         [],
@@ -651,7 +651,7 @@ describe('EventReadModelsService', () => {
       opsPaymentRecord: { findMany: vi.fn(async () => []) },
       opsPostEventDocument: { findMany: vi.fn(async () => []) },
     };
-    const policy = new EventAccessPolicyService({ audit: vi.fn() } as any);
+    const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
     const guestReader = createGuestReader();
     const staffingReader = createStaffingReader();
     const service = new EventReadModelsService(new EventReadModelQueries(prisma as any), policy, guestReader as any, staffingReader as any);

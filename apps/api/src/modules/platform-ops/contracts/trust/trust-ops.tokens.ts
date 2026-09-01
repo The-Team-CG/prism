@@ -1,1 +1,1 @@
-export const AUDIT_WRITER = Symbol.for('prism.trustOps.auditWriter');
+export { AUDIT_WRITER } from '@prism/kernel/access-control';

@@ -16,7 +16,7 @@ import type {
   VerifySupplierStatusInput,
 } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { CoordinatorsService } from '@prism/contexts/operations';
+import { STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
 import {
   mapSupplierQuoteRequest,
   SUPPLIER_COMMANDS,
@@ -35,7 +35,7 @@ export class EventLiveOpsCommandService {
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly liveOperationsService: LiveOperationsService,
-    private readonly coordinatorsService: CoordinatorsService,
+    @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(SUPPLIER_COMMANDS) private readonly supplierCommands: SupplierCommands,
   ) {}
 
@@ -105,7 +105,7 @@ export class EventLiveOpsCommandService {
     const assignment = await this.liveOperationsService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
     return mapCoordinatorAssignmentForEventDay(
       assignment,
-      this.coordinatorsService.mapCoordinatorAssignment.bind(this.coordinatorsService),
+      this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
     );
   }
 
@@ -127,11 +127,11 @@ export class EventLiveOpsCommandService {
     return {
       replacedAssignment: mapCoordinatorAssignmentForEventDay(
         replacedAssignment,
-        this.coordinatorsService.mapCoordinatorAssignment.bind(this.coordinatorsService),
+        this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
       ),
       replacementAssignment: mapCoordinatorAssignmentForEventDay(
         replacementAssignment,
-        this.coordinatorsService.mapCoordinatorAssignment.bind(this.coordinatorsService),
+        this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
       ),
     };
   }
@@ -200,7 +200,7 @@ export class EventLiveOpsCommandService {
   }
 
   private async requireCoordinatorAssignmentForEvent(eventId: string, actor: ResolvedEventOpsActor) {
-    const assignment = await this.coordinatorsService.findAssignmentForEventActor(eventId, actor);
+    const assignment = await this.staffingReader.findAssignmentForEventActor(eventId, actor);
     if (!assignment) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'assigned event-day operations', eventId);
       throw new ForbiddenException('Coordinator is not assigned to this event');

@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsComplianceCheck, OpsComplianceRule, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 
 export type ComplianceRunInput = {
@@ -35,7 +35,7 @@ export type UpdateComplianceRuleInput = Partial<CreateComplianceRuleInput>;
 export class ComplianceWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
@@ -83,7 +83,7 @@ export class ComplianceWorkflowService {
           },
         }),
       sideEffects: async (rule) => {
-        await this.auditService.audit(input.eventId, actor.name, `Created compliance rule: ${rule.title}`, {
+        await writeAudit(this.auditWriter, input.eventId, actor.name, `Created compliance rule: ${rule.title}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Create,
@@ -112,7 +112,7 @@ export class ComplianceWorkflowService {
             throw new NotFoundException('Compliance rule not found');
           }),
       sideEffects: async (rule) => {
-        await this.auditService.audit(rule.eventId ?? undefined, actor.name, `Updated compliance rule: ${rule.title}`, {
+        await writeAudit(this.auditWriter, rule.eventId ?? undefined, actor.name, `Updated compliance rule: ${rule.title}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Update,
@@ -178,7 +178,7 @@ export class ComplianceWorkflowService {
           return tx.opsComplianceCheck.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
         }),
       sideEffects: async () => {
-        await this.auditService.audit(eventId, 'PMCM Admin', 'Ran compliance checks', {
+        await writeAudit(this.auditWriter, eventId, 'PMCM Admin', 'Ran compliance checks', {
           actionType: AuditActionType.Create,
           category: AuditCategory.Compliance,
           metadata: { phase, eventType, ruleCount: matchingRules.length },
@@ -227,7 +227,7 @@ export class ComplianceWorkflowService {
             throw new NotFoundException('Compliance check not found');
           }),
       sideEffects: async (check) => {
-        await this.auditService.audit(
+        await writeAudit(this.auditWriter,
           eventId,
           actorName,
           action === 'override' ? 'Overrode compliance item' : 'Resolved compliance item',

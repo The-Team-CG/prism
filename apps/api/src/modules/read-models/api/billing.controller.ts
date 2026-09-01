@@ -1,6 +1,6 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { BillingOperationsService } from '@prism/contexts/commercial';
+import { FINANCE_COMMANDS, type FinanceCommands } from '@prism/contexts/commercial';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { createBillingReadModelMappers } from '../application/mappers/event-read-model.mappers';
@@ -12,7 +12,7 @@ export class OpsBillingController {
   constructor(
     private readonly eventReadModelsService: EventReadModelsService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly billingOperationsService: BillingOperationsService,
+    @Inject(FINANCE_COMMANDS) private readonly financeCommands: FinanceCommands,
   ) {}
 
   @Get()
@@ -23,10 +23,10 @@ export class OpsBillingController {
       actor,
       createBillingReadModelMappers({
         mapEvent: mapBillingEvent,
-        mapBillingSource: this.billingOperationsService.mapBillingSource.bind(this.billingOperationsService),
-        mapBillingStatement: this.billingOperationsService.mapBillingStatement.bind(this.billingOperationsService),
-        mapPaymentMilestone: this.billingOperationsService.mapPaymentMilestone.bind(this.billingOperationsService),
-        mapPaymentRecord: this.billingOperationsService.mapPaymentRecord.bind(this.billingOperationsService),
+        mapBillingSource: this.financeCommands.mapBillingSource.bind(this.financeCommands),
+        mapBillingStatement: this.financeCommands.mapBillingStatement.bind(this.financeCommands),
+        mapPaymentMilestone: this.financeCommands.mapPaymentMilestone.bind(this.financeCommands),
+        mapPaymentRecord: this.financeCommands.mapPaymentRecord.bind(this.financeCommands),
       }),
     );
   }

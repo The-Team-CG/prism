@@ -1,5 +1,10 @@
-import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+import { EventDashboardFinanceSectionView, EventDashboardRouteView } from "@/features/event-dashboard/shell";
 
-export default function EventDashboardRoutePage() {
-  return <EventDashboardRouteView routeKey="finance/[financeView]" />;
+export default async function EventDashboardRoutePage({ params }: { params: Promise<{ financeView: string }> }) {
+  const { financeView } = await params;
+  return (
+    <EventDashboardRouteView section="finance" tab="billing" view={financeView}>
+      <EventDashboardFinanceSectionView />
+    </EventDashboardRouteView>
+  );
 }

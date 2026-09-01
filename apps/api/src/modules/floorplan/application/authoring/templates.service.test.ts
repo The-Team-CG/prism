@@ -69,6 +69,16 @@ describe('TemplatesService', () => {
     ]);
   });
 
+  it('bounds the template list query for the authoring list surface', async () => {
+    const { service, prisma } = createService();
+
+    await service.listTemplates();
+
+    expect(prisma.venueTemplate.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 100 }),
+    );
+  });
+
   it('deletes the template record without deleting event data through a cascade fallback', async () => {
     const { service, prisma } = createService();
 

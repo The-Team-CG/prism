@@ -4,7 +4,7 @@ import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { SampleCompatibilityService } from './sample-compatibility.service';
 import { AiGovernanceService } from '@prism/contexts/platform-ops';
 import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/contexts/platform-ops';
-import { AuthOperationsService, AuthSecurityService } from '@prism/contexts/identity-access';
+import { AuthAuditAdapter, AuthOperationsService, AuthSecurityService } from '@prism/contexts/identity-access';
 import { BillingOperationsService } from '@prism/contexts/commercial';
 import {
   ClientOnboardingWorkflowService,
@@ -990,15 +990,16 @@ function createSampleCompatibilityService(prisma: any) {
   const aiGovernanceService = new AiGovernanceService(prisma);
   const suppliersService = new SuppliersService(prisma);
   const pareService = new PAREService(prisma);
-  const eventAccessPolicyService = new EventAccessPolicyService(auditService);
+  const eventAccessPolicyService = new EventAccessPolicyService(auditWriter);
   const inquiriesService = new InquiriesService(
     prisma,
-    auditService,
-    notificationOutboxService,
+    auditWriter,
+    notificationOutboxWriter,
     workflowCommandService,
   );
   const authSessionService = { issueSession: (user: any) => ({ ...user, accessToken: 'test-token', expiresAt: new Date(Date.now() + 3600000).toISOString(), signedInAt: new Date().toISOString(), tokenType: 'Bearer' }), issueTwoFactorToken: () => 'test-2fa-token', verifyTwoFactorToken: () => ({ userId: 'usr_pmcm', email: 'mys@pmcm.test', role: 'pmcm-admin', purpose: 'challenge' }) };
-  const authOperationsService = new AuthOperationsService(prisma, auditService, inquiriesService, authSessionService as any, {} as any);
+  const authAudit = new AuthAuditAdapter(auditService);
+  const authOperationsService = new AuthOperationsService(prisma, authAudit, inquiriesService, authSessionService as any, {} as any);
   const privacyOperationsService = new PrivacyOperationsService(prisma, auditService);
   const coordinatorsService = new CoordinatorsService(
     prisma,
@@ -1009,26 +1010,26 @@ function createSampleCompatibilityService(prisma: any) {
   );
   const liveOperationsService = new LiveOperationsService(
     prisma,
-    auditService,
-    notificationOutboxService,
+    auditWriter,
+    notificationOutboxWriter,
     workflowCommandService,
   );
   const fileRequirementsMatrixService = new FileRequirementsMatrixService(prisma);
   const floorPlanWorkflowService = new FloorPlanWorkflowService(
     prisma,
-    auditService,
-    notificationOutboxService,
+    auditWriter,
+    notificationOutboxWriter,
     workflowCommandService,
   );
   const billingOperationsService = new BillingOperationsService(
     prisma,
-    auditService,
-    notificationOutboxService,
+    auditWriter,
+    notificationOutboxWriter,
     workflowCommandService,
   );
   const guestWorkflowService = new GuestWorkflowService(
     prisma,
-    auditService,
+    auditWriter,
     workflowCommandService,
     documentVaultService,
   );
@@ -1048,8 +1049,8 @@ function createSampleCompatibilityService(prisma: any) {
   );
   const commercialWorkflowService = new CommercialWorkflowService(
     prisma,
-    auditService,
-    notificationOutboxService,
+    auditWriter,
+    notificationOutboxWriter,
     workflowCommandService,
     suppliersService,
   );
@@ -1057,26 +1058,26 @@ function createSampleCompatibilityService(prisma: any) {
     prisma,
     fileRequirementsMatrixService,
     eventLifecycleService,
-    auditService,
+    auditWriter,
     eventAccessPolicyService,
-    notificationOutboxService,
+    notificationOutboxWriter,
     workflowCommandService,
   );
   const complianceWorkflowService = new ComplianceWorkflowService(
     prisma,
-    auditService,
+    auditWriter,
     eventAccessPolicyService,
     workflowCommandService,
   );
   const clientOnboardingWorkflowService = new ClientOnboardingWorkflowService(
     prisma,
-    auditService,
-    notificationOutboxService,
+    auditWriter,
+    notificationOutboxWriter,
     workflowCommandService,
   );
   const supplierProfileCommandsService = new SupplierProfileCommandsService(
     suppliersService,
-    auditService,
+    auditWriter,
     eventAccessPolicyService,
     workflowCommandService,
   );
@@ -1084,7 +1085,7 @@ function createSampleCompatibilityService(prisma: any) {
     prisma,
     suppliersService,
     supplierProfileCommandsService,
-    auditService,
+    auditWriter,
     eventAccessPolicyService,
     workflowCommandService,
     pareService,
@@ -1292,13 +1293,14 @@ describe('SampleCompatibilityService', () => {
   it('enforces PmcmAdmin-only access and records the resolved actor on conforme upload', async () => {
     const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
     const auditService = new AuditService(fake.prisma as any);
+    const auditWriter = new AuditWriterAdapter(auditService);
     const notificationOutboxService = new NotificationOutboxService(fake.prisma as any);
     const workflowCommandService = new WorkflowCommandService(new PrismTransactionRunner(fake.prisma as any));
-    const eventAccessPolicyService = new EventAccessPolicyService(auditService);
+    const eventAccessPolicyService = new EventAccessPolicyService(auditWriter);
     const inquiriesService = new InquiriesService(
       fake.prisma as any,
-      auditService,
-      notificationOutboxService,
+      auditWriter,
+      new NotificationOutboxWriterAdapter(notificationOutboxService),
       workflowCommandService,
     );
     const inquiryWorkflowService = new InquiryWorkflowService(fake.prisma as any);

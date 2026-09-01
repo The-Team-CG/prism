@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { AuditService } from '@prism/contexts/platform-ops';
+import { AuditWriterAdapter } from '@prism/contexts/platform-ops';
 import { ComplianceWorkflowService } from './compliance-workflow.service';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
@@ -74,8 +75,9 @@ function createService() {
   };
   const auditService = new AuditService(prisma as any);
   auditService.audit = vi.fn(async () => undefined) as any;
-  const accessPolicy = new EventAccessPolicyService(auditService);
-  const service = new ComplianceWorkflowService(prisma as any, auditService, accessPolicy, new WorkflowCommandService());
+  const auditWriter = new AuditWriterAdapter(auditService);
+  const accessPolicy = new EventAccessPolicyService({ write: vi.fn() });
+  const service = new ComplianceWorkflowService(prisma as any, auditWriter, accessPolicy, new WorkflowCommandService());
   return { service, state, auditService };
 }
 
@@ -93,6 +95,7 @@ describe('ComplianceWorkflowService', () => {
       'PMCM Admin',
       'Ran compliance checks',
       expect.objectContaining({ metadata: expect.objectContaining({ ruleCount: 1 }) }),
+      undefined,
     );
   });
 

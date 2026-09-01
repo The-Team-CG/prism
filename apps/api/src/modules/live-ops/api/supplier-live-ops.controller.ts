@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Patch, UseGuards } from '@nestjs/common';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -7,7 +7,6 @@ import {
   type UpdateSupplierEventStatusInput,
   type PrismVerifiedEventActor,
 } from '@prism/types';
-import { LiveOpsActorDto } from './live-ops.dto';
 import { EventLiveOpsCommandService } from '../application/event-live-ops-command.service';
 
 @Controller('supplier')
@@ -22,7 +21,6 @@ export class SupplierLiveOpsController {
   updateEventStatus(
     @Param('requestId') requestId: string,
     @Body(zodBody(updateSupplierEventStatusSchema)) dto: UpdateSupplierEventStatusInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);

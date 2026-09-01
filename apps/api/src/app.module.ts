@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AccessControlModule } from '@prism/kernel/access-control';
-import { PlatformOpsModule } from '@prism/contexts/platform-ops';
+import { PlatformOpsAuditWriterModule } from '@prism/contexts/platform-ops';
 import { CommercialModule } from '@prism/contexts/commercial';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { SampleCompatibilityModule } from '@prism/compatibility/sample';
@@ -20,7 +20,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
     ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
     EventCoreModule,
-    PlatformOpsModule,
+    PlatformOpsAuditWriterModule,
     AccessControlModule,
     IdentityAccessModule,
     EventLifecycleModule,

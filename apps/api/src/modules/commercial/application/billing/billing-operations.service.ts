@@ -1,11 +1,11 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsBillingStatement, OpsBillingSource, OpsPaymentMilestone, OpsPaymentRecord, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
-import { NotificationOutboxService } from '@prism/contexts/platform-ops';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type {
   ApproveBillingSourceInput,
   BillingActor,
@@ -46,8 +46,8 @@ function auditMetadata(actor: BillingActor, metadata: Record<string, unknown> = 
 export class BillingOperationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly notificationOutboxService: NotificationOutboxService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
@@ -96,7 +96,7 @@ export class BillingOperationsService {
             data: { status: 'at_risk' },
           }),
         sideEffects: async (payment) => {
-          await this.auditService.audit(event.id, 'System', `Payment at risk for ${event.eventName}`, {
+          await writeAudit(this.auditWriter, event.id, 'System', `Payment at risk for ${event.eventName}`, {
             category: AuditCategory.Finance,
             actionType: AuditActionType.Update,
             affectedType: 'payment_milestone',
@@ -127,7 +127,7 @@ export class BillingOperationsService {
           }),
       sideEffects: async (payment) => {
         await Promise.all([
-          this.auditService.audit(eventId, actor.name, `Marked ${payment.label} as ${status}`, {
+          writeAudit(this.auditWriter, eventId, actor.name, `Marked ${payment.label} as ${status}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             category: AuditCategory.Finance,
@@ -137,7 +137,7 @@ export class BillingOperationsService {
             affectedLabel: payment.label,
             metadata: auditMetadata(actor),
           }),
-          this.notificationOutboxService.queue(eventId, 'Finance', `${payment.label} ${status}`),
+          writeNotification(this.notificationOutboxWriter, eventId, 'Finance', `${payment.label} ${status}`),
         ]);
       },
       project: (payment) => this.mapPaymentMilestone(payment),
@@ -244,7 +244,7 @@ export class BillingOperationsService {
       },
       sideEffects: async ({ payment }) => {
         if (duplicateReplay) return;
-        await this.auditService.audit(eventId, actor.name, `Recorded ${input.paymentMethod} payment for ${payment.label}`, {
+        await writeAudit(this.auditWriter, eventId, actor.name, `Recorded ${input.paymentMethod} payment for ${payment.label}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           category: AuditCategory.Finance,
@@ -295,7 +295,7 @@ export class BillingOperationsService {
           },
         }),
       sideEffects: async (source) => {
-        await this.auditService.audit(eventId, actor.name, `Created billing source: ${source.sourceLabel}`, {
+        await writeAudit(this.auditWriter, eventId, actor.name, `Created billing source: ${source.sourceLabel}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Create,
@@ -338,7 +338,7 @@ export class BillingOperationsService {
           },
         }),
       sideEffects: async (approvedSource) => {
-        await this.auditService.audit(eventId, approvedBy, `Approved billing source: ${approvedSource.sourceLabel}`, {
+        await writeAudit(this.auditWriter, eventId, approvedBy, `Approved billing source: ${approvedSource.sourceLabel}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Approve,
@@ -444,7 +444,7 @@ export class BillingOperationsService {
         });
       },
       sideEffects: async (statement) => {
-        await this.auditService.audit(eventId, actor.name, `Generated billing statement ${billingNumber}`, {
+        await writeAudit(this.auditWriter, eventId, actor.name, `Generated billing statement ${billingNumber}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           category: AuditCategory.Finance,
@@ -476,7 +476,7 @@ export class BillingOperationsService {
       sideEffects: async (billing) => {
         const recipient = billing.clientContact || billing.clientName || 'Client';
         await Promise.all([
-          this.auditService.audit(eventId, actor.name, `Sent billing statement ${billing.number}`, {
+          writeAudit(this.auditWriter, eventId, actor.name, `Sent billing statement ${billing.number}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             category: AuditCategory.Finance,
@@ -486,8 +486,8 @@ export class BillingOperationsService {
             affectedLabel: billing.number,
             metadata: auditMetadata(actor),
           }),
-          this.notificationOutboxService.queue(eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
-          this.notificationOutboxService.queue(eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
+          writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
+          writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
         ]);
       },
       project: (billing) => this.mapBillingStatement(billing),

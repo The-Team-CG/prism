@@ -4,6 +4,8 @@ import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, EventInstance, Seat, SeatCategory } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
 
+const LAYOUT_EVENT_LIST_LIMIT = 100;
+
 @Injectable()
 export class LayoutEventsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -11,6 +13,7 @@ export class LayoutEventsService {
   async listEvents(): Promise<EventInstance[]> {
     const rows = await this.prisma.eventInstance.findMany({
       orderBy: { createdAt: 'desc' },
+      take: LAYOUT_EVENT_LIST_LIMIT,
     });
 
     return rows.map((row) => ({

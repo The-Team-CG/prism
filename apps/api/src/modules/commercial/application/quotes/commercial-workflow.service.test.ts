@@ -119,12 +119,12 @@ describe('CommercialWorkflowService', () => {
       },
       $transaction: vi.fn(async (callback) => callback(prisma)),
     };
-    const auditService = { audit: vi.fn(async () => undefined) };
-    const notificationOutboxService = { queue: vi.fn(async () => undefined) };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
     const service = new CommercialWorkflowService(
       prisma as any,
-      auditService as any,
-      notificationOutboxService as any,
+      auditWriter as any,
+      notificationOutboxWriter as any,
       new WorkflowCommandService(),
       { resolveQuoteSupplier: vi.fn() } as any,
     );
@@ -135,16 +135,22 @@ describe('CommercialWorkflowService', () => {
     expect(quotes.find((quote) => quote.id === 'quote_other')?.status).toBe('not_selected');
     expect(quoteRequests.find((request) => request.id === 'qr_selected')?.status).toBe('selected');
     expect(quoteRequests.find((request) => request.id === 'qr_other')?.status).toBe('closed');
-    expect(auditService.audit).toHaveBeenCalledWith(
-      'evt_sample',
-      'PMCM Admin',
-      'Selected supplier quote: Sonic Line Events',
-      expect.objectContaining({ affectedType: 'supplier_quote' }),
+    expect(auditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_sample',
+        actor: 'PMCM Admin',
+        action: 'Selected supplier quote: Sonic Line Events',
+        affectedType: 'supplier_quote',
+      }),
+      undefined,
     );
-    expect(notificationOutboxService.queue).toHaveBeenCalledWith(
-      'evt_sample',
-      'Sonic Line Events',
-      'Your supplier quote was selected',
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_sample',
+        recipient: 'Sonic Line Events',
+        message: 'Your supplier quote was selected',
+      }),
+      undefined,
     );
   });
 });
@@ -225,12 +231,12 @@ function createRevisionCapScenario(revisionNumber: number | null) {
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => unknown) => callback(prisma)),
   };
-  const auditService = { audit: vi.fn(async () => undefined) };
-  const notificationOutboxService = { queue: vi.fn(async () => undefined) };
+  const auditWriter = { write: vi.fn(async () => undefined) };
+  const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
   const service = new CommercialWorkflowService(
     prisma as any,
-    auditService as any,
-    notificationOutboxService as any,
+    auditWriter as any,
+    notificationOutboxWriter as any,
     new WorkflowCommandService(),
     {} as any,
   );

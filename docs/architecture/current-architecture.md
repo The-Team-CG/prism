@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "1f73cea"
+last_verified: "codex/architecture-alignment-fe-be"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -175,10 +175,15 @@ the important rules: no private cross-context imports, no compatibility import
 from normal contexts or kernel, no Prisma writes from read models, budgeted raw
 read queries, and no tracked source under the old API library roots.
 
-Known seam: `kernel/access-control` still imports the public `platform-ops` module
-to emit audit evidence. This is legal and behavior-preserving in the monolith,
-but it is a kernel-to-business dependency. Invert it through a focused audit
-writer port before extracting either side as a service.
+The kernel does not import a business context. `kernel/access-control` emits
+forbidden-access evidence through the kernel-owned `AUDIT_WRITER` port; the
+composition root binds that port to the platform-ops `AuditWriterAdapter` in
+`PlatformOpsAuditWriterModule`. Identity authentication, document storage,
+notifications, and read-model composition use the same principle through
+focused `AUTH_AUDIT`, `DOCUMENT_VAULT`, notification-writer, finance-command,
+staffing-reader, floorplan-reader, and guest-reader seams. These are in-process
+contracts today; they make extraction boundaries explicit without claiming
+separate services or databases.
 
 ### Domain depth
 
@@ -192,11 +197,12 @@ an invariant must hold independently of HTTP and Prisma.
 | Domain | Representative models |
 | --- | --- |
 | Floorplans and venue templates | `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` |
-| Core event lifecycle | `OpsInquiry`, `OpsEvent`, `OpsApprovalRequest`, `OpsDocument`, `OpsBriefing`, `OpsPostEventDocument`, `OpsEventInsight` |
+| Identity and access | `OpsUser`, `OpsApprovalRequest` |
+| Core event lifecycle | `OpsInquiry`, `OpsEvent`, `OpsBriefing`, `OpsDocument` (inquiry/onboarding kinds), `OpsPostEventDocument`, `OpsEventInsight` |
 | Supplier network | `OpsSupplier`, `OpsSupplierCategory`, `OpsSupplierReview`, `OpsSupplierReliabilityNote`, `OpsSupplierCertification`, `OpsSupplierQuoteRequest`, `OpsSupplierQuote` |
 | Coordinator and live ops | `OpsCoordinator`, `OpsCoordinatorAssignment`, `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog`, `OpsCoordinatorReliabilityNote` |
 | Compliance and billing | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` |
-| Trust, privacy, and audit | `OpsUser`, `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsLoginHistory`, `OpsSecurityAlert` |
+| Trust, privacy, and audit | `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsLoginHistory`, `OpsSecurityAlert` |
 | Guest operations | `OpsGuestCheckIn`, `OpsGuestFeedback` |
 | AI governance | `OpsAiAuditLog`, `OpsAiApprovalRecord` |
 

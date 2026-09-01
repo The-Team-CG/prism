@@ -1,5 +1,9 @@
-import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+import { EventDashboardFilesSectionView, EventDashboardRouteView } from "@/features/event-dashboard/shell";
 
 export default function EventDashboardRoutePage() {
-  return <EventDashboardRouteView routeKey="files" />;
+  return (
+    <EventDashboardRouteView section="files" tab="floorplans" view="all">
+      <EventDashboardFilesSectionView />
+    </EventDashboardRouteView>
+  );
 }

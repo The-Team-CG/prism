@@ -25,7 +25,7 @@ describe('AuthOperationsService', () => {
     };
     const auditService = {
       recordLoginHistory: vi.fn(async () => undefined),
-      audit: vi.fn(async () => undefined),
+      write: vi.fn(async () => undefined),
       handleFailedLogin: vi.fn(async () => undefined),
       handleForbiddenAccess: vi.fn(async () => undefined),
     };

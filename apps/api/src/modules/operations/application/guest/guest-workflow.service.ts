@@ -1,10 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
-import { DocumentVaultService, type UploadMetadataInput } from '@prism/contexts/event-lifecycle';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { DOCUMENT_VAULT, type DocumentVault, type UploadMetadataInput } from '@prism/contexts/event-lifecycle';
 
 export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[] };
 
@@ -36,9 +36,9 @@ const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', '
 export class GuestWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly workflowCommandService: WorkflowCommandService,
-    private readonly documentVaultService: DocumentVaultService,
+    @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
   ) {}
 
   async getEventByAccessCode(accessCode: string) {
@@ -108,7 +108,7 @@ export class GuestWorkflowService {
       },
       sideEffects: async (checkIn) => {
         if (!event) return;
-        await this.auditService.audit(event.id, guestName, `Guest checked in: ${guestName}`, {
+        await writeAudit(this.auditWriter, event.id, guestName, `Guest checked in: ${guestName}`, {
           actorRole: OpsUserRole.Guest,
           category: AuditCategory.Events,
           actionType: AuditActionType.Update,
@@ -164,7 +164,7 @@ export class GuestWorkflowService {
       },
       sideEffects: async (feedback) => {
         if (!event) return;
-        await this.auditService.audit(event.id, guestName, `Guest feedback submitted: ${guestName}`, {
+        await writeAudit(this.auditWriter, event.id, guestName, `Guest feedback submitted: ${guestName}`, {
           actorRole: OpsUserRole.Guest,
           category: AuditCategory.Events,
           actionType: AuditActionType.Create,
@@ -259,7 +259,7 @@ export class GuestWorkflowService {
   }
 
   private validateUploadMetadata(input: UploadMetadataInput, prefix: string) {
-    return this.documentVaultService.validateUploadMetadata(input, prefix, {
+    return this.documentVault.validateUploadMetadata(input, prefix, {
       maxSizeBytes: MAX_UPLOAD_SIZE_BYTES,
       allowedMimeTypes: GUEST_UPLOAD_MIME_TYPES,
     });

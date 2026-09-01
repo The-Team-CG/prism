@@ -4,8 +4,9 @@ import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NotificationChannel } from '@prism/kernel/event-core';
+import type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 
-export type NotificationOutboxChannel = 'email' | 'viber' | 'zoom' | 'canva' | 'storage' | 'ai';
+export type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const FORCE_FAIL_MARKER = 'FORCE_FAIL';

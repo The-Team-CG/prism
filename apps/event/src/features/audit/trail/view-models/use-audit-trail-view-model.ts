@@ -18,7 +18,6 @@ import type {
   ReviewPrivacyRequestInput,
 } from "@prism/types";
 import { readStoredEventSession } from "@/app/lib/session";
-import { useEventOpsCommands } from "@/features/event-ops";
 import {
   auditActionTypes,
   auditCategories,
@@ -45,8 +44,7 @@ const initialPrivacyForm: PrivacyForm = {
  * docs/reviews/2026-09-01-fe-be-architecture-alignment.md, finding F4c).
  */
 export function useAuditTrailViewModel() {
-  const commands = useEventOpsCommands();
-  const repository = useMemo(() => createAuditTrailRepository(commands), [commands]);
+  const repository = useMemo(() => createAuditTrailRepository(), []);
   const [session, setSession] = useState<PrismAuthenticatedSession | null>(null);
   const [events, setEvents] = useState<PrismEvent[]>([]);
   const [users, setUsers] = useState<PrismUser[]>([]);
@@ -76,18 +74,17 @@ export function useAuditTrailViewModel() {
 
   useEffect(() => {
     let cancelled = false;
-    commands
-      .pmcmState()
-      .then((state) => {
+    repository.loadContext()
+      .then(({ events: nextEvents, users: nextUsers }) => {
         if (cancelled) return;
-        setEvents(state.events);
-        setUsers(state.users);
+        setEvents(nextEvents);
+        setUsers(nextUsers);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [commands]);
+  }, [repository]);
 
   const filters = useMemo<AuditLogFilters>(() => ({
     query,

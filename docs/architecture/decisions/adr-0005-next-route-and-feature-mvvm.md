@@ -74,9 +74,14 @@ app route page -> View -> ViewModel -> use-case -> data -> @prism/api-client
 - Existing URLs, actor boundaries, loading/error/empty states, and visible
   behavior are preserved during structural migration.
 
-The current event dashboard extraction, selector ownership, and route-group
-work remain tracked in the architecture assessment and roadmap. This ADR does
-not claim those follow-up refactors are complete.
+The event dashboard route family is the first completed application of this
+decision: App Router pages now pass explicit route state and compose the
+owning section view as children of the shared shell runtime. The former
+pathname-driven section dispatcher is gone, event-list filter URLs resolve
+through one dynamic `[eventSlug]` compatibility entry, and shared PMCM
+selectors live in `features/pmcm-kit/model`. The remaining portal-wide route
+group migration is still a separate roadmap item and is not implied by this
+dashboard slice.
 
 ## Rejected alternatives
 
@@ -98,6 +103,10 @@ not claim those follow-up refactors are complete.
   evidence; folder moves are not automatically safe.
 - Some existing compatibility facades can remain temporarily, but new consumers
   should use feature-local `data/` adapters.
+- The event dashboard retains one page-level coordinator ViewModel because its
+  shell must coordinate session, selected-event workspace, navigation, and
+  commands; loading, navigation, route composition, and selectors are split
+  into focused seams rather than hidden behind pathname inspection.
 
 ## Verification
 

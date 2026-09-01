@@ -23,6 +23,7 @@ import { OpsEventFileRequirementsController } from './api/files/event-file-requi
 import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER, SIGNED_UPLOAD_URL_FACTORY } from './contracts/file-ops.tokens';
 import { MetadataOnlySignedUploadUrlFactory } from './contracts/signed-upload-url-factory.port';
 import { DocumentVaultService } from './application/files/document-vault.service';
+import { DOCUMENT_VAULT } from './contracts/document-vault.port';
 import { FileRequirementsMatrixService } from './application/files/file-requirements-matrix.service';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
@@ -37,15 +38,14 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * documents owned by this and other contexts. Kept as four sub-areas
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
- * Owned tables: OpsBillingSource (initial creation only; ongoing billing
- * owned by commercial), OpsBillingStatement (initial creation only; ongoing
- * billing owned by commercial), OpsBriefing, OpsDocument (inquiry/onboarding
- * document kinds), OpsEvent, OpsInquiry, OpsPaymentMilestone (initial
- * creation only; ongoing billing owned by commercial), OpsPostEventDocument,
- * OpsComplianceCheck, OpsComplianceRule, OpsEventInsight.
- * Read-only: OpsBillingStatement (via commercial), OpsDocument (via
- * commercial), OpsPaymentMilestone (via commercial), OpsPostEventDocument,
- * OpsSupplierReview (via commercial).
+ * Owned tables: OpsBriefing, OpsDocument (inquiry/onboarding document kinds),
+ * OpsEvent, OpsInquiry, OpsPostEventDocument, OpsComplianceCheck,
+ * OpsComplianceRule, and OpsEventInsight. Transitional onboarding writes
+ * create the initial OpsBillingSource, OpsBillingStatement, and
+ * OpsPaymentMilestone rows; ongoing finance ownership remains in commercial.
+ * Read-only: ongoing billing records via commercial and OpsSupplierReview via
+ * commercial. File requirements is a read-only composition over these owned
+ * and external document kinds.
  */
 @Module({
   imports: [
@@ -78,6 +78,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: CLOSURE_COMMANDS, useExisting: EventClosureService },
     { provide: CLOSURE_READINESS_READER, useExisting: EventClosureService },
     DocumentVaultService,
+    { provide: DOCUMENT_VAULT, useExisting: DocumentVaultService },
     FileRequirementsMatrixService,
     MetadataOnlySignedUploadUrlFactory,
     { provide: FILE_REQUIREMENT_READER, useExisting: FileRequirementsMatrixService },
@@ -97,6 +98,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     CLOSURE_COMMANDS,
     CLOSURE_READINESS_READER,
     DocumentVaultService,
+    DOCUMENT_VAULT,
     FileRequirementsMatrixService,
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,

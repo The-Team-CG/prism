@@ -1,5 +1,10 @@
-import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+import { EventDashboardFilesSectionView, EventDashboardRouteView } from "@/features/event-dashboard/shell";
 
-export default function EventDashboardRoutePage() {
-  return <EventDashboardRouteView routeKey="files/[fileView]" />;
+export default async function EventDashboardRoutePage({ params }: { params: Promise<{ fileView: string }> }) {
+  const { fileView } = await params;
+  return (
+    <EventDashboardRouteView section="files" tab="floorplans" view={fileView}>
+      <EventDashboardFilesSectionView />
+    </EventDashboardRouteView>
+  );
 }

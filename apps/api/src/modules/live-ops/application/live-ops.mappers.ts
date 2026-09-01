@@ -10,7 +10,7 @@ type SlaRecord = {
   completedAt?: Date | null;
 };
 type ComputeSlaStatus = (record: SlaRecord) => string;
-type CoordinatorAssignmentMapper = (assignment: OpsCoordinatorAssignment) => Record<string, unknown>;
+type CoordinatorAssignmentMapper = (assignment: OpsCoordinatorAssignment) => object;
 
 function timestamp(value: Date) {
   return value.toISOString();

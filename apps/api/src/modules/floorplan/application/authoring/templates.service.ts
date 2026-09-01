@@ -6,6 +6,8 @@ import type { CanvasObject, JsonValue, VenueTemplate } from '@prism/kernel/share
 import { randomUUID } from 'node:crypto';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/kernel/shared';
 
+const TEMPLATE_LIST_LIMIT = 100;
+
 type TemplateWithPlan = PrismaVenueTemplate & {
   floorPlan?: (PrismaFloorPlan & { objectRows?: PrismaFloorPlanObject[] }) | null;
 };
@@ -48,6 +50,7 @@ export class TemplatesService {
   async listTemplates(): Promise<VenueTemplate[]> {
     const rows = await this.prisma.venueTemplate.findMany({
       orderBy: { createdAt: 'desc' },
+      take: TEMPLATE_LIST_LIMIT,
       include: {
         floorPlan: {
           include: {

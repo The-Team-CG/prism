@@ -4,8 +4,8 @@ import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditCategory, SupplierQuoteRequestStatus, SupplierQuoteStatus, WorkflowCommandService, isOpsConstantValue } from '@prism/kernel/event-core';
-import { NotificationOutboxService } from '@prism/contexts/platform-ops';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import {
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,
@@ -54,8 +54,8 @@ function parseDate(value: string) {
 export class CommercialWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly notificationOutboxService: NotificationOutboxService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(QUOTE_SUPPLIER_RESOLVER) private readonly quoteSupplierResolver: QuoteSupplierResolver,
   ) {}
@@ -153,12 +153,12 @@ export class CommercialWorkflowService {
         const notifications = requests.flatMap((request) => {
           const supplier = suppliersToRequest.find((item) => item.id === request.supplierId);
           return [
-            this.notificationOutboxService.queue(
+            writeNotification(this.notificationOutboxWriter,
               eventId,
               supplier?.email || request.supplierName,
               `Quote request link: /quote-requests/${request.accessToken}`,
             ),
-            this.notificationOutboxService.queue(
+            writeNotification(this.notificationOutboxWriter,
               eventId,
               supplier?.phone || request.supplierName,
               `Quote request link: /quote-requests/${request.accessToken}`,
@@ -168,7 +168,7 @@ export class CommercialWorkflowService {
         });
         await Promise.all([
           ...notifications,
-          this.auditService.audit(
+          writeAudit(this.auditWriter,
             eventId,
             'PMCM Admin',
             `Requested ${category.name} quotes from ${requests.length} supplier${requests.length === 1 ? '' : 's'}`,
@@ -247,7 +247,7 @@ export class CommercialWorkflowService {
       },
       sideEffects: async (quote) => {
         await Promise.all([
-          this.auditService.audit(
+          writeAudit(this.auditWriter,
             eventId,
             input.status === 'requested' ? 'PMCM Admin' : 'Supplier',
             `${input.status === 'requested' ? 'Requested' : 'Submitted'} supplier quote: ${quote.supplierName}`,
@@ -258,7 +258,7 @@ export class CommercialWorkflowService {
               affectedLabel: quote.supplierName,
             },
           ),
-          this.notificationOutboxService.queue(
+          writeNotification(this.notificationOutboxWriter,
             eventId,
             input.status === 'requested' ? quote.supplierName : 'PMCM Admin',
             input.status === 'requested' ? 'Supplier quote request issued' : 'Supplier quote received',
@@ -353,13 +353,13 @@ export class CommercialWorkflowService {
       sideEffects: async (result) => {
         if (!result.selectedNow) return;
         await Promise.all([
-          this.auditService.audit(eventId, actorName, `Selected supplier quote: ${result.quote.supplierName}`, {
+          writeAudit(this.auditWriter, eventId, actorName, `Selected supplier quote: ${result.quote.supplierName}`, {
             category: AuditCategory.Suppliers,
             affectedType: 'supplier_quote',
             affectedId: result.quote.id,
             affectedLabel: result.quote.supplierName,
           }),
-          this.notificationOutboxService.queue(eventId, result.quote.supplierName, 'Your supplier quote was selected'),
+          writeNotification(this.notificationOutboxWriter, eventId, result.quote.supplierName, 'Your supplier quote was selected'),
         ]);
       },
       project: (result) => result.quote,
@@ -481,7 +481,7 @@ export class CommercialWorkflowService {
       sideEffects: async (saved) => {
         if (!request) return;
         await Promise.all([
-          this.auditService.audit(
+          writeAudit(this.auditWriter,
             request.eventId,
             'Supplier',
             `${effectiveMode === 'revise' ? 'Revised' : 'Submitted'} quote from ${request.supplierName}`,
@@ -493,7 +493,7 @@ export class CommercialWorkflowService {
               affectedLabel: request.supplierName,
             },
           ),
-          this.notificationOutboxService.queue(
+          writeNotification(this.notificationOutboxWriter,
             request.eventId,
             'PMCM Admin',
             `${request.supplierName} ${effectiveMode === 'revise' ? 'revised' : 'submitted'} a ${request.category} quote`,

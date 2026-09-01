@@ -41,7 +41,7 @@ describe('SupplierLiveOpsController', () => {
     const sessionActor = verifiedActor();
     const dto = { status: 'arrived' as const, notes: 'At dock', photo: { fileName: 'dock.jpg' } };
 
-    await controller.updateEventStatus('qr_sample', dto, {}, sessionActor);
+    await controller.updateEventStatus('qr_sample', dto, sessionActor);
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, sessionActor);
     expect(commandService.updateSupplierEventStatus).toHaveBeenCalledWith('qr_sample', dto, actor);
@@ -60,11 +60,10 @@ describe('SupplierLiveOpsController', () => {
       commandService as unknown as EventLiveOpsCommandService,
       eventAccessPolicyService as unknown as EventAccessPolicyService,
     );
-    const spoofedQuery = { actorRole: 'supplier', actorName: 'Spoofed Supplier', supplierId: 'spoofed_supplier' };
     const sessionActor = verifiedActor();
     const dto = { status: 'arrived' as const, notes: 'At dock', photo: { fileName: 'dock.jpg' } };
 
-    await controller.updateEventStatus('qr_sample', dto, spoofedQuery, sessionActor);
+    await controller.updateEventStatus('qr_sample', dto, sessionActor);
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, sessionActor);
     expect(commandService.updateSupplierEventStatus).toHaveBeenCalledWith('qr_sample', dto, resolvedActor);

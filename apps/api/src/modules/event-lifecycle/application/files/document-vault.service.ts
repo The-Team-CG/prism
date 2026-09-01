@@ -1,26 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
+import type {
+  DocumentVault,
+  UploadMetadataInput,
+  UploadValidationOptions,
+  ValidatedUploadMetadata,
+} from '../../contracts/document-vault.port';
 
-export type UploadMetadataInput = {
-  fileName: string;
-  mimeType?: string;
-  sizeBytes?: number;
-};
-
-export type ValidatedUploadMetadata = {
-  originalFileName: string;
-  generatedFileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  storageBucket: string;
-  storageKey: string;
-  validationStatus: 'accepted';
-};
-
-export type UploadValidationOptions = {
-  maxSizeBytes?: number;
-  allowedMimeTypes?: readonly string[];
-};
+export type { UploadMetadataInput, UploadValidationOptions, ValidatedUploadMetadata } from '../../contracts/document-vault.port';
 
 const DEFAULT_MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
 const ALLOWED_UPLOAD_TYPES: Record<string, string[]> = {
@@ -34,7 +21,7 @@ const ALLOWED_UPLOAD_TYPES: Record<string, string[]> = {
 };
 
 @Injectable()
-export class DocumentVaultService {
+export class DocumentVaultService implements DocumentVault {
   validateUploadMetadata(
     input: UploadMetadataInput,
     prefix: string,

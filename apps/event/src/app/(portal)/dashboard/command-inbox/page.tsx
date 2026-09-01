@@ -1,5 +1,9 @@
-import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+import { EventDashboardCommandInboxSectionView, EventDashboardRouteView } from "@/features/event-dashboard/shell";
 
 export default function EventDashboardRoutePage() {
-  return <EventDashboardRouteView routeKey="command-inbox" />;
+  return (
+    <EventDashboardRouteView section="command-inbox" tab="overview" view="all">
+      <EventDashboardCommandInboxSectionView />
+    </EventDashboardRouteView>
+  );
 }

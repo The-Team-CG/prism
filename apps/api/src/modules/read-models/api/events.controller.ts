@@ -1,7 +1,7 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Param, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
-import { GuestWorkflowService } from '@prism/contexts/operations';
+import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
+import { GUEST_READER, type GuestReader } from '@prism/contexts/operations';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { mapEvent } from '../application/mappers/pmcm-read-model.mappers';
@@ -12,8 +12,8 @@ export class OpsEventReadsController {
   constructor(
     private readonly eventReadModelsService: EventReadModelsService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
-    private readonly guestWorkflowService: GuestWorkflowService,
+    @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
+    @Inject(GUEST_READER) private readonly guestReader: GuestReader,
   ) {}
 
   @Get()
@@ -34,8 +34,8 @@ export class OpsEventReadsController {
     return {
       mapEvent: (event: Parameters<typeof mapEvent>[0]) =>
         mapEvent(event, {
-          floorPlanWorkflowService: this.floorPlanWorkflowService,
-          guestWorkflowService: this.guestWorkflowService,
+          floorplanReader: this.floorplanReader,
+          guestReader: this.guestReader,
         }),
     };
   }

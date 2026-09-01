@@ -2,10 +2,15 @@ import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param,
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import type { PrismVerifiedEventActor } from '@prism/types';
+import { zodBody } from '@prism/kernel/shared';
 import {
-  CreateFloorPlanDraftDto,
-  CreateFloorPlanPreferenceDto,
+  createFloorPlanDraftSchema,
+  createFloorPlanPreferenceSchema,
+  type CreateFloorPlanDraftInput,
+  type CreateFloorPlanPreferenceInput,
+  type PrismVerifiedEventActor,
+} from '@prism/types';
+import {
   FloorPlanActorDto,
   FloorPlanSnapshotQueryDto,
 } from './floorplan.dto';
@@ -23,7 +28,7 @@ export class OpsEventFloorplansController {
   @HttpCode(HttpStatus.CREATED)
   async createFloorPlanDraft(
     @Param('eventId') eventId: string,
-    @Body() dto: CreateFloorPlanDraftDto,
+    @Body(zodBody(createFloorPlanDraftSchema)) dto: CreateFloorPlanDraftInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -38,7 +43,7 @@ export class OpsEventFloorplansController {
   @HttpCode(HttpStatus.CREATED)
   async createFloorPlanPreference(
     @Param('eventId') eventId: string,
-    @Body() dto: CreateFloorPlanPreferenceDto,
+    @Body(zodBody(createFloorPlanPreferenceSchema)) dto: CreateFloorPlanPreferenceInput,
     @Query() actorInput: FloorPlanActorDto,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor(actorInput);

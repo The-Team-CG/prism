@@ -1,40 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, OpsFloorPlanDraft, Prisma } from '@prisma/client';
+import type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
-import { NotificationOutboxService } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 
-export type CreateFloorPlanDraftInput = {
-  name: string;
-  sourceType: string;
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  pax?: number;
-  objects?: unknown[];
-  guests?: unknown[];
-  suppliers?: unknown[];
-};
-
-export type CreateFloorPlanPreferenceInput = {
-  name: string;
-  seatingStyle: string;
-  stagePreference: string;
-  flowNotes: string;
-  guestCount: number;
-  constraints: string[];
-  notes?: string;
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  objects?: unknown[];
-};
+export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
 
 export type FloorPlanActor = {
   name: string;
@@ -49,8 +24,8 @@ function timestamp(value: Date) {
 export class FloorPlanWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly notificationOutboxService: NotificationOutboxService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
@@ -202,7 +177,7 @@ export class FloorPlanWorkflowService {
       sideEffects: async (draft) => {
         await Promise.all([
           this.auditFloorPlan(eventId, actor, `Submitted layout preference: ${input.name}`, draft),
-          this.notificationOutboxService.queue(eventId, 'PMCM Admin', `Client submitted a layout preference: ${input.name}`),
+          writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `Client submitted a layout preference: ${input.name}`),
         ]);
       },
       project: (draft) => this.mapFloorPlanDraft(draft),
@@ -246,7 +221,7 @@ export class FloorPlanWorkflowService {
       sideEffects: async (submitted) => {
         await Promise.all([
           this.auditFloorPlan(eventId, actor, `Submitted floorplan draft for review: ${draft.name}`, submitted),
-          this.notificationOutboxService.queue(eventId, 'Client', `Floorplan draft ready for review: ${draft.name}`),
+          writeNotification(this.notificationOutboxWriter, eventId, 'Client', `Floorplan draft ready for review: ${draft.name}`),
         ]);
       },
       project: (submitted) => this.mapFloorPlanDraft(submitted),
@@ -379,7 +354,7 @@ export class FloorPlanWorkflowService {
   }
 
   private auditFloorPlan(eventId: string, actor: FloorPlanActor, action: string, draft: OpsFloorPlanDraft) {
-    return this.auditService.audit(eventId, actor.name, action, {
+    return writeAudit(this.auditWriter, eventId, actor.name, action, {
       actorRole: actor.role,
       category: AuditCategory.Events,
       actionType: this.floorPlanAuditAction(action),

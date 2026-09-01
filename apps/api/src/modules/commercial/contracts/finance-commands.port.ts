@@ -1,4 +1,4 @@
-import type { OpsBillingSource, OpsBillingStatement, OpsPaymentMilestone } from '@prisma/client';
+import type { OpsBillingSource, OpsBillingStatement, OpsPaymentMilestone, OpsPaymentRecord } from '@prisma/client';
 
 export type RecordPaymentInput = {
   amountReceived: number;
@@ -55,4 +55,5 @@ export interface FinanceCommands {
   mapBillingSource(source: OpsBillingSource): unknown;
   mapBillingStatement(statement: OpsBillingStatement): unknown;
   mapPaymentMilestone(payment: OpsPaymentMilestone, history?: unknown[]): unknown;
+  mapPaymentRecord(record: OpsPaymentRecord): unknown;
 }

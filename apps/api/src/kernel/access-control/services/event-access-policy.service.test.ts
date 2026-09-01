@@ -1,11 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService } from './event-access-policy.service';
 
 function createPolicy() {
-  const audit = vi.fn();
-  const policy = new EventAccessPolicyService({ audit } as any);
-  return { policy, audit };
+  const write = vi.fn();
+  const policy = new EventAccessPolicyService({ write } as any);
+  return { policy, write };
 }
 
 describe('EventAccessPolicyService', () => {
@@ -101,7 +103,7 @@ describe('EventAccessPolicyService', () => {
   });
 
   it('denies client official floorplan mutation and writes a forbidden-access audit event', async () => {
-    const { policy, audit } = createPolicy();
+    const { policy, write } = createPolicy();
     const actor = policy.resolveActor({
       actorRole: OpsUserRole.Client,
       clientName: 'Ana Reyes',
@@ -112,11 +114,11 @@ describe('EventAccessPolicyService', () => {
       policy.requireCanMutateOfficialFloorplan(actor, 'evt_visible', 'official floorplan'),
     ).rejects.toThrow('client cannot mutate official floorplans');
 
-    expect(audit).toHaveBeenCalledWith(
-      'evt_visible',
-      'Ana Reyes',
-      '403 forbidden access: official floorplan',
+    expect(write).toHaveBeenCalledWith(
       expect.objectContaining({
+        eventId: 'evt_visible',
+        actor: 'Ana Reyes',
+        action: '403 forbidden access: official floorplan',
         actorRole: OpsUserRole.Client,
         actorEmail: 'ana@ayala.test',
         affectedType: 'scoped_read',
@@ -127,7 +129,7 @@ describe('EventAccessPolicyService', () => {
   });
 
   it('denies suppliers from internal cost and privacy operation surfaces', async () => {
-    const { policy, audit } = createPolicy();
+    const { policy, write } = createPolicy();
     const actor = policy.resolveActor({
       actorRole: OpsUserRole.Supplier,
       supplierId: 'sup_sonicline',
@@ -143,19 +145,31 @@ describe('EventAccessPolicyService', () => {
       'supplier cannot access privacy operations',
     );
 
-    expect(audit).toHaveBeenCalledTimes(2);
-    expect(audit).toHaveBeenCalledWith(
-      'evt_visible',
-      'Sonic Line Events',
-      '403 forbidden access: billing source',
-      expect.objectContaining({ actorRole: OpsUserRole.Supplier }),
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_visible',
+        actor: 'Sonic Line Events',
+        action: '403 forbidden access: billing source',
+        actorRole: OpsUserRole.Supplier,
+      }),
     );
-    expect(audit).toHaveBeenCalledWith(
-      undefined,
-      'Sonic Line Events',
-      '403 forbidden access: privacy operations',
-      expect.objectContaining({ actorRole: OpsUserRole.Supplier }),
+    expect(write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: 'Sonic Line Events',
+        action: '403 forbidden access: privacy operations',
+        actorRole: OpsUserRole.Supplier,
+      }),
     );
+  });
+
+  it('keeps the kernel access policy behind a focused audit writer seam', () => {
+    const serviceSource = readFileSync(join(__dirname, 'event-access-policy.service.ts'), 'utf8');
+    const moduleSource = readFileSync(join(__dirname, '..', 'access-control.module.ts'), 'utf8');
+
+    expect(serviceSource).toContain('@Inject(AUDIT_WRITER)');
+    expect(serviceSource).not.toContain('PlatformOps');
+    expect(moduleSource).not.toContain('PlatformOpsModule');
   });
 
   it('prefers a verified session actor over client-supplied actor fields', () => {

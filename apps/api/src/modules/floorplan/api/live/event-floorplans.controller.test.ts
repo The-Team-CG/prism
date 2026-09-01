@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { createFloorPlanDraftSchema, createFloorPlanPreferenceSchema } from '@prism/types';
 import { OpsEventFloorplansController } from './event-floorplans.controller';
 
 function controllerPath(controller: Function): string {
@@ -44,7 +45,8 @@ describe('OpsEventFloorplansController', () => {
 
   it('serves official floorplan commands through FloorPlanWorkflowService with route policy', async () => {
     const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
-    await expect(controller.createFloorPlanDraft('evt_sample', { name: 'Official', sourceType: 'blank' }, verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new' });
+    const input = createFloorPlanDraftSchema.parse({ name: 'Official', sourceType: 'blank' });
+    await expect(controller.createFloorPlanDraft('evt_sample', input, verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new' });
     await expect(controller.submitFloorPlanDraft('evt_sample', 'fpd_new', verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new', status: 'submitted' });
     await expect(controller.approveFloorPlanDraft('evt_sample', 'fpd_new', verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new', status: 'approved' });
 
@@ -58,10 +60,18 @@ describe('OpsEventFloorplansController', () => {
     const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
     const actor = { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes', clientName: 'Ana Reyes' };
 
+    const preference = createFloorPlanPreferenceSchema.parse({
+      name: 'Client Preference',
+      seatingStyle: 'banquet',
+      stagePreference: 'front',
+      flowNotes: 'Wide aisle',
+      guestCount: 120,
+      constraints: [],
+    });
     await expect(
       controller.createFloorPlanPreference(
         'evt_sample',
-        { name: 'Client Preference', seatingStyle: 'banquet', stagePreference: 'front', flowNotes: 'Wide aisle', guestCount: 120, constraints: [] },
+        preference,
         actor,
       ),
     ).resolves.toEqual({ id: 'fpd_pref' });

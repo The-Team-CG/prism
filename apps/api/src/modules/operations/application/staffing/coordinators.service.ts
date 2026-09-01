@@ -4,8 +4,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import type { PrismCommandContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/kernel/event-core';
-import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { AUDIT_WRITER, type AuditWriter } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
 
 export type CreateCoordinatorAssignmentInput = {

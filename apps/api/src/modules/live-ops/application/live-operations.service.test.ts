@@ -19,8 +19,8 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
     }),
   };
 
-  const mockNotificationOutboxService = {
-    enqueue: vi.fn(async () => undefined),
+  const mockNotificationOutboxWriter = {
+    write: vi.fn(async () => undefined),
   };
 
   it('enforces openedBy to verified actor.name and persists affectedArea', async () => {
@@ -37,14 +37,14 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       },
     };
 
-    const mockAuditService = {
-      audit: vi.fn(async () => undefined),
+    const mockAuditWriter = {
+      write: vi.fn(async () => undefined),
     };
 
     const service = new LiveOperationsService(
       mockPrisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
-      mockAuditService as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
-      mockNotificationOutboxService as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
+      mockAuditWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
+      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
       mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
     );
 
@@ -83,15 +83,16 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
     expect(mapped.openedBy).toBe('Francis Coordinator');
 
     // 4. Audit trail matches actor
-    expect(mockAuditService.audit).toHaveBeenCalledWith(
-      'evt_001',
-      'Francis Coordinator',
-      'Opened urgent issue: Microphone feedback at Stage A',
+    expect(mockAuditWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
+        eventId: 'evt_001',
+        actor: 'Francis Coordinator',
+        action: 'Opened urgent issue: Microphone feedback at Stage A',
         actorRole: 'coordinator',
         actorEmail: 'francis@pmcm.test',
         affectedType: 'urgent_issue',
       }),
+      undefined,
     );
   });
 
@@ -124,14 +125,14 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       },
     };
 
-    const mockAuditService = {
-      audit: vi.fn(async () => undefined),
+    const mockAuditWriter = {
+      write: vi.fn(async () => undefined),
     };
 
     const service = new LiveOperationsService(
       mockPrisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
-      mockAuditService as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
-      mockNotificationOutboxService as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
+      mockAuditWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
+      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
       mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
     );
 
@@ -172,13 +173,13 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
         create: vi.fn(async () => ({ id: 'log_3' })),
       },
     };
-    const mockAuditService = {
-      audit: vi.fn(async () => undefined),
+    const mockAuditWriter = {
+      write: vi.fn(async () => undefined),
     };
     const service = new LiveOperationsService(
       mockPrisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
-      mockAuditService as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
-      mockNotificationOutboxService as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
+      mockAuditWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
+      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
       mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
     );
 
@@ -192,17 +193,18 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
 
     await service.updateCoordinatorAttendance('evt_001', existing.id, input, actor);
 
-    expect(mockAuditService.audit).toHaveBeenCalledWith(
-      'evt_001',
-      'Anthony Admin',
-      'Updated coordinator attendance: Alex Coordinator',
-      expect.objectContaining({ metadata: { status: 'present', notes: 'Checked in at registration.', markedBy: 'Anthony Admin' } }),
+    expect(mockAuditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_001',
+        actor: 'Anthony Admin',
+        action: 'Updated coordinator attendance: Alex Coordinator',
+        metadata: { status: 'present', notes: 'Checked in at registration.', markedBy: 'Anthony Admin' },
+      }),
+      undefined,
     );
-    expect(mockAuditService.audit).not.toHaveBeenCalledWith(
-      'evt_001',
-      expect.anything(),
-      expect.anything(),
+    expect(mockAuditWriter.write).not.toHaveBeenCalledWith(
       expect.objectContaining({ metadata: expect.objectContaining({ markedBy: 'Spoofed Operator' }) }),
+      undefined,
     );
   });
 });

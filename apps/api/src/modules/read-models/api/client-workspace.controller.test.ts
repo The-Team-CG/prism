@@ -71,7 +71,28 @@ describe('OpsClientController', () => {
             updatedAt: new Date('2026-06-20T10:00:00.000Z'),
           }),
         ],
-        auditLogs: [mappers.mapAuditLog({ id: 'aud_1' })],
+        auditLogs: [
+          mappers.mapAuditLog({
+            id: 'aud_1',
+            eventId: null,
+            actor: 'PMCM Admin',
+            actorRole: 'pmcm-admin',
+            actorEmail: null,
+            action: 'Viewed workspace',
+            actionType: 'read',
+            category: 'access',
+            affectedType: null,
+            affectedId: null,
+            affectedLabel: null,
+            metadata: {},
+            ipAddress: '127.0.0.1',
+            device: 'test',
+            severity: 'info',
+            immutableHash: 'hash',
+            previousHash: null,
+            createdAt: new Date('2026-06-20T10:00:00.000Z'),
+          }),
+        ],
       })),
       clientActionCenter: vi.fn(async () => ({ items: [{ id: 'briefing:evt_sample' }] })),
     };
@@ -86,14 +107,10 @@ describe('OpsClientController', () => {
       mapBillingStatement: vi.fn((statement) => ({ kind: 'statement', id: statement.id })),
       mapPaymentMilestone: vi.fn((payment, history) => ({ kind: 'milestone', id: payment.id, history })),
     };
-    const auditService = {
-      mapAuditLog: vi.fn((log) => ({ kind: 'audit', id: log.id })),
-    };
     const controller = new OpsClientController(
       eventReadModelsService as any,
       eventAccessPolicyService as any,
       billingOperationsService as any,
-      auditService as any,
     );
 
     const verifiedActor = {
@@ -120,7 +137,9 @@ describe('OpsClientController', () => {
     expect(workspace.billingStatements).toEqual([{ kind: 'statement', id: 'bill_1' }]);
     expect(workspace.paymentMilestones).toEqual([{ kind: 'milestone', id: 'pay_1', history: [] }]);
     expect(workspace.floorPlanDrafts[0]).toMatchObject({ id: 'fpd_1', status: 'submitted' });
-    expect(workspace.auditLogs).toEqual([{ kind: 'audit', id: 'aud_1' }]);
+    expect(workspace.auditLogs).toMatchObject([
+      { id: 'aud_1', actor: 'PMCM Admin', action: 'Viewed workspace', createdAt: '2026-06-20T10:00:00.000Z' },
+    ]);
     expect(actionCenter).toEqual({ items: [{ id: 'briefing:evt_sample' }] });
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(eventReadModelsService.clientWorkspace).toHaveBeenCalledWith(

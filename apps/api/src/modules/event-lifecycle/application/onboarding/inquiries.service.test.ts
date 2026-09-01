@@ -65,12 +65,12 @@ function createService(existing = [inquiry()]) {
       updateMany: vi.fn(async () => ({ count: 0 })),
     },
   };
-  const auditService = { audit: vi.fn(async (...entry: unknown[]) => audits.push(entry)) };
-  const notificationOutboxService = { queue: vi.fn(async (...entry: unknown[]) => notifications.push(entry)) };
+  const auditWriter = { write: vi.fn(async (...entry: unknown[]) => audits.push(entry)) };
+  const notificationOutboxWriter = { write: vi.fn(async (...entry: unknown[]) => notifications.push(entry)) };
   const service = new InquiriesService(
     prisma as any,
-    auditService as any,
-    notificationOutboxService as any,
+    auditWriter as any,
+    notificationOutboxWriter as any,
     new WorkflowCommandService(),
   );
   return { service, records, notifications, audits, prisma };

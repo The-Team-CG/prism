@@ -1,26 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsBriefing, Prisma } from '@prisma/client';
+import type { SubmitBriefingInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
-import { NotificationOutboxService } from '@prism/contexts/platform-ops';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 
-export type SubmitBriefingInput = {
-  venue: string;
-  guestCount: number;
-  budgetRange: string;
-  serviceRequirements: string[];
-  notes: string;
-};
+export type { SubmitBriefingInput } from '@prism/types';
 
 @Injectable()
 export class ClientOnboardingWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly notificationOutboxService: NotificationOutboxService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
@@ -55,11 +50,11 @@ export class ClientOnboardingWorkflowService {
         }),
       sideEffects: async () => {
         await Promise.all([
-          this.auditService.audit(eventId, 'Client', 'Submitted client briefing', {
+          writeAudit(this.auditWriter, eventId, 'Client', 'Submitted client briefing', {
             category: AuditCategory.Events,
             affectedType: 'briefing',
           }),
-          this.notificationOutboxService.queue(eventId, 'PMCM Admin', 'Client briefing submitted'),
+          writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', 'Client briefing submitted'),
         ]);
       },
     });

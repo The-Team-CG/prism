@@ -11,6 +11,7 @@ import {
   NotificationChannel,
   OpsUserRole,
 } from '@prism/kernel/event-core';
+import { mapAuditLog } from './audit.mappers';
 
 type AuditLogFilters = {
   query?: string;
@@ -466,26 +467,7 @@ export class AuditService {
   }
 
   mapAuditLog(log: OpsAuditLog) {
-    return {
-      id: log.id,
-      eventId: log.eventId ?? undefined,
-      actor: log.actor,
-      actorRole: log.actorRole,
-      actorEmail: log.actorEmail,
-      action: log.action,
-      actionType: log.actionType,
-      category: log.category,
-      affectedType: log.affectedType,
-      affectedId: log.affectedId,
-      affectedLabel: log.affectedLabel,
-      metadata: log.metadata,
-      ipAddress: log.ipAddress,
-      device: log.device,
-      severity: log.severity,
-      immutableHash: log.immutableHash,
-      previousHash: log.previousHash,
-      createdAt: timestamp(log.createdAt),
-    };
+    return mapAuditLog(log);
   }
 
   private mapLoginHistory(entry: OpsLoginHistory) {

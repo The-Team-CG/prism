@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { OpsEvent, OpsFloorPlanDraft } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
+import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
 import { GuestWorkflowService } from '../guest/guest-workflow.service';
 import { CoordinatorsService } from './coordinators.service';
 
@@ -19,7 +19,7 @@ export class CoordinatorWorkspaceReadService {
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly coordinatorsService: CoordinatorsService,
-    private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
+    @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
     private readonly guestWorkflowService: GuestWorkflowService,
   ) {}
 
@@ -64,7 +64,7 @@ export class CoordinatorWorkspaceReadService {
       floorPlanId: event.floorPlanId,
       guestAccessCode: this.guestWorkflowService.guestAccessCode(event),
       activeFloorPlanDraftId: activeDraft?.id,
-      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft)),
+      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorplanReader.mapFloorPlanDraft(draft)),
     };
   }
 }

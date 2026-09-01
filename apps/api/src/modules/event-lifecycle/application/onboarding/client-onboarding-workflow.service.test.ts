@@ -20,20 +20,20 @@ function createService() {
     },
     $transaction: vi.fn(async (callback) => callback(prisma)),
   };
-  const auditService = { audit: vi.fn(async () => undefined) };
-  const notificationOutboxService = { queue: vi.fn(async () => undefined) };
+  const auditWriter = { write: vi.fn(async () => undefined) };
+  const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
   const service = new ClientOnboardingWorkflowService(
     prisma as any,
-    auditService as any,
-    notificationOutboxService as any,
+    auditWriter as any,
+    notificationOutboxWriter as any,
     new WorkflowCommandService(),
   );
-  return { service, event, briefings, auditService, notificationOutboxService };
+  return { service, event, briefings, auditWriter, notificationOutboxWriter };
 }
 
 describe('ClientOnboardingWorkflowService', () => {
   it('replaces the client briefing and advances event readiness', async () => {
-    const { service, event, briefings, auditService, notificationOutboxService } = createService();
+    const { service, event, briefings, auditWriter, notificationOutboxWriter } = createService();
 
     const briefing = await service.submitBriefing('evt_onboarding', {
       venue: 'BGC Convention Hall',
@@ -46,16 +46,22 @@ describe('ClientOnboardingWorkflowService', () => {
     expect(briefing.eventId).toBe('evt_onboarding');
     expect(briefings).toHaveLength(1);
     expect(event).toMatchObject({ readiness: 'Supplier quotes pending', status: 'planning' });
-    expect(auditService.audit).toHaveBeenCalledWith(
-      'evt_onboarding',
-      'Client',
-      'Submitted client briefing',
-      expect.objectContaining({ affectedType: 'briefing' }),
+    expect(auditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_onboarding',
+        actor: 'Client',
+        action: 'Submitted client briefing',
+        affectedType: 'briefing',
+      }),
+      undefined,
     );
-    expect(notificationOutboxService.queue).toHaveBeenCalledWith(
-      'evt_onboarding',
-      'PMCM Admin',
-      'Client briefing submitted',
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_onboarding',
+        recipient: 'PMCM Admin',
+        message: 'Client briefing submitted',
+      }),
+      undefined,
     );
   });
 });

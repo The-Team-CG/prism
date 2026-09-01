@@ -75,15 +75,15 @@ function createGuestWorkflowFixture() {
       }),
     },
   };
-  const auditService = { audit: vi.fn() };
+  const auditWriter = { write: vi.fn() };
   const service = new GuestWorkflowService(
     prisma as any,
-    auditService as any,
+    auditWriter as any,
     new WorkflowCommandService(),
     new DocumentVaultService(),
   );
 
-  return { service, state, prisma, auditService };
+  return { service, state, prisma, auditWriter };
 }
 
 describe('GuestWorkflowService', () => {
@@ -109,7 +109,7 @@ describe('GuestWorkflowService', () => {
   });
 
   it('records guest check-ins and moderated feedback through command methods', async () => {
-    const { service, auditService } = createGuestWorkflowFixture();
+    const { service, auditWriter } = createGuestWorkflowFixture();
 
     const checkIn = await service.checkInByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
@@ -125,7 +125,7 @@ describe('GuestWorkflowService', () => {
 
     expect(checkIn).toMatchObject({ eventId: 'evt_sample', guestName: 'Sofia Lim', status: 'checked_in' });
     expect(feedback).toMatchObject({ eventId: 'evt_sample', guestName: 'Sofia Lim', moderationStatus: 'pending_review' });
-    expect(auditService.audit).toHaveBeenCalledTimes(2);
+    expect(auditWriter.write).toHaveBeenCalledTimes(2);
   });
 
   it('maps guest event, check-in, and feedback payloads without PMCM-only fields', async () => {

@@ -32,4 +32,5 @@ export * from './contracts/file-requirement-commands.port';
 export * from './contracts/file-requirement-reader.port';
 export * from './contracts/signed-upload-url-factory.port';
 export * from './application/files/document-vault.service';
+export * from './contracts/document-vault.port';
 export * from './application/files/file-requirements-matrix.service';

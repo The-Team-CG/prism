@@ -10,7 +10,7 @@ import {
   WorkflowCommandService,
   isOpsConstantValue,
 } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
   type ChangeSupplierTierInput,
@@ -38,7 +38,7 @@ export class SupplierNetworkWorkflowService {
     private readonly prisma: PrismaService,
     @Inject(SUPPLIER_DIRECTORY) private readonly suppliersService: SupplierDirectory,
     private readonly supplierProfileCommandsService: SupplierProfileCommandsService,
-    private readonly auditService: AuditService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(SUPPLIER_PARE_AUTOMATION) private readonly pareService: SupplierPareAutomation,
@@ -89,7 +89,7 @@ export class SupplierNetworkWorkflowService {
       },
       sideEffects: async (updated) => {
         if (!request) return;
-        await this.auditService.audit(request.eventId, actor.name, `Confirmed supplier assignment: ${request.supplierName}`, {
+        await writeAudit(this.auditWriter, request.eventId, actor.name, `Confirmed supplier assignment: ${request.supplierName}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Update,
@@ -134,7 +134,7 @@ export class SupplierNetworkWorkflowService {
       sideEffects: async (result) => {
         if (!request) return;
         try {
-          await this.auditService.audit(request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
+          await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -194,7 +194,7 @@ export class SupplierNetworkWorkflowService {
       },
       sideEffects: async () => {
         if (!request) return;
-        await this.auditService.audit(request.eventId, actor.name, `Confirmed supplier readiness: ${request.supplierName}`, {
+        await writeAudit(this.auditWriter, request.eventId, actor.name, `Confirmed supplier readiness: ${request.supplierName}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Update,
@@ -241,7 +241,7 @@ export class SupplierNetworkWorkflowService {
       },
       sideEffects: async () => {
         if (!request) return;
-        await this.auditService.audit(request.eventId, actor.name, `Supplier status update: ${input.status}`, {
+        await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier status update: ${input.status}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Update,
@@ -301,7 +301,7 @@ export class SupplierNetworkWorkflowService {
       sideEffects: async (updated) => {
         if (!verificationStatus) return;
         const metadata = { verificationStatus, verifiedBy, notes: input.notes ?? '' };
-        await this.auditService.audit(eventId, actor.name, `Marked supplier setup ${verificationStatus}: ${updated.supplierName}`, {
+        await writeAudit(this.auditWriter, eventId, actor.name, `Marked supplier setup ${verificationStatus}: ${updated.supplierName}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Update,
@@ -354,7 +354,7 @@ export class SupplierNetworkWorkflowService {
       },
       sideEffects: async (updated) => {
         if (!request) return;
-        await this.auditService.audit(request.eventId, actor.name, `Uploaded supplier contract: ${request.supplierName}`, {
+        await writeAudit(this.auditWriter, request.eventId, actor.name, `Uploaded supplier contract: ${request.supplierName}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Upload,
@@ -412,7 +412,7 @@ export class SupplierNetworkWorkflowService {
       const label = candidate?.supplierName
         ? `Recommended: ${candidate.supplierName} (${approval.pareResult?.mode ?? 'mock'} mode)`
         : 'PARE engine completed';
-      await this.auditService.audit(
+      await writeAudit(this.auditWriter,
         originalRequest.eventId,
         'PARE Engine',
         `PARE triggered for ${originalRequest.supplierName} - ${label}`,
@@ -440,7 +440,7 @@ export class SupplierNetworkWorkflowService {
   ) {
     try {
       const candidate = result.pareResult?.budgetAnalysis?.selectedCandidate;
-      await this.auditService.audit(
+      await writeAudit(this.auditWriter,
         result.eventId,
         actorName,
         `PARE recommendation ${decision}: ${candidate?.supplierName ?? 'unknown supplier'}`,

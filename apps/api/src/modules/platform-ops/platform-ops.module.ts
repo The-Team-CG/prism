@@ -30,11 +30,11 @@ const notificationOutboxWriterProvider = {
  * Merged from the former `trust-ops`, `notification-ops`, and
  * `ai-governance` Nest library modules (2026-09-01).
  *
- * Owned tables: OpsApprovalRequest (non-2FA approval kinds), OpsAuditLog,
- * OpsLoginHistory, OpsNotificationLog, OpsPrivacyRequest, OpsSecurityAlert,
- * OpsAiApprovalRecord, and OpsAiAuditLog. Trust privacy erasure may update
- * records owned by other contexts; those writes remain an explicit platform
- * governance workflow rather than a shared ownership claim.
+ * Owned tables: OpsAuditLog, OpsLoginHistory, OpsNotificationLog,
+ * OpsPrivacyRequest, OpsSecurityAlert, OpsAiApprovalRecord, and OpsAiAuditLog.
+ * OpsApprovalRequest is owned by identity-access; privacy erasure may update
+ * identity, event, guest, and other records as an explicit platform governance
+ * workflow rather than a shared ownership claim.
  */
 @Module({
   imports: [DatabaseModule],

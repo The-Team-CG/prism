@@ -1,8 +1,9 @@
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
 import type { PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
 import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER } from '../ports/access-control.tokens';
+import type { AuditWriter } from '../ports/audit-writer.port';
 
 export type EventOpsActorInput = PrismEventOpsActorContext;
 
@@ -29,7 +30,7 @@ type EventAccessScope = {
 export class EventAccessPolicyService {
   private readonly logger = new Logger(EventAccessPolicyService.name);
 
-  constructor(private readonly auditService: AuditService) {}
+  constructor(@Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter) {}
 
   resolveActor(input: EventOpsActorInput = {}, verifiedActor?: PrismVerifiedEventActor): ResolvedEventOpsActor {
     if (verifiedActor) return this.resolveVerifiedActor(verifiedActor, input);
@@ -142,7 +143,10 @@ export class EventAccessPolicyService {
 
   async recordForbiddenAccess(actor: ResolvedEventOpsActor, resource: string, eventId?: string) {
     try {
-      await this.auditService.audit(eventId, actor.name, `403 forbidden access: ${resource}`, {
+      await this.auditWriter.write({
+        eventId,
+        actor: actor.name,
+        action: `403 forbidden access: ${resource}`,
         actorRole: actor.role,
         actorEmail: actor.email,
         actionType: AuditActionType.ForbiddenAccess,

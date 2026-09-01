@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -21,9 +21,6 @@ import {
   type VerifySupplierStatusInput,
   type PrismVerifiedEventActor,
 } from '@prism/types';
-import {
-  LiveOpsActorDto,
-} from './live-ops.dto';
 import { EventLiveOpsCommandService } from '../application/event-live-ops-command.service';
 import { EventLiveOpsReadService } from '../application/event-live-ops-read.service';
 
@@ -39,7 +36,6 @@ export class EventLiveOpsController {
   @UseGuards(EventSessionGuard)
   liveOps(
     @Param('eventId') eventId: string,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -50,7 +46,6 @@ export class EventLiveOpsController {
   @UseGuards(EventSessionGuard)
   statusFeed(
     @Param('eventId') eventId: string,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -63,7 +58,6 @@ export class EventLiveOpsController {
   createEventDayTask(
     @Param('eventId') eventId: string,
     @Body(zodBody(createEventDayTaskSchema)) dto: CreateEventDayTaskInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -76,7 +70,6 @@ export class EventLiveOpsController {
     @Param('eventId') eventId: string,
     @Param('taskId') taskId: string,
     @Body(zodBody(updateEventDayTaskSchema)) dto: UpdateEventDayTaskInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -90,7 +83,6 @@ export class EventLiveOpsController {
     @Param('eventId') eventId: string,
     @Param('taskId') taskId: string,
     @Body(zodBody(escalateLiveOpsRecordSchema)) dto: EscalateLiveOpsInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -103,7 +95,6 @@ export class EventLiveOpsController {
   createUrgentIssue(
     @Param('eventId') eventId: string,
     @Body(zodBody(createUrgentIssueSchema)) dto: CreateUrgentIssueInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -116,7 +107,6 @@ export class EventLiveOpsController {
     @Param('eventId') eventId: string,
     @Param('issueId') issueId: string,
     @Body(zodBody(updateUrgentIssueSchema)) dto: UpdateUrgentIssueInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -130,7 +120,6 @@ export class EventLiveOpsController {
     @Param('eventId') eventId: string,
     @Param('issueId') issueId: string,
     @Body(zodBody(escalateLiveOpsRecordSchema)) dto: EscalateLiveOpsInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -143,7 +132,6 @@ export class EventLiveOpsController {
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
     @Body(zodBody(updateCoordinatorAttendanceSchema)) dto: UpdateCoordinatorAttendanceInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -157,7 +145,6 @@ export class EventLiveOpsController {
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
     @Body(zodBody(replaceCoordinatorAssignmentSchema)) dto: ReplaceCoordinatorAssignmentInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -170,7 +157,6 @@ export class EventLiveOpsController {
     @Param('eventId') eventId: string,
     @Param('requestId') requestId: string,
     @Body(zodBody(verifySupplierStatusSchema)) dto: VerifySupplierStatusInput,
-    @Query() _actorInput: LiveOpsActorDto,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);

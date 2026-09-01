@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -6,8 +6,8 @@ import type { PrismEventOpsActorContext } from '@prism/types';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
-import { NotificationOutboxService } from '@prism/contexts/platform-ops';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 
 export type CreateInquiryInput = {
   clientName: string;
@@ -74,8 +74,8 @@ function daysBetween(left: Date, right: Date) {
 export class InquiriesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly notificationOutboxService: NotificationOutboxService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
@@ -567,7 +567,7 @@ export class InquiriesService {
       severity?: string;
     } = {},
   ) {
-    return this.auditService.audit(eventId, actor, action, options);
+    return writeAudit(this.auditWriter, eventId, actor, action, options);
   }
 
   private notify(
@@ -576,6 +576,6 @@ export class InquiriesService {
     message: string,
     channel: 'email' | 'viber' = 'email',
   ) {
-    return this.notificationOutboxService.queue(eventId, recipient, message, channel);
+    return writeNotification(this.notificationOutboxWriter, eventId, recipient, message, channel);
   }
 }

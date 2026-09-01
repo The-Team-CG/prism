@@ -6,7 +6,7 @@ import {
   OpsUserRole,
   WorkflowCommandService,
 } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type {
   ChangeSupplierTierInput,
   CreateSupplierCertificationInput,
@@ -25,7 +25,7 @@ type ChangeSupplierTierResult = Awaited<ReturnType<SupplierDirectory['changeSupp
 export class SupplierProfileCommandsService {
   constructor(
     @Inject(SUPPLIER_DIRECTORY) private readonly suppliersService: SupplierDirectory,
-    private readonly auditService: AuditService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
@@ -36,7 +36,7 @@ export class SupplierProfileCommandsService {
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier creation'),
       write: () => this.suppliersService.createSupplier(input),
       sideEffects: async (supplier) => {
-        await this.auditService.audit(undefined, actor.name, `Created supplier profile: ${supplier.name}`, {
+        await writeAudit(this.auditWriter, undefined, actor.name, `Created supplier profile: ${supplier.name}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           category: AuditCategory.Suppliers,
@@ -55,7 +55,7 @@ export class SupplierProfileCommandsService {
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier update'),
       write: () => this.suppliersService.updateSupplier(supplierId, input),
       sideEffects: async (supplier) => {
-        await this.auditService.audit(undefined, actor.name, `Updated supplier profile: ${supplier.name}`, {
+        await writeAudit(this.auditWriter, undefined, actor.name, `Updated supplier profile: ${supplier.name}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           category: AuditCategory.Suppliers,
@@ -75,7 +75,7 @@ export class SupplierProfileCommandsService {
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier tier change'),
       write: () => this.suppliersService.changeSupplierTier(supplierId, input),
       sideEffects: async (result) => {
-        await this.auditService.audit(undefined, actor.name, `Changed supplier tier: ${result.supplier.name}`, {
+        await writeAudit(this.auditWriter, undefined, actor.name, `Changed supplier tier: ${result.supplier.name}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           category: AuditCategory.Suppliers,
@@ -105,7 +105,7 @@ export class SupplierProfileCommandsService {
           reviewedBy: actor.name || input.reviewedBy || 'System',
         }),
       sideEffects: async (result) => {
-        await this.auditService.audit(input.eventId, actor.name, `Added private supplier review: ${result.supplier.name}`, {
+        await writeAudit(this.auditWriter, input.eventId, actor.name, `Added private supplier review: ${result.supplier.name}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           category: AuditCategory.Suppliers,
@@ -130,7 +130,7 @@ export class SupplierProfileCommandsService {
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier certification'),
       write: () => this.suppliersService.addSupplierCertification(supplierId, input),
       sideEffects: async (supplier) => {
-        await this.auditService.audit(undefined, actor.name, `Added supplier certification: ${supplier.name}`, {
+        await writeAudit(this.auditWriter, undefined, actor.name, `Added supplier certification: ${supplier.name}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           category: AuditCategory.Suppliers,

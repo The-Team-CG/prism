@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, OpsEventDayTask, OpsUrgentIssue, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -25,8 +25,8 @@ import {
   isOpsConstantValue,
   WorkflowCommandService,
 } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
-import { NotificationOutboxService } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { resolveUrgentIssueStatusOnCreate } from '../domain/urgent-issue-status.policy';
 import { EscalationPolicyViolation, resolveEscalationLevel } from '../domain/live-ops-escalation.policy';
 
@@ -65,14 +65,14 @@ const DUE_SOON_MS = 60 * 60 * 1000;
 export class LiveOperationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly notificationOutboxService: NotificationOutboxService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
   async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: LiveOpsActor) {
     const prisma = this.requirePrisma();
-    const auditService = this.requireAuditService();
+    const auditWriter = this.requireAuditWriter();
     let title = '';
 
     return this.workflowCommandService.execute<OpsEventDayTask>({
@@ -103,7 +103,7 @@ export class LiveOperationsService {
             assignedRole: task.assignedRole,
             priority: task.priority,
           }),
-          auditService.audit(eventId, actor.name, `Created event-day task: ${title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Created event-day task: ${title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Create,
@@ -119,7 +119,7 @@ export class LiveOperationsService {
 
   async updateEventDayTask(eventId: string, taskId: string, input: UpdateEventDayTaskInput, actor: LiveOpsActor) {
     const prisma = this.requirePrisma();
-    const auditService = this.requireAuditService();
+    const auditWriter = this.requireAuditWriter();
     let current: OpsEventDayTask | null = null;
     let status: string | undefined;
 
@@ -153,7 +153,7 @@ export class LiveOperationsService {
           this.recordEventDayLog(eventId, 'task_updated', actor, `Updated event-day task: ${task.title}`, 'event_day_task', task.id, {
             status: task.status,
           }),
-          auditService.audit(eventId, actor.name, `Updated event-day task: ${task.title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Updated event-day task: ${task.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -170,7 +170,7 @@ export class LiveOperationsService {
 
   async createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor: LiveOpsActor) {
     const prisma = this.requirePrisma();
-    const auditService = this.requireAuditService();
+    const auditWriter = this.requireAuditWriter();
     let title = '';
     let severity: UrgentIssueSeverity = UrgentIssueSeverity.Medium;
 
@@ -208,7 +208,7 @@ export class LiveOperationsService {
             severity: issue.severity,
             ownerRole: issue.ownerRole,
           }),
-          auditService.audit(eventId, actor.name, `Opened urgent issue: ${title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Opened urgent issue: ${title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Create,
@@ -225,7 +225,7 @@ export class LiveOperationsService {
 
   async updateUrgentIssue(eventId: string, issueId: string, input: UpdateUrgentIssueInput, actor: LiveOpsActor) {
     const prisma = this.requirePrisma();
-    const auditService = this.requireAuditService();
+    const auditWriter = this.requireAuditWriter();
     let current: OpsUrgentIssue | null = null;
     let status: string | undefined;
 
@@ -262,7 +262,7 @@ export class LiveOperationsService {
             status: issue.status,
             resolution: issue.resolution,
           }),
-          auditService.audit(eventId, actor.name, `Updated urgent issue: ${issue.title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Updated urgent issue: ${issue.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -279,8 +279,8 @@ export class LiveOperationsService {
 
   async escalateEventDayTask(eventId: string, taskId: string, input: EscalateLiveOpsInput, actor: LiveOpsActor) {
     const prisma = this.requirePrisma();
-    const auditService = this.requireAuditService();
-    const notificationOutboxService = this.requireNotificationOutboxService();
+    const auditWriter = this.requireAuditWriter();
+    const notificationOutboxWriter = this.requireNotificationOutboxWriter();
     let current: OpsEventDayTask | null = null;
     let escalationLevel: LiveOpsEscalationLevelValue = LiveOpsEscalationLevel.RoleLead;
     let notes = '';
@@ -327,7 +327,7 @@ export class LiveOperationsService {
             ownerRole: input.ownerRole ?? task.assignedRole,
             ownerName: input.ownerName ?? task.ownerName,
           }),
-          auditService.audit(eventId, actor.name, `Escalated event-day task: ${task.title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Escalated event-day task: ${task.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -338,7 +338,7 @@ export class LiveOperationsService {
             severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
             metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? task.assignedRole, ownerName: input.ownerName ?? task.ownerName },
           }),
-          notificationOutboxService.queue(eventId, recipient, `Event-day task escalated: ${task.title}`, 'viber'),
+          writeNotification(notificationOutboxWriter, eventId, recipient, `Event-day task escalated: ${task.title}`, 'viber'),
         ]);
       },
     });
@@ -346,8 +346,8 @@ export class LiveOperationsService {
 
   async escalateUrgentIssue(eventId: string, issueId: string, input: EscalateLiveOpsInput, actor: LiveOpsActor) {
     const prisma = this.requirePrisma();
-    const auditService = this.requireAuditService();
-    const notificationOutboxService = this.requireNotificationOutboxService();
+    const auditWriter = this.requireAuditWriter();
+    const notificationOutboxWriter = this.requireNotificationOutboxWriter();
     let current: OpsUrgentIssue | null = null;
     let escalationLevel: LiveOpsEscalationLevelValue = LiveOpsEscalationLevel.RoleLead;
     let notes = '';
@@ -395,7 +395,7 @@ export class LiveOperationsService {
             ownerRole: input.ownerRole ?? issue.ownerRole,
             ownerName: input.ownerName ?? issue.ownerName,
           }),
-          auditService.audit(eventId, actor.name, `Escalated urgent issue: ${issue.title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Escalated urgent issue: ${issue.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -406,7 +406,7 @@ export class LiveOperationsService {
             severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
             metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? issue.ownerRole, ownerName: input.ownerName ?? issue.ownerName },
           }),
-          notificationOutboxService.queue(eventId, recipient, `Urgent issue escalated: ${issue.title}`, 'viber'),
+          writeNotification(notificationOutboxWriter, eventId, recipient, `Urgent issue escalated: ${issue.title}`, 'viber'),
         ]);
       },
     });
@@ -419,8 +419,8 @@ export class LiveOperationsService {
     actor: LiveOpsActor,
   ) {
     const prisma = this.requirePrisma();
-    const auditService = this.requireAuditService();
-    const notificationOutboxService = this.requireNotificationOutboxService();
+    const auditWriter = this.requireAuditWriter();
+    const notificationOutboxWriter = this.requireNotificationOutboxWriter();
     let event: Pick<OpsEvent, 'id' | 'eventName' | 'eventDate'> | null = null;
     let current: OpsCoordinatorAssignment | null = null;
     let coordinator: OpsCoordinator | null = null;
@@ -516,7 +516,7 @@ export class LiveOperationsService {
               reason,
             },
           ),
-          auditService.audit(eventId, actor.name, `Replaced coordinator: ${replacedAssignment.coordinatorName}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Replaced coordinator: ${replacedAssignment.coordinatorName}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -533,13 +533,13 @@ export class LiveOperationsService {
               reason,
             },
           }),
-          notificationOutboxService.queue(
+          writeNotification(notificationOutboxWriter,
             eventId,
             replacedAssignment.coordinatorName,
             `Coordinator replacement recorded for ${event.eventName}: ${reason}`,
             'viber',
           ),
-          notificationOutboxService.queue(
+          writeNotification(notificationOutboxWriter,
             eventId,
             coordinator.email ?? coordinator.name,
             `Coordinator replacement assignment issued: ${event.eventName} (${role})`,
@@ -556,7 +556,7 @@ export class LiveOperationsService {
     actor: LiveOpsActor,
   ) {
     const prisma = this.requirePrisma();
-    const auditService = this.requireAuditService();
+    const auditWriter = this.requireAuditWriter();
     let current: OpsCoordinatorAssignment | null = null;
     let status: CoordinatorAttendanceStatusValue = CoordinatorAttendanceStatus.Pending;
 
@@ -610,7 +610,7 @@ export class LiveOperationsService {
             assignment.id,
             { status, notes: input.notes ?? '', markedBy: actor.name },
           ),
-          auditService.audit(eventId, actor.name, `Updated coordinator attendance: ${assignment.coordinatorName}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Updated coordinator attendance: ${assignment.coordinatorName}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -719,13 +719,13 @@ export class LiveOperationsService {
     return this.prisma;
   }
 
-  private requireAuditService() {
-    if (!this.auditService) throw new Error('AuditService is required for live operations writes');
-    return this.auditService;
+  private requireAuditWriter() {
+    if (!this.auditWriter) throw new Error('AuditWriter is required for live operations writes');
+    return this.auditWriter;
   }
 
-  private requireNotificationOutboxService() {
-    if (!this.notificationOutboxService) throw new Error('NotificationOutboxService is required for live operations writes');
-    return this.notificationOutboxService;
+  private requireNotificationOutboxWriter() {
+    if (!this.notificationOutboxWriter) throw new Error('NotificationOutboxWriter is required for live operations writes');
+    return this.notificationOutboxWriter;
   }
 }

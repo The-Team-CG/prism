@@ -43,8 +43,8 @@ function createPaymentService() {
     },
     $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
   };
-  const audit = { audit: vi.fn() };
-  const notifications = { queue: vi.fn() };
+  const audit = { write: vi.fn() };
+  const notifications = { write: vi.fn() };
   const service = new BillingOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
   return { service, prisma, audit, history };
 }
@@ -66,7 +66,7 @@ describe('BillingOperationsService', () => {
     );
 
     expect(prisma.opsPaymentRecord.create).not.toHaveBeenCalled();
-    expect(audit.audit).not.toHaveBeenCalled();
+    expect(audit.write).not.toHaveBeenCalled();
     expect(history).toHaveLength(1);
     expect(result.amountPaid).toBe(25000);
     expect(result.remainingBalance).toBe(75000);
@@ -88,15 +88,16 @@ describe('BillingOperationsService', () => {
     );
 
     expect(prisma.opsPaymentRecord.create).toHaveBeenCalledTimes(1);
-    expect(audit.audit).toHaveBeenCalledWith(
-      'evt_sample',
-      'PMCM Admin',
-      'Recorded Bank Transfer payment for Downpayment',
+    expect(audit.write).toHaveBeenCalledWith(
       expect.objectContaining({
+        eventId: 'evt_sample',
+        actor: 'PMCM Admin',
+        action: 'Recorded Bank Transfer payment for Downpayment',
         actorRole: 'pmcm-admin',
         actorEmail: 'admin@pmcm.test',
         metadata: expect.objectContaining({ correlationId: 'corr_finance_1', referenceNumber: 'BNK-456' }),
       }),
+      undefined,
     );
     expect(history).toHaveLength(2);
     expect(result.amountPaid).toBe(50000);

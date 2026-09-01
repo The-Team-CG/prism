@@ -11,11 +11,11 @@ import type {
   OpsPostEventDocument,
   OpsUser,
 } from '@prisma/client';
-import type { AuditService } from '@prism/contexts/platform-ops';
-import type { BillingOperationsService } from '@prism/contexts/commercial';
-import type { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
-import type { CoordinatorsService, GuestWorkflowService } from '@prism/contexts/operations';
+import { mapAuditLog } from '@prism/contexts/platform-ops';
 import { mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/contexts/commercial';
+import type { FinanceCommands } from '@prism/contexts/commercial';
+import type { FloorplanReader } from '@prism/contexts/floorplan';
+import type { GuestReader, StaffingReader } from '@prism/contexts/operations';
 import { createPmcmDashboardMappers } from './event-read-model.mappers';
 
 const COORDINATOR_ROLE_REQUIREMENTS = [
@@ -45,14 +45,13 @@ function addDays(value: Date, days: number) {
 }
 
 export type EventReadModelMapperDependencies = {
-  floorPlanWorkflowService: FloorPlanWorkflowService;
-  guestWorkflowService: GuestWorkflowService;
+  floorplanReader: FloorplanReader;
+  guestReader: GuestReader;
 };
 
 export type PmcmReadModelMapperDependencies = EventReadModelMapperDependencies & {
-  auditService: AuditService;
-  billingOperationsService: BillingOperationsService;
-  coordinatorsService: CoordinatorsService;
+  financeCommands: FinanceCommands;
+  staffingReader: StaffingReader;
 };
 
 export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDependencies) {
@@ -65,18 +64,18 @@ export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDepe
     mapBriefing,
     mapSupplierQuoteRequest,
     mapSupplierQuote,
-    mapCoordinator: dependencies.coordinatorsService.mapCoordinator.bind(dependencies.coordinatorsService),
-    mapCoordinatorAssignment: dependencies.coordinatorsService.mapCoordinatorAssignment.bind(dependencies.coordinatorsService),
+    mapCoordinator: dependencies.staffingReader.mapCoordinator.bind(dependencies.staffingReader),
+    mapCoordinatorAssignment: dependencies.staffingReader.mapCoordinatorAssignment.bind(dependencies.staffingReader),
     mapComplianceRule,
     mapComplianceCheck,
-    mapBillingSource: dependencies.billingOperationsService.mapBillingSource.bind(dependencies.billingOperationsService),
-    mapBillingStatement: dependencies.billingOperationsService.mapBillingStatement.bind(dependencies.billingOperationsService),
-    mapPaymentMilestone: dependencies.billingOperationsService.mapPaymentMilestone.bind(dependencies.billingOperationsService),
-    mapPaymentRecord: dependencies.billingOperationsService.mapPaymentRecord.bind(dependencies.billingOperationsService),
+    mapBillingSource: dependencies.financeCommands.mapBillingSource.bind(dependencies.financeCommands),
+    mapBillingStatement: dependencies.financeCommands.mapBillingStatement.bind(dependencies.financeCommands),
+    mapPaymentMilestone: dependencies.financeCommands.mapPaymentMilestone.bind(dependencies.financeCommands),
+    mapPaymentRecord: dependencies.financeCommands.mapPaymentRecord.bind(dependencies.financeCommands),
     mapPostEventDocument,
     mapEventInsight,
-    mapFloorPlanDraft: dependencies.floorPlanWorkflowService.mapFloorPlanDraft.bind(dependencies.floorPlanWorkflowService),
-    mapAuditLog: dependencies.auditService.mapAuditLog.bind(dependencies.auditService),
+    mapFloorPlanDraft: dependencies.floorplanReader.mapFloorPlanDraft.bind(dependencies.floorplanReader),
+    mapAuditLog,
     mapNotificationLog,
   });
 }
@@ -184,9 +183,9 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,
     floorPlanId: event.floorPlanId,
-    guestAccessCode: dependencies.guestWorkflowService.guestAccessCode(event),
+    guestAccessCode: dependencies.guestReader.guestAccessCode(event),
     activeFloorPlanDraftId: activeDraft?.id,
-    floorPlanDrafts: floorPlanDrafts.map((draft) => dependencies.floorPlanWorkflowService.mapFloorPlanDraft(draft)),
+    floorPlanDrafts: floorPlanDrafts.map((draft) => dependencies.floorplanReader.mapFloorPlanDraft(draft)),
   };
 }
 

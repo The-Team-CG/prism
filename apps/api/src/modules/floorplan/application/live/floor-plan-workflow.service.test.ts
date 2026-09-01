@@ -70,20 +70,20 @@ function createService() {
     },
     $transaction: vi.fn(async (callback) => callback(prisma)),
   };
-  const auditService = { audit: vi.fn(async () => undefined) };
-  const notificationOutboxService = { queue: vi.fn(async () => undefined) };
+  const auditWriter = { write: vi.fn(async () => undefined) };
+  const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
   const service = new FloorPlanWorkflowService(
     prisma as any,
-    auditService as any,
-    notificationOutboxService as any,
+    auditWriter as any,
+    notificationOutboxWriter as any,
     new WorkflowCommandService(),
   );
-  return { service, state, auditService, notificationOutboxService };
+  return { service, state, auditWriter, notificationOutboxWriter };
 }
 
 describe('FloorPlanWorkflowService', () => {
   it('creates PMCM official floorplan drafts with canvas object rows intact', async () => {
-    const { service, state, auditService } = createService();
+    const { service, state, auditWriter } = createService();
 
     const draft = await service.createFloorPlanDraft(
       'evt_sample',
@@ -100,16 +100,19 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlanDrafts[0]).toMatchObject({ name: 'Official Layout', status: 'pmcm_draft' });
     expect(state.floorPlanObjects[0]).toMatchObject({ objectId: 'stage', kind: 'stage', svgMarkup: '<svg />' });
     expect(state.events[0]).toMatchObject({ floorPlanStatus: 'pmcm_draft', readiness: 'Floorplan draft in progress' });
-    expect(auditService.audit).toHaveBeenCalledWith(
-      'evt_sample',
-      'PMCM Admin',
-      'Created floorplan draft: Official Layout',
-      expect.objectContaining({ affectedType: 'floor_plan_draft' }),
+    expect(auditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_sample',
+        actor: 'PMCM Admin',
+        action: 'Created floorplan draft: Official Layout',
+        affectedType: 'floor_plan_draft',
+      }),
+      undefined,
     );
   });
 
   it('creates client layout preferences without making them official approved layouts', async () => {
-    const { service, state, notificationOutboxService } = createService();
+    const { service, state, notificationOutboxWriter } = createService();
     state.events[0].clientPortalStatus = 'unlocked';
 
     const draft = await service.createFloorPlanPreference(
@@ -130,10 +133,13 @@ describe('FloorPlanWorkflowService', () => {
     expect(draft.createdByRole).toBe('client');
     expect(state.floorPlanDrafts[0].clientPreference).toMatchObject({ seatingStyle: 'banquet', guestCount: 180 });
     expect(state.events[0]).toMatchObject({ floorPlanStatus: 'client_submitted', readiness: 'Client layout preference received' });
-    expect(notificationOutboxService.queue).toHaveBeenCalledWith(
-      'evt_sample',
-      'PMCM Admin',
-      'Client submitted a layout preference: Client Preference',
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_sample',
+        recipient: 'PMCM Admin',
+        message: 'Client submitted a layout preference: Client Preference',
+      }),
+      undefined,
     );
   });
 

@@ -80,26 +80,24 @@ describe('EventLiveOpsController', () => {
 
   it('delegates event-day read and command routes with stable parameters', async () => {
     const { controller, readService, commandService, eventAccessPolicyService, resolvedActor } = createController();
-    const spoofedActor = { actorRole: 'pmcm-admin', actorName: 'Spoofed Admin' };
     const sessionActor = verifiedActor();
 
-    await controller.liveOps('evt_sample', spoofedActor, sessionActor);
-    await controller.statusFeed('evt_sample', spoofedActor, sessionActor);
-    await controller.createEventDayTask('evt_sample', { title: 'Open registration' }, spoofedActor, sessionActor);
-    await controller.updateEventDayTask('evt_sample', 'task_sample', { status: 'done' }, spoofedActor, sessionActor);
-    await controller.escalateEventDayTask('evt_sample', 'task_sample', { notes: 'Need backup' }, spoofedActor, sessionActor);
-    await controller.createUrgentIssue('evt_sample', { title: 'Power issue' }, spoofedActor, sessionActor);
-    await controller.updateUrgentIssue('evt_sample', 'issue_sample', { status: 'resolved' }, spoofedActor, sessionActor);
-    await controller.escalateUrgentIssue('evt_sample', 'issue_sample', { ownerRole: 'Floor Director' }, spoofedActor, sessionActor);
-    await controller.updateCoordinatorAttendance('evt_sample', 'coord_asg_sample', { status: 'present' }, spoofedActor, sessionActor);
+    await controller.liveOps('evt_sample', sessionActor);
+    await controller.statusFeed('evt_sample', sessionActor);
+    await controller.createEventDayTask('evt_sample', { title: 'Open registration' }, sessionActor);
+    await controller.updateEventDayTask('evt_sample', 'task_sample', { status: 'done' }, sessionActor);
+    await controller.escalateEventDayTask('evt_sample', 'task_sample', { notes: 'Need backup' }, sessionActor);
+    await controller.createUrgentIssue('evt_sample', { title: 'Power issue' }, sessionActor);
+    await controller.updateUrgentIssue('evt_sample', 'issue_sample', { status: 'resolved' }, sessionActor);
+    await controller.escalateUrgentIssue('evt_sample', 'issue_sample', { ownerRole: 'Floor Director' }, sessionActor);
+    await controller.updateCoordinatorAttendance('evt_sample', 'coord_asg_sample', { status: 'present' }, sessionActor);
     await controller.replaceCoordinatorAssignment(
       'evt_sample',
       'coord_asg_sample',
       { replacementCoordinatorId: 'coord_backup', role: 'Usher', reason: 'Sick leave' },
-      spoofedActor,
       sessionActor,
     );
-    await controller.verifySupplierStatus('evt_sample', 'qr_sample', { verificationStatus: 'verified' }, spoofedActor, sessionActor);
+    await controller.verifySupplierStatus('evt_sample', 'qr_sample', { verificationStatus: 'verified' }, sessionActor);
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledTimes(11);
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, sessionActor);

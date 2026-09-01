@@ -1,5 +1,10 @@
-import { EventDashboardRouteView } from "@/features/event-dashboard/shell";
+import { EventDashboardHomeSectionView, EventDashboardRouteView, dashboardRouteState } from "@/features/event-dashboard/shell";
 
-export default function EventDashboardRoutePage() {
-  return <EventDashboardRouteView routeKey="[dashboardView]" />;
+export default async function EventDashboardRoutePage({ params }: { params: Promise<{ dashboardView: string }> }) {
+  const { dashboardView } = await params;
+  return (
+    <EventDashboardRouteView {...dashboardRouteState(dashboardView)}>
+      <EventDashboardHomeSectionView />
+    </EventDashboardRouteView>
+  );
 }

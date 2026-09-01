@@ -1,9 +1,6 @@
 import type { OpsFloorPlanDraft } from '@prisma/client';
-import type {
-  CreateFloorPlanDraftInput,
-  CreateFloorPlanPreferenceInput,
-  FloorPlanActor,
-} from '../application/live/floor-plan-workflow.service';
+import type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
+import type { FloorPlanActor } from '../application/live/floor-plan-workflow.service';
 
 export interface FloorplanCommands {
   createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanActor): Promise<unknown>;

@@ -93,8 +93,12 @@ the shared database is not permission to create an unreviewed dependency.
 - Context dependencies are reviewable and can be checked statically.
 - Read-model endpoints can serve role apps without granting them business-write
   ownership.
-- The current kernel audit dependency on `platform-ops` is visible as a seam to
-  invert, not silently normalized as a permanent rule.
+- `kernel/access-control` now depends only on its `AUDIT_WRITER` port; the
+  composition root supplies the platform-ops adapter. Identity audit,
+  lifecycle document storage, and read-model readers follow the same focused
+  seam pattern where the dependency is real.
+- Focused ports clarify ownership but do not by themselves create a network,
+  database, deployment, or operational boundary.
 - Future microservice extraction has a clearer starting point, but still needs
   independent data, deployment, authentication, and operational decisions.
 

@@ -1,11 +1,15 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Param, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { BillingOperationsService } from '@prism/contexts/commercial';
-import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
+import { FINANCE_COMMANDS, type FinanceCommands } from '@prism/contexts/commercial';
+import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import { CoordinatorsService, GuestWorkflowService } from '@prism/contexts/operations';
-import { AuditService } from '@prism/contexts/platform-ops';
+import {
+  GUEST_READER,
+  type GuestReader,
+  STAFFING_READER,
+  type StaffingReader,
+} from '@prism/contexts/operations';
 import { createPmcmReadModelMappers } from '../application/mappers/pmcm-read-model.mappers';
 import { EventReadModelsService } from '../application/services/event-read-models.service';
 
@@ -14,11 +18,10 @@ export class OpsPmcmDashboardController {
   constructor(
     private readonly eventReadModelsService: EventReadModelsService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly auditService: AuditService,
-    private readonly billingOperationsService: BillingOperationsService,
-    private readonly coordinatorsService: CoordinatorsService,
-    private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
-    private readonly guestWorkflowService: GuestWorkflowService,
+    @Inject(FINANCE_COMMANDS) private readonly financeCommands: FinanceCommands,
+    @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
+    @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
+    @Inject(GUEST_READER) private readonly guestReader: GuestReader,
   ) {}
 
   @Get('dashboard')
@@ -37,11 +40,10 @@ export class OpsPmcmDashboardController {
 
   private mappers() {
     return createPmcmReadModelMappers({
-      auditService: this.auditService,
-      billingOperationsService: this.billingOperationsService,
-      coordinatorsService: this.coordinatorsService,
-      floorPlanWorkflowService: this.floorPlanWorkflowService,
-      guestWorkflowService: this.guestWorkflowService,
+      financeCommands: this.financeCommands,
+      staffingReader: this.staffingReader,
+      floorplanReader: this.floorplanReader,
+      guestReader: this.guestReader,
     });
   }
 }

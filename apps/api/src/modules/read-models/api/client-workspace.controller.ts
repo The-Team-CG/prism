@@ -1,9 +1,9 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { BillingOperationsService } from '@prism/contexts/commercial';
+import { FINANCE_COMMANDS, type FinanceCommands } from '@prism/contexts/commercial';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { mapAuditLog } from '@prism/contexts/platform-ops';
 import { mapBillingEvent, mapReadModelFloorPlanDraft } from '../application/mappers/billing-read-model.mappers';
 import { mapClientBriefing, mapClientDocument } from '../application/mappers/client-read-model.mappers';
 import { createClientWorkspaceMappers } from '../application/mappers/event-read-model.mappers';
@@ -14,8 +14,7 @@ export class OpsClientController {
   constructor(
     private readonly eventReadModelsService: EventReadModelsService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly billingOperationsService: BillingOperationsService,
-    private readonly auditService: AuditService,
+    @Inject(FINANCE_COMMANDS) private readonly financeCommands: FinanceCommands,
   ) {}
 
   @Get('workspace')
@@ -28,10 +27,10 @@ export class OpsClientController {
         mapEvent: mapBillingEvent,
         mapDocument: mapClientDocument,
         mapBriefing: mapClientBriefing,
-        mapBillingStatement: this.billingOperationsService.mapBillingStatement.bind(this.billingOperationsService),
-        mapPaymentMilestone: this.billingOperationsService.mapPaymentMilestone.bind(this.billingOperationsService),
+        mapBillingStatement: this.financeCommands.mapBillingStatement.bind(this.financeCommands),
+        mapPaymentMilestone: this.financeCommands.mapPaymentMilestone.bind(this.financeCommands),
         mapFloorPlanDraft: mapReadModelFloorPlanDraft,
-        mapAuditLog: this.auditService.mapAuditLog.bind(this.auditService),
+        mapAuditLog,
       }),
     );
   }

@@ -4,7 +4,7 @@ import { AccessControlModule } from '@prism/kernel/access-control';
 import { PAREService, PlatformOpsModule } from '@prism/contexts/platform-ops';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { EventSessionModule } from '@prism/kernel/event-session';
-import { EventLifecycleModule, DocumentVaultService } from '@prism/contexts/event-lifecycle';
+import { DOCUMENT_VAULT, EventLifecycleModule } from '@prism/contexts/event-lifecycle';
 import { OpsEventCommercialController } from './api/quotes/event-commercial.controller';
 import { OpsQuoteRequestsController } from './api/quotes/quote-requests.controller';
 import { OpsEventSupplierWithdrawalController } from './api/suppliers/event-supplier-withdrawal.controller';
@@ -52,7 +52,8 @@ const supplierCommandsProvider = {
  *
  * Owned tables: OpsSupplierQuote, OpsSupplierQuoteRequest, OpsDocument
  * (supplier document kinds), OpsSupplier, OpsSupplierApplication,
- * OpsSupplierCertification, OpsSupplierReview, OpsBillingSource,
+ * OpsSupplierCertification, OpsSupplierReview, OpsSupplierReliabilityNote,
+ * OpsBillingSource,
  * OpsBillingStatement, OpsDocument (billing-related documents only;
  * OpsDocument is also owned by inquiry-onboarding for its own document
  * kinds), OpsPaymentMilestone, OpsPaymentRecord.
@@ -93,7 +94,7 @@ const supplierCommandsProvider = {
     SupplierProfileCommandsService,
     SupplierNetworkWorkflowService,
     supplierCommandsProvider,
-    { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DocumentVaultService },
+    { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
     { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
     BillingOperationsService,
     { provide: FINANCE_COMMANDS, useExisting: BillingOperationsService },

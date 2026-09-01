@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   BadRequestException,
   ForbiddenException,
@@ -9,11 +9,12 @@ import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
 import type { PrismUser, RequestApprovalInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { writeAudit } from '@prism/kernel/access-control';
 import { AuthSessionService } from '@prism/kernel/event-session';
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
-import { InquiriesService } from '@prism/contexts/event-lifecycle';
+import { INQUIRY_COMMANDS, type InquiryCommands } from '@prism/contexts/event-lifecycle';
+import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
 
 function timestamp(value: Date) {
   return value.toISOString();
@@ -23,8 +24,8 @@ function timestamp(value: Date) {
 export class AuthOperationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService,
-    private readonly inquiriesService: InquiriesService,
+    @Inject(AUTH_AUDIT) private readonly authAudit: AuthAuditPort,
+    @Inject(INQUIRY_COMMANDS) private readonly inquiryCommands: InquiryCommands,
     private readonly authSessionService: AuthSessionService,
     private readonly totpService: TotpService,
   ) {}
@@ -34,8 +35,8 @@ export class AuthOperationsService {
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
-      await this.auditService.recordLoginHistory(null, normalizedEmail, 'failed', 'Unknown email');
-      await this.auditService.audit(undefined, 'Unknown user', `Failed login attempt for ${normalizedEmail}`, {
+      await this.authAudit.recordLoginHistory(null, normalizedEmail, 'failed', 'Unknown email');
+      await writeAudit(this.authAudit, undefined, 'Unknown user', `Failed login attempt for ${normalizedEmail}`, {
         actorRole: OpsUserRole.Unknown,
         actorEmail: normalizedEmail,
         actionType: AuditActionType.LoginFailed,
@@ -49,23 +50,23 @@ export class AuthOperationsService {
 
     const now = new Date();
     if (user.permanentLockout) {
-      await this.auditService.handleForbiddenAccess(user, normalizedEmail, 'Permanent lockout');
+      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Permanent lockout');
       throw new ForbiddenException('This account is permanently locked and requires PMCM Admin intervention');
     }
 
     if (user.lockedUntil && user.lockedUntil > now) {
-      await this.auditService.handleForbiddenAccess(user, normalizedEmail, 'Temporary lockout');
+      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Temporary lockout');
       throw new ForbiddenException('This account is temporarily locked after repeated failed login attempts');
     }
 
     const passwordMatches = AuthSecurityService.verifyPassword(user.password, password);
     if (!passwordMatches) {
-      await this.auditService.handleFailedLogin(user);
+      await this.authAudit.handleFailedLogin(user);
       throw new UnauthorizedException('Invalid mock credentials');
     }
 
     if (user.approvalStatus !== 'approved') {
-      await this.auditService.handleForbiddenAccess(user, normalizedEmail, 'Account waiting for approval');
+      await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Account waiting for approval');
       throw new ForbiddenException('This account is waiting for admin approval');
     }
 
@@ -82,8 +83,8 @@ export class AuthOperationsService {
     });
 
     await Promise.all([
-      this.auditService.recordLoginHistory(updated, normalizedEmail, 'success'),
-      this.auditService.audit(undefined, updated.name, `Signed in to ${updated.role} portal`, {
+      this.authAudit.recordLoginHistory(updated, normalizedEmail, 'success'),
+      writeAudit(this.authAudit, undefined, updated.name, `Signed in to ${updated.role} portal`, {
         actorRole: updated.role,
         actorEmail: updated.email,
         actionType: AuditActionType.Login,
@@ -95,7 +96,7 @@ export class AuthOperationsService {
     ]);
 
     if (updated.role === OpsUserRole.Client) {
-      await this.inquiriesService.markPortalInvitationOpenedByEmail(updated.email);
+      await this.inquiryCommands.markPortalInvitationOpenedByEmail(updated.email);
     }
 
     if (updated.role === OpsUserRole.PmcmAdmin) {
@@ -139,7 +140,7 @@ export class AuthOperationsService {
       throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
     }
     if (!this.totpService.verifyCode(secret, code)) {
-      await this.auditService.handleFailedLogin(user);
+      await this.authAudit.handleFailedLogin(user);
       throw new UnauthorizedException('Invalid two-factor code');
     }
 
@@ -148,8 +149,8 @@ export class AuthOperationsService {
       data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
     });
     await Promise.all([
-      this.auditService.recordLoginHistory(updated, user.email, 'success'),
-      this.auditService.audit(undefined, updated.name, `Signed in to ${updated.role} portal`, {
+      this.authAudit.recordLoginHistory(updated, user.email, 'success'),
+      writeAudit(this.authAudit, undefined, updated.name, `Signed in to ${updated.role} portal`, {
         actorRole: updated.role,
         actorEmail: updated.email,
         actionType: AuditActionType.Login,
@@ -217,7 +218,7 @@ export class AuthOperationsService {
   }
 
   async listLoginHistory(userId: string) {
-    return this.auditService.listLoginHistory(userId);
+    return this.authAudit.listLoginHistory(userId);
   }
 
   async approveApprovalRequest(requestId: string) {
@@ -242,7 +243,7 @@ export class AuthOperationsService {
       data: { status },
     });
 
-    await this.auditService.audit(undefined, 'PMCM Admin', `${status === 'approved' ? 'Approved' : 'Declined'} account access for ${request.email}`, {
+    await writeAudit(this.authAudit, undefined, 'PMCM Admin', `${status === 'approved' ? 'Approved' : 'Declined'} account access for ${request.email}`, {
       actorRole: OpsUserRole.PmcmAdmin,
       actionType: status === 'approved' ? AuditActionType.Approve : AuditActionType.Decline,
       category: AuditCategory.Access,

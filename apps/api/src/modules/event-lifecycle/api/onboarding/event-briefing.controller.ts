@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { SubmitBriefingDto } from './inquiry.dto';
+import { zodBody } from '@prism/kernel/shared';
+import { submitBriefingSchema, type SubmitBriefingInput } from '@prism/types';
 import { mapBriefing } from '../../application/onboarding/inquiry.mappers';
 import { ClientOnboardingWorkflowService } from '../../application/onboarding/client-onboarding-workflow.service';
 
@@ -9,7 +10,10 @@ export class OpsEventBriefingController {
 
   @Post(':eventId/briefing')
   @HttpCode(HttpStatus.CREATED)
-  async submitBriefing(@Param('eventId') eventId: string, @Body() dto: SubmitBriefingDto) {
+  async submitBriefing(
+    @Param('eventId') eventId: string,
+    @Body(zodBody(submitBriefingSchema)) dto: SubmitBriefingInput,
+  ) {
     return mapBriefing(await this.clientOnboardingWorkflowService.submitBriefing(eventId, dto));
   }
 }

@@ -15,7 +15,7 @@ import {
   SupplierQuoteRequestStatus,
   SupplierVerificationStatus,
 } from '@prism/kernel/event-core';
-import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
+import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
 import { GUEST_READER, type GuestReader, STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
 import { mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import { EventReadModelQueries } from '../queries/event-read-models.queries';
@@ -35,7 +35,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
   constructor(
     private readonly queries: EventReadModelQueries,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly floorPlanWorkflowService: FloorPlanWorkflowService,
+    @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
     @Inject(GUEST_READER) private readonly guestReader: GuestReader,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
   ) {}
@@ -201,7 +201,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       floorPlanId: event.floorPlanId,
       guestAccessCode: this.guestReader.guestAccessCode(event),
       activeFloorPlanDraftId: activeDraft?.id,
-      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorPlanWorkflowService.mapFloorPlanDraft(draft) as PrismFloorPlanDraft),
+      floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorplanReader.mapFloorPlanDraft(draft) as PrismFloorPlanDraft),
     };
   }
 

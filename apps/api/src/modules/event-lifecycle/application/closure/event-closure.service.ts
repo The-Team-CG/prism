@@ -1,13 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsComplianceCheck, OpsEvent, OpsEventInsight, OpsPostEventDocument } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
-import { NotificationOutboxService } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 
 export type ArchiveEventInput = EventOpsActorInput & {
   overrideReason?: string;
@@ -20,9 +20,9 @@ export class EventClosureService {
     private readonly prisma: PrismaService,
     private readonly fileRequirementsMatrixService: FileRequirementsMatrixService,
     private readonly eventLifecycleService: EventLifecycleService,
-    private readonly auditService: AuditService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly notificationOutboxService: NotificationOutboxService,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
@@ -65,13 +65,13 @@ export class EventClosureService {
       sideEffects: async (event) => {
         closeGates = await this.closeGates(eventId).catch(() => closeGates);
         await Promise.all([
-          this.auditService.audit(eventId, actorName, overrideReason ? 'Archived event with override' : 'Archived event', {
+          writeAudit(this.auditWriter, eventId, actorName, overrideReason ? 'Archived event with override' : 'Archived event', {
             actionType: AuditActionType.Archive,
             category: AuditCategory.Events,
             severity: overrideReason ? 'warning' : 'info',
             metadata: { overrideReason, missingKeys: closeGates.missingKeys, gates: closeGates.gates },
           }),
-          this.notificationOutboxService.queue(eventId, event.clientName, 'Event workspace archived'),
+          writeNotification(this.notificationOutboxWriter, eventId, event.clientName, 'Event workspace archived'),
         ]);
       },
     });
@@ -94,7 +94,7 @@ export class EventClosureService {
             throw new NotFoundException('Post-event document not found');
           }),
       sideEffects: async (document) => {
-        await this.auditService.audit(eventId, 'PMCM Admin', `Completed ${document.title}`);
+        await writeAudit(this.auditWriter, eventId, 'PMCM Admin', `Completed ${document.title}`);
       },
     });
   }
@@ -162,7 +162,7 @@ export class EventClosureService {
       },
       sideEffects: async (insight) => {
         if (!event || !insightContext) return;
-        await this.auditService.audit(eventId, actor.name, 'Generated Event Insights', {
+        await writeAudit(this.auditWriter, eventId, actor.name, 'Generated Event Insights', {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Create,

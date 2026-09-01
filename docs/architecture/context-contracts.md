@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "581e676"
+last_verified: "codex/architecture-alignment-fe-be"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -83,7 +83,10 @@ these facilities. Kernel code must not import `modules/*`.
 | Source | Target or resource | Contract rule | Current treatment |
 | --- | --- | --- | --- |
 | `modules/read-models` | owning business contexts | public index, serialisable read contract, or approved reader | read-only composition; no command/write ownership |
-| `kernel/access-control` | `modules/platform-ops` audit behavior | focused audit-writer port is the desired direction | current dependency is a documented extraction-readiness follow-up; do not add more kernel-to-business imports |
+| `kernel/access-control` | platform audit behavior | kernel-owned focused port; composition-root adapter | `AUDIT_WRITER` is implemented in the kernel and bound to platform-ops by `PlatformOpsAuditWriterModule`; kernel has no business-context import |
+| `modules/identity-access` | platform trust behavior | identity application depends on `AUTH_AUDIT`; only its infrastructure adapter knows the platform implementation | authentication and account workflows use a focused audit/lockout seam; no `AuditService` import remains in the application layer |
+| `modules/event-lifecycle` | document storage behavior | `DOCUMENT_VAULT` port owned by the lifecycle context | onboarding workflows use the port; metadata-only storage is the current composition adapter |
+| `modules/read-models` | finance, staffing, floorplan, and guest reads | focused reader/command contracts plus pure mappers | dashboard controllers and mappers use `FINANCE_COMMANDS`, `STAFFING_READER`, `FLOORPLAN_READER`, and `GUEST_READER`; read-models owns no writes |
 | context composition roots | other Nest context modules | module import only at composition root | allowed for one-process assembly; not a private application dependency |
 | API controllers | context application services | owning context service and mapper | controllers do not expose Prisma models or perform cross-context persistence lookups |
 
@@ -94,11 +97,12 @@ violations.
 
 ## Persistence seam
 
-Prism currently uses one Prisma client and a shared database. A query that reads
-another context's table must record the stable owner, the reason for the join,
-the fields allowed across the seam, and the transition plan if the table will
-eventually be isolated. A shared database is an implementation arrangement, not
-an ownership grant.
+Prism currently uses one Prisma client and a shared database. The owned-table and
+join register is [`persistence-ownership.md`](persistence-ownership.md). A query
+that reads another context's table must record the stable owner, the reason for
+the join, the fields allowed across the seam, and the transition plan if the
+table will eventually be isolated. A shared database is an implementation
+arrangement, not an ownership grant.
 
 ## Verification
 
