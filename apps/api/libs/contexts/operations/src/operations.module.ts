@@ -6,7 +6,7 @@ import { FloorplanModule } from '@prism/contexts/floorplan';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
-import { FileOpsModule } from '@prism/modules/file-ops';
+import { EventLifecycleModule } from '@prism/contexts/event-lifecycle';
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
@@ -34,7 +34,7 @@ import { GuestWorkflowService } from './application/guest/guest-workflow.service
  * (via inquiry-onboarding).
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, FloorplanModule, IdentityOpsModule, FileOpsModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, TrustOpsModule, NotificationOpsModule, FloorplanModule, IdentityOpsModule, EventLifecycleModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsGuestController],
   providers: [
     CoordinatorsService,

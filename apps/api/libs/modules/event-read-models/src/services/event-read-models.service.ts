@@ -22,7 +22,7 @@ import type {
   OpsUser,
 } from '@prisma/client';
 import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
-import { CLOSURE_READINESS_READER, type ClosureReadinessReader } from '@prism/modules/closure-ops';
+import { CLOSURE_READINESS_READER, type ClosureReadinessReader } from '@prism/contexts/event-lifecycle';
 import { AuditCategory, OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '@prism/modules/event-core';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/modules/access-control';
 import { GUEST_READER, type GuestReader, STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DocumentVaultService } from '@prism/modules/file-ops';
+import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { WorkflowCommandService } from '@prism/modules/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
 

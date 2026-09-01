@@ -35,13 +35,13 @@ import {
   type RequestSupplierQuotesInput,
   type SubmitSupplierQuoteInput,
 } from '@prism/contexts/commercial';
-import { DocumentVaultService, FileRequirementsMatrixService, type UploadMetadataInput } from '@prism/modules/file-ops';
+import { DocumentVaultService, FileRequirementsMatrixService, type UploadMetadataInput } from '@prism/contexts/event-lifecycle';
 import {
   ClientOnboardingWorkflowService,
   InquiriesService,
   InquiryWorkflowService,
   type SubmitBriefingInput,
-} from '@prism/modules/inquiry-onboarding';
+} from '@prism/contexts/event-lifecycle';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditService, PrivacyOperationsService } from '@prism/modules/trust-ops';
@@ -111,7 +111,7 @@ import {
   type PmcmDashboardMappers,
   type SupplierWorkspaceMappers,
 } from '@prism/modules/event-read-models';
-import { EventClosureService, type ArchiveEventInput } from '@prism/modules/closure-ops';
+import { EventClosureService, type ArchiveEventInput } from '@prism/contexts/event-lifecycle';
 import {
   type ApproveBillingSourceInput,
   BillingOperationsService,
@@ -129,7 +129,7 @@ import {
   type CreateComplianceRuleInput,
   type ResolveComplianceInput,
   type UpdateComplianceRuleInput,
-} from '@prism/modules/compliance-ops';
+} from '@prism/contexts/event-lifecycle';
 import { AiGovernanceService } from '@prism/modules/ai-governance';
 
 type CreateInquiryInput = {

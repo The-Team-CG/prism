@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Put, Res, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
-import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import type { Response } from 'express';
 import { UpdatePlanDto } from './update-plan.dto';

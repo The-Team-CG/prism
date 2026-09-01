@@ -4,7 +4,7 @@ import { AccessControlModule } from '@prism/modules/access-control';
 import { AiGovernanceModule, PAREService } from '@prism/modules/ai-governance';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { EventSessionModule } from '@prism/modules/event-session';
-import { FileOpsModule, DocumentVaultService } from '@prism/modules/file-ops';
+import { EventLifecycleModule, DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsEventCommercialController } from './api/quotes/event-commercial.controller';
@@ -71,7 +71,7 @@ const supplierCommandsProvider = {
     EventCoreModule,
     TrustOpsModule,
     NotificationOpsModule,
-    FileOpsModule,
+    EventLifecycleModule,
     EventSessionModule,
   ],
   controllers: [

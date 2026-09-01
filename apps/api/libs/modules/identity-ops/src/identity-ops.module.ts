@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { EventSessionModule } from '@prism/modules/event-session';
-import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
+import { EventLifecycleModule } from '@prism/contexts/event-lifecycle';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
 import { OpsAuthController } from './controllers/auth.controller';
 import { AuthOperationsService } from './services/auth-operations.service';
@@ -12,7 +12,7 @@ import { TotpService } from './services/totp.service';
  * Read-only: none.
  */
 @Module({
-  imports: [DatabaseModule, TrustOpsModule, InquiryOnboardingModule, EventSessionModule],
+  imports: [DatabaseModule, TrustOpsModule, EventLifecycleModule, EventSessionModule],
   controllers: [OpsAuthController],
   providers: [AuthOperationsService, TotpService],
   exports: [AuthOperationsService, EventSessionModule],

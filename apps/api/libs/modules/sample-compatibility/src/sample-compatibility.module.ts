@@ -2,16 +2,13 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { AiGovernanceModule } from '@prism/modules/ai-governance';
-import { ClosureOpsModule } from '@prism/modules/closure-ops';
 import { CommercialModule } from '@prism/contexts/commercial';
-import { ComplianceOpsModule } from '@prism/modules/compliance-ops';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { EventReadModelsModule } from '@prism/modules/event-read-models';
-import { FileOpsModule } from '@prism/modules/file-ops';
+import { EventLifecycleModule } from '@prism/contexts/event-lifecycle';
 import { FloorplanModule } from '@prism/contexts/floorplan';
 import { OperationsModule } from '@prism/contexts/operations';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
-import { InquiryOnboardingModule } from '@prism/modules/inquiry-onboarding';
 import { LiveOpsModule } from '@prism/contexts/live-ops';
 import { NotificationOpsModule } from '@prism/modules/notification-ops';
 import { TrustOpsModule } from '@prism/modules/trust-ops';
@@ -39,15 +36,12 @@ import { SampleStateService } from './services/sample-state.service';
     NotificationOpsModule,
     AccessControlModule,
     IdentityOpsModule,
-    InquiryOnboardingModule,
+    EventLifecycleModule,
     CommercialModule,
-    ComplianceOpsModule,
     FloorplanModule,
-    FileOpsModule,
     OperationsModule,
     AiGovernanceModule,
     LiveOpsModule,
-    ClosureOpsModule,
     EventReadModelsModule,
   ],
   controllers: SAMPLE_COMPATIBILITY_CONTROLLERS,

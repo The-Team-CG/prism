@@ -69,6 +69,15 @@
         "tsConfigPath": "libs/contexts/commercial/tsconfig.lib.json"
       }
     },
+    "event-lifecycle": {
+      "type": "library",
+      "root": "libs/contexts/event-lifecycle",
+      "entryFile": "index",
+      "sourceRoot": "libs/contexts/event-lifecycle/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/contexts/event-lifecycle/tsconfig.lib.json"
+      }
+    },
     "sample-compatibility": {
       "type": "library",
       "root": "libs/modules/sample-compatibility",
@@ -85,15 +94,6 @@
       "sourceRoot": "libs/modules/health/src",
       "compilerOptions": {
         "tsConfigPath": "libs/modules/health/tsconfig.lib.json"
-      }
-    },
-    "closure-ops": {
-      "type": "library",
-      "root": "libs/modules/closure-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/closure-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/closure-ops/tsconfig.lib.json"
       }
     },
     "event-read-models": {
@@ -139,33 +139,6 @@
       "sourceRoot": "libs/modules/access-control/src",
       "compilerOptions": {
         "tsConfigPath": "libs/modules/access-control/tsconfig.lib.json"
-      }
-    },
-    "file-ops": {
-      "type": "library",
-      "root": "libs/modules/file-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/file-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/file-ops/tsconfig.lib.json"
-      }
-    },
-    "inquiry-onboarding": {
-      "type": "library",
-      "root": "libs/modules/inquiry-onboarding",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/inquiry-onboarding/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/inquiry-onboarding/tsconfig.lib.json"
-      }
-    },
-    "compliance-ops": {
-      "type": "library",
-      "root": "libs/modules/compliance-ops",
-      "entryFile": "index",
-      "sourceRoot": "libs/modules/compliance-ops/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/modules/compliance-ops/tsconfig.lib.json"
       }
     }
   }

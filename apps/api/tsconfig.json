@@ -49,12 +49,6 @@
       "@prism/modules/event-read-models/*": [
         "libs/modules/event-read-models/src/*"
       ],
-      "@prism/modules/closure-ops": [
-        "libs/modules/closure-ops/src/index"
-      ],
-      "@prism/modules/closure-ops/*": [
-        "libs/modules/closure-ops/src/*"
-      ],
       "@prism/modules/event-core": [
         "libs/modules/event-core/src/index"
       ],
@@ -84,24 +78,6 @@
       ],
       "@prism/modules/ai-governance/*": [
         "libs/modules/ai-governance/src/*"
-      ],
-      "@prism/modules/file-ops": [
-        "libs/modules/file-ops/src/index"
-      ],
-      "@prism/modules/file-ops/*": [
-        "libs/modules/file-ops/src/*"
-      ],
-      "@prism/modules/inquiry-onboarding": [
-        "libs/modules/inquiry-onboarding/src/index"
-      ],
-      "@prism/modules/inquiry-onboarding/*": [
-        "libs/modules/inquiry-onboarding/src/*"
-      ],
-      "@prism/modules/compliance-ops": [
-        "libs/modules/compliance-ops/src/index"
-      ],
-      "@prism/modules/compliance-ops/*": [
-        "libs/modules/compliance-ops/src/*"
       ],
       "@prism/modules/identity-ops": [
         "libs/modules/identity-ops/src/index"
@@ -138,6 +114,12 @@
       ],
       "@prism/contexts/commercial/*": [
         "libs/contexts/commercial/src/*"
+      ],
+      "@prism/contexts/event-lifecycle": [
+        "libs/contexts/event-lifecycle/src/index"
+      ],
+      "@prism/contexts/event-lifecycle/*": [
+        "libs/contexts/event-lifecycle/src/*"
       ]
     }
   }

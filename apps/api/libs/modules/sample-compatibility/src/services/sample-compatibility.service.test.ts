@@ -10,13 +10,13 @@ import {
   ClientOnboardingWorkflowService,
   InquiriesService,
   InquiryWorkflowService,
-} from '@prism/modules/inquiry-onboarding';
+} from '@prism/contexts/event-lifecycle';
 import { CommercialWorkflowService } from '@prism/contexts/commercial';
-import { ComplianceWorkflowService } from '@prism/modules/compliance-ops';
+import { ComplianceWorkflowService } from '@prism/contexts/event-lifecycle';
 import { CoordinatorsService } from '@prism/contexts/operations';
-import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/modules/file-ops';
+import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/contexts/event-lifecycle';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
-import { EventClosureService } from '@prism/modules/closure-ops';
+import { EventClosureService } from '@prism/contexts/event-lifecycle';
 import { EventLifecycleService } from '@prism/modules/event-core';
 import { EventReadModelQueries, EventReadModelsService } from '@prism/modules/event-read-models';
 import { FloorPlanWorkflowService } from '@prism/contexts/floorplan';

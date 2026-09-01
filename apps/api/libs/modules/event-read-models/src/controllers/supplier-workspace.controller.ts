@@ -2,7 +2,7 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { mapSupplierQuoteForSupplier } from '@prism/contexts/commercial';
 import { OpsUserRole } from '@prism/modules/event-core';
-import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
 import { mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { createSupplierWorkspaceMappers } from '../mappers/event-read-model.mappers';

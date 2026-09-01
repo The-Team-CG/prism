@@ -1,7 +1,7 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
 import { BillingOperationsService } from '@prism/contexts/commercial';
-import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { createBillingReadModelMappers } from '../mappers/event-read-model.mappers';
 import { mapBillingEvent } from '../mappers/billing-read-model.mappers';

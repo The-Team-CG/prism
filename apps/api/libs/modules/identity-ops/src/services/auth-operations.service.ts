@@ -13,7 +13,7 @@ import { AuditService } from '@prism/modules/trust-ops';
 import { AuthSessionService } from '@prism/modules/event-session';
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
-import { InquiriesService } from '@prism/modules/inquiry-onboarding';
+import { InquiriesService } from '@prism/contexts/event-lifecycle';
 
 function timestamp(value: Date) {
   return value.toISOString();

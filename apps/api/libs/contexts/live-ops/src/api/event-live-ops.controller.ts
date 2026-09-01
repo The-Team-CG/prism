@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { zodBody } from '@prism/shared';
 import { EventAccessPolicyService } from '@prism/modules/access-control';
-import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/identity-ops';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/modules/event-session';
 import {
   createEventDayTaskSchema,
   createUrgentIssueSchema,

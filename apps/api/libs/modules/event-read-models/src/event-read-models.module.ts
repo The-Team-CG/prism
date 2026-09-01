@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
-import { ClosureOpsModule } from '@prism/modules/closure-ops';
+import { EventLifecycleModule } from '@prism/contexts/event-lifecycle';
 import { FloorplanModule } from '@prism/contexts/floorplan';
 import { OperationsModule } from '@prism/contexts/operations';
 import { IdentityOpsModule } from '@prism/modules/identity-ops';
@@ -27,7 +27,7 @@ import { LIVE_OPS_READ_MODEL } from './ports/live-ops-read-models.tokens';
  * Read-only-by-design reader module: composes cross-domain read models from every writer module above, owns no writes.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, OperationsModule, CommercialModule, FloorplanModule, TrustOpsModule, ClosureOpsModule, IdentityOpsModule],
+  imports: [DatabaseModule, AccessControlModule, OperationsModule, CommercialModule, FloorplanModule, TrustOpsModule, EventLifecycleModule, IdentityOpsModule],
   controllers: [OpsBillingController, OpsClientController, OpsDefenseReadinessController, OpsEventReadsController, OpsPmcmCommandInboxController, OpsPmcmDashboardController, OpsSupplierWorkspaceReadsController],
   providers: [
     EventReadModelQueries,
