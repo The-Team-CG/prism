@@ -40,6 +40,7 @@ scope, verification, and source/provenance entries.
 | --- | --- |
 | Agent rules and ownership | [`../AGENTS.md`](../AGENTS.md) |
 | Human setup and commands | [`../README.md`](../README.md) |
+| Release-visible change history | [`../CHANGELOG.md`](../CHANGELOG.md) |
 | Bundle update history | [`log.md`](log.md) |
 
 ## Authority and maintenance

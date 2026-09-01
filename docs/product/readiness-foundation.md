@@ -249,7 +249,7 @@ Every PMCM-to-portal or portal-to-PMCM data flow must name these fields before a
 | Client local sample state | Fenced behind client API adapter. | Local fallback is removed after client portal reads only API-backed scoped workspaces in all supported modes. |
 | Mock client auth keys | Marked legacy and migrated by the shared reader when explicitly allowed. | Client session uses the same platform session contract as other apps. |
 | Literal session storage keys and copied localStorage mechanics | Replaced with shared constants and `readPrismSession`/`savePrismSession`/`clearPrismSession`. | External auth/session provider replaces localStorage behind the shared contract. |
-| Legacy backend/portal god facades | Backend workflows now live in DDD-shaped contexts; the remaining FE `event-ops` adapter is compatibility-only and must not grow. | Keep new backend work under `apps/api/src/modules/*` or `src/kernel/*`; keep portal I/O in feature `data/` and replace the FE facade opportunistically when a consumer is already being changed. |
+| Legacy backend/portal god facades | Backend workflows now live in DDD-shaped contexts; the remaining package-level FE `createEventOpsClient` transport is compatibility-only and must not grow. | Keep new backend work under `apps/api/src/modules/*` or `src/kernel/*`; keep portal I/O in feature `data/` and replace the compatibility transport opportunistically when a consumer is already being changed. |
 | PARE/mock adapter defaults | Keep dev/test-only. | Live/test adapter modes are explicit and verified. |
 | Generated temp logs | Ignore `.tmp/`. | Dev scripts write only to ignored local output paths. |
 

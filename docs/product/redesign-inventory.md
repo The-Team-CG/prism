@@ -9,7 +9,7 @@ authority: informative
 owner: "A (Maxine), D (Anthony)"
 audience: [design, frontend-engineers, product, reviewers]
 scope: "portal routes, API/package surfaces, redesign severity, owners, and closure evidence"
-last_verified: "581e676"
+last_verified: "f9b2d9f"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -53,13 +53,13 @@ Severity scale:
 | App | Product role | Current route shape | Redesign priority | Primary owner | Owner system goal for this area | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `apps/client` | Public inquiry plus signed-in client portal | Landing, inquiry, sign-in/sign-up, dashboard, event sections, billing/files/messages/calendar/approvals | S2 | Owner C (Ethan) | Make the client portal a narrow, safe action center for client-owned work. | Client Action Center is now consumed by the dashboard actions; continue tighter event-scoped reads and clearer public-to-signed-in boundary. |
-| `apps/event` | PMCM admin and coordinator command app | Large dashboard with many filtered subroutes plus selected event workspace | S3 | Owner B (Francis) | Make PMCM and coordinator operations executable from command surfaces. | Event Command Inbox is now consumed by shell actions; selected event sections now prefer `PrismPmcmEventWorkspace`; event messages now have a route-owned workspace component. Continue workspace IA, staffing/live-ops redesign, and route consolidation. |
+| `apps/event` | PMCM admin and coordinator command app | Route-owned dashboard sections with compatibility-preserving event filters plus selected event workspace | S3 | Owner B (Francis) | Make PMCM and coordinator operations executable from command surfaces. | Event Command Inbox is now consumed by shell actions; selected event sections now prefer `PrismPmcmEventWorkspace`; event messages now have a route-owned workspace component; the event dashboard facade and duplicate filter folders are retired. Continue workspace IA, staffing/live-ops redesign, and route consolidation where it improves ownership. |
 | `apps/supplier` | Supplier portal | Landing, sign-in, dashboard | S2 | Owner C (Ethan) | Make supplier work limited to quote, assignment, contract, readiness, and event-day status. | Supplier Readiness Board is now visible on the dashboard; continue supplier application/status depth while preserving supplier-scoped data. |
 | `apps/guest` | Lightweight guest portal | Landing, sign-in, open code, dashboard | S1/Gate | Owner C (Ethan) | Make guest access low-friction, consented, and event-code scoped. | Use the shared Guest Event Pass contract. Keep lightweight. Gate QR/camera and media upload until HTTPS, consent, upload, and moderation are ready. |
 | `apps/api` | Shared NestJS API | One Nest source tree with DDD-shaped contexts under `apps/api/src/modules/*`, kernel primitives under `src/kernel/*`, and `/sample/*` compatibility under `src/compatibility/sample` | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Backend context consolidation is implemented: eight context roots, seven kernel concerns, one compatibility leaf, public indices, and executable boundary checks. Continue contract consolidation, table ownership, focused ports, and modular-monolith guardrails in `../architecture/current-architecture.md`. |
 | `packages/ui` | Shared presentation system | App shell, public shell, primitives, blocks, client/public blocks | S1 | Owner A (Maxine) | Make shared presentation patterns coherent without absorbing workflow logic. | Keep presentation-only. Continue component consolidation through actual app needs. |
-| `packages/types` | Shared contracts | Lifecycle and event-ops types | S2 | Owner D (Anthony) | Make shared contracts the source of truth for role-safe app/API integration. | Expand route/feature contracts before large app redesign. |
-| `packages/api-client` | Shared request helpers | Event-ops client and HTTP helper | S1 | Owner D (Anthony) | Make app data access typed, scoped, and migration-safe. | Keep stable, add typed clients when app surfaces stop using broad state. |
+| `packages/types` | Shared contracts | Lifecycle and capability contracts | S2 | Owner D (Anthony) | Make shared contracts the source of truth for role-safe app/API integration. | Expand route/feature contracts before large app redesign; keep read models and write schemas in this package. |
+| `packages/api-client` | Shared request helpers | Scoped API client, compatibility transport, and HTTP helper | S1 | Owner D (Anthony) | Make app data access typed, scoped, and migration-safe. | Keep the compatibility transport stable while feature data adapters use scoped helpers; do not grow a new aggregate facade. |
 
 ## Owner System Goal Summary
 
@@ -93,8 +93,8 @@ Severity scale:
 | Public entry/auth | `/`, `/sign-in` | S1 | Keep as PMCM/coordinator entry; no marketing hero. Root entry is isolated in `EventCommandLanding`. | Signed-in surfaces only after auth. |
 | Command dashboard | `/dashboard`, `/dashboard/[dashboardView]` | S3 | Replace with Event Command Inbox, health score, and focused work queues. Legacy loading states are isolated in `event-dashboard-skeleton.tsx`; route-to-shell metadata lives in `event-dashboard.routing.ts`. | PMCM-only operational visibility. |
 | Inquiries | `/dashboard/inquiries` | S2 | PMCM intake queue with accept/pend/decline, referrals, duplicates, conforme path. | Public inquiry role separation. |
-| Events list | `/dashboard/events`, status/by-client/by-type filters | S2 | Event portfolio with lifecycle state, health, owner, risk, next action. | No client portal behavior inside PMCM route. |
-| Selected event | `/dashboard/events/[eventId]`, overview/briefing/billing/floorplans/suppliers/coordinators/live-ops/closure/activity | S3 | Make selected event workspace the primary PMCM operating surface. | PMCM owns official floorplans and internal cost/supplier/coordinator details. |
+| Events list | `/dashboard/events`, compatibility status/by-client/by-type filters | S2 | Event portfolio with lifecycle state, health, owner, risk, next action. | No client portal behavior inside PMCM route; compatibility URLs must continue resolving to the owning list view. |
+| Selected event | `/dashboard/events/[eventSlug]`, overview/briefing/billing/floorplans/suppliers/coordinators/live-ops/closure/activity | S3 | Make selected event workspace the primary PMCM operating surface. | PMCM owns official floorplans and internal cost/supplier/coordinator details. |
 | Clients | `/dashboard/clients`, active/past/prospects/archived, `/dashboard/clients/[clientId]` | S2 | Client relationship view tied to inquiries/events/history. | Client private portal data remains scoped. |
 | Suppliers/vendors | `/dashboard/suppliers`, `/dashboard/suppliers/[supplierView]`, `/dashboard/vendors` | S2 | Supplier Network Operations with applications, quotes, readiness, reliability. | Supplier private reviews PMCM-only. |
 | Team/tasks | `/dashboard/team`, `/dashboard/team/[teamView]`, `/dashboard/tasks`, `/dashboard/tasks/[taskView]` | S3 | Merge into staffing heatmap, run sheet, live ops, and command inbox. | Coordinator role visibility remains restricted. |

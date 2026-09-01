@@ -17,6 +17,7 @@ single agent entrypoint.
 | Import packages by role (table below); thin `lib/prism-api` | Re-export domain types from app facades; fat god facades for new code |
 | Name owner goal A–D on redesign/capability work | Treat owners as loose assignees |
 | Typecheck + tests for touched packages; `check:boundaries` on import moves | Commit secrets / `.env*` with credentials; casual `db:reset` |
+| Update root `CHANGELOG.md` for every user-requested code, architecture, documentation, or operational delivery; update `docs/log.md` for documentation-bundle changes | Leave a delivery undocumented |
 | Preserve unrelated uncommitted work | Drive-by reverts outside task scope |
 
 **Owners:** A Maxine (UX) · B Francis (PMCM ops) · C Ethan (external portals) · D Anthony (platform trust).

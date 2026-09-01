@@ -30,3 +30,13 @@
   Remaining legacy DTO migration, deeper domain-policy extraction, and
   microservice extraction stay evidence-driven follow-up work rather than
   unbounded cleanup.
+- **Audited:** After the alignment commit, no obsolete tracked execution plans,
+  dated review artifacts, redundant assessment documents, or duplicate docs
+  pointers remain in the canonical bundle. Active inventories, roadmap/matrix
+  records, ADRs, runbooks, and V4 reference material remain intentionally
+  retained because they are still referenced or carry current authority.
+- **Synchronized:** Updated the root `CHANGELOG.md` for the alignment delivery
+  and corrected the redesign inventory's route and verification notes.
+- **Governed:** Made the root changelog mandatory for every user-requested
+  delivery, with this log reserved for documentation-bundle changes and release
+  notes kept under `[Unreleased]` until versioning occurs.

@@ -9,7 +9,7 @@ authority: normative
 owner: "D (Anthony)"
 audience: [agents, maintainers, engineers]
 scope: "repository-wide cross-cutting rules"
-last_verified: "581e676"
+last_verified: "f9b2d9f"
 sources:
   - id: prism-agent-rules
     resource: "AGENTS.md"
@@ -39,6 +39,10 @@ sources:
 This document is the current cross-cutting contract for the Prism repository.
 When code, schemas, routes, ownership, or documentation changes, update the
 affected source of truth and its verification evidence in the same change.
+Every user-requested code, architecture, documentation, or operational delivery
+also updates the root `CHANGELOG.md`; documentation-bundle changes additionally
+update `docs/log.md`. Keep release notes under `[Unreleased]` until a release
+workflow cuts a version.
 
 ## Authority order
 
