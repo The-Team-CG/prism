@@ -1,9 +1,27 @@
-# P.R.I.S.M Future State
+---
+type: "Product Target State"
+title: "P.R.I.S.M future state"
+description: "Target maturity for a role-safe, evidence-backed PMCM event operating system and its incremental migration path."
+tags: [product, target-state, maturity, roadmap]
+status: stable
+updated: "2026-09-01"
+sources:
+  - id: current-system
+    resource: "docs/product/actual-system.md"
+    title: "Current product system"
+  - id: current-architecture
+    resource: "docs/architecture/current-architecture.md"
+    title: "Current architecture"
+  - id: roadmap
+    resource: "docs/roadmap/architecture-priority-risk-matrix.md"
+    title: "Architecture priority and risk matrix"
+---
+# P.R.I.S.M future state
 
-Date: 2026-07-16
-Status: Target-state document for system maturity planning
-
-This document describes where P.R.I.S.M should land for full-system maturity. Read after `15-system-architecture.md` for architecture and `16-actual-system.md` for current system detail.
+This document describes where P.R.I.S.M should land for full-system maturity.
+Read it after [`../architecture/current-architecture.md`](../architecture/current-architecture.md)
+for architecture and [`actual-system.md`](actual-system.md) for current system
+detail.
 
 ## Target System Statement
 

@@ -1,4 +1,22 @@
-# Docker Dev Testing Guide
+---
+type: "Playbook"
+title: "P.R.I.S.M Docker development and testing"
+description: "Local Docker development modes, environment setup, ports, rebuilds, and troubleshooting for Prism."
+tags: [runbook, docker, development, testing]
+status: stable
+updated: "2026-09-01"
+sources:
+  - id: compose-local
+    resource: "compose.local.yml"
+    title: "Production-style local compose"
+  - id: compose-dev
+    resource: "compose.dev.yml"
+    title: "Hot-reload development compose"
+  - id: root-readme
+    resource: "README.md"
+    title: "Prism setup runbook"
+---
+# P.R.I.S.M Docker development and testing
 
 This guide explains how to run P.R.I.S.M with Docker for local testing. It assumes you are new to Docker and want clear commands you can copy into a terminal.
 

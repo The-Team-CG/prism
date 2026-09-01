@@ -1,11 +1,35 @@
-# P.R.I.S.M System Architecture
+---
+type: "Architecture Reference"
+title: "P.R.I.S.M current architecture"
+description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
+tags: [architecture, current-state, modular-monolith, roles]
+status: stable
+updated: "2026-09-01"
+sources:
+  - id: agent-rules
+    resource: "AGENTS.md"
+    title: "Prism repository and ownership rules"
+  - id: api-source
+    resource: "apps/api/apps/api/src"
+    title: "Current API source tree"
+  - id: app-composition
+    resource: "apps/api/apps/api/src/app.module.ts"
+    title: "Nest application composition"
+  - id: portal-source
+    resource: "apps"
+    title: "Role application source trees"
+  - id: prisma-schema
+    resource: "apps/api/prisma/schema.prisma"
+    title: "Current Prisma schema"
+---
+# P.R.I.S.M current architecture
 
-**Date:** 2026-09-01
-**Status:** Canonical architecture reference for the current Prism monorepo
-
-This document describes P.R.I.S.M as PMCM's internal event operating system. Read
-it with `16-actual-system.md` for current system details and `18-future-state.md`
-for longer-term direction.
+This document is the canonical current architecture reference. Read it with
+[`../constitution.md`](../constitution.md) for invariants, the
+[`../product/actual-system.md`](../product/actual-system.md) for current product
+behavior, and [`../product/future-state.md`](../product/future-state.md) for
+target direction. Accepted architecture decisions are indexed in
+[`decisions/`](decisions/).
 
 ## Architecture principles
 
@@ -221,7 +245,7 @@ extraction; a source move alone does not imply database isolation.
 | API tests | `npm --workspace prism-api run test` |
 | API sample compatibility tests | `npm --workspace prism-api run test:sample-compatibility` |
 | Prisma schema | `npm --workspace prism-api run prisma:validate` |
-| Backend architecture boundaries | `node C:/Users/anton/.agents/skills/backend-architecture/scripts/check-boundaries.mjs apps/api --fail-on error` |
+| Backend architecture boundaries | `npm run check:boundaries` plus the backend architecture boundary audit |
 | UI smoke | `npm run smoke:ui` when the stack is available |
 | Documentation consistency | `git diff --check` plus architecture/index updates |
 

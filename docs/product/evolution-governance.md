@@ -1,25 +1,47 @@
-# P.R.I.S.M Product Evolution and Redesign Governance
+---
+type: "Product Governance"
+title: "P.R.I.S.M product evolution governance"
+description: "Rules for adding, revising, merging, deferring, and retiring Prism feature families without losing role, contract, or operational clarity."
+tags: [product, governance, features, decisions]
+status: stable
+updated: "2026-09-01"
+sources:
+  - id: feature-ledger
+    resource: "docs/product/feature-ledger.md"
+    title: "Active feature-family decisions"
+  - id: implementation-revisions
+    resource: "docs/product/implementation-revisions.md"
+    title: "Implementation reality and gaps"
+  - id: v4-reference
+    resource: "docs/reference/prism-v4/complete-feature-catalog.md"
+    title: "Source-preserving V4 catalog"
+  - id: constitution
+    resource: "docs/constitution.md"
+    title: "Prism documentation and architecture constitution"
+---
+# P.R.I.S.M product evolution governance
 
-Last updated: 2026-07-16
-
-This document defines how P.R.I.S.M can evolve beyond the original Version 4 catalog. The catalog remains a valuable baseline, but it is not a hard ceiling. Features may be added, revised, merged, deferred, or retired when doing so makes the product clearer, safer, more usable, or more aligned with PMCM operations.
+This document defines how P.R.I.S.M can evolve beyond the original Version 4
+catalog. The catalog remains a valuable baseline, but it is not a hard ceiling.
+Features may be added, revised, merged, deferred, or retired when doing so makes
+the product clearer, safer, more usable, or more aligned with PMCM operations.
 
 ## Product Authority Model
 
 | Source | Role |
 | --- | --- |
-| `01-complete-feature-catalog.md` | Baseline feature inventory and original manuscript/defense reference. |
-| `07-implemented-feature-revisions.md` | Current implementation reality and revision backlog. |
-| `11-feature-ledger.md` | Active feature-family decisions. |
-| `14-redesign-readiness-foundation.md` | Sample-state fencing, session conventions, owner boundaries, and legacy removal rules. |
-| `15-system-architecture.md` | Architecture, module ownership, and stop rules. |
-| `AGENTS.md` | App boundaries, owner goals, and agent stop rules. |
+| `../reference/prism-v4/complete-feature-catalog.md` | Baseline feature inventory and original manuscript/defense reference. |
+| `implementation-revisions.md` | Current implementation reality and revision backlog. |
+| `feature-ledger.md` | Active feature-family decisions. |
+| `readiness-foundation.md` | Sample-state fencing, session conventions, owner boundaries, and legacy removal rules. |
+| `../architecture/current-architecture.md` | Architecture, module ownership, and stop rules. |
+| `../../AGENTS.md` | App boundaries, owner goals, and agent stop rules. |
 | This document | Rules for changing the feature set. |
 
 If these documents conflict, use this order for product planning:
 
-1. Current app boundaries in `AGENTS.md`.
-2. Architecture and feature ledger (`15`, `11`).
+1. Current app boundaries in `../../AGENTS.md`.
+2. Architecture and feature ledger (`../architecture/current-architecture.md`, `feature-ledger.md`).
 3. This product evolution governance document.
 4. Current implementation backlog (`07`).
 5. Original feature catalog (`01`).
@@ -194,7 +216,8 @@ Outdated docs should be handled intentionally:
 - Remove or archive planning docs that contradict the current role-specific app boundaries.
 - Rewrite planning docs that still use old product-name terminology.
 - Prefer one active plan per initiative; delete completed short execution plans when done (git history keeps them).
-- Keep `docs/README.md` and `00-index.md` current whenever new governing docs are added.
+- Keep [`../index.md`](../index.md) and the relevant directory index current
+  whenever new governing docs are added.
 - Keep docs **conversation-agnostic**: durable product/engineering truth only—no chat handoff notes, session diaries, or assumptions that the reader saw a prior conversation.
 - Do not treat historical file sizes or removed plan trees as planning data.
 

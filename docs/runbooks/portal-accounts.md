@@ -1,4 +1,19 @@
-# P.R.I.S.M Portal Accounts
+---
+type: "Playbook"
+title: "P.R.I.S.M portal accounts"
+description: "Local demo accounts, access paths, and role-boundary notes for Prism portal verification."
+tags: [runbook, accounts, demo, roles]
+status: stable
+updated: "2026-09-01"
+sources:
+  - id: sample-seed
+    resource: "apps/api/apps/api/src/compatibility/sample"
+    title: "Sample account and reset compatibility"
+  - id: current-architecture
+    resource: "docs/architecture/current-architecture.md"
+    title: "Current application boundaries"
+---
+# P.R.I.S.M portal accounts
 
 Sample / defense accounts for every role portal. These are **local demo credentials only** — not production users.
 
@@ -72,7 +87,7 @@ Signing into the wrong portal with a valid account from another role returns a p
 | Sample `OpsUser` rows + passwords (via sample reset only) | `apps/api/apps/api/src/compatibility/sample/services/sample-compatibility.service.ts` |
 | Sample suppliers (matched by email for supplier workspace) | same file (`SEEDED_SUPPLIERS`) |
 | Guest access-code derivation | `apps/api/apps/api/src/modules/operations/application/guest/guest-workflow.service.ts` (`guestAccessCode`) |
-| Product / ops docs | `docs/README.md`, `docs/prism-v4/16-actual-system.md` |
+| Product / ops docs | [`../index.md`](../index.md), [`../product/actual-system.md`](../product/actual-system.md) |
 
 ## Security note
 

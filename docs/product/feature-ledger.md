@@ -1,16 +1,34 @@
-# P.R.I.S.M Feature Ledger
+---
+type: "Product Decision Register"
+title: "P.R.I.S.M feature ledger"
+description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
+tags: [product, features, decisions, ownership]
+status: stable
+updated: "2026-09-01"
+sources:
+  - id: v4-reference
+    resource: "docs/reference/prism-v4/complete-feature-catalog.md"
+    title: "Source-preserving V4 catalog"
+  - id: governance
+    resource: "docs/product/evolution-governance.md"
+    title: "Product evolution governance"
+  - id: architecture
+    resource: "docs/architecture/current-architecture.md"
+    title: "Current architecture"
+---
+# P.R.I.S.M feature ledger
 
-Last updated: 2026-07-16
-
-This ledger is the product decision layer for feature work. It does not replace the source-preserving catalog. It decides how catalog features and redesign candidates should move forward.
+This ledger is the product decision layer for feature work. It does not replace
+the source-preserving catalog. It decides how catalog features and redesign
+candidates should move forward.
 
 Use this file with:
 
-- `01-complete-feature-catalog.md` for source feature text and official counts.
-- `07-implemented-feature-revisions.md` for implementation reality.
-- `10-product-evolution-and-redesign-governance.md` for decision rules.
-- `AGENTS.md` for owner system goals (A–D) and app boundaries.
-- `15-system-architecture.md` for module ownership and technical stop rules.
+- [`../reference/prism-v4/complete-feature-catalog.md`](../reference/prism-v4/complete-feature-catalog.md) for source feature text and official counts.
+- [`implementation-revisions.md`](implementation-revisions.md) for implementation reality.
+- [`evolution-governance.md`](evolution-governance.md) for decision rules.
+- [`../../AGENTS.md`](../../AGENTS.md) for owner system goals (A–D) and app boundaries.
+- [`../architecture/current-architecture.md`](../architecture/current-architecture.md) for module ownership and technical stop rules.
 
 ## Decision Legend
 
@@ -44,7 +62,7 @@ Use this file with:
 | FL-013 Closure, archive, and learning loop | FR-22, FR-23, New-P1, New-P2, New-P3, New-P4, New-SY1, New-SY2, FR-AI-08 | PMCM, Client | Partial | Merge/Gate | Closure, archive, insights, testimonials, logistics, and PEIL should become post-event knowledge and closeout workflow. AI analysis remains gated. Archive is now guarded by the central lifecycle transition table. | B, C, D | Phase 9, Phase 12 for PEIL | Close gates, archive search, feedback, billing/logistics, AI governance | PMCM owns archive and private notes; client sees deliverables/acknowledgment/testimonial only. | Audit close/override/archive/testimonial/logistics; notify required owners before close deadlines. | PMCM closure workspace, archive, client closeout surface | Close blocked unless gates pass or override reason exists; event cannot skip directly from planning to archive; private notes hidden from portals. |
 | FL-014 Notifications and communications | FR-25, FR-55, FR-64, FR-AI-09, FR-AI-05 | All | Partial | Revise/Gate | Treat email/Viber as queue-backed notification adapters with templates, language preference, audit, retries, and PMCM-reviewed AI communication drafts. POA remains a PMCM-only assistant concept until AI governance is complete. | C, D | Phase 10, Phase 12 | Notification queue, templates, adapter credentials, language preferences, AI governance | Users receive only role-appropriate messages; PMCM controls broadcast, assistant use, and sensitive content. | Audit queued/sent/failed/acknowledged, template version, recipient scope, AI draft approval. | Notification settings, PMCM communication queue, role-specific message surfaces, PMCM assistant review surface | No direct send from UI; adapter retry tests; template visibility tests; AI assistant cannot act or send without PMCM approval. |
 | FL-015 Security, privacy, and audit | New-SEC1, New-SEC2, New-SEC3, New-SEC4, FR-56, FR-AI-ZDR | All | Partial | Keep/Gate | Security and privacy remain mandatory cross-cutting capabilities. External auth, privacy notices, export/anonymization, ZDR, retention, and legal hold should mature before high-risk features. | D | Phase 11, Phase 12 | Auth provider decision, retention policy, privacy operations, AI provider agreement | PMCM sees privacy operations; users can exercise rights only over own data. | Audit auth, access denied, privacy requests, redaction, retention, AI calls. | Privacy operations console, audit settings, auth flows | Forbidden access tests; audit integrity tests; privacy request execution tests; ZDR required before AI. |
-| FL-016 Shared design system and shell | Cross-cutting, old UI modernization Phase 2 plan | All | Partial | Keep/Complete | Shared blocks, public shell, client blocks, and smoke script now exist. Future redesign work should follow living docs (`AGENTS.md`, this ledger, `12`, `14`, `15`), not the old standalone checklist. | A, B, C, D | Phase 1 and ongoing | `packages/ui`, route inventory, smoke script | Shared UI must preserve app role boundaries and avoid public dashboard shortcuts. | N/A except UI actions wired to audited workflows. | Shared app shell, public shell, dashboard/workflow blocks | `npm run smoke:ui`, `npm run check:boundaries`, visual QA checklist. |
+ | FL-016 Shared design system and shell | Cross-cutting, old UI modernization Phase 2 plan | All | Partial | Keep/Complete | Shared blocks, public shell, client blocks, and smoke script now exist. Future redesign work should follow living docs (`AGENTS.md`, this ledger, `redesign-inventory.md`, `readiness-foundation.md`, and `../architecture/current-architecture.md`), not the old standalone checklist. | A, B, C, D | Phase 1 and ongoing | `packages/ui`, route inventory, smoke script | Shared UI must preserve app role boundaries and avoid public dashboard shortcuts. | N/A except UI actions wired to audited workflows. | Shared app shell, public shell, dashboard/workflow blocks | `npm run smoke:ui`, `npm run check:boundaries`, visual QA checklist. |
 
 ## Ownership Overlay
 
@@ -102,9 +120,9 @@ The Active Ledger above remains the product decision record. This table assigns 
 
 | Artifact | Decision | Reason | Replacement |
 | --- | --- | --- | --- |
-| May 2026 UI modernization Phase 2 plan | Retire | The named shared UI blocks and smoke script now exist, but the file still reads like an open implementation checklist. Leaving it active creates duplicate planning authority. | This ledger plus `AGENTS.md` and `15-system-architecture.md`. |
+| May 2026 UI modernization Phase 2 plan | Retire | The named shared UI blocks and smoke script now exist, but the file still reads like an open implementation checklist. Leaving it active creates duplicate planning authority. | This ledger plus `AGENTS.md` and `../architecture/current-architecture.md`. |
 | June 2026 architecture hardening plan | Removed | It used old product terminology and was not part of the living redesign model. | Current shared packages and living v4 docs (`15`, this ledger, `14`). |
-| Completed superpowers plans / owner session notes | Removed | Session dumps and finished execution plans are not living product truth. | `AGENTS.md`, this ledger, `07`, `12`, `14`, `15`; recover history from git if needed. |
+ | Completed execution plans / owner session notes | Removed | Session dumps and finished execution plans are not living product truth. | `AGENTS.md`, this ledger, `implementation-revisions.md`, `redesign-inventory.md`, `readiness-foundation.md`, and `../architecture/current-architecture.md`; recover history from Git if needed. |
 
 ## Next Ledger Maintenance
 

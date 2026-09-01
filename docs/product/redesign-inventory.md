@@ -1,8 +1,27 @@
-# P.R.I.S.M Whole-App Redesign Inventory
+---
+type: "Product Redesign Inventory"
+title: "P.R.I.S.M whole-app redesign inventory"
+description: "Current portal and API surface inventory classified by redesign severity, owner goal, and readiness gate."
+tags: [product, redesign, inventory, ownership, frontend, backend]
+status: active
+updated: "2026-09-01"
+sources:
+  - id: agent-rules
+    resource: "AGENTS.md"
+    title: "Prism owner goals and app boundaries"
+  - id: current-architecture
+    resource: "docs/architecture/current-architecture.md"
+    title: "Current architecture"
+  - id: roadmap
+    resource: "docs/roadmap/architecture-priority-risk-matrix.md"
+    title: "Architecture priority and risk matrix"
+---
+# P.R.I.S.M whole-app redesign inventory
 
-Last updated: 2026-09-01
-
-This inventory classifies current app surfaces by redesign severity so owners can work in parallel without turning P.R.I.S.M back into an all-role shell. Owner labels refer to the system goals in `AGENTS.md`: Owner A is Maxine, Owner B is Francis, Owner C is Ethan, and Owner D is Anthony.
+This inventory classifies current app surfaces by redesign severity so owners
+can work in parallel without turning P.R.I.S.M back into an all-role shell.
+Owner labels refer to the system goals in `AGENTS.md`: Owner A is Maxine, Owner
+B is Francis, Owner C is Ethan, and Owner D is Anthony.
 
 Severity scale:
 
@@ -22,7 +41,7 @@ Severity scale:
 | `apps/event` | PMCM admin and coordinator command app | Large dashboard with many filtered subroutes plus selected event workspace | S3 | Owner B (Francis) | Make PMCM and coordinator operations executable from command surfaces. | Event Command Inbox is now consumed by shell actions; selected event sections now prefer `PrismPmcmEventWorkspace`; event messages now have a route-owned workspace component. Continue workspace IA, staffing/live-ops redesign, and route consolidation. |
 | `apps/supplier` | Supplier portal | Landing, sign-in, dashboard | S2 | Owner C (Ethan) | Make supplier work limited to quote, assignment, contract, readiness, and event-day status. | Supplier Readiness Board is now visible on the dashboard; continue supplier application/status depth while preserving supplier-scoped data. |
 | `apps/guest` | Lightweight guest portal | Landing, sign-in, open code, dashboard | S1/Gate | Owner C (Ethan) | Make guest access low-friction, consented, and event-code scoped. | Use the shared Guest Event Pass contract. Keep lightweight. Gate QR/camera and media upload until HTTPS, consent, upload, and moderation are ready. |
-| `apps/api` | Shared NestJS API | One Nest source tree with DDD-shaped contexts under `apps/api/apps/api/src/modules/*`, kernel primitives under `src/kernel/*`, and `/sample/*` compatibility under `src/compatibility/sample` | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Backend context consolidation is implemented: eight context roots, seven kernel concerns, one compatibility leaf, public indices, and executable boundary checks. Continue contract consolidation, table ownership, focused ports, and modular-monolith guardrails in `15-system-architecture.md`. |
+| `apps/api` | Shared NestJS API | One Nest source tree with DDD-shaped contexts under `apps/api/apps/api/src/modules/*`, kernel primitives under `src/kernel/*`, and `/sample/*` compatibility under `src/compatibility/sample` | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Backend context consolidation is implemented: eight context roots, seven kernel concerns, one compatibility leaf, public indices, and executable boundary checks. Continue contract consolidation, table ownership, focused ports, and modular-monolith guardrails in `../architecture/current-architecture.md`. |
 | `packages/ui` | Shared presentation system | App shell, public shell, primitives, blocks, client/public blocks | S1 | Owner A (Maxine) | Make shared presentation patterns coherent without absorbing workflow logic. | Keep presentation-only. Continue component consolidation through actual app needs. |
 | `packages/types` | Shared contracts | Lifecycle and event-ops types | S2 | Owner D (Anthony) | Make shared contracts the source of truth for role-safe app/API integration. | Expand route/feature contracts before large app redesign. |
 | `packages/api-client` | Shared request helpers | Event-ops client and HTTP helper | S1 | Owner D (Anthony) | Make app data access typed, scoped, and migration-safe. | Keep stable, add typed clients when app surfaces stop using broad state. |
@@ -113,7 +132,7 @@ This map connects the app/package inventory to remaining product work. Update it
 | `packages/types` | Shared role read models, lifecycle helpers, session helpers, action/result/error/list/file-matrix contracts exist. | Add fields only when an app surface depends on them; avoid unused speculative types. | Anthony | Francis, Ethan, Maxine | `@prism/types` typecheck/test. |
 | `packages/api-client` | Scoped helpers exist for PMCM, client, supplier, guest, billing, event file requirements, and normalized API problems. | Add endpoint helpers before app code depends on new routes; keep sample aggregate compatibility-only. | Anthony | Francis, Ethan | `@prism/api-client` typecheck/test. |
 | `packages/ui` | Shared shell/public/client blocks exist. | Classify reusable primitives and keep workflow logic out; apply shell rules to first PMCM and portal surfaces. | Maxine | Francis, Ethan | UX brief; visual QA checklist; app typechecks. |
-| Docs/evidence | Living v4 docs, ledger, inventory, and readiness foundation. | Keep ledger, inventory, readiness, and architecture docs aligned after each merge; add screenshots and command evidence when claiming demo readiness. | Anthony | Maxine, Francis, Ethan | `git diff --check`; docs cleanup checklist; clean branch status. |
+| Docs/evidence | Living product, architecture, roadmap, and readiness docs. | Keep ledger, inventory, readiness, and architecture docs aligned after each merge; add screenshots and command evidence when claiming demo readiness. | Anthony | Maxine, Francis, Ethan | `git diff --check`; constitution and directory indexes; clean branch status. |
 
 ## Redesign Sequencing
 
@@ -132,5 +151,5 @@ This map connects the app/package inventory to remaining product work. Update it
 - The PMCM app is not collapsed into the client app.
 - The client cannot mutate official floorplans.
 - Supplier, coordinator, and guest routes do not expose PMCM-only data.
-- The old standalone UI modernization plan is retired; future redesign work follows living docs (`AGENTS.md`, `11`, `14`, `15`).
-- Redesign branches follow `14-redesign-readiness-foundation.md` and do not add new broad sample-state, app-local session-key, or cross-role import coupling.
+- The old standalone UI modernization plan is retired; future redesign work follows living docs (`AGENTS.md`, the constitution, product docs, and architecture ADRs).
+- Redesign branches follow `readiness-foundation.md` and do not add new broad sample-state, app-local session-key, or cross-role import coupling.

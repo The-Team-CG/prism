@@ -1,8 +1,31 @@
-# P.R.I.S.M Redesign Readiness Foundation
+---
+type: "Readiness Contract"
+title: "P.R.I.S.M redesign readiness foundation"
+description: "Durable gates for sample state, sessions, app ownership, shared contracts, external dependencies, and safe redesign work."
+tags: [readiness, contracts, roles, compatibility, governance]
+status: stable
+updated: "2026-09-01"
+sources:
+  - id: constitution
+    resource: "docs/constitution.md"
+    title: "Prism constitution"
+  - id: agent-rules
+    resource: "AGENTS.md"
+    title: "Prism agent and ownership rules"
+  - id: contracts
+    resource: "packages/types/src"
+    title: "Shared contract source"
+  - id: current-architecture
+    resource: "docs/architecture/current-architecture.md"
+    title: "Current architecture"
+---
+# P.R.I.S.M redesign readiness foundation
 
-Last updated: 2026-09-01
-
-This document defines durable platform rules for redesign and new feature work. It does not replace the feature ledger or architecture docs. It states sample-state fencing, session conventions, owner boundaries, contract gates, and legacy-removal conditions so any contributor can start without prior chat or sprint context.
+This document defines durable platform rules for redesign and new feature work.
+It does not replace the feature ledger or architecture docs. It states
+sample-state fencing, session conventions, owner boundaries, contract gates, and
+legacy-removal conditions so any contributor can start without prior chat or
+sprint context.
 
 ## Purpose
 
@@ -11,19 +34,19 @@ Redesign and new surfaces should not start from ambiguous product truth, broad d
 1. Each owner knows which app and system goal they own.
 2. New work uses scoped API/view contracts instead of the broad sample aggregate.
 3. Temporary sample/demo paths are named as compatibility paths.
-4. Outdated docs do not compete with living Prism v4 docs (`AGENTS.md`, `docs/README.md`, and Tier 1 files).
+4. Outdated docs do not compete with the current bundle (`AGENTS.md`, `docs/constitution.md`, and the semantic architecture/product documents).
 
 ## Current Foundation Decisions
 
 | Area | Decision | Why it matters |
 | --- | --- | --- |
-| Product truth | `AGENTS.md`, `README.md`, and living `docs/prism-v4/*` are the active sources. | Do not design against removed audits, story logs, or retired planning files. |
+| Product truth | `AGENTS.md`, `README.md`, and the current semantic docs under `docs/` are the active sources. | Do not design against removed audits, story logs, or retired planning files. |
 | App ownership | Keep role-specific apps: client, event, supplier, guest, and shared API. | Prevents redesign work from rebuilding an all-role client shell. |
 | Sample state | `/api/sample/state` and client local sample state are compatibility-only seed/demo paths. | New UI should not depend on a whole-system JSON aggregate. |
 | Sessions | Storage key names and browser storage helpers live in `@prism/types`. API-backed sample auth remains until external auth is approved. | Role apps must not invent app-local localStorage conventions or copied JSON parse/cleanup logic. |
 | Shared contracts | `@prism/types` and `@prism/api-client` are the contract surfaces to grow; PMCM has dashboard, command inbox, and selected-event workspace contracts; client has workspace plus action-center contracts; supplier has workspace plus readiness-board contracts; guest has an event-pass contract. | Keeps app redesign from importing across role app boundaries or thinking in sample aggregates. |
 | Boundaries | `npm run check:boundaries` is the architectural guard before merge. | Catches cross-app imports, broad sample-state reads, and new magic storage keys. |
-| Stale docs | App-local event audit docs are removed from active guidance. | Current truth lives in the living v4 docs, not old snapshots. |
+| Stale docs | App-local event audit docs are removed from active guidance. | Current truth lives in the semantic documentation bundle, not old snapshots. |
 
 ## Owner Boundary Rules
 
@@ -199,7 +222,7 @@ Every PMCM-to-portal or portal-to-PMCM data flow must name these fields before a
 
 | Legacy | Current action | Final removal condition |
 | --- | --- | --- |
-| App-local event audit docs | Removed from active guidance. | Useful rows are represented in `07`, `12`, `13`, or this doc. |
+| App-local event audit docs | Removed from active guidance. | Useful rows are represented in `../constitution.md`, `feature-ledger.md`, `redesign-inventory.md`, or this doc. |
 | Broad sample aggregate | Fenced as compatibility-only. | No normal app screen or API client path depends on it. |
 | PMCM workspace typed as sample state | Replaced with explicit `PrismPmcmDashboardWorkspace`. | Future PMCM command contracts split into command inbox, event workspace, and operations views. |
 | PMCM command work derived only in UI | Added `PrismPmcmCommandInbox` and `/api/pmcm/command-inbox`; shell command actions now consume it. | Deeper PMCM actions move into route-scoped handlers instead of the monolithic dashboard component. |
@@ -228,7 +251,9 @@ These gates decide whether a task can start, merge, or move to a later queue.
 | External dependency gate | AI, QR/camera, production notifications, external auth, paid direct DB/network behavior, real storage | Anthony | External dependencies remain gated unless credentials, environment, adapter, tests, and fallback behavior are explicitly approved. | Ledger row lists gate/deferred or approved implementation evidence. |
 | Demo evidence gate | Release readiness for demo routes | Anthony | A demo route is not ready unless its owner records command output, route/screenshot evidence, and known gates. | PR or release notes plus screenshot list. |
 
-Docs-only changes may update `11-feature-ledger.md`, `12-redesign-inventory.md`, and this readiness foundation. Code or UI changes belong on feature branches that follow these gates.
+Docs-only changes may update [`feature-ledger.md`](feature-ledger.md),
+[`redesign-inventory.md`](redesign-inventory.md), and this readiness foundation.
+Code or UI changes belong on feature branches that follow these gates.
 
 ## Merge Gate For Redesign Branches
 

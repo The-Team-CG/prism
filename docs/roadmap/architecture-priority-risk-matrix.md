@@ -1,11 +1,27 @@
-# FE/BE Architecture — Priority and Risk Matrix
+---
+type: "Roadmap Matrix"
+title: "P.R.I.S.M architecture priority and risk matrix"
+description: "Sequenced frontend and backend architecture follow-up with dependencies, risks, owners, and required closure evidence."
+tags: [roadmap, architecture, risk, frontend, backend]
+status: active
+updated: "2026-09-01"
+sources:
+  - id: architecture-assessment
+    resource: "docs/architecture/fe-be-architecture-assessment.md"
+    title: "FE/BE architecture assessment"
+  - id: current-architecture
+    resource: "docs/architecture/current-architecture.md"
+    title: "Current architecture reference"
+  - id: constitution
+    resource: "docs/constitution.md"
+    title: "Prism constitution"
+---
+# P.R.I.S.M architecture priority and risk matrix
 
-**Date:** 2026-09-01
-**Companion:** [`2026-09-01-fe-be-architecture-alignment.md`](./2026-09-01-fe-be-architecture-alignment.md)
-**Branch:** `codex/architecture-alignment-fe-be`
-**Purpose:** sequence the completed work and every material follow-up found in
-the frontend/backend architecture review. This matrix is a delivery aid, not
-permission to perform the future FE work in the current BE change.
+**Purpose:** Sequence the completed work and every material follow-up found in
+the frontend/backend architecture assessment. This matrix is a delivery aid,
+not permission to change product behavior without a feature-specific design,
+owner, contract, and verification evidence.
 
 ## Scoring
 
@@ -28,7 +44,7 @@ permission to perform the future FE work in the current BE change.
 | BE-C6 | Rehomed `event-read-models` as read-only `modules/read-models` | Queries/mappers/services are grouped under `application`; no writes allowed. |
 | BE-C7 | Moved event-core, access-control, event-session, database, health, shared, and shared-kernel under `src/kernel` | Technical primitives are visibly separate from business contexts. |
 | BE-C8 | Isolated sample compatibility at `src/compatibility/sample` | `/sample/*` remains the only broad aggregate compatibility boundary. |
-| BE-C9 | Removed per-library Nest CLI projects and old `apps/api/libs` source roots | One Nest API source tree; public context aliases and indices are the supported surface. |
+| BE-C9 | Removed the former per-library Nest CLI projects and source roots | One Nest API source tree; public context aliases and indices are the supported surface. |
 | BE-C10 | Added/updated executable boundary checks | Backend skill checker: 0 errors/0 warnings; repository tests: 6 passed. |
 | BE-C11 | Fixed controller persistence leak | File-requirements and floorplan controllers delegate `opsEvent` lookup to services; B4 is closed. |
 | BE-C12 | Added progressive domain policies | `live-ops/domain` and `commercial/domain` contain pure invariant policies; no empty DDD ceremony added. |

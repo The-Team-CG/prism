@@ -1,4 +1,16 @@
-# P.R.I.S.M Version 4 Complete Feature Catalog
+---
+type: "Reference Catalog"
+title: "P.R.I.S.M Version 4 complete feature catalog"
+description: "Source-preserving Version 4 feature tables and official manuscript/defense counts."
+tags: [reference, prism-v4, catalog, manuscript]
+status: reference
+updated: "2026-09-01"
+sources:
+  - id: official-catalog
+    resource: "Official P.R.I.S.M V4 feature catalog DOCX"
+    title: "Source manuscript"
+---
+# P.R.I.S.M Version 4 complete feature catalog
 
 This Markdown catalog preserves the feature tables from the official DOCX source. The count summary below is authoritative for the manuscript and defense.
 

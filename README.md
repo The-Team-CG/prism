@@ -4,21 +4,24 @@ P.R.I.S.M is PMCM's internal event operating system for Ms. Mys and her team. It
 
 ## Canonical Docs
 
-Full map: [`docs/README.md`](docs/README.md). Agents: [`AGENTS.md`](AGENTS.md).
+Full map: [`docs/index.md`](docs/index.md). Agents: [`AGENTS.md`](AGENTS.md).
 
 | Document | Purpose |
 | --- | --- |
-| `docs/prism-v4/15-system-architecture.md` | Role-app / API / package architecture, boundaries, stop rules |
-| `docs/prism-v4/11-feature-ledger.md` | Feature-family decisions and verification |
-| `docs/prism-v4/10-product-evolution-and-redesign-governance.md` | Add / revise / merge / defer / retire rules |
-| `docs/prism-v4/14-redesign-readiness-foundation.md` | Sample-state fencing, session keys, owner boundaries |
-| `docs/prism-v4/07-implemented-feature-revisions.md` | Implementation reality and gaps |
-| `docs/prism-v4/12-redesign-inventory.md` | Route inventory and redesign severity |
-| `docs/prism-v4/16-actual-system.md` | Actors, lifecycle, workflows |
-| `docs/prism-v4/18-future-state.md` | Target state |
-| `docs/prism-v4/01-complete-feature-catalog.md` | Baseline catalog / manuscript counts (not a hard ceiling) |
-| `docs/portal-accounts.md` | Sample sign-in accounts |
-| `docs/docker-dev-testing-guide.md` | Docker detail |
+| `docs/constitution.md` | Current invariants and documentation rules |
+| `docs/architecture/current-architecture.md` | Role-app / API / package architecture, boundaries, and stop rules |
+| `docs/architecture/decisions/` | Accepted architecture decisions |
+| `docs/product/feature-ledger.md` | Feature-family decisions and verification |
+| `docs/product/evolution-governance.md` | Add / revise / merge / defer / retire rules |
+| `docs/product/readiness-foundation.md` | Sample-state fencing, session keys, owner boundaries |
+| `docs/product/implementation-revisions.md` | Implementation reality and gaps |
+| `docs/product/redesign-inventory.md` | Route inventory and redesign severity |
+| `docs/roadmap/architecture-priority-risk-matrix.md` | Architecture follow-up priorities and risks |
+| `docs/product/actual-system.md` | Actors, lifecycle, workflows |
+| `docs/product/future-state.md` | Target state |
+| `docs/reference/prism-v4/complete-feature-catalog.md` | Baseline catalog / manuscript counts (not a hard ceiling) |
+| `docs/runbooks/portal-accounts.md` | Sample sign-in accounts |
+| `docs/runbooks/docker-dev-testing.md` | Docker detail |
 
 ## Monorepo Layout
 
@@ -56,7 +59,7 @@ stop-prism-docker.cmd
 | Guest portal | `http://localhost:3003` |
 | Event command | `http://localhost:3004` |
 
-Sample sign-in accounts: [`docs/portal-accounts.md`](docs/portal-accounts.md).
+Sample sign-in accounts: [`docs/runbooks/portal-accounts.md`](docs/runbooks/portal-accounts.md).
 
 ### Local options (`start-prism.cmd`)
 
@@ -83,7 +86,7 @@ stop-prism-docker.cmd -Volumes      rem also remove volumes
 
 API containers read `.env.docker` (auto-synced from `apps/api/.env` when empty). Do not commit `.env.docker`.
 
-More Docker detail: [`docs/docker-dev-testing-guide.md`](docs/docker-dev-testing-guide.md).
+More Docker detail: [`docs/runbooks/docker-dev-testing.md`](docs/runbooks/docker-dev-testing.md).
 
 ## Product Boundaries
 
@@ -107,7 +110,7 @@ npm run check:boundaries
 
 ## Backend Architecture
 
-`apps/api` is one shared NestJS modular monolith. Capability modules under `libs/modules/<capability>/` own writes (inquiry, commercial, supplier, finance, floorplan, guest, live-ops, sample-compatibility, and others). `event-read-models` composes role-scoped reads only. See [`docs/prism-v4/15-system-architecture.md`](docs/prism-v4/15-system-architecture.md).
+`apps/api` is one shared NestJS modular monolith. Bounded contexts under `apps/api/apps/api/src/modules/<bounded-context>/` own business writes, `src/kernel/` owns technical infrastructure, `src/compatibility/sample/` owns `/sample/*` compatibility, and `read-models` composes role-scoped reads only. See [`docs/architecture/current-architecture.md`](docs/architecture/current-architecture.md) and [`docs/architecture/decisions/`](docs/architecture/decisions/).
 
 Useful API commands:
 

@@ -1,10 +1,36 @@
-# Implemented Feature Revision Backlog
+---
+type: "Product Implementation Register"
+title: "P.R.I.S.M implementation revisions"
+description: "Current implementation reality, hardening gaps, and safe revision guidance for the Prism feature families."
+tags: [product, implementation, backlog, verification]
+status: active
+updated: "2026-09-01"
+sources:
+  - id: v4-reference
+    resource: "docs/reference/prism-v4/complete-feature-catalog.md"
+    title: "Source-preserving V4 catalog"
+  - id: feature-ledger
+    resource: "docs/product/feature-ledger.md"
+    title: "Active feature decisions"
+  - id: architecture
+    resource: "docs/architecture/current-architecture.md"
+    title: "Current architecture"
+  - id: readiness
+    resource: "docs/product/readiness-foundation.md"
+    title: "Readiness gates"
+---
+# P.R.I.S.M implementation revisions
 
-Last updated: 2026-09-01
+This document separates the complete feature catalog from the current
+implementation reality. Use it when deciding what already exists, what needs
+revision, and how to revise it without breaking role-specific app boundaries.
 
-This file separates the complete feature catalog from the current implementation reality. Use it when deciding what already exists, what needs revision, and how to revise it without breaking the role-specific app boundaries.
-
-The complete feature source remains `01-complete-feature-catalog.md`, but the catalog is the baseline inventory rather than a hard ceiling. Use `10-product-evolution-and-redesign-governance.md` and `11-feature-ledger.md` when deciding whether to add, revise, merge, split, defer, retire, or gate a feature.
+The complete feature source remains
+[`../reference/prism-v4/complete-feature-catalog.md`](../reference/prism-v4/complete-feature-catalog.md),
+but the catalog is the baseline inventory rather than a hard ceiling. Use
+[`evolution-governance.md`](evolution-governance.md) and
+[`feature-ledger.md`](feature-ledger.md) when deciding whether to add, revise,
+merge, split, defer, retire, or gate a feature.
 
 This document is a working backlog for implemented or partially implemented features that need hardening before more scope is added. It feeds the feature ledger rather than freezing product scope.
 
@@ -12,11 +38,11 @@ This document is a working backlog for implemented or partially implemented feat
 
 | Source | Use |
 | --- | --- |
-| `01-complete-feature-catalog.md` | Complete Version 4 feature list and official counts. |
-| `10-product-evolution-and-redesign-governance.md` | Rules for adding, revising, merging, deferring, or retiring features. |
-| `11-feature-ledger.md` | Active feature-family decisions. |
-| `15-system-architecture.md` | Module ownership and technical stop rules. |
-| `14-redesign-readiness-foundation.md` | Sample-state fencing, session conventions, owner boundaries, and legacy removal. |
+| `../reference/prism-v4/complete-feature-catalog.md` | Complete Version 4 feature list and official counts. |
+| `evolution-governance.md` | Rules for adding, revising, merging, deferring, or retiring features. |
+| `feature-ledger.md` | Active feature-family decisions. |
+| `../architecture/current-architecture.md` | Module ownership and technical stop rules. |
+| `readiness-foundation.md` | Sample-state fencing, session conventions, owner boundaries, and legacy removal. |
 | `apps/api/prisma/schema.prisma` | Current persistence model coverage. |
 | `apps/api/apps/api/src/modules/*/api/*` | Current API surface by bounded context; cross-cutting controllers live under `src/kernel` and `/sample/*` under `src/compatibility/sample`. |
 | `apps/event/src/app/dashboard/EventDashboardClient.tsx`, `apps/event/src/app/dashboard/components/event-dashboard-skeleton.tsx`, `apps/event/src/app/components/pmcm/*`, and `apps/event/src/app/components/public/event-command-landing.tsx` | Current PMCM command app surfaces. |
@@ -42,7 +68,7 @@ This document is a working backlog for implemented or partially implemented feat
 | Client portal | `apps/client` has public/client surfaces, privacy-consented public inquiry and access approval request flows, conforme-gated dashboard, event filtering, split overview/briefing/billing/documents/activity sections, layout preference actions, read-only official layout snapshot review, and an API-backed client action-center read model that now feeds the dashboard action cards with derived-action fallback. | Public pages remain landing and inquiry only; client dashboard stays signed in. | Next redesign work should enrich document/file-matrix and approval actions, then remove fallback derivation after all action types are covered by `PrismClientActionCenter`. |
 | Supplier portal | `apps/supplier` has a supplier-scoped dashboard that reads assigned quote requests, submits/revises quotes, confirms awarded assignments, records readiness, saves contract metadata, sends event-day statuses through the API, submits privacy-consented supplier approval requests, and now displays the API-backed Supplier Readiness Board on the dashboard. | Supplier remains a separate portal on port `3002`. | Next redesign work should deepen supplier self-service applications, PMCM-side readiness parity, and real file upload. |
 | Guest portal | `apps/guest` has an access-code entry flow backed by `/api/guest/events/:accessCode`, a shared `PrismGuestEventPass` contract, event attendance count, privacy-consented name-based check-in, walk-in flagging, and privacy-consented moderated feedback writes. | Guest remains a separate portal on port `3003`. | Next redesign work should keep the pass lightweight while adopting the shared guest pass contract; QR scanning, masterlist reconciliation, and richer moderation queues remain future work. |
-| Shared docs | Living docs live under `docs/` and `docs/prism-v4` (see `docs/README.md`). | `01-complete-feature-catalog.md` remains the baseline traceability source for catalog rows and official counts. | Keep living docs current. Do not reintroduce root audit dumps, owner story logs, long-lived superpowers plan trees, or the old all-role `apps/client` shell story. |
+ | Shared docs | Living docs live under the semantic `docs/` bundle (see [`../index.md`](../index.md)). | `../reference/prism-v4/complete-feature-catalog.md` remains the baseline traceability source for catalog rows and official counts. | Keep living docs current. Do not reintroduce root audit dumps, owner story logs, long-lived execution-plan trees, or the old all-role `apps/client` shell story. |
 
 ## Revision Backlog By Capability
 
@@ -60,12 +86,12 @@ This document is a working backlog for implemented or partially implemented feat
 | Billing and payments | FR-20, FR-21, FR-69, FR-92, FR-93, FR-94, New-P5 | Partial | Phase 4 added approved CE/proposal billing source records and billing generation from approved source line items while keeping statement, payment schedule, history, and Payment At Risk separate. | Continue with configurable payment terms, amount-discrepancy dispute records, typo correction workflow, post-event additional billing, waiver reason, and urgent-issue linkage. |
 | Closure, archive, and insights | FR-22, FR-23, New-P1, New-P2, New-SY1, New-SY2 | Partial | Phase 4 added close gates for documents, billing, floorplan/logistics, supplier review, and feedback; archive blocks unless gates pass or PMCM gives an override reason; deterministic Event Insights are generated from supplier reviews, compliance, billing, documents, and feedback. Close gates now expose the same typed matrix contract used by the dedicated file requirements endpoint. Archive also uses the central lifecycle transition table, so events cannot skip directly from planning into closure/archive. | Continue with archived-event search/comparison views, testimonial library, richer feedback capture, explicit transition commands for earlier lifecycle steps, and PEIL AI only after Phase 5 governance. |
 | Notifications | FR-25, FR-55 | Partial | Phase 5 adds queued, sent, retried, failed, and acknowledged notification states with sample processing and PMCM acknowledgement; Phase 7 uses queued hooks for escalation and coordinator replacement. Queue processing now retries failed adapter attempts before terminal failure. Real SendGrid/Viber adapters are still not connected. | Keep sample adapters credential-free. Add production adapters behind the queue only after environment setup, dedicated integration metadata, and delivery audit questions are settled. |
-| Security, privacy, and audit | New-SEC1 to New-SEC4, FR-56, FR-AI-ZDR | Partial | Phase 9 adds focused auth operations delegation, PMCM retention policies, privacy request queue/review/execute flows, and soft redaction for personal fields while keeping audit rows append-only in normal workflows. API-backed sample auth preserves normal HTTP auth/validation responses while mapping Prisma database connectivity failures to explicit service-unavailable guidance for `db:doctor:runtime`. Local free-tier Supabase may use the session-pooler path with `ALLOW_POOLER_FOR_PRISMA=1` when paid IPv4 direct database access is unavailable (see `14-redesign-readiness-foundation.md`). Browser session key names and read/write/clear mechanics live in `@prism/types`, including explicit legacy client-key migration; production-grade auth/provider controls remain out of scope. | Continue with richer retention calendars, explicit legal hold handling, document-specific redaction, and external auth only when that scope is approved. |
+| Security, privacy, and audit | New-SEC1 to New-SEC4, FR-56, FR-AI-ZDR | Partial | Phase 9 adds focused auth operations delegation, PMCM retention policies, privacy request queue/review/execute flows, and soft redaction for personal fields while keeping audit rows append-only in normal workflows. API-backed sample auth preserves normal HTTP auth/validation responses while mapping Prisma database connectivity failures to explicit service-unavailable guidance for `db:doctor:runtime`. Local free-tier Supabase may use the session-pooler path with `ALLOW_POOLER_FOR_PRISMA=1` when paid IPv4 direct database access is unavailable (see `readiness-foundation.md`). Browser session key names and read/write/clear mechanics live in `@prism/types`, including explicit legacy client-key migration; production-grade auth/provider controls remain out of scope. | Continue with richer retention calendars, explicit legal hold handling, document-specific redaction, and external auth only when that scope is approved. |
 | Supplier portal | FR-35 to FR-38, New-SUP1 to New-SUP4 | Live | Phase 5 connects awarded supplier assignments to assignment confirmation, readiness confirmation, contract metadata validation, and Arrived/Set Up/Done event-day status buttons. The supplier event-day status route is now owned by LiveOpsModule while supplier assignment/readiness/contract routes stay in supplier-ops. | Continue with supplier application intake, supplier-side document history, and real upload storage after Phase 5 upload policy is stable. |
 | Guest portal | FR-39, FR-40, FR-41, FR-95, New-GU1, New-EX2 | Partial | Phase 5 adds access-code-scoped name check-in, walk-in flagging, attendance counts, moderated feedback records, and the shared `PrismGuestEventPass` read contract. QR scanning and masterlist reconciliation remain deferred. | Keep guest lightweight. Build moderation and masterlist reconciliation before QR scanning; QR scanning should wait until HTTPS/sample constraints are solved. |
 | AI features | FR-AI-01, FR-AI-03, FR-AI-04, FR-AI-04b, FR-AI-05 to FR-AI-09, FR-AI-ZDR | Partial | Phase 5 adds `DataSanitizer`, `OpsAiAuditLog`, `OpsAiApprovalRecord`, ZDR confirmation blocking, human approval-gate records, and the PARE automation foundation now owned by `ai-governance`; `/ai/pare/*` route ownership now lives in `supplier-ops` while preserving PMCM approval flow paths. No live AI call is shipped. | Keep live AI blocked until governance records are reviewed, ZDR is confirmed for the selected provider, and every AI suggestion requires PMCM approval before action. |
 | Shared UI, contracts, and editor code | Cross-cutting | Partial | UI primitives and editor internals are copied across apps. Shared DTO coverage includes the File Requirements Matrix, close-gate matrix payload, API-client route for event file requirements, lifecycle transition rules consumed by the API lifecycle service, shared role-session storage helpers consumed by the client, event, supplier, and guest apps, and role-boundary/contract tests for PMCM command inbox, client action center, supplier readiness board, official floorplans, internal costs, privacy operations, event scoping, and File Requirements Matrix visibility. | Add `packages/prism-ui`, `packages/prism-contracts`, and `packages/prism-floorplan-editor` or a temporary source-sync strategy. Continue moving route responses, actor-scoped view models, and auth/session provider seams into shared contracts before large UI rewrites depend on them. |
-| Root documentation | Cross-cutting | Live | Docs live under `docs/` with a slim living set. | Keep `AGENTS.md`, `README.md`, `docs/README.md`, and living `docs/prism-v4/*` current. Do not reintroduce root audit dumps, owner story logs, or long-lived superpowers plan trees. |
+ | Root documentation | Cross-cutting | Live | Docs live under `docs/` with a semantic living set. | Keep `AGENTS.md`, `README.md`, `docs/index.md`, and the directory indexes current. Do not reintroduce root audit dumps, owner story logs, or long-lived execution-plan trees. |
 
 ## Recommended Revision Order
 
@@ -136,4 +162,4 @@ Use these checks before marking a revision slice complete:
 | Supplier portal | Run `npm --workspace @prism/supplier run build` after supplier workflow changes. |
 | Guest portal | Run `npm --workspace @prism/guest run build` after guest workflow changes. |
 | Scope regression | Confirm public pages still cannot jump directly into dashboards and client users still cannot edit official floorplans. |
-| Docs | Update this file and `11-feature-ledger.md` whenever a revision changes what is already live or what is still needed. |
+ | Docs | Update this file and [`feature-ledger.md`](feature-ledger.md) whenever a revision changes what is already live or what is still needed. |

@@ -1,13 +1,32 @@
-# FE/BE Architecture Alignment Review
+---
+type: "Architecture Assessment"
+title: "P.R.I.S.M FE/BE architecture assessment"
+description: "Current evidence-backed assessment of Prism portal alignment and backend bounded-context architecture, including residual follow-up debt."
+tags: [architecture, assessment, frontend, backend, verification]
+status: stable
+updated: "2026-09-01"
+sources:
+  - id: next-architecture
+    resource: "next-feature-architecture"
+    title: "Next feature architecture guidance used for this assessment"
+  - id: backend-architecture
+    resource: "backend-architecture"
+    title: "Backend architecture guidance used for this assessment"
+  - id: current-architecture
+    resource: "docs/architecture/current-architecture.md"
+    title: "Current Prism architecture"
+  - id: roadmap
+    resource: "docs/roadmap/architecture-priority-risk-matrix.md"
+    title: "Architecture priority and risk matrix"
+---
+# P.R.I.S.M FE/BE architecture assessment
 
-**Date:** 2026-09-01
-**Branch:** `codex/architecture-alignment-fe-be` (off `staging`)
+**Assessment date:** 2026-09-01
 **Scope:** `apps/client`, `apps/event`, `apps/guest`, and `apps/supplier`
-against `next-feature-architecture`; `apps/api` against
-`backend-architecture`.
-**Review status:** the FE section remains review-only. The BE source-tree
-consolidation described in §2 is implemented on this branch; no FE refactor was
-smuggled into that backend delivery.
+against Next feature architecture; `apps/api` against backend architecture.
+**Assessment status:** The frontend section records review findings and
+remaining work. The backend source-tree consolidation is implemented; no
+frontend refactor is implied by that completed backend change.
 
 **Method:** each skill's detector/inventory/boundary scripts, repository
 boundary tests, targeted static searches, and direct comparison with the
@@ -145,7 +164,7 @@ being used as a URL matcher while the shell performs the actual routing.
 
 Yes at the *composition-root* level, not because every service should be
 merged. The old layout exposed 22 small capability/technical roots under
-`apps/api/libs/modules/*` plus shared roots and a compatibility library. That
+many small capability and technical roots plus a compatibility library. That
 made `nest-cli.json`, aliases, and `app.module.ts` describe implementation
 history rather than business ownership.
 
@@ -175,7 +194,7 @@ apps/api/apps/api/src/compatibility/sample/
 ```
 
 There is one Nest API project now; per-library `tsconfig.lib.json` projects and
-the old `apps/api/libs` source roots are removed. The consolidation keeps
+the former source roots are removed. The consolidation keeps
 routes, public contracts, and behavior stable.
 
 ### 2.2 Why these groupings are domain-shaped
