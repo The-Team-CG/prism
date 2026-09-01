@@ -1,5 +1,5 @@
 import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFeed, PrismLiveOps, PrismPmcmEventWorkspace } from "@prism/types";
-import { eventOpsRepository } from "@/features/event-ops";
+import { prismApi } from "@/lib/prism-api";
 
 type TimedCache<T> = { value: T; loadedAt: number };
 export type EventCommandData = {
@@ -22,19 +22,19 @@ function isFresh(loadedAt: number, ttl: number) {
 
 export const eventWorkspaceRepository = {
   loadWorkspace(eventId: string): Promise<PrismPmcmEventWorkspace> {
-    return eventOpsRepository.pmcmEventWorkspace(eventId);
+    return prismApi.pmcmEventWorkspace(eventId);
   },
 
   loadLiveOps(eventId: string): Promise<PrismLiveOps> {
-    return eventOpsRepository.liveOps(eventId);
+    return prismApi.liveOps(eventId);
   },
 
   loadStatusFeed(eventId: string): Promise<PrismEventDayStatusFeed> {
-    return eventOpsRepository.eventDayStatusFeed(eventId);
+    return prismApi.eventDayStatusFeed(eventId);
   },
 
   loadDefenseReadiness(eventId: string): Promise<PrismDefenseReadiness> {
-    return eventOpsRepository.defenseReadiness(eventId);
+    return prismApi.defenseReadiness(eventId);
   },
 
   getCachedApprovalRequests() {
@@ -47,7 +47,7 @@ export const eventWorkspaceRepository = {
     }
     if (!force && approvalRequestsRequest) return approvalRequestsRequest;
 
-    approvalRequestsRequest = eventOpsRepository
+    approvalRequestsRequest = prismApi
       .approvalRequests()
       .then((next) => {
         approvalRequestsCache = { value: next, loadedAt: Date.now() };
@@ -74,9 +74,9 @@ export const eventWorkspaceRepository = {
     if (!force && existing) return existing;
 
     const request = Promise.all([
-      eventOpsRepository.liveOps(eventId),
-      eventOpsRepository.eventDayStatusFeed(eventId),
-      eventOpsRepository.defenseReadiness(eventId),
+      prismApi.liveOps(eventId),
+      prismApi.eventDayStatusFeed(eventId),
+      prismApi.defenseReadiness(eventId),
     ])
       .then(([liveOps, statusFeed, defenseReadiness]) => {
         const next = { liveOps, statusFeed, defenseReadiness };

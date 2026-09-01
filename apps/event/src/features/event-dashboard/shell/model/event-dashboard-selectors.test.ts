@@ -62,6 +62,24 @@ describe("event-dashboard-selectors", () => {
     expect(selectClientRecordsForView(records, "active").map((r) => r.name)).toEqual(["Active Co"]);
   });
 
+  it("supports past, archived, and unfiltered client views", () => {
+    const records = selectClientRecords(
+      [
+        event({ id: "active", clientName: "Active Co", status: "planning" }),
+        event({ id: "past", clientName: "Past Co", status: "closed" }),
+        event({ id: "archived", clientName: "Archived Co", status: "completed", archived: true }),
+      ],
+      [inquiry({ id: "prospect", clientName: "Prospect", companyName: "Prospect Co", status: "new" })],
+    );
+
+    expect(selectClientRecordsForView(records, "past").map((r) => r.name)).toEqual([
+      "Archived Co",
+      "Past Co",
+    ]);
+    expect(selectClientRecordsForView(records, "archived").map((r) => r.name)).toEqual(["Archived Co"]);
+    expect(selectClientRecordsForView(records, "all")).toHaveLength(4);
+  });
+
   it("filters events by list view", () => {
     const future = new Date(Date.now() + 86_400_000).toISOString();
     const past = new Date(Date.now() - 86_400_000).toISOString();
@@ -75,5 +93,7 @@ describe("event-dashboard-selectors", () => {
     expect(selectEventsForView(events, "completed").map((e) => e.id)).toEqual(["c"]);
     expect(selectEventsForView(events, "cancelled").map((e) => e.id)).toEqual(["x"]);
     expect(selectEventsForView(events, "draft").map((e) => e.id)).toEqual(["d"]);
+    expect(selectEventsForView(events, "ongoing").map((e) => e.id)).toEqual(["u"]);
+    expect(selectEventsForView(events, "all")).toEqual(events);
   });
 });
