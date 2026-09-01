@@ -4,7 +4,7 @@ import { PrismTransactionRunner } from '../../../../core/shared-kernel/src';
 import { SampleCompatibilityService } from './sample-compatibility.service';
 import { AiGovernanceService } from '@prism/contexts/platform-ops';
 import { AuditService, AuditWriterAdapter, PrivacyOperationsService } from '@prism/contexts/platform-ops';
-import { AuthOperationsService, AuthSecurityService } from '@prism/modules/identity-ops';
+import { AuthOperationsService, AuthSecurityService } from '@prism/contexts/identity-access';
 import { BillingOperationsService } from '@prism/contexts/commercial';
 import {
   ClientOnboardingWorkflowService,

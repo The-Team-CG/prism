@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
-import { IdentityOpsModule } from '@prism/modules/identity-ops';
+import { IdentityAccessModule } from '@prism/contexts/identity-access';
+import { EventSessionModule } from '@prism/modules/event-session';
 import { PlatformOpsModule } from '@prism/contexts/platform-ops';
 import { OpsEventFloorplansController } from './api/live/event-floorplans.controller';
 import { LayoutEventsController } from './api/authoring/layout-events.controller';
@@ -30,7 +31,7 @@ import { TemplatesService } from './application/authoring/templates.service';
  * Read-only: none.
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, IdentityOpsModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, IdentityAccessModule, EventSessionModule],
   controllers: [OpsEventFloorplansController, LayoutEventsController, PlansController, PublishController, TemplatesController],
   providers: [
     FloorPlanWorkflowService,

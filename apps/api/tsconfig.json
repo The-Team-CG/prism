@@ -61,12 +61,6 @@
       "@prism/modules/access-control/*": [
         "libs/modules/access-control/src/*"
       ],
-      "@prism/modules/identity-ops": [
-        "libs/modules/identity-ops/src/index"
-      ],
-      "@prism/modules/identity-ops/*": [
-        "libs/modules/identity-ops/src/*"
-      ],
       "@prism/modules/event-session": [
         "libs/modules/event-session/src/index"
       ],
@@ -108,6 +102,12 @@
       ],
       "@prism/contexts/platform-ops/*": [
         "libs/contexts/platform-ops/src/*"
+      ],
+      "@prism/contexts/identity-access": [
+        "libs/contexts/identity-access/src/index"
+      ],
+      "@prism/contexts/identity-access/*": [
+        "libs/contexts/identity-access/src/*"
       ]
     }
   }

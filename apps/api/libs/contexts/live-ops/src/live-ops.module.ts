@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
-import { IdentityOpsModule } from '@prism/modules/identity-ops';
+import { IdentityAccessModule } from '@prism/contexts/identity-access';
+import { EventSessionModule } from '@prism/modules/event-session';
 import { PlatformOpsModule } from '@prism/contexts/platform-ops';
 import { OperationsModule } from '@prism/contexts/operations';
 import { CommercialModule } from '@prism/contexts/commercial';
@@ -27,7 +28,8 @@ import { LiveOperationsService } from './application/live-operations.service';
     OperationsModule,
     CommercialModule,
     EventReadModelsModule,
-    IdentityOpsModule,
+    IdentityAccessModule,
+    EventSessionModule,
   ],
   controllers: [EventLiveOpsController, CoordinatorLiveOpsController, SupplierLiveOpsController],
   providers: [

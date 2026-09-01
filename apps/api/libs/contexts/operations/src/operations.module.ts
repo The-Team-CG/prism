@@ -3,7 +3,8 @@ import { DatabaseModule } from '@prism/database';
 import { AccessControlModule } from '@prism/modules/access-control';
 import { EventCoreModule } from '@prism/modules/event-core';
 import { FloorplanModule } from '@prism/contexts/floorplan';
-import { IdentityOpsModule } from '@prism/modules/identity-ops';
+import { IdentityAccessModule } from '@prism/contexts/identity-access';
+import { EventSessionModule } from '@prism/modules/event-session';
 import { PlatformOpsModule } from '@prism/contexts/platform-ops';
 import { EventLifecycleModule } from '@prism/contexts/event-lifecycle';
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
@@ -33,7 +34,7 @@ import { GuestWorkflowService } from './application/guest/guest-workflow.service
  * (via inquiry-onboarding).
  */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, IdentityOpsModule, EventLifecycleModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, IdentityAccessModule, EventSessionModule, EventLifecycleModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsGuestController],
   providers: [
     CoordinatorsService,

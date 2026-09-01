@@ -11,7 +11,7 @@ import { EventLifecycleModule } from '@prism/contexts/event-lifecycle';
 import { FloorplanModule } from '@prism/contexts/floorplan';
 import { OperationsModule } from '@prism/contexts/operations';
 import { HealthModule } from '@prism/modules/health';
-import { IdentityOpsModule } from '@prism/modules/identity-ops';
+import { IdentityAccessModule } from '@prism/contexts/identity-access';
 import { LiveOpsModule } from '@prism/contexts/live-ops';
 import { TransformInterceptor } from './common/transform.interceptor';
 
@@ -22,7 +22,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
     EventCoreModule,
     PlatformOpsModule,
     AccessControlModule,
-    IdentityOpsModule,
+    IdentityAccessModule,
     EventLifecycleModule,
     CommercialModule,
     FloorplanModule,

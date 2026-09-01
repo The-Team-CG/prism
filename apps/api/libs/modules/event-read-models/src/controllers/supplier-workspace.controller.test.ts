@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/modules/event-core';
-import { EventSessionGuard } from '@prism/modules/identity-ops';
+import { EventSessionGuard } from '@prism/modules/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsSupplierWorkspaceReadsController } from './supplier-workspace.controller';
 

@@ -87,6 +87,15 @@
         "tsConfigPath": "libs/contexts/platform-ops/tsconfig.lib.json"
       }
     },
+    "identity-access": {
+      "type": "library",
+      "root": "libs/contexts/identity-access",
+      "entryFile": "index",
+      "sourceRoot": "libs/contexts/identity-access/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/contexts/identity-access/tsconfig.lib.json"
+      }
+    },
     "sample-compatibility": {
       "type": "library",
       "root": "libs/modules/sample-compatibility",

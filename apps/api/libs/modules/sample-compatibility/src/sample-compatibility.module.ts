@@ -8,7 +8,7 @@ import { EventReadModelsModule } from '@prism/modules/event-read-models';
 import { EventLifecycleModule } from '@prism/contexts/event-lifecycle';
 import { FloorplanModule } from '@prism/contexts/floorplan';
 import { OperationsModule } from '@prism/contexts/operations';
-import { IdentityOpsModule } from '@prism/modules/identity-ops';
+import { IdentityAccessModule } from '@prism/contexts/identity-access';
 import { LiveOpsModule } from '@prism/contexts/live-ops';
 import { EventSessionModule } from '@prism/modules/event-session';
 import { SAMPLE_COMPATIBILITY_CONTROLLERS } from './controllers';
@@ -27,12 +27,12 @@ import { SampleStateService } from './services/sample-state.service';
     DatabaseModule,
     EventCoreModule,
     // Depended on directly by SampleResetGuard. Previously reached only
-    // transitively via IdentityOpsModule's re-export; naming it here keeps the
+    // transitively via IdentityAccessModule's re-export; naming it here keeps the
     // guard working if that re-export is ever tightened (cf. PA-280).
     EventSessionModule,
     PlatformOpsModule,
     AccessControlModule,
-    IdentityOpsModule,
+    IdentityAccessModule,
     EventLifecycleModule,
     CommercialModule,
     FloorplanModule,

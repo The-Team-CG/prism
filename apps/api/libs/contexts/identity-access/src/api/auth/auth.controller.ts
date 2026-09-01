@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { zodBody } from '@prism/shared';
 import { loginSchema, requestApprovalSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type LoginInput, type RequestApprovalInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
-import { AuthOperationsService } from '../services/auth-operations.service';
+import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 
 @Controller('auth')
 export class OpsAuthController {
