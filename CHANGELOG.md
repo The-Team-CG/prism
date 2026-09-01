@@ -23,3 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Removed
 - The obsolete event dashboard `features/event-ops` facade, duplicate event filter route folders, and superseded API DTO files were removed after their behavior was covered by focused tests.
 
+### Fixed
+- Added focused route, sidebar, loading-copy, compatibility-path, and selector coverage so the event workspace satisfies the repository's branch-coverage gate.
+
