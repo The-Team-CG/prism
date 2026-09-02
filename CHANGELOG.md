@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Client approvals rules import model helpers directly instead of the workspace barrel, so `test:coverage` no longer pulls views/`prism-api` into the 50% CI gate.
 - Pointed `smoke:ui` source guards at the split coordinator and guest section views.
 - Nest composition roots import sibling `*Module` classes from module files instead of package barrels so the API can boot across circular context graphs.
+- Pinned `fast-uri` to `3.1.7` and extended the Prisma `mysql2` audit exception to `GHSA-rgwj-5xj2-c3m3` so CI can pass newly published high advisories.
 - Added focused route, sidebar, loading-copy, compatibility-path, and selector coverage so the event workspace satisfies the repository's branch-coverage gate.
 - Portal `dev`/`start` now clear a stale listener on the app port so `next start` cannot fail to bind while an old build keeps serving 200s.
 - Documented a CI audit exception for Prisma's unused MySQL client (`mysql2` GHSA-3f6p-5ww8-9rcr) until Prisma ships a patched pin.
