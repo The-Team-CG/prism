@@ -1,4 +1,3 @@
-export * from './floorplan.module';
 export * from './api/live/event-floorplans.controller';
 export * from './api/live/floorplan.dto';
 export * from './contracts/floorplan-commands.port';
