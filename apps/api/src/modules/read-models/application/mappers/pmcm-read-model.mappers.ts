@@ -16,6 +16,7 @@ import { mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/contexts/comme
 import type { FinanceCommands } from '@prism/contexts/commercial';
 import type { FloorplanReader } from '@prism/contexts/floorplan';
 import type { GuestReader, StaffingReader } from '@prism/contexts/operations';
+import type { RegistrationPlatformService } from '@prism/contexts/operations';
 import { createPmcmDashboardMappers } from './event-read-model.mappers';
 
 const COORDINATOR_ROLE_REQUIREMENTS = [
@@ -110,6 +111,7 @@ export type EventReadModelMapperDependencies = {
 export type PmcmReadModelMapperDependencies = EventReadModelMapperDependencies & {
   financeCommands: FinanceCommands;
   staffingReader: StaffingReader;
+  registrationPlatformService: RegistrationPlatformService;
 };
 
 export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDependencies) {
@@ -135,6 +137,7 @@ export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDepe
     mapFloorPlanDraft: dependencies.floorplanReader.mapFloorPlanDraft.bind(dependencies.floorplanReader),
     mapAuditLog,
     mapNotificationLog,
+    mapRegistrationPlatform: dependencies.registrationPlatformService.mapRegistrationPlatform.bind(dependencies.registrationPlatformService),
   });
 }
 

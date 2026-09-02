@@ -1,7 +1,9 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
-import { GUEST_READER, type GuestReader } from '@prism/contexts/operations';
+import { FLOORPLAN_READER } from '../../../floorplan/contracts/floorplan.tokens';
+import type { FloorplanReader } from '../../../floorplan/contracts/floorplan-reader.port';
+import { GUEST_READER } from '../../../operations/contracts/guest-ops.tokens';
+import type { GuestReader } from '../../../operations/contracts/guest-reader.port';
 import { ArchiveEventDto, ClosureActorDto } from './closure.dto';
 import { mapClosureEvent, mapEventInsight, mapPostEventDocument } from '../../application/closure/closure.mappers';
 import { EventClosureService } from '../../application/closure/event-closure.service';

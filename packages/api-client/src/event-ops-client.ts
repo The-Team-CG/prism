@@ -18,6 +18,7 @@ import type {
   PrismPmcmCommandInbox,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
+  PrismRegistrationPlatform,
   PrismSampleState,
   PrismEventOpsActorContext,
   PrismSupplierQuoteRequest,
@@ -110,6 +111,7 @@ export interface EventOpsClient {
   pmcm: {
     commandInbox(actor?: EventOpsActorQuery): Promise<PrismPmcmCommandInbox>;
     eventWorkspace(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPmcmEventWorkspace>;
+    registrationPlatform(eventId: string, actor?: EventOpsActorQuery): Promise<PrismRegistrationPlatform | null>;
   };
   guest: {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
@@ -204,6 +206,8 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<PrismPmcmCommandInbox>(actorPath("/pmcm/command-inbox", actor), withBase(options)),
       eventWorkspace: (eventId, actor = {}) =>
         prismRequest<PrismPmcmEventWorkspace>(actorPath(`/pmcm/events/${eventId}/workspace`, actor), withBase(options)),
+      registrationPlatform: (eventId, actor = {}) =>
+        prismRequest<PrismRegistrationPlatform | null>(actorPath(`/events/${eventId}/registration-platform`, actor), withBase(options)),
     },
     guest: {
       eventPass: (accessCode) =>

@@ -75,6 +75,8 @@ export function useEventDashboardShellViewModel({
     liveOps,
     statusFeed,
     defenseReadiness,
+    registrationPlatform,
+    commandDataErrors,
     floorPlanTemplates,
     commandInbox,
     setCommandInbox,
@@ -257,6 +259,8 @@ export function useEventDashboardShellViewModel({
     liveOps,
     statusFeed,
     defenseReadiness,
+    registrationPlatform,
+    commandDataErrors,
     busy,
     floorPlanTemplates,
     commandInbox,
@@ -398,6 +402,9 @@ export function useEventDashboardShellViewModel({
     submitFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("submit draft", () => commands.submitFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
     approveFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("approve draft", () => commands.approveFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
     withdrawSupplier: (requestId: string) => selectedEvent ? run("withdraw supplier", () => commands.withdrawSupplier(selectedEvent.id, requestId)) : Promise.resolve(),
+    upsertRegistrationPlatform: (input: Parameters<typeof commands.upsertRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.upsertRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
+    updateRegistrationPlatform: (input: Parameters<typeof commands.updateRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.updateRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
+    importHeadcount: (input: Parameters<typeof commands.importHeadcount>[1]) => selectedEvent ? run("import headcount", () => commands.importHeadcount(selectedEvent.id, input)) : Promise.resolve(),
     uploadConformeTarget: (inquiry: PrismInquiry) => setConformeUploadTarget(inquiry),
     openConformeUpload: (inquiry: PrismInquiry) => {
       setConformeUploadTarget(inquiry);
