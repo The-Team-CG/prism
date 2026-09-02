@@ -1,6 +1,6 @@
 import type { PrismBillingStatement, PrismDocument, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { ClientPortalView } from "../../workspace/shared";
-import { formatStatusLabel } from "../../workspace/shared";
+import type { ClientPortalView } from "../../workspace/model/client-dashboard-types";
+import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
 
 export type ApprovalItem = {
   title: string;
