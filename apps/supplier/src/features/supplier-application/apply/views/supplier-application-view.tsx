@@ -18,6 +18,8 @@ export function SupplierApplicationView() {
     busy,
     error,
     categories,
+    categoriesError,
+    categoriesLoading,
     update,
     canContinue,
     nextStep,
@@ -36,12 +38,12 @@ export function SupplierApplicationView() {
 
   return (
     <main className="h-dvh bg-background text-foreground">
-      <section className="relative h-full overflow-hidden">
+      <section className="relative h-full min-h-0 overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.98),rgba(233,247,251,0.72)_58%,rgba(255,248,242,0.96))]" />
         <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(204,236,244,0.72)_1px,transparent_1px),linear-gradient(90deg,rgba(204,236,244,0.72)_1px,transparent_1px)] [background-size:42px_42px]" />
-        <div className="relative grid h-full lg:grid-cols-[452px_minmax(0,1fr)]">
+        <div className="relative grid h-full min-h-0 overflow-hidden lg:grid-cols-[452px_minmax(0,1fr)]">
           <ApplyAside />
-          <div className="flex min-w-0 justify-center px-5 py-6 lg:pl-8 lg:pr-8">
+          <div className="flex h-full min-h-0 min-w-0 justify-center overflow-hidden px-5 py-6 lg:pl-8 lg:pr-8">
             <ApplicationFormShell
               currentStep={currentStep}
               onSubmit={onSubmit}
@@ -60,6 +62,8 @@ export function SupplierApplicationView() {
                 form={form}
                 update={update}
                 categories={categories}
+                categoriesError={categoriesError}
+                categoriesLoading={categoriesLoading}
                 error={error}
                 resolveCategoryName={resolveCategoryName}
               />
