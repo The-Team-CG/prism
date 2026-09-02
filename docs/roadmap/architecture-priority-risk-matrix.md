@@ -4,12 +4,12 @@ title: "P.R.I.S.M architecture priority and risk matrix"
 description: "Sequenced frontend and backend architecture follow-up with dependencies, risks, owners, and required closure evidence."
 tags: [roadmap, architecture, risk, frontend, backend]
 status: active
-updated: "2026-09-01"
+updated: "2026-09-02"
 authority: informative
 owner: "D (Anthony)"
 audience: [engineering, product, design, reviewers]
 scope: "frontend and backend architecture debt, dependencies, risks, owners, and closure evidence"
-last_verified: "codex/architecture-alignment-fe-be"
+last_verified: "2026-09-02"
 sources:
   - id: current-architecture
     resource: "docs/architecture/current-architecture.md"
@@ -73,6 +73,23 @@ staging deployment.
 | Contract boundary cleanup | Partial / controlled | Floorplan draft/preference writes, briefing submission, and guarded live-ops routes now use shared Zod or verified session context; remaining legacy DTOs are migrated one touched contract at a time, with no new class-validator writes. |
 | Further domain policies | Complete for identified invariants | Live-ops urgent-issue/escalation and commercial quote-request policies are pure and tested; add another only when a named invariant is found, not for folder symmetry. |
 | Microservice extraction | Deferred | No independent deployment/data/operations boundary is claimed; keep modular-monolith seams extraction-ready. |
+
+## Recorded follow-up from EP-11-S02
+
+These rows are findings, not permission to start a sweep. Each needs its own
+slice, owner, and PR.
+
+| ID | Priority | Owner | Status | Work | Leave until |
+| --- | --- | --- | --- | --- | --- |
+| PA-290 | P1 | D | Open | Stop hardcoded `withPmcmActor` / Mys query params; session-derived actor; coordinator mutations must not spoof PMCM | Next auth/session slice with PA-199/201/203/204 |
+| PA-287 | P2 | D | Open | Put `EventDayTaskStatus` union on `updateEventDayTaskSchema` (service already validates) | Next touch of that Zod contract (B8) |
+| PA-288 | P2 | B, D | Open | Align create-task vs create-issue initial status | Product decision, then one contract+service PR |
+| PA-291 | P2 | A | Open | Shared status map includes `in_progress`; retire event-local badge drift | Status-vocabulary pass, not live-ops-only |
+| PA-294 | P1 | B | Open | Failed coordinator `acknowledge()` must not `setRoleView(null)` | Next coordinator-desk slice |
+| PA-296 | P2 | B, A | Open | Coordinator desk badge shows lifecycle vs SLA on purpose | Product call; description already shows status |
+| PA-295 | P3 | D | Monitor | Two `requireCoordinatorAssignmentForEvent` copies | One of them has to change |
+| PA-284 | P1 | D | Confirm/close | Supplier session bearer already in api-client/controller tests | Evidence on the ticket |
+| PA-292 | — | D | Resolved | Local `CreateUrgentIssueInput` alias removed | No further work |
 
 ## Completed in the current backend consolidation
 
