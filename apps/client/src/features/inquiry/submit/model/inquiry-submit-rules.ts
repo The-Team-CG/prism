@@ -6,16 +6,31 @@ import {
 import type { InquiryForm } from "./inquiry-submit-types";
 import { INQUIRY_WIZARD_STEPS } from "./inquiry-submit-types";
 
+function hasText(value: string) {
+  return Boolean(value.trim());
+}
+
+function isContactStepValid(form: InquiryForm) {
+  return hasText(form.clientName) && hasText(form.email) && hasText(form.phoneNumber) && Boolean(form.clientType) && Boolean(form.source);
+}
+
+function isEventStepValid(form: InquiryForm) {
+  return hasText(form.eventName) && Boolean(form.eventType) && Boolean(form.eventDate) && hasText(form.expectedGuests);
+}
+
+function isBudgetStepValid(form: InquiryForm) {
+  return Boolean(form.budgetRange && form.inquiryPriority);
+}
+
+const INQUIRY_STEP_VALIDATORS: Record<number, (form: InquiryForm) => boolean> = {
+  0: isContactStepValid,
+  1: isEventStepValid,
+  2: isBudgetStepValid,
+};
+
 export function isInquiryStepValid(form: InquiryForm, step: number): boolean {
-  if (step === 0) {
-    return Boolean(form.clientName.trim() && form.email.trim() && form.phoneNumber.trim() && form.clientType && form.source);
-  }
-  if (step === 1) {
-    return Boolean(form.eventName.trim() && form.eventType && form.eventDate && form.expectedGuests.trim());
-  }
-  if (step === 2) {
-    return Boolean(form.budgetRange && form.inquiryPriority);
-  }
+  const validator = INQUIRY_STEP_VALIDATORS[step];
+  if (validator) return validator(form);
   return form.privacyConsentAccepted;
 }
 
@@ -31,19 +46,27 @@ export function previousInquiryStep(step: number): number {
   return Math.max(step - 1, 0);
 }
 
-export function buildInquiryPayload(form: InquiryForm): CreatePrismInquiryInput {
-  const reviewNotes = [
-    `Phone: ${form.phoneNumber || "Not provided"}`,
-    `Expected guests: ${form.expectedGuests || "Not provided"}`,
-    `Venue or city: ${form.venueCity || "Not provided"}`,
-    `Venue status: ${form.venueStatus || "Not provided"}`,
-    `Date flexibility: ${form.dateFlexibility || "Not provided"}`,
-    `Budget range: ${form.budgetRange || "Not provided"}`,
-    `Inquiry priority: ${form.inquiryPriority || "Not provided"}`,
+function noteOrFallback(value: string, fallback = "Not provided") {
+  return value || fallback;
+}
+
+function buildInquiryReviewNotes(form: InquiryForm) {
+  return [
+    `Phone: ${noteOrFallback(form.phoneNumber)}`,
+    `Expected guests: ${noteOrFallback(form.expectedGuests)}`,
+    `Venue or city: ${noteOrFallback(form.venueCity)}`,
+    `Venue status: ${noteOrFallback(form.venueStatus)}`,
+    `Date flexibility: ${noteOrFallback(form.dateFlexibility)}`,
+    `Budget range: ${noteOrFallback(form.budgetRange)}`,
+    `Inquiry priority: ${noteOrFallback(form.inquiryPriority)}`,
     "",
     "Client notes:",
-    form.message || "No additional notes provided.",
+    noteOrFallback(form.message, "No additional notes provided."),
   ].join("\n");
+}
+
+export function buildInquiryPayload(form: InquiryForm): CreatePrismInquiryInput {
+  const reviewNotes = buildInquiryReviewNotes(form);
 
   return parseContract(
     createPrismInquirySchema,

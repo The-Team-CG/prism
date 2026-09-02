@@ -50,6 +50,31 @@ function parseDate(value: string) {
   return parsed;
 }
 
+function assertQuoteSaveAllowed(
+  requestedMode: 'submit' | 'revise',
+  quote: OpsSupplierQuote | null,
+  input: Partial<SubmitSupplierQuoteInput>,
+): 'submit' | 'revise' {
+  if (requestedMode === 'revise' && !quote) throw new NotFoundException('Supplier quote not found');
+  if (quote && isSupplierQuoteLocked(quote.status)) {
+    throw new BadRequestException('Supplier quote is already locked');
+  }
+  if (quote && quote.revisionNumber >= 2) {
+    throw new BadRequestException('Quote has already been revised and cannot be revised again.');
+  }
+  const effectiveMode = quote ? 'revise' : 'submit';
+  if (effectiveMode === 'submit' && input.amount === undefined) {
+    throw new BadRequestException('Quote amount is required');
+  }
+  return effectiveMode;
+}
+
+function quoteOutsideAcceptableRange(category: OpsSupplierCategory | null, amount: number) {
+  const belowMin = typeof category?.acceptableMin === 'number' && amount < category.acceptableMin;
+  const aboveMax = typeof category?.acceptableMax === 'number' && amount > category.acceptableMax;
+  return Boolean(belowMin || aboveMax);
+}
+
 @Injectable()
 export class CommercialWorkflowService {
   constructor(
@@ -386,32 +411,17 @@ export class CommercialWorkflowService {
         if (!foundRequest) throw new NotFoundException('Quote request not found');
 
         request = await this.expireQuoteRequestIfNeeded(foundRequest);
-        const requestStatus = request.status;
-        if (isSupplierQuoteRequestClosed(requestStatus)) {
+        if (isSupplierQuoteRequestClosed(request.status)) {
           throw new BadRequestException('Quote request is already closed');
         }
 
         quote = await this.prisma.opsSupplierQuote.findFirst({ where: { requestId: request.id } });
-        if (requestedMode === 'revise' && !quote) throw new NotFoundException('Supplier quote not found');
-        if (quote && isSupplierQuoteLocked(quote.status)) {
-          throw new BadRequestException('Supplier quote is already locked');
-        }
-        if (quote && quote.revisionNumber >= 2) {
-          throw new BadRequestException('Quote has already been revised and cannot be revised again.');
-        }
-        effectiveMode = quote ? 'revise' : 'submit';
-        if (effectiveMode === 'submit' && input.amount === undefined) {
-          throw new BadRequestException('Quote amount is required');
-        }
-
+        effectiveMode = assertQuoteSaveAllowed(requestedMode, quote, input);
         category = request.categoryId
           ? await this.prisma.opsSupplierCategory.findUnique({ where: { id: request.categoryId } })
           : null;
         amount = input.amount ?? quote?.amount ?? 0;
-        outsideAcceptableRange = Boolean(
-          (typeof category?.acceptableMin === 'number' && amount < category.acceptableMin) ||
-            (typeof category?.acceptableMax === 'number' && amount > category.acceptableMax),
-        );
+        outsideAcceptableRange = quoteOutsideAcceptableRange(category, amount);
       },
       write: () => {
         if (!request) throw new NotFoundException('Quote request not found');

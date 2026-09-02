@@ -46,6 +46,47 @@ export type LiveOpsActor = {
   email?: string;
 };
 
+function requireReplacementFields(input: ReplaceCoordinatorAssignmentInput) {
+  if (!input.replacementCoordinatorId?.trim()) throw new BadRequestException('Replacement coordinator is required');
+  const role = input.role?.trim();
+  if (!role) throw new BadRequestException('Replacement role is required');
+  const reason = input.reason?.trim();
+  if (!reason) throw new BadRequestException('Replacement reason is required');
+  return { role, reason };
+}
+
+function requireReplacementCoordinator(coordinator: OpsCoordinator | null, role: string) {
+  if (!coordinator || !coordinator.active) throw new NotFoundException('Replacement coordinator not found');
+  if (Array.isArray(coordinator.roleTags) && coordinator.roleTags.length > 0 && !coordinator.roleTags.includes(role)) {
+    throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
+  }
+  return coordinator;
+}
+
+function assignIfPresent(data: Record<string, unknown>, present: unknown, fields: Record<string, unknown>) {
+  if (present) Object.assign(data, fields);
+}
+
+function urgentIssueUpdateData(
+  current: OpsUrgentIssue,
+  input: UpdateUrgentIssueInput,
+  status?: string,
+): Prisma.OpsUrgentIssueUpdateInput {
+  const data: Record<string, unknown> = {};
+  assignIfPresent(data, status, { status });
+  assignIfPresent(data, input.affectedArea !== undefined, { affectedArea: input.affectedArea?.trim() });
+  assignIfPresent(data, input.ownerRole !== undefined, { ownerRole: input.ownerRole?.trim() });
+  assignIfPresent(data, input.ownerName !== undefined, { ownerName: input.ownerName?.trim() });
+  assignIfPresent(data, input.resolution !== undefined, { resolution: input.resolution?.trim() });
+  if (input.slaDueAt !== undefined) {
+    data.slaDueAt = input.slaDueAt ? new Date(input.slaDueAt) : null;
+  }
+  if (status === UrgentIssueStatus.Resolved && !current.resolvedAt) {
+    data.resolvedAt = new Date();
+  }
+  return data as Prisma.OpsUrgentIssueUpdateInput;
+}
+
 type SlaRecord = {
   status?: string | null;
   slaStatus?: string | null;
@@ -245,15 +286,7 @@ export class LiveOperationsService {
         if (!current) throw new NotFoundException('Urgent issue not found');
         return prisma.opsUrgentIssue.update({
           where: { id: issueId },
-          data: {
-            ...(status ? { status } : {}),
-            ...(input.affectedArea !== undefined ? { affectedArea: input.affectedArea.trim() } : {}),
-            ...(input.ownerRole !== undefined ? { ownerRole: input.ownerRole.trim() } : {}),
-            ...(input.ownerName !== undefined ? { ownerName: input.ownerName.trim() } : {}),
-            ...(input.resolution !== undefined ? { resolution: input.resolution.trim() } : {}),
-            ...(input.slaDueAt !== undefined ? { slaDueAt: input.slaDueAt ? new Date(input.slaDueAt) : null } : {}),
-            ...(status === UrgentIssueStatus.Resolved && !current.resolvedAt ? { resolvedAt: new Date() } : {}),
-          },
+          data: urgentIssueUpdateData(current, input, status),
         });
       },
       sideEffects: async (issue) => {
@@ -439,23 +472,20 @@ export class LiveOperationsService {
           select: { id: true, eventName: true, eventDate: true },
         });
         if (!event) throw new NotFoundException('Event not found');
-        if (!input.replacementCoordinatorId?.trim()) throw new BadRequestException('Replacement coordinator is required');
-        role = input.role?.trim();
-        if (!role) throw new BadRequestException('Replacement role is required');
-        reason = input.reason?.trim();
-        if (!reason) throw new BadRequestException('Replacement reason is required');
+        const fields = requireReplacementFields(input);
+        role = fields.role;
+        reason = fields.reason;
 
         current = await prisma.opsCoordinatorAssignment.findUnique({ where: { id: assignmentId } });
         if (current?.eventId !== eventId) current = null;
         if (!current) throw new NotFoundException('Coordinator assignment not found');
 
-        coordinator = await prisma.opsCoordinator.findUnique({
-          where: { id: input.replacementCoordinatorId.trim() },
-        });
-        if (!coordinator || !coordinator.active) throw new NotFoundException('Replacement coordinator not found');
-        if (Array.isArray(coordinator.roleTags) && coordinator.roleTags.length > 0 && !coordinator.roleTags.includes(role)) {
-          throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
-        }
+        coordinator = requireReplacementCoordinator(
+          await prisma.opsCoordinator.findUnique({
+            where: { id: input.replacementCoordinatorId.trim() },
+          }),
+          role,
+        );
       },
       write: () => {
         if (!event || !current || !coordinator) throw new NotFoundException('Coordinator assignment not found');

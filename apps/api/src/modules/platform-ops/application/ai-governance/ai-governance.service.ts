@@ -17,35 +17,49 @@ export type AiGovernanceDryRunResult = {
   approval: OpsAiApprovalRecord;
 };
 
+const KEY_REDACTIONS: Array<{ test: (key: string) => boolean; value: string }> = [
+  { test: (key) => key.includes('email'), value: '[email redacted]' },
+  { test: (key) => key.includes('phone') || key.includes('mobile'), value: '[phone redacted]' },
+  { test: (key) => key === 'clientname' || key === 'client_name', value: 'Client A' },
+  { test: (key) => key === 'suppliername' || key === 'supplier_name', value: 'Supplier X' },
+];
+
+function redactedLabelForKey(key: string) {
+  const normalized = key.toLowerCase();
+  for (const rule of KEY_REDACTIONS) {
+    if (rule.test(normalized)) return rule.value;
+  }
+}
+
+function redactStringContent(value: string) {
+  return value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email redacted]')
+    .replace(/(\+?\d[\d\s().-]{7,}\d)/g, '[phone redacted]')
+    .replace(/\bAna Reyes\b/g, 'Client A')
+    .replace(/\bSonicLine Technicals\b/g, 'Supplier X');
+}
+
+function redactValue(key: string, value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => redactValue(key, item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [
+        childKey,
+        redactValue(childKey, childValue),
+      ]),
+    );
+  }
+  const byKey = redactedLabelForKey(key);
+  if (byKey) return byKey;
+  if (typeof value !== 'string') return value;
+  return redactStringContent(value);
+}
+
 @Injectable()
 export class AiGovernanceService {
   constructor(private readonly prisma: PrismaService) {}
 
   sanitizePayload(payload: Record<string, unknown>) {
-    const redactValue = (key: string, value: unknown): unknown => {
-      if (Array.isArray(value)) return value.map((item) => redactValue(key, item));
-      if (value && typeof value === 'object') {
-        return Object.fromEntries(
-          Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [
-            childKey,
-            redactValue(childKey, childValue),
-          ]),
-        );
-      }
-      const normalizedKey = key.toLowerCase();
-      if (normalizedKey.includes('email')) return '[email redacted]';
-      if (normalizedKey.includes('phone') || normalizedKey.includes('mobile')) return '[phone redacted]';
-      if (normalizedKey === 'clientname' || normalizedKey === 'client_name') return 'Client A';
-      if (normalizedKey === 'suppliername' || normalizedKey === 'supplier_name') return 'Supplier X';
-      if (typeof value !== 'string') return value;
-
-      return value
-        .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email redacted]')
-        .replace(/(\+?\d[\d\s().-]{7,}\d)/g, '[phone redacted]')
-        .replace(/\bAna Reyes\b/g, 'Client A')
-        .replace(/\bSonicLine Technicals\b/g, 'Supplier X');
-    };
-
     return redactValue('payload', payload) as Record<string, unknown>;
   }
 

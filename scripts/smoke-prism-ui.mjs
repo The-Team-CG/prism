@@ -22,7 +22,7 @@ const sourceGuards = [
     markers: ["Quote requests", "Supplier-scoped handoff state", "Event-day status"],
   },
   {
-    file: "apps/guest/src/features/guest-checkin/dashboard/views/guest-dashboard-view.tsx",
+    file: "apps/guest/src/features/guest-checkin/dashboard/views/sections/guest-dashboard-panels.tsx",
     markers: ["Registration check-in", "Moderated feedback", "Event details"],
   },
   {
@@ -30,7 +30,7 @@ const sourceGuards = [
     markers: ["Billing", "Supplier", "Live operations", "Closure"],
   },
   {
-    file: "apps/event/src/features/coordinators/desk/views/coordinator-view.tsx",
+    file: "apps/event/src/features/coordinators/desk/views/sections/coordinator-view-sections.tsx",
     markers: ["Role-safe", "Event-day actions", "Coordinator information boundary"],
   },
 ];

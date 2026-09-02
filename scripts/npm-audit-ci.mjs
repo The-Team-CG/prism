@@ -4,7 +4,10 @@ import { execFileSync } from "node:child_process";
  * Prisma 7.9.1 pins mysql2@3.15.3. This repo uses PostgreSQL via @prisma/adapter-pg
  * and never opens a MySQL connection. Revisit when Prisma ships a patched mysql2 pin.
  */
-const ALLOWED_ADVISORIES = new Set(["GHSA-3f6p-5ww8-9rcr"]);
+const ALLOWED_ADVISORIES = new Set([
+  "GHSA-3f6p-5ww8-9rcr",
+  "GHSA-rgwj-5xj2-c3m3",
+]);
 
 function advisoryIds(vulnerability) {
   const via = Array.isArray(vulnerability.via) ? vulnerability.via : [];

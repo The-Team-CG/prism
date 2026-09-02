@@ -1,4 +1,3 @@
-export * from './platform-ops.module';
 export * from './platform-ops-audit-writer.module';
 
 export * from './api/trust/audit-privacy.controller';

@@ -1,49 +1,77 @@
-import type { PARERisk, PARERiskLevel, PAREContext } from '../pare.types';
+import type { PARERisk, PARERiskLevel, PAREContext, PARECandidate } from '../pare.types';
 
-// ─── Mock fallback ────────────────────────────────────────────────────────────
+function timelineRisk(daysUntilEvent: number) {
+  if (daysUntilEvent <= 7) {
+    return { factor: `Critical timeline: event is in ${daysUntilEvent} day(s)`, score: 3 };
+  }
+  if (daysUntilEvent <= 21) {
+    return { factor: `Short timeline: event is in ${daysUntilEvent} days`, score: 2 };
+  }
+  return { factor: `Adequate timeline: event is in ${daysUntilEvent} days`, score: 0 };
+}
+
+function replacementTierFactor(top: PARECandidate) {
+  if (top.tier === 'tier_3') {
+    return { factor: `Replacement is Tier 3 (${top.supplierName}) — unproven`, score: 2 };
+  }
+  if (top.tier === 'tier_2') {
+    return { factor: `Replacement is Tier 2 (${top.supplierName}) — previously worked with PMCM`, score: 1 };
+  }
+  return { factor: `Replacement is Tier 1 (${top.supplierName}) — preferred partner`, score: 0 };
+}
+
+function candidateRisk(top: PARECandidate | undefined) {
+  if (!top) {
+    return { factors: ['No replacement candidates found — high operational risk'], score: 4 };
+  }
+  const tier = replacementTierFactor(top);
+  const factors = [tier.factor];
+  let score = tier.score;
+  if (top.quotedAmount === 0) {
+    factors.push('No quote on file — pricing unconfirmed');
+    score += 1;
+  }
+  if (top.priorPmcmEvents === 0) {
+    factors.push('No prior events with PMCM — first booking');
+    score += 1;
+  }
+  if (top.reliabilityScore < 0.6) {
+    factors.push(`Low reliability score (${top.reliabilityScore})`);
+    score += 1;
+  }
+  return { factors, score };
+}
+
+function halalRisk(ctx: PAREContext, top: PARECandidate | undefined) {
+  const requiresHalal = ctx.clientPreferences.some((preference) => preference.toLowerCase().includes('halal'));
+  if (requiresHalal && top && !top.halal) {
+    return { factor: 'Client requires halal — replacement is NOT halal-certified', score: 2 };
+  }
+  return { factor: undefined, score: 0 };
+}
+
+function riskLevel(score: number): PARERiskLevel {
+  if (score >= 5) return 'HIGH';
+  if (score >= 3) return 'MEDIUM';
+  return 'LOW';
+}
+
+const RISK_RECOMMENDATION: Record<PARERiskLevel, string> = {
+  HIGH: 'Escalate to Ms. Mys immediately. Do not confirm without her explicit sign-off.',
+  MEDIUM: 'Proceed with caution. Confirm details and brief client before finalizing.',
+  LOW: 'Proceed with replacement. Standard confirmation and readiness check apply.',
+};
 
 function mockRisk(ctx: PAREContext): PARERisk {
-  const factors: string[] = [];
-  let score = 0;
-
-  if (ctx.daysUntilEvent <= 7) {
-    factors.push(`Critical timeline: event is in ${ctx.daysUntilEvent} day(s)`);
-    score += 3;
-  } else if (ctx.daysUntilEvent <= 21) {
-    factors.push(`Short timeline: event is in ${ctx.daysUntilEvent} days`);
-    score += 2;
-  } else {
-    factors.push(`Adequate timeline: event is in ${ctx.daysUntilEvent} days`);
-  }
-
+  const timeline = timelineRisk(ctx.daysUntilEvent);
   const top = ctx.candidates?.[0];
-  if (!top) {
-    factors.push('No replacement candidates found — high operational risk');
-    score += 4;
-  } else {
-    if (top.tier === 'tier_3') { factors.push(`Replacement is Tier 3 (${top.supplierName}) — unproven`); score += 2; }
-    else if (top.tier === 'tier_2') { factors.push(`Replacement is Tier 2 (${top.supplierName}) — previously worked with PMCM`); score += 1; }
-    else { factors.push(`Replacement is Tier 1 (${top.supplierName}) — preferred partner`); }
-    if (top.quotedAmount === 0) { factors.push('No quote on file — pricing unconfirmed'); score += 1; }
-    if (top.priorPmcmEvents === 0) { factors.push('No prior events with PMCM — first booking'); score += 1; }
-    if (top.reliabilityScore < 0.6) { factors.push(`Low reliability score (${top.reliabilityScore})`); score += 1; }
-  }
-
-  const halal = ctx.clientPreferences.some((p) => p.toLowerCase().includes('halal'));
-  if (halal && top && !top.halal) {
-    factors.push('Client requires halal — replacement is NOT halal-certified');
-    score += 2;
-  }
-
-  const level: PARERiskLevel = score >= 5 ? 'HIGH' : score >= 3 ? 'MEDIUM' : 'LOW';
-  const recommendation =
-    level === 'HIGH'
-      ? 'Escalate to Ms. Mys immediately. Do not confirm without her explicit sign-off.'
-      : level === 'MEDIUM'
-        ? 'Proceed with caution. Confirm details and brief client before finalizing.'
-        : 'Proceed with replacement. Standard confirmation and readiness check apply.';
-
-  return { level, factors, recommendation };
+  const candidate = candidateRisk(top);
+  const halal = halalRisk(ctx, top);
+  const factors = [timeline.factor, ...candidate.factors];
+  if (halal.factor) factors.push(halal.factor);
+  const score = timeline.score + candidate.score + halal.score;
+  const level = riskLevel(score);
+  return { level, factors, recommendation: RISK_RECOMMENDATION[level] };
 }
 
 // ─── Tool definitions for Claude ─────────────────────────────────────────────

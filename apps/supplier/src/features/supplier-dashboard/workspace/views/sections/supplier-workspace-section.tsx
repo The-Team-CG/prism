@@ -1,0 +1,124 @@
+"use client";
+
+import type { FormEvent } from "react";
+import { ShieldCheck } from "lucide-react";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import type { PrismAuthenticatedSession } from "@prism/types";
+import type {
+  PrismSupplierQuote,
+  PrismSupplierQuoteRequest,
+  PrismSupplierReadinessBoard,
+  QuoteFormState,
+  SupplierDashboardSection,
+  SupplierWorkspace,
+} from "../../model/supplier-workspace-types";
+import { BookingsPage } from "./bookings-page";
+import { CalendarPage } from "./calendar-page";
+import { DashboardPage } from "./dashboard-page";
+import { FilesPage } from "./files-page";
+import { MessagesPage } from "./messages-page";
+import { PaymentsPage } from "./payments-page";
+import { ProfilePage } from "./profile-page";
+import { QuotationsPage } from "./quotations-page";
+import { RequestsPage } from "./requests-page";
+import { SupportPage } from "./support-page";
+import { Card, CardBody } from "./shell-ui";
+
+export type SupplierWorkspaceSectionProps = {
+  section: SupplierDashboardSection;
+  session: PrismAuthenticatedSession;
+  workspace: SupplierWorkspace | null;
+  error: string | null;
+  quoteByRequest: Map<string, PrismSupplierQuote>;
+  openRequests: PrismSupplierQuoteRequest[];
+  selectedRequests: PrismSupplierQuoteRequest[];
+  selectedQuotes: PrismSupplierQuote[];
+  quoteNeedingSubmission: number;
+  handoffPending: number;
+  needsActionCount: number;
+  eventsThisMonth: number;
+  readinessBoard: PrismSupplierReadinessBoard | null;
+  forms: Record<string, QuoteFormState>;
+  busy: string | null;
+  readinessNotes: Record<string, string>;
+  contractFiles: Record<string, string>;
+  statusNotes: Record<string, string>;
+  onNavigate: (section: SupplierDashboardSection) => void;
+  onUpdateForm: (id: string, patch: Partial<QuoteFormState>) => void;
+  onSubmitQuote: (ev: FormEvent<HTMLFormElement>, req: PrismSupplierQuoteRequest) => void;
+  onReadinessNoteChange: (id: string, v: string) => void;
+  onContractFileChange: (id: string, v: string) => void;
+  onStatusNoteChange: (id: string, v: string) => void;
+  onConfirmAssignment: (req: PrismSupplierQuoteRequest) => void;
+  onConfirmReadiness: (req: PrismSupplierQuoteRequest) => void;
+  onSaveContract: (req: PrismSupplierQuoteRequest) => void;
+  onUpdateStatus: (req: PrismSupplierQuoteRequest, status: string) => void;
+};
+
+type SectionRenderer = (props: SupplierWorkspaceSectionProps & { workspace: SupplierWorkspace }) => React.ReactNode;
+
+const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
+  dashboard: (p) => (
+    <DashboardPage
+      session={p.session}
+      workspace={p.workspace}
+      quoteByRequest={p.quoteByRequest}
+      openRequests={p.openRequests}
+      selectedRequests={p.selectedRequests}
+      selectedQuotes={p.selectedQuotes}
+      quoteNeedingSubmission={p.quoteNeedingSubmission}
+      handoffPending={p.handoffPending}
+      needsActionCount={p.needsActionCount}
+      eventsThisMonth={p.eventsThisMonth}
+      readinessBoard={p.readinessBoard}
+      onNavigate={p.onNavigate}
+    />
+  ),
+  requests: (p) => (
+    <RequestsPage
+      workspace={p.workspace}
+      quoteByRequest={p.quoteByRequest}
+      forms={p.forms}
+      busy={p.busy}
+      onUpdateForm={p.onUpdateForm}
+      onSubmitQuote={p.onSubmitQuote}
+    />
+  ),
+  bookings: (p) => (
+    <BookingsPage
+      selectedRequests={p.selectedRequests}
+      session={p.session}
+      readinessNotes={p.readinessNotes}
+      contractFiles={p.contractFiles}
+      statusNotes={p.statusNotes}
+      busy={p.busy}
+      onReadinessNoteChange={p.onReadinessNoteChange}
+      onContractFileChange={p.onContractFileChange}
+      onStatusNoteChange={p.onStatusNoteChange}
+      onConfirmAssignment={p.onConfirmAssignment}
+      onConfirmReadiness={p.onConfirmReadiness}
+      onSaveContract={p.onSaveContract}
+      onUpdateStatus={p.onUpdateStatus}
+    />
+  ),
+  calendar: (p) => <CalendarPage workspace={p.workspace} quoteByRequest={p.quoteByRequest} />,
+  quotations: (p) => <QuotationsPage workspace={p.workspace} quoteByRequest={p.quoteByRequest} />,
+  messages: () => <MessagesPage />,
+  files: (p) => <FilesPage workspace={p.workspace} />,
+  payments: (p) => <PaymentsPage workspace={p.workspace} />,
+  profile: (p) => <ProfilePage supplier={p.workspace.supplier} session={p.session} />,
+  support: () => <SupportPage />,
+};
+
+export function SupplierWorkspaceSection(props: SupplierWorkspaceSectionProps) {
+  if (!props.workspace) {
+    return props.error ? (
+      <Card>
+        <CardBody>
+          <EmptyState icon={ShieldCheck} title="Unable to load workspace" description={props.error} />
+        </CardBody>
+      </Card>
+    ) : null;
+  }
+  return SECTION_RENDERERS[props.section]({ ...props, workspace: props.workspace });
+}

@@ -31,3 +31,16 @@ export function parseRecordPaymentAmount(raw: string): number {
   const n = Number(raw);
   return Number.isFinite(n) ? n : 0;
 }
+
+export function countNoun(count: number, singular: string) {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
+export function remainingPaymentCopy(atRisk: boolean) {
+  return atRisk ? "Payment at risk" : "Manual tracker";
+}
+
+export function paymentHistoryLabel(count: number) {
+  if (count === 0) return "No payment history.";
+  return `${count} record${count === 1 ? "" : "s"}`;
+}

@@ -37,6 +37,23 @@ export function useShellUI() {
   return c;
 }
 
+function applyViewportBreakpoints(
+  width: number,
+  setIsNarrow: (value: boolean) => void,
+  setLeftOpen: (value: boolean) => void,
+  setRightOpen: (value: boolean) => void,
+) {
+  const narrow = width < 900;
+  const tight = width < 1200;
+  setIsNarrow(narrow);
+  if (narrow) {
+    setLeftOpen(false);
+    setRightOpen(false);
+    return;
+  }
+  if (tight) setRightOpen(false);
+}
+
 function ShellUIProvider({ children }: { children: ReactNode }) {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
@@ -44,16 +61,7 @@ function ShellUIProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function update() {
-      const w = window.innerWidth;
-      const narrow = w < 900;
-      const tight = w < 1200;
-      setIsNarrow(narrow);
-      if (narrow) {
-        setLeftOpen(false);
-        setRightOpen(false);
-      } else if (tight) {
-        setRightOpen(false);
-      }
+      applyViewportBreakpoints(window.innerWidth, setIsNarrow, setLeftOpen, setRightOpen);
     }
     update();
     window.addEventListener("resize", update);
@@ -71,6 +79,88 @@ function ShellUIProvider({ children }: { children: ReactNode }) {
   };
 
   return <ShellCtx.Provider value={value}>{children}</ShellCtx.Provider>;
+}
+
+function dockClass(isNarrow: boolean, edge: "left" | "right"): string {
+  if (!isNarrow) return ["relative", "flex"].join(" ");
+  if (edge === "left") return ["absolute inset-y-0 left-0 z-20 shadow-xl", "flex"].join(" ");
+  return ["absolute inset-y-0 right-0 z-20 shadow-xl", "flex"].join(" ");
+}
+
+function LeftChrome({
+  readOnly,
+  leftOpen,
+  isNarrow,
+}: {
+  readOnly: boolean;
+  leftOpen: boolean;
+  isNarrow: boolean;
+}) {
+  if (readOnly) return null;
+  if (!leftOpen) return null;
+  return (
+    <>
+      <div className={dockClass(isNarrow, "left")}>
+        <LeftPanel />
+      </div>
+      <NarrowLeftScrim isNarrow={isNarrow} />
+    </>
+  );
+}
+
+function NarrowLeftScrim({ isNarrow }: { isNarrow: boolean }) {
+  if (!isNarrow) return null;
+  return (
+    <button
+      aria-label="Close panel"
+      onClick={() => (document.activeElement as HTMLElement)?.blur()}
+      className="absolute inset-0 z-10 bg-black/20"
+      style={{ pointerEvents: "none" }}
+    />
+  );
+}
+
+function FloatingToolbar({ readOnly }: { readOnly: boolean }) {
+  if (readOnly) return null;
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
+      <Toolbar />
+    </div>
+  );
+}
+
+function canvasFrameClass(readOnly: boolean): string {
+  if (readOnly) return "pointer-events-none size-full";
+  return "size-full";
+}
+
+function CanvasColumn({ readOnly }: { readOnly: boolean }) {
+  return (
+    <div className="relative min-w-0 flex-1">
+      <div className={canvasFrameClass(readOnly)}>
+        <Canvas />
+      </div>
+      <FloatingToolbar readOnly={readOnly} />
+    </div>
+  );
+}
+
+function RightChrome({
+  readOnly,
+  rightOpen,
+  isNarrow,
+}: {
+  readOnly: boolean;
+  rightOpen: boolean;
+  isNarrow: boolean;
+}) {
+  if (readOnly) return null;
+  if (!rightOpen) return null;
+  return (
+    <div className={dockClass(isNarrow, "right")}>
+      <RightPanel />
+    </div>
+  );
 }
 
 function Inner({
@@ -99,36 +189,9 @@ function Inner({
         />
       </div>
       <div className="relative flex min-h-0 min-w-0 flex-1">
-        {!readOnly && leftOpen && (
-          <div className={[isNarrow ? "absolute inset-y-0 left-0 z-20 shadow-xl" : "relative", "flex"].join(" ")}>
-            <LeftPanel />
-          </div>
-        )}
-        {!readOnly && isNarrow && leftOpen && (
-          <button
-            aria-label="Close panel"
-            onClick={() => (document.activeElement as HTMLElement)?.blur()}
-            className="absolute inset-0 z-10 bg-black/20"
-            style={{ pointerEvents: "none" }}
-          />
-        )}
-
-        <div className="relative min-w-0 flex-1">
-          <div className={readOnly ? "pointer-events-none size-full" : "size-full"}>
-            <Canvas />
-          </div>
-          {!readOnly && (
-            <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
-              <Toolbar />
-            </div>
-          )}
-        </div>
-
-        {!readOnly && rightOpen && (
-          <div className={[isNarrow ? "absolute inset-y-0 right-0 z-20 shadow-xl" : "relative", "flex"].join(" ")}>
-            <RightPanel />
-          </div>
-        )}
+        <LeftChrome readOnly={readOnly} leftOpen={leftOpen} isNarrow={isNarrow} />
+        <CanvasColumn readOnly={readOnly} />
+        <RightChrome readOnly={readOnly} rightOpen={rightOpen} isNarrow={isNarrow} />
       </div>
       <StatusBar />
     </div>

@@ -1,4 +1,3 @@
-export * from './read-models.module';
 export * from './api/billing.controller';
 export * from './api/client-workspace.controller';
 export * from './api/defense-readiness.controller';

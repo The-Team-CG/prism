@@ -60,6 +60,121 @@ function addMinutes(value: Date, minutes: number) {
   return next;
 }
 
+const AUDIT_EQUAL_FILTERS = ['category', 'eventId', 'actor', 'actionType', 'severity'] as const;
+const DATE_RANGE_DAYS: Record<string, number> = { '24h': 1, '7d': 7, '30d': 30 };
+
+const ACTION_TYPE_NEEDLES: Array<[string, string]> = [
+  ['created', AuditActionType.Create],
+  ['uploaded', AuditActionType.Upload],
+  ['approved', AuditActionType.Approve],
+  ['declined', AuditActionType.Decline],
+  ['assigned', AuditActionType.Assign],
+  ['archived', AuditActionType.Archive],
+  ['resolved', AuditActionType.Resolve],
+  ['marked', AuditActionType.Update],
+  ['updated', AuditActionType.Update],
+  ['signed in', AuditActionType.Login],
+  ['failed login', AuditActionType.LoginFailed],
+];
+
+const CATEGORY_NEEDLES: Array<[string, string]> = [
+  ['billing', AuditCategory.Finance],
+  ['payment', AuditCategory.Finance],
+  ['supplier', AuditCategory.Suppliers],
+  ['quote', AuditCategory.Suppliers],
+  ['portal', AuditCategory.Access],
+  ['access', AuditCategory.Access],
+  ['login', AuditCategory.Access],
+  ['signed in', AuditCategory.Access],
+  ['document', AuditCategory.Documents],
+  ['conforme', AuditCategory.Documents],
+];
+
+function applyAuditEqualFilters(where: Prisma.OpsAuditLogWhereInput, input: AuditLogFilters) {
+  for (const key of AUDIT_EQUAL_FILTERS) {
+    const value = input[key];
+    if (value && value !== 'all') where[key] = value;
+  }
+}
+
+function applyAuditQuery(where: Prisma.OpsAuditLogWhereInput, query?: string) {
+  if (!query) return;
+  where.OR = [
+    { actor: { contains: query, mode: 'insensitive' } },
+    { action: { contains: query, mode: 'insensitive' } },
+    { affectedLabel: { contains: query, mode: 'insensitive' } },
+  ];
+}
+
+function createdAtFromDateRange(dateRange: string, now: Date) {
+  const from = new Date(now);
+  const days = DATE_RANGE_DAYS[dateRange];
+  if (days) from.setDate(from.getDate() - days);
+  return { gte: from };
+}
+
+function applyAuditDateFilters(where: Prisma.OpsAuditLogWhereInput, input: AuditLogFilters) {
+  if (input.dateRange && input.dateRange !== 'all') {
+    where.createdAt = createdAtFromDateRange(input.dateRange, new Date());
+  }
+  if (input.from || input.to) {
+    where.createdAt = {
+      ...(input.from ? { gte: new Date(input.from) } : {}),
+      ...(input.to ? { lte: new Date(input.to) } : {}),
+    };
+  }
+}
+
+function matchNeedleTable(value: string, table: Array<[string, string]>, fallback: string) {
+  for (const [needle, mapped] of table) {
+    if (value.includes(needle)) return mapped;
+  }
+  return fallback;
+}
+
+type LockoutState = {
+  nextFailedCount: number;
+  shouldLock: boolean;
+  nextLockoutCount: number;
+  permanentLockout: boolean;
+};
+
+function lockoutState(user: OpsUser): LockoutState {
+  const nextFailedCount = user.failedLoginCount + 1;
+  const shouldLock = nextFailedCount >= LOGIN_LOCKOUT_THRESHOLD;
+  const nextLockoutCount = shouldLock ? user.lockoutCount + 1 : user.lockoutCount;
+  const permanentLockout = nextLockoutCount >= PERMANENT_LOCKOUT_THRESHOLD;
+  return { nextFailedCount, shouldLock, nextLockoutCount, permanentLockout };
+}
+
+function lockoutUserData(user: OpsUser, now: Date, state: LockoutState) {
+  return {
+    failedLoginCount: state.shouldLock ? 0 : state.nextFailedCount,
+    lockoutCount: state.nextLockoutCount,
+    lockedUntil: state.shouldLock && !state.permanentLockout ? addMinutes(now, LOGIN_LOCKOUT_MINUTES) : user.lockedUntil,
+    permanentLockout: state.permanentLockout,
+  };
+}
+
+function lockoutHistory(state: LockoutState) {
+  return {
+    status: state.shouldLock ? LoginHistoryStatus.Locked : LoginHistoryStatus.Failed,
+    reason: state.shouldLock ? 'Account locked after repeated failed attempts' : 'Invalid password',
+    severity: state.shouldLock ? 'critical' : 'warning',
+  };
+}
+
+function lockoutAlertPayload(user: OpsUser, state: LockoutState) {
+  return {
+    type: state.permanentLockout ? 'permanent_account_lockout' : 'account_lockout',
+    title: state.permanentLockout ? 'Permanent account lockout' : 'Account lockout triggered',
+    description: `${user.email} was locked after repeated failed login attempts.`,
+    severity: state.permanentLockout ? 'critical' : 'warning',
+    triggeredBy: user.email,
+    metadata: { userId: user.id, role: user.role, lockoutCount: state.nextLockoutCount },
+  };
+}
+
 @Injectable()
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
@@ -224,27 +339,15 @@ export class AuditService {
 
   async handleFailedLogin(user: OpsUser) {
     const now = new Date();
-    const nextFailedCount = user.failedLoginCount + 1;
-    const shouldLock = nextFailedCount >= LOGIN_LOCKOUT_THRESHOLD;
-    const nextLockoutCount = shouldLock ? user.lockoutCount + 1 : user.lockoutCount;
-    const permanentLockout = nextLockoutCount >= PERMANENT_LOCKOUT_THRESHOLD;
+    const state = lockoutState(user);
 
     await this.prisma.opsUser.update({
       where: { id: user.id },
-      data: {
-        failedLoginCount: shouldLock ? 0 : nextFailedCount,
-        lockoutCount: nextLockoutCount,
-        lockedUntil: shouldLock && !permanentLockout ? addMinutes(now, LOGIN_LOCKOUT_MINUTES) : user.lockedUntil,
-        permanentLockout,
-      },
+      data: lockoutUserData(user, now, state),
     });
 
-    await this.recordLoginHistory(
-      user,
-      user.email,
-      shouldLock ? LoginHistoryStatus.Locked : LoginHistoryStatus.Failed,
-      shouldLock ? 'Account locked after repeated failed attempts' : 'Invalid password',
-    );
+    const history = lockoutHistory(state);
+    await this.recordLoginHistory(user, user.email, history.status, history.reason);
 
     await this.audit(undefined, user.name, `Failed login attempt for ${user.email}`, {
       actorRole: user.role,
@@ -254,19 +357,12 @@ export class AuditService {
       affectedType: 'account',
       affectedId: user.id,
       affectedLabel: user.email,
-      severity: shouldLock ? 'critical' : 'warning',
-      metadata: { failedAttempt: nextFailedCount, lockoutCount: nextLockoutCount },
+      severity: history.severity,
+      metadata: { failedAttempt: state.nextFailedCount, lockoutCount: state.nextLockoutCount },
     });
 
-    if (shouldLock) {
-      await this.createSecurityAlert({
-        type: permanentLockout ? 'permanent_account_lockout' : 'account_lockout',
-        title: permanentLockout ? 'Permanent account lockout' : 'Account lockout triggered',
-        description: `${user.email} was locked after repeated failed login attempts.`,
-        severity: permanentLockout ? 'critical' : 'warning',
-        triggeredBy: user.email,
-        metadata: { userId: user.id, role: user.role, lockoutCount: nextLockoutCount },
-      });
+    if (state.shouldLock) {
+      await this.createSecurityAlert(lockoutAlertPayload(user, state));
     }
   }
 
@@ -401,34 +497,9 @@ export class AuditService {
 
   private auditWhere(input: AuditLogFilters) {
     const where: Prisma.OpsAuditLogWhereInput = {};
-    if (input.category && input.category !== 'all') where.category = input.category;
-    if (input.eventId && input.eventId !== 'all') where.eventId = input.eventId;
-    if (input.actor && input.actor !== 'all') where.actor = input.actor;
-    if (input.actionType && input.actionType !== 'all') where.actionType = input.actionType;
-    if (input.severity && input.severity !== 'all') where.severity = input.severity;
-    if (input.query) {
-      where.OR = [
-        { actor: { contains: input.query, mode: 'insensitive' } },
-        { action: { contains: input.query, mode: 'insensitive' } },
-        { affectedLabel: { contains: input.query, mode: 'insensitive' } },
-      ];
-    }
-
-    const now = new Date();
-    if (input.dateRange && input.dateRange !== 'all') {
-      const from = new Date(now);
-      if (input.dateRange === '24h') from.setDate(from.getDate() - 1);
-      if (input.dateRange === '7d') from.setDate(from.getDate() - 7);
-      if (input.dateRange === '30d') from.setDate(from.getDate() - 30);
-      where.createdAt = { gte: from };
-    }
-    if (input.from || input.to) {
-      where.createdAt = {
-        ...(input.from ? { gte: new Date(input.from) } : {}),
-        ...(input.to ? { lte: new Date(input.to) } : {}),
-      };
-    }
-
+    applyAuditEqualFilters(where, input);
+    applyAuditQuery(where, input.query);
+    applyAuditDateFilters(where, input);
     return where;
   }
 
@@ -443,27 +514,11 @@ export class AuditService {
   }
 
   private inferActionType(action: string) {
-    const value = action.toLowerCase();
-    if (value.includes('created')) return AuditActionType.Create;
-    if (value.includes('uploaded')) return AuditActionType.Upload;
-    if (value.includes('approved')) return AuditActionType.Approve;
-    if (value.includes('declined')) return AuditActionType.Decline;
-    if (value.includes('assigned')) return AuditActionType.Assign;
-    if (value.includes('archived')) return AuditActionType.Archive;
-    if (value.includes('resolved')) return AuditActionType.Resolve;
-    if (value.includes('marked') || value.includes('updated')) return AuditActionType.Update;
-    if (value.includes('signed in')) return AuditActionType.Login;
-    if (value.includes('failed login')) return AuditActionType.LoginFailed;
-    return AuditActionType.General;
+    return matchNeedleTable(action.toLowerCase(), ACTION_TYPE_NEEDLES, AuditActionType.General);
   }
 
   private inferCategory(action: string) {
-    const value = action.toLowerCase();
-    if (value.includes('billing') || value.includes('payment')) return AuditCategory.Finance;
-    if (value.includes('supplier') || value.includes('quote')) return AuditCategory.Suppliers;
-    if (value.includes('portal') || value.includes('access') || value.includes('login') || value.includes('signed in')) return AuditCategory.Access;
-    if (value.includes('document') || value.includes('conforme')) return AuditCategory.Documents;
-    return AuditCategory.Events;
+    return matchNeedleTable(action.toLowerCase(), CATEGORY_NEEDLES, AuditCategory.Events);
   }
 
   mapAuditLog(log: OpsAuditLog) {

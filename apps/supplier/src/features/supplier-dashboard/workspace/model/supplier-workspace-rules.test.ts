@@ -7,6 +7,7 @@ import {
   countHandoffPending,
   countQuotesNeedingSubmission,
   countReadinessNeedsAction,
+  dashboardGreetingCopy,
   deriveWorkspace,
   filterOpenRequests,
   filterSelectedQuotes,
@@ -20,6 +21,8 @@ import {
   isPastDate,
   isRequestClosed,
   parseQuoteForm,
+  quoteRequestsNavDesc,
+  bookingsNavDesc,
   quoteSubmitSuccessNotice,
 } from "./supplier-workspace-rules";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
@@ -214,5 +217,24 @@ describe("supplier-workspace-rules", () => {
     expect(firstNameFrom("Ops Lead")).toBe("Ops");
     expect(quoteSubmitSuccessNotice(true)).toBe("Quote revision submitted.");
     expect(quoteSubmitSuccessNotice(false)).toBe("Quote submitted.");
+  });
+
+  it("builds dashboard greeting and quick-nav copy", () => {
+    expect(
+      dashboardGreetingCopy({ needsActionCount: 2, quoteNeedingSubmission: 1, openRequestCount: 3 }),
+    ).toBe("2 actions need your attention — 1 quote to submit.");
+    expect(
+      dashboardGreetingCopy({ needsActionCount: 1, quoteNeedingSubmission: 0, openRequestCount: 1 }),
+    ).toBe("1 action need your attention — handoff items pending.");
+    expect(
+      dashboardGreetingCopy({ needsActionCount: 0, quoteNeedingSubmission: 0, openRequestCount: 2 }),
+    ).toBe("2 open requests — all quotes submitted and up to date.");
+    expect(
+      dashboardGreetingCopy({ needsActionCount: 0, quoteNeedingSubmission: 0, openRequestCount: 0 }),
+    ).toBe("No open requests right now. PMCM will notify you when a new quote request arrives.");
+    expect(quoteRequestsNavDesc(2, 4)).toBe("2 quote(s) need submission");
+    expect(quoteRequestsNavDesc(0, 3)).toBe("3 open request(s)");
+    expect(bookingsNavDesc(1, 2)).toBe("1 handoff item(s) pending");
+    expect(bookingsNavDesc(0, 1)).toBe("All steps complete");
   });
 });

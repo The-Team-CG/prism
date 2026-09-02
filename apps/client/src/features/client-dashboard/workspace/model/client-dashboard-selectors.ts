@@ -1,4 +1,5 @@
-import type { PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft, PrismUser } from "@prism/types";
+import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft, PrismUser } from "@prism/types";
+import { actionCenterItemToDashboardAction, draftIsOfficial, type ClientDashboardAction } from "./client-dashboard-view-rules";
 
 export function selectClientEvents(
   state: Pick<PrismClientWorkspace, "events"> | null | undefined,
@@ -53,4 +54,22 @@ export function selectEventWorkspaceResources(
     notifications: state.notificationLogs.filter((notification) => notification.eventId === selectedEvent.id).slice(0, 4),
     payments: state.paymentMilestones.filter((payment) => payment.eventId === selectedEvent.id),
   };
+}
+
+export function selectOfficialDraft(eventDrafts: PrismFloorPlanDraft[]) {
+  return eventDrafts.find((draft) => draft.isActive && draftIsOfficial(draft)) ?? eventDrafts.find(draftIsOfficial);
+}
+
+export function selectPreferenceDrafts(eventDrafts: PrismFloorPlanDraft[]) {
+  return eventDrafts.filter((draft) => draft.createdByRole === "client" || draft.sourceType === "client_preference");
+}
+
+export function selectClientDashboardActions(
+  actionCenter: { items: PrismClientActionItem[] } | null | undefined,
+  eventId?: string,
+): ClientDashboardAction[] {
+  if (!actionCenter || !eventId) return [];
+  return actionCenter.items
+    .filter((item) => item.eventId === eventId)
+    .map(actionCenterItemToDashboardAction);
 }
