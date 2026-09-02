@@ -4,6 +4,9 @@
   "private": true,
   "description": "P.R.I.S.M local-only event operations monorepo.",
   "packageManager": "npm@11.6.2",
+  "engines": {
+    "node": ">=24"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -27,7 +30,8 @@
     "db:generate": "npm --workspace prism-api run db:generate",
     "smoke:ui": "node scripts/smoke-prism-ui.mjs",
     "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs",
-    "check:boundaries": "node scripts/check-prism-boundaries.mjs"
+    "check:boundaries": "node scripts/check-prism-boundaries.mjs",
+    "postinstall": "npm --workspace @prism/types run build"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
