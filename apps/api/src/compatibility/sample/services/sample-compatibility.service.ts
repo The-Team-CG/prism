@@ -1700,6 +1700,8 @@ export class SampleCompatibilityService implements OnModuleInit {
     await this.ensureSupplierQuoteSampleSeeded();
     await this.ensurePareAssignedSuppliersSeeded();
     await this.ensureCoordinatorPoolSeeded();
+    await this.ensureUnassignedScopingEventSeeded();
+    await this.ensureAyalaCoordinatorAssignmentSeeded();
     await this.ensureInquiryOnboardingBackfilled();
     await this.ensureSecurityAuditSeeded();
   }
@@ -1917,6 +1919,81 @@ export class SampleCompatibilityService implements OnModuleInit {
         createdAt: new Date(),
       })),
       skipDuplicates: true,
+    });
+  }
+
+  private async ensureUnassignedScopingEventSeeded() {
+    const createdAt = new Date();
+    const existingInquiry = await this.prisma.opsInquiry.findUnique({ where: { id: 'inq_sample_unassigned' } });
+    if (!existingInquiry) {
+      await this.prisma.opsInquiry.create({
+        data: {
+          id: 'inq_sample_unassigned',
+          clientName: 'Scope Fixture Client',
+          companyName: 'PMCM Fixture',
+          email: 'scope@pmcm.test',
+          eventName: 'Coordinator Scope Check 2026',
+          eventType: 'Corporate Summit',
+          eventDate: new Date('2026-11-04'),
+          clientType: 'Corporate',
+          source: 'P.R.I.S.M Website',
+          message: 'Fixture event with no coordinator assignment, used for negative event-scoping checks.',
+          status: 'accepted',
+          acceptedAt: createdAt,
+          conformeSentAt: createdAt,
+          conformeSignedAt: createdAt,
+          portalActivatedAt: createdAt,
+          portalInvitationStatus: 'opened',
+          privacyConsentAccepted: true,
+          privacyNoticeVersion: '2026-05-01',
+          createdAt,
+        },
+      });
+    }
+
+    const existingEvent = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_sample_unassigned' } });
+    if (existingEvent) return;
+
+    await this.prisma.opsEvent.create({
+      data: {
+        id: 'evt_sample_unassigned',
+        inquiryId: 'inq_sample_unassigned',
+        clientName: 'Scope Fixture Client',
+        eventName: 'Coordinator Scope Check 2026',
+        eventDate: new Date('2026-11-04'),
+        status: 'planning',
+        clientPortalStatus: 'unlocked',
+        readiness: 'Conforme signed',
+        archived: false,
+        createdAt,
+        updatedAt: createdAt,
+      },
+    });
+  }
+
+  private async ensureAyalaCoordinatorAssignmentSeeded() {
+    const marco = await this.prisma.opsCoordinator.findUnique({ where: { id: 'coord_marco' } });
+    const ayala = await this.prisma.opsEvent.findUnique({ where: { id: 'evt_sample_ayala' } });
+    if (!marco || !ayala) return;
+
+    const existing = await this.prisma.opsCoordinatorAssignment.findFirst({
+      where: { eventId: 'evt_sample_ayala', coordinatorId: 'coord_marco' },
+    });
+    if (existing) return;
+
+    const createdAt = new Date();
+    await this.prisma.opsCoordinatorAssignment.create({
+      data: {
+        id: 'coord_asg_ayala_marco',
+        eventId: 'evt_sample_ayala',
+        coordinatorId: 'coord_marco',
+        coordinatorName: 'Marco Santos',
+        role: 'Floor Director',
+        status: 'acknowledged',
+        eventDate: ayala.eventDate,
+        acknowledgedAt: createdAt,
+        createdAt,
+      },
     });
   }
 
@@ -2504,6 +2581,10 @@ export class SampleCompatibilityService implements OnModuleInit {
         },
       });
     });
+
+    await this.ensureCoordinatorPoolSeeded();
+    await this.ensureUnassignedScopingEventSeeded();
+    await this.ensureAyalaCoordinatorAssignmentSeeded();
   }
 
   private async requireEvent(eventId: string) {

@@ -4,12 +4,12 @@ title: "P.R.I.S.M portal accounts"
 description: "Local demo accounts, access paths, and role-boundary notes for Prism portal verification."
 tags: [runbook, accounts, demo, roles]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-02"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, QA, agents]
 scope: "local sample accounts and role-bound portal sign-in"
-last_verified: "581e676"
+last_verified: "2026-09-02"
 sources:
   - id: sample-seed
     resource: "apps/api/src/compatibility/sample"
@@ -75,6 +75,15 @@ flowers@bloom.test / prism-supplier
 Access code: AYALA-TECH-YALA
 Guest name: any display name (e.g. Sofia Lim)
 ```
+
+### Seeded events
+
+| Event id | Name | Coordinator assignment |
+| --- | --- | --- |
+| `evt_sample_ayala` | Ayala Tech Summit 2026 | Marco Santos (`coord_asg_ayala_marco`, Floor Director) |
+| `evt_sample_unassigned` | Coordinator Scope Check 2026 | none — use for unassigned-event 403s |
+
+A sample reset or API boot with an empty user table creates both. Existing databases gain the second event on the next `ensureSeeded()` without a full reset.
 
 ## How to load / refresh accounts
 

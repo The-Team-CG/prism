@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3004",
+    "dev": "node ../../scripts/kill-prism-port.cjs --app event --port 3004 && next dev --port 3004",
+    "prebuild": "node ../../scripts/clean-next-dev.cjs",
     "build": "next build",
-    "start": "next start --port 3004",
+    "start": "node ../../scripts/kill-prism-port.cjs --app event --port 3004 && next start --port 3004",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node ../../scripts/clean-next-dev.cjs && tsc --noEmit",
     "lint": "next lint"
   },
   "dependencies": {
