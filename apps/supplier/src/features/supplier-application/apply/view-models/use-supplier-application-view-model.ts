@@ -9,6 +9,7 @@ import {
   previousSupplierApplicationStep,
 } from "../model/supplier-application-rules";
 import {
+  FALLBACK_SUPPLIER_CATEGORIES,
   INITIAL_SUPPLIER_APPLICATION_FORM,
   type SupplierApplicationForm,
   type SupplierApplicationSubmitStatus,
@@ -20,13 +21,21 @@ export function useSupplierApplicationViewModel() {
   const [currentStep, setCurrentStep] = useState(0);
   const [status, setStatus] = useState<SupplierApplicationSubmitStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(FALLBACK_SUPPLIER_CATEGORIES);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   useEffect(() => {
     supplierApplicationRepository
       .listCategories()
-      .then(setCategories)
-      .catch(() => {});
+      .then((cats) => {
+        if (cats.length > 0) setCategories(cats);
+        setCategoriesError(null);
+      })
+      .catch((err: unknown) => {
+        setCategoriesError(err instanceof Error ? err.message : "Unable to load service categories");
+      })
+      .finally(() => setCategoriesLoading(false));
   }, []);
 
   const submitted = status === "submitted";
@@ -81,6 +90,8 @@ export function useSupplierApplicationViewModel() {
     busy,
     error,
     categories,
+    categoriesError,
+    categoriesLoading,
     update,
     canContinue,
     nextStep,
