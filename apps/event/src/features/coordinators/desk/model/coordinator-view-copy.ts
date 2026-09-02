@@ -64,6 +64,21 @@ export function coordinatorAssignmentDetail(assignment: { status: string } | und
   return labelStatus(assignment.status);
 }
 
+export function coordinatorTaskFormCopy(busy: boolean, routesAway: boolean) {
+  return {
+    submitLabel: busy ? "Logging task..." : "Log task",
+    routesAwayNotice: routesAway
+      ? "This task routes to another role queue and will not appear in your list below."
+      : null,
+  };
+}
+
+export function coordinatorIssueFormCopy(busy: boolean) {
+  return {
+    submitLabel: busy ? "Logging issue..." : "Log urgent issue",
+  };
+}
+
 export const COORDINATOR_NAV_SCROLL: Record<string, string> = {
   "coord-queue": "coordinator-role-queue",
   "coord-issues": "coordinator-live-data",
