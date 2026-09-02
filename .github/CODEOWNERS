@@ -1,2 +1,10 @@
 ﻿*       @antoneeeeems
 
+# Second-owner review for architecture, contracts, and platform-trust paths.
+# Add Francis's GitHub username on these lines once confirmed.
+/apps/api/                              @antoneeeeems
+/packages/types/                        @antoneeeeems
+/packages/api-client/                   @antoneeeeems
+/docs/architecture/                    @antoneeeeems
+/docs/constitution.md                    @antoneeeeems
+/docs/product/readiness-foundation.md    @antoneeeeems

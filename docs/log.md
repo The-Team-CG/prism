@@ -1,5 +1,16 @@
 # Documentation bundle update log
 
+## 2026-09-02
+
+- **Documented:** Fresh-clone bootstrap (types build, Prisma generate, paused
+  Supabase, migrate deploy, `.next/dev` trap) in the README and Docker
+  runbook; seeded-event table in portal accounts.
+- **Governed:** Constitution now states that second-owner review cannot be
+  self-certified and must appear on the GitHub reviews array.
+- **Recorded:** EP-11-S02 findings (PA-290, PA-287, PA-288, PA-291, PA-294,
+  PA-296, PA-295, PA-284, PA-292) on the architecture priority/risk matrix as
+  parked follow-up, not a sweep.
+
 ## 2026-09-01
 
 - **Created:** Adopted an OKF v0.2-style bundle landing, constitution, typed
