@@ -60,6 +60,18 @@ stop-prism-docker.cmd
 
 Sample sign-in accounts: [`docs/runbooks/portal-accounts.md`](docs/runbooks/portal-accounts.md).
 
+### Fresh clone or clean pull of staging
+
+`npm install` and `start-prism.cmd` chain the generated pieces. If a portal or API still fails typecheck or cannot reach the database, run:
+
+1. Node 24 (`node -v`). CI and this repo standardise on 24; Node 22 warns on jsdom/undici.
+2. `npm install` (root `postinstall` builds `@prism/types`; `apps/api` postinstall runs `prisma generate`).
+3. Wake the Supabase project if the free tier has paused.
+4. `npm --workspace prism-api run db:setup` (migrate deploy after `db:doctor`).
+5. If `next build` compiled but typecheck failed, delete that app’s `.next/dev/` (or rely on `prebuild`). `next build` writes `.next/types/` and does not clean `.next/dev/`.
+
+`db:doctor` may warn that `DIRECT_URL` points at a pooler. That is an accepted local constraint while paid IPv4 direct access is unavailable; keep `ALLOW_POOLER_FOR_PRISMA=1`.
+
 ### Local options (`start-prism.cmd`)
 
 ```bat
