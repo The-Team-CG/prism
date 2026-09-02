@@ -45,12 +45,12 @@ type UpdateFn = <K extends keyof SupplierApplicationForm>(key: K, value: Supplie
 export function SupplierApplicationSubmitted({ onReset }: { onReset: () => void }) {
   return (
     <main className="h-dvh bg-background text-foreground">
-      <section className="relative h-full overflow-hidden">
+      <section className="relative h-full min-h-0 overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.98),rgba(233,247,251,0.72)_58%,rgba(255,248,242,0.96))]" />
         <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(204,236,244,0.72)_1px,transparent_1px),linear-gradient(90deg,rgba(204,236,244,0.72)_1px,transparent_1px)] [background-size:42px_42px]" />
-        <div className="relative grid h-full lg:grid-cols-[452px_minmax(0,1fr)]">
+        <div className="relative grid h-full min-h-0 overflow-hidden lg:grid-cols-[452px_minmax(0,1fr)]">
           <ApplyAside submitted />
-          <section className="grid h-full place-items-center overflow-y-auto px-5 py-6 lg:px-7">
+          <section className="grid h-full min-h-0 place-items-center overflow-y-auto px-5 py-6 lg:px-7">
             <div className="max-w-xl text-center">
               <span className="mx-auto grid size-20 place-items-center rounded-full bg-(--prism-success)/10 text-(--prism-success)">
                 <CheckCircle2 className="size-10" />
@@ -75,7 +75,7 @@ export function SupplierApplicationSubmitted({ onReset }: { onReset: () => void 
 
 export function ApplyAside({ submitted = false }: { submitted?: boolean }) {
   return (
-    <aside className="relative flex min-h-[360px] flex-col justify-between overflow-hidden border-r border-primary/10 bg-card/50 px-8 py-7 sm:px-10 lg:h-full">
+    <aside className="relative flex max-h-[100dvh] min-h-[360px] flex-col justify-between overflow-hidden overflow-y-auto border-r border-primary/10 bg-card/50 px-8 py-7 sm:px-10 lg:h-full lg:max-h-none lg:min-h-0">
       <div className="pointer-events-none absolute -bottom-56 -left-24 size-[34rem] rounded-full border border-primary/20" />
       <div className="pointer-events-none absolute -bottom-40 left-44 size-[30rem] rounded-full border border-primary/20" />
       <div className="pointer-events-none absolute bottom-60 right-[3.25rem] hidden size-5 rotate-45 bg-primary shadow-[0_0_28px_rgba(202,18,96,0.24)] lg:block" />
@@ -201,10 +201,14 @@ function ServicesStep({
   form,
   update,
   categories,
+  categoriesError,
+  categoriesLoading,
 }: {
   form: SupplierApplicationForm;
   update: UpdateFn;
   categories: { id: string; name: string }[];
+  categoriesError?: string | null;
+  categoriesLoading?: boolean;
 }) {
   return (
     <section>
@@ -214,7 +218,7 @@ function ServicesStep({
           <FieldLabel>Service Category *</FieldLabel>
           <Select value={form.categoryId} onValueChange={(value) => update("categoryId", value)}>
             <SelectTrigger className={compactSelectTriggerClass}>
-              <SelectValue placeholder="Select service category" />
+              <SelectValue placeholder={categoriesLoading ? "Loading categories…" : "Select service category"} />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
@@ -224,6 +228,12 @@ function ServicesStep({
               </SelectGroup>
             </SelectContent>
           </Select>
+          {categoriesError ? (
+            <FieldDescription className="text-amber-600">Showing demo categories — live list unavailable: {categoriesError}</FieldDescription>
+          ) : null}
+          {categories.length === 0 && !categoriesLoading ? (
+            <FieldDescription className="text-muted-foreground">No service categories found — contact PMCM.</FieldDescription>
+          ) : null}
         </Field>
         <Field>
           <FieldLabel htmlFor="pastEvents">Past Events Portfolio</FieldLabel>
@@ -382,6 +392,8 @@ export function ApplicationStepBody({
   form,
   update,
   categories,
+  categoriesError,
+  categoriesLoading,
   error,
   resolveCategoryName,
 }: {
@@ -389,11 +401,22 @@ export function ApplicationStepBody({
   form: SupplierApplicationForm;
   update: UpdateFn;
   categories: { id: string; name: string }[];
+  categoriesError?: string | null;
+  categoriesLoading?: boolean;
   error: string | null;
   resolveCategoryName: (categoryId: string) => string | undefined;
 }) {
   if (currentStep === 0) return <CompanyStep form={form} update={update} />;
-  if (currentStep === 1) return <ServicesStep form={form} update={update} categories={categories} />;
+  if (currentStep === 1)
+    return (
+      <ServicesStep
+        form={form}
+        update={update}
+        categories={categories}
+        categoriesError={categoriesError}
+        categoriesLoading={categoriesLoading}
+      />
+    );
   if (currentStep === 2) return <CertificationsStep form={form} update={update} />;
   return <ReviewStep form={form} update={update} error={error} resolveCategoryName={resolveCategoryName} />;
 }
@@ -413,7 +436,7 @@ export function ApplicationWizardFooter({
 }) {
   const isLast = currentStep >= wizardSteps.length - 1;
   return (
-    <div className="flex min-h-[148px] items-center justify-between gap-3 border-t border-border bg-card px-6 py-7 sm:px-10 lg:px-12">
+    <div className="flex min-h-[96px] shrink-0 items-center justify-between gap-3 border-t border-border bg-card px-6 py-4 sm:min-h-[112px] sm:py-5 lg:min-h-[128px] lg:px-12 lg:py-6">
       {currentStep > 0 ? (
         <Button type="button" variant="outline" onClick={onBack} disabled={busy} className="h-14 rounded-lg px-8 text-base font-black">
           <ChevronLeft className="size-5" />
@@ -451,13 +474,13 @@ export function ApplicationFormShell({
   return (
     <form
       onSubmit={onSubmit}
-      className="flex h-full w-full max-w-[1320px] flex-col overflow-hidden rounded-lg border border-border/80 bg-card/95 shadow-[0_24px_80px_rgba(23,18,22,0.09)] backdrop-blur"
+      className="flex h-full max-h-[calc(100dvh-3rem)] min-h-0 w-full max-w-[1320px] flex-col overflow-hidden rounded-lg border border-border/80 bg-card/95 shadow-[0_24px_80px_rgba(23,18,22,0.09)] backdrop-blur"
     >
-      <div className="px-6 pb-[4.5rem] pt-9 sm:px-10 lg:px-12">
+      <div className="shrink-0 px-6 pb-6 pt-6 sm:px-10 sm:pt-9 lg:px-12 lg:pb-8">
         <Stepper currentStep={currentStep} />
       </div>
-      <div className="flex-1 overflow-y-auto px-6 pb-8 sm:px-10 lg:px-12">{children}</div>
-      {footer}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-8 sm:px-10 lg:px-12">{children}</div>
+      <div className="shrink-0">{footer}</div>
     </form>
   );
 }
