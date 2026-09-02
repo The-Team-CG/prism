@@ -63,6 +63,7 @@ import {
   type CreateCoordinatorAssignmentInput,
   CoordinatorsService,
   GuestWorkflowService,
+  RegistrationPlatformService,
   type GuestCheckInInput,
   type GuestFeedbackInput,
 } from '@prism/contexts/operations';
@@ -611,6 +612,7 @@ export class SampleCompatibilityService implements OnModuleInit {
     private readonly complianceWorkflowService: ComplianceWorkflowService,
     private readonly clientOnboardingWorkflowService: ClientOnboardingWorkflowService,
     private readonly guestWorkflowService: GuestWorkflowService,
+    private readonly registrationPlatformService: RegistrationPlatformService,
     private readonly aiGovernanceService: AiGovernanceService,
     private readonly sampleStateService: SampleStateService,
     private readonly inquiryWorkflowService: InquiryWorkflowService,
@@ -692,6 +694,7 @@ export class SampleCompatibilityService implements OnModuleInit {
       staffingReader: this.coordinatorsService,
       floorplanReader: this.floorPlanWorkflowService,
       guestReader: this.guestWorkflowService,
+      registrationPlatformService: this.registrationPlatformService,
     });
   }
   async state() {

@@ -13,6 +13,7 @@ import {
   ListChecks,
   MapPinned,
   MessageSquareText,
+  QrCode,
   Radio,
   ReceiptText,
   RotateCcw,
@@ -189,6 +190,7 @@ export type PmcmDetailTab =
   | "floorplans"
   | "briefing"
   | "suppliers"
+  | "registration"
   | "coordinators"
   | "live-ops"
   | "billing"
@@ -222,6 +224,7 @@ export function buildEventWorkflowTabs({
     { id: "floorplans", label: "Floorplans", icon: MapPinned, badge: draftsCount || undefined },
     { id: "briefing", label: "Briefing", icon: FileCheck2 },
     { id: "suppliers", label: "Suppliers", icon: Truck, badge: quotesCount || undefined },
+    { id: "registration", label: "Registration", icon: QrCode },
     { id: "coordinators", label: "Coordinators", icon: UserCheck, badge: assignmentsCount || undefined },
     { id: "live-ops", label: "Live ops", icon: Radio },
     { id: "billing", label: "Finance", icon: ReceiptText, badge: paymentsCount || undefined },

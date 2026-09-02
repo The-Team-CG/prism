@@ -13,7 +13,7 @@ import {
 } from '@prism/contexts/event-lifecycle';
 import { CommercialWorkflowService } from '@prism/contexts/commercial';
 import { ComplianceWorkflowService } from '@prism/contexts/event-lifecycle';
-import { CoordinatorsService } from '@prism/contexts/operations';
+import { CoordinatorsService, RegistrationPlatformService } from '@prism/contexts/operations';
 import { DocumentVaultService, FileRequirementsMatrixService } from '@prism/contexts/event-lifecycle';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventClosureService } from '@prism/contexts/event-lifecycle';
@@ -1041,6 +1041,11 @@ function createSampleCompatibilityService(prisma: any) {
     mapGuestCheckIn: (checkIn: any) => guestWorkflowService.mapGuestCheckIn(checkIn),
     mapGuestFeedback: (feedback: any) => guestWorkflowService.mapGuestFeedback(feedback),
   } as any;
+  const registrationPlatformService = new RegistrationPlatformService(
+    prisma,
+    auditWriter,
+    workflowCommandService,
+  );
   const eventReadModelsService = new EventReadModelsService(
     new EventReadModelQueries(prisma as any),
     eventAccessPolicyService,
@@ -1116,6 +1121,7 @@ function createSampleCompatibilityService(prisma: any) {
     complianceWorkflowService,
     clientOnboardingWorkflowService,
     guestWorkflowService,
+    registrationPlatformService,
     aiGovernanceService,
     sampleStateService,
     inquiryWorkflowService,

@@ -13,7 +13,8 @@ import { writeAudit } from '@prism/kernel/access-control';
 import { AuthSessionService } from '@prism/kernel/event-session';
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
-import { INQUIRY_COMMANDS, type InquiryCommands } from '@prism/contexts/event-lifecycle';
+import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
+import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
 
 function timestamp(value: Date) {

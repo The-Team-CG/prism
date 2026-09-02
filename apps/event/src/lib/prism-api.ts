@@ -58,6 +58,10 @@ import type {
   PARERisk,
   PrismUser,
   PrismAuthenticatedSession,
+  PrismRegistrationPlatform,
+  CreateRegistrationPlatformInput,
+  UpdateRegistrationPlatformInput,
+  ImportHeadcountInput,
   CreateEventDayTaskInput,
   EscalateLiveOpsInput,
   ReplaceCoordinatorAssignmentInput,
@@ -124,6 +128,10 @@ export type {
   PAREResult,
   PARERisk,
   PrismUser,
+  PrismRegistrationPlatform,
+  CreateRegistrationPlatformInput,
+  UpdateRegistrationPlatformInput,
+  ImportHeadcountInput,
 };
 type CreateFloorPlanDraftInput = {
   name: string;
@@ -702,4 +710,27 @@ export const prismApi = {
     request<PAREApprovalRecord>(`/api/ai/pare/${approvalRecordId}/approve`, { method: "PATCH" }),
   pareReject: (approvalRecordId: string) =>
     request<PAREApprovalRecord>(`/api/ai/pare/${approvalRecordId}/reject`, { method: "PATCH" }),
+
+  // ─── Registration Platform ───────────────────────────────────────────────
+  getRegistrationPlatform: (eventId: string) =>
+    eventOpsClient.pmcm.registrationPlatform(eventId, {
+      actorRole: "pmcm-admin",
+      actorName: "Ms. Mys",
+      actorEmail: "mys@pmcm.test",
+    }),
+  upsertRegistrationPlatform: (eventId: string, input: CreateRegistrationPlatformInput) =>
+    request<PrismRegistrationPlatform>(withPmcmActor(`/api/events/${eventId}/registration-platform`), {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateRegistrationPlatform: (eventId: string, input: UpdateRegistrationPlatformInput) =>
+    request<PrismRegistrationPlatform>(withPmcmActor(`/api/events/${eventId}/registration-platform`), {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+  importHeadcount: (eventId: string, input: ImportHeadcountInput) =>
+    request<PrismRegistrationPlatform>(withPmcmActor(`/api/events/${eventId}/registration-platform/headcount-import`), {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
 };

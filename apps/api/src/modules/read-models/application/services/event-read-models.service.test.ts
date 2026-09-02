@@ -137,6 +137,7 @@ function createPassthroughPmcmMappers() {
     mapFloorPlanDraft: (draft: any) => draft,
     mapAuditLog: (log: any) => log,
     mapNotificationLog: (log: any) => log,
+    mapRegistrationPlatform: (platform: any) => platform,
   };
 }
 function createPmcmReadModelService() {
@@ -222,6 +223,7 @@ function createPmcmReadModelService() {
     opsEventInsight: { findMany: vi.fn(async () => []) },
     opsAuditLog: { findMany: vi.fn(async () => []) },
     opsNotificationLog: { findMany: vi.fn(async () => []) },
+    opsRegistrationPlatform: { findUnique: vi.fn(async () => null) },
     opsSupplierCategory: {
       findMany: vi.fn(async () => [
         {
@@ -477,6 +479,7 @@ describe('EventReadModelsService', () => {
       mapFloorPlanDraft: (draft) => draft,
       mapAuditLog: (log) => log,
       mapNotificationLog: (log) => log,
+      mapRegistrationPlatform: (platform) => platform,
     });
 
     expect(workspace.event).toEqual({ id: 'evt_visible', eventName: 'Ayala Summit' });

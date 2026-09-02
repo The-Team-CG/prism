@@ -11,5 +11,8 @@ export * from './contracts/guest-commands.port';
 export * from './contracts/guest-reader.port';
 export * from './contracts/guest-ops.tokens';
 export * from './application/guest/guest-workflow.service';
+export * from './application/guest/registration-platform.service';
 export * from './api/guest/guest.controller';
 export * from './api/guest/guest.dto';
+export * from './api/guest/registration-platform.controller';
+export * from './api/guest/registration-platform.dto';

@@ -12,6 +12,7 @@ import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
+import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventMessagesWorkspace } from "@/app/(portal)/dashboard/components/event-messages-workspace";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
@@ -322,6 +323,21 @@ export function EventWorkspaceActivityTab() {
       session={vm.session}
       audit={vm.audit}
       notificationLogs={vm.notificationLogs}
+    />
+  );
+}
+
+export function EventWorkspaceRegistrationTab() {
+  const vm = useEventDashboardLoadedRouteViewModel();
+  if (!vm.selectedEvent) return null;
+  return (
+    <EventRegistrationTab
+      platform={vm.registrationPlatform}
+      suppliers={vm.suppliers}
+      busy={Boolean(vm.busy)}
+      onUpsert={vm.upsertRegistrationPlatform}
+      onUpdate={vm.updateRegistrationPlatform}
+      onImportHeadcount={vm.importHeadcount}
     />
   );
 }

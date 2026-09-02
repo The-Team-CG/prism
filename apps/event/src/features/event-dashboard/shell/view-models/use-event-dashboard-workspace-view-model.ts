@@ -10,6 +10,7 @@ import type {
   PrismLiveOps,
   PrismPmcmCommandInbox,
   PrismPmcmDashboardWorkspace,
+  PrismRegistrationPlatform,
 } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { type EventSession } from "@/app/lib/session";
@@ -18,6 +19,7 @@ import {
   getCachedEventCommandData,
   loadApprovalRequests,
   loadEventCommandData,
+  type EventCommandDataErrors,
 } from "@/features/event-workspace/shell";
 import { loadCommandInbox } from "@/features/command-inbox/list";
 import { eventWorkspaceRepository } from "@/features/event-workspace/shell";
@@ -56,10 +58,12 @@ export function useEventDashboardWorkspaceViewModel({
   const [liveOps, setLiveOps] = useState<PrismLiveOps | null>(null);
   const [statusFeed, setStatusFeed] = useState<PrismEventDayStatusFeed | null>(null);
   const [defenseReadiness, setDefenseReadiness] = useState<PrismDefenseReadiness | null>(null);
+  const [registrationPlatform, setRegistrationPlatform] = useState<PrismRegistrationPlatform | null>(null);
   const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
   const [commandInbox, setCommandInbox] = useState<PrismPmcmCommandInbox | null>(null);
   const [conformeUploadTarget, setConformeUploadTarget] = useState<PrismPmcmDashboardWorkspace["inquiries"][number] | null>(null);
   const [commandInboxLoadFailed, setCommandInboxLoadFailed] = useState(false);
+  const [commandDataErrors, setCommandDataErrors] = useState<EventCommandDataErrors>({});
 
   const reportSelectedEventWorkspaceError = useCallback((err: unknown) => {
     setError(err instanceof Error ? err.message : "Unable to load selected event workspace");
@@ -153,10 +157,12 @@ export function useEventDashboardWorkspaceViewModel({
     return data;
   }
 
-  function applyEventCommandData(next: Awaited<ReturnType<typeof loadEventCommandData>>) {
-    setLiveOps(next.liveOps);
-    setStatusFeed(next.statusFeed);
-    setDefenseReadiness(next.defenseReadiness);
+  function applyEventCommandData(result: Awaited<ReturnType<typeof loadEventCommandData>>) {
+    setLiveOps(result.data.liveOps);
+    setStatusFeed(result.data.statusFeed);
+    setDefenseReadiness(result.data.defenseReadiness);
+    setRegistrationPlatform(result.data.registrationPlatform);
+    setCommandDataErrors(result.errors);
   }
 
   async function loadLiveOps(force = true) {
@@ -164,10 +170,12 @@ export function useEventDashboardWorkspaceViewModel({
       setLiveOps(null);
       setStatusFeed(null);
       setDefenseReadiness(null);
+      setRegistrationPlatform(null);
+      setCommandDataErrors({});
       return;
     }
-    const next = await loadEventCommandData(selectedEventId, force);
-    applyEventCommandData(next);
+    const result = await loadEventCommandData(selectedEventId, force);
+    applyEventCommandData(result);
   }
 
   useEffect(() => {
@@ -176,12 +184,14 @@ export function useEventDashboardWorkspaceViewModel({
       setLiveOps(null);
       setStatusFeed(null);
       setDefenseReadiness(null);
+      setRegistrationPlatform(null);
+      setCommandDataErrors({});
       return;
     }
 
     const cached = getCachedEventCommandData(selectedEventId);
     if (cached) {
-      applyEventCommandData(cached.value);
+      applyEventCommandData({ data: cached.value, errors: {} });
       if (isFresh(cached.loadedAt, EVENT_WORKSPACE_CACHE_MS)) {
         return () => {
           cancelled = true;
@@ -190,10 +200,14 @@ export function useEventDashboardWorkspaceViewModel({
     }
 
     loadEventCommandData(selectedEventId, !cached)
-      .then((next) => {
-        if (!cancelled) applyEventCommandData(next);
+      .then((result) => {
+        if (!cancelled) applyEventCommandData(result);
       })
-      .catch(() => undefined);
+      .catch((err) => {
+        if (!cancelled) {
+          setCommandDataErrors({ liveOps: err instanceof Error ? err.message : String(err) });
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -211,6 +225,8 @@ export function useEventDashboardWorkspaceViewModel({
     liveOps,
     statusFeed,
     defenseReadiness,
+    registrationPlatform,
+    commandDataErrors,
     floorPlanTemplates,
     commandInbox,
     setCommandInbox,

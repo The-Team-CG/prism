@@ -54,6 +54,9 @@ export type EventDashboardCommands = Pick<
   | "closeGates"
   | "eventInsights"
   | "pmcmEventWorkspace"
+  | "upsertRegistrationPlatform"
+  | "updateRegistrationPlatform"
+  | "importHeadcount"
 >;
 
 /** Stable dashboard command adapter; individual features depend on this port. */
@@ -104,4 +107,7 @@ export const eventDashboardCommands = {
   closeGates: prismApi.closeGates,
   eventInsights: prismApi.eventInsights,
   pmcmEventWorkspace: prismApi.pmcmEventWorkspace,
+  upsertRegistrationPlatform: prismApi.upsertRegistrationPlatform,
+  updateRegistrationPlatform: prismApi.updateRegistrationPlatform,
+  importHeadcount: prismApi.importHeadcount,
 } satisfies EventDashboardCommands;

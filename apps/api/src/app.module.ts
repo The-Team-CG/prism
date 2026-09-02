@@ -13,6 +13,7 @@ import { OperationsModule } from './modules/operations/operations.module';
 import { HealthModule } from '@prism/kernel/health';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module';
 import { LiveOpsModule } from './modules/live-ops/live-ops.module';
+import { OpsEventClosureController } from './modules/event-lifecycle/api/closure/event-closure.controller';
 import { TransformInterceptor } from './common/transform.interceptor';
 
 @Module({
@@ -31,6 +32,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
     ReadModelsModule,
     SampleCompatibilityModule,
   ],
+  controllers: [OpsEventClosureController],
   providers: [
     {
       provide: APP_INTERCEPTOR,
