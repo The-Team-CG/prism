@@ -8,11 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- A production cyclomatic-complexity gate (`check:complexity`, max 10) with unit tests wired into `test:boundaries`.
 - Centralized CI/CD (staging trunk, main prod), Sonar, Vercel deploy path, Dependabot, security scans
 - The frontend/backend architecture-alignment report, Prisma persistence ownership register, and ADR-0006 for focused ports and composition-root adapters.
 - A second sample event (`evt_sample_unassigned`) with no coordinator assignment so unassigned-event checks can run.
 
 ### Changed
+- Capped every production TypeScript/TSX function at McCabe complexity ≤ 10 (route tables, extracted section views, collectors, and shared floorplan canvas helpers).
+- Split remaining client-portal production functions (overview, home, proposal, approvals, inquiry, floorplan) so each stays at McCabe complexity ≤ 10, without changing portal behavior.
+- Split the duplicated client and event floorplan editors so each production function stays at McCabe complexity ≤ 10, without changing editor behavior.
 - Restructured the documentation into an OKF-style bundle with semantic architecture, product, roadmap, runbook, and reference indexes.
 - Added the constitution and six architecture decision records for role-app boundaries, shared contracts, DDD contexts, cross-context seams, Next route/MVVM structure, and focused ports.
 - Promoted durable FE/BE findings into the architecture ADRs and priority/risk matrix, reduced `CLAUDE.md` to a pointer, and removed completed plans, redundant review/backlog documents, and duplicate documentation pointers.
@@ -22,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Hardened backend context seams with bounded floorplan queries, kernel-owned audit writing, focused cross-context ports, shared Zod writes, and verified live-ops actors.
 - Documented and chained the local bootstrap path (types build, Prisma generate, Next `.next/dev` cleanup, portal port guards) and pinned Node 24 to match CI.
 - Recorded the PR review rule that second-owner sign-off must appear on the GitHub reviews array.
+- Split remaining API production functions above McCabe 10 into collectors, lookup tables, and field-mapping helpers so the cyclomatic-complexity gate can cover `apps/api`.
+- Split remaining client, supplier, guest, and shared-package production functions above McCabe 10 into section components, lookup tables, and early-return helpers without changing behavior.
+- Split remaining event-portal production functions above McCabe 10 into presentational section views and lookup-table helpers, without changing user-visible behavior.
 
 ### Removed
 - The obsolete event dashboard `features/event-ops` facade, duplicate event filter route folders, and superseded API DTO files were removed after their behavior was covered by focused tests.

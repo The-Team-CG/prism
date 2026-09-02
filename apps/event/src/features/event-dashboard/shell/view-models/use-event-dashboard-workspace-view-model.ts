@@ -12,23 +12,21 @@ import type {
   PrismPmcmDashboardWorkspace,
 } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
-import { readStoredEventSession, type EventSession } from "@/app/lib/session";
+import { type EventSession } from "@/app/lib/session";
 import { loadTemplates, type FloorPlanTemplate } from "@/features/floorplan/editor";
 import {
-  getCachedApprovalRequests,
   getCachedEventCommandData,
   loadApprovalRequests,
   loadEventCommandData,
 } from "@/features/event-workspace/shell";
-import { getCachedCommandInbox, loadCommandInbox } from "@/features/command-inbox/list";
+import { loadCommandInbox } from "@/features/command-inbox/list";
 import { eventWorkspaceRepository } from "@/features/event-workspace/shell";
 import {
-  getCachedCoordinatorWorkspace,
-  getCachedPmcmState,
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
   loadPmcmState,
 } from "../use-cases/load-dashboard-workspace";
+import { startDashboardSessionLoad } from "../use-cases/start-dashboard-session-load";
 import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
 
 type ScreenName = "portal" | "editor";
@@ -107,105 +105,17 @@ export function useEventDashboardWorkspaceViewModel({
   }
 
   useEffect(() => {
-    let cancelled = false;
-    const current = readStoredEventSession();
-    if (!current) {
-      setStatus("loading");
-      router.replace("/sign-in?next=/dashboard");
-      return;
-    }
-
-    setStatus("loading");
-    setSession(current);
-    setError(null);
-
-    if (current.role === "coordinator") {
-      const cached = getCachedCoordinatorWorkspace(current);
-      if (cached) {
-        setCoordinatorState(cached.value);
-        setState(null);
-        if (isFresh(cached.loadedAt)) {
-          setStatus("ready");
-          return () => {
-            cancelled = true;
-          };
-        }
-      }
-
-      loadCoordinatorWorkspace(current, !cached)
-        .then((next) => {
-          if (cancelled) return;
-          setCoordinatorState(next);
-          setState(null);
-          setStatus("ready");
-          setError(null);
-        })
-        .catch((err) => {
-          if (!cancelled) {
-            setStatus("error");
-            setError(err instanceof Error ? err.message : "Unable to load event portal");
-          }
-        });
-
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (current.role !== "pmcm-admin") {
-      setStatus("ready");
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const cachedState = getCachedPmcmState();
-    const cachedApprovals = getCachedApprovalRequests();
-    const cachedInbox = getCachedCommandInbox();
-
-    if (cachedState) {
-      setState(cachedState.value);
-      setCoordinatorState(null);
-    }
-    if (cachedApprovals) setApprovalRequests(cachedApprovals.value);
-    if (cachedInbox) setCommandInbox(cachedInbox.value);
-
-    const stateIsFresh = cachedState && isFresh(cachedState.loadedAt);
-    const approvalsAreFresh = cachedApprovals && isFresh(cachedApprovals.loadedAt);
-    const inboxIsFresh = cachedInbox && isFresh(cachedInbox.loadedAt);
-    if (stateIsFresh && approvalsAreFresh && inboxIsFresh) {
-      setStatus("ready");
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    Promise.all([
-      stateIsFresh ? Promise.resolve(cachedState.value) : loadPmcmState(!cachedState),
-      approvalsAreFresh ? Promise.resolve(cachedApprovals.value) : loadApprovalRequests(!cachedApprovals),
-      inboxIsFresh ? Promise.resolve(cachedInbox.value) : Promise.resolve().then(() => loadCommandInbox(!cachedInbox)),
-    ])
-      .then(([next, requests, inboxResult]) => {
-        if (cancelled) return;
-        setState(next);
-        setApprovalRequests(requests);
-        setCommandInbox(inboxResult);
-        setCommandInboxLoadFailed(false);
-        setCoordinatorState(null);
-        setStatus("ready");
-        setError(null);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setStatus("error");
-          setCommandInboxLoadFailed(true);
-          setError(err instanceof Error ? err.message : "Unable to load event portal");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    return startDashboardSessionLoad({
+      router,
+      setStatus,
+      setSession,
+      setError,
+      setState,
+      setCoordinatorState,
+      setApprovalRequests,
+      setCommandInbox,
+      setCommandInboxLoadFailed,
+    });
   }, [router]);
 
   useEffect(() => {

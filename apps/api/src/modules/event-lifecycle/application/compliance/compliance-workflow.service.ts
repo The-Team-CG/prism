@@ -31,6 +31,16 @@ export type CreateComplianceRuleInput = {
 
 export type UpdateComplianceRuleInput = Partial<CreateComplianceRuleInput>;
 
+function setDefinedField(
+  data: Record<string, unknown>,
+  key: string,
+  value: unknown,
+  map?: (value: unknown) => unknown,
+) {
+  if (value === undefined) return;
+  data[key] = map ? map(value) : value;
+}
+
 @Injectable()
 export class ComplianceWorkflowService {
   constructor(
@@ -257,15 +267,15 @@ export class ComplianceWorkflowService {
 
   private updateComplianceRuleData(input: UpdateComplianceRuleInput) {
     const data: Record<string, unknown> = {};
-    if (input.eventId !== undefined) data.eventId = input.eventId || null;
-    if (input.eventType !== undefined) data.eventType = input.eventType.trim();
-    if (input.phase !== undefined) data.phase = input.phase.trim() || 'planning';
-    if (input.severity !== undefined) data.severity = input.severity.trim() || 'must_fix';
-    if (input.layer !== undefined) data.layer = input.layer.trim() || this.layerForSeverity(input.severity);
-    if (input.conditionKey !== undefined) data.conditionKey = input.conditionKey.trim();
-    if (input.title !== undefined) data.title = input.title.trim();
-    if (input.note !== undefined) data.note = input.note.trim();
-    if (input.active !== undefined) data.active = input.active;
+    setDefinedField(data, 'eventId', input.eventId, (value) => value || null);
+    setDefinedField(data, 'eventType', input.eventType, (value) => String(value).trim());
+    setDefinedField(data, 'phase', input.phase, (value) => String(value).trim() || 'planning');
+    setDefinedField(data, 'severity', input.severity, (value) => String(value).trim() || 'must_fix');
+    setDefinedField(data, 'layer', input.layer, (value) => String(value).trim() || this.layerForSeverity(input.severity));
+    setDefinedField(data, 'conditionKey', input.conditionKey, (value) => String(value).trim());
+    setDefinedField(data, 'title', input.title, (value) => String(value).trim());
+    setDefinedField(data, 'note', input.note, (value) => String(value).trim());
+    setDefinedField(data, 'active', input.active);
     return data;
   }
 

@@ -1,100 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  AlertCircle,
-  CalendarDays,
-  ClipboardList,
-  Eye,
-  Mail,
-  MessageSquareText,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { useRef, useState } from "react";
 
-import { Input } from "@/app/components/ui/input";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
 import type { PrismInquiry } from "@prism/types";
-import { compactTimestamp, label } from "@/features/pmcm-kit";
+import {
+  declineReasons,
+  initialLogForm,
+  inquiryMatchesIntakeFilters,
+  toLogInquiryInput,
+  type LogInquiryOnBehalfInput,
+} from "../model/inquiry-intake-rules";
+import {
+  InquiryDeclineDialog,
+  InquiryDetailDrawer,
+  InquiryIntakeFilters,
+  InquiryIntakeHeader,
+  InquiryIntakeList,
+  InquiryLogOnBehalfForm,
+} from "./inquiry-intake-sections";
 
-const declineReasons = ["Date Unavailable", "Outside Service Scope", "Budget Too Low", "Prior Issue", "Other"];
-const logFormEventTypes = [
-  "Corporate event",
-  "Conference",
-  "Gala",
-  "Product launch",
-  "Private celebration",
-  "Training or workshop",
-  "Other",
-];
-const logFormClientTypes = ["Corporate", "Private", "Government", "School", "Non-profit", "Other"];
-const logFormChannels = ["Walk-In", "Phone"];
-const logFormReferralSources = [
-  "P.R.I.S.M Website",
-  "PMCM Facebook",
-  "BNI Referral",
-  "Colleague or Friend",
-  "Attended a PMCM Event",
-  "Other",
-];
-
-export interface LogInquiryOnBehalfInput {
-  clientName: string;
-  companyName?: string;
-  email: string;
-  eventName: string;
-  eventType?: string;
-  eventDate: string;
-  clientType: string;
-  source?: string;
-  channel?: string;
-  referralDetails?: string;
-  message: string;
-}
-
-const initialLogForm = {
-  clientName: "",
-  companyName: "",
-  email: "",
-  eventName: "",
-  eventType: "",
-  eventDate: "",
-  clientType: "",
-  source: logFormReferralSources[0],
-  channel: logFormChannels[0],
-  referralDetails: "",
-  message: "",
-};
-
-function dateRangeMatches(value: string, range: string) {
-  if (range === "all") return true;
-  const date = new Date(value);
-  const now = new Date();
-  const days = Math.floor((date.getTime() - now.getTime()) / 86_400_000);
-  if (range === "next_30") return days >= 0 && days <= 30;
-  if (range === "next_90") return days >= 0 && days <= 90;
-  if (range === "past_30") return days < 0 && days >= -30;
-  return true;
-}
-
-function statusAccent(status: string) {
-  if (status === "new") return "border-l-(--prism-amber)";
-  if (status === "accepted") return "border-l-(--prism-success)";
-  if (status === "declined") return "border-l-destructive";
-  return "border-l-border";
-}
-
-function DetailField({ label: fieldLabel, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{fieldLabel}</p>
-      <p className="mt-1 text-sm font-semibold text-foreground">{value || "-"}</p>
-    </div>
-  );
-}
+export type { LogInquiryOnBehalfInput };
 
 export function InquiryIntakeLog({
   inquiries,
@@ -126,52 +51,17 @@ export function InquiryIntakeLog({
   const todayIso = new Date().toISOString().slice(0, 10);
   const logFormFirstFieldRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!loggingOnBehalf) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && logPhase !== "submitting") closeLogForm();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [loggingOnBehalf, logPhase]);
-
-  useEffect(() => {
-    if (loggingOnBehalf) logFormFirstFieldRef.current?.focus();
-  }, [loggingOnBehalf]);
-
-  const unreviewedCount = inquiries.filter((inq) => inq.status === "new").length;
-  const clientTypes = Array.from(new Set(inquiries.map((inq) => inq.clientType).filter(Boolean))).sort();
-
+  const unreviewedCount = inquiries.filter((inquiry) => inquiry.status === "new").length;
+  const clientTypes = Array.from(new Set(inquiries.map((inquiry) => inquiry.clientType).filter(Boolean))).sort();
   const filtered = inquiries
-    .filter((inq) => {
-      const haystack = `${inq.clientName} ${inq.companyName ?? ""} ${inq.email} ${inq.eventName}`.toLowerCase();
-      if (query.trim() && !haystack.includes(query.trim().toLowerCase())) return false;
-      if (status !== "all" && inq.status !== status) return false;
-      if (source !== "all" && inq.source !== source) return false;
-      if (clientType !== "all" && inq.clientType !== clientType) return false;
-      return dateRangeMatches(inq.eventDate, dateRange);
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    .filter((inquiry) => inquiryMatchesIntakeFilters(inquiry, { query, status, source, clientType, dateRange }))
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 
   async function confirmDecline() {
     if (!declining) return;
     await onDecline(declining, declineReason);
     setDeclining(null);
     setDeclineReason(declineReasons[0]);
-  }
-
-  function canSubmitLogForm() {
-    return Boolean(
-      logForm.clientName.trim() &&
-        logForm.email.trim() &&
-        logForm.eventName.trim() &&
-        logForm.eventType &&
-        logForm.eventDate &&
-        logForm.clientType &&
-        logForm.source &&
-        logForm.channel &&
-        logForm.message.trim(),
-    );
   }
 
   function closeLogForm() {
@@ -185,19 +75,7 @@ export function InquiryIntakeLog({
     setLogPhase("submitting");
     setLogError(null);
     try {
-      await onLogOnBehalf({
-        clientName: logForm.clientName.trim(),
-        companyName: logForm.companyName.trim() || undefined,
-        email: logForm.email.trim(),
-        eventName: logForm.eventName.trim(),
-        eventType: logForm.eventType,
-        eventDate: logForm.eventDate,
-        clientType: logForm.clientType,
-        source: logForm.source,
-        channel: logForm.channel,
-        referralDetails: logForm.referralDetails.trim() || undefined,
-        message: logForm.message.trim(),
-      });
+      await onLogOnBehalf(toLogInquiryInput(logForm));
       closeLogForm();
     } catch (err) {
       setLogError(err instanceof Error ? err.message : "Failed to log inquiry");
@@ -207,468 +85,52 @@ export function InquiryIntakeLog({
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
-      <div className="border-b border-border px-6 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <ClipboardList className="size-4 text-(--prism-signal)" />
-            <h2 className="text-sm font-bold text-foreground">Inquiry intake</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            {unreviewedCount > 0 && (
-              <span className="rounded-full bg-(--prism-amber)/10 px-2.5 py-1 text-xs font-bold text-(--prism-amber)">
-                {unreviewedCount} unreviewed
-              </span>
-            )}
-            <Button size="sm" onClick={() => setLoggingOnBehalf(true)} className="rounded-lg font-bold">
-              <Plus className="size-3.5" />
-              Log inquiry
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-b border-border px-6 py-3">
-        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_140px_160px_140px_140px]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-9 pl-9 text-sm"
-              placeholder="Search client, email, or event..."
-            />
-          </div>
-          {[
-            {
-              value: status, onChange: setStatus,
-              options: [["all", "All status"], ["new", "New"], ["accepted", "Accepted"], ["pending", "Pending"], ["declined", "Declined"]],
-            },
-            {
-              value: source, onChange: setSource,
-              options: [["all", "All sources"], ...logFormReferralSources.map((s) => [s, s])],
-            },
-            {
-              value: clientType, onChange: setClientType,
-              options: [["all", "All client types"], ...clientTypes.map((t) => [t, t])],
-            },
-            {
-              value: dateRange, onChange: setDateRange,
-              options: [["all", "All dates"], ["next_30", "Next 30 days"], ["next_90", "Next 90 days"], ["past_30", "Past 30 days"]],
-            },
-          ].map((sel, i) => (
-            <select
-              key={i}
-              value={sel.value}
-              onChange={(e) => sel.onChange(e.target.value)}
-              className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-            >
-              {sel.options.map(([val, optionLabel]) => (
-                <option key={val} value={val}>{optionLabel}</option>
-              ))}
-            </select>
-          ))}
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="px-6 py-8">
-          <EmptyState icon={ClipboardList} title="No inquiries match" description="Adjust the filters above to see more inquiries." />
-        </div>
-      ) : (
-        <div>
-          <div className="hidden border-b border-border bg-muted/20 px-6 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground 2xl:grid 2xl:grid-cols-[minmax(280px,1fr)_120px_140px_minmax(150px,0.7fr)_90px] 2xl:gap-4">
-            <span>Inquiry</span>
-            <span>Status</span>
-            <span>Event date</span>
-            <span>Source</span>
-            <span>Actions</span>
-          </div>
-          <div className="divide-y divide-border">
-            {filtered.map((inq) => (
-              <div key={inq.id} className={`border-l-4 ${statusAccent(inq.status)} px-6 py-4`}>
-                <div className="grid gap-4 2xl:grid-cols-[minmax(280px,1fr)_120px_140px_minmax(150px,0.7fr)_90px] 2xl:items-center">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-foreground">{inq.eventName}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span className="truncate">{inq.clientName}</span>
-                      <span className="inline-flex items-center gap-1">
-                        <Mail className="size-3" />
-                        {inq.email}
-                      </span>
-                    </div>
-                    {inq.message ? (
-                      <p className="mt-2 line-clamp-1 text-xs text-muted-foreground">{inq.message}</p>
-                    ) : null}
-                  </div>
-                  <div>
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Status</p>
-                    <StatusBadge status={inq.status} label={label(inq.status)} />
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Event date</p>
-                    <span className="flex items-center gap-2">
-                      <CalendarDays className="size-4 text-muted-foreground" />
-                      {inq.eventDate || "Date pending"}
-                    </span>
-                  </div>
-                  <div className="text-sm">
-                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Source</p>
-                    <p className="font-semibold text-foreground">{inq.source || "-"}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Received {compactTimestamp(inq.createdAt)}</p>
-                  </div>
-                  <div className="flex 2xl:justify-end">
-                    <Button size="sm" variant="outline" onClick={() => setOpened(inq)} className="w-full rounded-lg font-bold 2xl:w-auto">
-                      <Eye className="size-3.5" />
-                      Open
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      <InquiryIntakeHeader unreviewedCount={unreviewedCount} onLog={() => setLoggingOnBehalf(true)} />
+      <InquiryIntakeFilters
+        query={query}
+        status={status}
+        source={source}
+        clientType={clientType}
+        dateRange={dateRange}
+        clientTypes={clientTypes}
+        onQuery={setQuery}
+        onStatus={setStatus}
+        onSource={setSource}
+        onClientType={setClientType}
+        onDateRange={setDateRange}
+      />
+      <InquiryIntakeList inquiries={filtered} onOpen={setOpened} />
       {opened && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/35">
-          <button type="button" aria-label="Close inquiry detail" className="absolute inset-0 cursor-default" onClick={() => setOpened(null)} />
-          <aside className="relative z-10 flex h-full w-full max-w-xl flex-col border-l border-border bg-card shadow-xl">
-            <div className="border-b border-border px-6 py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Inquiry</p>
-                  <h3 className="mt-1 truncate text-xl font-black text-foreground">{opened.eventName}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{opened.clientName} - {opened.companyName || opened.clientType}</p>
-                </div>
-                <Button type="button" size="icon" variant="ghost" onClick={() => setOpened(null)} aria-label="Close inquiry detail">
-                  <X className="size-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={opened.status} label={label(opened.status)} />
-                {opened.duplicate ? (
-                  <span className="rounded-full border border-(--prism-amber)/25 bg-(--prism-amber)/10 px-2.5 py-1 text-xs font-bold text-(--prism-amber)">
-                    Duplicate
-                  </span>
-                ) : null}
-                {opened.previouslyDeclined ? (
-                  <span className="rounded-full border border-destructive/25 bg-destructive/5 px-2.5 py-1 text-xs font-bold text-destructive">
-                    Previously declined
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <DetailField label="Client" value={opened.clientName} />
-                <DetailField label="Email" value={opened.email} />
-                <DetailField label="Company" value={opened.companyName || opened.clientType} />
-                <DetailField label="Event type" value={opened.eventType || opened.clientType} />
-                <DetailField label="Event date" value={opened.eventDate} />
-                <DetailField label="Source" value={opened.source} />
-                <DetailField label="Received" value={compactTimestamp(opened.createdAt)} />
-                <DetailField label="Status updated" value={compactTimestamp(opened.acceptedAt || opened.pendingAt || opened.declinedAt)} />
-              </div>
-
-              <section className="rounded-lg border border-border bg-background px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <MessageSquareText className="size-4 text-(--prism-signal)" />
-                  <h4 className="text-sm font-bold text-foreground">Inquiry message</h4>
-                </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                  {opened.message || "No message provided."}
-                </p>
-              </section>
-
-              {(opened.referralDetails || opened.loggedByName || opened.channel || opened.duplicateOfInquiryId || opened.previousDeclineReason || opened.declineReason) && (
-                <section className="space-y-2">
-                  {opened.referralDetails && <DetailField label="Referral" value={opened.referralDetails} />}
-                  {opened.channel && <DetailField label="Channel" value={opened.channel} />}
-                  {opened.loggedByName && <DetailField label="Logged by" value={opened.loggedByName} />}
-                  {opened.duplicateOfInquiryId && <DetailField label="Duplicate of" value={opened.duplicateOfInquiryId} />}
-                  {opened.previousDeclineReason && <DetailField label="Previous decline" value={opened.previousDeclineReason} />}
-                  {opened.declineReason && <DetailField label="Decline reason" value={opened.declineReason} />}
-                </section>
-              )}
-            </div>
-
-            <div className="border-t border-border px-6 py-4">
-              <div className="flex flex-wrap justify-end gap-2">
-                {opened.status === "accepted" ? (
-                  <p className="mr-auto text-sm font-semibold text-(--prism-success)">Inquiry accepted</p>
-                ) : opened.status === "declined" ? (
-                  <p className="mr-auto text-sm font-semibold text-destructive">Inquiry declined</p>
-                ) : (
-                  <>
-                    <Button
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => onAccept(opened)}
-                      className="rounded-lg font-bold"
-                    >
-                      Accept
-                    </Button>
-                    {opened.status !== "pending" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => onPend(opened)}
-                        className="rounded-lg font-bold"
-                      >
-                        Pend
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => setDeclining(opened)}
-                      className="rounded-lg border-destructive/25 font-bold text-destructive hover:bg-destructive/5"
-                    >
-                      Decline
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </aside>
-        </div>
+        <InquiryDetailDrawer
+          inquiry={opened}
+          busy={busy}
+          onClose={() => setOpened(null)}
+          onAccept={() => onAccept(opened)}
+          onPend={() => onPend(opened)}
+          onDecline={() => setDeclining(opened)}
+        />
       )}
-
       {declining && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <h3 className="text-base font-bold text-foreground">Decline inquiry</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Select the permanent decline reason for {declining.clientName}.
-            </p>
-            <select
-              value={declineReason}
-              onChange={(e) => setDeclineReason(e.target.value)}
-              className="mt-4 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
-            >
-              {declineReasons.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
-            </select>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" className="rounded-lg font-bold" onClick={() => setDeclining(null)}>
-                Cancel
-              </Button>
-              <Button
-                disabled={busy}
-                onClick={confirmDecline}
-                className="rounded-lg border-destructive/25 bg-destructive font-bold text-white hover:bg-destructive/90"
-              >
-                Save decline
-              </Button>
-            </div>
-          </div>
-        </div>
+        <InquiryDeclineDialog
+          clientName={declining.clientName}
+          declineReason={declineReason}
+          busy={busy}
+          onReason={setDeclineReason}
+          onCancel={() => setDeclining(null)}
+          onConfirm={confirmDecline}
+        />
       )}
-
       {loggingOnBehalf && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Log inquiry on behalf of a client"
-        >
-          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold text-foreground">Log inquiry on behalf</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Record an inquiry a client gave you by phone or in person.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeLogForm}
-                disabled={logPhase === "submitting"}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary disabled:opacity-50"
-                aria-label="Close"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Client name
-                </span>
-                <Input
-                  ref={logFormFirstFieldRef}
-                  value={logForm.clientName}
-                  onChange={(e) => setLogForm((f) => ({ ...f, clientName: e.target.value }))}
-                  placeholder="Full name"
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Company (optional)
-                </span>
-                <Input
-                  value={logForm.companyName}
-                  onChange={(e) => setLogForm((f) => ({ ...f, companyName: e.target.value }))}
-                  placeholder="Company / organization"
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Email
-                </span>
-                <Input
-                  type="email"
-                  value={logForm.email}
-                  onChange={(e) => setLogForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="client@example.com"
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Channel
-                </span>
-                <select
-                  value={logForm.channel}
-                  onChange={(e) => setLogForm((f) => ({ ...f, channel: e.target.value }))}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                >
-                  {logFormChannels.map((channelOption) => (
-                    <option key={channelOption} value={channelOption}>
-                      {channelOption}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Referral Source
-                </span>
-                <select
-                  value={logForm.source}
-                  onChange={(e) => setLogForm((f) => ({ ...f, source: e.target.value }))}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                  aria-label="How did you hear about us?"
-                >
-                  {logFormReferralSources.map((sourceOption) => (
-                    <option key={sourceOption} value={sourceOption}>
-                      {sourceOption}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Event name
-                </span>
-                <Input
-                  value={logForm.eventName}
-                  onChange={(e) => setLogForm((f) => ({ ...f, eventName: e.target.value }))}
-                  placeholder="Event name"
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Event type
-                </span>
-                <select
-                  value={logForm.eventType}
-                  onChange={(e) => setLogForm((f) => ({ ...f, eventType: e.target.value }))}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                >
-                  <option value="" disabled>
-                    Select event type
-                  </option>
-                  {logFormEventTypes.map((eventTypeOption) => (
-                    <option key={eventTypeOption} value={eventTypeOption}>
-                      {eventTypeOption}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Event date
-                </span>
-                <Input
-                  type="date"
-                  min={todayIso}
-                  value={logForm.eventDate}
-                  onChange={(e) => setLogForm((f) => ({ ...f, eventDate: e.target.value }))}
-                />
-              </label>
-              <label className="text-sm">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Client type
-                </span>
-                <select
-                  value={logForm.clientType}
-                  onChange={(e) => setLogForm((f) => ({ ...f, clientType: e.target.value }))}
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                >
-                  <option value="" disabled>
-                    Select client type
-                  </option>
-                  {logFormClientTypes.map((clientTypeOption) => (
-                    <option key={clientTypeOption} value={clientTypeOption}>
-                      {clientTypeOption}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm sm:col-span-2">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Referral details (optional)
-                </span>
-                <Input
-                  value={logForm.referralDetails}
-                  onChange={(e) => setLogForm((f) => ({ ...f, referralDetails: e.target.value }))}
-                  placeholder="How did they hear about PMCM?"
-                />
-              </label>
-              <label className="text-sm sm:col-span-2">
-                <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  Message
-                </span>
-                <textarea
-                  value={logForm.message}
-                  onChange={(e) => setLogForm((f) => ({ ...f, message: e.target.value }))}
-                  rows={3}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                  placeholder="What the client told you about the event"
-                />
-              </label>
-            </div>
-
-            {logError && (
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2">
-                <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                <p className="text-xs text-destructive">{logError}</p>
-              </div>
-            )}
-
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                variant="outline"
-                className="rounded-lg font-bold"
-                onClick={closeLogForm}
-                disabled={logPhase === "submitting"}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="rounded-lg font-bold"
-                disabled={!canSubmitLogForm() || logPhase === "submitting"}
-                onClick={submitLogOnBehalf}
-              >
-                {logPhase === "submitting" ? "Saving…" : "Save inquiry"}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <InquiryLogOnBehalfForm
+          logForm={logForm}
+          setLogForm={setLogForm}
+          logPhase={logPhase}
+          logError={logError}
+          todayIso={todayIso}
+          firstFieldRef={logFormFirstFieldRef}
+          onClose={closeLogForm}
+          onSubmit={submitLogOnBehalf}
+        />
       )}
     </div>
   );

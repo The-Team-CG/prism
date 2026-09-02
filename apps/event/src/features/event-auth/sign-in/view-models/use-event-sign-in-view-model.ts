@@ -6,12 +6,18 @@ import {
   isSignInDraftValid,
   mapSignInError,
 } from "../model/event-sign-in-rules";
+import { nextPathFromSearch } from "../model/event-sign-in-copy";
 import { beginEventTwoFactorSetup, signInToEventPortal, verifyEventTwoFactor } from "../use-cases/event-sign-in";
 
 export const EVENT_SAMPLE_ACCOUNTS = [
   { name: "Ms. Mys", role: "PMCM Admin", email: "mys@pmcm.test", password: "prism-admin" },
   { name: "Marco", role: "Coordinator", email: "marco@pmcm.test", password: "prism-coordinator" },
 ] as const;
+
+function readNextPath() {
+  if (typeof window === "undefined") return null;
+  return nextPathFromSearch(window.location.search);
+}
 
 export function useEventSignInViewModel() {
   const router = useRouter();
@@ -25,55 +31,64 @@ export function useEventSignInViewModel() {
   const [setupSecret, setSetupSecret] = useState<string | null>(null);
   const [code, setCode] = useState("");
 
+  async function submitTwoFactor(next: string | null) {
+    if (!twoFactorToken || !/^\d{6}$/.test(code)) {
+      setStatus("error");
+      setError("Enter the six-digit code from your authenticator app.");
+      return;
+    }
+    const verified = await verifyEventTwoFactor({ token: twoFactorToken, code, nextPath: next });
+    if ("error" in verified) {
+      setStatus("error");
+      setError(verified.error ?? "Two-factor verification failed.");
+      return;
+    }
+    setStatus("ready");
+    router.replace(verified.redirectTo);
+  }
+
+  async function beginTwoFactor(result: { token: string; setupRequired?: boolean }) {
+    setTwoFactorToken(result.token);
+    if (result.setupRequired) {
+      const setup = await beginEventTwoFactorSetup(result.token);
+      setSetupSecret(setup.secret);
+      setPhase("setup");
+    } else {
+      setPhase("verify");
+    }
+    setStatus("idle");
+  }
+
+  async function submitPassword(next: string | null) {
+    if (!isSignInDraftValid(email, password)) {
+      setStatus("idle");
+      return;
+    }
+    const result = await signInToEventPortal({ email, password, nextPath: next });
+    if ("error" in result) {
+      setStatus("error");
+      setError(result.error);
+      return;
+    }
+    if (result.kind === "two_factor") {
+      await beginTwoFactor(result);
+      return;
+    }
+    setStatus("ready");
+    router.replace(result.redirectTo);
+  }
+
   async function submit() {
     if (status === "loading") return;
     setStatus("loading");
     setError(null);
     try {
-      const next =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("next")
-          : null;
+      const next = readNextPath();
       if (phase !== "password") {
-        if (!twoFactorToken || !/^\d{6}$/.test(code)) {
-          setStatus("error");
-          setError("Enter the six-digit code from your authenticator app.");
-          return;
-        }
-        const verified = await verifyEventTwoFactor({ token: twoFactorToken, code, nextPath: next });
-        if ("error" in verified) {
-          setStatus("error");
-          setError(verified.error ?? "Two-factor verification failed.");
-          return;
-        }
-        setStatus("ready");
-        router.replace(verified.redirectTo);
+        await submitTwoFactor(next);
         return;
       }
-      if (!isSignInDraftValid(email, password)) {
-        setStatus("idle");
-        return;
-      }
-      const result = await signInToEventPortal({ email, password, nextPath: next });
-      if ("error" in result) {
-        setStatus("error");
-        setError(result.error);
-        return;
-      }
-      if (result.kind === "two_factor") {
-        setTwoFactorToken(result.token);
-        if (result.setupRequired) {
-          const setup = await beginEventTwoFactorSetup(result.token);
-          setSetupSecret(setup.secret);
-          setPhase("setup");
-        } else {
-          setPhase("verify");
-        }
-        setStatus("idle");
-        return;
-      }
-      setStatus("ready");
-      router.replace(result.redirectTo);
+      await submitPassword(next);
     } catch (err) {
       setStatus("error");
       setError(mapSignInError(err));
