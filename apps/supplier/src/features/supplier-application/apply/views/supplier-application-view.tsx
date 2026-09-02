@@ -35,13 +35,13 @@ export function SupplierApplicationView() {
   if (submitted) return <SupplierApplicationSubmitted onReset={resetSubmitted} />;
 
   return (
-    <main className="min-h-screen overflow-auto bg-background text-foreground">
-      <section className="relative min-h-screen overflow-hidden">
+    <main className="h-dvh bg-background text-foreground">
+      <section className="relative h-full overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.98),rgba(233,247,251,0.72)_58%,rgba(255,248,242,0.96))]" />
         <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(204,236,244,0.72)_1px,transparent_1px),linear-gradient(90deg,rgba(204,236,244,0.72)_1px,transparent_1px)] [background-size:42px_42px]" />
-        <div className="relative grid min-h-screen lg:grid-cols-[452px_minmax(0,1fr)]">
+        <div className="relative grid h-full lg:grid-cols-[452px_minmax(0,1fr)]">
           <ApplyAside />
-          <div className="px-5 py-6 lg:pl-0 lg:pr-0">
+          <div className="flex min-w-0 justify-center px-5 py-6 lg:pl-8 lg:pr-8">
             <ApplicationFormShell
               currentStep={currentStep}
               onSubmit={onSubmit}

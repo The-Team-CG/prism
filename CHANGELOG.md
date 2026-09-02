@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Split remaining client-portal production functions (overview, home, proposal, approvals, inquiry, floorplan) so each stays at McCabe complexity ≤ 10, without changing portal behavior.
 - Split the duplicated client and event floorplan editors so each production function stays at McCabe complexity ≤ 10, without changing editor behavior.
 - Restructured the documentation into an OKF-style bundle with semantic architecture, product, roadmap, runbook, and reference indexes.
+- Made the supplier application wizard viewport-fit: the form card now grows to fill wide monitors (up to 1320px, matching the supplier landing), stays centered, and the wizard fits one screen with internally scrollable step content instead of the fixed 944px/1060px layout.
 - Added the constitution and six architecture decision records for role-app boundaries, shared contracts, DDD contexts, cross-context seams, Next route/MVVM structure, and focused ports.
 - Promoted durable FE/BE findings into the architecture ADRs and priority/risk matrix, reduced `CLAUDE.md` to a pointer, and removed completed plans, redundant review/backlog documents, and duplicate documentation pointers.
 - Documented the delivery rule that every user-requested change updates this changelog, with documentation-bundle changes also recorded in `docs/log.md`.
@@ -32,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Removed
 - The obsolete event dashboard `features/event-ops` facade, duplicate event filter route folders, and superseded API DTO files were removed after their behavior was covered by focused tests.
+- The guest direct-access `/info/[accessCode]` page and its `features/guest-event/info` module were removed in favor of the authenticated `/dashboard` guest UI.
 - Removed `.github/CODEOWNERS`; GitHub Free cannot enforce it on this private repository.
 
 ### Fixed
