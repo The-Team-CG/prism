@@ -594,6 +594,51 @@ export interface PrismGuestFeedback {
   submittedAt: string;
 }
 
+export type PrismRegistrationPlatformType = "xperto" | "clickpass" | "custom" | "none";
+
+export type PrismRegistrationPlatformStatus = "not_started" | "configuring" | "live" | "closed";
+
+export interface PrismRegistrationPlatform {
+  id: string;
+  eventId: string;
+  platformType: PrismRegistrationPlatformType;
+  supplierId: string | null;
+  expectedPaxMin: number;
+  expectedPaxMax: number;
+  status: PrismRegistrationPlatformStatus;
+  setupConfirmedAt: string | null;
+  setupNotes: string;
+  headcountSource: string;
+  importedHeadcount: number;
+  importedAt: string | null;
+  importedFileName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateRegistrationPlatformInput = {
+  platformType: PrismRegistrationPlatformType;
+  supplierId?: string;
+  expectedPaxMin?: number;
+  expectedPaxMax?: number;
+  setupNotes?: string;
+};
+
+export type UpdateRegistrationPlatformInput = {
+  platformType?: PrismRegistrationPlatformType;
+  supplierId?: string;
+  expectedPaxMin?: number;
+  expectedPaxMax?: number;
+  status?: PrismRegistrationPlatformStatus;
+  setupNotes?: string;
+};
+
+export type ImportHeadcountInput = {
+  headcountSource: string;
+  importedHeadcount: number;
+  importedFileName?: string;
+};
+
 export interface PrismEventDayTask {
   id: string;
   eventId: string;
@@ -1137,6 +1182,7 @@ export interface PrismPmcmEventWorkspace {
   floorPlanDrafts: PrismFloorPlanDraft[];
   auditLogs: PrismAuditLog[];
   notificationLogs: PrismNotificationLog[];
+  registrationPlatform: PrismRegistrationPlatform | null;
 }
 
 export interface PrismClientActionItem {

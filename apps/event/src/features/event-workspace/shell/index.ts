@@ -12,5 +12,6 @@ export {
   loadLiveOps,
   loadStatusFeed,
   type EventCommandData,
+  type EventCommandDataErrors,
 } from "./use-cases/load-event-workspace";
 export { eventWorkspaceRepository } from "./data/event-workspace-repository";
