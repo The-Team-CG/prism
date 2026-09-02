@@ -70,5 +70,6 @@ export function createPmcmDashboardMappers(
     mapFloorPlanDraft: dependencies.mapFloorPlanDraft,
     mapAuditLog: dependencies.mapAuditLog,
     mapNotificationLog: dependencies.mapNotificationLog,
+    mapRegistrationPlatform: dependencies.mapRegistrationPlatform,
   };
 }

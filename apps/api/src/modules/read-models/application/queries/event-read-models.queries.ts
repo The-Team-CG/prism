@@ -156,7 +156,7 @@ export class EventReadModelQueries {
     ]);
   }
 
-  // Query budget: fourteen selected-event relation queries; guest and staffing reads use public reader ports outside this query builder.
+  // Query budget: fifteen selected-event relation queries; guest and staffing reads use public reader ports outside this query builder.
   pmcmEventWorkspace(eventId: string) {
     return Promise.all([
       this.prisma.opsDocument.findMany({ where: { eventId }, orderBy: { uploadedAt: 'desc' } }),
@@ -173,6 +173,7 @@ export class EventReadModelQueries {
       this.prisma.opsFloorPlanDraft.findMany({ where: { eventId }, orderBy: { updatedAt: 'desc' } }),
       this.prisma.opsAuditLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 100 }),
       this.prisma.opsNotificationLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }),
     ]);
   }
 

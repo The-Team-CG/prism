@@ -2,9 +2,10 @@ import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFe
 import {
   eventWorkspaceRepository,
   type EventCommandData,
+  type EventCommandDataErrors,
 } from "../data/event-workspace-repository";
 
-export type { EventCommandData };
+export type { EventCommandData, EventCommandDataErrors };
 
 export function loadEventWorkspace(eventId: string): Promise<PrismPmcmEventWorkspace> {
   return eventWorkspaceRepository.loadWorkspace(eventId);

@@ -11,11 +11,13 @@ import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-wo
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
 import { OpsGuestController } from './api/guest/guest.controller';
+import { OpsRegistrationPlatformController } from './api/guest/registration-platform.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tokens';
 import { GUEST_COMMANDS, GUEST_READER } from './contracts/guest-ops.tokens';
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
+import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 
 /**
  * Bounded-context composition root for operations: day-to-day coordinator
@@ -35,16 +37,17 @@ import { GuestWorkflowService } from './application/guest/guest-workflow.service
  */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, IdentityAccessModule, EventSessionModule, EventLifecycleModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsGuestController],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsGuestController, OpsRegistrationPlatformController],
   providers: [
     CoordinatorsService,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
+    RegistrationPlatformService,
     { provide: STAFFING_COMMANDS, useExisting: CoordinatorsService },
     { provide: STAFFING_READER, useExisting: CoordinatorsService },
     { provide: GUEST_COMMANDS, useExisting: GuestWorkflowService },
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, GuestWorkflowService, GUEST_COMMANDS, GUEST_READER],
+  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, GuestWorkflowService, RegistrationPlatformService, GUEST_COMMANDS, GUEST_READER],
 })
 export class OperationsModule {}

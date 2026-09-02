@@ -17,6 +17,7 @@ import type {
   OpsPaymentMilestone,
   OpsPaymentRecord,
   OpsPostEventDocument,
+  OpsRegistrationPlatform,
   OpsSupplierQuote,
   OpsSupplierQuoteRequest,
   OpsUser,
@@ -96,6 +97,7 @@ export type PmcmDashboardMappers = {
   mapFloorPlanDraft: (draft: OpsFloorPlanDraft) => unknown;
   mapAuditLog: (log: OpsAuditLog) => unknown;
   mapNotificationLog: (log: OpsNotificationLog) => unknown;
+  mapRegistrationPlatform: (platform: OpsRegistrationPlatform) => unknown;
 };
 
 @Injectable()
@@ -438,6 +440,7 @@ export class EventReadModelsService {
       floorPlanDrafts,
       auditLogs,
       notificationLogs,
+      registrationPlatform,
     ] = await this.queries.pmcmEventWorkspace(eventId);
     const [coordinatorAssignments, guestCheckIns, guestFeedback] = await Promise.all([
       this.staffingReader.listAssignmentsForEvent(eventId),
@@ -467,6 +470,7 @@ export class EventReadModelsService {
       floorPlanDrafts: floorPlanDrafts.map(mappers.mapFloorPlanDraft),
       auditLogs: auditLogs.map(mappers.mapAuditLog),
       notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
+      registrationPlatform: registrationPlatform ? mappers.mapRegistrationPlatform(registrationPlatform) : null,
       guestAttendanceCount: guestCheckIns.length,
       guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
       guestFeedback: guestFeedback.map((feedback) => this.guestReader.mapGuestFeedback(feedback)),

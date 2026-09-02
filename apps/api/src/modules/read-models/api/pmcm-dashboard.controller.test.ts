@@ -26,6 +26,7 @@ function createController() {
   };
   const floorPlanWorkflowService = { mapFloorPlanDraft: vi.fn((draft) => draft) };
   const guestWorkflowService = { guestAccessCode: vi.fn(() => 'EVENT-CODE') };
+  const registrationPlatformService = { mapRegistrationPlatform: vi.fn((p) => p) };
 
   const controller = new OpsPmcmDashboardController(
     eventReadModelsService as any,
@@ -34,6 +35,7 @@ function createController() {
     coordinatorsService as any,
     floorPlanWorkflowService as any,
     guestWorkflowService as any,
+    registrationPlatformService as any,
   );
 
   return { controller, eventReadModelsService, eventAccessPolicyService };
