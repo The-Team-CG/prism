@@ -10,6 +10,9 @@
 - **Recorded:** EP-11-S02 findings (PA-290, PA-287, PA-288, PA-291, PA-294,
   PA-296, PA-295, PA-284, PA-292) on the architecture priority/risk matrix as
   parked follow-up, not a sweep.
+- **Governed:** CI high-severity audit now uses `scripts/npm-audit-ci.mjs`
+  with a time-bounded exception for Prisma's unused `mysql2` pin
+  (GHSA-3f6p-5ww8-9rcr).
 
 ## 2026-09-01
 
