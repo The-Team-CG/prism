@@ -181,4 +181,6 @@ Second-owner review cannot be self-certified. Architecture, contract, and
 auth PRs need a recorded GitHub review from someone other than the author
 before merge. CI passing is not a review. An empty GitHub `reviews` array is
 not a review. Off-GitHub look-overs must be written onto the PR so the record
-exists.
+exists. This private repository is on GitHub Free, so CODEOWNERS and
+required reviewers cannot enforce that rule; the reviews array is the
+record, not a merge lock.
