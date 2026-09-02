@@ -40,6 +40,58 @@ export function deriveLifecycleIndex(
   return 0;
 }
 
+function countLabel(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function checkpoint(
+  id: string,
+  label: string,
+  done: boolean,
+  doneDetail: string,
+  pendingDetail: string,
+): ProgressCheckpoint {
+  return {
+    id,
+    label,
+    detail: done ? doneDetail : pendingDetail,
+    done,
+    status: done ? "done" : "attention",
+  };
+}
+
+function documentsAreComplete(docs: { status: string }[]) {
+  if (docs.length === 0) return false;
+  return !docs.some((doc) => /needs|pending|requested/i.test(doc.status));
+}
+
+function documentsDetail(docs: { status: string }[]) {
+  if (docs.length === 0) return "No documents uploaded yet";
+  return `${countLabel(docs.length, "file", "files")} uploaded`;
+}
+
+function billingIsCurrent(
+  hasPaidMilestone: boolean,
+  billingStatus: string | undefined,
+) {
+  if (hasPaidMilestone) return true;
+  return billingStatus === "paid" || billingStatus === "approved";
+}
+
+function billingDetail(
+  hasPaidMilestone: boolean,
+  billingStatus: string | undefined,
+) {
+  if (hasPaidMilestone) return "Payments are up to date";
+  if (billingStatus) return `Status: ${billingStatus.replaceAll("_", " ")}`;
+  return "No billing statement yet";
+}
+
+function suppliersDetail(count: number) {
+  if (count === 0) return "Pending supplier assignment";
+  return `${countLabel(count, "supplier", "suppliers")} assigned`;
+}
+
 export function deriveCheckpoints(
   event: PrismEvent,
   workspace: PrismClientWorkspace,
@@ -58,68 +110,68 @@ export function deriveCheckpoints(
   const hasPaidMilestone = workspace.paymentMilestones.some(
     (m) => m.eventId === event.id && (m.status === "paid" || m.status === "approved"),
   );
+  const docsComplete = documentsAreComplete(docs);
+  const billingCurrent = billingIsCurrent(hasPaidMilestone, billing?.status);
+  const docsText = documentsDetail(docs);
+  const billingText = billingDetail(hasPaidMilestone, billing?.status);
 
   return [
-    {
-      id: "briefing",
-      label: "Briefing submitted",
-      detail: briefing
-        ? `Submitted ${briefing.submittedAt}`
-        : "Awaiting briefing details",
-      done: Boolean(briefing),
-      status: briefing ? "done" : "attention",
-    },
-    {
-      id: "floorplan",
-      label: "Floor plan approved",
-      detail: floorPlanApproved
-        ? "Official layout confirmed"
-        : "PMCM is preparing the layout",
-      done: floorPlanApproved,
-      status: floorPlanApproved ? "done" : "attention",
-    },
-    {
-      id: "suppliers",
-      label: "Suppliers selected",
-      detail: supplierQuotes.length
-        ? `${supplierQuotes.length} supplier${supplierQuotes.length === 1 ? "" : "s"} assigned`
-        : "Pending supplier assignment",
-      done: supplierQuotes.length > 0,
-      status: supplierQuotes.length > 0 ? "done" : "attention",
-    },
-    {
-      id: "documents",
-      label: "Documents complete",
-      detail: docs.length
-        ? `${docs.length} file${docs.length === 1 ? "" : "s"} uploaded`
-        : "No documents uploaded yet",
-      done: docs.length > 0 && !docs.some((d) => /needs|pending|requested/i.test(d.status)),
-      status:
-        docs.length > 0 && !docs.some((d) => /needs|pending|requested/i.test(d.status))
-          ? "done"
-          : "attention",
-    },
-    {
-      id: "billing",
-      label: "Billing current",
-      detail: hasPaidMilestone
-        ? "Payments are up to date"
-        : billing
-          ? `Status: ${billing.status.replaceAll("_", " ")}`
-          : "No billing statement yet",
-      done: hasPaidMilestone || billing?.status === "paid" || billing?.status === "approved",
-      status:
-        hasPaidMilestone || billing?.status === "paid" || billing?.status === "approved"
-          ? "done"
-          : "attention",
-    },
+    checkpoint(
+      "briefing",
+      "Briefing submitted",
+      Boolean(briefing),
+      `Submitted ${briefing?.submittedAt}`,
+      "Awaiting briefing details",
+    ),
+    checkpoint(
+      "floorplan",
+      "Floor plan approved",
+      floorPlanApproved,
+      "Official layout confirmed",
+      "PMCM is preparing the layout",
+    ),
+    checkpoint(
+      "suppliers",
+      "Suppliers selected",
+      supplierQuotes.length > 0,
+      suppliersDetail(supplierQuotes.length),
+      "Pending supplier assignment",
+    ),
+    checkpoint("documents", "Documents complete", docsComplete, docsText, docsText),
+    checkpoint("billing", "Billing current", billingCurrent, billingText, billingText),
   ];
+}
+
+function timelineStatus(done: boolean, current: boolean) {
+  if (done) return "completed";
+  if (current) return "current";
+  return "pending";
+}
+
+function timelineStep(
+  id: string,
+  title: string,
+  description: string,
+  done: boolean,
+  current = false,
+): EventTimelineStep {
+  return {
+    id,
+    title,
+    description,
+    status: timelineStatus(done, current),
+  };
+}
+
+function isEventDayComplete(event: PrismEvent) {
+  return event.status === "event_day" || event.status === "completed";
 }
 
 export function deriveTimeline(
   event: PrismEvent,
   workspace: PrismClientWorkspace,
 ): EventTimelineStep[] {
+  const portalUnlocked = event.clientPortalStatus === "unlocked";
   const hasBriefing = workspace.briefings.some((b) => b.eventId === event.id);
   const floorPlanApproved = workspace.floorPlanDrafts.some(
     (d) => d.eventId === event.id && d.status === "approved",
@@ -132,68 +184,42 @@ export function deriveTimeline(
   );
 
   return [
-    {
-      id: "inquiry",
-      title: "Inquiry accepted",
-      description: "Your event request was received and approved",
-      status: "completed",
-    },
-    {
-      id: "conforme",
-      title: "Conforme signed",
-      description: "Portal access activated",
-      status: event.clientPortalStatus === "unlocked" ? "completed" : "pending",
-    },
-    {
-      id: "briefing",
-      title: "Briefing submitted",
-      description: hasBriefing ? "Event details confirmed" : "Awaiting event details",
-      status: hasBriefing ? "completed" : event.clientPortalStatus === "unlocked" ? "current" : "pending",
-    },
-    {
-      id: "floorplan",
-      title: "Layout approved",
-      description: floorPlanApproved
-        ? "Official floor plan confirmed"
-        : "PMCM is preparing the layout",
-      status: floorPlanApproved
-        ? "completed"
-        : hasBriefing
-          ? "current"
-          : "pending",
-    },
-    {
-      id: "suppliers",
-      title: "Suppliers assigned",
-      description: hasSuppliers
-        ? "Vendors confirmed for your event"
-        : "Pending supplier selection",
-      status: hasSuppliers
-        ? "completed"
-        : floorPlanApproved
-          ? "current"
-          : "pending",
-    },
-    {
-      id: "coordinators",
-      title: "Team assigned",
-      description: hasCoordinators
-        ? "Event coordinators assigned"
-        : "Pending coordinator assignment",
-      status: hasCoordinators
-        ? "completed"
-        : hasSuppliers
-          ? "current"
-          : "pending",
-    },
-    {
-      id: "event_day",
-      title: "Event day",
-      description: `Scheduled for ${event.eventDate}`,
-      status: event.status === "event_day" || event.status === "completed"
-        ? "completed"
-        : "pending",
-    },
+    timelineStep("inquiry", "Inquiry accepted", "Your event request was received and approved", true),
+    timelineStep("conforme", "Conforme signed", "Portal access activated", portalUnlocked),
+    timelineStep(
+      "briefing",
+      "Briefing submitted",
+      hasBriefing ? "Event details confirmed" : "Awaiting event details",
+      hasBriefing,
+      portalUnlocked,
+    ),
+    timelineStep(
+      "floorplan",
+      "Layout approved",
+      floorPlanApproved ? "Official floor plan confirmed" : "PMCM is preparing the layout",
+      floorPlanApproved,
+      hasBriefing,
+    ),
+    timelineStep(
+      "suppliers",
+      "Suppliers assigned",
+      hasSuppliers ? "Vendors confirmed for your event" : "Pending supplier selection",
+      hasSuppliers,
+      floorPlanApproved,
+    ),
+    timelineStep(
+      "coordinators",
+      "Team assigned",
+      hasCoordinators ? "Event coordinators assigned" : "Pending coordinator assignment",
+      hasCoordinators,
+      hasSuppliers,
+    ),
+    timelineStep(
+      "event_day",
+      "Event day",
+      `Scheduled for ${event.eventDate}`,
+      isEventDayComplete(event),
+    ),
   ];
 }
 

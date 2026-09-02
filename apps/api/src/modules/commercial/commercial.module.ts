@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
-import { PAREService, PlatformOpsModule } from '@prism/contexts/platform-ops';
+import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
+import { PAREService } from '../platform-ops/application/ai-governance/pare/pare.service';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { EventSessionModule } from '@prism/kernel/event-session';
-import { DOCUMENT_VAULT, EventLifecycleModule } from '@prism/contexts/event-lifecycle';
+import { DOCUMENT_VAULT } from '../event-lifecycle/contracts/document-vault.port';
+import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
 import { OpsEventCommercialController } from './api/quotes/event-commercial.controller';
 import { OpsQuoteRequestsController } from './api/quotes/quote-requests.controller';
 import { OpsEventSupplierWithdrawalController } from './api/suppliers/event-supplier-withdrawal.controller';

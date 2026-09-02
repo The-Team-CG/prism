@@ -35,19 +35,29 @@ export class AuthOperationsService {
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
 
     if (!user) {
-      await this.authAudit.recordLoginHistory(null, normalizedEmail, 'failed', 'Unknown email');
-      await writeAudit(this.authAudit, undefined, 'Unknown user', `Failed login attempt for ${normalizedEmail}`, {
-        actorRole: OpsUserRole.Unknown,
-        actorEmail: normalizedEmail,
-        actionType: AuditActionType.LoginFailed,
-        category: AuditCategory.Access,
-        affectedType: 'account',
-        affectedLabel: normalizedEmail,
-        severity: 'warning',
-      });
+      await this.rejectUnknownLogin(normalizedEmail);
       throw new UnauthorizedException('Invalid mock credentials');
     }
 
+    await this.assertLoginAllowed(user, normalizedEmail, password);
+    const updated = await this.recordSuccessfulLogin(user, normalizedEmail, password);
+    return this.issueLoginSession(updated);
+  }
+
+  private async rejectUnknownLogin(normalizedEmail: string) {
+    await this.authAudit.recordLoginHistory(null, normalizedEmail, 'failed', 'Unknown email');
+    await writeAudit(this.authAudit, undefined, 'Unknown user', `Failed login attempt for ${normalizedEmail}`, {
+      actorRole: OpsUserRole.Unknown,
+      actorEmail: normalizedEmail,
+      actionType: AuditActionType.LoginFailed,
+      category: AuditCategory.Access,
+      affectedType: 'account',
+      affectedLabel: normalizedEmail,
+      severity: 'warning',
+    });
+  }
+
+  private async assertLoginAllowed(user: OpsUser, normalizedEmail: string, password: string) {
     const now = new Date();
     if (user.permanentLockout) {
       await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Permanent lockout');
@@ -59,8 +69,7 @@ export class AuthOperationsService {
       throw new ForbiddenException('This account is temporarily locked after repeated failed login attempts');
     }
 
-    const passwordMatches = AuthSecurityService.verifyPassword(user.password, password);
-    if (!passwordMatches) {
+    if (!AuthSecurityService.verifyPassword(user.password, password)) {
       await this.authAudit.handleFailedLogin(user);
       throw new UnauthorizedException('Invalid mock credentials');
     }
@@ -69,7 +78,9 @@ export class AuthOperationsService {
       await this.authAudit.handleForbiddenAccess(user, normalizedEmail, 'Account waiting for approval');
       throw new ForbiddenException('This account is waiting for admin approval');
     }
+  }
 
+  private async recordSuccessfulLogin(user: OpsUser, normalizedEmail: string, password: string) {
     const updated = await this.prisma.opsUser.update({
       where: { id: user.id },
       data: {
@@ -78,7 +89,7 @@ export class AuthOperationsService {
           : {}),
         failedLoginCount: 0,
         lockedUntil: null,
-        lastLoginAt: now,
+        lastLoginAt: new Date(),
       },
     });
 
@@ -95,6 +106,10 @@ export class AuthOperationsService {
       }),
     ]);
 
+    return updated;
+  }
+
+  private async issueLoginSession(updated: OpsUser) {
     if (updated.role === OpsUserRole.Client) {
       await this.inquiryCommands.markPortalInvitationOpenedByEmail(updated.email);
     }
