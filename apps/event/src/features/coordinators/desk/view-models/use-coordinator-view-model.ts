@@ -5,12 +5,18 @@ import type { EventSession } from "@/app/lib/session";
 import type { PrismCoordinatorRoleView, PrismCoordinatorWorkspace } from "@prism/types";
 import {
   acknowledgeAndRefreshRoleView,
+  createTaskAndRefreshRoleView,
+  createUrgentIssueAndRefreshRoleView,
   loadCoordinatorRoleView,
 } from "../use-cases/coordinator-desk-actions";
 import {
+  buildCoordinatorIssueInput,
+  buildCoordinatorTaskInput,
   isRegistrationCoordinatorRole,
+  isTaskOutsideOwnQueue,
   pickActiveAssignment,
   sameCoordinatorName,
+  taskAssignedRoleOptions,
 } from "../model/coordinators-desk-rules";
 
 export type CoordinatorViewStatus = "idle" | "loading" | "success" | "error";
@@ -35,6 +41,24 @@ export function useCoordinatorViewModel({
   const [roleViewStatus, setRoleViewStatus] = useState<CoordinatorViewStatus>("idle");
   const [roleViewError, setRoleViewError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("coord-home");
+  // EP-11-S02: per-flow state. Deliberately NOT reusing busy or roleViewError,
+  // which carry PA-285 and PA-294.
+  const [taskBusy, setTaskBusy] = useState(false);
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [issueBusy, setIssueBusy] = useState(false);
+  const [issueError, setIssueError] = useState<string | null>(null);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskRole, setTaskRole] = useState("");
+  const [taskPriority, setTaskPriority] = useState("normal");
+  const [taskNotes, setTaskNotes] = useState("");
+  const [taskDueAt, setTaskDueAt] = useState("");
+  const [taskAssignToMe, setTaskAssignToMe] = useState(false);
+  const [issueTitle, setIssueTitle] = useState("");
+  const [issueSeverity, setIssueSeverity] = useState("high");
+  const [issueAffectedArea, setIssueAffectedArea] = useState("");
+  const [issueDescription, setIssueDescription] = useState("");
+  const [issueSlaDueAt, setIssueSlaDueAt] = useState("");
+  const [issueAssignToMe, setIssueAssignToMe] = useState(false);
 
   useEffect(() => {
     if (!event?.id) {
@@ -91,6 +115,68 @@ export function useCoordinatorViewModel({
     }
   }
 
+  async function logTask() {
+    if (!event || !roleView) return;
+    setTaskBusy(true);
+    setTaskError(null);
+    try {
+      const next = await createTaskAndRefreshRoleView({
+        session,
+        eventId: event.id,
+        input: buildCoordinatorTaskInput({
+          title: taskTitle,
+          assignedRole: taskRole || roleView.role,
+          priority: taskPriority,
+          notes: taskNotes,
+          dueAt: taskDueAt,
+          assignToMe: taskAssignToMe,
+          roleView,
+        }),
+      });
+      setRoleView(next);
+      setTaskTitle("");
+      setTaskNotes("");
+      setTaskDueAt("");
+    } catch (err) {
+      // PA-294: do NOT setRoleView(null) here. A failed submission must not
+      // blank the coordinator screen mid-event.
+      setTaskError(err instanceof Error ? err.message : "Unable to log the task.");
+    } finally {
+      setTaskBusy(false);
+    }
+  }
+
+  async function logUrgentIssue() {
+    if (!event || !roleView) return;
+    setIssueBusy(true);
+    setIssueError(null);
+    try {
+      const next = await createUrgentIssueAndRefreshRoleView({
+        session,
+        eventId: event.id,
+        input: buildCoordinatorIssueInput({
+          title: issueTitle,
+          severity: issueSeverity,
+          affectedArea: issueAffectedArea,
+          description: issueDescription,
+          slaDueAt: issueSlaDueAt,
+          assignToMe: issueAssignToMe,
+          roleView,
+        }),
+      });
+      setRoleView(next);
+      setIssueTitle("");
+      setIssueAffectedArea("");
+      setIssueDescription("");
+      setIssueSlaDueAt("");
+    } catch (err) {
+      // PA-294: same constraint as logTask.
+      setIssueError(err instanceof Error ? err.message : "Unable to log the urgent issue.");
+    } finally {
+      setIssueBusy(false);
+    }
+  }
+
   function selectSection(section: string) {
     setActiveSection(section);
   }
@@ -117,5 +203,47 @@ export function useCoordinatorViewModel({
     registrationRole: isRegistrationCoordinatorRole(assignment?.role),
     acknowledge,
     selectSection,
+    taskForm: {
+      title: taskTitle,
+      setTitle: setTaskTitle,
+      role: taskRole || roleView?.role || "",
+      setRole: setTaskRole,
+      priority: taskPriority,
+      setPriority: setTaskPriority,
+      notes: taskNotes,
+      setNotes: setTaskNotes,
+      dueAt: taskDueAt,
+      setDueAt: setTaskDueAt,
+      assignToMe: taskAssignToMe,
+      setAssignToMe: setTaskAssignToMe,
+      roleOptions: roleView ? taskAssignedRoleOptions(roleView) : [],
+      routesAway: roleView
+        ? isTaskOutsideOwnQueue({
+            assignedRole: taskRole || roleView.role,
+            ownRole: roleView.role,
+            assignToMe: taskAssignToMe,
+          })
+        : false,
+      busy: taskBusy,
+      error: taskError,
+      submit: logTask,
+    },
+    issueForm: {
+      title: issueTitle,
+      setTitle: setIssueTitle,
+      severity: issueSeverity,
+      setSeverity: setIssueSeverity,
+      affectedArea: issueAffectedArea,
+      setAffectedArea: setIssueAffectedArea,
+      description: issueDescription,
+      setDescription: setIssueDescription,
+      slaDueAt: issueSlaDueAt,
+      setSlaDueAt: setIssueSlaDueAt,
+      assignToMe: issueAssignToMe,
+      setAssignToMe: setIssueAssignToMe,
+      busy: issueBusy,
+      error: issueError,
+      submit: logUrgentIssue,
+    },
   };
 }
