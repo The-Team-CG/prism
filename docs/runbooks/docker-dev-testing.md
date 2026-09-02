@@ -4,12 +4,12 @@ title: "P.R.I.S.M Docker development and testing"
 description: "Local Docker development modes, environment setup, ports, rebuilds, and troubleshooting for Prism."
 tags: [runbook, docker, development, testing]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-02"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, QA, agents]
 scope: "local Prism Node/Docker development and verification"
-last_verified: "581e676"
+last_verified: "2026-09-02"
 sources:
   - id: compose-local
     resource: "compose.local.yml"
@@ -101,7 +101,7 @@ Important notes:
 - Do not commit `.env.docker`.
 - For Supabase, keep `DB_SSL=true`.
 - If using the Supabase pooler on a free tier, keep `ALLOW_POOLER_FOR_PRISMA=1`.
-- If the database is paused, the API may fail until Supabase is resumed.
+- If the database is paused, wake the Supabase project, then run `npm --workspace prism-api run db:setup`. The API may fail until the project is resumed.
 - If you do not have a real database URL yet, the containers can build, but API runtime/database tests may fail.
 
 The example file has these keys:
@@ -326,6 +326,18 @@ docker compose -f compose.dev.yml up
 ```
 
 ## Common Problems
+
+### Fresh pull typechecks against stale `@prism/types` dist
+
+`packages/types/dist/` is gitignored. After a clean pull, run `npm install` (root `postinstall` builds `@prism/types`) or `npm --workspace @prism/types run build`. `start-prism.cmd` also builds types before launching portals.
+
+### next build compiled but typecheck failed
+
+`next build` writes `.next/types/` and does not delete `.next/dev/`. Portal `prebuild` and `typecheck` scripts remove `.next/dev`. If a leftover cache still fails, delete that app’s `.next/dev/` directory and rebuild.
+
+### Stale process still serving an old portal build
+
+`next start` fails silently if the port is already bound, so a previous listener can keep serving the old build. Portal `dev`/`start` scripts now clear the app’s port first (same pattern as the API). `start-prism.cmd` still clears 3001–3004 and 4000 before launch.
 
 ### Docker says the port is already allocated
 
