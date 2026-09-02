@@ -515,6 +515,62 @@ function addDays(value: Date, days: number) {
   return next;
 }
 
+function optionalTimestamp(value: Date | null | undefined) {
+  return value ? timestamp(value) : null;
+}
+
+function inquiryReminderDueAt(inquiry: OpsInquiry) {
+  const reminderBase = inquiry.lastConformeReminderAt ?? inquiry.conformeSentAt;
+  if (inquiry.status === 'accepted' && !inquiry.conformeSignedAt && reminderBase) {
+    return addDays(reminderBase, inquiry.followUpIntervalDays);
+  }
+  return null;
+}
+
+function inquiryInvitationStatus(inquiry: OpsInquiry) {
+  const expired =
+    inquiry.portalInvitationStatus === 'sent' &&
+    inquiry.portalInvitationExpiresAt &&
+    !inquiry.portalInvitationOpenedAt &&
+    inquiry.portalInvitationExpiresAt < new Date();
+  return expired ? 'expired' : inquiry.portalInvitationStatus;
+}
+
+function isReminderDue(reminderDueAt: Date | null) {
+  return Boolean(reminderDueAt && reminderDueAt <= new Date());
+}
+
+type InquiryTriage = OpsInquiry & {
+  normalizedEmail?: string;
+  referralDetails?: string;
+  loggedByRole?: string | null;
+  loggedByName?: string | null;
+  duplicateOfInquiryId?: string | null;
+  previousDeclinedInquiryId?: string | null;
+  previousDeclineReason?: string | null;
+  privacyConsentAccepted?: boolean;
+  privacyNoticeVersion?: string;
+  marketingConsentAccepted?: boolean;
+};
+
+function inquiryTriageFields(inquiry: OpsInquiry) {
+  const triage = inquiry as InquiryTriage;
+  return {
+    normalizedEmail: triage.normalizedEmail ?? inquiry.email.trim().toLowerCase(),
+    referralDetails: triage.referralDetails ?? '',
+    loggedByRole: triage.loggedByRole ?? null,
+    loggedByName: triage.loggedByName ?? null,
+    duplicateOfInquiryId: triage.duplicateOfInquiryId ?? null,
+    previousDeclinedInquiryId: triage.previousDeclinedInquiryId ?? null,
+    previousDeclineReason: triage.previousDeclineReason ?? null,
+    duplicate: Boolean(triage.duplicateOfInquiryId),
+    previouslyDeclined: Boolean(triage.previousDeclinedInquiryId),
+    privacyConsentAccepted: triage.privacyConsentAccepted ?? false,
+    privacyNoticeVersion: triage.privacyNoticeVersion ?? '',
+    marketingConsentAccepted: triage.marketingConsentAccepted ?? false,
+  };
+}
+
 function parseDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) throw new BadRequestException('Invalid date');
@@ -2712,31 +2768,7 @@ export class SampleCompatibilityService implements OnModuleInit {
   }
 
   private mapInquiry(inquiry: OpsInquiry) {
-    const triage = inquiry as OpsInquiry & {
-      normalizedEmail?: string;
-      referralDetails?: string;
-      loggedByRole?: string | null;
-      loggedByName?: string | null;
-      duplicateOfInquiryId?: string | null;
-      previousDeclinedInquiryId?: string | null;
-      previousDeclineReason?: string | null;
-      privacyConsentAccepted?: boolean;
-      privacyNoticeVersion?: string;
-      marketingConsentAccepted?: boolean;
-    };
-    const reminderBase = inquiry.lastConformeReminderAt ?? inquiry.conformeSentAt;
-    const reminderDueAt =
-      inquiry.status === 'accepted' && !inquiry.conformeSignedAt && reminderBase
-        ? addDays(reminderBase, inquiry.followUpIntervalDays)
-        : null;
-    const invitationStatus =
-      inquiry.portalInvitationStatus === 'sent' &&
-      inquiry.portalInvitationExpiresAt &&
-      !inquiry.portalInvitationOpenedAt &&
-      inquiry.portalInvitationExpiresAt < new Date()
-        ? 'expired'
-        : inquiry.portalInvitationStatus;
-
+    const reminderDueAt = inquiryReminderDueAt(inquiry);
     return {
       id: inquiry.id,
       clientName: inquiry.clientName,
@@ -2747,43 +2779,24 @@ export class SampleCompatibilityService implements OnModuleInit {
       eventDate: isoDate(inquiry.eventDate),
       clientType: inquiry.clientType,
       source: inquiry.source,
-      normalizedEmail: triage.normalizedEmail ?? inquiry.email.trim().toLowerCase(),
-      referralDetails: triage.referralDetails ?? '',
-      loggedByRole: triage.loggedByRole ?? null,
-      loggedByName: triage.loggedByName ?? null,
-      duplicateOfInquiryId: triage.duplicateOfInquiryId ?? null,
-      previousDeclinedInquiryId: triage.previousDeclinedInquiryId ?? null,
-      previousDeclineReason: triage.previousDeclineReason ?? null,
-      duplicate: Boolean(triage.duplicateOfInquiryId),
-      previouslyDeclined: Boolean(triage.previousDeclinedInquiryId),
-      privacyConsentAccepted: triage.privacyConsentAccepted ?? false,
-      privacyNoticeVersion: triage.privacyNoticeVersion ?? '',
-      marketingConsentAccepted: triage.marketingConsentAccepted ?? false,
+      ...inquiryTriageFields(inquiry),
       message: inquiry.message,
       status: inquiry.status,
       declineReason: inquiry.declineReason,
-      acceptedAt: inquiry.acceptedAt ? timestamp(inquiry.acceptedAt) : null,
-      pendingAt: inquiry.pendingAt ? timestamp(inquiry.pendingAt) : null,
-      declinedAt: inquiry.declinedAt ? timestamp(inquiry.declinedAt) : null,
-      conformeSentAt: inquiry.conformeSentAt ? timestamp(inquiry.conformeSentAt) : null,
-      conformeSignedAt: inquiry.conformeSignedAt ? timestamp(inquiry.conformeSignedAt) : null,
-      portalActivatedAt: inquiry.portalActivatedAt ? timestamp(inquiry.portalActivatedAt) : null,
+      acceptedAt: optionalTimestamp(inquiry.acceptedAt),
+      pendingAt: optionalTimestamp(inquiry.pendingAt),
+      declinedAt: optionalTimestamp(inquiry.declinedAt),
+      conformeSentAt: optionalTimestamp(inquiry.conformeSentAt),
+      conformeSignedAt: optionalTimestamp(inquiry.conformeSignedAt),
+      portalActivatedAt: optionalTimestamp(inquiry.portalActivatedAt),
       followUpIntervalDays: inquiry.followUpIntervalDays,
-      lastConformeReminderAt: inquiry.lastConformeReminderAt
-        ? timestamp(inquiry.lastConformeReminderAt)
-        : null,
-      reminderDueAt: reminderDueAt ? timestamp(reminderDueAt) : null,
-      reminderDue: Boolean(reminderDueAt && reminderDueAt <= new Date()),
-      portalInvitationStatus: invitationStatus,
-      portalInvitationSentAt: inquiry.portalInvitationSentAt
-        ? timestamp(inquiry.portalInvitationSentAt)
-        : null,
-      portalInvitationOpenedAt: inquiry.portalInvitationOpenedAt
-        ? timestamp(inquiry.portalInvitationOpenedAt)
-        : null,
-      portalInvitationExpiresAt: inquiry.portalInvitationExpiresAt
-        ? timestamp(inquiry.portalInvitationExpiresAt)
-        : null,
+      lastConformeReminderAt: optionalTimestamp(inquiry.lastConformeReminderAt),
+      reminderDueAt: optionalTimestamp(reminderDueAt),
+      reminderDue: isReminderDue(reminderDueAt),
+      portalInvitationStatus: inquiryInvitationStatus(inquiry),
+      portalInvitationSentAt: optionalTimestamp(inquiry.portalInvitationSentAt),
+      portalInvitationOpenedAt: optionalTimestamp(inquiry.portalInvitationOpenedAt),
+      portalInvitationExpiresAt: optionalTimestamp(inquiry.portalInvitationExpiresAt),
       createdAt: timestamp(inquiry.createdAt),
     };
   }

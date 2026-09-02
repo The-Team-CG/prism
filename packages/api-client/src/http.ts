@@ -23,30 +23,54 @@ function isPrismEmptyReason(value: unknown): value is PrismEmptyReason {
   return typeof value === "string" && PRISM_EMPTY_REASONS.has(value as PrismEmptyReason);
 }
 
-export function normalizePrismApiProblem(status: number, body: unknown): PrismApiProblem {
-  if (isRecord(body) && typeof body.code === "string" && typeof body.message === "string") {
-    return {
-      code: body.code,
-      message: body.message,
-      status,
-      retryable: typeof body.retryable === "boolean" ? body.retryable : status >= 500,
-      emptyReason: isPrismEmptyReason(body.emptyReason) ? body.emptyReason : undefined,
-      fieldErrors: Array.isArray(body.fieldErrors)
-        ? body.fieldErrors.filter(isRecord).map((fieldError) => ({
-            field: typeof fieldError.field === "string" ? fieldError.field : "unknown",
-            message: typeof fieldError.message === "string" ? fieldError.message : "Invalid field value.",
-            code: typeof fieldError.code === "string" ? fieldError.code : undefined,
-          }))
-        : undefined,
-      auditReference: typeof body.auditReference === "string" ? body.auditReference : undefined,
-    };
+function readOptionalString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function mapFieldError(fieldError: Record<string, unknown>) {
+  return {
+    field: typeof fieldError.field === "string" ? fieldError.field : "unknown",
+    message: typeof fieldError.message === "string" ? fieldError.message : "Invalid field value.",
+    code: typeof fieldError.code === "string" ? fieldError.code : undefined,
+  };
+}
+
+function mapFieldErrors(value: unknown): PrismApiProblem["fieldErrors"] {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter(isRecord).map(mapFieldError);
+}
+
+function problemFromRecord(status: number, body: unknown): PrismApiProblem | null {
+  if (!isRecord(body)) return null;
+  if (typeof body.code !== "string") return null;
+  if (typeof body.message !== "string") return null;
+  return {
+    code: body.code,
+    message: body.message,
+    status,
+    retryable: typeof body.retryable === "boolean" ? body.retryable : status >= 500,
+    emptyReason: isPrismEmptyReason(body.emptyReason) ? body.emptyReason : undefined,
+    fieldErrors: mapFieldErrors(body.fieldErrors),
+    auditReference: readOptionalString(body, "auditReference"),
+  };
+}
+
+function fallbackProblemMessage(status: number, body: unknown): string {
+  if (isRecord(body)) {
+    const message = readOptionalString(body, "message");
+    if (message) return message;
   }
+  if (typeof body === "string") return body;
+  return `P.R.I.S.M API request failed: ${status}`;
+}
 
-  const fallbackMessage = isRecord(body) && typeof body.message === "string" ? body.message : undefined;
-
+export function normalizePrismApiProblem(status: number, body: unknown): PrismApiProblem {
+  const fromRecord = problemFromRecord(status, body);
+  if (fromRecord) return fromRecord;
   return {
     code: status >= 500 ? "api_unavailable" : "api_error",
-    message: fallbackMessage ?? (typeof body === "string" ? body : `P.R.I.S.M API request failed: ${status}`),
+    message: fallbackProblemMessage(status, body),
     status,
     retryable: status >= 500,
   };

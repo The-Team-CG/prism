@@ -59,3 +59,24 @@ export function summarizeAuditTrail({
     retentionNote: privacyInventory?.retentionNotes?.[0] ?? "Sample retention notes unavailable",
   };
 }
+
+export function auditIconKind(category: string, severity: string) {
+  if (severity === "critical" || severity === "warning") return "alert";
+  if (category === "access") return "access";
+  if (category === "documents") return "documents";
+  if (category === "finance") return "finance";
+  if (category === "suppliers") return "suppliers";
+  return "default";
+}
+
+export function auditIntegrityCopy(integrity: { valid: boolean; checkedCount: number; firstBrokenLogId?: string | null } | null) {
+  if (!integrity) {
+    return { valid: true, headline: "Valid", detail: "Not checked yet" };
+  }
+  const breakNote = integrity.firstBrokenLogId ? ` - first break ${integrity.firstBrokenLogId}` : "";
+  return {
+    valid: integrity.valid !== false,
+    headline: integrity.valid === false ? "Broken" : "Valid",
+    detail: `${integrity.checkedCount} rows checked${breakNote}`,
+  };
+}

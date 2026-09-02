@@ -93,19 +93,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+const PRISM_AUTHENTICATED_SESSION_STRING_FIELDS = [
+  "id",
+  "name",
+  "email",
+  "role",
+  "organization",
+  "approvalStatus",
+  "accessToken",
+  "expiresAt",
+  "signedInAt",
+] as const;
+
+function hasAuthenticatedSessionStrings(value: Record<string, unknown>) {
+  return PRISM_AUTHENTICATED_SESSION_STRING_FIELDS.every((field) => typeof value[field] === "string");
+}
+
 export function isPrismAuthenticatedSession(value: unknown): value is PrismAuthenticatedSession {
   if (!isRecord(value)) return false;
-
-  return (
-    typeof value.id === "string" &&
-    typeof value.name === "string" &&
-    typeof value.email === "string" &&
-    typeof value.role === "string" &&
-    typeof value.organization === "string" &&
-    typeof value.approvalStatus === "string" &&
-    typeof value.accessToken === "string" &&
-    value.accessToken.length > 0 &&
-    typeof value.expiresAt === "string" &&
-    typeof value.signedInAt === "string"
-  );
+  if (!hasAuthenticatedSessionStrings(value)) return false;
+  const token = value.accessToken;
+  return typeof token === "string" && token.length > 0;
 }
