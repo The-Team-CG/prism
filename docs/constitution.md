@@ -4,12 +4,12 @@ title: "P.R.I.S.M documentation and architecture constitution"
 description: "Current invariants for role ownership, bounded contexts, shared contracts, compatibility paths, frontend layering, and documentation maintenance."
 tags: [architecture, constitution, contracts, documentation]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-02"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, maintainers, engineers]
 scope: "repository-wide cross-cutting rules"
-last_verified: "f9b2d9f"
+last_verified: "2026-09-02"
 sources:
   - id: prism-agent-rules
     resource: "AGENTS.md"
@@ -176,3 +176,9 @@ Documentation changes additionally require a relative-link audit, frontmatter
 audit, stale-path search, and proof that no source files changed. Do not use a
 documentation check to claim live database, browser, staging, or production
 behavior that was not executed.
+
+Second-owner review cannot be self-certified. Architecture, contract, and
+auth PRs need a recorded GitHub review from someone other than the author
+before merge. CI passing is not a review. An empty GitHub `reviews` array is
+not a review. Off-GitHub look-overs must be written onto the PR so the record
+exists.

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - Centralized CI/CD (staging trunk, main prod), Sonar, Vercel deploy path, Dependabot, security scans
 - The frontend/backend architecture-alignment report, Prisma persistence ownership register, and ADR-0006 for focused ports and composition-root adapters.
+- A second sample event (`evt_sample_unassigned`) with no coordinator assignment so unassigned-event checks can run.
 
 ### Changed
 - Restructured the documentation into an OKF-style bundle with semantic architecture, product, roadmap, runbook, and reference indexes.
@@ -19,10 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Corrected the active redesign/readiness inventory to match route-owned event composition and the flattened API source tree.
 - Refactored the event dashboard into route-owned composition with focused navigation/workspace ViewModels, canonical PMCM selectors, and compatibility-preserving event filter routes.
 - Hardened backend context seams with bounded floorplan queries, kernel-owned audit writing, focused cross-context ports, shared Zod writes, and verified live-ops actors.
+- Documented and chained the local bootstrap path (types build, Prisma generate, Next `.next/dev` cleanup, portal port guards) and pinned Node 24 to match CI.
+- Recorded the PR review rule that second-owner sign-off must appear on the GitHub reviews array.
 
 ### Removed
 - The obsolete event dashboard `features/event-ops` facade, duplicate event filter route folders, and superseded API DTO files were removed after their behavior was covered by focused tests.
 
 ### Fixed
 - Added focused route, sidebar, loading-copy, compatibility-path, and selector coverage so the event workspace satisfies the repository's branch-coverage gate.
+- Portal `dev`/`start` now clear a stale listener on the app port so `next start` cannot fail to bind while an old build keeps serving 200s.
+- Documented a CI audit exception for Prisma's unused MySQL client (`mysql2` GHSA-3f6p-5ww8-9rcr) until Prisma ships a patched pin.
 
