@@ -1,8 +1,9 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject } from '@prisma/client';
-import { PrismaService, toPrismaJson } from '@prism/kernel/database';
+import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject, Prisma } from '@prisma/client';
+import { PrismaService } from '@prism/kernel/database';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, JsonValue, Seat, SeatCategory } from '@prism/kernel/shared';
+import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 
 type UpdatePlanChanges = {
   venue?: string;
@@ -26,6 +27,24 @@ type PlanActor = {
 };
 
 type PlanWithObjects = PrismaFloorPlan & { objectRows?: PrismaFloorPlanObject[] };
+
+async function updatePlanWithObjects(
+  tx: Prisma.TransactionClient,
+  planId: string,
+  scalarChanges: Omit<UpdatePlanChanges, 'objects'>,
+  objects: CanvasObject[],
+) {
+  const updated = await tx.floorPlan
+    .update({
+      where: { id: planId },
+      data: floorPlanScalarPatch({ ...scalarChanges, objects }),
+    })
+    .catch(() => {
+      throw new NotFoundException('Plan not found');
+    });
+  await replaceFloorPlanObjects(tx, planId, objects);
+  return updated;
+}
 
 @Injectable()
 export class PlansService {
@@ -85,19 +104,7 @@ export class PlansService {
       const row = await this.prisma.floorPlan
         .update({
           where: { id: planId },
-          data: {
-            ...(scalarChanges.width !== undefined && { width: scalarChanges.width }),
-            ...(scalarChanges.height !== undefined && { height: scalarChanges.height }),
-            ...(scalarChanges.gridSize !== undefined && { gridSize: scalarChanges.gridSize }),
-            ...(scalarChanges.venue !== undefined && { venue: scalarChanges.venue }),
-            ...(scalarChanges.pax !== undefined && { pax: scalarChanges.pax }),
-            ...(scalarChanges.guests !== undefined && { guests: toPrismaJson(scalarChanges.guests) }),
-            ...(scalarChanges.suppliers !== undefined && { suppliers: toPrismaJson(scalarChanges.suppliers) }),
-            ...(scalarChanges.seats !== undefined && { seats: toPrismaJson(scalarChanges.seats) }),
-            ...(scalarChanges.seatCategories !== undefined && {
-              seatCategories: toPrismaJson(scalarChanges.seatCategories),
-            }),
-          },
+          data: floorPlanScalarPatch(scalarChanges),
           include: {
             objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
           },
@@ -110,47 +117,9 @@ export class PlansService {
     }
 
     const typedObjects = objects ?? [];
-
-    const row = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.floorPlan
-        .update({
-          where: { id: planId },
-          data: {
-            ...(scalarChanges.width !== undefined && { width: scalarChanges.width }),
-            ...(scalarChanges.height !== undefined && { height: scalarChanges.height }),
-            ...(scalarChanges.gridSize !== undefined && { gridSize: scalarChanges.gridSize }),
-            ...(scalarChanges.venue !== undefined && { venue: scalarChanges.venue }),
-            ...(scalarChanges.pax !== undefined && { pax: scalarChanges.pax }),
-            ...(scalarChanges.guests !== undefined && { guests: toPrismaJson(scalarChanges.guests) }),
-            ...(scalarChanges.suppliers !== undefined && { suppliers: toPrismaJson(scalarChanges.suppliers) }),
-            ...(scalarChanges.seats !== undefined && { seats: toPrismaJson(scalarChanges.seats) }),
-            ...(scalarChanges.seatCategories !== undefined && {
-              seatCategories: toPrismaJson(scalarChanges.seatCategories),
-            }),
-            objects: toPrismaJson(typedObjects),
-          },
-        })
-        .catch(() => {
-          throw new NotFoundException('Plan not found');
-        });
-
-      await tx.floorPlanObject.deleteMany({ where: { floorPlanId: planId } });
-
-      if (typedObjects.length > 0) {
-        await tx.floorPlanObject.createMany({
-          data: typedObjects.map((obj, index) => ({
-            floorPlanId: planId,
-            objectId: obj.id,
-            kind: obj.kind,
-            zIndex: obj.zIndex ?? index,
-            objectData: toPrismaJson(obj),
-            svgMarkup: obj.svgMarkup ?? null,
-          })),
-        });
-      }
-
-      return updated;
-    });
+    const row = await this.prisma.$transaction((tx) =>
+      updatePlanWithObjects(tx, planId, scalarChanges, typedObjects),
+    );
 
     return this.mapPlan(row, typedObjects);
   }

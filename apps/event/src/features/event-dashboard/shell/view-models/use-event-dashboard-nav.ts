@@ -20,6 +20,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { type PrismNavItem } from "@prism/ui";
+import { eventWorkspaceSectionLabel, optionalNavBadge } from "../model/event-dashboard-nav-copy";
 
 /**
  * Static PMCM dashboard nav configuration, extracted from
@@ -30,6 +31,29 @@ import { type PrismNavItem } from "@prism/ui";
  */
 export function loadingShellNavItems(hasEvent: boolean): PrismNavItem[] {
   return eventPortalNavItems({ hasEvent });
+}
+
+function eventWorkspaceNavItems(
+  eventSection: string,
+  counts: {
+    assignmentCount?: number;
+    quoteCount?: number;
+    draftCount?: number;
+    paymentCount?: number;
+    closeoutCount?: number;
+  },
+): PrismNavItem[] {
+  return [
+    { id: "event-overview", icon: LayoutGrid, label: "Overview", section: eventSection },
+    { id: "event-planning", icon: FileCheck2, label: "Briefing", section: eventSection },
+    { id: "event-files", icon: MapPinned, label: "Floorplans", section: eventSection, badge: optionalNavBadge(counts.draftCount) },
+    { id: "event-suppliers", icon: Truck, label: "Suppliers", section: eventSection, badge: optionalNavBadge(counts.quoteCount) },
+    { id: "event-staff", icon: UsersRound, label: "Coordinators", section: eventSection, badge: optionalNavBadge(counts.assignmentCount) },
+    { id: "event-timeline", icon: Radio, label: "Live Ops", section: eventSection },
+    { id: "event-budget", icon: ReceiptText, label: "Billing", section: eventSection, badge: optionalNavBadge(counts.paymentCount) },
+    { id: "event-report", icon: Archive, label: "Closure", section: eventSection, badge: optionalNavBadge(counts.closeoutCount) },
+    { id: "event-messages", icon: MessageSquareText, label: "Activity", section: eventSection },
+  ];
 }
 
 export function eventPortalNavItems({
@@ -55,28 +79,19 @@ export function eventPortalNavItems({
   paymentCount?: number;
   closeoutCount?: number;
 }): PrismNavItem[] {
-  const eventSection = eventName ? "Current event" : "Event workspace";
+  const eventSection = eventWorkspaceSectionLabel(eventName);
+  const eventItems = hasEvent
+    ? eventWorkspaceNavItems(eventSection, { assignmentCount, quoteCount, draftCount, paymentCount, closeoutCount })
+    : [];
   return [
     { id: "dashboard", icon: Home, label: "Dashboard", section: "PMCM" },
-    { id: "inquiries", icon: FileSignature, label: "Inquiries", section: "PMCM", badge: inquiryCount || undefined },
+    { id: "inquiries", icon: FileSignature, label: "Inquiries", section: "PMCM", badge: optionalNavBadge(inquiryCount) },
     { id: "clients", icon: CircleUserRound, label: "Clients", section: "PMCM" },
     { id: "events-list", icon: CalendarDays, label: "Events", section: "PMCM" },
     { id: "calendar", icon: CalendarClock, label: "Calendar", section: "PMCM" },
-    { id: "tasks", icon: ClipboardCheck, label: "Tasks", section: "PMCM", badge: taskCount || undefined },
-    { id: "command-inbox", icon: Inbox, label: "Command Inbox", section: "PMCM", badge: commandInboxCount || undefined },
-    ...(hasEvent
-      ? [
-          { id: "event-overview", icon: LayoutGrid, label: "Overview", section: eventSection },
-          { id: "event-planning", icon: FileCheck2, label: "Briefing", section: eventSection },
-          { id: "event-files", icon: MapPinned, label: "Floorplans", section: eventSection, badge: draftCount || undefined },
-          { id: "event-suppliers", icon: Truck, label: "Suppliers", section: eventSection, badge: quoteCount || undefined },
-          { id: "event-staff", icon: UsersRound, label: "Coordinators", section: eventSection, badge: assignmentCount || undefined },
-          { id: "event-timeline", icon: Radio, label: "Live Ops", section: eventSection },
-          { id: "event-budget", icon: ReceiptText, label: "Billing", section: eventSection, badge: paymentCount || undefined },
-          { id: "event-report", icon: Archive, label: "Closure", section: eventSection, badge: closeoutCount || undefined },
-          { id: "event-messages", icon: MessageSquareText, label: "Activity", section: eventSection },
-        ]
-      : []),
+    { id: "tasks", icon: ClipboardCheck, label: "Tasks", section: "PMCM", badge: optionalNavBadge(taskCount) },
+    { id: "command-inbox", icon: Inbox, label: "Command Inbox", section: "PMCM", badge: optionalNavBadge(commandInboxCount) },
+    ...eventItems,
     { id: "suppliers", icon: Tags, label: "Supplier Directory", section: "Management" },
     { id: "audit", icon: ShieldCheck, label: "Audit Trail", section: "System" },
     { id: "settings", icon: Settings, label: "Settings", section: "System" },

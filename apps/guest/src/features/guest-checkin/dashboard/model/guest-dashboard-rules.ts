@@ -95,6 +95,22 @@ export function humanizeToken(value: string): string {
   return value.replaceAll("_", " ");
 }
 
+export function checkInModeButtonClass(active: boolean) {
+  return active
+    ? "bg-primary text-primary-foreground shadow-sm"
+    : "text-muted-foreground hover:text-foreground";
+}
+
+export function guestEventStagePresentation(state: "completed" | "current" | "pending") {
+  if (state === "completed") {
+    return { className: "border-l-(--prism-sage) bg-(--prism-sage)/10", label: "Complete" };
+  }
+  if (state === "current") {
+    return { className: "border-l-(--prism-signal) bg-(--prism-signal)/8", label: "Current step" };
+  }
+  return { className: "border-l-border bg-background/60", label: "Pending" };
+}
+
 export function mapGuestDashboardError(
   error: unknown,
   fallback = "Something went wrong.",

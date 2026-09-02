@@ -363,3 +363,36 @@ export function quoteSubmitSuccessNotice(isRevision: boolean): string {
 export function eventStatusSuccessNotice(status: string): string {
   return `Status updated: ${fmt(status)}.`;
 }
+
+function pluralSuffix(count: number) {
+  return count === 1 ? "" : "s";
+}
+
+export function dashboardGreetingCopy(input: {
+  needsActionCount: number;
+  quoteNeedingSubmission: number;
+  openRequestCount: number;
+}): string {
+  if (input.needsActionCount > 0) {
+    const quotePart = input.quoteNeedingSubmission > 0
+      ? `${input.quoteNeedingSubmission} quote${pluralSuffix(input.quoteNeedingSubmission)} to submit`
+      : "handoff items pending";
+    return `${input.needsActionCount} action${pluralSuffix(input.needsActionCount)} need your attention — ${quotePart}.`;
+  }
+  if (input.openRequestCount > 0) {
+    return `${input.openRequestCount} open request${pluralSuffix(input.openRequestCount)} — all quotes submitted and up to date.`;
+  }
+  return "No open requests right now. PMCM will notify you when a new quote request arrives.";
+}
+
+export function quoteRequestsNavDesc(quoteNeedingSubmission: number, openRequestCount: number) {
+  if (quoteNeedingSubmission) return `${quoteNeedingSubmission} quote(s) need submission`;
+  if (openRequestCount) return `${openRequestCount} open request(s)`;
+  return "No open requests";
+}
+
+export function bookingsNavDesc(handoffPending: number, selectedRequestCount: number) {
+  if (handoffPending) return `${handoffPending} handoff item(s) pending`;
+  if (selectedRequestCount) return "All steps complete";
+  return "No active bookings";
+}
