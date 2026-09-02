@@ -1,4 +1,3 @@
-export * from './operations.module';
 export * from './contracts/staffing-commands.port';
 export * from './contracts/staffing-reader.port';
 export * from './contracts/staffing-ops.tokens';

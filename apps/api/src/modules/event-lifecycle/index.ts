@@ -1,4 +1,3 @@
-export * from './event-lifecycle.module';
 export * from './api/onboarding/event-briefing.controller';
 export * from './api/onboarding/inquiries.controller';
 export * from './api/onboarding/inquiry.dto';
