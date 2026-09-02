@@ -393,6 +393,10 @@ if (-not $SkipPrismaGenerate) {
   Invoke-External -Label "Generating Prisma client" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("run", "db:generate")
 }
 
+if (-not $SkipBuild) {
+  Invoke-External -Label "Building @prism/types" -WorkingDirectory $root -FilePath "npm.cmd" -ArgumentList @("--workspace", "@prism/types", "run", "build")
+}
+
 # Default local path is hot-reload dev (no monorepo build). -Prod builds then starts.
 $shouldBuild = $Prod -and -not $SkipBuild
 if ($shouldBuild) {
