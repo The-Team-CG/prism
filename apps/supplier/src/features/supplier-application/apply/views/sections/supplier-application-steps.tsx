@@ -44,13 +44,13 @@ type UpdateFn = <K extends keyof SupplierApplicationForm>(key: K, value: Supplie
 
 export function SupplierApplicationSubmitted({ onReset }: { onReset: () => void }) {
   return (
-    <main className="min-h-screen overflow-auto bg-background text-foreground">
-      <section className="relative min-h-screen overflow-hidden">
+    <main className="h-dvh bg-background text-foreground">
+      <section className="relative h-full overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,248,242,0.98),rgba(233,247,251,0.72)_58%,rgba(255,248,242,0.96))]" />
         <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(204,236,244,0.72)_1px,transparent_1px),linear-gradient(90deg,rgba(204,236,244,0.72)_1px,transparent_1px)] [background-size:42px_42px]" />
-        <div className="relative grid min-h-screen lg:grid-cols-[452px_minmax(0,1fr)]">
+        <div className="relative grid h-full lg:grid-cols-[452px_minmax(0,1fr)]">
           <ApplyAside submitted />
-          <section className="grid min-h-screen place-items-center px-5 py-6 lg:px-7">
+          <section className="grid h-full place-items-center overflow-y-auto px-5 py-6 lg:px-7">
             <div className="max-w-xl text-center">
               <span className="mx-auto grid size-20 place-items-center rounded-full bg-(--prism-success)/10 text-(--prism-success)">
                 <CheckCircle2 className="size-10" />
@@ -75,7 +75,7 @@ export function SupplierApplicationSubmitted({ onReset }: { onReset: () => void 
 
 export function ApplyAside({ submitted = false }: { submitted?: boolean }) {
   return (
-    <aside className="relative flex min-h-[360px] flex-col justify-between overflow-hidden border-r border-primary/10 bg-card/50 px-8 py-7 sm:px-10 lg:min-h-[944px]">
+    <aside className="relative flex min-h-[360px] flex-col justify-between overflow-hidden border-r border-primary/10 bg-card/50 px-8 py-7 sm:px-10 lg:h-full">
       <div className="pointer-events-none absolute -bottom-56 -left-24 size-[34rem] rounded-full border border-primary/20" />
       <div className="pointer-events-none absolute -bottom-40 left-44 size-[30rem] rounded-full border border-primary/20" />
       <div className="pointer-events-none absolute bottom-60 right-[3.25rem] hidden size-5 rotate-45 bg-primary shadow-[0_0_28px_rgba(202,18,96,0.24)] lg:block" />
@@ -451,12 +451,12 @@ export function ApplicationFormShell({
   return (
     <form
       onSubmit={onSubmit}
-      className="ml-0 flex min-h-[944px] w-full max-w-[1060px] flex-col overflow-hidden rounded-lg border border-border/80 bg-card/95 shadow-[0_24px_80px_rgba(23,18,22,0.09)] backdrop-blur"
+      className="flex h-full w-full max-w-[1320px] flex-col overflow-hidden rounded-lg border border-border/80 bg-card/95 shadow-[0_24px_80px_rgba(23,18,22,0.09)] backdrop-blur"
     >
       <div className="px-6 pb-[4.5rem] pt-9 sm:px-10 lg:px-12">
         <Stepper currentStep={currentStep} />
       </div>
-      <div className="flex-1 px-6 pb-8 sm:px-10 lg:px-12">{children}</div>
+      <div className="flex-1 overflow-y-auto px-6 pb-8 sm:px-10 lg:px-12">{children}</div>
       {footer}
     </form>
   );
