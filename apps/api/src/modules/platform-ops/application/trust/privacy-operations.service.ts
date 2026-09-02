@@ -342,78 +342,87 @@ export class PrivacyOperationsService {
     const redactedEmail = `redacted+privacy_${request.id}@privacy.local`;
     const byEmail = request.subjectEmail ? request.subjectEmail.toLowerCase() : undefined;
     const byName = request.subjectName || undefined;
-    let touchedRecords = 0;
-    const surfaces: string[] = [];
-
-    if (byEmail) {
-      const inquiries = await this.prisma.opsInquiry.updateMany({
-        where: { email: byEmail },
-        data: {
-          clientName: 'Redacted data subject',
-          companyName: '',
-          email: redactedEmail,
-          referralDetails: '',
-          message: '[redacted by privacy request]',
-          loggedByName: null,
-        },
-      });
-      if (inquiries.count) surfaces.push('inquiry');
-      touchedRecords += inquiries.count;
-
-      const approvals = await this.prisma.opsApprovalRequest.updateMany({
-        where: { email: byEmail },
-        data: {
-          name: 'Redacted data subject',
-          email: redactedEmail,
-          organization: '',
-        },
-      });
-      if (approvals.count) surfaces.push('approval_request');
-      touchedRecords += approvals.count;
-
-      const suppliers = await this.prisma.opsSupplier.updateMany({
-        where: { email: byEmail },
-        data: {
-          contactName: 'Redacted supplier contact',
-          email: redactedEmail,
-          phone: '',
-          performanceNotes: '[redacted by privacy request]',
-        },
-      });
-      if (suppliers.count) surfaces.push('supplier');
-      touchedRecords += suppliers.count;
-    }
-
-    if (byName) {
-      const guestWhere = {
-        ...(request.eventId ? { eventId: request.eventId } : {}),
-        guestName: byName,
-      };
-      const checkIns = await this.prisma.opsGuestCheckIn.updateMany({
-        where: guestWhere,
-        data: { guestName: 'Redacted guest' },
-      });
-      if (checkIns.count) surfaces.push('guest_check_in');
-      touchedRecords += checkIns.count;
-
-      const feedback = await this.prisma.opsGuestFeedback.updateMany({
-        where: guestWhere,
-        data: {
-          guestName: 'Redacted guest',
-          comment: '[redacted by privacy request]',
-          photoFileName: null,
-          videoFileName: null,
-        },
-      });
-      if (feedback.count) surfaces.push('guest_feedback');
-      touchedRecords += feedback.count;
-    }
-
+    const emailResult = byEmail
+      ? await this.redactEmailSurfaces(byEmail, redactedEmail)
+      : { surfaces: [] as string[], touchedRecords: 0 };
+    const nameResult = byName
+      ? await this.redactNameSurfaces(request, byName)
+      : { surfaces: [] as string[], touchedRecords: 0 };
     return {
-      touchedRecords,
-      surfaces,
+      touchedRecords: emailResult.touchedRecords + nameResult.touchedRecords,
+      surfaces: [...emailResult.surfaces, ...nameResult.surfaces],
       redactedEmail: byEmail ? redactedEmail : null,
     };
+  }
+
+  private recordRedaction(surfaces: string[], surface: string, count: number) {
+    if (count) surfaces.push(surface);
+    return count;
+  }
+
+  private async redactEmailSurfaces(byEmail: string, redactedEmail: string) {
+    const surfaces: string[] = [];
+    let touchedRecords = 0;
+    const inquiries = await this.prisma.opsInquiry.updateMany({
+      where: { email: byEmail },
+      data: {
+        clientName: 'Redacted data subject',
+        companyName: '',
+        email: redactedEmail,
+        referralDetails: '',
+        message: '[redacted by privacy request]',
+        loggedByName: null,
+      },
+    });
+    touchedRecords += this.recordRedaction(surfaces, 'inquiry', inquiries.count);
+
+    const approvals = await this.prisma.opsApprovalRequest.updateMany({
+      where: { email: byEmail },
+      data: {
+        name: 'Redacted data subject',
+        email: redactedEmail,
+        organization: '',
+      },
+    });
+    touchedRecords += this.recordRedaction(surfaces, 'approval_request', approvals.count);
+
+    const suppliers = await this.prisma.opsSupplier.updateMany({
+      where: { email: byEmail },
+      data: {
+        contactName: 'Redacted supplier contact',
+        email: redactedEmail,
+        phone: '',
+        performanceNotes: '[redacted by privacy request]',
+      },
+    });
+    touchedRecords += this.recordRedaction(surfaces, 'supplier', suppliers.count);
+    return { surfaces, touchedRecords };
+  }
+
+  private async redactNameSurfaces(request: OpsPrivacyRequestRecord, byName: string) {
+    const surfaces: string[] = [];
+    let touchedRecords = 0;
+    const guestWhere = {
+      ...(request.eventId ? { eventId: request.eventId } : {}),
+      guestName: byName,
+    };
+    const checkIns = await this.prisma.opsGuestCheckIn.updateMany({
+      where: guestWhere,
+      data: { guestName: 'Redacted guest' },
+    });
+    touchedRecords += this.recordRedaction(surfaces, 'guest_check_in', checkIns.count);
+
+    const feedback = await this.prisma.opsGuestFeedback.updateMany({
+      where: guestWhere,
+      data: {
+        guestName: 'Redacted guest',
+        comment: '[redacted by privacy request]',
+        photoFileName: null,
+        videoFileName: null,
+      },
+    });
+    touchedRecords += this.recordRedaction(surfaces, 'guest_feedback', feedback.count);
+    return { surfaces, touchedRecords };
   }
 
   private mapRequest(request: OpsPrivacyRequestRecord) {

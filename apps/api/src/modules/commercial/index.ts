@@ -1,4 +1,3 @@
-export * from './commercial.module';
 export * from './api/quotes/event-commercial.controller';
 export * from './api/quotes/quote-requests.controller';
 export * from './domain/supplier-quote-request.policy';
