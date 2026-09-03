@@ -305,6 +305,16 @@ describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () =>
       message: 'Quote has already been revised and cannot be revised again.',
     });
   });
+
+  it('rejects revise when the quote is already selected or locked', async () => {
+    const { service, quote } = createRevisionCapScenario(1);
+    if (quote) quote.status = 'selected';
+
+    await expect(service.reviseSupplierQuoteByToken('token-sample', { amount: 60000 })).rejects.toThrow(
+      'Supplier quote is already locked',
+    );
+    expect(quote?.revisionNumber).toBe(1);
+  });
 });
 
 function lastRequestStatus(prisma: { opsSupplierQuoteRequest: { update: ReturnType<typeof vi.fn> } }) {

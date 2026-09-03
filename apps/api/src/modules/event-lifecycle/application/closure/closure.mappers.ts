@@ -62,3 +62,8 @@ export function mapEventInsight(insight: OpsEventInsight) {
     updatedAt: expanded.updatedAt ? timestamp(expanded.updatedAt) : timestamp(insight.generatedAt),
   };
 }
+
+export function mapClientVisibleEventInsight(insight: OpsEventInsight) {
+  const { privateNotes: _privateNotes, ...visible } = mapEventInsight(insight);
+  return visible;
+}

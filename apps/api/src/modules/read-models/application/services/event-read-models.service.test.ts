@@ -217,8 +217,8 @@ function createPmcmReadModelService() {
     },
     opsComplianceRule: { findMany: vi.fn(async () => []) },
     opsComplianceCheck: { findMany: vi.fn(async () => []) },
-    opsBillingSource: { findMany: vi.fn(async () => []) },
-    opsBillingStatement: { findMany: vi.fn(async () => []) },
+    opsBillingSource: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
+    opsBillingStatement: { findMany: vi.fn(async () => [] as Array<{ id: string; eventId: string }>) },
     opsPaymentRecord: { findMany: vi.fn(async () => []) },
     opsEventInsight: { findMany: vi.fn(async () => []) },
     opsAuditLog: { findMany: vi.fn(async () => []) },
@@ -385,6 +385,15 @@ describe('EventReadModelsService', () => {
         closureReady: false,
       }),
     });
+    expect(readiness.liveAiBlocked).toBe(true);
+    expect(readiness.deferredScope).toEqual(
+      expect.arrayContaining([
+        'Live AI calls',
+        'QR scanning',
+        'Production notification adapters',
+        'External auth',
+      ]),
+    );
     expect(readiness.nextActions.map((action: any) => action.key)).toEqual([
       'briefing',
       'floorplan',
@@ -450,6 +459,26 @@ describe('EventReadModelsService', () => {
       eventId: 'evt_visible',
     });
     expect(actionCenter.items.some((item) => item.id === 'briefing:evt_visible')).toBe(true);
+  });
+
+  it('omits internal billing sources for client actors while still serving statements and milestones', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    prisma.opsBillingSource.findMany.mockImplementation(async () => [{ id: 'ce_hidden', eventId: 'evt_visible' }]);
+    prisma.opsBillingStatement.findMany.mockImplementation(async () => [{ id: 'bill_visible', eventId: 'evt_visible' }]);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    const billing = await service.billing(actor, {
+      mapEvent: (event) => event,
+      mapBillingSource: (source) => source,
+      mapBillingStatement: (statement) => statement,
+      mapPaymentMilestone: (payment) => payment,
+      mapPaymentRecord: (record) => record,
+    });
+
+    expect(billing.billingSources).toEqual([]);
+    expect(billing.billingStatements).toEqual([{ id: 'bill_visible', eventId: 'evt_visible' }]);
+    expect(prisma.opsBillingSource.findMany).not.toHaveBeenCalled();
+    expect(prisma.opsBillingStatement.findMany).toHaveBeenCalled();
   });
 
   it('builds a selected PMCM event workspace from event-scoped records', async () => {

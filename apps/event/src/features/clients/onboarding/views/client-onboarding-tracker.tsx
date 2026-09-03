@@ -5,6 +5,7 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
+import { onboardingTimelineSteps, reminderEvidenceCopy } from "../model/client-onboarding-rules";
 
 function TimelineStep({ title, done, meta }: { title: string; done: boolean; meta?: string }) {
   return (
@@ -58,12 +59,7 @@ export function ClientOnboardingTracker({
       ) : (
         <div className="divide-y divide-border">
           {tracked.map((inq) => {
-            const steps = [
-              { title: "Inquiry accepted", done: Boolean(inq.acceptedAt), meta: compactTimestamp(inq.acceptedAt) },
-              { title: "Conforme sent", done: Boolean(inq.conformeSentAt), meta: compactTimestamp(inq.conformeSentAt) },
-              { title: "Conforme signed", done: Boolean(inq.conformeSignedAt), meta: compactTimestamp(inq.conformeSignedAt) },
-              { title: "Portal activated", done: Boolean(inq.portalActivatedAt), meta: compactTimestamp(inq.portalActivatedAt) },
-            ];
+            const steps = onboardingTimelineSteps(inq, compactTimestamp);
 
             return (
               <div key={inq.id} className="px-6 py-4">
@@ -80,7 +76,7 @@ export function ClientOnboardingTracker({
                   />
                 </div>
 
-                <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {steps.map((step) => (
                     <TimelineStep key={step.title} title={step.title} done={step.done} meta={step.meta} />
                   ))}
@@ -89,9 +85,7 @@ export function ClientOnboardingTracker({
                 {!inq.conformeSignedAt && (
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-(--prism-amber)/20 bg-(--prism-amber)/5 px-4 py-3">
                     <p className="text-xs text-muted-foreground">
-                      {inq.reminderDueAt
-                        ? `Next reminder due: ${compactTimestamp(inq.reminderDueAt)}`
-                        : "Reminder schedule starts after conforme is sent."}
+                      {reminderEvidenceCopy(inq, compactTimestamp)}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {inq.reminderDue && inq.conformeSentAt && (
