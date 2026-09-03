@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import type { CreateSupplierReviewInput } from '@prism/types';
 import type {
   OpsEvent,
   OpsSupplier,
@@ -40,15 +41,6 @@ export type UpdateSupplierInput = Partial<Omit<CreateSupplierInput, 'tier'>>;
 export type ChangeSupplierTierInput = {
   tier: string;
   reason: string;
-};
-
-export type CreateSupplierReviewInput = {
-  eventId?: string;
-  rating: number;
-  notes: string;
-  reviewedBy?: string;
-  dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
-  idempotencyKey?: string;
 };
 
 export type CreateSupplierCertificationInput = {

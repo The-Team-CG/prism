@@ -5,7 +5,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import type { SupplierQuoteRequestRow, SupplierQuoteRow } from "@/features/pmcm-kit";
-import { pmcmSupplierReadinessRows } from "../model/pmcm-supplier-readiness-rules";
+import { pmcmSupplierReadinessRows, categoriesWithSupplierGap, supplierGapHardBlockCopy } from "../model/pmcm-supplier-readiness-rules";
 
 export function PmcmSupplierReadinessBoard({
   requests,
@@ -15,6 +15,7 @@ export function PmcmSupplierReadinessBoard({
   quotes: SupplierQuoteRow[];
 }) {
   const rows = pmcmSupplierReadinessRows(requests, quotes);
+  const gapCopy = supplierGapHardBlockCopy(categoriesWithSupplierGap(rows));
 
   return (
     <section className="rounded-2xl border border-border bg-card shadow-sm">
@@ -26,6 +27,11 @@ export function PmcmSupplierReadinessBoard({
         <p className="mt-1 text-xs text-muted-foreground">
           PMCM review of quote lock, assignment, and readiness. Private reviews stay off the supplier portal.
         </p>
+        {gapCopy ? (
+          <p className="mt-3 rounded-xl border border-(--prism-amber)/30 bg-(--prism-amber)/8 px-3 py-2 text-xs font-semibold text-(--prism-amber)">
+            {gapCopy}
+          </p>
+        ) : null}
       </div>
       {rows.length === 0 ? (
         <div className="px-6 py-6">
