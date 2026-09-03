@@ -335,6 +335,7 @@ export function EventWorkspaceRegistrationTab() {
       platform={vm.registrationPlatform}
       suppliers={vm.suppliers}
       busy={Boolean(vm.busy)}
+      loadError={vm.commandDataErrors.registrationPlatform}
       onUpsert={vm.upsertRegistrationPlatform}
       onUpdate={vm.updateRegistrationPlatform}
       onImportHeadcount={vm.importHeadcount}
