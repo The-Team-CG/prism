@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, QrCode } from "lucide-react";
+import { LogOut, TicketCheck } from "lucide-react";
 import { PrismNoticeBanner } from "@prism/ui";
 import { humanizeToken } from "../model/guest-dashboard-rules";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
@@ -61,9 +61,9 @@ export function GuestDashboardView() {
               {session.eventDate}
             </p>
             <div className="mt-3 grid place-items-center rounded-md bg-white/6 p-4">
-              <QrCode className="size-16 text-sidebar-foreground/40" />
+              <TicketCheck className="size-16 text-sidebar-foreground/40" />
               <p className="mt-2 text-center text-[10px] font-black uppercase tracking-[0.14em] text-sidebar-foreground/50">
-                Show at registration
+                Access code
               </p>
               <p className="mt-1 text-center text-xs font-black text-(--prism-amber)">
                 {session.guestAccessCode}

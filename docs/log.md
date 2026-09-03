@@ -1,5 +1,16 @@
 # Documentation bundle update log
 
+## 2026-09-03
+
+- **Recorded:** P0/P1 catalog thin-slice evidence on the feature-ledger overlay
+  without changing Active Ledger decisions: inquiry copy-link, onboarding
+  invitation evidence, Command Inbox on PMCM home, labeled client action-center
+  fallback, role file-requirements matrices with storage remaining gated,
+  PMCM supplier readiness, client-safe billing, guest access-code check-in
+  without camera QR, close-gate private-notes mapper, and privacy/audit
+  request evidence. Live AI, production notification adapters, external auth,
+  and object storage stay gated.
+
 ## 2026-09-02
 
 - **Documented:** Fresh-clone bootstrap (types build, Prisma generate, paused

@@ -23,21 +23,23 @@ export function ClientFloorPlanView() {
   } = useClientWorkspace();
 
   const activeDraft = officialDraft ?? preferenceDrafts[0];
-  const approved = activeDraft?.status === "approved";
+  const approved = officialDraft?.status === "approved";
+  const isOfficial = Boolean(officialDraft);
 
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <FloorPlanCardHeader approved={approved} activeDraft={activeDraft} />
+        <FloorPlanCardHeader approved={approved} isOfficial={isOfficial} activeDraft={activeDraft} />
         <div className="p-6">
           <FloorPlanDraftPanel
             approved={approved}
+            isOfficial={isOfficial}
             activeDraft={activeDraft}
             officialProject={officialProject}
             onOpenEditor={openFloorplanEditor}
           />
           <FloorPlanTemplates
-            approved={approved}
+            approved={approved || isOfficial}
             templates={floorPlanTemplates}
             busy={busy}
             onCreate={createEditorDraft}

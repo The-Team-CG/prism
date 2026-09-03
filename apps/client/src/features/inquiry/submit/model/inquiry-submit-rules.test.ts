@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyInquiryPrefill,
   buildInquiryPayload,
   buildInquiryReference,
   canAdvanceInquiryStep,
@@ -86,5 +87,11 @@ describe("inquiry-submit-rules", () => {
     expect(mapInquirySubmitError({})).toBe("Unable to submit inquiry");
     expect(inquiryMinDate(new Date("2026-05-10T12:00:00.000Z"))).toBe("2026-05-10");
     expect(buildInquiryReference(new Date("2026-01-01T00:00:00.000Z"), 0.5)).toBe("INQ-2026-5500");
+  });
+
+  it("prefills source and channel from a public inquiry link", () => {
+    const next = applyInquiryPrefill(form(), new URLSearchParams("source=Colleague+or+Friend&channel=pmcm-inquiry-link"));
+    expect(next.source).toBe("Colleague or Friend");
+    expect(next.channel).toBe("pmcm-inquiry-link");
   });
 });

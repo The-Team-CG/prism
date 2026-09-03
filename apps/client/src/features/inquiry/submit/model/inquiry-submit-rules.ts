@@ -1,10 +1,11 @@
 import {
   createPrismInquirySchema,
+  inquiryPrefillFromSearchParams,
   parseContract,
   type CreatePrismInquiryInput,
 } from "@prism/types";
 import type { InquiryForm } from "./inquiry-submit-types";
-import { INQUIRY_WIZARD_STEPS } from "./inquiry-submit-types";
+import { INQUIRY_REFERRAL_SOURCES, INQUIRY_WIZARD_STEPS } from "./inquiry-submit-types";
 
 function hasText(value: string) {
   return Boolean(value.trim());
@@ -36,6 +37,22 @@ export function isInquiryStepValid(form: InquiryForm, step: number): boolean {
 
 export function canAdvanceInquiryStep(form: InquiryForm, step: number): boolean {
   return isInquiryStepValid(form, step) && step < INQUIRY_WIZARD_STEPS.length - 1;
+}
+
+export function applyInquiryPrefill(
+  form: InquiryForm,
+  params: { get(name: string): string | null },
+): InquiryForm {
+  const prefill = inquiryPrefillFromSearchParams(params);
+  const source =
+    prefill.source && (INQUIRY_REFERRAL_SOURCES as readonly string[]).includes(prefill.source)
+      ? prefill.source
+      : form.source;
+  return {
+    ...form,
+    source,
+    channel: prefill.channel ?? form.channel,
+  };
 }
 
 export function nextInquiryStep(step: number): number {
@@ -79,6 +96,7 @@ export function buildInquiryPayload(form: InquiryForm): CreatePrismInquiryInput 
       eventDate: form.eventDate,
       clientType: form.clientType,
       source: form.source,
+      channel: form.channel.trim() || undefined,
       message: reviewNotes,
       privacyConsentAccepted: form.privacyConsentAccepted,
       privacyNoticeVersion: form.privacyNoticeVersion,

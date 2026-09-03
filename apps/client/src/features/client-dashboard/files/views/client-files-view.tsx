@@ -7,6 +7,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { cn } from "@/app/components/ui/utils";
 import { formatStatusLabel } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
+import { ClientFileRequirementsMatrix } from "./client-file-requirements-matrix";
 
 export function ClientFilesView() {
   const {
@@ -14,6 +15,8 @@ export function ClientFilesView() {
     portalView,
     state,
     events,
+    selectedEvent,
+    session,
   } = useClientWorkspace();
   if (!state) return null;
 
@@ -88,6 +91,7 @@ export function ClientFilesView() {
   
     return (
       <div className="space-y-5">
+        <ClientFileRequirementsMatrix eventId={selectedEvent?.id ?? events[0]?.id} session={session} />
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
           <div>
             <h1 className="text-2xl font-black text-foreground">{activeFolder.label}</h1>

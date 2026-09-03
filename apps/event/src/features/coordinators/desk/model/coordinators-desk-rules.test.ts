@@ -3,6 +3,7 @@ import {
   isRegistrationCoordinatorRole,
   pickActiveAssignment,
   sameCoordinatorName,
+  shouldPreserveRoleViewOnAcknowledgeFailure,
 } from "./coordinators-desk-rules";
 
 describe("coordinators-desk-rules", () => {
@@ -22,5 +23,9 @@ describe("coordinators-desk-rules", () => {
       { attendanceStatus: "present" },
     ]);
     expect(active?.attendanceStatus).toBe("present");
+  });
+
+  it("keeps the loaded role view when acknowledge refresh fails", () => {
+    expect(shouldPreserveRoleViewOnAcknowledgeFailure()).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
+import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
 import { EventFileHub } from "./event-file-hub";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 import { EventTasksWorkspace } from "./event-tasks-workspace";
@@ -337,21 +338,24 @@ export function EventDashboardFilesSectionView() {
   return (
 
           selectedEvent ? (
-            <EventFileHub
-              event={selectedEvent}
-              documents={documents}
-              drafts={drafts}
-              billingStatements={billingStatements}
-              quoteRequests={quoteRequests}
-              briefing={briefing}
-              checks={checks}
-              postEventDocuments={postEventDocuments}
-              onOpenFloorplans={() => navigateEventTab("floorplans")}
-              onOpenBriefing={() => navigateEventTab("briefing")}
-              onOpenSuppliers={() => navigateEventTab("suppliers")}
-              onOpenBilling={() => navigateEventTab("billing")}
-              onOpenClosure={() => navigateEventTab("closure")}
-            />
+            <div className="space-y-5">
+              <FileRequirementsMatrixPanel eventId={selectedEvent.id} />
+              <EventFileHub
+                event={selectedEvent}
+                documents={documents}
+                drafts={drafts}
+                billingStatements={billingStatements}
+                quoteRequests={quoteRequests}
+                briefing={briefing}
+                checks={checks}
+                postEventDocuments={postEventDocuments}
+                onOpenFloorplans={() => navigateEventTab("floorplans")}
+                onOpenBriefing={() => navigateEventTab("briefing")}
+                onOpenSuppliers={() => navigateEventTab("suppliers")}
+                onOpenBilling={() => navigateEventTab("billing")}
+                onOpenClosure={() => navigateEventTab("closure")}
+              />
+            </div>
           ) : (
             <EmptyState icon={FileText} title="Select an event" description="Files are organized by event workspace after conforme activation." />
           )
@@ -514,7 +518,6 @@ export function EventDashboardHomeSectionView() {
     navigateSection,
     navigateEvent,
     resetDashboard,
-    inquiries,
     acceptInquiry,
     pendInquiry,
     declineInquiry,
@@ -528,6 +531,7 @@ export function EventDashboardHomeSectionView() {
   return (
 
           <>
+            <EventDashboardCommandInboxSectionView />
             <CommandHomePage
               session={session}
               state={state}
