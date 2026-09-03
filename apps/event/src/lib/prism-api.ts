@@ -712,25 +712,11 @@ export const prismApi = {
     request<PAREApprovalRecord>(`/api/ai/pare/${approvalRecordId}/reject`, { method: "PATCH" }),
 
   // ─── Registration Platform ───────────────────────────────────────────────
-  getRegistrationPlatform: (eventId: string) =>
-    eventOpsClient.pmcm.registrationPlatform(eventId, {
-      actorRole: "pmcm-admin",
-      actorName: "Ms. Mys",
-      actorEmail: "mys@pmcm.test",
-    }),
+  getRegistrationPlatform: (eventId: string) => eventOpsClient.pmcm.registrationPlatform(eventId),
   upsertRegistrationPlatform: (eventId: string, input: CreateRegistrationPlatformInput) =>
-    request<PrismRegistrationPlatform>(withPmcmActor(`/api/events/${eventId}/registration-platform`), {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    eventOpsClient.pmcm.upsertRegistrationPlatform(eventId, input),
   updateRegistrationPlatform: (eventId: string, input: UpdateRegistrationPlatformInput) =>
-    request<PrismRegistrationPlatform>(withPmcmActor(`/api/events/${eventId}/registration-platform`), {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    }),
+    eventOpsClient.pmcm.updateRegistrationPlatform(eventId, input),
   importHeadcount: (eventId: string, input: ImportHeadcountInput) =>
-    request<PrismRegistrationPlatform>(withPmcmActor(`/api/events/${eventId}/registration-platform/headcount-import`), {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    eventOpsClient.pmcm.importHeadcount(eventId, input),
 };

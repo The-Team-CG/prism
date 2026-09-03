@@ -14,6 +14,9 @@ import {
   verifySupplierStatusSchema,
   createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
+  createRegistrationPlatformSchema,
+  updateRegistrationPlatformSchema,
+  importHeadcountSchema,
   submitBriefingSchema,
   uploadConformeSchema,
   parseContract,
@@ -76,6 +79,25 @@ describe("event-ops write schemas", () => {
   it("validates inquiry status transitions", () => {
     expect(updateInquiryStatusSchema.safeParse({ status: "accepted" }).success).toBe(true);
     expect(updateInquiryStatusSchema.safeParse({ status: "nope" }).success).toBe(false);
+  });
+
+  it("validates registration platform writes", () => {
+    expect(
+      createRegistrationPlatformSchema.safeParse({
+        platformType: "xperto",
+        expectedPaxMin: 200,
+        expectedPaxMax: 250,
+      }).success,
+    ).toBe(true);
+    expect(createRegistrationPlatformSchema.safeParse({ platformType: "ticketmaster" }).success).toBe(false);
+    expect(updateRegistrationPlatformSchema.safeParse({ status: "live" }).success).toBe(true);
+    expect(updateRegistrationPlatformSchema.safeParse({ status: "done" }).success).toBe(false);
+    expect(
+      importHeadcountSchema.safeParse({ headcountSource: "XPERTO", importedHeadcount: 180 }).success,
+    ).toBe(true);
+    expect(
+      importHeadcountSchema.safeParse({ headcountSource: "XPERTO", importedHeadcount: -1 }).success,
+    ).toBe(false);
   });
 
   it("validates supplier application input", () => {

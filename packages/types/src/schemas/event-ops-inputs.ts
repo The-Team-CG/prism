@@ -87,6 +87,42 @@ export const createGuestFeedbackSchema = privacyConsentSchema.extend({
 });
 export type CreateGuestFeedbackInput = z.infer<typeof createGuestFeedbackSchema>;
 
+/* ── Registration platform (PMCM) ─────────────────────────────── */
+
+export const prismRegistrationPlatformTypeSchema = z.enum(["xperto", "clickpass", "custom", "none"]);
+export const prismRegistrationPlatformStatusSchema = z.enum([
+  "not_started",
+  "configuring",
+  "live",
+  "closed",
+]);
+
+export const createRegistrationPlatformSchema = z.object({
+  platformType: prismRegistrationPlatformTypeSchema,
+  supplierId: optionalTrimmedStringSchema,
+  expectedPaxMin: z.number().int().min(0).optional(),
+  expectedPaxMax: z.number().int().min(0).optional(),
+  setupNotes: optionalTrimmedStringSchema,
+});
+export type CreateRegistrationPlatformInput = z.infer<typeof createRegistrationPlatformSchema>;
+
+export const updateRegistrationPlatformSchema = z.object({
+  platformType: prismRegistrationPlatformTypeSchema.optional(),
+  supplierId: optionalTrimmedStringSchema,
+  expectedPaxMin: z.number().int().min(0).optional(),
+  expectedPaxMax: z.number().int().min(0).optional(),
+  status: prismRegistrationPlatformStatusSchema.optional(),
+  setupNotes: optionalTrimmedStringSchema,
+});
+export type UpdateRegistrationPlatformInput = z.infer<typeof updateRegistrationPlatformSchema>;
+
+export const importHeadcountSchema = z.object({
+  headcountSource: nonEmptyStringSchema,
+  importedHeadcount: z.number().int().min(0),
+  importedFileName: optionalTrimmedStringSchema,
+});
+export type ImportHeadcountInput = z.infer<typeof importHeadcountSchema>;
+
 /* ── Supplier ─────────────────────────────────────────────────── */
 
 export const createSupplierApplicationSchema = z.object({

@@ -82,3 +82,6 @@ PRISM_Repo_Recon_*.md
 PRISM_Audits/
 handoffs_archive/
 
+# Linked git worktrees (local isolation; never commit contents)
+.worktrees/
+

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - A production cyclomatic-complexity gate (`check:complexity`, max 10) with unit tests wired into `test:boundaries`.
+- Shared Zod write contracts for PMCM registration-platform create/update and post-event headcount import.
+- Prisma migration for `guest_ops.registration_platforms` (EP-13-S05).
 - Centralized CI/CD (staging trunk, main prod), Sonar, Vercel deploy path, Dependabot, security scans
 - The frontend/backend architecture-alignment report, Prisma persistence ownership register, and ADR-0006 for focused ports and composition-root adapters.
 - A second sample event (`evt_sample_unassigned`) with no coordinator assignment so unassigned-event checks can run.
@@ -38,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Client approvals rules import model helpers directly instead of the workspace barrel, so `test:coverage` no longer pulls views/`prism-api` into the 50% CI gate.
+- Registration-platform mutations now require a verified PMCM session, stamp setup confirmation on `live`, and allow headcount import only after the platform is closed.
+- Supplier apply no longer submits fallback category IDs when the live category list is empty or offline.
 - Pointed `smoke:ui` source guards at the split coordinator and guest section views.
 - Nest composition roots import sibling `*Module` classes from module files instead of package barrels so the API can boot across circular context graphs.
 - Pinned `fast-uri` to `3.1.7` and extended the Prisma `mysql2` audit exception to `GHSA-rgwj-5xj2-c3m3` so CI can pass newly published high advisories.
