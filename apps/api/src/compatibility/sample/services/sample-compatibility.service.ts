@@ -1283,7 +1283,18 @@ export class SampleCompatibilityService implements OnModuleInit {
     input: UpdateCoordinatorAttendanceInput,
     actorInput: SampleActorInput = {},
   ) {
-    const { actor } = await this.requireEventDayWriteActor(eventId, actorInput, 'coordinator attendance');
+    // PA-298: this path previously discarded requireEventDayWriteActor's resolved
+    // assignment, letting any Coordinator assigned to the event mark any other
+    // coordinator's attendance by changing the assignmentId argument.
+    const { actor, assignment: actorAssignment } = await this.requireEventDayWriteActor(
+      eventId,
+      actorInput,
+      'coordinator attendance',
+    );
+    if (actor.role === OpsUserRole.Coordinator && actorAssignment?.id !== assignmentId) {
+      await this.recordForbiddenAccess(actor, 'coordinator attendance', eventId);
+      throw new ForbiddenException("Coordinator cannot mark another coordinator's attendance");
+    }
     const assignment = await this.liveOperationsService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
     return this.mapCoordinatorAssignmentForEventDay(assignment);
   }

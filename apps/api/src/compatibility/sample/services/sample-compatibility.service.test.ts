@@ -3385,6 +3385,59 @@ describe('SampleCompatibilityService', () => {
     expect(fake.state.eventDayLogs.some((log) => log.actionType === 'coordinator_status_updated')).toBe(true);
   });
 
+  it('rejects a coordinator marking another coordinator attendance on the same event', async () => {
+    const fake = createPrisma();
+    fake.state.events.push({
+      id: 'evt_sample',
+      inquiryId: 'inq_sample',
+      clientName: 'Ana Reyes',
+      eventName: 'Ayala Summit',
+      eventDate: new Date('2026-06-18T00:00:00.000Z'),
+      status: 'event_day',
+      clientPortalStatus: 'unlocked',
+      readiness: 'Event day live',
+      archived: false,
+      floorPlanStatus: 'approved',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    fake.state.coordinatorAssignments.push(
+      {
+        id: 'coord_asg_reg',
+        eventId: 'evt_sample',
+        coordinatorId: 'coord_marco',
+        coordinatorName: 'Marco Santos',
+        role: 'Registration Staff',
+        status: 'acknowledged',
+        eventDate: new Date('2026-06-18T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+      {
+        id: 'coord_asg_floor',
+        eventId: 'evt_sample',
+        coordinatorId: 'coord_ina',
+        coordinatorName: 'Ina Cruz',
+        role: 'Floor Director',
+        status: 'acknowledged',
+        eventDate: new Date('2026-06-18T00:00:00.000Z'),
+        createdAt: new Date(),
+      },
+    );
+    const service = createSampleCompatibilityService(fake.prisma as any);
+
+    // Actor is identified by coordinatorId and email, not display name, so this test does
+    // not depend on findAssignmentForEventActor's coordinatorName fallback.
+    await expect(
+      (service as any).updateCoordinatorAttendance('evt_sample', 'coord_asg_floor', {
+        status: 'absent',
+      }, { actorRole: OpsUserRole.Coordinator, coordinatorId: 'coord_marco', actorEmail: 'marco@pmcm.test' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    const target = fake.state.coordinatorAssignments.find((assignment) => assignment.id === 'coord_asg_floor');
+    expect(target.attendanceStatus).toBeUndefined();
+    expect(fake.state.coordinatorReliabilityNotes).toHaveLength(0);
+  });
+
   it('shows registration coordinator role view with attendance data but no PMCM-only records', async () => {
     const fake = createPrisma();
     fake.state.events.push({
