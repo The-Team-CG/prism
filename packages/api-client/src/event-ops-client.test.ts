@@ -252,6 +252,33 @@ describe("createEventOpsClient", () => {
     );
   });
 
+  it("reviews a client proposal through the shared event contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "evt_1", proposalClientStatus: "approved" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.events.reviewProposal("evt_1", { action: "approve" });
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/events/evt_1/proposal/review", {
+      method: "PATCH",
+      body: JSON.stringify({ action: "approve" }),
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  it("searches archived events by venue and month", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.events.searchArchive({ venue: "Shangri-La", month: "2026-06" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/events/archive?venue=Shangri-La&month=2026-06",
+      { headers: { "Content-Type": "application/json" } },
+    );
+  });
+
   it("loads the PMCM command inbox as a scoped read model", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

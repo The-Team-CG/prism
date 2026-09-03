@@ -8,6 +8,8 @@ import { EventSessionModule } from '@prism/kernel/event-session';
 import { DOCUMENT_VAULT } from '../event-lifecycle/contracts/document-vault.port';
 import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
 import { OpsEventCommercialController } from './api/quotes/event-commercial.controller';
+import { OpsEventProposalReviewController } from './api/quotes/event-proposal-review.controller';
+import { ProposalClientReviewService } from './application/quotes/proposal-client-review.service';
 import { OpsQuoteRequestsController } from './api/quotes/quote-requests.controller';
 import { OpsEventSupplierWithdrawalController } from './api/suppliers/event-supplier-withdrawal.controller';
 import { OpsSupplierApplicationsController } from './api/suppliers/supplier-applications.controller';
@@ -76,6 +78,7 @@ const supplierCommandsProvider = {
   controllers: [
     OpsQuoteRequestsController,
     OpsEventCommercialController,
+    OpsEventProposalReviewController,
     OpsEventSupplierWithdrawalController,
     OpsSupplierApplicationsController,
     OpsSupplierDirectoryController,
@@ -86,6 +89,7 @@ const supplierCommandsProvider = {
   ],
   providers: [
     CommercialWorkflowService,
+    ProposalClientReviewService,
     PrismaQuoteSupplierResolver,
     { provide: COMMERCIAL_WORKFLOW_COMMANDS, useExisting: CommercialWorkflowService },
     { provide: PROPOSAL_READER, useExisting: CommercialWorkflowService },

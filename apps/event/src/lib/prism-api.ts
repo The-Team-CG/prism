@@ -46,6 +46,7 @@ import type {
   PrismPrivacyRetentionPolicy,
   PrismSecurityAlert,
   PrismSupplier,
+  PrismSupplierApplication,
   PrismSupplierCategory,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -72,6 +73,8 @@ import type {
   VerifySupplierStatusInput,
   CreatePrivacyRequestInput,
   ReviewPrivacyRequestInput,
+  ReviewSupplierApplicationInput,
+  CreateSupplierReviewInput,
   AuditLogFilters,
 } from "@prism/types";
 
@@ -183,15 +186,6 @@ type UpdateSupplierInput = Partial<CreateSupplierInput>;
 type ChangeSupplierTierInput = {
   tier: "tier_1" | "tier_2" | "pending_first_event";
   reason: string;
-};
-
-type CreateSupplierReviewInput = {
-  eventId?: string;
-  rating: number;
-  notes: string;
-  reviewedBy?: string;
-  dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
-  idempotencyKey?: string;
 };
 
 type CreateSupplierCertificationInput = {
@@ -571,6 +565,13 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  listSupplierApplications: () =>
+    request<PrismSupplierApplication[]>(withPmcmActor("/api/supplier-applications/inbox")),
+  reviewSupplierApplication: (applicationId: string, input: ReviewSupplierApplicationInput) =>
+    request<PrismSupplierApplication>(withPmcmActor(`/api/supplier-applications/${applicationId}/review`), {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
   coordinators: () => request<PrismCoordinator[]>("/api/coordinators"),
   complianceRules: () => request<PrismComplianceRule[]>(withPmcmActor("/api/compliance/rules")),
   createComplianceRule: (input: CreateComplianceRuleInput) =>
@@ -697,6 +698,8 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify({ overrideReason, actorName: "Ms. Mys" }),
     }),
+  searchArchive: (filters: { venue?: string; eventType?: string; month?: string } = {}) =>
+    eventOpsClient.events.searchArchive(filters),
   eventInsights: (eventId: string) => request<PrismEventInsight[]>(withPmcmActor(`/api/events/${eventId}/insights`)),
   generateEventInsights: (eventId: string) =>
     request<PrismEventInsight>(`/api/events/${eventId}/insights/generate`, { method: "POST" }),

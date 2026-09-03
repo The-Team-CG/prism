@@ -40,6 +40,7 @@ import {
   portalStatusLabel,
 } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
+import { clientMilestoneFollowUpCopy, clientMilestoneRemaining } from "../model/client-billing-rules";
 
 
 export function ClientBillingTab({
@@ -103,7 +104,8 @@ export function ClientBillingTab({
           ) : (
             <div className="space-y-3">
               {payments.map((payment, index) => {
-                const done = payment.status === "paid";
+                const remaining = clientMilestoneRemaining(payment);
+                const done = remaining <= 0 || payment.status === "paid";
                 return (
                   <div key={payment.id} className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-3">
                     {index < payments.length - 1 && (
@@ -124,9 +126,15 @@ export function ClientBillingTab({
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-base font-black text-foreground">{money.format(payment.amount)}</p>
+                          {remaining > 0 ? (
+                            <p className="mt-1 text-xs font-semibold text-(--prism-amber)">
+                              Remaining {money.format(remaining)}
+                            </p>
+                          ) : null}
                           <StatusBadge status={payment.status} label={formatLabel(payment.status)} className="mt-1" />
                         </div>
                       </div>
+                      <p className="mt-2 text-xs text-muted-foreground">{clientMilestoneFollowUpCopy(remaining)}</p>
                     </div>
                   </div>
                 );
