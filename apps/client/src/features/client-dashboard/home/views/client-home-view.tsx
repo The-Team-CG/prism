@@ -17,6 +17,7 @@ export function ClientHomeView() {
     session,
     state,
     actionCenter,
+    actionCenterFromWorkspaceFallback,
     events,
     selectedEvent,
     setSelectedEventId,
@@ -62,6 +63,7 @@ export function ClientHomeView() {
           actionCenter={actionCenter}
           clientActions={clientActions}
           runClientAction={runClientAction}
+          fromWorkspaceFallback={actionCenterFromWorkspaceFallback}
         />
       ) : null}
 

@@ -112,6 +112,7 @@ export function inquiryExtraDetailFields(inquiry: PrismInquiry) {
   if (inquiry.channel) fields.push({ label: "Channel", value: inquiry.channel });
   if (inquiry.loggedByName) fields.push({ label: "Logged by", value: inquiry.loggedByName });
   if (inquiry.duplicateOfInquiryId) fields.push({ label: "Duplicate of", value: inquiry.duplicateOfInquiryId });
+  if (inquiry.previouslyDeclined) fields.push({ label: "Previously declined", value: "Yes" });
   if (inquiry.previousDeclineReason) fields.push({ label: "Previous decline", value: inquiry.previousDeclineReason });
   if (inquiry.declineReason) fields.push({ label: "Decline reason", value: inquiry.declineReason });
   return fields;

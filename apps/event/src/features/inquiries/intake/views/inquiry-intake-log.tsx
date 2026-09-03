@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import type { PrismInquiry } from "@prism/types";
+import { buildPublicInquiryLink, type PrismInquiry } from "@prism/types";
 import {
   declineReasons,
   initialLogForm,
@@ -48,6 +48,7 @@ export function InquiryIntakeLog({
   const [logForm, setLogForm] = useState(initialLogForm);
   const [logPhase, setLogPhase] = useState<"idle" | "submitting" | "error">("idle");
   const [logError, setLogError] = useState<string | null>(null);
+  const [copyLinkState, setCopyLinkState] = useState<"idle" | "copied" | "error">("idle");
   const todayIso = new Date().toISOString().slice(0, 10);
   const logFormFirstFieldRef = useRef<HTMLInputElement>(null);
 
@@ -56,6 +57,17 @@ export function InquiryIntakeLog({
   const filtered = inquiries
     .filter((inquiry) => inquiryMatchesIntakeFilters(inquiry, { query, status, source, clientType, dateRange }))
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+
+  async function copyInquiryLink() {
+    const origin = process.env.NEXT_PUBLIC_CLIENT_ORIGIN ?? "http://localhost:3001";
+    try {
+      await navigator.clipboard.writeText(buildPublicInquiryLink(origin));
+      setCopyLinkState("copied");
+      window.setTimeout(() => setCopyLinkState("idle"), 2000);
+    } catch {
+      setCopyLinkState("error");
+    }
+  }
 
   async function confirmDecline() {
     if (!declining) return;
@@ -85,7 +97,12 @@ export function InquiryIntakeLog({
 
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
-      <InquiryIntakeHeader unreviewedCount={unreviewedCount} onLog={() => setLoggingOnBehalf(true)} />
+      <InquiryIntakeHeader
+        unreviewedCount={unreviewedCount}
+        onLog={() => setLoggingOnBehalf(true)}
+        onCopyInquiryLink={() => void copyInquiryLink()}
+        copyLinkState={copyLinkState}
+      />
       <InquiryIntakeFilters
         query={query}
         status={status}

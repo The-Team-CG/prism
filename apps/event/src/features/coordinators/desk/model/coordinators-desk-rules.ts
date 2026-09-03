@@ -16,3 +16,7 @@ export function pickActiveAssignment<T extends { attendanceStatus?: string; stat
     ) ?? assignments[0]
   );
 }
+
+export function shouldPreserveRoleViewOnAcknowledgeFailure() {
+  return true;
+}
