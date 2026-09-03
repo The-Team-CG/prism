@@ -40,6 +40,7 @@ export type ClientWorkspaceValue = {
   session: ClientSession;
   state: PrismClientWorkspace | null;
   actionCenter: PrismClientActionCenter | null;
+  actionCenterFromWorkspaceFallback: boolean;
   error: string | null;
   notice: string | null;
   busy: string | null;

@@ -11,6 +11,7 @@ import {
   isRegistrationCoordinatorRole,
   pickActiveAssignment,
   sameCoordinatorName,
+  shouldPreserveRoleViewOnAcknowledgeFailure,
 } from "../model/coordinators-desk-rules";
 
 export type CoordinatorViewStatus = "idle" | "loading" | "success" | "error";
@@ -81,7 +82,9 @@ export function useCoordinatorViewModel({
         );
         setRoleViewStatus("success");
       } catch (err) {
-        setRoleView(null);
+        if (!shouldPreserveRoleViewOnAcknowledgeFailure()) {
+          setRoleView(null);
+        }
         setRoleViewStatus("error");
         setRoleViewError(err instanceof Error ? err.message : "Unable to refresh role-safe event data.");
       }
