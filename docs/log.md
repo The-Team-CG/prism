@@ -1,5 +1,17 @@
 # Documentation bundle update log
 
+## 2026-09-04
+
+- **Recorded:** Overlay evidence for client proposal review (primary contact, revision cap),
+  archived-event search by venue/type/month, supplier applications inbox, coordinator
+  double-book suggestions, client remaining-balance billing, and supplier-gap
+  hard-block copy. Catalog canvas blockers table lists storage, production
+  notify, external IdP, QR, live AI, and CE builder depth as skipped (do not implement).
+- **Recorded:** New-S5 now has an event-closure review path for confirmed supplier
+  assignments: PMCM-only prompts, category dimensions, private notes, shared Zod
+  validation, and focused API/event evidence. The external Cursor canvas is outside
+  the writable worktree, so its row was not rescored or claimed as updated.
+
 ## 2026-09-03
 
 - **Recorded:** P0/P1 catalog thin-slice evidence on the feature-ledger overlay

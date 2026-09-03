@@ -8,7 +8,12 @@ import type {
   PrismComplianceRule,
   PrismEvent,
   PrismEventInsight,
+  PrismSupplier,
+  PrismSupplierCategory,
+  PrismSupplierQuoteRequest,
+  CreateSupplierReviewInput,
 } from "@prism/types";
+import { SupplierReviewPromptList } from "@/features/suppliers/reviews";
 import {
   phase4BillingSourceCard,
   phase4CloseGatesCard,
@@ -32,6 +37,11 @@ export function Phase4Workspace({
   billingSources,
   billingStatements,
   insights,
+  supplierCategories,
+  suppliers,
+  quoteRequests,
+  reviewerName,
+  canReviewSuppliers,
   busy,
   onCreateRule,
   onRunCompliance,
@@ -44,6 +54,7 @@ export function Phase4Workspace({
   onArchive,
   onLoadInsights,
   onGenerateInsights,
+  onAddReview,
 }: {
   event: PrismEvent;
   rules: PrismComplianceRule[];
@@ -51,6 +62,11 @@ export function Phase4Workspace({
   billingSources: PrismBillingSource[];
   billingStatements: PrismBillingStatement[];
   insights: PrismEventInsight[];
+  supplierCategories: PrismSupplierCategory[];
+  suppliers: PrismSupplier[];
+  quoteRequests: PrismSupplierQuoteRequest[];
+  reviewerName: string;
+  canReviewSuppliers: boolean;
   busy: boolean;
   onCreateRule: (input: {
     title: string;
@@ -74,6 +90,7 @@ export function Phase4Workspace({
   onArchive: (overrideReason?: string) => Promise<void>;
   onLoadInsights: () => Promise<PrismEventInsight[]>;
   onGenerateInsights: () => Promise<void>;
+  onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
 }) {
   const [phase, setPhase] = useState("planning");
   const [ruleTitle, setRuleTitle] = useState("");
@@ -194,6 +211,17 @@ export function Phase4Workspace({
           onArchive={archiveEvent}
         />
       </section>
+      {canReviewSuppliers ? (
+        <SupplierReviewPromptList
+          event={event}
+          categories={supplierCategories}
+          suppliers={suppliers}
+          quoteRequests={quoteRequests}
+          reviewerName={reviewerName}
+          busy={busy}
+          onAddReview={onAddReview}
+        />
+      ) : null}
       <Phase4InsightsSection latestInsight={latestInsight} busy={busy} onGenerate={generateInsights} />
     </div>
   );

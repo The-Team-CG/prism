@@ -23,6 +23,8 @@ export function mapSupplierApplication(
     portfolioUrl: row.portfolioUrl,
     additionalNotes: row.additionalNotes,
     status: row.status,
+    declineReason: row.declineReason ?? null,
+    reviewedAt: row.reviewedAt ? timestamp(row.reviewedAt) : null,
     createdAt: timestamp(row.createdAt),
   };
 }

@@ -1,11 +1,22 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { createSupplierApplicationSchema, type CreateSupplierApplicationInput } from '@prism/types';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  createSupplierApplicationSchema,
+  reviewSupplierApplicationSchema,
+  type CreateSupplierApplicationInput,
+  type PrismVerifiedEventActor,
+  type ReviewSupplierApplicationInput,
+} from '@prism/types';
 import { zodBody } from '@prism/kernel/shared';
+import { EventAccessPolicyService } from '@prism/kernel/access-control';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { SupplierApplicationService } from '../../application/suppliers/supplier-application.service';
 
 @Controller('supplier-applications')
 export class OpsSupplierApplicationsController {
-  constructor(private readonly supplierApplicationService: SupplierApplicationService) {}
+  constructor(
+    private readonly supplierApplicationService: SupplierApplicationService,
+    private readonly eventAccessPolicyService: EventAccessPolicyService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -16,5 +27,23 @@ export class OpsSupplierApplicationsController {
   @Get('categories')
   listCategories() {
     return this.supplierApplicationService.listPublicCategories();
+  }
+
+  @Get('inbox')
+  @UseGuards(EventSessionGuard)
+  listInbox(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.supplierApplicationService.listInbox(actor);
+  }
+
+  @Patch(':applicationId/review')
+  @UseGuards(EventSessionGuard)
+  review(
+    @Param('applicationId') applicationId: string,
+    @Body(zodBody(reviewSupplierApplicationSchema)) input: ReviewSupplierApplicationInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.supplierApplicationService.reviewApplication(applicationId, input, actor);
   }
 }

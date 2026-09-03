@@ -24,7 +24,7 @@ describe("client-approvals-rules", () => {
   it("marks contracts approved when matching documents exist", () => {
     const documents = [{ id: "d1", type: "conforme", status: "uploaded" }] as PrismDocument[];
     const items = buildApprovalItems(event(), documents);
-    expect(items[0]).toMatchObject({ title: "Contracts", status: "approved" });
+    expect(items.find((item) => item.title === "Contracts")).toMatchObject({ title: "Contracts", status: "approved" });
   });
 
   it("filters pending vs approved views", () => {

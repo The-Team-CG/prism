@@ -70,6 +70,31 @@ export type SubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
 
 /* ── Guest ────────────────────────────────────────────────────── */
 
+export const reviewEventProposalSchema = z.object({
+  action: z.enum(["approve", "request_revision"]),
+  revisionNote: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (value.action === "request_revision" && !value.revisionNote?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Revision note is required",
+      path: ["revisionNote"],
+    });
+  }
+});
+export type ReviewEventProposalInput = z.infer<typeof reviewEventProposalSchema>;
+
+export const archiveSearchFiltersSchema = z.object({
+  venue: optionalTrimmedStringSchema,
+  eventType: optionalTrimmedStringSchema,
+  month: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || /^\d{4}-\d{2}$/.test(value), "month must be YYYY-MM"),
+});
+export type ArchiveSearchFilters = z.infer<typeof archiveSearchFiltersSchema>;
+
 export const createGuestCheckInSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,
   checkInMode: z.enum(["name_search", "walk_in"]).or(z.string().trim().min(1)).optional(),
@@ -125,6 +150,21 @@ export type ImportHeadcountInput = z.infer<typeof importHeadcountSchema>;
 
 /* ── Supplier ─────────────────────────────────────────────────── */
 
+export const reviewSupplierApplicationSchema = z.object({
+  action: z.enum(["request_proposal", "schedule", "decline"]),
+  declineReason: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (value.action === "decline" && !value.declineReason?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Decline reason is required",
+      path: ["declineReason"],
+    });
+  }
+});
+export type ReviewSupplierApplicationInput = z.infer<typeof reviewSupplierApplicationSchema>;
+
 export const createSupplierApplicationSchema = z.object({
   companyName: nonEmptyStringSchema,
   contactName: nonEmptyStringSchema,
@@ -142,6 +182,23 @@ export const createSupplierApplicationSchema = z.object({
   privacyNoticeVersion: optionalTrimmedStringSchema,
 });
 export type CreateSupplierApplicationInput = z.infer<typeof createSupplierApplicationSchema>;
+
+export const createSupplierReviewSchema = z.object({
+  eventId: optionalTrimmedStringSchema,
+  rating: z.number().int().min(1).max(5),
+  notes: nonEmptyStringSchema,
+  reviewedBy: optionalTrimmedStringSchema,
+  dimensionRatings: z
+    .array(
+      z.object({
+        dimensionId: nonEmptyStringSchema,
+        rating: z.number().int().min(1).max(5),
+      }),
+    )
+    .optional(),
+  idempotencyKey: optionalTrimmedStringSchema,
+});
+export type CreateSupplierReviewInput = z.infer<typeof createSupplierReviewSchema>;
 
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,

@@ -7,6 +7,10 @@ import type {
   CreateRegistrationPlatformInput,
   CreateSupplierApplicationInput,
   CreateUrgentIssueInput,
+  ArchiveSearchFilters,
+  ReviewEventProposalInput,
+  ReviewSupplierApplicationInput,
+  PrismArchivedEventSearchHit,
   PrismBillingWorkspace,
   PrismClientActionCenter,
   PrismClientWorkspace,
@@ -56,6 +60,9 @@ export type {
   CreatePrismInquiryInput,
   CreateRegistrationPlatformInput,
   CreateUrgentIssueInput,
+  ArchiveSearchFilters,
+  ReviewEventProposalInput,
+  ReviewSupplierApplicationInput,
   ImportHeadcountInput,
   SubmitSupplierQuoteInput,
   UpdateCoordinatorAttendanceInput,
@@ -103,6 +110,8 @@ export interface EventOpsClient {
     list(actor?: EventOpsActorQuery): Promise<PrismEvent[]>;
     detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     fileRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismFileRequirementsMatrix>;
+    reviewProposal(eventId: string, input: ReviewEventProposalInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    searchArchive(filters?: ArchiveSearchFilters, actor?: EventOpsActorQuery): Promise<PrismArchivedEventSearchHit[]>;
   };
   clientWorkspace: {
     detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
@@ -162,6 +171,12 @@ export interface EventOpsClient {
   supplierApplications: {
     create(input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication>;
     listCategories(): Promise<{ id: string; name: string }[]>;
+    listInbox(actor?: EventOpsActorQuery): Promise<PrismSupplierApplication[]>;
+    review(
+      applicationId: string,
+      input: ReviewSupplierApplicationInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismSupplierApplication>;
   };
 }
 
@@ -184,6 +199,18 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           actorPath(`/events/${eventId}/file-requirements`, actor),
           withBase(options),
         ),
+      reviewProposal: (eventId, input, actor = {}) =>
+        prismRequest<PrismEvent>(
+          actorPath(`/events/${eventId}/proposal/review`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      searchArchive: (filters = {}, actor = {}) => {
+        const query = toQueryString({ ...actor, ...filters });
+        return prismRequest<PrismArchivedEventSearchHit[]>(
+          query ? `/events/archive?${query}` : "/events/archive",
+          withBase(options),
+        );
+      },
     },
     clientWorkspace: {
       detail: (actor = {}) => prismRequest<PrismClientWorkspace>(actorPath("/client/workspace", actor), withBase(options)),
@@ -297,6 +324,16 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<{ id: string; name: string }[]>(
           "/supplier-applications/categories",
           withBase(options),
+        ),
+      listInbox: (actor = {}) =>
+        prismRequest<PrismSupplierApplication[]>(
+          actorPath("/supplier-applications/inbox", actor),
+          withBase(options),
+        ),
+      review: (applicationId, input, actor = {}) =>
+        prismRequest<PrismSupplierApplication>(
+          actorPath(`/supplier-applications/${applicationId}/review`, actor),
+          withBase(options, { method: "PATCH", body: input }),
         ),
     },
   };

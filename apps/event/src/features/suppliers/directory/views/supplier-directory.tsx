@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
+import type { CreateSupplierReviewInput, PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { isSupplierCreateDraftValid, supplierMatchesDirectoryFilters } from "../model/suppliers-directory-rules";
 import { SupplierDirectoryList, SupplierProfile } from "./supplier-directory-sections";
@@ -41,13 +41,7 @@ export function SupplierDirectory({
     performanceNotes?: string;
   }) => Promise<void>;
   onChangeTier: (supplierId: string, tier: "tier_1" | "tier_2" | "pending_first_event", reason: string) => Promise<void>;
-  onAddReview: (supplierId: string, input: {
-    rating: number;
-    notes: string;
-    reviewedBy?: string;
-    dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
-    idempotencyKey?: string;
-  }) => Promise<void>;
+  onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
   onAddCertification: (supplierId: string, input: {
     fileName: string;
     documentType: string;
@@ -145,13 +139,14 @@ export function SupplierDirectory({
     const dimensionRatings = Object.entries(reviewDimensionRatings)
       .filter(([, value]) => value)
       .map(([dimensionId, value]) => ({ dimensionId, rating: Number(value) }));
-    await onAddReview(selectedSupplier.id, {
+    const succeeded = await onAddReview(selectedSupplier.id, {
       rating: Number(reviewForm.rating),
       notes: reviewForm.notes,
       reviewedBy: session.name,
       dimensionRatings: dimensionRatings.length ? dimensionRatings : undefined,
       idempotencyKey: reviewIdempotencyKey,
     });
+    if (!succeeded) return;
     setReviewForm({ rating: "4", notes: "" });
     setReviewDimensionRatings({});
     setReviewIdempotencyKey(crypto.randomUUID());

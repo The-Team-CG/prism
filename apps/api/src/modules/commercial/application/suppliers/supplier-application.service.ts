@@ -1,9 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import type { OpsSupplierApplication, OpsSupplierCategory } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
-import type { CreateSupplierApplicationInput } from '@prism/types';
+import type { CreateSupplierApplicationInput, ReviewSupplierApplicationInput } from '@prism/types';
 import { randomUUID } from 'node:crypto';
+import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { OpsUserRole } from '@prism/kernel/event-core';
 import { mapSupplierApplication } from './supplier-application.mappers';
+import { applicationStatusForReviewAction } from './supplier-application-status';
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
@@ -15,7 +17,10 @@ function daysBetween(left: Date, right: Date) {
 
 @Injectable()
 export class SupplierApplicationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventAccessPolicyService: EventAccessPolicyService,
+  ) {}
 
   async createSupplierApplication(input: CreateSupplierApplicationInput) {
     if (!input.privacyConsentAccepted) {
@@ -76,4 +81,50 @@ export class SupplierApplicationService {
       name: cat.name,
     }));
   }
+
+  async listInbox(actor: ResolvedEventOpsActor) {
+    await this.requirePmcm(actor, 'supplier application inbox');
+    const rows = await this.prisma.opsSupplierApplication.findMany({
+      include: { category: true },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return rows.map((row) => mapSupplierApplication(row));
+  }
+
+  async reviewApplication(
+    applicationId: string,
+    input: ReviewSupplierApplicationInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    await this.requirePmcm(actor, 'supplier application review');
+    const existing = await this.prisma.opsSupplierApplication.findUnique({
+      where: { id: applicationId },
+      include: { category: true },
+    });
+    if (!existing) throw new NotFoundException('Supplier application not found');
+
+    const nextStatus = applicationStatusForReviewAction(input.action);
+    const now = new Date();
+    const row = await this.prisma.opsSupplierApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: nextStatus,
+        declineReason: input.action === 'decline' ? input.declineReason?.trim() ?? null : existing.declineReason,
+        reviewedAt: now,
+        approvedAt: existing.approvedAt,
+      },
+      include: { category: true },
+    });
+    return mapSupplierApplication(row);
+  }
+
+  private requirePmcm(actor: ResolvedEventOpsActor, resource: string) {
+    return this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      resource,
+    );
+  }
 }
+

@@ -3,6 +3,10 @@ import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
   createSupplierApplicationSchema,
+  createSupplierReviewSchema,
+  reviewEventProposalSchema,
+  archiveSearchFiltersSchema,
+  reviewSupplierApplicationSchema,
   updateSupplierEventStatusSchema,
   submitSupplierQuoteSchema,
   updateInquiryStatusSchema,
@@ -71,6 +75,30 @@ describe("event-ops write schemas", () => {
     expect(updateSupplierEventStatusSchema.safeParse({ status: "maybe" }).success).toBe(false);
   });
 
+  it("validates PMCM supplier review ratings, notes, and dimensions", () => {
+    const parsed = createSupplierReviewSchema.parse({
+      eventId: "evt_close_1",
+      rating: 5,
+      notes: "Delivered on time and handled the stage reset well.",
+      reviewedBy: "Maxine",
+      dimensionRatings: [{ dimensionId: "dim_reliability", rating: 5 }],
+      idempotencyKey: "review-draft-1",
+    });
+
+    expect(parsed.eventId).toBe("evt_close_1");
+    expect(parsed.dimensionRatings?.[0].rating).toBe(5);
+    expect(createSupplierReviewSchema.safeParse({ rating: 0, notes: "Too low" }).success).toBe(false);
+    expect(createSupplierReviewSchema.safeParse({ rating: 6, notes: "Too high" }).success).toBe(false);
+    expect(createSupplierReviewSchema.safeParse({ rating: 5, notes: "" }).success).toBe(false);
+    expect(
+      createSupplierReviewSchema.safeParse({
+        rating: 5,
+        notes: "Good",
+        dimensionRatings: [{ dimensionId: "dim_reliability", rating: 6 }],
+      }).success,
+    ).toBe(false);
+  });
+
   it("validates supplier quote amount", () => {
     expect(submitSupplierQuoteSchema.safeParse({ amount: 12000 }).success).toBe(true);
     expect(submitSupplierQuoteSchema.safeParse({ amount: -1 }).success).toBe(false);
@@ -79,6 +107,35 @@ describe("event-ops write schemas", () => {
   it("validates inquiry status transitions", () => {
     expect(updateInquiryStatusSchema.safeParse({ status: "accepted" }).success).toBe(true);
     expect(updateInquiryStatusSchema.safeParse({ status: "nope" }).success).toBe(false);
+  });
+
+  it("requires a revision note only when the client requests a proposal change", () => {
+    expect(reviewEventProposalSchema.safeParse({ action: "approve" }).success).toBe(true);
+    expect(reviewEventProposalSchema.safeParse({ action: "request_revision" }).success).toBe(false);
+    expect(
+      reviewEventProposalSchema.safeParse({
+        action: "request_revision",
+        revisionNote: "Please reduce the AV package.",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("validates archive search month as YYYY-MM", () => {
+    expect(archiveSearchFiltersSchema.safeParse({ venue: "Shangri-La", month: "2026-06" }).success).toBe(true);
+    expect(archiveSearchFiltersSchema.safeParse({ month: "June" }).success).toBe(false);
+  });
+
+  it("requires a decline reason for supplier application review", () => {
+    expect(
+      reviewSupplierApplicationSchema.safeParse({ action: "request_proposal" }).success,
+    ).toBe(true);
+    expect(reviewSupplierApplicationSchema.safeParse({ action: "decline" }).success).toBe(false);
+    expect(
+      reviewSupplierApplicationSchema.safeParse({
+        action: "decline",
+        declineReason: "Outside current roster",
+      }).success,
+    ).toBe(true);
   });
 
   it("validates registration platform writes", () => {

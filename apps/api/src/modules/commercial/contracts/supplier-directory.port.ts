@@ -1,3 +1,7 @@
+import type { CreateSupplierReviewInput } from '@prism/types';
+
+export type { CreateSupplierReviewInput } from '@prism/types';
+
 export type SupplierProfile = {
   id: string;
   name: string;
@@ -21,15 +25,6 @@ export type UpdateSupplierInput = Partial<Omit<CreateSupplierInput, 'tier'>>;
 export type ChangeSupplierTierInput = {
   tier: string;
   reason: string;
-};
-
-export type CreateSupplierReviewInput = {
-  eventId?: string;
-  rating: number;
-  notes: string;
-  reviewedBy?: string;
-  dimensionRatings?: Array<{ dimensionId: string; rating: number }>;
-  idempotencyKey?: string;
 };
 
 export type CreateSupplierCertificationInput = {
