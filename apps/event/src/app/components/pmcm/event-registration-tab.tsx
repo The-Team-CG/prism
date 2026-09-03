@@ -7,7 +7,8 @@ import type {
   CreateRegistrationPlatformInput,
   UpdateRegistrationPlatformInput,
   ImportHeadcountInput,
-} from "@/lib/prism-api";
+} from "@prism/types";
+import { createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Panel } from "@/features/pmcm-kit/primitives";
 
@@ -172,15 +173,16 @@ function PlatformForm({
 
   function handleSave(e: FormEvent) {
     e.preventDefault();
-    const payload = {
-      platformType: platformType as CreateRegistrationPlatformInput["platformType"],
+    const parsed = createRegistrationPlatformSchema.safeParse({
+      platformType,
       supplierId: supplierId || undefined,
       expectedPaxMin: Number(paxMin) || 0,
       expectedPaxMax: Number(paxMax) || 0,
       setupNotes,
-    };
-    if (platform) onUpdate(payload);
-    else onUpsert(payload as CreateRegistrationPlatformInput);
+    });
+    if (!parsed.success) return;
+    if (platform) onUpdate(parsed.data);
+    else onUpsert(parsed.data);
   }
 
   return (
@@ -363,11 +365,13 @@ function HeadcountImportForm({
     e.preventDefault();
     const count = Number(importCount);
     if (!count || count < 0) return;
-    onImportHeadcount({
+    const parsed = importHeadcountSchema.safeParse({
       headcountSource: importSource,
       importedHeadcount: count,
       importedFileName: importFileName || undefined,
     });
+    if (!parsed.success) return;
+    onImportHeadcount(parsed.data);
     setImportCount("");
     setImportFileName("");
   }
@@ -445,7 +449,7 @@ function HeadcountSection({
         <HeadcountSummary platform={platform} />
         {showImport ? (
           <HeadcountImportForm busy={busy} onImportHeadcount={onImportHeadcount} onCancel={() => setShowImport(false)} />
-        ) : (
+        ) : platform.status === "closed" ? (
           <button
             type="button"
             onClick={() => setShowImport(true)}
@@ -454,6 +458,8 @@ function HeadcountSection({
             <Upload className="size-4" />
             Import headcount data
           </button>
+        ) : (
+          <p className="text-sm text-muted-foreground">Mark the platform closed after the event before importing final headcount.</p>
         )}
       </div>
     </Panel>
@@ -464,6 +470,7 @@ export function EventRegistrationTab({
   platform,
   suppliers,
   busy,
+  loadError,
   onUpsert,
   onUpdate,
   onImportHeadcount,
@@ -471,6 +478,7 @@ export function EventRegistrationTab({
   platform: PrismRegistrationPlatform | null;
   suppliers: PrismSupplier[];
   busy: boolean;
+  loadError?: string | null;
   onUpsert: (input: CreateRegistrationPlatformInput) => void;
   onUpdate: (input: UpdateRegistrationPlatformInput) => void;
   onImportHeadcount: (input: ImportHeadcountInput) => void;
@@ -478,6 +486,11 @@ export function EventRegistrationTab({
   const digitalRegSuppliers = suppliers.filter((s) => s.categorySlug === "digital-registration");
   return (
     <div className="flex flex-col gap-4">
+      {loadError ? (
+        <Panel title="Registration Platform" icon={QrCode}>
+          <p className="text-sm text-muted-foreground">{loadError}</p>
+        </Panel>
+      ) : null}
       <RegistrationPlatformSection
         platform={platform}
         suppliers={digitalRegSuppliers}

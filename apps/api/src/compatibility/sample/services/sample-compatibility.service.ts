@@ -694,7 +694,7 @@ export class SampleCompatibilityService implements OnModuleInit {
       staffingReader: this.coordinatorsService,
       floorplanReader: this.floorPlanWorkflowService,
       guestReader: this.guestWorkflowService,
-      registrationPlatformService: this.registrationPlatformService,
+      registrationPlatformReader: this.registrationPlatformService,
     });
   }
   async state() {
