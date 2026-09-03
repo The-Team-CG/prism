@@ -4,12 +4,12 @@ title: "P.R.I.S.M feature ledger"
 description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
 tags: [product, features, decisions, ownership]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-03"
 authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
 scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
-last_verified: "581e676"
+last_verified: "1d4a7e8"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
@@ -132,6 +132,7 @@ The Active Ledger above remains the product decision record. This table assigns 
 
 ## Next Ledger Maintenance
 
+- 2026-09-03 P0/P1 overlay evidence (uncommitted on `feat/p0-p1-catalog-slices`; Active Ledger decisions unchanged): FL-001 copy-link + rejection history + log-on-behalf copy; FL-002/FL-012 invitation sent/opened/expired + reminder evidence; FL-003/FL-017 Command Inbox on `/dashboard`; FL-004/FL-020 labeled action-center fallback; FL-006/FL-024 file matrix UX with storage gated; FL-007/FL-022 PMCM supplier readiness + quote-lock tests; FL-008 coordinator ack preserves role view (PA-294); FL-010 client billing omits `billingSources`; FL-011 official vs preference floorplan copy; FL-012 guest access-code check-in, QR gated; FL-013 close-gates copy + client-visible insight omits `privateNotes`; FL-015 privacy create/audit tests. P2/P3 gates (live AI, storage adapter, production email/Viber, external IdP, camera QR) remain deferred.
 - Expand ledger rows into one row per catalog feature only when implementation teams need ticket-level traceability.
 - Keep family-level rows authoritative for product direction.
 - Add implementation PR links or commit hashes after each phase lands.

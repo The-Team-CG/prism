@@ -12,6 +12,7 @@ import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
+import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventMessagesWorkspace } from "@/app/(portal)/dashboard/components/event-messages-workspace";
 import { Card, CardBody, CardHeader } from "./shell-ui";
@@ -200,6 +201,8 @@ export function EventWorkspaceSuppliersTab() {
           />
         </CardBody>
       </Card>
+
+      <PmcmSupplierReadinessBoard requests={vm.quoteRequests} quotes={vm.quotes} />
 
       <Card>
         <CardHeader>

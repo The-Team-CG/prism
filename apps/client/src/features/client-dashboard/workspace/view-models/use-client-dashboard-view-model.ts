@@ -92,6 +92,7 @@ export function useClientDashboardViewModel({
   const router = useRouter();
   const [session, setSession] = useState<ClientSession | null>(null);
   const [actionCenter, setActionCenter] = useState<PrismClientActionCenter | null>(null);
+  const [actionCenterLoadFailed, setActionCenterLoadFailed] = useState(false);
   const [state, setState] = useState<PrismClientWorkspace | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export function useClientDashboardViewModel({
     const applyActionCenter = (next: PrismClientActionCenter) => {
       if (cancelled) return;
       setActionCenter(next);
+      setActionCenterLoadFailed(false);
     };
 
     const cached = getCachedClientState(current);
@@ -145,7 +147,10 @@ export function useClientDashboardViewModel({
     if (!actionCenterIsFresh) loadActionCenterCached(current, !cachedActionCenter)
       .then(applyActionCenter)
       .catch(() => {
-        if (!cancelled) setActionCenter(null);
+        if (!cancelled) {
+          setActionCenter(null);
+          setActionCenterLoadFailed(true);
+        }
       });
 
     return () => {
@@ -163,10 +168,12 @@ export function useClientDashboardViewModel({
     ]);
     setState(next);
     setActionCenter(nextActionCenter);
+    setActionCenterLoadFailed(!nextActionCenter);
   }, [session]);
 
   return {
     actionCenter,
+    actionCenterLoadFailed,
     error,
     status,
     refresh,
