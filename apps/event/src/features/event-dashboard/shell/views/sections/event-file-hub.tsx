@@ -1,44 +1,36 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 import {
-  CalendarDays,
-  CheckCircle2,
-  ClipboardCheck,
   Download,
   Eye,
-  FileCheck2,
-  FileSignature,
   FileText,
   Grid2X2,
-  LayoutGrid,
   List,
-  MapPinned,
-  MessageSquareText,
-  MoreHorizontal,
-  Pencil,
-  ReceiptText,
-  RotateCcw,
   Search,
-  Settings,
   Share2,
-  ShieldCheck,
   Upload,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { Badge } from "@/app/components/ui/badge";
 import { formatShortDate, humanizeToken } from "@/features/pmcm-kit/model/formatters";
-import type { EventSession } from "@/app/lib/session";
-import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmDashboardWorkspace, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
-import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
-import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
+import type { PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
 import type { EventFileHubItem } from "./event-file-types";
 import { EventFileThumbnail } from "./event-file-thumbnail";
 import { EventFilePreview } from "./event-file-preview";
 
+
+function StorageGatedAction({ children }: { children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      disabled
+      title="Binary object storage is gated. File metadata is tracked until a storage adapter is approved."
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {children}
+    </button>
+  );
+}
 
 export function EventFileHub({
   event,
@@ -229,11 +221,11 @@ export function EventFileHub({
               <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary" placeholder="Search event files..." />
             </label>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-black text-background"><Share2 className="size-3.5" /> Share Selected</button>
-              <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Download className="size-3.5" /> Download</button>
+              <StorageGatedAction><Share2 className="size-3.5" /> Share Selected</StorageGatedAction>
+              <StorageGatedAction><Download className="size-3.5" /> Download</StorageGatedAction>
               <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Eye className="size-3.5" /> Open</button>
-              <button type="button" className="grid size-8 place-items-center rounded-md border border-border bg-background text-muted-foreground" aria-label="More file actions"><MoreHorizontal className="size-3.5" /></button>
             </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">Share, download, and new-version upload stay gated. Open jumps to the owning workflow.</p>
           </div>
 
           <div className="px-4 py-4">
@@ -274,17 +266,13 @@ export function EventFileHub({
                   <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{selected.extension} - {selected.category} - {selected.date}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground">Share</button>
+                  <StorageGatedAction>Share</StorageGatedAction>
                   <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground">Open</button>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 border-t border-border px-5 py-3">
-                <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Pencil className="size-3.5" /> Edit PDF</button>
-                <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Download className="size-3.5" /> Download</button>
-                <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><FileSignature className="size-3.5" /> Self-Sign</button>
-                <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><MessageSquareText className="size-3.5" /> Comment</button>
-                <button type="button" className="grid size-8 place-items-center rounded-md border border-border bg-background text-muted-foreground" aria-label="More preview actions"><MoreHorizontal className="size-3.5" /></button>
-                <button type="button" className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-3 text-xs font-black text-primary"><Upload className="size-3.5" /> Upload new version</button>
+                <StorageGatedAction><Download className="size-3.5" /> Download</StorageGatedAction>
+                <StorageGatedAction><Upload className="size-3.5" /> Upload new version</StorageGatedAction>
               </div>
             </div>
             <EventFilePreview event={event} item={selected} />

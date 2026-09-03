@@ -17,23 +17,25 @@ function templateSubtitle(template: FloorPlanTemplate) {
 
 export function FloorPlanCardHeader({
   approved,
+  isOfficial,
   activeDraft,
 }: {
   approved: boolean;
+  isOfficial: boolean;
   activeDraft?: PrismFloorPlanDraft;
 }) {
+  const title = approved ? "Official floorplan" : isOfficial ? "Official floorplan (read-only)" : "Layout preference";
+  const description = approved
+    ? "This official plan is locked after PMCM approval. You can view it; you cannot edit it."
+    : isOfficial
+      ? "PMCM owns this official layout. You can view the submitted plan. Layout preferences below do not change it."
+      : "Share layout preferences. PMCM prepares the official floorplan from this context.";
   return (
     <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Floor plan workspace</p>
-        <h2 className="mt-1 text-xl font-black text-foreground">
-          {approved ? "Approved floor plan" : "Editable floor plan"}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {approved
-            ? "This plan is locked after PMCM approval. It's now the official event record."
-            : "Edit and submit your layout before PMCM approval locks it."}
-        </p>
+        <h2 className="mt-1 text-xl font-black text-foreground">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
       {activeDraft ? <StatusBadge status={activeDraft.status} label={formatStatusLabel(activeDraft.status)} /> : null}
     </header>
@@ -42,11 +44,13 @@ export function FloorPlanCardHeader({
 
 export function FloorPlanDraftPanel({
   approved,
+  isOfficial,
   activeDraft,
   officialProject,
   onOpenEditor,
 }: {
   approved: boolean;
+  isOfficial: boolean;
   activeDraft?: PrismFloorPlanDraft;
   officialProject: Project | null;
   onOpenEditor: (draft: PrismFloorPlanDraft, readOnly: boolean) => void;
@@ -55,20 +59,23 @@ export function FloorPlanDraftPanel({
     return <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start from a saved layout template or send guided notes below." />;
   }
 
+  const readOnly = approved || isOfficial;
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 rounded-xl bg-muted/40 p-4">
         <div className="min-w-0">
           <p className="text-sm font-bold text-foreground">{activeDraft.name}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {approved ? "Frozen for event reference." : "Open the editor to adjust seating, flow, stage placement, and notes."}
+            {readOnly
+              ? "Read-only official layout. Preference notes below do not mutate this plan."
+              : "Open the preference editor to share seating, flow, and stage notes with PMCM."}
           </p>
         </div>
-        <Button className="shrink-0 rounded-lg font-bold" onClick={() => onOpenEditor(activeDraft, approved)}>
-          {approved ? "View floor plan" : "Edit floor plan"} <ArrowRight className="size-4" />
+        <Button className="shrink-0 rounded-lg font-bold" onClick={() => onOpenEditor(activeDraft, readOnly)}>
+          {readOnly ? "View official floorplan" : "Edit preference"} <ArrowRight className="size-4" />
         </Button>
       </div>
-      <LayoutPreview project={approved ? officialProject : null} />
+      <LayoutPreview project={approved || isOfficial ? officialProject : null} />
     </div>
   );
 }

@@ -89,6 +89,9 @@ export function ClientBillingTab({
             <WalletCards className="size-4 text-(--prism-signal)" />
             <h2 className="text-sm font-bold text-foreground">Payment milestones</h2>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Statements and payment milestones for your event. Internal cost estimates stay with PMCM.
+          </p>
         </CardHeader>
         <CardBody>
           {payments.length === 0 ? (

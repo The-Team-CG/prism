@@ -43,6 +43,13 @@ describe("inquiry-intake-rules", () => {
       { label: "Referral", value: "BNI" },
       { label: "Channel", value: "Phone" },
     ]);
+    expect(inquiryExtraDetailFields({
+      previouslyDeclined: true,
+      previousDeclineReason: "Date conflict",
+    } as never)).toEqual([
+      { label: "Previously declined", value: "Yes" },
+      { label: "Previous decline", value: "Date conflict" },
+    ]);
   });
 
   it("requires a complete log form and trims optional fields", () => {

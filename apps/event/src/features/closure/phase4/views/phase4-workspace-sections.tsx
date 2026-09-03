@@ -400,6 +400,7 @@ export function Phase4InsightsSection({
             <p className="font-black">Financial snapshot</p>
             <p className="mt-2 text-muted-foreground">Billed: {money.format(latestInsight.financialSummary.totalBilled ?? 0)}</p>
             <p className="text-muted-foreground">Outstanding: {money.format(latestInsight.financialSummary.outstandingAmount ?? 0)}</p>
+            <p className="mt-3 text-xs text-muted-foreground">PMCM-only notes. These never appear on client, supplier, or guest portals.</p>
             <p className="mt-3 text-xs text-muted-foreground">{latestInsight.privateNotes}</p>
           </div>
         </div>
