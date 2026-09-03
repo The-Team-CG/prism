@@ -143,7 +143,12 @@ describe('CoordinatorsService', () => {
 
     await expect(
       service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director' }, pmcmAdminActor),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'COORDINATOR_DOUBLE_BOOKING',
+        sameRoleSuggestions: [],
+      }),
+    });
 
     const assignment = await service.assignCoordinator(
       event.id,

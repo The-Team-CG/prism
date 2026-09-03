@@ -4,7 +4,7 @@ title: "P.R.I.S.M feature ledger"
 description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
 tags: [product, features, decisions, ownership]
 status: canonical
-updated: "2026-09-03"
+updated: "2026-09-04"
 authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
@@ -112,6 +112,16 @@ The Active Ledger above remains the product decision record. This table assigns 
 | FL-026 | Thin slice or defer | Francis | Maxine, Anthony | Event Day Run Sheet remains time-ordered evidence if current data supports it. | PMCM route evidence or deferred row. |
 | FL-027 | Gate | Anthony | Maxine | Privacy Operations Console remains PMCM-scoped; full console can defer if not demo-critical. | Scope decision, privacy tests if touched, docs gate. |
 | FL-028 | Defer | Maxine | Francis, Anthony | Workflow Template Builder is deferred unless explicitly scoped and documented. | Deferred row; no capacity assumed. |
+
+## Overlay evidence (2026-09-04)
+
+Active Ledger decisions are unchanged. Additional thin-slice evidence:
+
+- **FL-013:** PMCM can search archived events by venue, event type, and month. Side-by-side compare stays deferred.
+- **FL-005:** Client primary-contact proposal approve/request-revision with a revision cap of 3. CE builder depth, Canva/Zoom, and AI drafts stay gated.
+- **FL-007:** PMCM supplier-applications inbox can request proposal, schedule, or decline; readiness board shows a category gap hard-block when no quote is selected. Storage, production notify, and confidential-bid depth remain gated.
+- **FL-008:** Same-date coordinator assignment is blocked with same-role suggestions; override stays secondary. Heatmap, phone/Mys notify, and live AI copilot stay gated.
+- **FL-010:** Client billing shows remaining balance and follow-up copy per milestone. Client still cannot edit payments; production reminders stay gated.
 
 ## New Candidate Features Added To Scope
 

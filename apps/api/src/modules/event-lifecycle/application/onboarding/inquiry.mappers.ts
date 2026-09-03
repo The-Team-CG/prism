@@ -171,11 +171,23 @@ export function mapOnboardingFloorPlanDraft(draft: OpsFloorPlanDraft) {
   };
 }
 
+type EventWithProposalReview = EventWithDrafts & {
+  proposalClientStatus?: string;
+  proposalRevisionCount?: number;
+  proposalReviewedAt?: Date | null;
+  proposalReviewedBy?: string | null;
+};
+
 export function mapOnboardingEvent(event: EventWithDrafts) {
   const floorPlanDrafts = event.floorPlanDrafts ?? [];
   const activeDraft =
     floorPlanDrafts.find((draft) => draft.isActive) ??
     floorPlanDrafts.find((draft) => draft.floorPlanId === event.floorPlanId);
+  const reviewed = event as EventWithProposalReview;
+  const proposalClientStatus =
+    reviewed.proposalClientStatus === 'approved' || reviewed.proposalClientStatus === 'revision_requested'
+      ? reviewed.proposalClientStatus
+      : 'pending';
 
   return {
     id: event.id,
@@ -190,6 +202,10 @@ export function mapOnboardingEvent(event: EventWithDrafts) {
     floorPlanStatus: event.floorPlanStatus,
     floorPlanId: event.floorPlanId,
     guestAccessCode: guestAccessCode(event),
+    proposalClientStatus,
+    proposalRevisionCount: reviewed.proposalRevisionCount ?? 0,
+    proposalReviewedAt: optionalTimestamp(reviewed.proposalReviewedAt),
+    proposalReviewedBy: reviewed.proposalReviewedBy ?? null,
     activeFloorPlanDraftId: activeDraft?.id,
     floorPlanDrafts: floorPlanDrafts.map(mapOnboardingFloorPlanDraft),
   };

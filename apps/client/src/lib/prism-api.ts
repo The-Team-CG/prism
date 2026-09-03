@@ -5,7 +5,10 @@ import {
   PRISM_SAMPLE_STATE_STORAGE_KEY,
   PRISM_SESSION_STORAGE_KEYS,
   isPrismAuthenticatedSession,
+  parseContract,
+  reviewEventProposalSchema,
   type CreatePrismInquiryInput,
+  type ReviewEventProposalInput,
 } from "@prism/types";
 
 import type {
@@ -953,4 +956,29 @@ export const prismApi = {
         addNotification(state, eventId, event.clientName, "Event workspace archived");
         return event;
       })),
+  reviewEventProposal: (eventId: string, input: ReviewEventProposalInput) => {
+    const parsed = parseContract(reviewEventProposalSchema, input, "Proposal review");
+    if (USE_REMOTE_API) {
+      return eventOpsClient.events.reviewProposal(eventId, parsed);
+    }
+    return Promise.resolve(
+      updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        if ((event.proposalClientStatus ?? "pending") === "approved") {
+          throw new Error("Proposal is already approved");
+        }
+        if (parsed.action === "approve") {
+          event.proposalClientStatus = "approved";
+        } else {
+          const count = event.proposalRevisionCount ?? 0;
+          if (count >= 3) throw new Error("Proposal revision cap of 3 has been reached");
+          event.proposalClientStatus = "revision_requested";
+          event.proposalRevisionCount = count + 1;
+        }
+        event.proposalReviewedAt = now();
+        event.proposalReviewedBy = "Ana Reyes";
+        return event;
+      }),
+    );
+  },
 };

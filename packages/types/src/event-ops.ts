@@ -268,8 +268,22 @@ export interface PrismEvent {
   floorPlanStatus: string;
   floorPlanId?: string | null;
   guestAccessCode?: string;
+  proposalClientStatus?: "pending" | "approved" | "revision_requested";
+  proposalRevisionCount?: number;
+  proposalReviewedAt?: string | null;
+  proposalReviewedBy?: string | null;
   activeFloorPlanDraftId?: string;
   floorPlanDrafts?: PrismFloorPlanDraft[];
+}
+
+export interface PrismArchivedEventSearchHit {
+  id: string;
+  eventName: string;
+  clientName: string;
+  eventDate: string;
+  venue: string;
+  eventType: string;
+  archivedAt: string | null;
 }
 
 export interface PrismDefenseReadinessAction {
@@ -514,6 +528,8 @@ export interface PrismSupplierApplication {
   portfolioUrl: string;
   additionalNotes: string;
   status: PrismSupplierApplicationStatus;
+  declineReason?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
 }
 
@@ -1231,13 +1247,6 @@ type UpdateSupplierInput = Partial<CreateSupplierInput>;
 type ChangeSupplierTierInput = {
   tier: "tier_1" | "tier_2" | "pending_first_event";
   reason: string;
-};
-
-type CreateSupplierReviewInput = {
-  eventId?: string;
-  rating: number;
-  notes: string;
-  reviewedBy?: string;
 };
 
 type CreateSupplierCertificationInput = {
