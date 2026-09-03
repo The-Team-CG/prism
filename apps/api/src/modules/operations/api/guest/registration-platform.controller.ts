@@ -1,13 +1,20 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import type { CreateRegistrationPlatformInput, UpdateRegistrationPlatformInput } from '@prism/types';
+import { OpsUserRole } from '@prism/kernel/event-core';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
+import { zodBody } from '@prism/kernel/shared';
 import {
-  CreateRegistrationPlatformDto,
-  ImportHeadcountDto,
-  RegistrationPlatformActorDto,
-  UpdateRegistrationPlatformDto,
-} from './registration-platform.dto';
+  createRegistrationPlatformSchema,
+  importHeadcountSchema,
+  updateRegistrationPlatformSchema,
+  type CreateRegistrationPlatformInput,
+  type ImportHeadcountInput,
+  type PrismVerifiedEventActor,
+  type UpdateRegistrationPlatformInput,
+} from '@prism/types';
 import { RegistrationPlatformService } from '../../application/guest/registration-platform.service';
+
+const PMCM_ROLES = [OpsUserRole.PmcmAdmin, OpsUserRole.System] as const;
 
 @Controller('events/:eventId/registration-platform')
 export class OpsRegistrationPlatformController {
@@ -17,67 +24,55 @@ export class OpsRegistrationPlatformController {
   ) {}
 
   @Get()
-  get(@Param('eventId') eventId: string, @Query() actorInput: RegistrationPlatformActorDto) {
-    this.eventAccessPolicyService.resolveActor(actorInput);
-    return this.registrationPlatformService.getByEventId(eventId).then((p) =>
-      p ? this.registrationPlatformService.mapRegistrationPlatform(p) : null,
-    );
+  @UseGuards(EventSessionGuard)
+  async get(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    await this.requirePmcm(verifiedActor, eventId);
+    const platform = await this.registrationPlatformService.getByEventId(eventId);
+    return platform ? this.registrationPlatformService.mapRegistrationPlatform(platform) : null;
   }
 
   @Post()
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
-  upsert(
+  async upsert(
     @Param('eventId') eventId: string,
-    @Body() dto: CreateRegistrationPlatformDto,
-    @Query() actorInput: RegistrationPlatformActorDto,
+    @Body(zodBody(createRegistrationPlatformSchema)) input: CreateRegistrationPlatformInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
-    const input: CreateRegistrationPlatformInput = {
-      platformType: dto.platformType as CreateRegistrationPlatformInput['platformType'],
-      supplierId: dto.supplierId,
-      expectedPaxMin: dto.expectedPaxMin,
-      expectedPaxMax: dto.expectedPaxMax,
-      setupNotes: dto.setupNotes,
-    };
-    return this.registrationPlatformService
-      .upsert(eventId, input, actor)
-      .then((p) => this.registrationPlatformService.mapRegistrationPlatform(p));
+    const actor = await this.requirePmcm(verifiedActor, eventId);
+    const platform = await this.registrationPlatformService.upsert(eventId, input, actor);
+    return this.registrationPlatformService.mapRegistrationPlatform(platform);
   }
 
   @Patch()
-  update(
+  @UseGuards(EventSessionGuard)
+  async update(
     @Param('eventId') eventId: string,
-    @Body() dto: UpdateRegistrationPlatformDto,
-    @Query() actorInput: RegistrationPlatformActorDto,
+    @Body(zodBody(updateRegistrationPlatformSchema)) input: UpdateRegistrationPlatformInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
-    const input: UpdateRegistrationPlatformInput = {
-      ...(dto.platformType !== undefined && { platformType: dto.platformType as UpdateRegistrationPlatformInput['platformType'] }),
-      ...(dto.supplierId !== undefined && { supplierId: dto.supplierId }),
-      ...(dto.expectedPaxMin !== undefined && { expectedPaxMin: dto.expectedPaxMin }),
-      ...(dto.expectedPaxMax !== undefined && { expectedPaxMax: dto.expectedPaxMax }),
-      ...(dto.status !== undefined && { status: dto.status as UpdateRegistrationPlatformInput['status'] }),
-      ...(dto.setupNotes !== undefined && { setupNotes: dto.setupNotes }),
-    };
-    return this.registrationPlatformService
-      .update(eventId, input, actor)
-      .then((p) => this.registrationPlatformService.mapRegistrationPlatform(p));
+    const actor = await this.requirePmcm(verifiedActor, eventId);
+    const platform = await this.registrationPlatformService.update(eventId, input, actor);
+    return this.registrationPlatformService.mapRegistrationPlatform(platform);
   }
 
   @Post('headcount-import')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
-  importHeadcount(
+  async importHeadcount(
     @Param('eventId') eventId: string,
-    @Body() dto: ImportHeadcountDto,
-    @Query() actorInput: RegistrationPlatformActorDto,
+    @Body(zodBody(importHeadcountSchema)) input: ImportHeadcountInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
-    return this.registrationPlatformService
-      .importHeadcount(eventId, {
-        headcountSource: dto.headcountSource,
-        importedHeadcount: dto.importedHeadcount,
-        importedFileName: dto.importedFileName,
-      }, actor)
-      .then((p) => this.registrationPlatformService.mapRegistrationPlatform(p));
+    const actor = await this.requirePmcm(verifiedActor, eventId);
+    const platform = await this.registrationPlatformService.importHeadcount(eventId, input, actor);
+    return this.registrationPlatformService.mapRegistrationPlatform(platform);
+  }
+
+  private requirePmcm(verifiedActor: PrismVerifiedEventActor, eventId: string) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventAccessPolicyService
+      .requireActorRole(actor, [...PMCM_ROLES], 'registration platform', eventId)
+      .then(() => actor);
   }
 }

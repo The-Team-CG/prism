@@ -9,7 +9,6 @@ import {
   previousSupplierApplicationStep,
 } from "../model/supplier-application-rules";
 import {
-  FALLBACK_SUPPLIER_CATEGORIES,
   INITIAL_SUPPLIER_APPLICATION_FORM,
   type SupplierApplicationForm,
   type SupplierApplicationSubmitStatus,
@@ -21,7 +20,7 @@ export function useSupplierApplicationViewModel() {
   const [currentStep, setCurrentStep] = useState(0);
   const [status, setStatus] = useState<SupplierApplicationSubmitStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>(FALLBACK_SUPPLIER_CATEGORIES);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
@@ -29,8 +28,8 @@ export function useSupplierApplicationViewModel() {
     supplierApplicationRepository
       .listCategories()
       .then((cats) => {
-        if (cats.length > 0) setCategories(cats);
-        setCategoriesError(null);
+        setCategories(cats);
+        setCategoriesError(cats.length === 0 ? "No service categories available" : null);
       })
       .catch((err: unknown) => {
         setCategoriesError(err instanceof Error ? err.message : "Unable to load service categories");
