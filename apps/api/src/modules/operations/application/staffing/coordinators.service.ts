@@ -139,9 +139,14 @@ export class CoordinatorsService {
     })) as CoordinatorConflict | null;
 
     if (conflict && !input.overrideConflict) {
-      throw new BadRequestException(
-        `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
-      );
+      const sameRoleSuggestions = await this.listAvailableSameRole(event, role, coordinator.id);
+      throw new BadRequestException({
+        code: 'COORDINATOR_DOUBLE_BOOKING',
+        message: `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
+        conflictEventId: conflict.eventId,
+        conflictEventName: conflict.event.eventName,
+        sameRoleSuggestions,
+      });
     }
 
     return { event, coordinator, role, conflict };
@@ -523,6 +528,28 @@ export class CoordinatorsService {
       acknowledgedAt: assignment.acknowledgedAt ? timestamp(assignment.acknowledgedAt) : null,
       createdAt: timestamp(assignment.createdAt),
     };
+  }
+
+  private async listAvailableSameRole(event: OpsEvent, role: string, excludeCoordinatorId: string) {
+    const coordinators = await this.prisma.opsCoordinator.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+    });
+    const busy = await this.prisma.opsCoordinatorAssignment.findMany({
+      where: {
+        eventDate: event.eventDate,
+        status: { not: CoordinatorAssignmentStatus.Cancelled },
+      },
+    });
+    const busyIds = new Set(
+      busy.map((row) => row.coordinatorId).filter((id): id is string => Boolean(id)),
+    );
+    return coordinators
+      .filter(
+        (item) => item.id !== excludeCoordinatorId && item.roleTags.includes(role) && !busyIds.has(item.id),
+      )
+      .slice(0, 5)
+      .map((item) => ({ id: item.id, name: item.name, role }));
   }
 
   private async resolveCoordinator(input: CreateCoordinatorAssignmentInput) {
