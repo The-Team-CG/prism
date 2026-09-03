@@ -13,7 +13,7 @@ import { OpsCoordinatorsController } from './api/staffing/coordinators.controlle
 import { OpsGuestController } from './api/guest/guest.controller';
 import { OpsRegistrationPlatformController } from './api/guest/registration-platform.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tokens';
-import { GUEST_COMMANDS, GUEST_READER } from './contracts/guest-ops.tokens';
+import { GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './contracts/guest-ops.tokens';
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
@@ -47,7 +47,8 @@ import { RegistrationPlatformService } from './application/guest/registration-pl
     { provide: STAFFING_READER, useExisting: CoordinatorsService },
     { provide: GUEST_COMMANDS, useExisting: GuestWorkflowService },
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
+    { provide: REGISTRATION_PLATFORM_READER, useExisting: RegistrationPlatformService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, GuestWorkflowService, RegistrationPlatformService, GUEST_COMMANDS, GUEST_READER],
+  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, GuestWorkflowService, RegistrationPlatformService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
 })
 export class OperationsModule {}

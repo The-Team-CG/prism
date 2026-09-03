@@ -223,7 +223,6 @@ function createPmcmReadModelService() {
     opsEventInsight: { findMany: vi.fn(async () => []) },
     opsAuditLog: { findMany: vi.fn(async () => []) },
     opsNotificationLog: { findMany: vi.fn(async () => []) },
-    opsRegistrationPlatform: { findUnique: vi.fn(async () => null) },
     opsSupplierCategory: {
       findMany: vi.fn(async () => [
         {

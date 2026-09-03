@@ -632,29 +632,6 @@ export interface PrismRegistrationPlatform {
   updatedAt: string;
 }
 
-export type CreateRegistrationPlatformInput = {
-  platformType: PrismRegistrationPlatformType;
-  supplierId?: string;
-  expectedPaxMin?: number;
-  expectedPaxMax?: number;
-  setupNotes?: string;
-};
-
-export type UpdateRegistrationPlatformInput = {
-  platformType?: PrismRegistrationPlatformType;
-  supplierId?: string;
-  expectedPaxMin?: number;
-  expectedPaxMax?: number;
-  status?: PrismRegistrationPlatformStatus;
-  setupNotes?: string;
-};
-
-export type ImportHeadcountInput = {
-  headcountSource: string;
-  importedHeadcount: number;
-  importedFileName?: string;
-};
-
 export interface PrismEventDayTask {
   id: string;
   eventId: string;

@@ -4,6 +4,7 @@ import type {
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   CreatePrismInquiryInput,
+  CreateRegistrationPlatformInput,
   CreateSupplierApplicationInput,
   CreateUrgentIssueInput,
   ArchiveSearchFilters,
@@ -34,8 +35,10 @@ import type {
   PrismUrgentIssue,
   PrismCoordinatorAssignment,
   PrismSupplierApplication,
+  ImportHeadcountInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
+  UpdateRegistrationPlatformInput,
   UpdateSupplierEventStatusInput,
   UploadContractInput,
 } from "@prism/types";
@@ -55,14 +58,17 @@ export type {
   CreateGuestFeedbackInput,
   CreateSupplierApplicationInput,
   CreatePrismInquiryInput,
+  CreateRegistrationPlatformInput,
   CreateUrgentIssueInput,
   ArchiveSearchFilters,
   ReviewEventProposalInput,
   ReviewSupplierApplicationInput,
+  ImportHeadcountInput,
   SubmitSupplierQuoteInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateInquiryStatusInput,
+  UpdateRegistrationPlatformInput,
   UpdateSupplierEventStatusInput,
   UploadConformeInput,
   UploadContractInput,
@@ -121,6 +127,21 @@ export interface EventOpsClient {
     commandInbox(actor?: EventOpsActorQuery): Promise<PrismPmcmCommandInbox>;
     eventWorkspace(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPmcmEventWorkspace>;
     registrationPlatform(eventId: string, actor?: EventOpsActorQuery): Promise<PrismRegistrationPlatform | null>;
+    upsertRegistrationPlatform(
+      eventId: string,
+      input: CreateRegistrationPlatformInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismRegistrationPlatform>;
+    updateRegistrationPlatform(
+      eventId: string,
+      input: UpdateRegistrationPlatformInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismRegistrationPlatform>;
+    importHeadcount(
+      eventId: string,
+      input: ImportHeadcountInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismRegistrationPlatform>;
   };
   guest: {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
@@ -235,6 +256,21 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<PrismPmcmEventWorkspace>(actorPath(`/pmcm/events/${eventId}/workspace`, actor), withBase(options)),
       registrationPlatform: (eventId, actor = {}) =>
         prismRequest<PrismRegistrationPlatform | null>(actorPath(`/events/${eventId}/registration-platform`, actor), withBase(options)),
+      upsertRegistrationPlatform: (eventId, input, actor = {}) =>
+        prismRequest<PrismRegistrationPlatform>(
+          actorPath(`/events/${eventId}/registration-platform`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      updateRegistrationPlatform: (eventId, input, actor = {}) =>
+        prismRequest<PrismRegistrationPlatform>(
+          actorPath(`/events/${eventId}/registration-platform`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      importHeadcount: (eventId, input, actor = {}) =>
+        prismRequest<PrismRegistrationPlatform>(
+          actorPath(`/events/${eventId}/registration-platform/headcount-import`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
     },
     guest: {
       eventPass: (accessCode) =>

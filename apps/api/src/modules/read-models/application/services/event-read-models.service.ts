@@ -26,7 +26,14 @@ import { CLOSURE_READINESS_READER, type ClosureReadinessReader } from '@prism/co
 import { OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '@prism/kernel/event-core';
 import type { PrismCommandInboxSeverity } from '@prism/types';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { GUEST_READER, type GuestReader, STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
+import {
+  GUEST_READER,
+  REGISTRATION_PLATFORM_READER,
+  type GuestReader,
+  type RegistrationPlatformReader,
+  STAFFING_READER,
+  type StaffingReader,
+} from '@prism/contexts/operations';
 import { EventReadModelQueries } from '../queries/event-read-models.queries';
 import {
   buildDefenseActions,
@@ -196,6 +203,7 @@ export class EventReadModelsService {
     @Inject(GUEST_READER) private readonly guestReader: GuestReader,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Optional() @Inject(CLOSURE_READINESS_READER) private readonly closureReadinessReader?: ClosureReadinessReader,
+    @Optional() @Inject(REGISTRATION_PLATFORM_READER) private readonly registrationPlatformReader?: RegistrationPlatformReader,
   ) {}
 
   async billing(actor: ResolvedEventOpsActor, mappers: BillingReadModelMappers) {
@@ -440,12 +448,12 @@ export class EventReadModelsService {
       floorPlanDrafts,
       auditLogs,
       notificationLogs,
-      registrationPlatform,
     ] = await this.queries.pmcmEventWorkspace(eventId);
-    const [coordinatorAssignments, guestCheckIns, guestFeedback] = await Promise.all([
+    const [coordinatorAssignments, guestCheckIns, guestFeedback, registrationPlatform] = await Promise.all([
       this.staffingReader.listAssignmentsForEvent(eventId),
       this.guestReader.listCheckInsForEvent(eventId),
       this.guestReader.listFeedbackForEvent(eventId),
+      this.registrationPlatformReader?.getByEventId(eventId) ?? Promise.resolve(null),
     ]);
 
     return {
