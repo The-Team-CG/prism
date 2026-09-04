@@ -101,7 +101,18 @@ export class EventLiveOpsCommandService {
     input: UpdateCoordinatorAttendanceInput,
     actor: ResolvedEventOpsActor,
   ) {
-    await this.requireEventDayWriteActor(eventId, actor, 'coordinator attendance');
+    // PA-298: updateCoordinatorAttendance previously discarded requireEventDayWriteActor's
+    // resolved assignment, letting any Coordinator assigned to the event mark any other
+    // coordinator's attendance by changing the assignmentId path segment.
+    const { assignment: actorAssignment } = await this.requireEventDayWriteActor(
+      eventId,
+      actor,
+      'coordinator attendance',
+    );
+    if (actor.role === OpsUserRole.Coordinator && actorAssignment?.id !== assignmentId) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator attendance', eventId);
+      throw new ForbiddenException("Coordinator cannot mark another coordinator's attendance");
+    }
     const assignment = await this.liveOperationsService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
     return mapCoordinatorAssignmentForEventDay(
       assignment,
