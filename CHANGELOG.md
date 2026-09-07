@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- W23 guest feedback lifecycle and moderation: actual-end anchored seven-day submissions remain available across archive while check-in remains closed; PMCM moderation queue decisions are reasoned, audited and actor/timestamp attributed; consent withdrawal is persisted; optional media is recorded as pending W10 storage intent.
 - Briefing submissions preserve prior history, reject locked or post-planning events, and persist audit/notification intent atomically with the verified actor.
 - Historical audit verification follows hash links, including same-millisecond records; ambiguous historical tails stop new appends for integrity review.
 - Native password recovery contracts and single-use 15-minute hashed reset tokens with durable session-version revocation; reset delivery remains explicitly unavailable until a trusted provider is configured.
