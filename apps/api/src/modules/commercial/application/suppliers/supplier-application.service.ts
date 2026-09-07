@@ -119,8 +119,11 @@ export class SupplierApplicationService {
       }
       return mapSupplierApplication(existing);
     }
-    if (['declined', 'approved', 'proposal_requested', 'meeting_scheduled'].includes(existing.status)) {
+    if (['declined', 'approved'].includes(existing.status)) {
       throw new BadRequestException('Supplier application has already been reviewed');
+    }
+    if (existing.status !== 'pending' && input.action !== 'approve') {
+      throw new BadRequestException('Only approval can complete an application already in progress');
     }
 
     const nextStatus = applicationStatusForReviewAction(input.action);
@@ -130,7 +133,7 @@ export class SupplierApplicationService {
     const now = new Date();
     const row = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const changed = await tx.opsSupplierApplication.updateMany({
-        where: { id: applicationId, status: 'pending' },
+        where: { id: applicationId, status: existing.status },
         data: {
         status: nextStatus,
         declineReason: input.action === 'decline' ? input.declineReason?.trim() ?? null : existing.declineReason,

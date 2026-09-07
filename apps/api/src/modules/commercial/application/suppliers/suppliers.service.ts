@@ -148,6 +148,7 @@ export class SuppliersService {
     }
 
     const existing = await this.supplierRow(supplierId);
+    if (existing.tier === SupplierTier.PendingFirstEvent) throw new BadRequestException('Pending-first-event suppliers require a completed event promotion');
     const supplier = await this.prisma.opsSupplier.update({
       where: { id: supplierId },
       data: { tier: input.tier },
@@ -178,7 +179,7 @@ export class SuppliersService {
       ? await db.opsSupplierReliabilityNote.findUnique({ where: { idempotencyKey: input.idempotencyKey } })
       : null;
     if (existing) {
-      if (existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.note !== input.note) {
+      if (existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.note !== input.note.trim()) {
         throw new BadRequestException('Idempotency key was already used for a different reliability note');
       }
       return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), noteId: existing.id, replayed: true };
@@ -209,7 +210,8 @@ export class SuppliersService {
       }
     }
     if (supplier.tier === input.tier) throw new BadRequestException('Supplier has already been promoted to this tier');
-    await db.opsSupplier.updateMany({ where: { id: supplierId, tier: SupplierTier.PendingFirstEvent }, data: { tier: input.tier } });
+    const changed = await db.opsSupplier.updateMany({ where: { id: supplierId, tier: SupplierTier.PendingFirstEvent }, data: { tier: input.tier } });
+    if (changed.count !== 1) throw new BadRequestException('Supplier tier changed before promotion');
     await db.opsSupplierPromotion.create({ data: { id: `promotion_${randomUUID()}`, supplierId, reviewId: review.id, fromTier: SupplierTier.PendingFirstEvent, toTier: input.tier, reason: input.reason.trim(), promotedBy: promotedBy ?? 'PMCM', idempotencyKey: input.idempotencyKey ?? `promotion_${randomUUID()}`, payloadHash } });
     return this.mapSupplier(await this.supplierRow(supplierId, db));
   }
@@ -270,20 +272,22 @@ export class SuppliersService {
 
   private async validateDimensionRatings(categoryId: string, ratings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>, db: PrismaService | Prisma.TransactionClient) {
     if (ratings.length === 0) return;
+    const uniqueIds = new Set(ratings.map((rating) => rating.dimensionId));
+    if (uniqueIds.size !== ratings.length) throw new BadRequestException('Duplicate supplier review dimensions are not allowed');
     const validDimensions = await db.opsSupplierReviewDimension.findMany({
-      where: { categoryId, id: { in: ratings.map((rating) => rating.dimensionId) } }, select: { id: true },
+      where: { categoryId, active: true }, select: { id: true },
     });
     const validIds = new Set(validDimensions.map((dimension) => dimension.id));
-    if (ratings.some((rating) => !validIds.has(rating.dimensionId))) {
+    if (ratings.length !== validDimensions.length || ratings.some((rating) => !validIds.has(rating.dimensionId))) {
       throw new BadRequestException("Dimension rating does not belong to the supplier's category");
     }
   }
 
   private async validateReviewEligibility(supplierId: string, eventId: string | undefined, db: PrismaService | Prisma.TransactionClient) {
     if (!eventId) throw new BadRequestException('Supplier reviews require an event');
-    const event = await db.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true, status: true } });
+    const event = await db.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true, status: true, actualEndedAt: true } });
     if (!event) throw new BadRequestException('Supplier review event not found');
-    if (event.eventDate > new Date() || !['completed', 'closed', 'archived'].includes(event.status)) {
+    if (event.actualEndedAt === null || !['completed', 'closed', 'archived'].includes(event.status)) {
       throw new BadRequestException('Supplier reviews are available only after event completion');
     }
     const confirmedAssignment = await db.opsSupplierQuoteRequest.findFirst({
