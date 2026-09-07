@@ -282,6 +282,7 @@ export class AuthOperationsService {
       lastLoginAt: user.lastLoginAt ? timestamp(user.lastLoginAt) : null,
       lockedUntil: user.lockedUntil ? timestamp(user.lockedUntil) : null,
       permanentLockout: user.permanentLockout,
+      sessionVersion: user.sessionVersion,
     };
   }
 

@@ -19,4 +19,12 @@ export const clientAuthRepository = {
   requestApproval(email: string, consent: PrivacyConsentInput) {
     return prismApi.requestApproval(email, consent);
   },
+
+  requestPasswordReset(email: string) {
+    return prismApi.requestPasswordReset(email);
+  },
+
+  consumePasswordReset(input: { token: string; password: string }) {
+    return prismApi.consumePasswordReset(input);
+  },
 };
