@@ -1,11 +1,20 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { EventAccessPolicyService } from '@prism/kernel/access-control';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
+import { OpsUserRole } from '@prism/kernel/event-core';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { CreateTemplateDto } from './create-template.dto';
 import { UpdateTemplateDto } from './update-template.dto';
 import { TemplatesService } from '../../application/authoring/templates.service';
 
 @Controller('templates')
 export class TemplatesController {
-  constructor(private readonly templatesService: TemplatesService) {}
+  constructor(private readonly templatesService: TemplatesService, private readonly access: EventAccessPolicyService) {}
+
+  private async requireAuthoring(verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.access.resolveActor({}, verifiedActor);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'template authoring');
+  }
 
   @Get()
   list() {
@@ -18,18 +27,24 @@ export class TemplatesController {
   }
 
   @Post()
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateTemplateDto) {
+  async create(@Body() dto: CreateTemplateDto, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    await this.requireAuthoring(verifiedActor);
     return this.templatesService.createTemplate(dto);
   }
 
   @Patch(':templateId')
-  update(@Param('templateId') templateId: string, @Body() dto: UpdateTemplateDto) {
+  @UseGuards(EventSessionGuard)
+  async update(@Param('templateId') templateId: string, @Body() dto: UpdateTemplateDto, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    await this.requireAuthoring(verifiedActor);
     return this.templatesService.updateTemplate(templateId, dto);
   }
 
   @Delete(':templateId')
-  delete(@Param('templateId') templateId: string) {
+  @UseGuards(EventSessionGuard)
+  async delete(@Param('templateId') templateId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    await this.requireAuthoring(verifiedActor);
     return this.templatesService.deleteTemplate(templateId);
   }
 }
