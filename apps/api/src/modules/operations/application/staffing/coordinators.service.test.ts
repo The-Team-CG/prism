@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { AuditService, AuditWriterAdapter } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
-import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import { CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { CoordinatorsService } from './coordinators.service';
 
 const event = {
@@ -62,6 +62,8 @@ function createPrisma() {
   ];
   const notifications: any[] = [];
   const audits: any[] = [];
+  const availability: any[] = [];
+  const acknowledgments: any[] = [];
   const transactionCalls: string[] = [];
   const queryOrder: string[] = [];
 
@@ -70,6 +72,16 @@ function createPrisma() {
     opsCoordinator: {
       findUnique: async () => coordinator,
       findMany: async () => [coordinator],
+    },
+    opsCoordinatorAvailability: {
+      findFirst: async ({ where }: { where?: { coordinatorId?: string } } = {}) =>
+        availability.find((row) => !where?.coordinatorId || row.coordinatorId === where.coordinatorId) ?? null,
+      findMany: async () => availability,
+      create: async ({ data }: { data: any }) => {
+        const row = { ...data, createdAt: new Date() };
+        availability.push(row);
+        return row;
+      },
     },
     opsCoordinatorAssignment: {
       findFirst: async ({ where }: { where?: { id?: string } } = {}) => {
@@ -97,6 +109,13 @@ function createPrisma() {
         if (index < 0) throw new Error('not found');
         assignments[index] = { ...assignments[index], ...data };
         return assignments[index];
+      },
+    },
+    opsCoordinatorAssignmentAcknowledgment: {
+      create: async ({ data }: { data: any }) => {
+        const row = { ...data, createdAt: new Date() };
+        acknowledgments.push(row);
+        return row;
       },
     },
     opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
@@ -135,6 +154,8 @@ function createPrisma() {
     assignments,
     notifications,
     audits,
+    availability,
+    acknowledgments,
     transactionCalls,
     queryOrder,
     prisma,
@@ -152,6 +173,49 @@ function createService(prisma: any, accessPolicy: any = createAccessPolicy()) {
 }
 
 describe('CoordinatorsService', () => {
+  it('rejects assignments inside the transaction when declared availability blocks the event date', async () => {
+    const fake = createPrisma();
+    fake.availability.push({
+      id: 'coord_avail_blocked',
+      coordinatorId: coordinator.id,
+      startsAt: new Date('2026-06-17T00:00:00.000Z'),
+      endsAt: new Date('2026-06-19T00:00:00.000Z'),
+      kind: 'blocked',
+      note: 'Medical leave',
+    });
+    const service = createService(fake.prisma as any);
+
+    await expect(
+      service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director' }, pmcmAdminActor),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'COORDINATOR_UNAVAILABLE', availabilityId: 'coord_avail_blocked' }),
+    });
+  });
+
+  it('computes persisted coverage from required roles, active assignments and coordinator skills', async () => {
+    const requirements = [{ role: 'Floor Director', required: 1, requiredSkills: ['floorplan execution'] }];
+    const assignments = [{
+      role: 'Floor Director',
+      status: CoordinatorAssignmentStatus.Acknowledged,
+      coordinator: { skillsTags: ['floorplan execution'] },
+    }];
+    const prisma = {
+      opsEventCoverageRequirement: { findMany: async () => requirements },
+      opsCoordinatorAssignment: { findMany: async () => assignments },
+    };
+    const service = createService(prisma as any);
+
+    await expect(service.listCoverageForEvent(event.id)).resolves.toEqual([{
+      role: 'Floor Director',
+      required: 1,
+      assigned: 1,
+      acknowledged: 1,
+      requiredSkills: ['floorplan execution'],
+      assignedSkills: ['floorplan execution'],
+      satisfied: true,
+    }]);
+  });
+
   it('blocks a same-date conflict until PMCM overrides it', async () => {
     const fake = createPrisma();
     const service = createService(fake.prisma as any);
@@ -285,6 +349,28 @@ describe('CoordinatorsService', () => {
     expect(acknowledged.status).toBe('acknowledged');
   });
 
+  it('records a coordinator decline reason and acknowledgement history', async () => {
+    const fake = createPrisma();
+    const service = createService(fake.prisma as any);
+    const created = await service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
+      pmcmAdminActor,
+    );
+
+    const declined = await service.acknowledgeCoordinator(
+      event.id,
+      created.id,
+      coordinatorActor,
+      { decision: 'declined', reason: 'Unavailable for this event' },
+    );
+
+    expect(declined).toMatchObject({ status: 'declined', acknowledgedBy: coordinatorActor.id, acknowledgementReason: 'Unavailable for this event' });
+    expect(fake.acknowledgments).toEqual([
+      expect.objectContaining({ assignmentId: created.id, state: 'declined', actor: coordinatorActor.id }),
+    ]);
+  });
+
   it('rejects acknowledgeCoordinator for an actor that is neither PmcmAdmin nor Coordinator', async () => {
     const fake = createPrisma();
     const service = createService(fake.prisma as any);
@@ -347,7 +433,7 @@ describe('CoordinatorsService', () => {
       { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
       pmcmAdminActor,
     );
-    await service.withdrawCoordinator(event.id, created.id, {}, pmcmAdminActor);
+    await service.withdrawCoordinator(event.id, created.id, { reason: 'No longer available' }, pmcmAdminActor);
 
     await expect(
       service.acknowledgeCoordinator(event.id, created.id, pmcmAdminActor),
@@ -367,7 +453,7 @@ describe('CoordinatorsService', () => {
       { coordinatorId: coordinatorB.id, role: 'Floor Director', overrideConflict: true },
       pmcmAdminActor,
     );
-    await service.withdrawCoordinator(event.id, assignmentForB.id, {}, pmcmAdminActor);
+    await service.withdrawCoordinator(event.id, assignmentForB.id, { reason: 'No longer available' }, pmcmAdminActor);
 
     await expect(
       service.acknowledgeCoordinator(event.id, assignmentForB.id, coordinatorActor),
@@ -391,7 +477,7 @@ describe('CoordinatorsService', () => {
       expect(fake.audits.some((entry: any) => entry.action?.includes('Withdrew'))).toBe(true);
     });
 
-    it('rejects a non-PmcmAdmin actor', async () => {
+    it('allows the owning Coordinator to withdraw with a required reason', async () => {
       const fake = createPrisma();
       const service = createService(fake.prisma as any);
       const created = await service.assignCoordinator(
@@ -401,8 +487,8 @@ describe('CoordinatorsService', () => {
       );
 
       await expect(
-        service.withdrawCoordinator(event.id, created.id, {}, coordinatorActor),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+        service.withdrawCoordinator(event.id, created.id, { reason: 'No longer available' }, coordinatorActor),
+      ).resolves.toMatchObject({ status: 'cancelled', withdrawalReason: 'No longer available' });
     });
 
     it('rejects withdrawing an assignment that is already cancelled or replaced', async () => {
@@ -413,10 +499,10 @@ describe('CoordinatorsService', () => {
         { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true },
         pmcmAdminActor,
       );
-      await service.withdrawCoordinator(event.id, created.id, {}, pmcmAdminActor);
+      await service.withdrawCoordinator(event.id, created.id, { reason: 'No longer available' }, pmcmAdminActor);
 
       await expect(
-        service.withdrawCoordinator(event.id, created.id, {}, pmcmAdminActor),
+        service.withdrawCoordinator(event.id, created.id, { reason: 'Already withdrawn' }, pmcmAdminActor),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -425,7 +511,7 @@ describe('CoordinatorsService', () => {
       const service = createService(fake.prisma as any);
 
       await expect(
-        service.withdrawCoordinator(event.id, 'coord_asg_missing', {}, pmcmAdminActor),
+        service.withdrawCoordinator(event.id, 'coord_asg_missing', { reason: 'No longer available' }, pmcmAdminActor),
       ).rejects.toThrow('Coordinator assignment not found');
     });
   });
@@ -469,7 +555,7 @@ describe('CoordinatorsService', () => {
         service.replaceCoordinator(
           event.id,
           created.id,
-          { replacementCoordinatorId: coordinator.id, overrideConflict: true },
+          { replacementCoordinatorId: coordinator.id, reason: 'PMCM reassignment', overrideConflict: true },
           coordinatorActor,
         ),
       ).rejects.toBeInstanceOf(ForbiddenException);
@@ -488,7 +574,7 @@ describe('CoordinatorsService', () => {
         service.replaceCoordinator(
           event.id,
           created.id,
-          { replacementCoordinatorId: coordinator.id, replacementRole: 'Floor Director' },
+          { replacementCoordinatorId: coordinator.id, replacementRole: 'Floor Director', reason: 'Scheduling conflict' },
           pmcmAdminActor,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);

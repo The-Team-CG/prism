@@ -561,7 +561,22 @@ export interface PrismCoordinatorAssignment {
   conflictEventId?: string | null;
   conflictEventName?: string | null;
   acknowledgedAt?: string | null;
+  acknowledgedBy?: string | null;
+  acknowledgementReason?: string;
+  withdrawalReason?: string;
+  withdrawnAt?: string | null;
+  withdrawnBy?: string | null;
+  acknowledgementHistory?: PrismCoordinatorAssignmentAcknowledgment[];
   createdAt?: string;
+}
+
+export interface PrismCoordinatorAssignmentAcknowledgment {
+  id: string;
+  assignmentId: string;
+  state: "acknowledged" | "declined" | string;
+  reason: string;
+  actor: string;
+  createdAt: string;
 }
 
 export interface PrismCoordinator {
@@ -579,6 +594,27 @@ export interface PrismCoordinator {
 export interface PrismCoordinatorRoleRequirement {
   role: string;
   required: number;
+}
+
+export interface PrismCoordinatorAvailability {
+  id: string;
+  coordinatorId: string;
+  startsAt: string;
+  endsAt: string;
+  kind: "unavailable" | "blocked" | string;
+  note: string;
+  declaredBy: string;
+  createdAt: string;
+}
+
+export interface PrismCoordinatorCoverage {
+  role: string;
+  required: number;
+  assigned: number;
+  acknowledged: number;
+  requiredSkills: string[];
+  assignedSkills: string[];
+  satisfied: boolean;
 }
 
 export interface PrismGuestCheckIn {
@@ -1189,6 +1225,7 @@ export interface PrismPmcmEventWorkspace {
   supplierQuoteRequests: PrismSupplierQuoteRequest[];
   supplierQuotes: PrismSupplierQuote[];
   coordinatorAssignments: PrismCoordinatorAssignment[];
+  coordinatorCoverage?: PrismCoordinatorCoverage[];
   complianceChecks: PrismComplianceCheck[];
   billingSources: PrismBillingSource[];
   billingStatements: PrismBillingStatement[];

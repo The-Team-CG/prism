@@ -68,6 +68,8 @@ import type {
   CreateEventDayTaskInput,
   EscalateLiveOpsInput,
   ReplaceCoordinatorAssignmentInput,
+  CoordinatorAssignmentAcknowledgementInput,
+  WithdrawCoordinatorAssignmentInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateUrgentIssueInput,
@@ -617,9 +619,15 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  acknowledgeCoordinator: (eventId: string, assignmentId: string) =>
+  acknowledgeCoordinator: (eventId: string, assignmentId: string, input: CoordinatorAssignmentAcknowledgementInput = { decision: "acknowledged" }) =>
     request<PrismCoordinatorAssignment>(`/api/events/${eventId}/coordinators/${assignmentId}/acknowledge`, {
       method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+  withdrawCoordinator: (session: { name: string; email: string; role: string }, eventId: string, assignmentId: string, input: WithdrawCoordinatorAssignmentInput) =>
+    request<PrismCoordinatorAssignment>(withCoordinatorActor(`/api/events/${eventId}/coordinators/${assignmentId}/withdraw`, session), {
+      method: "PATCH",
+      body: JSON.stringify(input),
     }),
   defenseReadiness: (eventId: string) => request<PrismDefenseReadiness>(withPmcmActor(`/api/events/${eventId}/defense-readiness`)),
   liveOps: (eventId: string) => request<PrismLiveOps>(withPmcmActor(`/api/events/${eventId}/live-ops`)),
