@@ -65,4 +65,24 @@ describe('WorkflowCommandService', () => {
     expect(result).toBe('read');
     expect(transactionRunner.run).not.toHaveBeenCalled();
   });
+
+  it('runs transaction state validation after the transaction begins', async () => {
+    const transactionContext = { prisma: { tx: true } as never, correlationId: 'cmd', actorId: 'actor' };
+    const transactionRunner = {
+      run: vi.fn(async (work: (context: PrismTransactionContext) => Promise<string>) => work(transactionContext)),
+    };
+    const service = new WorkflowCommandService(transactionRunner as never);
+    const validate = vi.fn(async (context: PrismTransactionContext) => {
+      expect(context).toBe(transactionContext);
+    });
+
+    await service.execute({
+      name: 'transaction_validated_command',
+      sideEffectMode: 'same_tx',
+      validateStateInTransaction: validate,
+      write: async () => 'written',
+    });
+
+    expect(validate).toHaveBeenCalledTimes(1);
+  });
 });
