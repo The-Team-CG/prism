@@ -112,35 +112,34 @@ export class SupplierNetworkWorkflowService {
   async withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor) {
     let request: OpsSupplierQuoteRequest | null = null;
 
-    return this.workflowCommandService.execute<
+    const result = await this.workflowCommandService.execute<
       { request: OpsSupplierQuoteRequest; event: OpsEvent | null },
-      OpsSupplierQuoteRequest
+      { request: OpsSupplierQuoteRequest; event: OpsEvent | null }
     >({
       name: 'withdraw_supplier',
+      sideEffectMode: 'same_tx',
+      context: { actorId: actor.id ?? actor.name, actorRole: actor.role, correlationId: `supplier-withdraw:${requestId}` },
       validatePermission: () => this.requireSupplierAdmin(actor, 'withdraw supplier'),
       validateState: async () => {
         request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
         if (!request) throw new NotFoundException('Supplier quote request not found');
       },
-      write: async () => {
+      write: async (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
-        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          // Transaction scope: DB reads/writes only. No external IO inside this callback.
-          const [updated, event] = await Promise.all([
-            tx.opsSupplierQuoteRequest.update({
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        const [updated, event] = await Promise.all([
+            prisma.opsSupplierQuoteRequest.update({
               where: { id: request!.id },
               data: { assignmentStatus: 'withdrawn' },
               include: { supplier: true },
             }),
-            tx.opsEvent.findUnique({ where: { id: request!.eventId } }),
+            prisma.opsEvent.findUnique({ where: { id: request!.eventId } }),
           ]);
-          return { request: updated, event };
-        });
+        return { request: updated, event };
       },
-      sideEffects: async (result) => {
+      sideEffects: async (result, transactionContext) => {
         if (!request) return;
-        try {
-          await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
+        await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -148,15 +147,11 @@ export class SupplierNetworkWorkflowService {
             affectedType: 'supplier_quote_request',
             affectedId: request.id,
             affectedLabel: request.supplierName,
-          });
-        } catch {
-          // Supplier withdrawal should not be rolled back by an audit logging outage.
-        }
-
-        void this.triggerPareForWithdrawnSupplier(request, result.request, result.event);
+        }, transactionContext);
       },
-      project: (result) => result.request,
     });
+    if (request && result) void this.triggerPareForWithdrawnSupplier(request, result.request, result.event);
+    return result.request;
   }
 
   pareGetPendingApprovals(eventId?: string) {
