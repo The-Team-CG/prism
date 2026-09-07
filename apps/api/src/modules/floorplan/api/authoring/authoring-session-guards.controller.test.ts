@@ -20,4 +20,10 @@ describe('floorplan authoring session boundaries', () => {
     expect(guardsFor(TemplatesController, 'delete')).toContain(EventSessionGuard);
     expect(guardsFor(PlansController, 'update')).toContain(EventSessionGuard);
   });
+
+  it('requires a verified PMCM session for global event/template inventory reads', () => {
+    expect(guardsFor(LayoutEventsController, 'list')).toContain(EventSessionGuard);
+    expect(guardsFor(TemplatesController, 'list')).toContain(EventSessionGuard);
+    expect(guardsFor(TemplatesController, 'getOne')).toContain(EventSessionGuard);
+  });
 });
