@@ -70,6 +70,31 @@ export type SubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
 
 /* ── Guest ────────────────────────────────────────────────────── */
 
+export const reviewEventProposalSchema = z.object({
+  action: z.enum(["approve", "request_revision"]),
+  revisionNote: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (value.action === "request_revision" && !value.revisionNote?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Revision note is required",
+      path: ["revisionNote"],
+    });
+  }
+});
+export type ReviewEventProposalInput = z.infer<typeof reviewEventProposalSchema>;
+
+export const archiveSearchFiltersSchema = z.object({
+  venue: optionalTrimmedStringSchema,
+  eventType: optionalTrimmedStringSchema,
+  month: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || /^\d{4}-\d{2}$/.test(value), "month must be YYYY-MM"),
+});
+export type ArchiveSearchFilters = z.infer<typeof archiveSearchFiltersSchema>;
+
 export const createGuestCheckInSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,
   checkInMode: z.enum(["name_search", "walk_in"]).or(z.string().trim().min(1)).optional(),
@@ -87,7 +112,58 @@ export const createGuestFeedbackSchema = privacyConsentSchema.extend({
 });
 export type CreateGuestFeedbackInput = z.infer<typeof createGuestFeedbackSchema>;
 
+/* ── Registration platform (PMCM) ─────────────────────────────── */
+
+export const prismRegistrationPlatformTypeSchema = z.enum(["xperto", "clickpass", "custom", "none"]);
+export const prismRegistrationPlatformStatusSchema = z.enum([
+  "not_started",
+  "configuring",
+  "live",
+  "closed",
+]);
+
+export const createRegistrationPlatformSchema = z.object({
+  platformType: prismRegistrationPlatformTypeSchema,
+  supplierId: optionalTrimmedStringSchema,
+  expectedPaxMin: z.number().int().min(0).optional(),
+  expectedPaxMax: z.number().int().min(0).optional(),
+  setupNotes: optionalTrimmedStringSchema,
+});
+export type CreateRegistrationPlatformInput = z.infer<typeof createRegistrationPlatformSchema>;
+
+export const updateRegistrationPlatformSchema = z.object({
+  platformType: prismRegistrationPlatformTypeSchema.optional(),
+  supplierId: optionalTrimmedStringSchema,
+  expectedPaxMin: z.number().int().min(0).optional(),
+  expectedPaxMax: z.number().int().min(0).optional(),
+  status: prismRegistrationPlatformStatusSchema.optional(),
+  setupNotes: optionalTrimmedStringSchema,
+});
+export type UpdateRegistrationPlatformInput = z.infer<typeof updateRegistrationPlatformSchema>;
+
+export const importHeadcountSchema = z.object({
+  headcountSource: nonEmptyStringSchema,
+  importedHeadcount: z.number().int().min(0),
+  importedFileName: optionalTrimmedStringSchema,
+});
+export type ImportHeadcountInput = z.infer<typeof importHeadcountSchema>;
+
 /* ── Supplier ─────────────────────────────────────────────────── */
+
+export const reviewSupplierApplicationSchema = z.object({
+  action: z.enum(["request_proposal", "schedule", "decline"]),
+  declineReason: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (value.action === "decline" && !value.declineReason?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Decline reason is required",
+      path: ["declineReason"],
+    });
+  }
+});
+export type ReviewSupplierApplicationInput = z.infer<typeof reviewSupplierApplicationSchema>;
 
 export const createSupplierApplicationSchema = z.object({
   companyName: nonEmptyStringSchema,
@@ -106,6 +182,23 @@ export const createSupplierApplicationSchema = z.object({
   privacyNoticeVersion: optionalTrimmedStringSchema,
 });
 export type CreateSupplierApplicationInput = z.infer<typeof createSupplierApplicationSchema>;
+
+export const createSupplierReviewSchema = z.object({
+  eventId: optionalTrimmedStringSchema,
+  rating: z.number().int().min(1).max(5),
+  notes: nonEmptyStringSchema,
+  reviewedBy: optionalTrimmedStringSchema,
+  dimensionRatings: z
+    .array(
+      z.object({
+        dimensionId: nonEmptyStringSchema,
+        rating: z.number().int().min(1).max(5),
+      }),
+    )
+    .optional(),
+  idempotencyKey: optionalTrimmedStringSchema,
+});
+export type CreateSupplierReviewInput = z.infer<typeof createSupplierReviewSchema>;
 
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,

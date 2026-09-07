@@ -12,6 +12,21 @@ function timestamp(value: Date) {
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
 
+export function mapArchivedEventSearchHit(event: OpsEvent & {
+  inquiry?: { eventType?: string } | null;
+  briefings?: Array<{ venue?: string }>;
+}) {
+  return {
+    id: event.id,
+    eventName: event.eventName,
+    clientName: event.clientName,
+    eventDate: isoDate(event.eventDate),
+    venue: event.briefings?.[0]?.venue ?? '',
+    eventType: event.inquiry?.eventType ?? '',
+    archivedAt: event.archivedAt ? timestamp(event.archivedAt) : null,
+  };
+}
+
 export function mapClosureEvent(event: EventWithDrafts, dependencies: { guestReader: GuestReader; floorplanReader: FloorplanReader }) {
   const floorPlanDrafts = event.floorPlanDrafts ?? [];
   const activeDraft =
@@ -61,4 +76,9 @@ export function mapEventInsight(insight: OpsEventInsight) {
     generatedAt: timestamp(insight.generatedAt),
     updatedAt: expanded.updatedAt ? timestamp(expanded.updatedAt) : timestamp(insight.generatedAt),
   };
+}
+
+export function mapClientVisibleEventInsight(insight: OpsEventInsight) {
+  const { privateNotes: _privateNotes, ...visible } = mapEventInsight(insight);
+  return visible;
 }

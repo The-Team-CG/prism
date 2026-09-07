@@ -6,11 +6,12 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import type { PrismVerifiedEventActor } from '@prism/types';
 import {
   GUEST_READER,
+  REGISTRATION_PLATFORM_READER,
   type GuestReader,
+  type RegistrationPlatformReader,
   STAFFING_READER,
   type StaffingReader,
 } from '@prism/contexts/operations';
-import { RegistrationPlatformService } from '@prism/contexts/operations';
 import { createPmcmReadModelMappers } from '../application/mappers/pmcm-read-model.mappers';
 import { EventReadModelsService } from '../application/services/event-read-models.service';
 
@@ -23,7 +24,7 @@ export class OpsPmcmDashboardController {
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
     @Inject(GUEST_READER) private readonly guestReader: GuestReader,
-    private readonly registrationPlatformService: RegistrationPlatformService,
+    @Inject(REGISTRATION_PLATFORM_READER) private readonly registrationPlatformReader: RegistrationPlatformReader,
   ) {}
 
   @Get('dashboard')
@@ -46,7 +47,7 @@ export class OpsPmcmDashboardController {
       staffingReader: this.staffingReader,
       floorplanReader: this.floorplanReader,
       guestReader: this.guestReader,
-      registrationPlatformService: this.registrationPlatformService,
+      registrationPlatformReader: this.registrationPlatformReader,
     });
   }
 }

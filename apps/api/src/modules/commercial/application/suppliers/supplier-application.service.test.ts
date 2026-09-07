@@ -1,0 +1,83 @@
+import { ForbiddenException } from '@nestjs/common';
+import { describe, expect, it } from 'vitest';
+import { OpsUserRole } from '@prism/kernel/event-core';
+import { SupplierApplicationService } from './supplier-application.service';
+
+const pmcmAdminActor = { id: 'admin_1', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true };
+const clientActor = { id: 'client_1', role: OpsUserRole.Client, name: 'Client', explicit: true };
+
+function createAccessPolicy() {
+  return {
+    requireActorRole: async (actor: { role: string }, roles: string[], resource: string) => {
+      if (!roles.includes(actor.role)) {
+        throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
+      }
+    },
+  };
+}
+
+function createPrisma() {
+  const applications: Array<Record<string, unknown>> = [
+    {
+      id: 'sap_1',
+      companyName: 'Northstar',
+      contactName: 'Ava',
+      email: 'ava@northstar.test',
+      phone: '',
+      categoryId: null,
+      pastEvents: '',
+      serviceInclusions: '',
+      certifications: '',
+      priceRange: '',
+      bniMember: false,
+      portfolioUrl: '',
+      additionalNotes: '',
+      status: 'pending',
+      declineReason: null,
+      reviewedAt: null,
+      approvedAt: null,
+      createdAt: new Date('2026-09-01T00:00:00.000Z'),
+      category: null,
+    },
+  ];
+  return {
+    applications,
+    prisma: {
+      opsSupplierApplication: {
+        findMany: async () => applications,
+        findUnique: async ({ where }: { where: { id: string } }) =>
+          applications.find((row) => row.id === where.id) ?? null,
+        update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+          const index = applications.findIndex((row) => row.id === where.id);
+          applications[index] = { ...applications[index], ...data };
+          return applications[index];
+        },
+      },
+    },
+  };
+}
+
+describe('SupplierApplicationService inbox', () => {
+  it('rejects a client from listing or reviewing applications', async () => {
+    const fake = createPrisma();
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never);
+    await expect(service.listInbox(clientActor)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.reviewApplication('sap_1', { action: 'request_proposal' }, clientActor),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('lets PMCM request a proposal from the inbox', async () => {
+    const fake = createPrisma();
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never);
+    const listed = await service.listInbox(pmcmAdminActor);
+    expect(listed[0]?.status).toBe('pending');
+    const reviewed = await service.reviewApplication(
+      'sap_1',
+      { action: 'request_proposal' },
+      pmcmAdminActor,
+    );
+    expect(reviewed.status).toBe('proposal_requested');
+    expect(reviewed.reviewedAt).toBeTruthy();
+  });
+});

@@ -1,6 +1,9 @@
 import 'reflect-metadata';
+import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { OpsUserRole } from '@prism/kernel/event-core';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 
 describe('SupplierProfileCommandsService', () => {
@@ -38,5 +41,34 @@ describe('SupplierProfileCommandsService', () => {
       }),
       undefined,
     );
+  });
+
+  it('rejects supplier review writes from a client actor before persistence', async () => {
+    const suppliersService = {
+      addSupplierReview: vi.fn(async () => ({ supplier: { id: 'sup_1', name: 'Acme AV' }, reviewId: 'review_abc123' })),
+    };
+    const auditWriter = { write: vi.fn(async () => {}) };
+    const eventAccessPolicyService = {
+      requireActorRole: vi.fn(async () => {
+        throw new ForbiddenException('Forbidden');
+      }),
+    };
+    const service = new SupplierProfileCommandsService(
+      suppliersService as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[0],
+      auditWriter as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[1],
+      eventAccessPolicyService as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[2],
+      new WorkflowCommandService(),
+    );
+    const actor = {
+      role: OpsUserRole.Client,
+      name: 'Client User',
+      email: 'client@example.test',
+      explicit: true,
+    } satisfies ResolvedEventOpsActor;
+
+    await expect(
+      service.addSupplierReview('sup_1', { eventId: 'evt_close_1', rating: 5, notes: 'Private PMCM note' }, actor),
+    ).rejects.toThrow(ForbiddenException);
+    expect(suppliersService.addSupplierReview).not.toHaveBeenCalled();
   });
 });

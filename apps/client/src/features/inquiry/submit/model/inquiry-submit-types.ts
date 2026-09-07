@@ -15,6 +15,7 @@ export type InquiryForm = {
   inquiryPriority: string;
   message: string;
   source: string;
+  channel: string;
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
   marketingConsentAccepted: boolean;
@@ -78,6 +79,7 @@ export const INITIAL_INQUIRY_FORM: InquiryForm = {
   inquiryPriority: "",
   message: "",
   source: "",
+  channel: "",
   privacyConsentAccepted: false,
   privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
   marketingConsentAccepted: false,

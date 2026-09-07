@@ -1,63 +1,27 @@
 "use client";
 
-import { FormEvent, useMemo } from "react";
-import {
-  BadgeCheck,
-  CalendarClock,
-  CalendarDays,
-  CheckCircle2,
-  Circle,
-  ClipboardList,
-  Clock3,
-  FileCheck2,
-  FileText,
-  HelpCircle,
-  LockKeyhole,
-  LogOut,
-  MessageSquare,
-  PackageCheck,
-  RefreshCcw,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Truck,
-  User,
-  Wallet,
-  Warehouse,
-  type LucideIcon,
-} from "lucide-react";
+import { FileCheck2, FileText, ShieldCheck } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { PrismDashboardShell } from "@prism/ui";
-import {
-  EVENT_STATUS_ACTIONS,
-  buildBookingSteps,
-  buildCalendarEvents,
-  closedRequestReason,
-  firstNameFrom,
-  formatDate,
-  formatMoney,
-  fmt,
-  greetingForHour,
-  initialForm,
-  isPastDate,
-  isRequestClosed,
-  readinessTone,
-} from "../../model/supplier-workspace-rules";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
-import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
+import { formatDate } from "../../model/supplier-workspace-rules";
+import type { PrismAuthenticatedSession } from "@prism/types";
+import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
+import { Card, CardBody, CardHeader } from "./shell-ui";
+import { SupplierFileRequirementsMatrix } from "./supplier-file-requirements-matrix";
 
-
-import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
-
-export function FilesPage({ workspace }: { workspace: SupplierWorkspace }) {
+export function FilesPage({
+  workspace,
+  session,
+}: {
+  workspace: SupplierWorkspace;
+  session: PrismAuthenticatedSession;
+}) {
   const fileRequests = workspace.quoteRequests.filter((r) => r.contractDocumentId);
 
   return (
     <div className="space-y-4">
+      <SupplierFileRequirementsMatrix workspace={workspace} session={session} />
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">

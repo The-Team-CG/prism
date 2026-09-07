@@ -1,5 +1,28 @@
 # Documentation bundle update log
 
+## 2026-09-04
+
+- **Recorded:** Overlay evidence for client proposal review (primary contact, revision cap),
+  archived-event search by venue/type/month, supplier applications inbox, coordinator
+  double-book suggestions, client remaining-balance billing, and supplier-gap
+  hard-block copy. Catalog canvas blockers table lists storage, production
+  notify, external IdP, QR, live AI, and CE builder depth as skipped (do not implement).
+- **Recorded:** New-S5 now has an event-closure review path for confirmed supplier
+  assignments: PMCM-only prompts, category dimensions, private notes, shared Zod
+  validation, and focused API/event evidence. The external Cursor canvas is outside
+  the writable worktree, so its row was not rescored or claimed as updated.
+
+## 2026-09-03
+
+- **Recorded:** P0/P1 catalog thin-slice evidence on the feature-ledger overlay
+  without changing Active Ledger decisions: inquiry copy-link, onboarding
+  invitation evidence, Command Inbox on PMCM home, labeled client action-center
+  fallback, role file-requirements matrices with storage remaining gated,
+  PMCM supplier readiness, client-safe billing, guest access-code check-in
+  without camera QR, close-gate private-notes mapper, and privacy/audit
+  request evidence. Live AI, production notification adapters, external auth,
+  and object storage stay gated.
+
 ## 2026-09-02
 
 - **Documented:** Fresh-clone bootstrap (types build, Prisma generate, paused

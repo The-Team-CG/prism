@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import type { EventSession } from "@/app/lib/session";
-import type { PrismCoordinatorRoleView, PrismCoordinatorWorkspace } from "@prism/types";
+import {
+  createEventDayTaskSchema,
+  createUrgentIssueSchema,
+  parseContract,
+  type PrismCoordinatorRoleView,
+  type PrismCoordinatorWorkspace,
+} from "@prism/types";
 import {
   acknowledgeAndRefreshRoleView,
   createTaskAndRefreshRoleView,
@@ -17,6 +23,7 @@ import {
   pickActiveAssignment,
   sameCoordinatorName,
   taskAssignedRoleOptions,
+  shouldPreserveRoleViewOnAcknowledgeFailure,
 } from "../model/coordinators-desk-rules";
 
 export type CoordinatorViewStatus = "idle" | "loading" | "success" | "error";
@@ -105,7 +112,9 @@ export function useCoordinatorViewModel({
         );
         setRoleViewStatus("success");
       } catch (err) {
-        setRoleView(null);
+        if (!shouldPreserveRoleViewOnAcknowledgeFailure()) {
+          setRoleView(null);
+        }
         setRoleViewStatus("error");
         setRoleViewError(err instanceof Error ? err.message : "Unable to refresh role-safe event data.");
       }
@@ -120,10 +129,9 @@ export function useCoordinatorViewModel({
     setTaskBusy(true);
     setTaskError(null);
     try {
-      const next = await createTaskAndRefreshRoleView({
-        session,
-        eventId: event.id,
-        input: buildCoordinatorTaskInput({
+      const input = parseContract(
+        createEventDayTaskSchema,
+        buildCoordinatorTaskInput({
           title: taskTitle,
           assignedRole: taskRole || roleView.role,
           priority: taskPriority,
@@ -132,6 +140,12 @@ export function useCoordinatorViewModel({
           assignToMe: taskAssignToMe,
           roleView,
         }),
+        "Create coordinator task",
+      );
+      const next = await createTaskAndRefreshRoleView({
+        session,
+        eventId: event.id,
+        input,
       });
       setRoleView(next);
       setTaskTitle("");
@@ -151,10 +165,9 @@ export function useCoordinatorViewModel({
     setIssueBusy(true);
     setIssueError(null);
     try {
-      const next = await createUrgentIssueAndRefreshRoleView({
-        session,
-        eventId: event.id,
-        input: buildCoordinatorIssueInput({
+      const input = parseContract(
+        createUrgentIssueSchema,
+        buildCoordinatorIssueInput({
           title: issueTitle,
           severity: issueSeverity,
           affectedArea: issueAffectedArea,
@@ -163,6 +176,12 @@ export function useCoordinatorViewModel({
           assignToMe: issueAssignToMe,
           roleView,
         }),
+        "Create coordinator urgent issue",
+      );
+      const next = await createUrgentIssueAndRefreshRoleView({
+        session,
+        eventId: event.id,
+        input,
       });
       setRoleView(next);
       setIssueTitle("");

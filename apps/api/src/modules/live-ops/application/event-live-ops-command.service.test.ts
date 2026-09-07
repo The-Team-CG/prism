@@ -15,6 +15,40 @@ function coordinatorActor() {
   };
 }
 
+function pmcmAdminActor() {
+  return {
+    id: 'usr_pmcm',
+    role: OpsUserRole.PmcmAdmin,
+    name: 'Ms. Mys',
+    email: 'mys@pmcm.test',
+    explicit: true,
+  };
+}
+
+// mapCoordinatorAssignmentForEventDay reads attendance/replacement fields straight off
+// this row, so the stub must resolve a realistic assignment rather than undefined.
+function coordinatorAssignmentRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'coord_asg_ayala_marco',
+    eventId: 'evt_sample_ayala',
+    coordinatorId: 'coord_marco',
+    coordinatorName: 'Marco Santos',
+    role: 'Registration Staff',
+    status: 'acknowledged',
+    attendanceStatus: 'present',
+    attendanceMarkedAt: new Date('2026-09-02T00:00:00.000Z'),
+    attendanceNotes: '',
+    replacedByAssignmentId: null,
+    replacementReason: '',
+    replacedAt: null,
+    replacedBy: null,
+    eventDate: new Date('2026-09-02T00:00:00.000Z'),
+    createdAt: new Date('2026-09-02T00:00:00.000Z'),
+    updatedAt: new Date('2026-09-02T00:00:00.000Z'),
+    ...overrides,
+  };
+}
+
 function createService(assignment: unknown) {
   const prisma = {
     opsEvent: {
@@ -27,6 +61,7 @@ function createService(assignment: unknown) {
   };
   const liveOperationsService = {
     createEventDayTask: vi.fn(),
+    updateCoordinatorAttendance: vi.fn(async () => coordinatorAssignmentRow()),
     computeSlaStatus: vi.fn(() => 'on_track'),
   };
   const staffingReader = {
@@ -95,5 +130,70 @@ describe('EventLiveOpsCommandService event scoping', () => {
 
     await service.createEventDayTask('evt_sample_ayala', { title: 'Open registration' }, coordinatorActor());
     expect(liveOperationsService.createEventDayTask).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
+  it('rejects a coordinator marking a different assignment on the same event', async () => {
+    const { service, liveOperationsService, eventAccessPolicyService, staffingReader } = createService(
+      coordinatorAssignmentRow(),
+    );
+
+    await expect(
+      service.updateCoordinatorAttendance(
+        'evt_sample_ayala',
+        'coord_asg_ayala_rhea',
+        { status: 'absent' },
+        coordinatorActor(),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(staffingReader.findAssignmentForEventActor).toHaveBeenCalledWith(
+      'evt_sample_ayala',
+      expect.objectContaining({ coordinatorId: 'coord_marco', email: 'marco@pmcm.test' }),
+    );
+    expect(liveOperationsService.updateCoordinatorAttendance).not.toHaveBeenCalled();
+    expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+      'coordinator attendance',
+      'evt_sample_ayala',
+    );
+  });
+
+  it('allows a coordinator marking their own assignment', async () => {
+    const { service, liveOperationsService } = createService(coordinatorAssignmentRow());
+    const input = { status: 'present' };
+    const actor = coordinatorActor();
+
+    await service.updateCoordinatorAttendance('evt_sample_ayala', 'coord_asg_ayala_marco', input, actor);
+
+    expect(liveOperationsService.updateCoordinatorAttendance).toHaveBeenCalledWith(
+      'evt_sample_ayala',
+      'coord_asg_ayala_marco',
+      input,
+      actor,
+    );
+  });
+
+  // This test does NOT on its own prove the guard is role-gated rather than null-gated.
+  // createService(null) makes the gate return assignment: null, and a null-gated guard
+  // (`actorAssignment && actorAssignment.id !== assignmentId`) would skip the comparison
+  // too, so it would pass this test as well. The observable contract is pinned by this
+  // test and the rejection test TOGETHER. Role-gating is chosen because it does not
+  // depend on the gate continuing to return null for non-Coordinators — not because a
+  // unit test distinguishes the two.
+  it('allows a PmcmAdmin to mark any coordinator assignment', async () => {
+    const { service, liveOperationsService } = createService(null);
+    const input = { status: 'absent' };
+    const actor = pmcmAdminActor();
+
+    await service.updateCoordinatorAttendance('evt_sample_ayala', 'coord_asg_ayala_rhea', input, actor);
+
+    expect(liveOperationsService.updateCoordinatorAttendance).toHaveBeenCalledWith(
+      'evt_sample_ayala',
+      'coord_asg_ayala_rhea',
+      input,
+      actor,
+    );
   });
 });
