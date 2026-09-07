@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaService } from '@prism/kernel/database';
 import { describe, expect, it } from 'vitest';
 import { EventAccessPolicyService } from './event-access-policy.service';
 
@@ -8,7 +8,7 @@ const live = Boolean(url && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(
 describe.skipIf(!live)('verified client ownership against PostgreSQL', () => {
   it('separates same-name clients by inquiry email', async () => {
     process.env.DATABASE_URL = url;
-    const prisma = new PrismaClient();
+    const prisma = new PrismaService();
     const suffix = Math.random().toString(36).slice(2);
     const ids = [`inq_owner_${suffix}`, `inq_other_${suffix}`];
     try {
