@@ -991,4 +991,6 @@ export const prismApi = {
   },
   communicationThreads: (eventId: string) => eventOpsClient.communication.listThreads(eventId),
   sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string) => eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }),
+  communicationMessages: (threadId: string, cursor?: string, limit?: number) => eventOpsClient.communication.listMessages(threadId, { cursor, limit }),
+  markCommunicationThreadRead: (threadId: string) => eventOpsClient.communication.markThreadRead(threadId),
 };
