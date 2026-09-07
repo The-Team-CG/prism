@@ -25,6 +25,12 @@ function createService() {
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
+      updateMany: vi.fn(async ({ where, data }: { where: { id: string; status?: string; assignmentStatus?: string | null }; data: Record<string, unknown> }) => {
+        if (where.status && request.status !== where.status) return { count: 0 };
+        if (Object.prototype.hasOwnProperty.call(where, 'assignmentStatus') && request.assignmentStatus !== where.assignmentStatus) return { count: 0 };
+        Object.assign(request, data);
+        return { count: 1 };
+      }),
     },
   };
   const service = new SupplierNetworkWorkflowService(
@@ -112,5 +118,23 @@ describe('SupplierNetworkWorkflowService', () => {
     })).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.opsSupplierQuoteRequest.update).not.toHaveBeenCalled();
     request.status = 'selected';
+  });
+
+  it('rejects confirmation when the selected state changes after validation', async () => {
+    const { service, request, prisma } = createService();
+    request.status = 'selected';
+    const findUnique = prisma.opsSupplierQuoteRequest.findUnique as ReturnType<typeof vi.fn>;
+    findUnique.mockImplementationOnce(async () => {
+      const snapshot = { ...request };
+      request.status = 'withdrawn';
+      return snapshot;
+    });
+
+    await expect(service.confirmSupplierAssignment('qr_sonic', {
+      name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline', explicit: true,
+    })).rejects.toThrow(/changed before confirmation/);
+    expect(prisma.opsSupplierQuoteRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ status: 'selected' }),
+    }));
   });
 });
