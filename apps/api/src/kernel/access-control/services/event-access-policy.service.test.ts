@@ -84,6 +84,12 @@ describe('EventAccessPolicyService', () => {
     expect(policy.canReadEvent(actor, { id: 'evt_2', clientName: 'Same Name', clientPortalStatus: 'unlocked', inquiry: { email: 'two@test' } })).toBe(false);
   });
 
+  it('fails closed for a verified client without an email identity', () => {
+    const { policy } = createPolicy();
+    const actor = policy.resolveVerifiedActor({ id: 'u1', actorId: 'u1', role: 'client', actorRole: 'client', email: '', actorEmail: '', name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
+    expect(policy.canReadEvent(actor, { id: 'evt_1', clientName: 'Same Name', clientPortalStatus: 'unlocked', inquiry: { email: 'one@test' } })).toBe(false);
+  });
+
   it('allows coordinators to read only their assigned event scope', () => {
     const { policy } = createPolicy();
     const actor = policy.resolveActor({
