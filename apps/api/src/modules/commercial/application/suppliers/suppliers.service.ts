@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { CreateSupplierReviewInput } from '@prism/types';
+import type { CreateSupplierReliabilityNoteInput, CreateSupplierReviewInput, PromoteSupplierInput } from '@prism/types';
 import type {
   OpsEvent,
   OpsSupplier,
@@ -169,6 +169,42 @@ export class SuppliersService {
     const reviewId = persisted.reviewId;
     if (persisted.replayed) return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), reviewId, replayed: true };
     return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), reviewId };
+  }
+
+  async addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, context?: PrismTransactionContext) {
+    const db = context?.prisma ?? this.prisma;
+    await this.validateReviewEligibility(supplierId, input.eventId, db);
+    const existingId = input.idempotencyKey
+      ? `reliability_${input.idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+      : `reliability_${randomUUID()}`;
+    const existing = input.idempotencyKey
+      ? await db.opsSupplierReliabilityNote.findUnique({ where: { id: existingId } })
+      : null;
+    if (existing) {
+      if (existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.note !== input.note) {
+        throw new BadRequestException('Idempotency key was already used for a different reliability note');
+      }
+      return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), noteId: existing.id, replayed: true };
+    }
+    await db.opsSupplierReliabilityNote.create({
+      data: { id: existingId, supplierId, eventId: input.eventId, note: input.note.trim() },
+    });
+    return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), noteId: existingId, replayed: false };
+  }
+
+  async promoteSupplier(supplierId: string, input: PromoteSupplierInput, context?: PrismTransactionContext) {
+    const db = context?.prisma ?? this.prisma;
+    await this.validateReviewEligibility(supplierId, input.eventId, db);
+    const supplier = await this.supplierRow(supplierId, db);
+    if (!supplier.category.active) throw new BadRequestException('Supplier category is inactive');
+    if (supplier.tier !== SupplierTier.PendingFirstEvent && supplier.tier !== input.tier) {
+      throw new BadRequestException('Only pending-first-event suppliers can be promoted');
+    }
+    const assessment = await db.opsSupplierReview.findFirst({ where: { supplierId, eventId: input.eventId }, select: { id: true } });
+    if (!assessment) throw new BadRequestException('A completed event assessment is required before promotion');
+    if (supplier.tier === input.tier) return this.mapSupplier(supplier);
+    await db.opsSupplier.updateMany({ where: { id: supplierId, tier: SupplierTier.PendingFirstEvent }, data: { tier: input.tier } });
+    return this.mapSupplier(await this.supplierRow(supplierId, db));
   }
 
   private async persistSupplierReview(

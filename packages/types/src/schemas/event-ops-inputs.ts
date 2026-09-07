@@ -158,9 +158,10 @@ export type RecordActualEventEndInput = z.infer<typeof recordActualEventEndSchem
 /* ── Supplier ─────────────────────────────────────────────────── */
 
 export const reviewSupplierApplicationSchema = z.object({
-  action: z.enum(["request_proposal", "schedule", "decline"]),
+  action: z.enum(["request_proposal", "schedule", "approve", "decline"]),
   declineReason: optionalTrimmedStringSchema,
   notes: optionalTrimmedStringSchema,
+  idempotencyKey: optionalTrimmedStringSchema,
 }).superRefine((value, ctx) => {
   if (value.action === "decline" && !value.declineReason?.trim()) {
     ctx.addIssue({
@@ -206,6 +207,21 @@ export const createSupplierReviewSchema = z.object({
   idempotencyKey: optionalTrimmedStringSchema,
 });
 export type CreateSupplierReviewInput = z.infer<typeof createSupplierReviewSchema>;
+
+export const createSupplierReliabilityNoteSchema = z.object({
+  eventId: nonEmptyStringSchema,
+  note: nonEmptyStringSchema,
+  idempotencyKey: optionalTrimmedStringSchema,
+});
+export type CreateSupplierReliabilityNoteInput = z.infer<typeof createSupplierReliabilityNoteSchema>;
+
+export const promoteSupplierSchema = z.object({
+  eventId: nonEmptyStringSchema,
+  tier: z.enum(["tier_1", "tier_2"]),
+  reason: nonEmptyStringSchema,
+  idempotencyKey: optionalTrimmedStringSchema,
+});
+export type PromoteSupplierInput = z.infer<typeof promoteSupplierSchema>;
 
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,

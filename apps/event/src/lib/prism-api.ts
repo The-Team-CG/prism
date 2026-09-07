@@ -76,6 +76,8 @@ import type {
   ReviewPrivacyRequestInput,
   ReviewSupplierApplicationInput,
   CreateSupplierReviewInput,
+  CreateSupplierReliabilityNoteInput,
+  PromoteSupplierInput,
   AuditLogFilters,
 } from "@prism/types";
 
@@ -558,6 +560,16 @@ export const prismApi = {
     }),
   addSupplierReview: (supplierId: string, input: CreateSupplierReviewInput, session: { name: string; email: string; role: string }) =>
     request<PrismSupplier>(withPmcmAdminActor(`/api/suppliers/${supplierId}/reviews`, session), {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  addSupplierReliabilityNote: (supplierId: string, input: CreateSupplierReliabilityNoteInput) =>
+    request<PrismSupplier>(withPmcmActor(`/api/suppliers/${supplierId}/reliability-notes`), {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  promoteSupplier: (supplierId: string, input: PromoteSupplierInput) =>
+    request<PrismSupplier>(withPmcmActor(`/api/suppliers/${supplierId}/promote`), {
       method: "POST",
       body: JSON.stringify(input),
     }),
