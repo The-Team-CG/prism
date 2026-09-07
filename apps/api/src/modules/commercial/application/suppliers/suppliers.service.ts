@@ -203,6 +203,7 @@ export class SuppliersService {
       if (!input.idempotencyKey || !isIdempotencyKeyViolation(error)) throw error;
       const existing = await db.opsSupplierReview.findFirst({
         where: { idempotencyKey: input.idempotencyKey },
+        include: { dimensionRatings: { select: { dimensionId: true, rating: true } } },
       });
       if (!existing) throw error;
       if (this.reviewReplayMismatches(existing, supplierId, input)) {
@@ -214,7 +215,13 @@ export class SuppliersService {
   }
 
   private reviewReplayMismatches(existing: { supplierId: string; eventId: string | null; rating: number; notes: string; reviewedBy: string }, supplierId: string, input: CreateSupplierReviewInput) {
-    return existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.rating !== input.rating || existing.notes !== input.notes || existing.reviewedBy !== (input.reviewedBy ?? 'PMCM Admin');
+    const existingDimensions = (existing as typeof existing & { dimensionRatings?: Array<{ dimensionId: string; rating: number }> }).dimensionRatings ?? [];
+    const inputDimensions = input.dimensionRatings ?? [];
+    return existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.rating !== input.rating || existing.notes !== input.notes || existing.reviewedBy !== (input.reviewedBy ?? 'PMCM Admin') || JSON.stringify(existingDimensions.slice().sort(this.compareDimensions)) !== JSON.stringify(inputDimensions.slice().sort(this.compareDimensions));
+  }
+
+  private compareDimensions(left: { dimensionId: string; rating: number }, right: { dimensionId: string; rating: number }) {
+    return left.dimensionId.localeCompare(right.dimensionId) || left.rating - right.rating;
   }
 
   private async validateDimensionRatings(categoryId: string, ratings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>) {
