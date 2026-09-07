@@ -6,6 +6,7 @@ import { PASSWORD_RESET_DELIVERY, type PasswordResetDeliveryPort } from '../../c
 
 export const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000;
 const GENERIC_MESSAGE = 'If an account exists for that email, password reset instructions will be sent.';
+const UNAVAILABLE_MESSAGE = 'If an account exists for that email, password reset delivery is currently unavailable. Contact PMCM for help.';
 
 function tokenHash(token: string) {
   return createHash('sha256').update(token, 'utf8').digest('hex');
@@ -23,6 +24,8 @@ export class PasswordResetService {
   async request(email: string) {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
+    const configuredDelivery = Boolean(this.delivery && this.buildTrustedResetUrl('placeholder'));
+    let deliveryAvailable = configuredDelivery;
     if (user) {
       const token = randomBytes(32).toString('base64url');
       const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MS);
@@ -38,11 +41,12 @@ export class PasswordResetService {
         try {
           await this.delivery.deliver({ recipient: user.email, resetUrl });
         } catch {
+          deliveryAvailable = false;
           this.logger.warn('Password reset provider failed; token remains un-delivered and can expire safely');
         }
       }
     }
-    return { message: GENERIC_MESSAGE, deliveryAvailable: Boolean(this.delivery && this.buildTrustedResetUrl('placeholder')) };
+    return { message: deliveryAvailable ? GENERIC_MESSAGE : UNAVAILABLE_MESSAGE, deliveryAvailable };
   }
 
   async consume(token: string, password: string) {
@@ -71,7 +75,9 @@ export class PasswordResetService {
     if (!configured) return null;
     try {
       const url = new URL(configured);
-      if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') return null;
+      const loopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
+      if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) return null;
+      if (url.username || url.password || url.hash) return null;
       url.searchParams.set('token', token);
       return url.toString();
     } catch {
