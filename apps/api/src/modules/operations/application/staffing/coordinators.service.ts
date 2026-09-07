@@ -60,17 +60,13 @@ export class CoordinatorsService {
   }
 
 
-  async listAssignmentsForCoordinator(coordinatorId?: string | null, _coordinatorName?: string | null) {
-    const [byId] = await Promise.all([
-      coordinatorId
-        ? this.prisma.opsCoordinatorAssignment.findMany({
-            where: { coordinatorId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
-            orderBy: { createdAt: 'desc' },
-          })
-        : Promise.resolve([] as OpsCoordinatorAssignment[]),
-    ]);
-
-    return byId;
+  async listAssignmentsForCoordinator(coordinatorId?: string | null) {
+    return coordinatorId
+      ? this.prisma.opsCoordinatorAssignment.findMany({
+          where: { coordinatorId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
+          orderBy: { createdAt: 'desc' },
+        })
+      : [] as OpsCoordinatorAssignment[];
   }
 
   listAssignmentsForEvent(eventId: string) {
