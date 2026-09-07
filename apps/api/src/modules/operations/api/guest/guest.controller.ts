@@ -6,9 +6,13 @@ import { zodBody } from '@prism/kernel/shared';
 import {
   createGuestCheckInSchema,
   createGuestFeedbackSchema,
+  moderateGuestFeedbackSchema,
+  withdrawGuestFeedbackConsentSchema,
   importGuestRosterSchema,
   type CreateGuestCheckInInput,
   type CreateGuestFeedbackInput,
+  type ModerateGuestFeedbackInput,
+  type WithdrawGuestFeedbackConsentInput,
   type ImportGuestRosterInput,
 } from '@prism/types';
 import { GuestWorkflowService } from '../../application/guest/guest-workflow.service';
@@ -71,6 +75,40 @@ export class OpsGuestController {
     @Body(zodBody(createGuestFeedbackSchema)) dto: CreateGuestFeedbackInput,
   ) {
     const feedback = await this.guestWorkflowService.submitFeedbackByAccessCode(accessCode, dto);
+    return this.guestWorkflowService.mapGuestFeedback(feedback);
+  }
+
+  @Post('events/:accessCode/feedback/:feedbackId/consent-withdrawal')
+  @HttpCode(HttpStatus.OK)
+  async withdrawFeedbackConsent(
+    @Param('accessCode') accessCode: string,
+    @Param('feedbackId') feedbackId: string,
+    @Body(zodBody(withdrawGuestFeedbackConsentSchema)) dto: WithdrawGuestFeedbackConsentInput,
+  ) {
+    const feedback = await this.guestWorkflowService.withdrawFeedbackConsentByAccessCode(accessCode, feedbackId, dto);
+    return this.guestWorkflowService.mapGuestFeedback(feedback);
+  }
+
+  @Get('events/:eventId/feedback/moderation')
+  @UseGuards(EventSessionGuard)
+  async pendingFeedback(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: any) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'guest feedback moderation queue', eventId);
+    const feedback = await this.guestWorkflowService.listPendingFeedbackForEvent(eventId);
+    return feedback.map((item) => this.guestWorkflowService.mapGuestFeedback(item));
+  }
+
+  @Post('events/:eventId/feedback/:feedbackId/moderate')
+  @UseGuards(EventSessionGuard)
+  async moderateFeedback(
+    @Param('eventId') eventId: string,
+    @Param('feedbackId') feedbackId: string,
+    @Body(zodBody(moderateGuestFeedbackSchema)) dto: ModerateGuestFeedbackInput,
+    @VerifiedEventActor() verifiedActor: any,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'guest feedback moderation', eventId);
+    const feedback = await this.guestWorkflowService.moderateFeedback(eventId, feedbackId, dto, actor);
     return this.guestWorkflowService.mapGuestFeedback(feedback);
   }
 }
