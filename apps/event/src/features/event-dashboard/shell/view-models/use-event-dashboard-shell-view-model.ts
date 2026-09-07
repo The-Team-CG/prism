@@ -115,13 +115,13 @@ export function useEventDashboardShellViewModel({
   const supplierCategories = state?.supplierCategories ?? [];
   const suppliers = state?.suppliers ?? [];
   const coordinators = state?.coordinators ?? [];
-  const coordinatorRoleRequirements = state?.coordinatorRoleRequirements ?? [];
   const inquiries = state?.inquiries ?? [];
   const unreviewedInquiries = selectUnreviewedInquiryCount(inquiries);
   const complianceRules = state?.complianceRules ?? [];
   const {
     activeDraft,
     assignments,
+    coordinatorCoverage,
     audit,
     billingSources,
     billingStatements,
@@ -136,6 +136,7 @@ export function useEventDashboardShellViewModel({
     quoteRequests,
     quotes,
   } = selectEventWorkspaceResources(state, selectedEvent, selectedEventWorkspace);
+  const coordinatorRoleRequirements = coordinatorCoverage;
   const selectedInquiry = inquiries.find((item) => item.id === selectedEvent?.inquiryId);
   const pendingApprovals = selectPendingApprovals(approvalRequests);
   const clientRecords = useMemo(() => selectClientRecords(events, inquiries), [events, inquiries]);
@@ -297,6 +298,7 @@ export function useEventDashboardShellViewModel({
     complianceRules,
     activeDraft,
     assignments,
+    coordinatorCoverage,
     audit,
     billingSources,
     billingStatements,

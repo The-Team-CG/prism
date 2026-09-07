@@ -171,6 +171,11 @@ function assignmentFixture(role: string): OpsCoordinatorAssignment {
     conflictEventId: null,
     conflictEventName: null,
     acknowledgedAt: CREATED_AT,
+    acknowledgedBy: 'user_1',
+    acknowledgementReason: null,
+    withdrawalReason: null,
+    withdrawnAt: null,
+    withdrawnBy: null,
     createdAt: CREATED_AT,
   };
 }

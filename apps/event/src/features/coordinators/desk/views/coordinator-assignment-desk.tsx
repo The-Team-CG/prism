@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, UserCheck, UsersRound } from "lucide-react";
 
-import type { PrismCoordinator, PrismCoordinatorAssignment, PrismCoordinatorRoleRequirement, PrismEvent } from "@prism/types";
+import type { PrismCoordinator, PrismCoordinatorAssignment, PrismCoordinatorCoverage, PrismCoordinatorRoleRequirement, PrismEvent } from "@prism/types";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -40,7 +40,7 @@ export function CoordinatorAssignmentDesk({
   event: PrismEvent;
   coordinators: PrismCoordinator[];
   assignments: PrismCoordinatorAssignment[];
-  roleRequirements: PrismCoordinatorRoleRequirement[];
+  roleRequirements: Array<PrismCoordinatorRoleRequirement | PrismCoordinatorCoverage>;
   busy: boolean;
   onAssign: (coordinator: PrismCoordinator, role: string, overrideConflict?: boolean) => Promise<void>;
 }) {
@@ -155,14 +155,15 @@ export function CoordinatorAssignmentDesk({
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {roleRequirements.map((req) => {
-                const assigned = assignmentCounts.get(req.role) ?? 0;
-                const complete = assigned >= req.required;
+                const assigned = "assigned" in req ? req.assigned : assignmentCounts.get(req.role) ?? 0;
+                const acknowledged = "acknowledged" in req ? req.acknowledged : 0;
+                const complete = "satisfied" in req ? req.satisfied : assigned >= req.required;
                 return (
                   <div key={req.role} className="rounded-xl border border-border bg-muted/30 p-3.5">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-bold text-foreground">{req.role}</p>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${complete ? "bg-(--prism-success)/10 text-(--prism-success)" : "bg-(--prism-amber)/10 text-(--prism-amber)"}`}>
-                        {assigned}/{req.required}
+                        {assigned}/{req.required}{"acknowledged" in req ? ` · ${acknowledged} ack` : ""}
                       </span>
                     </div>
                     <p className="mt-1.5 text-xs text-muted-foreground">
