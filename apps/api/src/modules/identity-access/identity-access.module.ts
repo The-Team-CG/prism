@@ -9,6 +9,8 @@ import { AuthOperationsService } from './application/auth/auth-operations.servic
 import { TotpService } from './application/auth/totp.service';
 import { AUTH_AUDIT } from './contracts/auth-audit.port';
 import { AuthAuditAdapter } from './infrastructure/auth/auth-audit.adapter';
+import { ParticipantReaderService } from './application/participants/participant-reader.service';
+import { PARTICIPANT_READER } from './contracts/participant-reader.port';
 
 /**
  * Identity-access bounded-context composition root for user accounts,
@@ -22,7 +24,7 @@ import { AuthAuditAdapter } from './infrastructure/auth/auth-audit.adapter';
 @Module({
   imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule],
   controllers: [OpsAuthController],
-  providers: [AuthOperationsService, TotpService, AuthAuditAdapter, { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter }],
-  exports: [AuthOperationsService],
+  providers: [AuthOperationsService, TotpService, AuthAuditAdapter, ParticipantReaderService, { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter }, { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService }],
+  exports: [AuthOperationsService, PARTICIPANT_READER],
 })
 export class IdentityAccessModule {}

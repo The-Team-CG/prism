@@ -4,3 +4,5 @@ export * from './application/auth/auth-security.service';
 export * from './application/auth/totp.service';
 export * from './contracts/auth-audit.port';
 export * from './infrastructure/auth/auth-audit.adapter';
+export * from './contracts/participant-reader.port';
+export * from './application/participants/participant-reader.service';
