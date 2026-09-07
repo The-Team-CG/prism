@@ -195,25 +195,30 @@ export class SuppliersService {
     const db = context?.prisma ?? this.prisma;
     await this.validateReviewEligibility(supplierId, input.eventId, db);
     const supplier = await this.supplierRow(supplierId, db);
-    if (!supplier.category.active) throw new BadRequestException('Supplier category is inactive');
-    if (supplier.tier !== SupplierTier.PendingFirstEvent && supplier.tier !== input.tier) {
-      throw new BadRequestException('Only pending-first-event suppliers can be promoted');
-    }
+    this.assertPromotionTarget(supplier, input);
     const payloadHash = createHash('sha256').update(JSON.stringify({ supplierId, eventId: input.eventId, tier: input.tier, reason: input.reason.trim() })).digest('hex');
     const review = await db.opsSupplierReview.findFirst({ where: { supplierId, eventId: input.eventId }, select: { id: true } });
     if (!review) throw new BadRequestException('A completed event assessment is required before promotion');
-    if (input.idempotencyKey) {
-      const replay = await db.opsSupplierPromotion.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-      if (replay) {
-        if (replay.payloadHash !== payloadHash || replay.supplierId !== supplierId) throw new BadRequestException('Idempotency key was already used for a different supplier promotion');
-        return this.mapSupplier(await this.supplierRow(supplierId, db));
-      }
-    }
-    if (supplier.tier === input.tier) throw new BadRequestException('Supplier has already been promoted to this tier');
+    const replay = await this.findPromotionReplay(db, input.idempotencyKey, payloadHash, supplierId);
+    if (replay) return this.mapSupplier(await this.supplierRow(supplierId, db));
     const changed = await db.opsSupplier.updateMany({ where: { id: supplierId, tier: SupplierTier.PendingFirstEvent }, data: { tier: input.tier } });
     if (changed.count !== 1) throw new BadRequestException('Supplier tier changed before promotion');
     await db.opsSupplierPromotion.create({ data: { id: `promotion_${randomUUID()}`, supplierId, reviewId: review.id, fromTier: SupplierTier.PendingFirstEvent, toTier: input.tier, reason: input.reason.trim(), promotedBy: promotedBy ?? 'PMCM', idempotencyKey: input.idempotencyKey ?? `promotion_${randomUUID()}`, payloadHash } });
     return this.mapSupplier(await this.supplierRow(supplierId, db));
+  }
+
+  private assertPromotionTarget(supplier: any, input: PromoteSupplierInput) {
+    if (!supplier.category.active) throw new BadRequestException('Supplier category is inactive');
+    if (supplier.tier !== SupplierTier.PendingFirstEvent && supplier.tier !== input.tier) throw new BadRequestException('Only pending-first-event suppliers can be promoted');
+    if (supplier.tier === input.tier) throw new BadRequestException('Supplier has already been promoted to this tier');
+  }
+
+  private async findPromotionReplay(db: PrismaService | Prisma.TransactionClient, key: string | undefined, payloadHash: string, supplierId: string) {
+    if (!key) return false;
+    const replay = await db.opsSupplierPromotion.findUnique({ where: { idempotencyKey: key } });
+    if (!replay) return false;
+    if (replay.payloadHash !== payloadHash || replay.supplierId !== supplierId) throw new BadRequestException('Idempotency key was already used for a different supplier promotion');
+    return true;
   }
 
   private async persistSupplierReview(
