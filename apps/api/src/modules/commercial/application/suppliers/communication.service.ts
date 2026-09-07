@@ -7,10 +7,12 @@ import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/ker
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { Inject } from '@nestjs/common';
 import { PARTICIPANT_READER, type ParticipantReader } from '@prism/contexts/identity-access';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 
 @Injectable()
 export class CommunicationService {
-  constructor(private readonly prisma: PrismaService, private readonly access: EventAccessPolicyService, @Inject(PARTICIPANT_READER) private readonly participants: ParticipantReader) {}
+  constructor(private readonly prisma: PrismaService, private readonly access: EventAccessPolicyService, @Inject(PARTICIPANT_READER) private readonly participants: ParticipantReader, @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter, @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter) {}
 
   async createThread(input: CreateCommunicationThreadInput, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'communication thread', input.eventId);
@@ -43,6 +45,11 @@ export class CommunicationService {
       await tx.$queryRaw`SELECT id FROM "supplier_ops"."communication_threads" WHERE id = ${threadId} FOR UPDATE`;
       const membership = await tx.opsCommunicationParticipant.findFirst({ where: { threadId, actorId: verified.id!, active: true }, select: { id: true } });
       if (!membership) throw new ForbiddenException('Actor is no longer an active thread participant');
+      const replay = await tx.opsCommunicationMessage.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+      if (replay) {
+        if (replay.payloadHash !== payloadHash || replay.threadId !== threadId || replay.senderId !== verified.id) throw new BadRequestException('Idempotency key was already used for a different message');
+        return this.safeMessage(replay);
+      }
       const message = await tx.opsCommunicationMessage.upsert({
         where: { idempotencyKey: input.idempotencyKey },
         create: { id: `message_${randomUUID()}`, threadId, senderId: verified.id!, senderRole: verified.role, senderEmail: verified.email ?? null, body, payloadHash, idempotencyKey: input.idempotencyKey },
@@ -51,6 +58,9 @@ export class CommunicationService {
       if (message.payloadHash !== payloadHash || message.threadId !== threadId || message.senderId !== verified.id) {
         throw new BadRequestException('Idempotency key was already used for a different message');
       }
+      await writeAudit(this.auditWriter, thread.eventId, verified.name, `Sent communication message: ${threadId}`, { actorRole: verified.role, actorEmail: verified.email, actionType: 'create', category: 'communication', affectedType: 'communication_message', affectedId: message.id, affectedLabel: threadId, metadata: { idempotencyKey: input.idempotencyKey } }, { prisma: tx, actorId: verified.id, correlationId: `communication-message:${message.id}` });
+      const recipients = await tx.opsCommunicationParticipant.findMany({ where: { threadId, active: true, actorId: { not: verified.id } }, select: { actorEmail: true } });
+      await Promise.all(recipients.filter((recipient) => recipient.actorEmail).map((recipient) => writeNotification(this.notificationOutboxWriter, thread.eventId, recipient.actorEmail!, `New message in ${threadId}`, 'email', { idempotencyKey: `communication-message:${message.id}:${recipient.actorEmail}` }, { prisma: tx, correlationId: `communication-message:${message.id}` })));
       await tx.opsCommunicationThread.update({ where: { id: threadId }, data: { updatedAt: new Date() } });
       return this.safeMessage(message);
     });
