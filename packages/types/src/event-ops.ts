@@ -536,6 +536,7 @@ export interface PrismSupplierApplication {
 }
 
 export interface PrismCommunicationParticipant { id: string; actorId: string; actorRole: string; active: boolean; }
+export interface PrismCommunicationParticipantChoice { id: string; name: string; email: string; role: string; }
 export interface PrismCommunicationMessage { id: string; threadId: string; senderId: string; senderRole: string; body: string; createdAt: string; }
 export interface PrismCommunicationThread { id: string; eventId: string; subject: string; status: string; createdBy: string; createdAt: string; updatedAt: string; participants: PrismCommunicationParticipant[]; messages: PrismCommunicationMessage[]; }
 
