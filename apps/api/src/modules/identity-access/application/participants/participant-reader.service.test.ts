@@ -6,7 +6,7 @@ import { ParticipantReaderService } from './participant-reader.service';
 function harness(overrides: Record<string, unknown> = {}) {
   const user = { id: 'u_client', name: 'Client', email: 'client@example.test', role: OpsUserRole.Client, approvalStatus: 'approved' };
   const event = { id: 'evt_1', clientPortalStatus: 'unlocked', clientName: 'Client', inquiry: { email: user.email }, supplierQuoteRequests: [], coordinatorAssignments: [] };
-  const prisma = { opsUser: { findUnique: vi.fn(async () => ({ ...user, ...overrides })) }, opsEvent: { findUnique: vi.fn(async () => event) }, opsSupplier: { findFirst: vi.fn() }, opsCoordinator: { findUnique: vi.fn() } };
+  const prisma = { opsUser: { findUnique: vi.fn(async (): Promise<Record<string, unknown> | null> => ({ ...user, ...overrides })) }, opsEvent: { findUnique: vi.fn(async () => event) }, opsSupplier: { findFirst: vi.fn() }, opsCoordinator: { findUnique: vi.fn() } };
   const policy = { requireCanReadEvent: vi.fn(async () => undefined) };
   return { service: new ParticipantReaderService(prisma as never, policy as never), prisma, policy, user, event };
 }

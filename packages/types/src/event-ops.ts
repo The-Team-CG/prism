@@ -535,8 +535,8 @@ export interface PrismSupplierApplication {
   createdAt: string;
 }
 
-export interface PrismCommunicationParticipant { id: string; actorId: string; actorRole: string; actorEmail?: string | null; active: boolean; }
-export interface PrismCommunicationMessage { id: string; threadId: string; senderId: string; senderRole: string; senderEmail?: string | null; body: string; payloadHash: string; idempotencyKey: string; createdAt: string; }
+export interface PrismCommunicationParticipant { id: string; actorId: string; actorRole: string; active: boolean; }
+export interface PrismCommunicationMessage { id: string; threadId: string; senderId: string; senderRole: string; body: string; createdAt: string; }
 export interface PrismCommunicationThread { id: string; eventId: string; subject: string; status: string; createdBy: string; createdAt: string; updatedAt: string; participants: PrismCommunicationParticipant[]; messages: PrismCommunicationMessage[]; }
 
 export interface PrismCoordinatorAssignment {
