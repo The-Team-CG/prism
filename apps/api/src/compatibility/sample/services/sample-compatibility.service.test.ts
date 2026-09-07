@@ -1570,6 +1570,8 @@ describe('SampleCompatibilityService', () => {
       },
       actor,
     );
+    await expect(service['changeSupplierTier'](created.id, { tier: 'tier_2', reason: 'No assessment yet' }, actor)).rejects.toThrow(/completed event promotion/);
+    fake.state.suppliers.find((supplier) => supplier.id === created.id)!.tier = 'tier_1';
     const tiered = await (service as any).changeSupplierTier(
       created.id,
       { tier: 'tier_2', reason: 'Completed first event with minor ingress delay.' },
@@ -2912,6 +2914,7 @@ describe('SampleCompatibilityService', () => {
       verificationStatus: 'flagged',
       privacyConsentAccepted: true,
     });
+    fake.state.events[0].actualEndedAt = new Date(Date.now() - 1000);
     const feedback = await (service as any).submitGuestFeedbackByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
       rating: 5,
@@ -2945,6 +2948,7 @@ describe('SampleCompatibilityService', () => {
     });
     const service = createSampleCompatibilityService(fake.prisma as any);
 
+    fake.state.events[0].actualEndedAt = new Date(Date.now() - 1000);
     await expect((service as any).createInquiry({
       clientName: 'Mia Cruz',
       email: 'mia@example.test',

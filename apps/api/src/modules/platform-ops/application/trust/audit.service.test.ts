@@ -36,7 +36,7 @@ describe('AuditService', () => {
       opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
       opsAuditLog: {
         findMany: async () => rows,
-        findFirst: async () => ({ immutableHash: 'previous_hash', createdAt: new Date(0) }),
+        findFirst: async () => null,
         create: async ({ data }: { data: unknown }) => {
           createdAuditRows.push(data);
           return data;
