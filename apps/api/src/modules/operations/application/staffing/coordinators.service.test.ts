@@ -25,7 +25,7 @@ const coordinator = {
 };
 
 const pmcmAdminActor = { id: 'admin_1', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true };
-const coordinatorActor = { id: 'coord_marco', role: OpsUserRole.Coordinator, name: 'Marco Santos', explicit: true };
+const coordinatorActor = { id: 'coord_marco', role: OpsUserRole.Coordinator, name: 'Marco Santos', email: 'marco@pmcm.test', explicit: true };
 const clientActor = { id: 'client_1', role: OpsUserRole.Client, name: 'Some Client', explicit: true };
 
 function createAccessPolicy() {
@@ -79,11 +79,12 @@ function createPrisma() {
         }
         return assignments[0] ?? null;
       },
-      findMany: async ({ where }: { where?: { eventId?: string; coordinatorId?: string; coordinatorName?: string } } = {}) =>
+      findMany: async ({ where }: { where?: { eventId?: string; coordinatorId?: string; coordinatorName?: string; status?: { notIn?: string[] } } } = {}) =>
         assignments.filter((assignment) => {
           if (where?.eventId && assignment.eventId !== where.eventId) return false;
           if (where?.coordinatorId && assignment.coordinatorId !== where.coordinatorId) return false;
           if (where?.coordinatorName && assignment.coordinatorName !== where.coordinatorName) return false;
+          if (where?.status?.notIn?.includes(assignment.status)) return false;
           return true;
         }),
       create: async ({ data }: { data: any }) => {
@@ -216,6 +217,27 @@ describe('CoordinatorsService', () => {
         }),
       ]),
     );
+  });
+
+  it('resolves coordinator identity by verified email or user identity, never a namesake', async () => {
+    const fake = createPrisma();
+    const namesake = { ...coordinator, id: 'coord_namesake', userId: 'usr_namesake', email: 'namesake@pmcm.test' };
+    (fake.prisma.opsCoordinator as any).findMany = async () => [coordinator, namesake];
+    const service = createService(fake.prisma as any);
+
+    await expect(service.resolveCoordinatorForActor({ email: 'unknown@pmcm.test' })).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.resolveCoordinatorForActor({ id: coordinator.userId })).resolves.toMatchObject({ id: coordinator.id });
+  });
+
+  it('omits cancelled and replaced assignments from coordinator scope', async () => {
+    const fake = createPrisma();
+    fake.assignments.push(
+      { ...fake.assignments[0], id: 'coord_asg_cancelled', status: 'cancelled' },
+      { ...fake.assignments[0], id: 'coord_asg_replaced', status: 'replaced' },
+    );
+    const service = createService(fake.prisma as any);
+    const assignments = await service.listAssignmentsForCoordinator(coordinator.id);
+    expect(assignments.map((item) => item.id)).not.toEqual(expect.arrayContaining(['coord_asg_cancelled', 'coord_asg_replaced']));
   });
 
   it('acknowledges a pending coordinator assignment for a PmcmAdmin actor', async () => {
