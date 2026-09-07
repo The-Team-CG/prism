@@ -11,7 +11,10 @@ export class LayoutEventsController {
   constructor(private readonly eventsService: LayoutEventsService, private readonly access: EventAccessPolicyService) {}
 
   @Get()
-  list() {
+  @UseGuards(EventSessionGuard)
+  async list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.access.resolveActor({}, verifiedActor);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'layout event inventory');
     return this.eventsService.listEvents();
   }
 
