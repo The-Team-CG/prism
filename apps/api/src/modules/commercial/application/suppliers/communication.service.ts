@@ -5,18 +5,21 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { Inject } from '@nestjs/common';
+import { PARTICIPANT_READER, type ParticipantReader } from '../../../identity-access/contracts/participant-reader.port';
 
 @Injectable()
 export class CommunicationService {
-  constructor(private readonly prisma: PrismaService, private readonly access: EventAccessPolicyService) {}
+  constructor(private readonly prisma: PrismaService, private readonly access: EventAccessPolicyService, @Inject(PARTICIPANT_READER) private readonly participants: ParticipantReader) {}
 
   async createThread(input: CreateCommunicationThreadInput, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'communication thread', input.eventId);
-    const ids = [...new Set([actor.id ?? actor.name, ...(input.participantActorIds ?? [])])];
-    if (ids.some((id) => !id)) throw new BadRequestException('Thread participants require verified actor identities');
+    if (!actor.id) throw new BadRequestException('Thread creator requires a verified account');
+    const resolved = await Promise.all([...new Set(input.participantActorIds ?? [])].map((id) => this.participants.resolveForEvent(id, input.eventId)));
+    const members = [actor, ...resolved.filter((candidate) => candidate.id !== actor.id)];
     return this.prisma.$transaction(async (tx) => {
       const thread = await tx.opsCommunicationThread.create({ data: { id: `thread_${randomUUID()}`, eventId: input.eventId, subject: input.subject.trim(), createdBy: actor.id ?? actor.name } });
-      await tx.opsCommunicationParticipant.createMany({ data: ids.map((actorId) => ({ id: `participant_${randomUUID()}`, threadId: thread.id, actorId, actorRole: actorId === (actor.id ?? actor.name) ? actor.role : 'unknown', actorEmail: actorId === actor.id ? actor.email ?? null : null })) });
+      await tx.opsCommunicationParticipant.createMany({ data: members.map((member) => ({ id: `participant_${randomUUID()}`, threadId: thread.id, actorId: member.id!, actorRole: member.role, actorEmail: member.email ?? null })) });
       return this.thread(tx, thread.id);
     });
   }

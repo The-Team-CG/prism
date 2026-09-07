@@ -35,6 +35,7 @@ import { SuppliersService } from './application/suppliers/suppliers.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
+import { IdentityAccessModule } from '../identity-access/identity-access.module';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -76,6 +77,7 @@ const supplierCommandsProvider = {
     EventCoreModule,
     EventLifecycleModule,
     EventSessionModule,
+    IdentityAccessModule,
   ],
   controllers: [
     OpsQuoteRequestsController,
