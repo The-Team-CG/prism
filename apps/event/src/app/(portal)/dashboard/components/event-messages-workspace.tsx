@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { MessageSquareText, Search, Send } from "lucide-react";
 
-import type { PrismAuditLog, PrismEvent, PrismNotificationLog } from "@prism/types";
+import type { PrismAuditLog, PrismCommunicationThread, PrismEvent, PrismNotificationLog } from "@prism/types";
+import { prismApi } from "@/lib/prism-api";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import type { EventSession } from "@/app/lib/session";
 import {
@@ -23,45 +24,45 @@ export function EventMessagesWorkspace({
   audit: PrismAuditLog[];
   notificationLogs: PrismNotificationLog[];
 }) {
-  const threads = useMemo(
+  const fallbackThreads = useMemo(
     () => buildEventMessageThreads({ event, audit, notificationLogs }),
     [audit, event, notificationLogs],
   );
-  const [activeThreadId, setActiveThreadId] = useState(threads[0]?.id ?? "client");
+  const [persistedThreads, setPersistedThreads] = useState<PrismCommunicationThread[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const threads = persistedThreads.map((thread) => ({ id: thread.id, title: thread.subject, detail: `${thread.messages.length} messages`, tag: thread.status, status: thread.status, messages: thread.messages.map((message) => ({ id: message.id, author: message.senderRole, initials: initialsFrom(message.senderRole), body: message.body, time: message.createdAt, mine: message.senderId === session.id })) }));
+  const [activeThreadId, setActiveThreadId] = useState<string>();
   const [draft, setDraft] = useState("");
-  const [localMessages, setLocalMessages] = useState<Record<string, EventMessage[]>>({});
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setLoadError(null);
+    void prismApi.communicationThreads(event.id).then((next) => { if (!cancelled) { setPersistedThreads(next); setActiveThreadId(next[0]?.id); } }).catch((reason: unknown) => { if (!cancelled) setLoadError(reason instanceof Error ? reason.message : "Unable to load communication threads"); }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [event.id]);
 
   useEffect(() => {
     if (threads.some((thread) => thread.id === activeThreadId)) return;
-    setActiveThreadId(threads[0]?.id ?? "client");
+    setActiveThreadId(threads[0]?.id);
   }, [activeThreadId, threads]);
 
   const activeThread = threads.find((thread) => thread.id === activeThreadId) ?? threads[0];
-  const messages = activeThread ? [...activeThread.messages, ...(localMessages[activeThread.id] ?? [])] : [];
+  const messages = activeThread?.messages ?? [];
 
   function sendMessage() {
     if (!activeThread || !draft.trim()) return;
     const body = draft.trim();
-    setLocalMessages((current) => ({
-      ...current,
-      [activeThread.id]: [
-        ...(current[activeThread.id] ?? []),
-        {
-          id: `local-${activeThread.id}-${Date.now()}`,
-          author: session.name,
-          initials: initialsFrom(session.name),
-          body,
-          time: "Now",
-          mine: true,
-          status: "draft",
-        },
-      ],
-    }));
-    setDraft("");
+    void prismApi.sendCommunicationMessage(activeThread.id, body, `pmcm-${activeThread.id}-${Date.now()}`).then((message) => { setPersistedThreads((current) => current.map((thread) => thread.id === activeThread.id ? { ...thread, messages: [...thread.messages, message], updatedAt: message.createdAt } : thread)); setDraft(""); }).catch((reason: unknown) => setLoadError(reason instanceof Error ? reason.message : "Unable to send message"));
   }
 
+  if (loading) {
+    return <EmptyState icon={MessageSquareText} title="Loading message threads" description="Checking persisted event communication…" />;
+  }
+  if (loadError && !activeThread) {
+    return <EmptyState icon={MessageSquareText} title="Unable to load message threads" description={loadError} />;
+  }
   if (!activeThread) {
-    return <EmptyState icon={MessageSquareText} title="No message threads" description="Select an event workspace to view PMCM messages." />;
+    return <EmptyState icon={MessageSquareText} title="No message threads" description="Create a thread after selecting verified event participants." />;
   }
 
   return (
