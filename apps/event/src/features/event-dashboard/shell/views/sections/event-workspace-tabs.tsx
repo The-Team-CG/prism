@@ -354,6 +354,10 @@ export function EventWorkspaceRegistrationTab() {
       onSearchRoster={vm.searchGuestRoster}
       onImportRoster={vm.importGuestRoster}
       onCheckInRoster={vm.checkInGuestRoster}
+      onVerifyRoster={vm.verifyGuestRoster}
+      walkInPolicy={vm.selectedEvent.walkInPolicy ?? "closed"}
+      walkInThreshold={vm.selectedEvent.walkInThreshold ?? 200}
+      onUpdateWalkInPolicy={vm.updateWalkInPolicy}
     />
   );
 }

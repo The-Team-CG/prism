@@ -193,6 +193,8 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       clientName: event.clientName,
       eventName: event.eventName,
       eventDate: event.eventDate.toISOString().slice(0, 10),
+      walkInPolicy: event.walkInPolicy as 'closed' | 'open' | 'threshold',
+      walkInThreshold: event.walkInThreshold,
       status: event.status,
       clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
       readiness: event.readiness,

@@ -163,13 +163,40 @@ export const importGuestRosterSchema = z.object({
     guestName: nonEmptyStringSchema,
     email: optionalTrimmedStringSchema,
     phone: optionalTrimmedStringSchema,
+    category: optionalTrimmedStringSchema,
+    table: optionalTrimmedStringSchema,
     eligibility: z.enum(["eligible", "ineligible"]).optional(),
-  })).min(1),
+  })).min(1).max(1000),
 });
 export type ImportGuestRosterInput = z.infer<typeof importGuestRosterSchema>;
 
-export const guestRosterSearchSchema = z.object({ query: optionalTrimmedStringSchema });
+/** Walk-in policy vocabulary: closed rejects all walk-ins; open permits them;
+ * threshold permits them while checked-in attendance is below the threshold. */
+export const walkInPolicySchema = z.enum(["closed", "open", "threshold"]);
+export type WalkInPolicy = z.infer<typeof walkInPolicySchema>;
+
+export const updateWalkInPolicySchema = z.object({
+  policy: walkInPolicySchema,
+  threshold: z.number().int().min(1).optional(),
+}).superRefine((value, ctx) => {
+  if (value.policy === "threshold" && value.threshold === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["threshold"], message: "A threshold is required when walk-ins use threshold policy" });
+  }
+});
+export type UpdateWalkInPolicyInput = z.infer<typeof updateWalkInPolicySchema>;
+
+export const guestRosterSearchSchema = z.object({
+  query: optionalTrimmedStringSchema,
+  namePrefix: optionalTrimmedStringSchema,
+  eligibility: z.enum(["eligible", "ineligible"]).optional(),
+  checkedIn: z.boolean().optional(),
+});
 export type GuestRosterSearchInput = z.infer<typeof guestRosterSearchSchema>;
+
+export const updateGuestVerificationSchema = z.object({
+  status: z.enum(["pending", "verified", "rejected"]),
+});
+export type UpdateGuestVerificationInput = z.infer<typeof updateGuestVerificationSchema>;
 
 /* ── Supplier ─────────────────────────────────────────────────── */
 
