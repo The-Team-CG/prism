@@ -20,7 +20,6 @@ import { CLOSURE_COMMANDS, CLOSURE_READINESS_READER } from './contracts/closure-
 import { EventClosureService } from './application/closure/event-closure.service';
 import { OpsEventFileRequirementsController } from './api/files/event-file-requirements.controller';
 import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER, SIGNED_UPLOAD_URL_FACTORY } from './contracts/file-ops.tokens';
-import { MetadataOnlySignedUploadUrlFactory } from './contracts/signed-upload-url-factory.port';
 import { DocumentVaultService } from './application/files/document-vault.service';
 import { DOCUMENT_VAULT } from './contracts/document-vault.port';
 import { FileRequirementsMatrixService } from './application/files/file-requirements-matrix.service';
@@ -78,10 +77,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     DocumentVaultService,
     { provide: DOCUMENT_VAULT, useExisting: DocumentVaultService },
     FileRequirementsMatrixService,
-    MetadataOnlySignedUploadUrlFactory,
     { provide: FILE_REQUIREMENT_READER, useExisting: FileRequirementsMatrixService },
     { provide: FILE_REQUIREMENT_COMMANDS, useValue: metadataOnlyFileCommands },
-    { provide: SIGNED_UPLOAD_URL_FACTORY, useExisting: MetadataOnlySignedUploadUrlFactory },
   ],
   exports: [
     InquiriesService,

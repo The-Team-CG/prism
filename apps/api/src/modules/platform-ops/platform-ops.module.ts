@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@prism/kernel/database';
 import { EventSessionModule } from '@prism/kernel/event-session';
+import { AccessControlModule } from '@prism/kernel/access-control';
 import { OpsAuditController, OpsPrivacyController } from './api/trust/audit-privacy.controller';
 import { OpsNotificationsController } from './api/notifications/notifications.controller';
 import { OpsAiGovernanceController } from './api/ai-governance/ai-governance.controller';
@@ -13,6 +15,11 @@ import { PrivacyOperationsService } from './application/trust/privacy-operations
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
 import { PAREService } from './application/ai-governance/pare/pare.service';
+import { StorageObjectService } from './application/storage/storage-object.service';
+import { StorageValidationService } from './application/storage/storage-validation.service';
+import { STORAGE_ADAPTER } from './contracts/storage/storage.port';
+import { LocalFileSystemStorageAdapter } from './infrastructure/storage/local-filesystem-storage.adapter';
+import { StorageController } from './api/storage/storage.controller';
 
 const auditWriterProvider = {
   provide: AUDIT_WRITER,
@@ -22,6 +29,19 @@ const auditWriterProvider = {
 const notificationOutboxWriterProvider = {
   provide: NOTIFICATION_OUTBOX_WRITER,
   useExisting: NotificationOutboxWriterAdapter,
+};
+
+const storageAdapterProvider = {
+  provide: STORAGE_ADAPTER,
+  inject: [ConfigService],
+  useFactory: (config: ConfigService) => {
+    const provider = config.get<string>('PRISM_STORAGE_PROVIDER')?.trim().toLowerCase();
+    if (!provider) return undefined;
+    if (provider !== 'local') throw new Error(`Unsupported storage provider: ${provider}`);
+    const directory = config.get<string>('PRISM_STORAGE_LOCAL_DIRECTORY')?.trim();
+    if (!directory) throw new Error('PRISM_STORAGE_LOCAL_DIRECTORY is required when PRISM_STORAGE_PROVIDER=local');
+    return new LocalFileSystemStorageAdapter(directory);
+  },
 };
 
 /**
@@ -38,8 +58,8 @@ const notificationOutboxWriterProvider = {
  * workflow rather than a shared ownership claim.
  */
 @Module({
-  imports: [DatabaseModule, EventSessionModule],
-  controllers: [OpsAuditController, OpsPrivacyController, OpsNotificationsController, OpsAiGovernanceController],
+  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule],
+  controllers: [OpsAuditController, OpsPrivacyController, OpsNotificationsController, OpsAiGovernanceController, StorageController],
   providers: [
     AuditService,
     PrivacyOperationsService,
@@ -50,6 +70,9 @@ const notificationOutboxWriterProvider = {
     notificationOutboxWriterProvider,
     AiGovernanceService,
     PAREService,
+    StorageValidationService,
+    StorageObjectService,
+    storageAdapterProvider,
   ],
   exports: [
     AuditService,
@@ -61,6 +84,9 @@ const notificationOutboxWriterProvider = {
     notificationOutboxWriterProvider,
     AiGovernanceService,
     PAREService,
+    StorageValidationService,
+    StorageObjectService,
+    STORAGE_ADAPTER,
   ],
 })
 export class PlatformOpsModule {}
