@@ -27,6 +27,7 @@ import {
   mapUrgentIssue,
 } from '../mappers/live-ops-read-model.mappers';
 import type { LiveOpsReadModel } from '../../contracts/ports/live-ops-read-model.port';
+import { deriveLiveOpsTimer, mapScheduleDay } from '../mappers/schedule-read-model.mappers';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
 
@@ -55,7 +56,9 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       actor.role === OpsUserRole.Coordinator
         ? await this.requireCoordinatorAssignmentForEvent(eventId, actor)
         : null;
-    const data = await this.queries.liveOpsForEvent(eventId);
+    type ScheduleRow = Parameters<typeof mapScheduleDay>[0];
+    const scheduleQuery = (this.queries as EventReadModelQueries & { scheduleForEvent?: (id: string) => Promise<ScheduleRow[]> }).scheduleForEvent;
+    const [data, scheduleDays] = await Promise.all([this.queries.liveOpsForEvent(eventId), scheduleQuery ? scheduleQuery.call(this.queries, eventId) : Promise.resolve([] as ScheduleRow[])]);
     if (!data.event) throw new NotFoundException('Event not found');
     const [coordinatorAssignments, guestCheckIns] = await Promise.all([
       coordinatorAssignment ? Promise.resolve([coordinatorAssignment]) : this.staffingReader.listAssignmentsForEvent(eventId),
@@ -100,6 +103,8 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       guestAttendanceCount: guestCheckIns.length,
       guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
       eventDayLogs: data.eventDayLogs.map(mapEventDayLog),
+      schedule: { eventId, authored: scheduleDays.length > 0, days: scheduleDays.map(mapScheduleDay), serverTime: new Date().toISOString() },
+      timer: deriveLiveOpsTimer({ eventId, authored: scheduleDays.length > 0, days: scheduleDays.map(mapScheduleDay), serverTime: new Date().toISOString() }, new Date()),
     };
 
     if (actor.role === OpsUserRole.Coordinator) {
@@ -195,6 +200,8 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       eventDate: event.eventDate.toISOString().slice(0, 10),
       walkInPolicy: event.walkInPolicy as 'closed' | 'open' | 'threshold',
       walkInThreshold: event.walkInThreshold,
+      actualEndedAt: event.actualEndedAt?.toISOString() ?? null,
+      actualEndedBy: event.actualEndedBy,
       status: event.status,
       clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
       readiness: event.readiness,

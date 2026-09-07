@@ -50,6 +50,18 @@ import type {
   UpdateSupplierEventStatusInput,
   UploadContractInput,
   UpdateGuestVerificationInput,
+  CreateEventScheduleDayInput,
+  CreateEventScheduleSegmentInput,
+  UpdateEventScheduleSegmentStatusInput,
+  CreateEventOperatorDesignationInput,
+  CreateEventHandoffInput,
+  CreateEventEodReportInput,
+  CreateEventEodReplyInput,
+  PrismEventSchedule,
+  PrismEventScheduleSegment,
+  PrismEventRunSheet,
+  PrismEventHandoff,
+  PrismEventEodReport,
 } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
@@ -183,6 +195,16 @@ export interface EventOpsClient {
   };
   liveOps: {
     eventDayWorkspace(eventId: string, actor?: EventOpsActorQuery): Promise<PrismLiveOps>;
+    schedule(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventSchedule>;
+    createScheduleDay(eventId: string, input: CreateEventScheduleDayInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    createScheduleSegment(eventId: string, dayId: string, input: CreateEventScheduleSegmentInput, actor?: EventOpsActorQuery): Promise<PrismEventScheduleSegment>;
+    updateScheduleSegmentStatus(eventId: string, segmentId: string, input: UpdateEventScheduleSegmentStatusInput, actor?: EventOpsActorQuery): Promise<PrismEventScheduleSegment>;
+    runSheet(eventId: string, dayId?: string, actor?: EventOpsActorQuery): Promise<PrismEventRunSheet | { eventId: string; authored: false; reason: 'no_schedule' }>;
+    designateOperator(eventId: string, input: CreateEventOperatorDesignationInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    createHandoff(eventId: string, input: CreateEventHandoffInput, actor?: EventOpsActorQuery): Promise<PrismEventHandoff>;
+    listEodReports(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventEodReport[]>;
+    submitEodReport(eventId: string, input: CreateEventEodReportInput, actor?: EventOpsActorQuery): Promise<PrismEventEodReport>;
+    replyEodReport(eventId: string, reportId: string, input: CreateEventEodReplyInput, actor?: EventOpsActorQuery): Promise<PrismEventEodReport['replies'][number]>;
     createTask(eventId: string, input: CreateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
     updateTask(eventId: string, taskId: string, input: UpdateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
     updateCoordinatorAttendance(eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
@@ -356,6 +378,16 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     liveOps: {
       eventDayWorkspace: (eventId, actor = {}) =>
         prismRequest<PrismLiveOps>(actorPath(`/events/${eventId}/live-ops`, actor), withBase(options)),
+      schedule: (eventId, actor = {}) => prismRequest<PrismEventSchedule>(actorPath(`/events/${eventId}/schedule`, actor), withBase(options)),
+      createScheduleDay: (eventId, input, actor = {}) => prismRequest(actorPath(`/events/${eventId}/schedule/days`, actor), withBase(options, { method: 'POST', body: input })),
+      createScheduleSegment: (eventId, dayId, input, actor = {}) => prismRequest<PrismEventScheduleSegment>(actorPath(`/events/${eventId}/schedule/days/${dayId}/segments`, actor), withBase(options, { method: 'POST', body: input })),
+      updateScheduleSegmentStatus: (eventId, segmentId, input, actor = {}) => prismRequest<PrismEventScheduleSegment>(actorPath(`/events/${eventId}/schedule/segments/${segmentId}/status`, actor), withBase(options, { method: 'PATCH', body: input })),
+      runSheet: (eventId, dayId, actor = {}) => { const query = dayId ? `?dayId=${encodeURIComponent(dayId)}` : ''; return prismRequest<PrismEventRunSheet | { eventId: string; authored: false; reason: 'no_schedule' }>(actorPath(`/events/${eventId}/run-sheet${query}`, actor), withBase(options)); },
+      designateOperator: (eventId, input, actor = {}) => prismRequest(actorPath(`/events/${eventId}/operator-designation`, actor), withBase(options, { method: 'POST', body: input })),
+      createHandoff: (eventId, input, actor = {}) => prismRequest<PrismEventHandoff>(actorPath(`/events/${eventId}/handoffs`, actor), withBase(options, { method: 'POST', body: input })),
+      listEodReports: (eventId, actor = {}) => prismRequest<PrismEventEodReport[]>(actorPath(`/events/${eventId}/eod-reports`, actor), withBase(options)),
+      submitEodReport: (eventId, input, actor = {}) => prismRequest<PrismEventEodReport>(actorPath(`/events/${eventId}/eod-reports`, actor), withBase(options, { method: 'POST', body: input })),
+      replyEodReport: (eventId, reportId, input, actor = {}) => prismRequest<PrismEventEodReport['replies'][number]>(actorPath(`/events/${eventId}/eod-reports/${reportId}/replies`, actor), withBase(options, { method: 'POST', body: input })),
       createTask: (eventId, input, actor = {}) =>
         prismRequest<PrismEventDayTask>(
           actorPath(`/events/${eventId}/event-day/tasks`, actor),
