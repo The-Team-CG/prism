@@ -63,6 +63,20 @@ class TrustRoutePolicy {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Forbidden access audit log could not be recorded: ${message}`);
+      if (typeof this.auditService.recordIntegrityIncident === 'function') {
+        try {
+          await this.auditService.recordIntegrityIncident({
+            source: 'trust-route.forbidden-access',
+            reason: message,
+            eventId,
+            actor: actor.name,
+            metadata: { resource, actorId: actor.id, role: actor.role, email: actor.email },
+          });
+        } catch (incidentError) {
+          const incidentMessage = incidentError instanceof Error ? incidentError.message : String(incidentError);
+          this.logger.error(`Audit integrity incident could not be persisted: ${incidentMessage}`);
+        }
+      }
     }
     throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
   }
