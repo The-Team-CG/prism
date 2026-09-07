@@ -26,5 +26,6 @@ describe('CommunicationService message guards', () => {
     const { service, actor, tx } = harness({ replay: { body: 'different' } });
     await expect(service.sendMessage('thread_1', { body: 'hello', idempotencyKey: 'key_1' }, actor)).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.opsCommunicationMessage.upsert).not.toHaveBeenCalled();
+    expect(tx.opsCommunicationMessage.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { threadId_idempotencyKey: { threadId: 'thread_1', idempotencyKey: 'key_1' } } }));
   });
 });

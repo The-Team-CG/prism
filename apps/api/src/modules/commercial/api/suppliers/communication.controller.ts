@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { createCommunicationThreadSchema, sendCommunicationMessageSchema, type CreateCommunicationThreadInput, type PrismVerifiedEventActor, type SendCommunicationMessageInput } from '@prism/types';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
@@ -28,5 +28,15 @@ export class CommunicationController {
   @Post('threads/:threadId/messages')
   send(@Param('threadId') threadId: string, @Body(zodBody(sendCommunicationMessageSchema)) input: SendCommunicationMessageInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.sendMessage(threadId, input, this.access.resolveActor({}, verified));
+  }
+
+  @Get('threads/:threadId/messages')
+  messages(@Param('threadId') threadId: string, @Query('cursor') cursor: string | undefined, @Query('limit', new ParseIntPipe({ optional: true })) limit: number | undefined, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.listMessages(threadId, { cursor, limit }, this.access.resolveActor({}, verified));
+  }
+
+  @Post('threads/:threadId/read')
+  read(@Param('threadId') threadId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.markThreadRead(threadId, this.access.resolveActor({}, verified));
   }
 }
