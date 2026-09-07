@@ -18,6 +18,7 @@ export type ResolvedEventOpsActor = {
   eventId?: string;
   accessCode?: string;
   explicit: boolean;
+  verified?: boolean;
 };
 
 type ReadableEvent = Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'> & { clientEmail?: string | null; inquiry?: { email?: string | null } | null };
@@ -56,6 +57,7 @@ export class EventAccessPolicyService {
       eventId: input.eventId,
       accessCode: input.accessCode,
       explicit: Boolean(input.actorRole ?? input.role),
+      verified: false,
     };
   }
 
@@ -67,6 +69,7 @@ export class EventAccessPolicyService {
       name: verifiedActor.actorName,
       clientName: verifiedActor.actorRole === OpsUserRole.Client ? verifiedActor.actorName : undefined,
       explicit: true,
+      verified: true,
     };
   }
 
@@ -86,7 +89,7 @@ export class EventAccessPolicyService {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
     if (actor.role === OpsUserRole.Client) {
       const eventEmail = event.clientEmail ?? event.inquiry?.email;
-      return event.clientPortalStatus === 'unlocked' && (actor.email ? this.sameText(actor.email, eventEmail) : this.sameText(actor.clientName, event.clientName));
+      return event.clientPortalStatus === 'unlocked' && (actor.verified ? Boolean(actor.email && eventEmail && this.sameText(actor.email, eventEmail)) : (actor.email ? this.sameText(actor.email, eventEmail) : this.sameText(actor.clientName, event.clientName)));
     }
     if (actor.role === OpsUserRole.Coordinator) {
       return Boolean(actor.eventId && actor.eventId === event.id);
