@@ -217,6 +217,9 @@ export function EventSignInView() {
                 >
                   {signInSubmitLabel(vm.busy, vm.phase)}
                 </button>
+                <a hidden={!passwordPhase} href="/password-reset" className="block text-center text-sm text-[#c01867] transition hover:text-[#a81459]">
+                  Forgot password?
+                </a>
               </form>
 
               <div hidden={!passwordPhase}>
