@@ -159,7 +159,7 @@ export class SupplierProfileCommandsService {
       eventId: input.eventId,
       sideEffectMode: 'same_tx',
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier private reliability note', input.eventId),
-      write: (transactionContext) => this.suppliersService.addReliabilityNote(supplierId, input, transactionContext),
+      write: (transactionContext) => this.suppliersService.addReliabilityNote(supplierId, input, transactionContext, actor.name),
       sideEffects: async (result, transactionContext) => {
         if (result.replayed) return;
         const supplier = result.supplier;
@@ -177,7 +177,7 @@ export class SupplierProfileCommandsService {
     return this.workflowCommandService.execute<SupplierResult>({
       name: 'promote_supplier', eventId: input.eventId, sideEffectMode: 'same_tx',
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier promotion', input.eventId),
-      write: (transactionContext) => this.suppliersService.promoteSupplier(supplierId, input, transactionContext),
+      write: (transactionContext) => this.suppliersService.promoteSupplier(supplierId, input, transactionContext, actor.name),
       sideEffects: async (supplier) => {
         await writeAudit(this.auditWriter, input.eventId, actor.name, `Promoted supplier: ${supplier.name}`, {
           actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Suppliers,

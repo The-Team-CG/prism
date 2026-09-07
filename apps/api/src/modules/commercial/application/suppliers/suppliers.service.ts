@@ -13,7 +13,7 @@ import type {
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { SupplierTier } from '@prism/kernel/event-core';
 import type { AddSupplierQuoteInput } from '../../contracts/commercial-workflow-commands.port';
 
@@ -171,14 +171,11 @@ export class SuppliersService {
     return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), reviewId };
   }
 
-  async addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, context?: PrismTransactionContext) {
+  async addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, context?: PrismTransactionContext, createdBy?: string) {
     const db = context?.prisma ?? this.prisma;
     await this.validateReviewEligibility(supplierId, input.eventId, db);
-    const existingId = input.idempotencyKey
-      ? `reliability_${input.idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, '_')}`
-      : `reliability_${randomUUID()}`;
     const existing = input.idempotencyKey
-      ? await db.opsSupplierReliabilityNote.findUnique({ where: { id: existingId } })
+      ? await db.opsSupplierReliabilityNote.findUnique({ where: { idempotencyKey: input.idempotencyKey } })
       : null;
     if (existing) {
       if (existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.note !== input.note) {
@@ -186,13 +183,14 @@ export class SuppliersService {
       }
       return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), noteId: existing.id, replayed: true };
     }
+    const noteId = `reliability_${randomUUID()}`;
     await db.opsSupplierReliabilityNote.create({
-      data: { id: existingId, supplierId, eventId: input.eventId, note: input.note.trim() },
+      data: { id: noteId, supplierId, eventId: input.eventId, note: input.note.trim(), createdBy: createdBy ?? null, idempotencyKey: input.idempotencyKey ?? null },
     });
-    return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), noteId: existingId, replayed: false };
+    return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), noteId, replayed: false };
   }
 
-  async promoteSupplier(supplierId: string, input: PromoteSupplierInput, context?: PrismTransactionContext) {
+  async promoteSupplier(supplierId: string, input: PromoteSupplierInput, context?: PrismTransactionContext, promotedBy?: string) {
     const db = context?.prisma ?? this.prisma;
     await this.validateReviewEligibility(supplierId, input.eventId, db);
     const supplier = await this.supplierRow(supplierId, db);
@@ -200,10 +198,19 @@ export class SuppliersService {
     if (supplier.tier !== SupplierTier.PendingFirstEvent && supplier.tier !== input.tier) {
       throw new BadRequestException('Only pending-first-event suppliers can be promoted');
     }
-    const assessment = await db.opsSupplierReview.findFirst({ where: { supplierId, eventId: input.eventId }, select: { id: true } });
-    if (!assessment) throw new BadRequestException('A completed event assessment is required before promotion');
-    if (supplier.tier === input.tier) return this.mapSupplier(supplier);
+    const payloadHash = createHash('sha256').update(JSON.stringify({ supplierId, eventId: input.eventId, tier: input.tier, reason: input.reason.trim() })).digest('hex');
+    const review = await db.opsSupplierReview.findFirst({ where: { supplierId, eventId: input.eventId }, select: { id: true } });
+    if (!review) throw new BadRequestException('A completed event assessment is required before promotion');
+    if (input.idempotencyKey) {
+      const replay = await db.opsSupplierPromotion.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+      if (replay) {
+        if (replay.payloadHash !== payloadHash || replay.supplierId !== supplierId) throw new BadRequestException('Idempotency key was already used for a different supplier promotion');
+        return this.mapSupplier(await this.supplierRow(supplierId, db));
+      }
+    }
+    if (supplier.tier === input.tier) throw new BadRequestException('Supplier has already been promoted to this tier');
     await db.opsSupplier.updateMany({ where: { id: supplierId, tier: SupplierTier.PendingFirstEvent }, data: { tier: input.tier } });
+    await db.opsSupplierPromotion.create({ data: { id: `promotion_${randomUUID()}`, supplierId, reviewId: review.id, fromTier: SupplierTier.PendingFirstEvent, toTier: input.tier, reason: input.reason.trim(), promotedBy: promotedBy ?? 'PMCM', idempotencyKey: input.idempotencyKey ?? `promotion_${randomUUID()}`, payloadHash } });
     return this.mapSupplier(await this.supplierRow(supplierId, db));
   }
 
