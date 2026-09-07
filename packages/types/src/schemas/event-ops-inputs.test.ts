@@ -16,6 +16,11 @@ import {
   updateUrgentIssueSchema,
   escalateLiveOpsRecordSchema,
   replaceCoordinatorAssignmentSchema,
+  createCoordinatorAssignmentSchema,
+  coordinatorAssignmentAcknowledgementSchema,
+  withdrawCoordinatorAssignmentSchema,
+  createCoordinatorAvailabilitySchema,
+  createCoordinatorCoverageRequirementSchema,
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
   createFloorPlanDraftSchema,
@@ -274,5 +279,25 @@ describe("event-ops write schemas", () => {
   it("keeps conforme uploads on the shared file contract", () => {
     expect(uploadConformeSchema.safeParse({ fileName: "signed-conforme.pdf" }).success).toBe(true);
     expect(uploadConformeSchema.safeParse({ fileName: "malware.exe" }).success).toBe(false);
+  });
+
+  it("validates staffing availability, coverage, and acknowledgement writes", () => {
+    expect(createCoordinatorAssignmentSchema.safeParse({ coordinatorId: "coord_1", role: "Floor Director" }).success).toBe(true);
+    expect(createCoordinatorAssignmentSchema.safeParse({ role: "Floor Director" }).success).toBe(false);
+    expect(coordinatorAssignmentAcknowledgementSchema.safeParse({ decision: "acknowledged" }).success).toBe(true);
+    expect(coordinatorAssignmentAcknowledgementSchema.safeParse({ decision: "declined" }).success).toBe(false);
+    expect(withdrawCoordinatorAssignmentSchema.safeParse({ reason: "No longer available" }).success).toBe(true);
+    expect(withdrawCoordinatorAssignmentSchema.safeParse({ reason: " " }).success).toBe(false);
+    expect(createCoordinatorAvailabilitySchema.safeParse({
+      startsAt: "2026-06-18T00:00:00.000Z",
+      endsAt: "2026-06-19T00:00:00.000Z",
+      kind: "blocked",
+    }).success).toBe(true);
+    expect(createCoordinatorAvailabilitySchema.safeParse({
+      startsAt: "2026-06-19T00:00:00.000Z",
+      endsAt: "2026-06-18T00:00:00.000Z",
+    }).success).toBe(false);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", required: 2 }).success).toBe(true);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", required: -1 }).success).toBe(false);
   });
 });

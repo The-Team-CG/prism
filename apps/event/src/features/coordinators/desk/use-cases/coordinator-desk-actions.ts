@@ -1,5 +1,5 @@
 import type { EventSession } from "@/app/lib/session";
-import type { CreateEventDayTaskInput, CreateUrgentIssueInput } from "@prism/types";
+import type { CreateEventDayTaskInput, CreateUrgentIssueInput, CoordinatorAssignmentAcknowledgementInput, WithdrawCoordinatorAssignmentInput } from "@prism/types";
 import { coordinatorsRepository } from "../data/coordinators-repository";
 
 export async function loadCoordinatorRoleView(session: EventSession, eventId: string) {
@@ -9,17 +9,28 @@ export async function loadCoordinatorRoleView(session: EventSession, eventId: st
 export async function acknowledgeCoordinatorAssignment(
   eventId: string,
   assignmentId: string,
+  input: CoordinatorAssignmentAcknowledgementInput = { decision: "acknowledged" },
 ) {
-  return coordinatorsRepository.acknowledge(eventId, assignmentId);
+  return coordinatorsRepository.acknowledge(eventId, assignmentId, input);
 }
 
 export async function acknowledgeAndRefreshRoleView(input: {
   session: EventSession;
   eventId: string;
   assignmentId: string;
+  input?: CoordinatorAssignmentAcknowledgementInput;
 }) {
-  await acknowledgeCoordinatorAssignment(input.eventId, input.assignmentId);
+  await acknowledgeCoordinatorAssignment(input.eventId, input.assignmentId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function withdrawAndRefreshWorkspace(input: {
+  session: EventSession;
+  eventId: string;
+  assignmentId: string;
+  input: WithdrawCoordinatorAssignmentInput;
+}) {
+  await coordinatorsRepository.withdraw(input.session, input.eventId, input.assignmentId, input.input);
 }
 
 export async function createTaskAndRefreshRoleView(input: {

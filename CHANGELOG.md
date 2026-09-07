@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- W18 staffing slice: persisted coordinator availability windows and event coverage requirements, transactional availability guards, deterministic required/assigned/acknowledged coverage, coordinator acknowledgement/decline and withdrawal history, PMCM replacement flow, and idempotent acknowledgement reminder outbox intent. Reminders remain queued with the existing explicit provider configuration reason when no delivery adapter is bound.
 - Briefing submissions preserve prior history, reject locked or post-planning events, and persist audit/notification intent atomically with the verified actor.
 - Historical audit verification follows hash links, including same-millisecond records; ambiguous historical tails stop new appends for integrity review.
 - Native password recovery contracts and single-use 15-minute hashed reset tokens with durable session-version revocation; reset delivery remains explicitly unavailable until a trusted provider is configured.
