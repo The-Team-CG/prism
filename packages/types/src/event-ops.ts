@@ -674,7 +674,24 @@ export interface PrismGuestFeedback {
   privacyNoticeVersion: string;
   marketingConsentAccepted: boolean;
   moderationStatus: string;
+  moderationReason: string | null;
+  moderatedById: string | null;
+  moderatedBy: string | null;
+  moderatedAt: string | null;
+  privacyConsentWithdrawnAt: string | null;
+  marketingConsentWithdrawnAt: string | null;
+  mediaAttachments: PrismGuestFeedbackMedia[];
   submittedAt: string;
+}
+
+export interface PrismGuestFeedbackMedia {
+  id: string;
+  kind: "photo" | "video";
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: "pending_storage";
+  blocker: string;
 }
 
 export type PrismRegistrationPlatformType = "xperto" | "clickpass" | "custom" | "none";

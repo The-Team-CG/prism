@@ -1213,12 +1213,37 @@ model OpsGuestFeedback {
   privacyNoticeVersion     String   @default("") @map("privacy_notice_version")
   marketingConsentAccepted Boolean  @default(false) @map("marketing_consent_accepted")
   moderationStatus         String   @default("pending_review") @map("moderation_status")
+  moderationReason         String?  @map("moderation_reason")
+  moderatedById            String?  @map("moderated_by_id")
+  moderatedBy              String?  @map("moderated_by")
+  moderatedAt              DateTime? @map("moderated_at")
+  privacyConsentWithdrawnAt DateTime? @map("privacy_consent_withdrawn_at")
+  marketingConsentWithdrawnAt DateTime? @map("marketing_consent_withdrawn_at")
   submittedAt              DateTime @default(now()) @map("submitted_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  mediaAttachments OpsGuestFeedbackMedia[]
 
   @@index([eventId, moderationStatus], map: "feedback_event_id_moderation_status_idx")
   @@map("feedback")
+  @@schema("guest_ops")
+}
+
+model OpsGuestFeedbackMedia {
+  id             String   @id
+  feedbackId     String   @map("feedback_id")
+  kind           String
+  originalFileName String @map("original_file_name")
+  mimeType       String   @map("mime_type")
+  sizeBytes      Int      @map("size_bytes")
+  status         String   @default("pending_storage")
+  blocker        String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  feedback OpsGuestFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId], map: "feedback_media_feedback_id_idx")
+  @@map("feedback_media")
   @@schema("guest_ops")
 }
 
