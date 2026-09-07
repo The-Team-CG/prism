@@ -120,7 +120,7 @@ describe('ProposalClientReviewService', () => {
 
   it('rejects an idempotency key reused with a different note or actor', async () => {
     const fake = createPrisma();
-    fake.prisma.opsAuditLog.findFirst = async () => ({ metadata: { action: 'request_revision', revisionNote: 'original', actorEmail: primary.email } });
+    fake.prisma.opsAuditLog.findFirst = (async () => ({ metadata: { action: 'request_revision', revisionNote: 'original', actorEmail: primary.email } })) as never;
     fake.prisma.$transaction = async (callback: (tx: any) => Promise<unknown>) => callback({
       opsAuditLog: { findFirst: fake.prisma.opsAuditLog.findFirst },
       opsEvent: { findUniqueOrThrow: async () => fake.event },
