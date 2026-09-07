@@ -188,6 +188,7 @@ function guestFixture(): OpsGuestCheckIn {
     privacyNoticeVersion: '2026-05-01',
     marketingConsentAccepted: false,
     checkedInAt: CREATED_AT,
+    rosterEntryId: null,
   };
 }
 
