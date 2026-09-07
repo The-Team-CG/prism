@@ -43,9 +43,13 @@ function DetailField({ label: fieldLabel, value }: { label: string; value?: stri
 export function InquiryIntakeHeader({
   unreviewedCount,
   onLog,
+  onCopyInquiryLink,
+  copyLinkState,
 }: {
   unreviewedCount: number;
   onLog: () => void;
+  onCopyInquiryLink: () => void;
+  copyLinkState: "idle" | "copied" | "error";
 }) {
   return (
     <div className="border-b border-border px-6 py-4">
@@ -60,12 +64,18 @@ export function InquiryIntakeHeader({
               {unreviewedCount} unreviewed
             </span>
           )}
+          <Button size="sm" variant="outline" onClick={onCopyInquiryLink} className="rounded-lg font-bold">
+            {copyLinkState === "copied" ? "Link copied" : "Copy inquiry link"}
+          </Button>
           <Button size="sm" onClick={onLog} className="rounded-lg font-bold">
             <Plus className="size-3.5" />
             Log inquiry
           </Button>
         </div>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Copy the public inquiry link for a colleague. Production email send stays gated; log-on-behalf records walk-in and phone inquiries here.
+      </p>
     </div>
   );
 }
@@ -202,6 +212,9 @@ function InquiryIntakeRow({
         <div>
           <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Status</p>
           <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
+          {inquiry.previouslyDeclined ? (
+            <p className="mt-1 text-[10px] font-bold text-destructive">Previously declined</p>
+          ) : null}
         </div>
         <div className="text-sm font-semibold text-foreground">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground 2xl:hidden">Event date</p>
@@ -469,7 +482,7 @@ export function InquiryLogOnBehalfForm({
           <div>
             <h3 className="text-base font-bold text-foreground">Log inquiry on behalf</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Record an inquiry a client gave you by phone or in person.
+              Record an inquiry a client gave you by phone or in person. This does not send email; it creates a PMCM-owned intake row with log-on-behalf metadata.
             </p>
           </div>
           <button

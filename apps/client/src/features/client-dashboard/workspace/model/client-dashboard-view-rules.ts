@@ -7,7 +7,7 @@ import {
   Presentation,
   ReceiptText,
 } from "lucide-react";
-import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
+import type { PrismClientActionCenter, PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/editor";
 import type { DetailTab } from "./client-dashboard-types";
 
@@ -140,10 +140,112 @@ export function actionCenterItemToDashboardAction(
 
 export function selectNextAction(actions: ClientDashboardAction[]) {
   return (
-    actions.find((action) => action.tone === "primary") ??
     actions.find((action) => action.tone === "warning") ??
+    actions.find((action) => action.tone === "primary") ??
     actions[0]
   );
+}
+
+export function deriveClientActionCenterFromWorkspace(
+  state: PrismClientWorkspace,
+  session: { name: string },
+  now = Date.now(),
+): PrismClientActionCenter {
+  const events = state.events.filter(
+    (event) => event.clientName === session.name && event.clientPortalStatus === "unlocked" && !event.archived,
+  );
+  const items: PrismClientActionItem[] = [];
+
+  for (const event of events) {
+    const briefing = state.briefings.find((item) => item.eventId === event.id);
+    if (!briefing) {
+      items.push({
+        id: `briefing:${event.id}`,
+        kind: "briefing",
+        priority: "attention",
+        label: "Complete event briefing",
+        description: `Share venue, guest count, budget, and service requirements for ${event.eventName}.`,
+        status: "missing",
+        eventId: event.id,
+        eventName: event.eventName,
+        dueAt: event.eventDate,
+        href: `/dashboard/events/${event.id}/briefing`,
+      });
+    }
+
+    if (event.floorPlanStatus === "in_review") {
+      items.push({
+        id: `floorplan:review:${event.id}`,
+        kind: "floorplan",
+        priority: "attention",
+        label: "Review official floorplan",
+        description: `PMCM submitted the official layout for ${event.eventName}. Preferences do not edit this official plan.`,
+        status: event.floorPlanStatus,
+        eventId: event.id,
+        eventName: event.eventName,
+        href: `/dashboard/events/${event.id}/floorplan`,
+      });
+    } else if (event.floorPlanStatus === "not_started") {
+      items.push({
+        id: `floorplan:preferences:${event.id}`,
+        kind: "floorplan",
+        priority: "info",
+        label: "Submit layout preferences",
+        description: `Share layout requirements before PMCM prepares the official floorplan for ${event.eventName}.`,
+        status: event.floorPlanStatus,
+        eventId: event.id,
+        eventName: event.eventName,
+        href: `/dashboard/events/${event.id}/floorplan`,
+      });
+    }
+
+    state.paymentMilestones
+      .filter((payment) => payment.eventId === event.id && payment.status !== "paid")
+      .forEach((payment) => {
+        items.push({
+          id: `billing:${payment.id}`,
+          kind: "billing",
+          priority: new Date(payment.dueDate).getTime() < now ? "critical" : "warning",
+          label: new Date(payment.dueDate).getTime() < now ? "Payment overdue" : "Payment pending",
+          description: `${payment.label} has ${payment.amount.toLocaleString("en-PH")} PHP remaining.`,
+          status: payment.status,
+          eventId: event.id,
+          eventName: event.eventName,
+          dueAt: payment.dueDate,
+          href: `/dashboard/events/${event.id}/billing`,
+        });
+      });
+
+    state.documents
+      .filter((document) => document.eventId === event.id && /needs|pending|requested|rejected/i.test(document.status))
+      .forEach((document) => {
+        items.push({
+          id: `document:${document.id}`,
+          kind: "document",
+          priority: document.status === "rejected" ? "warning" : "attention",
+          label: "Document needs attention",
+          description: `${document.fileName} is ${document.status.replaceAll("_", " ")}.`,
+          status: document.status,
+          eventId: event.id,
+          eventName: event.eventName,
+          href: `/dashboard/events/${event.id}/documents`,
+        });
+      });
+  }
+
+  const severityOrder = { critical: 0, warning: 1, attention: 2, info: 3 } as const;
+  items.sort((left, right) => severityOrder[left.priority] - severityOrder[right.priority]);
+
+  return {
+    generatedAt: new Date(now).toISOString(),
+    counts: {
+      critical: items.filter((item) => item.priority === "critical").length,
+      warning: items.filter((item) => item.priority === "warning").length,
+      attention: items.filter((item) => item.priority === "attention").length,
+      info: items.filter((item) => item.priority === "info").length,
+    },
+    items,
+  };
 }
 
 export function greetingByTime(name: string) {

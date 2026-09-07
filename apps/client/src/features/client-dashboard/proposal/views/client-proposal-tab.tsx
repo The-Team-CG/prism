@@ -17,35 +17,86 @@ import {
   formatLabel,
 } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
+import { proposalClientStatus } from "../model/proposal-review-rules";
+import { useClientProposalTabViewModel } from "../view-models/use-client-proposal-tab-view-model";
 
-function ProposalStatusHero({ proposalReady }: { proposalReady: boolean }) {
+function proposalBadge(status: string, packageReady: boolean) {
+  if (!packageReady) return { status: "pending", label: "In preparation" };
+  if (status === "approved") return { status: "approved", label: "Approved" };
+  if (status === "revision_requested") return { status: "attention", label: "Revision requested" };
+  return { status: "ready", label: "Ready for review" };
+}
+
+function ProposalStatusHero({
+  headline,
+  packageReady,
+  clientStatus,
+  remainingRevisions,
+  revisionNote,
+  setRevisionNote,
+  reviewing,
+  canApprove,
+  canRequestRevision,
+  onApprove,
+  onRequestRevision,
+}: {
+  headline: string;
+  packageReady: boolean;
+  clientStatus: string;
+  remainingRevisions: number;
+  revisionNote: string;
+  setRevisionNote: (value: string) => void;
+  reviewing: boolean;
+  canApprove: boolean;
+  canRequestRevision: boolean;
+  onApprove: () => void;
+  onRequestRevision: () => void;
+}) {
+  const badge = proposalBadge(clientStatus, packageReady);
   return (
     <Card>
       <CardBody>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <SectionLabel>Proposal status</SectionLabel>
-            <h2 className="mt-1 text-xl font-black text-foreground">
-              {proposalReady ? "Proposal ready for review." : "PMCM is preparing your proposal."}
-            </h2>
+            <h2 className="mt-1 text-xl font-black text-foreground">{headline}</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              This view summarizes your briefing, planning package, payment schedule, and layout status. Internal cost estimation stays with PMCM.
+              Only the primary client contact on the inquiry can approve or request a revision. Internal cost estimation stays with PMCM. Up to three revisions.
             </p>
-            {proposalReady ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button className="rounded-lg font-bold">
-                  <ThumbsUp className="size-4" /> Approve proposal
-                </Button>
-                <Button variant="outline" className="rounded-lg font-semibold">
-                  Request revision
-                </Button>
+            {canApprove ? (
+              <div className="mt-4 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button className="rounded-lg font-bold" disabled={reviewing} onClick={onApprove}>
+                    <ThumbsUp className="size-4" /> Approve proposal
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-lg font-semibold"
+                    disabled={reviewing || !canRequestRevision}
+                    onClick={onRequestRevision}
+                  >
+                    Request revision
+                  </Button>
+                </div>
+                {canRequestRevision ? (
+                  <label className="block max-w-xl text-sm">
+                    <span className="mb-1 block font-semibold text-foreground">
+                      Revision note ({remainingRevisions} remaining)
+                    </span>
+                    <textarea
+                      className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      value={revisionNote}
+                      onChange={(event) => setRevisionNote(event.target.value)}
+                      placeholder="Describe the change you need."
+                    />
+                  </label>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Revision cap reached. Approve the current package or wait for PMCM.</p>
+                )}
               </div>
             ) : null}
           </div>
-          <StatusBadge
-            status={proposalReady ? "ready" : "pending"}
-            label={proposalReady ? "Ready for review" : "In preparation"}
-          />
+          <StatusBadge status={badge.status} label={badge.label} />
         </div>
       </CardBody>
     </Card>
@@ -67,6 +118,7 @@ function ProposalPackageCard({
   nextPayment?: PrismPaymentMilestone;
   proposalReady: boolean;
 }) {
+  const clientStatus = proposalClientStatus(selectedEvent);
   return (
     <Card>
       <CardHeader>
@@ -83,6 +135,7 @@ function ProposalPackageCard({
       </CardHeader>
       <CardBody className="py-2">
         <DataRow label="Event" value={selectedEvent.eventName} />
+        <DataRow label="Client review" value={formatLabel(clientStatus)} />
         <DataRow label="Stage" value={proposalReady ? "Client review" : "PMCM preparation"} />
         <DataRow
           label="Briefing basis"
@@ -181,41 +234,40 @@ function ProposalReviewChecklist({
   );
 }
 
-export function ClientProposalTab({
-  selectedEvent,
-  briefing,
-  billing,
-  payments,
-  officialDraft,
-  setTab,
-}: {
-  selectedEvent: PrismEvent;
-  briefing?: PrismBriefing;
-  billing?: PrismBillingStatement;
-  payments: PrismPaymentMilestone[];
-  officialDraft?: PrismFloorPlanDraft;
-  setTab: (tab: DetailTab) => void;
-}) {
-  const nextPayment = payments.find((p) => p.status !== "paid");
-  const proposalReady = Boolean(briefing && billing);
+export function ClientProposalTab({ setTab }: { setTab: (tab: DetailTab) => void }) {
+  const vm = useClientProposalTabViewModel();
+  if (!vm.selectedEvent) return null;
+  const nextPayment = vm.payments.find((payment) => payment.status !== "paid");
 
   return (
     <div className="space-y-5">
-      <ProposalStatusHero proposalReady={proposalReady} />
+      <ProposalStatusHero
+        headline={vm.headline}
+        packageReady={vm.packageReady}
+        clientStatus={proposalClientStatus(vm.selectedEvent)}
+        remainingRevisions={vm.remainingRevisions}
+        revisionNote={vm.revisionNote}
+        setRevisionNote={vm.setRevisionNote}
+        reviewing={vm.reviewing}
+        canApprove={vm.canApprove}
+        canRequestRevision={vm.canRequestRevision}
+        onApprove={() => void vm.approve()}
+        onRequestRevision={() => void vm.requestRevision()}
+      />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <ProposalPackageCard
-          selectedEvent={selectedEvent}
-          briefing={briefing}
-          billing={billing}
-          officialDraft={officialDraft}
+          selectedEvent={vm.selectedEvent}
+          briefing={vm.briefing}
+          billing={vm.billing}
+          officialDraft={vm.officialDraft}
           nextPayment={nextPayment}
-          proposalReady={proposalReady}
+          proposalReady={vm.packageReady}
         />
         <ProposalReviewChecklist
-          briefing={briefing}
-          billing={billing}
-          officialDraft={officialDraft}
-          proposalReady={proposalReady}
+          briefing={vm.briefing}
+          billing={vm.billing}
+          officialDraft={vm.officialDraft}
+          proposalReady={vm.packageReady}
           setTab={setTab}
         />
       </div>

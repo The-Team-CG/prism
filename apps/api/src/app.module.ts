@@ -13,6 +13,7 @@ import { OperationsModule } from './modules/operations/operations.module';
 import { HealthModule } from '@prism/kernel/health';
 import { IdentityAccessModule } from './modules/identity-access/identity-access.module';
 import { LiveOpsModule } from './modules/live-ops/live-ops.module';
+import { EventSessionModule } from '@prism/kernel/event-session';
 import { OpsEventClosureController } from './modules/event-lifecycle/api/closure/event-closure.controller';
 import { TransformInterceptor } from './common/transform.interceptor';
 
@@ -25,6 +26,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
     AccessControlModule,
     IdentityAccessModule,
     EventLifecycleModule,
+    EventSessionModule,
     CommercialModule,
     FloorplanModule,
     OperationsModule,

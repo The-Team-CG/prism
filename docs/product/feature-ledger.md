@@ -4,12 +4,12 @@ title: "P.R.I.S.M feature ledger"
 description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
 tags: [product, features, decisions, ownership]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-04"
 authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
 scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
-last_verified: "581e676"
+last_verified: "1d4a7e8"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
@@ -113,6 +113,16 @@ The Active Ledger above remains the product decision record. This table assigns 
 | FL-027 | Gate | Anthony | Maxine | Privacy Operations Console remains PMCM-scoped; full console can defer if not demo-critical. | Scope decision, privacy tests if touched, docs gate. |
 | FL-028 | Defer | Maxine | Francis, Anthony | Workflow Template Builder is deferred unless explicitly scoped and documented. | Deferred row; no capacity assumed. |
 
+## Overlay evidence (2026-09-04)
+
+Active Ledger decisions are unchanged. Additional thin-slice evidence:
+
+- **FL-013:** PMCM can search archived events by venue, event type, and month. Side-by-side compare stays deferred.
+- **FL-005:** Client primary-contact proposal approve/request-revision with a revision cap of 3. CE builder depth, Canva/Zoom, and AI drafts stay gated.
+- **FL-007:** PMCM supplier-applications inbox can request proposal, schedule, or decline; readiness board shows a category gap hard-block when no quote is selected. Storage, production notify, and confidential-bid depth remain gated.
+- **FL-008:** Same-date coordinator assignment is blocked with same-role suggestions; override stays secondary. Heatmap, phone/Mys notify, and live AI copilot stay gated.
+- **FL-010:** Client billing shows remaining balance and follow-up copy per milestone. Client still cannot edit payments; production reminders stay gated.
+
 ## New Candidate Features Added To Scope
 
 | Ledger ID | Candidate | Persona | Decision | Phase | Owner | Reason |
@@ -132,6 +142,7 @@ The Active Ledger above remains the product decision record. This table assigns 
 
 ## Next Ledger Maintenance
 
+- 2026-09-03 P0/P1 overlay evidence (uncommitted on `feat/p0-p1-catalog-slices`; Active Ledger decisions unchanged): FL-001 copy-link + rejection history + log-on-behalf copy; FL-002/FL-012 invitation sent/opened/expired + reminder evidence; FL-003/FL-017 Command Inbox on `/dashboard`; FL-004/FL-020 labeled action-center fallback; FL-006/FL-024 file matrix UX with storage gated; FL-007/FL-022 PMCM supplier readiness + quote-lock tests; FL-008 coordinator ack preserves role view (PA-294); FL-010 client billing omits `billingSources`; FL-011 official vs preference floorplan copy; FL-012 guest access-code check-in, QR gated; FL-013 close-gates copy + client-visible insight omits `privateNotes`; FL-015 privacy create/audit tests. P2/P3 gates (live AI, storage adapter, production email/Viber, external IdP, camera QR) remain deferred.
 - Expand ledger rows into one row per catalog feature only when implementation teams need ticket-level traceability.
 - Keep family-level rows authoritative for product direction.
 - Add implementation PR links or commit hashes after each phase lands.

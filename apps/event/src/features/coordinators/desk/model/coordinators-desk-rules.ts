@@ -1,5 +1,13 @@
+import type { CreateEventDayTaskInput, CreateUrgentIssueInput } from "@prism/types";
+import { asIsoDateTime } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
+
 export function sameCoordinatorName(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/** Ack refresh failures must not wipe the role-safe desk (PA-294). */
+export function shouldPreserveRoleViewOnAcknowledgeFailure() {
+  return true;
 }
 
 export function isRegistrationCoordinatorRole(role?: string | null): boolean {
@@ -18,9 +26,6 @@ export function pickActiveAssignment<T extends { attendanceStatus?: string; stat
 }
 
 /* ── EP-11-S02: coordinator task and issue logging ──────────────── */
-
-import type { CreateEventDayTaskInput, CreateUrgentIssueInput } from "@prism/types";
-import { asIsoDateTime } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
 
 /**
  * Provisional role list, lifted from the PMCM live desk
@@ -145,4 +150,32 @@ export function buildCoordinatorIssueInput({
       ? { ownerRole: roleView.role, ownerName: roleView.assignment.coordinatorName }
       : {}),
   };
+}
+
+export function suggestAvailableSameRoleCoordinators(input: {
+  coordinators: Array<{ id: string; name: string; active?: boolean; roleTags?: string[] }>;
+  assignments: Array<{
+    coordinatorId?: string | null;
+    eventId: string;
+    eventDate?: string | null;
+    status?: string;
+  }>;
+  eventId: string;
+  eventDate: string;
+  role: string;
+  excludeCoordinatorId: string;
+}): Array<{ id: string; name: string }> {
+  const busyIds = new Set(
+    input.assignments
+      .filter((assignment) => assignment.eventId !== input.eventId && assignment.eventDate === input.eventDate)
+      .filter((assignment) => assignment.status !== "cancelled" && assignment.status !== "replaced")
+      .map((assignment) => assignment.coordinatorId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  return input.coordinators
+    .filter((coordinator) => coordinator.active !== false)
+    .filter((coordinator) => coordinator.id !== input.excludeCoordinatorId)
+    .filter((coordinator) => (coordinator.roleTags ?? []).includes(input.role))
+    .filter((coordinator) => !busyIds.has(coordinator.id))
+    .map((coordinator) => ({ id: coordinator.id, name: coordinator.name }));
 }

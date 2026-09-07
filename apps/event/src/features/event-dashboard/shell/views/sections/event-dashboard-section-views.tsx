@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
+import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
 import { EventFileHub } from "./event-file-hub";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 import { EventTasksWorkspace } from "./event-tasks-workspace";
@@ -29,11 +30,13 @@ import { ClientOnboardingTracker } from "@/features/clients/onboarding";
 import { InquiryIntakeLog } from "@/features/inquiries/intake";
 import { PAREPanel } from "@/features/pare/panel";
 import { Phase4Workspace } from "@/features/closure/phase4";
+import { EventArchiveSearchView } from "@/features/closure/archive";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { EventCommandInbox, EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierDirectory, SupplierQuotePlanner } from "@/features/suppliers/directory";
+import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
 import { AuditTrailPanel } from "@/features/audit/trail";
 import { EventMessagesWorkspace } from "@/app/(portal)/dashboard/components/event-messages-workspace";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
@@ -137,6 +140,7 @@ export function EventDashboardClientsSectionView() {
   return (
 
           <>
+            <EventArchiveSearchView />
             {selectedClient ? (
               <Card>
                 <CardHeader>
@@ -337,21 +341,24 @@ export function EventDashboardFilesSectionView() {
   return (
 
           selectedEvent ? (
-            <EventFileHub
-              event={selectedEvent}
-              documents={documents}
-              drafts={drafts}
-              billingStatements={billingStatements}
-              quoteRequests={quoteRequests}
-              briefing={briefing}
-              checks={checks}
-              postEventDocuments={postEventDocuments}
-              onOpenFloorplans={() => navigateEventTab("floorplans")}
-              onOpenBriefing={() => navigateEventTab("briefing")}
-              onOpenSuppliers={() => navigateEventTab("suppliers")}
-              onOpenBilling={() => navigateEventTab("billing")}
-              onOpenClosure={() => navigateEventTab("closure")}
-            />
+            <div className="space-y-5">
+              <FileRequirementsMatrixPanel eventId={selectedEvent.id} />
+              <EventFileHub
+                event={selectedEvent}
+                documents={documents}
+                drafts={drafts}
+                billingStatements={billingStatements}
+                quoteRequests={quoteRequests}
+                briefing={briefing}
+                checks={checks}
+                postEventDocuments={postEventDocuments}
+                onOpenFloorplans={() => navigateEventTab("floorplans")}
+                onOpenBriefing={() => navigateEventTab("briefing")}
+                onOpenSuppliers={() => navigateEventTab("suppliers")}
+                onOpenBilling={() => navigateEventTab("billing")}
+                onOpenClosure={() => navigateEventTab("closure")}
+              />
+            </div>
           ) : (
             <EmptyState icon={FileText} title="Select an event" description="Files are organized by event workspace after conforme activation." />
           )
@@ -425,20 +432,22 @@ export function EventDashboardSuppliersSectionView() {
     busy,
   } = useEventDashboardLoadedRouteViewModel();
   return (
-
-          <SupplierDirectory
-            categories={supplierCategories}
-            suppliers={suppliers}
-            session={session}
-            onToggleBni={toggleSupplierBni}
-            onCreateSupplier={createSupplier}
-            onUpdateSupplier={updateSupplierProfile}
-            onChangeTier={changeSupplierTier}
-            onAddReview={addSupplierReview}
-            onAddCertification={addSupplierCertification}
-            onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
-            busy={Boolean(busy)}
-          />
+    <div className="space-y-5">
+      <SupplierApplicationsInboxView />
+      <SupplierDirectory
+        categories={supplierCategories}
+        suppliers={suppliers}
+        session={session}
+        onToggleBni={toggleSupplierBni}
+        onCreateSupplier={createSupplier}
+        onUpdateSupplier={updateSupplierProfile}
+        onChangeTier={changeSupplierTier}
+        onAddReview={addSupplierReview}
+        onAddCertification={addSupplierCertification}
+        onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
+        busy={Boolean(busy)}
+      />
+    </div>
   );
 }
 
@@ -514,7 +523,6 @@ export function EventDashboardHomeSectionView() {
     navigateSection,
     navigateEvent,
     resetDashboard,
-    inquiries,
     acceptInquiry,
     pendInquiry,
     declineInquiry,
@@ -528,6 +536,7 @@ export function EventDashboardHomeSectionView() {
   return (
 
           <>
+            <EventDashboardCommandInboxSectionView />
             <CommandHomePage
               session={session}
               state={state}

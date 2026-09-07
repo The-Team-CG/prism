@@ -7,6 +7,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { dateKey } from "@/features/pmcm-kit";
+import { suggestAvailableSameRoleCoordinators } from "../model/coordinators-desk-rules";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>;
@@ -307,18 +308,46 @@ export function CoordinatorAssignmentDesk({
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
             <Badge variant="outline" className="rounded-full border-(--prism-amber)/25 bg-(--prism-amber)/8 text-(--prism-amber)">
-              Double-booking warning
+              Double-booking blocked
             </Badge>
-            <h3 className="mt-4 text-base font-bold text-foreground">Confirm coordinator assignment</h3>
+            <h3 className="mt-4 text-base font-bold text-foreground">Choose another coordinator</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {pendingConflict.coordinator.name} is already assigned to{" "}
-              {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Are you sure you want to assign them?
+              {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Assign a free
+              same-role coordinator instead.
             </p>
+            <div className="mt-4 space-y-2">
+              {suggestAvailableSameRoleCoordinators({
+                coordinators,
+                assignments,
+                eventId: event.id,
+                eventDate,
+                role: pendingConflict.role,
+                excludeCoordinatorId: pendingConflict.coordinator.id,
+              }).map((suggestion) => {
+                const coordinator = coordinators.find((item) => item.id === suggestion.id);
+                if (!coordinator) return null;
+                return (
+                  <Button
+                    key={suggestion.id}
+                    disabled={busy}
+                    className="w-full justify-start rounded-xl font-bold"
+                    onClick={async () => {
+                      setPendingConflict(null);
+                      await onAssign(coordinator, pendingConflict.role);
+                    }}
+                  >
+                    Assign {suggestion.name}
+                  </Button>
+                );
+              })}
+            </div>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="outline" className="rounded-xl font-bold" onClick={() => setPendingConflict(null)}>
                 Cancel
               </Button>
               <Button
+                variant="outline"
                 disabled={busy}
                 className="rounded-xl font-bold"
                 onClick={async () => {
@@ -327,7 +356,7 @@ export function CoordinatorAssignmentDesk({
                   await onAssign(next.coordinator, next.role, true);
                 }}
               >
-                Yes, assign anyway
+                Override and assign anyway
               </Button>
             </div>
           </div>

@@ -104,7 +104,7 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
   calendar: (p) => <CalendarPage workspace={p.workspace} quoteByRequest={p.quoteByRequest} />,
   quotations: (p) => <QuotationsPage workspace={p.workspace} quoteByRequest={p.quoteByRequest} />,
   messages: () => <MessagesPage />,
-  files: (p) => <FilesPage workspace={p.workspace} />,
+  files: (p) => <FilesPage workspace={p.workspace} session={p.session} />,
   payments: (p) => <PaymentsPage workspace={p.workspace} />,
   profile: (p) => <ProfilePage supplier={p.workspace.supplier} session={p.session} />,
   support: () => <SupportPage />,

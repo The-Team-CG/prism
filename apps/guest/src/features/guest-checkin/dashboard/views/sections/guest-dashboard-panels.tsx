@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   ImagePlus,
   MessageCircleHeart,
-  ScanLine,
   ShieldCheck,
   Star,
   TicketCheck,
@@ -31,8 +30,8 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
   return (
     <PrismSectionPanel
       title="Registration check-in"
-      icon={ScanLine}
-      description="Records this guest against the event code. Walk-ins are visible to PMCM for moderation."
+      icon={ClipboardCheck}
+      description="Name or headcount check-in with consent. Camera QR scanning is gated until HTTPS and masterlist constraints pass."
     >
       <div className="flex flex-col gap-3">
         <div className="flex gap-1 rounded-lg border border-border bg-secondary/40 p-1">
@@ -45,7 +44,7 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
             }}
             className={`flex-1 rounded-md px-3 py-2 text-sm font-bold transition ${checkInModeButtonClass(vm.checkInMode === "name_search")}`}
           >
-            <ScanLine className="mr-1.5 inline size-3.5" />
+            <ClipboardCheck className="mr-1.5 inline size-3.5" />
             Name-based
           </button>
           <button
@@ -322,6 +321,9 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
         </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
+          <p className="sm:col-span-2 text-xs text-muted-foreground">
+            Photo and video stay optional metadata. Binary storage is gated; PMCM reviews text feedback first.
+          </p>
           <FeedbackMediaPicker
             label="Photo (optional)"
             file={vm.photoFile}

@@ -1,9 +1,10 @@
-import { ArrowLeft, Check, FilePlus2, Plus, Search, Star } from "lucide-react";
+import { ArrowLeft, Check, FilePlus2, Plus, Search } from "lucide-react";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { Badge } from "@/app/components/ui/badge";
 import { Input } from "@/app/components/ui/input";
 import { cx, RatingStars, SupplierTierBadge } from "@/features/pmcm-kit";
+import { SupplierReviewPanel, type SupplierReviewForm } from "@/features/suppliers/reviews";
 import { supplierContactFallback } from "../model/suppliers-directory-rules";
 
 export type SupplierCreateForm = {
@@ -30,8 +31,6 @@ export type SupplierTierForm = {
   tier: "tier_1" | "tier_2" | "pending_first_event";
   reason: string;
 };
-
-export type SupplierReviewForm = { rating: string; notes: string };
 
 export type SupplierCertForm = {
   fileName: string;
@@ -442,57 +441,6 @@ function SupplierTierChangeForm({
       </div>
       <button type="button" disabled={busy || !tierForm.reason.trim()} onClick={onSubmitTier} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
         <Check className="size-4" /> Change tier
-      </button>
-    </div>
-  );
-}
-
-function SupplierReviewPanel({
-  reviewForm,
-  reviewDimensionRatings,
-  dimensions,
-  busy,
-  onReviewForm,
-  onReviewDimension,
-  onSubmitReview,
-}: {
-  reviewForm: SupplierReviewForm;
-  reviewDimensionRatings: Record<string, string>;
-  dimensions: Array<{ id: string; name: string }>;
-  busy: boolean;
-  onReviewForm: (patch: Partial<SupplierReviewForm>) => void;
-  onReviewDimension: (dimensionId: string, value: string) => void;
-  onSubmitReview: () => void;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-(--prism-amber)">Private PMCM Review</p>
-      <div className="mt-3 grid gap-2">
-        <select value={reviewForm.rating} onChange={(event) => onReviewForm({ rating: event.target.value })} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-          {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} stars</option>)}
-        </select>
-        <textarea value={reviewForm.notes} onChange={(event) => onReviewForm({ notes: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Private review notes" />
-      </div>
-      {dimensions.length > 0 && (
-        <div className="mt-3 grid gap-2">
-          <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">Category dimensions</p>
-          {dimensions.map((dimension) => (
-            <div key={dimension.id} className="flex items-center justify-between gap-3">
-              <span className="text-sm">{dimension.name}</span>
-              <select
-                value={reviewDimensionRatings[dimension.id] ?? ""}
-                onChange={(event) => onReviewDimension(dimension.id, event.target.value)}
-                className="h-9 rounded-md border border-border bg-white px-2 text-sm"
-              >
-                <option value="">Not rated</option>
-                {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </div>
-          ))}
-        </div>
-      )}
-      <button type="button" disabled={busy || !reviewForm.notes.trim()} onClick={onSubmitReview} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
-        <Star className="size-4" /> Add review
       </button>
     </div>
   );

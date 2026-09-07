@@ -2,17 +2,19 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import type { OpsRegistrationPlatform } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, writeAudit, type AuditWriter } from '@prism/kernel/access-control';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import type {
   CreateRegistrationPlatformInput,
   ImportHeadcountInput,
+  PrismRegistrationPlatform,
   UpdateRegistrationPlatformInput,
 } from '@prism/types';
+import type { RegistrationPlatformReader } from '../../contracts/registration-platform-reader.port';
 
 @Injectable()
-export class RegistrationPlatformService {
+export class RegistrationPlatformService implements RegistrationPlatformReader {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
@@ -61,7 +63,7 @@ export class RegistrationPlatformService {
       },
       sideEffects: async (platform) => {
         await writeAudit(this.auditWriter, eventId, actor.name, `Registration platform configured: ${input.platformType}`, {
-          actorRole: actor.role ?? OpsUserRole.PmcmAdmin,
+          actorRole: actor.role,
           category: AuditCategory.Events,
           actionType: existed ? AuditActionType.Update : AuditActionType.Create,
           affectedType: 'registration_platform',
@@ -90,14 +92,14 @@ export class RegistrationPlatformService {
             ...(input.expectedPaxMax !== undefined && { expectedPaxMax: input.expectedPaxMax }),
             ...(input.status !== undefined && {
               status: input.status,
-              ...(input.status === 'closed' && { setupConfirmedAt: new Date() }),
+              ...(input.status === 'live' && !existing.setupConfirmedAt && { setupConfirmedAt: new Date() }),
             }),
             ...(input.setupNotes !== undefined && { setupNotes: input.setupNotes }),
           },
         }),
       sideEffects: async (platform) => {
         await writeAudit(this.auditWriter, eventId, actor.name, `Registration platform updated: ${platform.platformType}`, {
-          actorRole: actor.role ?? OpsUserRole.PmcmAdmin,
+          actorRole: actor.role,
           category: AuditCategory.Events,
           actionType: AuditActionType.Update,
           affectedType: 'registration_platform',
@@ -112,6 +114,9 @@ export class RegistrationPlatformService {
   async importHeadcount(eventId: string, input: ImportHeadcountInput, actor: ResolvedEventOpsActor): Promise<OpsRegistrationPlatform> {
     const existing = await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
     if (!existing) throw new NotFoundException('Registration platform not configured for this event');
+    if (existing.status !== 'closed') {
+      throw new BadRequestException('Import headcount after the registration platform is closed');
+    }
 
     return this.workflowCommandService.execute<OpsRegistrationPlatform>({
       name: 'registration_headcount_import',
@@ -130,7 +135,7 @@ export class RegistrationPlatformService {
         }),
       sideEffects: async (platform) => {
         await writeAudit(this.auditWriter, eventId, actor.name, `Headcount imported: ${input.importedHeadcount} guests from ${input.headcountSource}`, {
-          actorRole: actor.role ?? OpsUserRole.PmcmAdmin,
+          actorRole: actor.role,
           category: AuditCategory.Events,
           actionType: AuditActionType.Update,
           affectedType: 'registration_platform',
@@ -142,15 +147,15 @@ export class RegistrationPlatformService {
     });
   }
 
-  mapRegistrationPlatform(platform: OpsRegistrationPlatform) {
+  mapRegistrationPlatform(platform: OpsRegistrationPlatform): PrismRegistrationPlatform {
     return {
       id: platform.id,
       eventId: platform.eventId,
-      platformType: platform.platformType,
+      platformType: platform.platformType as PrismRegistrationPlatform["platformType"],
       supplierId: platform.supplierId,
       expectedPaxMin: platform.expectedPaxMin,
       expectedPaxMax: platform.expectedPaxMax,
-      status: platform.status,
+      status: platform.status as PrismRegistrationPlatform["status"],
       setupConfirmedAt: platform.setupConfirmedAt?.toISOString() ?? null,
       setupNotes: platform.setupNotes,
       headcountSource: platform.headcountSource,

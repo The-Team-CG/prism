@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { EventSessionGuard } from '@prism/kernel/event-session';
+import { ZodValidationPipe } from '@prism/kernel/shared';
 import { OpsSuppliersController } from './suppliers.controller';
 
 function controllerPath(controller: Function): string {
@@ -49,6 +50,17 @@ describe('OpsSuppliersController', () => {
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(supplierCommands.addSupplierReview).toHaveBeenCalledWith('sup_1', review, actor);
+  });
+
+  it('binds the supplier review body to the shared Zod validation pipe', () => {
+    const routeArguments = (Reflect.getMetadata(
+      '__routeArguments__',
+      OpsSuppliersController,
+      'addReview',
+    ) ?? {}) as Record<string, { index: number; pipes?: unknown[] }>;
+    const bodyArgument = Object.values(routeArguments).find((argument) => argument.index === 1);
+
+    expect(bodyArgument?.pipes?.[0]).toBeInstanceOf(ZodValidationPipe);
   });
 
   it('delegates supplier writes through the supplier command port with a verified actor, ignoring spoofed query actors', async () => {
