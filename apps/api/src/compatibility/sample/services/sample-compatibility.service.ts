@@ -2465,6 +2465,8 @@ export class SampleCompatibilityService implements OnModuleInit {
           clientName: 'Ana Reyes',
           eventName: 'Ayala Tech Summit 2026',
           eventDate: new Date('2026-06-18'),
+          walkInPolicy: 'open',
+          walkInThreshold: 200,
           status: 'planning',
           clientPortalStatus: 'unlocked',
           readiness: 'Floorplan approved',
