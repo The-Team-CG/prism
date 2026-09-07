@@ -981,4 +981,6 @@ export const prismApi = {
       }),
     );
   },
+  communicationThreads: (eventId: string) => eventOpsClient.communication.listThreads(eventId),
+  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string) => eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }),
 };
