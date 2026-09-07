@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Trust remediation now resolves audit tails by full hash reachability, records forbidden-access audit failures as durable integrity incidents, queues security notifications through the idempotent notification outbox only for resolved PMCM addresses, and persists a durable email/IP password-reset limiter with reset request/consumption audit events.
 - Briefing submissions preserve prior history, reject locked or post-planning events, and persist audit/notification intent atomically with the verified actor.
 - Historical audit verification follows hash links, including same-millisecond records; ambiguous historical tails stop new appends for integrity review.
 - Native password recovery contracts and single-use 15-minute hashed reset tokens with durable session-version revocation; reset delivery remains explicitly unavailable until a trusted provider is configured.
