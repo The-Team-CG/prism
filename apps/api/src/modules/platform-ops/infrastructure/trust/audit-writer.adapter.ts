@@ -11,4 +11,8 @@ export class AuditWriterAdapter implements AuditWriter {
     const { eventId, actor, action, ...options } = input;
     return this.auditService.audit(eventId, actor, action, options, context);
   }
+
+  recordIntegrityIncident(input: Parameters<AuditService['recordIntegrityIncident']>[0]) {
+    return this.auditService.recordIntegrityIncident(input);
+  }
 }

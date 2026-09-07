@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { Logger } from '@nestjs/common';
 import type { OpsNotificationLog, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/kernel/database';
 import type { NotificationDeliveryPort, NotificationDeliveryResult } from '../../contracts/notifications/notification-delivery.port';
 
 const LEASE_MS = 5 * 60_000;
 const UNCONFIGURED_DELAY_MS = 60 * 60_000;
+const logger = new Logger('NotificationDeliveryWorker');
 
 function available(now: Date): Prisma.OpsNotificationLogWhereInput {
   return { status: 'queued', nextAttemptAt: { lte: now }, OR: [
@@ -57,7 +59,10 @@ export async function processNotificationQueue(prisma: PrismaService, adapter: N
     if (claimed.count !== 1) continue;
     const result = await deliver(row, adapter);
     const updated = await prisma.opsNotificationLog.updateMany({ where: { id: row.id, status: 'queued', leaseToken }, data: settlement(row, result, maxAttempts, new Date()) });
-    if (updated.count !== 1) continue;
+    if (updated.count !== 1) {
+      if (result.status === 'accepted') logger.warn(`Provider accepted notification ${row.id}, but its settlement was superseded`);
+      continue;
+    }
     const saved = await prisma.opsNotificationLog.findUnique({ where: { id: row.id } });
     if (saved) processed.push(saved);
   }
