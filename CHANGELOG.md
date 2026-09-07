@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Coordinator portal task and urgent-issue logging with role-safe actor attribution and per-flow failure handling (EP-11-S02).
 - Client primary-contact proposal approve/request-revision (cap 3) on the client proposal tab, PMCM archived-event search by venue/type/month, plus PMCM supplier-applications inbox (request proposal, schedule, decline), same-role coordinator suggestions on double-book blocks, client remaining-balance billing copy, and supplier-category gap hard-block copy on the readiness board.
 - PMCM closure review prompts for confirmed supplier assignments, with category dimensions, private notes, shared Zod validation, and retry-safe success handling through the existing audit/idempotency path.
 - P0/P1 catalog thin slices: public inquiry copy-link + prefill, onboarding invitation evidence, Command Inbox on PMCM home, labeled client action-center fallback, role file-requirements matrices, PMCM supplier readiness board, client-safe billing coverage, and privacy/close-gate evidence tests.
