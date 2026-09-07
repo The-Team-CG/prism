@@ -18,10 +18,10 @@ function createController() {
     sendBillingStatement: vi.fn(async () => ({ id: 'bill_new', status: 'sent' })),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((input = {}) => ({
-      role: input.actorRole ?? OpsUserRole.PmcmAdmin,
-      name: input.actorName ?? 'PMCM Admin',
-      email: input.actorEmail,
+    resolveActor: vi.fn((input = {}, verified?: any) => ({
+      role: verified?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin,
+      name: verified?.actorName ?? input.actorName ?? 'PMCM Admin',
+      email: verified?.actorEmail ?? input.actorEmail,
     })),
     requireActorRole: vi.fn(async () => undefined),
   };
