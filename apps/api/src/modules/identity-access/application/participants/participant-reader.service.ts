@@ -18,6 +18,15 @@ export class ParticipantReaderService implements ParticipantReader {
     return this.resolveRole(actor, role, event, eventId, user.email);
   }
 
+  async listEligibleForEvent(eventId: string, requester: ResolvedEventOpsActor) {
+    if (requester.role !== OpsUserRole.PmcmAdmin && requester.role !== OpsUserRole.System) throw new ForbiddenException('Only PMCM can enumerate communication participants');
+    const users = await this.prisma.opsUser.findMany({ where: { approvalStatus: 'approved' }, select: { id: true, name: true, email: true, role: true }, take: 100 });
+    const eligible = await Promise.all(users.map(async (user) => {
+      try { await this.resolveForEvent(user.id, eventId); return user; } catch { return null; }
+    }));
+    return eligible.filter((user): user is NonNullable<typeof user> => user !== null);
+  }
+
   private async resolveRole(actor: ResolvedEventOpsActor, role: OpsUserRole, event: any, eventId: string, email: string) {
     if (role === OpsUserRole.PmcmAdmin || role === OpsUserRole.System) return actor;
     if (role === OpsUserRole.Client) return this.resolveClient(actor, event);

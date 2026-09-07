@@ -33,6 +33,7 @@ import type {
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
   PrismCommunicationThread,
+  PrismCommunicationParticipantChoice,
   PrismCoordinatorWorkspace,
   PrismLiveOps,
   PrismEventDayTask,
@@ -188,6 +189,7 @@ export interface EventOpsClient {
   };
   communication: {
     listThreads(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread[]>;
+    listParticipants(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCommunicationParticipantChoice[]>;
     createThread(input: CreateCommunicationThreadInput, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread>;
     sendMessage(threadId: string, input: SendCommunicationMessageInput, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread["messages"][number]>;
   };
@@ -368,6 +370,7 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     },
     communication: {
       listThreads: (eventId, actor = {}) => prismRequest<PrismCommunicationThread[]>(actorPath(`/communication/threads?eventId=${encodeURIComponent(eventId)}`, actor), withBase(options)),
+      listParticipants: (eventId, actor = {}) => prismRequest<PrismCommunicationParticipantChoice[]>(actorPath(`/communication/participants?eventId=${encodeURIComponent(eventId)}`, actor), withBase(options)),
       createThread: (input, actor = {}) => prismRequest<PrismCommunicationThread>(actorPath('/communication/threads', actor), withBase(options, { method: 'POST', body: input })),
       sendMessage: (threadId, input, actor = {}) => prismRequest<PrismCommunicationThread['messages'][number]>(actorPath(`/communication/threads/${threadId}/messages`, actor), withBase(options, { method: 'POST', body: input })),
     },
