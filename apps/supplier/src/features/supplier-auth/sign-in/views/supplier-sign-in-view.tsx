@@ -102,6 +102,7 @@ function ApprovalRequestPanel({
           >
             <ShieldCheck className="size-4" /> Request PMCM approval
           </button>
+          <a href="/password-reset" className="block text-center text-sm text-[#c01867] transition hover:text-[#a81459]">Forgot password?</a>
         </div>
       ) : null}
     </div>
