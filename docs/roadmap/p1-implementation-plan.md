@@ -51,6 +51,8 @@ All 24 packages start under assessment; this table is an execution allocation, n
 
 ## Initial known constraints
 
+W13/W12 onboarding correction: briefing submissions retain earlier rows, enforce an unlocked pre-event-day lifecycle, recheck primary-client authority in the transaction, and commit briefing/event state/audit/outbox intent together. Focused service/controller coverage verifies retained history and denied lifecycle states. This is briefing history and transactional correctness, not a complete CE/proposal versioning or signed-file onboarding journey.
+
 ### Verified baseline and first platform slice
 
 V01 is corrected: the cross-context integration fixture now lives under `apps/api/test/integration`, is discovered explicitly by Vitest, and passes against isolated PostgreSQL. Direct boundaries pass (1018 production files after the notification slice); 11 checker tests pass. Actual-end and supplier conversion/history persistence is additive, with null historical provenance preserved; its migration was applied only to disposable loopback PostgreSQL. The worktree has its own generated Prisma client.

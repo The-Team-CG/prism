@@ -3,7 +3,7 @@ import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { ClientOnboardingWorkflowService } from './client-onboarding-workflow.service';
 
 function createService() {
-  const event = { id: 'evt_onboarding', status: 'briefing', readiness: 'Client briefing open' };
+  const event = { id: 'evt_onboarding', status: 'briefing', readiness: 'Client briefing open', archived: false, clientPortalStatus: 'unlocked' };
   const briefings: any[] = [];
   const prisma = {
     opsEvent: {
@@ -28,11 +28,11 @@ function createService() {
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
   );
-  return { service, event, briefings, auditWriter, notificationOutboxWriter };
+  return { service, event, briefings, auditWriter, notificationOutboxWriter, prisma };
 }
 
 describe('ClientOnboardingWorkflowService', () => {
-  it('replaces the client briefing and advances event readiness', async () => {
+  it('preserves client briefing history and advances event readiness with atomic audit/outbox', async () => {
     const { service, event, briefings, auditWriter, notificationOutboxWriter } = createService();
 
     const briefing = await service.submitBriefing('evt_onboarding', {
@@ -49,11 +49,11 @@ describe('ClientOnboardingWorkflowService', () => {
     expect(auditWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: 'evt_onboarding',
-        actor: 'Client',
+        actor: 'System',
         action: 'Submitted client briefing',
         affectedType: 'briefing',
       }),
-      undefined,
+      expect.objectContaining({ prisma: expect.anything(), correlationId: briefing.id }),
     );
     expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -61,7 +61,28 @@ describe('ClientOnboardingWorkflowService', () => {
         recipient: 'PMCM Admin',
         message: 'Client briefing submitted',
       }),
-      undefined,
+      expect.objectContaining({ prisma: expect.anything(), correlationId: briefing.id }),
     );
+  });
+  const input = { venue: 'Venue', guestCount: 100, budgetRange: '100000', serviceRequirements: ['stage'], notes: '' };
+  it('keeps prior submissions when the client submits again', async () => {
+    const { service, briefings, prisma } = createService();
+    await service.submitBriefing('evt_onboarding', input);
+    await service.submitBriefing('evt_onboarding', { ...input, venue: 'Updated venue' });
+    expect(briefings).toHaveLength(2);
+    expect(prisma.opsBriefing.deleteMany).not.toHaveBeenCalled();
+  });
+  it.each(['event_day', 'closure_archive', 'archived'])('rejects a submission during %s', async (status) => {
+    const { service, event, briefings, auditWriter } = createService();
+    event.status = status;
+    await expect(service.submitBriefing('evt_onboarding', input)).rejects.toThrow(/before event day/);
+    expect(briefings).toHaveLength(0);
+    expect(auditWriter.write).not.toHaveBeenCalled();
+  });
+  it('rejects a locked portal even when its event status is planning', async () => {
+    const { service, event } = createService();
+    event.clientPortalStatus = 'locked';
+    event.status = 'planning';
+    await expect(service.submitBriefing('evt_onboarding', input)).rejects.toThrow(/unlocked/);
   });
 });

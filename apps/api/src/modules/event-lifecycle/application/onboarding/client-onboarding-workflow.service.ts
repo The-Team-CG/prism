@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsBriefing, Prisma } from '@prisma/client';
 import type { SubmitBriefingInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
@@ -18,58 +18,43 @@ export class ClientOnboardingWorkflowService {
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
-    private readonly workflowCommandService: WorkflowCommandService,
+    _workflowCommandService: WorkflowCommandService,
     private readonly eventAccessPolicyService?: EventAccessPolicyService,
   ) {}
 
   async submitBriefing(eventId: string, input: SubmitBriefingInput, actor?: ResolvedEventOpsActor): Promise<OpsBriefing> {
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
+      if (!event) throw new NotFoundException('Event not found');
+      if (event.archived || event.clientPortalStatus === 'locked' || !['briefing', 'briefing_proposal', 'planning'].includes(event.status)) {
+        throw new BadRequestException('Briefings can only be submitted to an unlocked event before event day');
+      }
+      await this.authorizeBriefing(event, actor);
+      const saved = await tx.opsBriefing.create({ data: {
+        id: `brief_${randomUUID()}`, eventId, venue: input.venue,
+        guestCount: input.guestCount, budgetRange: input.budgetRange,
+        serviceRequirements: toPrismaJson(input.serviceRequirements), notes: input.notes,
+      } });
+      await tx.opsEvent.update({ where: { id: eventId }, data: { readiness: 'Supplier quotes pending', status: 'planning' } });
+      const context = { prisma: tx, correlationId: saved.id };
+      await writeAudit(this.auditWriter, eventId, actor?.name ?? 'System', 'Submitted client briefing', {
+        actorRole: actor?.role ?? OpsUserRole.System, actorEmail: actor?.email,
+        category: AuditCategory.Events, affectedType: 'briefing', affectedId: saved.id,
+        metadata: { actorId: actor?.id ?? null, historyPreserved: true },
+      }, context);
+      await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', 'Client briefing submitted', undefined, { idempotencyKey: `briefing:${saved.id}` }, context);
+      return saved;
+    }, { isolationLevel: 'Serializable' });
+  }
+
+  private async authorizeBriefing(event: Prisma.OpsEventGetPayload<{ include: { inquiry: true } }>, actor?: ResolvedEventOpsActor) {
     if (actor) {
       if (!this.eventAccessPolicyService) throw new ForbiddenException('Briefing actor context is unavailable');
-      await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System], 'client briefing', eventId);
-      const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
-      if (!event) throw new NotFoundException('Event not found');
+      await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System], 'client briefing', event.id);
       await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'client briefing');
       if (actor.role === OpsUserRole.Client && actor.email?.trim().toLowerCase() !== event.inquiry.email.trim().toLowerCase()) {
         throw new ForbiddenException('Only the primary client contact can submit the briefing');
       }
     }
-    return this.workflowCommandService.execute<OpsBriefing>({
-      name: 'submit_client_briefing',
-      eventId,
-      validateState: async () => {
-        const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
-        if (!event) throw new NotFoundException('Event not found');
-      },
-      write: () =>
-        this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          // Transaction scope: DB reads/writes only. No external IO inside this callback.
-          await tx.opsBriefing.deleteMany({ where: { eventId } });
-          const saved = await tx.opsBriefing.create({
-            data: {
-              id: `brief_${randomUUID()}`,
-              eventId,
-              venue: input.venue,
-              guestCount: input.guestCount,
-              budgetRange: input.budgetRange,
-              serviceRequirements: toPrismaJson(input.serviceRequirements),
-              notes: input.notes,
-            },
-          });
-          await tx.opsEvent.update({
-            where: { id: eventId },
-            data: { readiness: 'Supplier quotes pending', status: 'planning' },
-          });
-          return saved;
-        }),
-      sideEffects: async () => {
-        await Promise.all([
-          writeAudit(this.auditWriter, eventId, 'Client', 'Submitted client briefing', {
-            category: AuditCategory.Events,
-            affectedType: 'briefing',
-          }),
-          writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', 'Client briefing submitted'),
-        ]);
-      },
-    });
   }
 }

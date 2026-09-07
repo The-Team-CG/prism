@@ -2,6 +2,8 @@
 
 ## 2026-09-08
 
+- **Recorded:** Briefing history retention and transactional state/actor/audit/outbox correction, with full proposal and stored-file journeys still tracked separately.
+
 - **Corrected:** Historical audit ordering follows hash links rather than UUID ordering when timestamps tie; fixture audit rows remain in disposable PostgreSQL to avoid breaking later writers.
 
 - **Recorded:** W30 concurrency-safe audit append evidence, verified export actor attribution and explicit historical-integrity/append-only limits.
