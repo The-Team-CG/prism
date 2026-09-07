@@ -6,6 +6,8 @@ import type { PrismVerifiedEventActor } from '@prism/types';
 import { CreateTemplateDto } from './create-template.dto';
 import { UpdateTemplateDto } from './update-template.dto';
 import { TemplatesService } from '../../application/authoring/templates.service';
+import { zodBody } from '@prism/kernel/shared';
+import { createTemplateSchema, updateTemplateSchema, type CreateTemplateInput, type UpdateTemplateInput } from '@prism/types';
 
 @Controller('templates')
 export class TemplatesController {
@@ -33,14 +35,14 @@ export class TemplatesController {
   @Post()
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() dto: CreateTemplateDto, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+  async create(@Body(zodBody(createTemplateSchema)) dto: CreateTemplateInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     await this.requireAuthoring(verifiedActor);
     return this.templatesService.createTemplate(dto);
   }
 
   @Patch(':templateId')
   @UseGuards(EventSessionGuard)
-  async update(@Param('templateId') templateId: string, @Body() dto: UpdateTemplateDto, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+  async update(@Param('templateId') templateId: string, @Body(zodBody(updateTemplateSchema)) dto: UpdateTemplateInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     await this.requireAuthoring(verifiedActor);
     return this.templatesService.updateTemplate(templateId, dto);
   }
