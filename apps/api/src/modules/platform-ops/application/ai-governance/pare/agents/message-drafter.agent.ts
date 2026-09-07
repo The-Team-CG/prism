@@ -1,4 +1,5 @@
 import type { PAREDrafts, PAREContext } from '../pare.types';
+import { assertPareExecutionAllowed } from '../pare-execution.policy';
 
 // ─── Mock fallback ────────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ export class MessageDrafterAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
   async runPareMessageDraftAgent(ctx: PAREContext): Promise<PAREDrafts> {
+    assertPareExecutionAllowed(this.mode);
     if (this.mode === 'live') return this.runWithClaude(ctx);
     return mockDrafts(ctx);
   }

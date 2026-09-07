@@ -86,4 +86,8 @@ describe("supplier-review-rules", () => {
 
     expect(subjects).toEqual([]);
   });
+
+  it("ignores confirmed assignments belonging to another event", () => {
+    expect(selectSupplierReviewSubjects([makeSupplier()], [makeRequest({ eventId: "evt_other" })], "evt_close_1")).toEqual([]);
+  });
 });

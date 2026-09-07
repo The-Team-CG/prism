@@ -207,4 +207,37 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       undefined,
     );
   });
+
+  it('locks and rechecks the replacement coordinator before creating an assignment', async () => {
+    const order: string[] = [];
+    const event = { id: 'evt_001', eventName: 'Main Event', eventDate: new Date('2026-06-18T00:00:00.000Z') };
+    const current = { id: 'assignment_1', eventId: event.id, coordinatorId: 'coord_old', coordinatorName: 'Old', role: 'Registration Staff', eventDate: event.eventDate };
+    const conflict = { event: { eventName: 'Other Event' } };
+    const tx = {
+      $executeRaw: vi.fn(async () => { order.push('lock'); return 0; }),
+      opsCoordinatorAssignment: {
+        findFirst: vi.fn(async () => { order.push('conflict-check'); return conflict; }),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+    const prisma = {
+      opsEvent: { findUnique: vi.fn(async () => event) },
+      opsCoordinatorAssignment: { findUnique: vi.fn(async () => current) },
+      opsCoordinator: { findUnique: vi.fn(async () => ({ id: 'coord_new', name: 'New', active: true, roleTags: ['Registration Staff'] })) },
+      $transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx)),
+    };
+    const service = new LiveOperationsService(
+      prisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
+      {} as ConstructorParameters<typeof LiveOperationsService>[1],
+      {} as ConstructorParameters<typeof LiveOperationsService>[2],
+      mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
+    );
+
+    await expect(service.replaceCoordinatorAssignment(event.id, current.id, {
+      replacementCoordinatorId: 'coord_new', role: 'Registration Staff', reason: 'Coverage change',
+    }, { name: 'Coordinator', role: 'coordinator' })).rejects.toThrow('already assigned to Other Event');
+    expect(order).toEqual(['lock', 'conflict-check']);
+    expect(tx.opsCoordinatorAssignment.create).not.toHaveBeenCalled();
+  });
 });

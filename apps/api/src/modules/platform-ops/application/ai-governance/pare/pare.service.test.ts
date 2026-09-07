@@ -82,6 +82,11 @@ function createParePrisma() {
       ],
     },
     opsAiAuditLog: {
+      updateMany: async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+        const rows = state.auditLogs.filter(row => row.id === where.id && row.status === where.status);
+        rows.forEach(row => Object.assign(row, data));
+        return { count: rows.length };
+      },
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: data.createdAt ?? new Date('2026-05-07T00:00:00.000Z') };
         state.auditLogs.push(row);
@@ -97,6 +102,11 @@ function createParePrisma() {
       },
     },
     opsAiApprovalRecord: {
+      updateMany: async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+        const rows = state.approvalRecords.filter(row => row.id === where.id && row.status === where.status);
+        rows.forEach(row => Object.assign(row, data));
+        return { count: rows.length };
+      },
       create: async ({ data }: { data: any }) => {
         const row = { ...data, requestedAt: data.requestedAt ?? new Date('2026-05-07T00:00:00.000Z') };
         state.approvalRecords.push(row);
@@ -120,7 +130,10 @@ function createParePrisma() {
     },
   };
 
-  return { prisma, state, quoteRequest };
+  const transactionalPrisma = Object.assign(prisma, {
+    $transaction: <T>(work: (tx: typeof prisma) => Promise<T>) => work(prisma),
+  });
+  return { prisma: transactionalPrisma, state, quoteRequest };
 }
 
 describe('PAREService', () => {

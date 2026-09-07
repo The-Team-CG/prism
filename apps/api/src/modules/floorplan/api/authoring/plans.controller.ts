@@ -5,6 +5,8 @@ import type { PrismVerifiedEventActor } from '@prism/types';
 import type { Response } from 'express';
 import { UpdatePlanDto } from './update-plan.dto';
 import { PlansService } from '../../application/authoring/plans.service';
+import { zodBody } from '@prism/kernel/shared';
+import { updatePlanSchema, type UpdatePlanInput } from '@prism/types';
 
 @Controller('plans')
 export class PlansController {
@@ -23,7 +25,7 @@ export class PlansController {
   @UseGuards(EventSessionGuard)
   update(
     @Param('planId') planId: string,
-    @Body() dto: UpdatePlanDto,
+    @Body(zodBody(updatePlanSchema)) dto: UpdatePlanInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.plansService.updatePlan(planId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));

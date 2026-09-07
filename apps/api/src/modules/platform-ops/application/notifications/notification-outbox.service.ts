@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsNotificationLog } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NotificationChannel } from '@prism/kernel/event-core';
 import type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
+import type { PrismVerifiedEventActor } from '@prism/types';
 
 export type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 
@@ -85,14 +86,30 @@ export class NotificationOutboxService {
     return processed;
   }
 
-  acknowledge(notificationId: string) {
-    return this.prisma.opsNotificationLog
-      .update({
-        where: { id: notificationId },
-        data: { status: 'acknowledged', acknowledgedAt: new Date() },
-      })
-      .catch(() => {
-        throw new NotFoundException('Notification not found');
-      });
+  async acknowledge(notificationId: string, actor?: PrismVerifiedEventActor) {
+    const notification = await this.prisma.opsNotificationLog.findUnique({ where: { id: notificationId } });
+    if (!notification) throw new NotFoundException('Notification not found');
+    if (this.hasRecipientMismatch(notification, actor)) {
+      throw new ForbiddenException('Only the notification recipient can acknowledge this notification');
+    }
+    if (this.hasEventScopeMismatch(notification, actor)) {
+      throw new ForbiddenException('Notification is outside the actor event scope');
+    }
+    return this.prisma.opsNotificationLog.update({
+      where: { id: notificationId },
+      data: { status: 'acknowledged', acknowledgedAt: new Date() },
+    });
+  }
+
+  private isPrivileged(actor?: PrismVerifiedEventActor) {
+    return !actor || actor.role === 'pmcm-admin' || actor.role === 'system';
+  }
+
+  private hasRecipientMismatch(notification: OpsNotificationLog, actor?: PrismVerifiedEventActor) {
+    return Boolean(actor && !this.isPrivileged(actor) && notification.recipient.trim().toLowerCase() !== actor.email.trim().toLowerCase());
+  }
+
+  private hasEventScopeMismatch(notification: OpsNotificationLog, actor?: PrismVerifiedEventActor) {
+    return Boolean(actor && !this.isPrivileged(actor) && notification.eventId && actor.eventId && notification.eventId !== actor.eventId);
   }
 }

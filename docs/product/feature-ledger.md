@@ -4,12 +4,12 @@ title: "P.R.I.S.M feature ledger"
 description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
 tags: [product, features, decisions, ownership]
 status: canonical
-updated: "2026-09-04"
+updated: "2026-09-08"
 authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
 scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
-last_verified: "1d4a7e8"
+last_verified: "2026-09-08; P0 W01-W09 overlay"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
@@ -113,12 +113,26 @@ The Active Ledger above remains the product decision record. This table assigns 
 | FL-027 | Gate | Anthony | Maxine | Privacy Operations Console remains PMCM-scoped; full console can defer if not demo-critical. | Scope decision, privacy tests if touched, docs gate. |
 | FL-028 | Defer | Maxine | Francis, Anthony | Workflow Template Builder is deferred unless explicitly scoped and documented. | Deferred row; no capacity assumed. |
 
-## Overlay evidence (2026-09-04)
+## Correctness and policy evidence
+
+The [P0 readiness report](../roadmap/p0-correctness-readiness.md) records effort,
+priority, fix risk, transactional/HTTP evidence and blockers for W01-W09.
+These corrections do not promote a whole feature family from partial to complete.
+
+- **FL-002/FL-010:** Signed conforme no longer fabricates approved billing. Client payment totals reconcile actual paid and outstanding amounts.
+- **FL-005:** Proposal decisions require the primary client's verified identity and an issued proposal version. Reasons, actor/version identity and retries are durable. The production issuer is missing (W12), so the complete review journey remains gated.
+- **FL-007:** Supplier terminal transitions, selected-assignment confirmation, cancellation and event-review retries now enforce state, identity and transactional audit rules. Application conversion and complete assessment remain later work.
+- **FL-008:** Active assignment identity controls coordinator scope and availability. Same-date booking and replacement share a database lock. Namesakes do not grant authority.
+- **FL-013:** Closeout uses explicit deliverables, billing, logistics, unresolved issues and client feedback. Logistics remains missing until an authoritative completion source exists; an archive override needs a durable PMCM reason.
+- **FL-015:** Sensitive routes require verified sessions and role/event ownership. Supported operational deletion redacts identity copies atomically; unsupported access, correction and native-account erasure remain unexecuted. Live AI remains disabled before any provider call.
+- **W08:** The [accepted authority/lifecycle policy](event-authority-and-lifecycle-policy.md) permits a designated event attendance operator, a seven-day guest-feedback window from recorded event end including archive, and catalog client categories with Private mapped to Individual. Their downstream engineering is not counted as implemented here.
+
+## Earlier thin-slice evidence (2026-09-04)
 
 Active Ledger decisions are unchanged. Additional thin-slice evidence:
 
 - **FL-013:** PMCM can search archived events by venue, event type, and month. Side-by-side compare stays deferred.
-- **FL-005:** Client primary-contact proposal approve/request-revision with a revision cap of 3. CE builder depth, Canva/Zoom, and AI drafts stay gated.
+- **FL-005:** A client primary-contact approve/request-revision surface exists with a revision cap of 3. The current version/issuer gate above supersedes the earlier assumption that the production review journey was ready. CE builder depth, Canva/Zoom, and AI drafts stay gated.
 - **FL-007:** PMCM supplier-applications inbox can request proposal, schedule, or decline; readiness board shows a category gap hard-block when no quote is selected. Storage, production notify, and confidential-bid depth remain gated.
 - **FL-008:** Same-date coordinator assignment is blocked with same-role suggestions; override stays secondary. Heatmap, phone/Mys notify, and live AI copilot stay gated.
 - **FL-010:** Client billing shows remaining balance and follow-up copy per milestone. Client still cannot edit payments; production reminders stay gated.

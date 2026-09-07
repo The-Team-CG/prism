@@ -558,7 +558,7 @@ export class EventReadModelsService {
       (item) =>
         this.policy.sameText(actor.supplierId, item.id) ||
         this.policy.sameText(actor.email, item.email) ||
-        this.policy.sameText(actor.name, item.name),
+        false,
     );
     if (!supplier) throw new NotFoundException('Supplier profile not found for actor');
     return supplier;

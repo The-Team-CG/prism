@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
+import { approveBillingSourceSchema } from '@prism/types';
 import { BillingOperationsService } from './billing-operations.service';
 
 function createPaymentService() {
@@ -26,6 +27,11 @@ function createPaymentService() {
     recordedAt: new Date('2026-06-20T01:00:00.000Z'),
   };
   const history = [existingRecord];
+  const billingSource = {
+    id: 'bsrc_sample', eventId: 'evt_sample', sourceLabel: 'Signed conforme', status: 'pending',
+    totalAmount: 100000, approvedBy: null, approvalNotes: '', createdAt: new Date(), updatedAt: new Date(),
+    sourceType: 'conforme', sourceDocumentId: null, lineItems: [], paymentSchedule: [], paymentMethods: [],
+  };
   const prisma: any = {
     opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample' })) },
     opsPaymentMilestone: {
@@ -40,6 +46,10 @@ function createPaymentService() {
         history.push(record as typeof existingRecord);
         return record;
       }),
+    },
+    opsBillingSource: {
+      findUnique: vi.fn(async () => billingSource),
+      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(billingSource, data)),
     },
     $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
   };
@@ -71,6 +81,23 @@ describe('BillingOperationsService', () => {
     expect(result.amountPaid).toBe(25000);
     expect(result.remainingBalance).toBe(75000);
     expect(result.history).toHaveLength(1);
+  });
+
+  it('attributes billing approval to the verified actor after parsing the request body', async () => {
+    const { service, audit, prisma } = createPaymentService();
+    const input = approveBillingSourceSchema.parse({ approvedBy: 'Spoofed approver', approvalNotes: 'Checked' });
+
+    await service.approveBillingSource(
+      'evt_sample',
+      'bsrc_sample',
+      input,
+      { name: 'Maxine', role: 'pmcm-admin', email: 'maxine@pmcm.test', correlationId: 'corr_approval_1' },
+    );
+
+    expect(prisma.opsBillingSource.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ approvedBy: 'Maxine' }),
+    }));
+    expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ actor: 'Maxine' }), undefined);
   });
   it('records and audits a payment when the reference number is new', async () => {
     const { service, prisma, audit, history } = createPaymentService();
