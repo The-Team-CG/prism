@@ -7,7 +7,10 @@ import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access
 import { DOCUMENT_VAULT, type DocumentVault, type UploadMetadataInput } from '@prism/contexts/event-lifecycle';
 import type { ImportGuestRosterInput } from '@prism/types';
 
-export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[] };
+export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[]; walkInPolicy?: string | null; walkInThreshold?: number | null };
+type GuestRosterEntry = { id: string; eventId: string; sourceKey: string; guestName: string; eligibility: string; email: string; phone: string };
+type GuestRosterDelegate = { findFirst(args: { where: Record<string, unknown> }): Promise<GuestRosterEntry | null>; findMany(args: { where: Record<string, unknown>; orderBy?: Record<string, string> }): Promise<GuestRosterEntry[]>; upsert(args: { where: Record<string, unknown>; create: Record<string, unknown>; update: Record<string, unknown> }): Promise<GuestRosterEntry>; updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Promise<unknown> };
+type GuestRosterPrisma = { opsGuestRosterEntry: GuestRosterDelegate };
 
 export type GuestCheckInInput = {
   guestName: string;
@@ -84,8 +87,11 @@ export class GuestWorkflowService {
       name: 'guest_check_in',
       validateState: async () => {
         event = await this.resolveGuestEventByAccessCode(accessCode);
+        const rosterDelegate = (this.prisma as unknown as Partial<GuestRosterPrisma>).opsGuestRosterEntry;
+        const rosterConfigured = rosterDelegate ? await rosterDelegate.findFirst({ where: { eventId: event.id, withdrawnAt: null } }) : null;
+        if (rosterConfigured && !input.rosterEntryId) throw new BadRequestException('Select an eligible roster entry for check-in');
         if (input.rosterEntryId) {
-          const roster = await (this.prisma as any).opsGuestRosterEntry.findFirst({ where: { id: input.rosterEntryId, eventId: event.id, withdrawnAt: null } });
+          const roster = rosterDelegate ? await rosterDelegate.findFirst({ where: { id: input.rosterEntryId, eventId: event.id, withdrawnAt: null } }) : null;
           if (!roster || roster.eligibility !== 'eligible') throw new BadRequestException('Roster entry is not eligible for check-in');
           guestName = roster.guestName;
         }
@@ -95,7 +101,7 @@ export class GuestWorkflowService {
           throw new BadRequestException('Privacy consent is required before guest check-in');
         }
         checkInMode = input.checkInMode ?? (input.walkIn ? 'walk_in' : 'name_search');
-        if (input.walkIn && (!(event as any).walkInPolicy || (event as any).walkInPolicy === 'closed')) throw new BadRequestException('Walk-in registration is closed for this event');
+        if (input.walkIn && (!event.walkInPolicy || event.walkInPolicy === 'closed')) throw new BadRequestException('Walk-in registration is closed for this event');
       },
       write: async () => {
         if (!event) throw new NotFoundException('Guest event code was not found');
@@ -198,27 +204,27 @@ export class GuestWorkflowService {
       const keys = input.rows.map((row) => row.sourceKey);
       const rows = [];
       for (const row of input.rows) {
-        rows.push(await (tx as any).opsGuestRosterEntry.upsert({
+        rows.push(await (tx as unknown as GuestRosterPrisma).opsGuestRosterEntry.upsert({
           where: { eventId_sourceKey: { eventId, sourceKey: row.sourceKey } },
           create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
           update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
         }));
       }
-      await (tx as any).opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
+      await (tx as unknown as GuestRosterPrisma).opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
       await writeAudit(this.auditWriter, eventId, actor.name, 'Guest roster imported and reconciled', { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster', affectedId: eventId, metadata: { batchId, rowCount: rows.length, source: input.source, actorId: actor.id } }, { prisma: tx, correlationId: batchId });
       return rows;
     });
   }
 
   async searchRoster(eventId: string, query = '') {
-    return (this.prisma as any).opsGuestRosterEntry.findMany({ where: { eventId, withdrawnAt: null, eligibility: 'eligible', ...(query.trim() ? { normalizedName: { contains: query.trim().toLowerCase() } } : {}) }, orderBy: { normalizedName: 'asc' } });
+    return (this.prisma as unknown as GuestRosterPrisma).opsGuestRosterEntry.findMany({ where: { eventId, withdrawnAt: null, eligibility: 'eligible', ...(query.trim() ? { normalizedName: { contains: query.trim().toLowerCase() } } : {}) }, orderBy: { normalizedName: 'asc' } });
   }
 
   async checkInRosterEntry(eventId: string, rosterEntryId: string, actor: { id?: string; name: string; role: string }) {
     return this.prisma.$transaction(async (tx) => {
       const event = await tx.opsEvent.findFirst({ where: { id: eventId, archived: false } });
       if (!event) throw new NotFoundException('Event not found or archived');
-      const roster = await (tx as any).opsGuestRosterEntry.findFirst({
+      const roster = await (tx as unknown as GuestRosterPrisma).opsGuestRosterEntry.findFirst({
         where: { id: rosterEntryId, eventId, withdrawnAt: null, eligibility: 'eligible' },
       });
       if (!roster) throw new BadRequestException('Roster entry is not eligible for check-in');
