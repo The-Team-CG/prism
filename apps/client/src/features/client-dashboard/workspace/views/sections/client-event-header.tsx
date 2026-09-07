@@ -42,6 +42,8 @@ export function ClientEventHeader({
               <span>{event.eventDate ?? "Date TBD"}</span>
               <span aria-hidden>·</span>
               <StatusBadge status={event.status} label={formatStatusLabel(event.status)} />
+              <span aria-hidden>·</span>
+              <span>Walk-ins: {event.walkInPolicy === "threshold" ? `up to ${event.walkInThreshold ?? 200}` : event.walkInPolicy ?? "closed"}</span>
             </div>
           </div>
         </div>
