@@ -44,12 +44,14 @@ describe('OpsEventComplianceController', () => {
         }),
       ),
     };
-    const controller = new OpsEventComplianceController(complianceWorkflowService as any);
+    const policy = { resolveActor: vi.fn((_input, actor) => actor), requireActorRole: vi.fn(async () => undefined) };
+    const controller = new OpsEventComplianceController(complianceWorkflowService as any, policy as any);
+    const actor = { id: 'pmcm_1', actorId: 'pmcm_1', role: 'pmcm-admin', actorRole: 'pmcm-admin', name: 'Maxine', actorName: 'Maxine', email: 'maxine@pmcm.test', actorEmail: 'maxine@pmcm.test' } as never;
 
-    await expect(controller.runCompliance('evt_sample', { phase: 'planning' })).resolves.toEqual([
+    await expect(controller.runCompliance('evt_sample', { phase: 'planning' }, actor)).resolves.toEqual([
       expect.objectContaining({ id: 'chk_contracts', eventId: 'evt_sample', status: 'open' }),
     ]);
-    await expect(controller.resolveCompliance('evt_sample', 'chk_contracts', { note: 'Done' })).resolves.toEqual(
+    await expect(controller.resolveCompliance('evt_sample', 'chk_contracts', { note: 'Done' }, actor)).resolves.toEqual(
       expect.objectContaining({
         id: 'chk_contracts',
         status: 'resolved',
