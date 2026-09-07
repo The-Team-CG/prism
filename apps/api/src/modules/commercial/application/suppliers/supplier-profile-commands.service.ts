@@ -178,12 +178,12 @@ export class SupplierProfileCommandsService {
       name: 'promote_supplier', eventId: input.eventId, sideEffectMode: 'same_tx',
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier promotion', input.eventId),
       write: (transactionContext) => this.suppliersService.promoteSupplier(supplierId, input, transactionContext, actor.name),
-      sideEffects: async (supplier) => {
+      sideEffects: async (supplier, transactionContext) => {
         await writeAudit(this.auditWriter, input.eventId, actor.name, `Promoted supplier: ${supplier.name}`, {
           actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Suppliers,
           actionType: AuditActionType.Update, affectedType: 'supplier', affectedId: supplier.id,
           affectedLabel: supplier.name, metadata: { tier: input.tier, reason: input.reason },
-        });
+        }, transactionContext);
       },
     });
   }
