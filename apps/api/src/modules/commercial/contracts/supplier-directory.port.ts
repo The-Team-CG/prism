@@ -53,8 +53,8 @@ export interface SupplierDirectory {
   updateSupplier(supplierId: string, input: UpdateSupplierInput): Promise<SupplierProfile>;
   changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput): Promise<ChangeSupplierTierResult>;
   addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, context?: PrismTransactionContext): Promise<AddSupplierReviewResult>;
-  addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, context?: PrismTransactionContext): Promise<{ supplier: SupplierProfile; noteId: string; replayed?: boolean }>;
-  promoteSupplier(supplierId: string, input: PromoteSupplierInput, context?: PrismTransactionContext): Promise<SupplierProfile>;
+  addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, context?: PrismTransactionContext, createdBy?: string): Promise<{ supplier: SupplierProfile; noteId: string; replayed?: boolean }>;
+  promoteSupplier(supplierId: string, input: PromoteSupplierInput, context?: PrismTransactionContext, promotedBy?: string): Promise<SupplierProfile>;
   addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput): Promise<SupplierProfile>;
   listSuppliers(): Promise<SupplierProfile[]>;
 }
