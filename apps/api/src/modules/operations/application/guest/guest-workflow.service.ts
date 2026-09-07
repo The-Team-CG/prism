@@ -181,7 +181,7 @@ export class GuestWorkflowService {
   private async resolveGuestEventByAccessCode(accessCode: string, requireFeedbackWindow = false) {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
     const events = await this.prisma.opsEvent.findMany({
-      where: {},
+      where: requireFeedbackWindow ? {} : { archived: false },
       include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
       orderBy: { eventDate: 'asc' },
     });
