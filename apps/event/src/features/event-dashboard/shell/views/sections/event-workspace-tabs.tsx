@@ -14,7 +14,7 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
-import { EventMessagesWorkspace } from "@/app/(portal)/dashboard/components/event-messages-workspace";
+import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
@@ -332,8 +332,6 @@ export function EventWorkspaceActivityTab() {
     <EventMessagesWorkspace
       event={vm.selectedEvent}
       session={vm.session}
-      audit={vm.audit}
-      notificationLogs={vm.notificationLogs}
     />
   );
 }

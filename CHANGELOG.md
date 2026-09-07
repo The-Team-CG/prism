@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- W17 persisted, event-scoped communication threads for PMCM, clients, and assigned suppliers, with authorized recipient resolution, audited thread creation and message sends, queued W11 notification intent, thread-scoped idempotency replay, newest-message cursors, and durable participant read state.
 - Briefing submissions preserve prior history, reject locked or post-planning events, and persist audit/notification intent atomically with the verified actor.
 - Historical audit verification follows hash links, including same-millisecond records; ambiguous historical tails stop new appends for integrity review.
 - Native password recovery contracts and single-use 15-minute hashed reset tokens with durable session-version revocation; reset delivery remains explicitly unavailable until a trusted provider is configured.

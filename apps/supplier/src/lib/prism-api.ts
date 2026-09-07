@@ -135,4 +135,8 @@ export const prismApi = {
     eventOpsClient.communication.listThreads(eventId, actorFromSession(session)),
   sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }, actorFromSession(session)),
+  communicationMessages: (threadId: string, cursor: string | undefined, limit: number | undefined, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.listMessages(threadId, { cursor, limit }, actorFromSession(session)),
+  markCommunicationThreadRead: (threadId: string, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.markThreadRead(threadId, actorFromSession(session)),
 };
