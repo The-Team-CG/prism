@@ -33,7 +33,7 @@ export class EventReadModelQueries {
   visibleEvents() {
     return this.prisma.opsEvent.findMany({
       where: { archived: false },
-      include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
+      include: { inquiry: { select: { email: true } }, floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
       orderBy: { eventDate: 'asc' },
     });
   }
@@ -42,7 +42,7 @@ export class EventReadModelQueries {
   eventWithDrafts(eventId: string) {
     return this.prisma.opsEvent.findUnique({
       where: { id: eventId },
-      include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
+      include: { inquiry: { select: { email: true } }, floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
     });
   }
 

@@ -20,7 +20,7 @@ export type ResolvedEventOpsActor = {
   explicit: boolean;
 };
 
-type ReadableEvent = Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'>;
+type ReadableEvent = Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'> & { clientEmail?: string | null; inquiry?: { email?: string | null } | null };
 
 type EventAccessScope = {
   supplierEventIds?: readonly string[];
@@ -85,7 +85,8 @@ export class EventAccessPolicyService {
   canReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, scope: EventAccessScope = {}) {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
     if (actor.role === OpsUserRole.Client) {
-      return event.clientPortalStatus === 'unlocked' && this.sameText(actor.clientName, event.clientName);
+      const eventEmail = event.clientEmail ?? event.inquiry?.email;
+      return event.clientPortalStatus === 'unlocked' && (actor.email ? this.sameText(actor.email, eventEmail) : this.sameText(actor.clientName, event.clientName));
     }
     if (actor.role === OpsUserRole.Coordinator) {
       return Boolean(actor.eventId && actor.eventId === event.id);

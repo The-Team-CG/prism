@@ -77,6 +77,13 @@ describe('EventAccessPolicyService', () => {
     ).toBe(false);
   });
 
+  it('uses verified client email rather than a duplicate display name for ownership', () => {
+    const { policy } = createPolicy();
+    const actor = policy.resolveVerifiedActor({ id: 'u1', actorId: 'u1', role: 'client', actorRole: 'client', email: 'one@test', actorEmail: 'one@test', name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
+    expect(policy.canReadEvent(actor, { id: 'evt_1', clientName: 'Same Name', clientPortalStatus: 'unlocked', inquiry: { email: 'one@test' } })).toBe(true);
+    expect(policy.canReadEvent(actor, { id: 'evt_2', clientName: 'Same Name', clientPortalStatus: 'unlocked', inquiry: { email: 'two@test' } })).toBe(false);
+  });
+
   it('allows coordinators to read only their assigned event scope', () => {
     const { policy } = createPolicy();
     const actor = policy.resolveActor({
