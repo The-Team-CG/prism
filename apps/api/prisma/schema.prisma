@@ -149,6 +149,20 @@ model OpsPasswordResetToken {
   @@schema("identity")
 }
 
+model OpsPasswordResetRateLimit {
+  id              String   @id
+  normalizedEmail String   @map("normalized_email")
+  clientIp        String   @map("client_ip")
+  windowStartedAt DateTime @map("window_started_at")
+  requestCount    Int      @default(0) @map("request_count")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([normalizedEmail, clientIp], map: "password_reset_rate_limits_email_ip_key")
+  @@index([windowStartedAt], map: "password_reset_rate_limits_window_started_at_idx")
+  @@map("password_reset_rate_limits")
+  @@schema("identity")
+}
+
 model OpsApprovalRequest {
   id                       String   @id
   userId                   String   @map("user_id")
