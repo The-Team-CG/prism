@@ -32,9 +32,11 @@ describe('AuditService', () => {
     const alerts: unknown[] = [];
     const notifications: unknown[] = [];
     const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
+      opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
       opsAuditLog: {
         findMany: async () => rows,
-        findFirst: async () => ({ immutableHash: 'previous_hash' }),
+        findFirst: async () => ({ immutableHash: 'previous_hash', createdAt: new Date(0) }),
         create: async ({ data }: { data: unknown }) => {
           createdAuditRows.push(data);
           return data;
@@ -55,13 +57,14 @@ describe('AuditService', () => {
       },
     };
 
-    const service = new AuditService(prisma as any);
-    const exported = await service.exportAuditLogs({});
+    const service = new AuditService(prisma as never);
+    const exported = await service.exportAuditLogs({}, { id: 'verified-pmcm-id', name: 'Verified PMCM', role: 'pmcm-admin', email: 'pmcm@example.test' });
 
     expect(exported.recordCount).toBe(25);
     expect(alerts).toHaveLength(1);
     expect(createdAuditRows).toHaveLength(2);
     expect(notifications).toHaveLength(2);
+    expect(createdAuditRows[0]).toMatchObject({ actor: 'Verified PMCM', actorEmail: 'pmcm@example.test', ipAddress: 'unknown', device: 'unknown', metadata: expect.objectContaining({ actorId: 'verified-pmcm-id' }) });
   });
 });
 

@@ -12,6 +12,7 @@ import {
   OpsUserRole,
 } from '@prism/kernel/event-core';
 import { mapAuditLog } from './audit.mappers';
+import type { PrismVerifiedEventActor } from '@prism/types';
 
 type AuditLogFilters = {
   query?: string;
@@ -202,23 +203,24 @@ export class AuditService {
     return logs.map((log: OpsAuditLog) => this.mapAuditLog(log));
   }
 
-  async exportAuditLogs(input: AuditLogFilters = {}) {
+  async exportAuditLogs(input: AuditLogFilters = {}, actor?: Pick<PrismVerifiedEventActor, 'id' | 'name' | 'role' | 'email'>) {
     const logs = await this.listAuditLogs({ ...input, limit: input.limit ?? '500' });
 
-    await this.audit(undefined, 'PMCM Admin', `Exported audit log (${logs.length} records)`, {
-      actorRole: OpsUserRole.PmcmAdmin,
+    await this.audit(undefined, actor?.name ?? 'System', `Exported audit log (${logs.length} records)`, {
+      actorRole: actor?.role ?? OpsUserRole.System,
+      actorEmail: actor?.email,
       actionType: AuditActionType.Export,
       category: AuditCategory.Access,
       affectedType: 'audit_logs',
       affectedLabel: `${logs.length} records`,
-      metadata: { filters: input, recordCount: logs.length },
+      metadata: { filters: input, recordCount: logs.length, actorId: actor?.id ?? null },
     });
 
     if (logs.length >= BULK_EXPORT_ALERT_THRESHOLD) {
       await this.createSecurityAlert({
         type: 'bulk_export',
         title: 'Bulk audit export threshold exceeded',
-        description: `PMCM Admin exported ${logs.length} audit records.`,
+        description: `${actor?.name ?? 'System'} exported ${logs.length} audit records.`,
         severity: 'warning',
         metadata: { filters: input, recordCount: logs.length, threshold: BULK_EXPORT_ALERT_THRESHOLD },
       });
@@ -243,7 +245,7 @@ export class AuditService {
   async verifyIntegrity() {
     const logs = await this.prisma.opsAuditLog.findMany({
       // QUERY_AUDIT_ALLOW_UNBOUNDED: integrity verification must scan the full audit hash chain.
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
     let previousHash: string | null = null;
     let lastVerifiedHash: string | null = null;
@@ -298,20 +300,27 @@ export class AuditService {
     action: string,
     options: Omit<AuditLogInput, 'eventId' | 'actor' | 'action'> = {},
     context?: PrismTransactionContext,
-  ) {
-    const prisma = context?.prisma ?? this.prisma;
+  ): Promise<OpsAuditLog> {
+    if (!context) {
+      return this.prisma.$transaction((prisma) => this.audit(eventId, actor, action, options, { prisma, correlationId: randomUUID() }));
+    }
+    const prisma = context.prisma;
+    // A real row update locks appenders and rejects stale serializable snapshots.
+    // An advisory lock alone would not refresh a caller's earlier snapshot.
+    await prisma.opsAuditChainLock.update({ where: { id: 'global' }, data: { revision: { increment: 1 } } });
     const previous = await prisma.opsAuditLog.findFirst({
-      orderBy: { createdAt: 'desc' },
-      select: { immutableHash: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { immutableHash: true, createdAt: true },
     });
 
     return prisma.opsAuditLog.create({
       data: this.buildAuditData({
+        ...options,
         eventId,
         actor,
         action,
         previousHash: previous?.immutableHash || null,
-        ...options,
+        createdAt: new Date(Math.max(Date.now(), (previous?.createdAt.getTime() ?? 0) + 1)),
       }),
     });
   }
@@ -475,8 +484,8 @@ export class AuditService {
       affectedId: input.affectedId ?? null,
       affectedLabel: input.affectedLabel ?? null,
       metadata: input.metadata ?? {},
-      ipAddress: input.ipAddress ?? '192.168.1.5',
-      device: input.device ?? 'Local sample browser',
+      ipAddress: input.ipAddress ?? 'unknown',
+      device: input.device ?? 'unknown',
       severity: input.severity ?? 'info',
       previousHash: input.previousHash ?? null,
       createdAt: createdAt.toISOString(),
