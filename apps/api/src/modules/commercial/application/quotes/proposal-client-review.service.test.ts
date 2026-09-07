@@ -127,6 +127,6 @@ describe('ProposalClientReviewService', () => {
     });
     const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never);
     await expect(service.review('evt_1', { action: 'request_revision', revisionNote: 'changed', idempotencyKey: 'same' }, primary)).rejects.toBeInstanceOf(BadRequestException);
-    await expect(service.review('evt_1', { action: 'request_revision', revisionNote: 'original', idempotencyKey: 'same' }, otherClient)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.review('evt_1', { action: 'request_revision', revisionNote: 'original', idempotencyKey: 'same' }, { ...otherClient, email: primary.email })).rejects.toBeInstanceOf(BadRequestException);
   });
 });

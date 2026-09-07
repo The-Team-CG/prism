@@ -59,11 +59,12 @@ export class ProposalClientReviewService {
         orderBy: { createdAt: 'desc' },
       });
       if (prior) {
-        const metadata = prior.metadata as { action?: string; revisionNote?: string | null; actorEmail?: string | null };
+        const metadata = prior.metadata as { action?: string; revisionNote?: string | null; actorEmail?: string | null; actorId?: string | null };
         if (
           metadata.action !== input.action ||
           (metadata.revisionNote ?? null) !== (input.revisionNote ?? null) ||
-          (metadata.actorEmail ?? null) !== (actor.email ?? null)
+          (metadata.actorEmail ?? null) !== (actor.email ?? null) ||
+          (metadata.actorId ?? null) !== (actor.id ?? null)
         ) throw new BadRequestException('Idempotency key was reused for another proposal decision');
         return tx.opsEvent.findUniqueOrThrow({ where: { id: eventId }, include: { floorPlanDrafts: true } });
       }
@@ -98,6 +99,7 @@ export class ProposalClientReviewService {
             action: input.action,
             revisionNote: input.revisionNote ?? null,
             actorEmail: actor.email ?? null,
+            actorId: actor.id ?? null,
             revisionCount: next.revisionCount,
             resultingStatus: next.status,
             proposalDocumentId: issuedProposal.id,
