@@ -32,6 +32,12 @@ type Fixture = {
   categoryId: string;
 };
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((promiseResolve) => { resolve = promiseResolve; });
+  return { promise, resolve };
+}
+
 const pmcmActor = {
   id: 'p0_w04_pmcm',
   role: OpsUserRole.PmcmAdmin,
@@ -123,6 +129,7 @@ function createService(
   auditWriter: AuditWriter,
   pareService: SupplierPareAutomation,
   fixture: Fixture,
+  afterFirstRequestRead?: () => Promise<void>,
 ) {
   const access = new EventAccessPolicyService({ write: async () => undefined });
   const workflow = new WorkflowCommandService(new PrismTransactionRunner(prisma));
@@ -138,8 +145,28 @@ function createService(
     addSupplierReview: async () => { throw new Error('not exercised'); },
     addSupplierCertification: async () => { throw new Error('not exercised'); },
   };
+  let requestRead = false;
+  const requestDelegate = new Proxy(prisma.opsSupplierQuoteRequest, {
+    get(target, property, receiver) {
+      if (property !== 'findUnique' || !afterFirstRequestRead) return Reflect.get(target, property, receiver);
+      return async (...args: Parameters<typeof target.findUnique>) => {
+        const result = await target.findUnique(...args);
+        if (!requestRead) {
+          requestRead = true;
+          await afterFirstRequestRead();
+        }
+        return result;
+      };
+    },
+  });
+  const servicePrisma = new Proxy(prisma, {
+    get(target, property, receiver) {
+      if (property === 'opsSupplierQuoteRequest') return requestDelegate;
+      return Reflect.get(target, property, receiver);
+    },
+  }) as unknown as PrismaService;
   return new SupplierNetworkWorkflowService(
-    prisma,
+    servicePrisma,
     suppliers,
     {} as unknown as SupplierProfileCommandsService,
     auditWriter,
@@ -227,6 +254,45 @@ databaseSuite('SupplierNetworkWorkflowService PostgreSQL transition invariants',
       const request = await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: fixture.requestId } });
       expect(request?.assignmentStatus).toBe('pending_confirmation');
       expect(pareCalls).toBe(previousPareCalls);
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('allows a confirmed selected supplier to be withdrawn for emergency replacement', async () => {
+    const fixture = await createFixture(prisma);
+    try {
+      await prisma.opsSupplierQuoteRequest.update({
+        where: { id: fixture.requestId },
+        data: { assignmentStatus: 'confirmed' },
+      });
+      const service = createService(prisma, auditWriter, pareService, fixture);
+      const withdrawn = await service.withdrawSupplier(fixture.requestId, 'Confirmed supplier cancelled', pmcmActor);
+      expect(withdrawn.assignmentStatus).toBe('withdrawn');
+    } finally {
+      await cleanupFixture(prisma, fixture);
+    }
+  });
+
+  it('rejects a supplier ownership change after authorization but before the locked write', async () => {
+    const fixture = await createFixture(prisma);
+    const gate = deferred<void>();
+    const observed = deferred<void>();
+    try {
+      const service = createService(prisma, auditWriter, pareService, fixture, async () => {
+        observed.resolve();
+        await gate.promise;
+      });
+      const confirmation = service.confirmSupplierAssignment(fixture.requestId, supplierActor(fixture));
+      await observed.promise;
+      await prisma.opsSupplierQuoteRequest.update({
+        where: { id: fixture.requestId },
+        data: { supplierId: null },
+      });
+      gate.resolve();
+      await expect(confirmation).rejects.toThrow('Supplier assignment changed before confirmation');
+      const request = await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: fixture.requestId } });
+      expect(request?.assignmentStatus).toBe('pending_confirmation');
     } finally {
       await cleanupFixture(prisma, fixture);
     }
