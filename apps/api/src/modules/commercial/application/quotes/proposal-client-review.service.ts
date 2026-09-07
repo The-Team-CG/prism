@@ -19,48 +19,70 @@ export class ProposalClientReviewService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
   ) {}
 
-  async review(eventId: string, input: ReviewEventProposalInput, actor: ResolvedEventOpsActor) {
-    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'proposal review', eventId);
-
-    const event = await this.prisma.opsEvent.findUnique({
-      where: { id: eventId },
-      include: { inquiry: true },
-    });
+  private async loadReviewContext(tx: Prisma.TransactionClient, eventId: string, actor: ResolvedEventOpsActor) {
+    const event = await tx.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
     if (!event) throw new NotFoundException('Event not found');
-
     if (!isPrimaryClientContact(actor.email, event.inquiry.email)) {
       throw new ForbiddenException('Only the primary client contact can approve or request a proposal revision');
     }
-
-    const issuedProposal = await this.prisma.opsDocument.findFirst({
+    const proposal = await tx.opsDocument.findFirst({
       where: { eventId, status: 'issued', type: { in: ['proposal', 'ce_proposal', 'briefing_proposal'] } },
+      orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
       select: { id: true },
     });
-    if (!issuedProposal) throw new BadRequestException('No issued proposal is available for review');
+    if (!proposal) throw new BadRequestException('No issued proposal is available for review');
+    return { event, proposal };
+  }
 
+  private async replayIfPresent(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    reviewKey: string,
+    input: ReviewEventProposalInput,
+    actor: ResolvedEventOpsActor,
+    proposalId: string,
+  ) {
+    const prior = await tx.opsAuditLog.findFirst({
+      where: { eventId, affectedType: 'proposal_client_review', affectedId: reviewKey },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    if (!prior) return null;
+    const metadata = prior.metadata as { action?: string; revisionNote?: string | null; actorEmail?: string | null; actorId?: string | null; proposalDocumentId?: string };
+    const samePayload = metadata.action === input.action &&
+      (metadata.revisionNote ?? null) === (input.revisionNote ?? null) &&
+      (metadata.actorEmail ?? null) === (actor.email ?? null) &&
+      (metadata.actorId ?? null) === (actor.id ?? null) &&
+      metadata.proposalDocumentId === proposalId;
+    if (!samePayload) throw new BadRequestException('Idempotency key was reused for another proposal decision');
+    return tx.opsEvent.findUniqueOrThrow({ where: { id: eventId }, include: { floorPlanDrafts: true } });
+  }
+
+  async review(eventId: string, input: ReviewEventProposalInput, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'proposal review', eventId);
+
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { proposalRevisionCount: true } });
+    if (!event) throw new NotFoundException('Event not found');
     const reviewKey = input.idempotencyKey?.trim() || `proposal-review:${eventId}:${input.action}:${event.proposalRevisionCount}`;
 
     const updated = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const prior = await tx.opsAuditLog.findFirst({
-        where: { eventId, affectedType: 'proposal_client_review', affectedId: reviewKey },
-        orderBy: { createdAt: 'desc' },
+      const { event: currentEvent, proposal: issuedProposal } = await this.loadReviewContext(tx, eventId, actor);
+      const replay = await this.replayIfPresent(tx, eventId, reviewKey, input, actor, issuedProposal.id);
+      if (replay) return replay;
+
+      if (currentEvent.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client proposal review is locked');
+      if (currentEvent.archived) throw new BadRequestException('Archived events cannot receive proposal decisions');
+
+      const priorReviews = await tx.opsAuditLog.findMany({
+        where: { eventId, affectedType: 'proposal_client_review' },
+        select: { metadata: true },
       });
-      if (prior) {
-        const metadata = prior.metadata as { action?: string; revisionNote?: string | null; actorEmail?: string | null; actorId?: string | null; proposalDocumentId?: string };
-        if (
-          metadata.action !== input.action ||
-          (metadata.revisionNote ?? null) !== (input.revisionNote ?? null) ||
-          (metadata.actorEmail ?? null) !== (actor.email ?? null) ||
-          (metadata.actorId ?? null) !== (actor.id ?? null) ||
-          metadata.proposalDocumentId !== issuedProposal.id
-        ) throw new BadRequestException('Idempotency key was reused for another proposal decision');
-        return tx.opsEvent.findUniqueOrThrow({ where: { id: eventId }, include: { floorPlanDrafts: true } });
-      }
+      const alreadyReviewedVersion = priorReviews.some((review) => {
+        const metadata = review.metadata as { proposalDocumentId?: string };
+        return metadata.proposalDocumentId === issuedProposal.id;
+      });
+      if (alreadyReviewedVersion) throw new BadRequestException('A newer issued proposal is required for another decision');
 
-      if (event.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client proposal review is locked');
-      if (event.archived) throw new BadRequestException('Archived events cannot receive proposal decisions');
-
-      const current = { status: event.proposalClientStatus, revisionCount: event.proposalRevisionCount };
+      const current = { status: currentEvent.proposalClientStatus, revisionCount: currentEvent.proposalRevisionCount };
       let next: ReturnType<typeof nextProposalClientReview>;
       try {
         next = nextProposalClientReview(current, input.action);
@@ -72,7 +94,7 @@ export class ProposalClientReviewService {
         where: {
           id: eventId,
           proposalClientStatus: { not: 'approved' },
-          proposalRevisionCount: event.proposalRevisionCount,
+          proposalRevisionCount: currentEvent.proposalRevisionCount,
           clientPortalStatus: 'unlocked',
           archived: false,
         },
@@ -93,7 +115,7 @@ export class ProposalClientReviewService {
           category: 'events',
           affectedType: 'proposal_client_review',
           affectedId: reviewKey,
-          affectedLabel: event.eventName,
+          affectedLabel: currentEvent.eventName,
           metadata: {
             action: input.action,
             revisionNote: input.revisionNote ?? null,

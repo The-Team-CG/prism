@@ -50,10 +50,12 @@ function createPrisma() {
       opsAuditLog: { findFirst: async () => null },
       $transaction: async (callback: (tx: any) => Promise<unknown>) => callback({
         opsEvent: {
+          findUnique: async () => event,
           updateMany: async ({ data }: { data: Record<string, unknown> }) => { Object.assign(event, data); return { count: 1 }; },
           findUniqueOrThrow: async () => event,
         },
-        opsAuditLog: { findFirst: async () => null },
+        opsDocument: { findFirst: async () => ({ id: 'doc_proposal' }) },
+        opsAuditLog: { findFirst: async () => null, findMany: async () => [] },
       }),
     },
   };
@@ -110,8 +112,9 @@ describe('ProposalClientReviewService', () => {
   it('rejects a compare-and-swap loser without writing an audit record', async () => {
     const fake = createPrisma();
     fake.prisma.$transaction = async (callback: (tx: any) => Promise<unknown>) => callback({
-      opsAuditLog: { findFirst: async () => null },
-      opsEvent: { updateMany: async () => ({ count: 0 }), findUniqueOrThrow: async () => fake.event },
+      opsAuditLog: { findFirst: async () => null, findMany: async () => [] },
+      opsEvent: { findUnique: async () => fake.event, updateMany: async () => ({ count: 0 }), findUniqueOrThrow: async () => fake.event },
+      opsDocument: { findFirst: async () => ({ id: 'doc_proposal' }) },
     });
     const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never);
     await expect(service.review('evt_1', { action: 'approve', idempotencyKey: 'race' }, primary)).rejects.toBeInstanceOf(BadRequestException);
@@ -123,7 +126,8 @@ describe('ProposalClientReviewService', () => {
     fake.prisma.opsAuditLog.findFirst = (async () => ({ metadata: { action: 'request_revision', revisionNote: 'original', actorEmail: primary.email } })) as never;
     fake.prisma.$transaction = async (callback: (tx: any) => Promise<unknown>) => callback({
       opsAuditLog: { findFirst: fake.prisma.opsAuditLog.findFirst },
-      opsEvent: { findUniqueOrThrow: async () => fake.event },
+      opsEvent: { findUnique: async () => fake.event, findUniqueOrThrow: async () => fake.event },
+      opsDocument: { findFirst: async () => ({ id: 'doc_proposal' }) },
     });
     const service = new ProposalClientReviewService(fake.prisma as never, createAccessPolicy() as never, fake.auditWriter as never);
     await expect(service.review('evt_1', { action: 'request_revision', revisionNote: 'changed', idempotencyKey: 'same' }, primary)).rejects.toBeInstanceOf(BadRequestException);

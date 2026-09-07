@@ -13,6 +13,12 @@ const actor = { id: 'p0_w02_client', role: OpsUserRole.Client, name: 'P0 Client'
 describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   let prisma: PrismaService;
   let service: ProposalClientReviewService;
+  const reset = async () => {
+    await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
+    await prisma.opsDocument.deleteMany({ where: { eventId: ids.event, id: { not: ids.document } } });
+    await prisma.opsEvent.update({ where: { id: ids.event }, data: { proposalClientStatus: 'pending', proposalRevisionCount: 0, clientPortalStatus: 'unlocked', archived: false } });
+    await prisma.opsDocument.upsert({ where: { id: ids.document }, update: { status: 'issued', type: 'proposal' }, create: { id: ids.document, eventId: ids.event, type: 'proposal', fileName: 'p0.pdf', status: 'issued' } });
+  };
 
   beforeAll(async () => {
     process.env.DATABASE_URL = url;
@@ -38,9 +44,73 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   });
 
   it('persists one revision and one audit across a retry', async () => {
+    await reset();
     await service.review(ids.event, { action: 'request_revision', revisionNote: 'Clarify venue', idempotencyKey: 'p0-retry' }, actor);
     await service.review(ids.event, { action: 'request_revision', revisionNote: 'Clarify venue', idempotencyKey: 'p0-retry' }, actor);
     await expect(prisma.opsEvent.findUniqueOrThrow({ where: { id: ids.event } })).resolves.toMatchObject({ proposalRevisionCount: 1 });
     await expect(prisma.opsAuditLog.count({ where: { eventId: ids.event, affectedId: 'p0-retry' } })).resolves.toBe(1);
+  });
+
+  it('requires a newer issued proposal for a second decision', async () => {
+    await reset();
+    await service.review(ids.event, { action: 'request_revision', revisionNote: 'Need detail', idempotencyKey: 'p0-version-1' }, actor);
+    await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-version-2' }, actor)).rejects.toThrow(/newer issued proposal/i);
+    await prisma.opsDocument.create({ data: { id: 'p0_w02_proposal_v2', eventId: ids.event, type: 'proposal', fileName: 'p0-v2.pdf', status: 'issued' } });
+    await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-version-3' }, actor)).resolves.toMatchObject({ proposalClientStatus: 'approved' });
+    await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-version-3' }, actor)).resolves.toMatchObject({ proposalClientStatus: 'approved' });
+    await prisma.opsDocument.delete({ where: { id: 'p0_w02_proposal_v2' } });
+  });
+
+  it('rejects locked, archived, and non-primary clients', async () => {
+    await reset();
+    await prisma.opsEvent.update({ where: { id: ids.event }, data: { clientPortalStatus: 'locked' } });
+    await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-locked' }, actor)).rejects.toThrow(/locked/i);
+    await prisma.opsEvent.update({ where: { id: ids.event }, data: { clientPortalStatus: 'unlocked', archived: true } });
+    await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-archived' }, actor)).rejects.toThrow(/archived/i);
+    await prisma.opsEvent.update({ where: { id: ids.event }, data: { archived: false } });
+    await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-wrong-primary' }, { ...actor, email: 'other@example.test' })).rejects.toThrow(/primary client/i);
+    await expect(prisma.opsEvent.findUniqueOrThrow({ where: { id: ids.event } })).resolves.toMatchObject({ proposalRevisionCount: 0, proposalClientStatus: 'pending' });
+  });
+
+  it('rejects review when no issued proposal document exists', async () => {
+    await reset();
+    await prisma.opsDocument.update({ where: { id: ids.document }, data: { status: 'draft' } });
+    await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-no-issued' }, actor)).rejects.toThrow(/issued proposal/i);
+  });
+
+  it('rejects changed payload reuse and preserves review metadata', async () => {
+    await reset();
+    await service.review(ids.event, { action: 'request_revision', revisionNote: 'Keep the stage', idempotencyKey: 'p0-payload' }, actor);
+    await expect(service.review(ids.event, { action: 'request_revision', revisionNote: 'Change the stage', idempotencyKey: 'p0-payload' }, actor)).rejects.toThrow(/reused/i);
+    const audit = await prisma.opsAuditLog.findFirstOrThrow({ where: { eventId: ids.event, affectedId: 'p0-payload' } });
+    expect(audit.metadata).toMatchObject({ revisionNote: 'Keep the stage', actorEmail: actor.email, proposalDocumentId: ids.document });
+    expect(audit.affectedType).toBe('proposal_client_review');
+  });
+
+  it('rolls back the event when durable audit writing fails', async () => {
+    await reset();
+    const realWriter = new AuditWriterAdapter(new AuditService(prisma));
+    const failingWriter = {
+      write: async (input: Parameters<typeof realWriter.write>[0], context: Parameters<typeof realWriter.write>[1]) => {
+        await realWriter.write(input, context);
+        throw new Error('simulated audit failure');
+      },
+    };
+    const failingService = new ProposalClientReviewService(prisma, { requireActorRole: async () => undefined } as never, failingWriter);
+    await expect(failingService.review(ids.event, { action: 'request_revision', revisionNote: 'Must rollback', idempotencyKey: 'p0-audit-failure' }, actor)).rejects.toThrow('simulated audit failure');
+    await expect(prisma.opsEvent.findUniqueOrThrow({ where: { id: ids.event } })).resolves.toMatchObject({ proposalRevisionCount: 0, proposalClientStatus: 'pending' });
+    await expect(prisma.opsAuditLog.count({ where: { eventId: ids.event, affectedId: 'p0-audit-failure' } })).resolves.toBe(0);
+  });
+
+  it('allows only one effect for concurrent same-version decisions', async () => {
+    await reset();
+    const results = await Promise.allSettled([
+      service.review(ids.event, { action: 'request_revision', revisionNote: 'Concurrent A', idempotencyKey: 'p0-concurrent-a' }, actor),
+      service.review(ids.event, { action: 'request_revision', revisionNote: 'Concurrent B', idempotencyKey: 'p0-concurrent-b' }, actor),
+    ]);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    await expect(prisma.opsEvent.findUniqueOrThrow({ where: { id: ids.event } })).resolves.toMatchObject({ proposalRevisionCount: 1 });
+    await expect(prisma.opsAuditLog.count({ where: { eventId: ids.event, affectedType: 'proposal_client_review' } })).resolves.toBe(1);
   });
 });
