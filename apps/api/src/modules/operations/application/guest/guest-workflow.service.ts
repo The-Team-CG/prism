@@ -130,7 +130,7 @@ export class GuestWorkflowService {
     return this.workflowCommandService.execute<OpsGuestFeedback>({
       name: 'guest_feedback',
       validateState: async () => {
-        event = await this.resolveGuestEventByAccessCode(accessCode);
+        event = await this.resolveGuestEventByAccessCode(accessCode, true);
         guestName = input.guestName?.trim();
         if (!guestName) throw new BadRequestException('Guest name is required');
         if (!input.privacyConsentAccepted) {
@@ -178,23 +178,19 @@ export class GuestWorkflowService {
     });
   }
 
-  private async resolveGuestEventByAccessCode(accessCode: string) {
+  private async resolveGuestEventByAccessCode(accessCode: string, requireFeedbackWindow = false) {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
     const events = await this.prisma.opsEvent.findMany({
       where: {},
       include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
       orderBy: { eventDate: 'asc' },
     });
-    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode && this.isFeedbackWindowOpen(item));
+    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode && (!requireFeedbackWindow || this.isFeedbackWindowOpen(item)));
     if (!event) throw new NotFoundException('Guest event code was not found');
     return event;
   }
 
   private isFeedbackWindowOpen(event: { actualEndedAt?: Date | null; eventDate: Date }): boolean {
-    // The optional check keeps compatibility fixtures usable until the coordinated
-    // actualEndedAt migration is present. Once the field exists, the window is
-    // anchored exclusively to the recorded actual end, including archived events.
-    if (!Object.prototype.hasOwnProperty.call(event, 'actualEndedAt')) return true;
     if (!event.actualEndedAt) return false;
     const windowEnd = event.actualEndedAt.getTime() + 7 * 24 * 60 * 60 * 1000;
     return Date.now() <= windowEnd;
