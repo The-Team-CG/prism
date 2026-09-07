@@ -2,8 +2,8 @@ import type { PrismEvent } from "@prism/types";
 
 export const CLIENT_PROPOSAL_REVISION_CAP = 3;
 
-export function proposalPackageReady(input: { briefing?: unknown; billing?: unknown }) {
-  return Boolean(input.briefing && input.billing);
+export function proposalPackageReady(input: { briefing?: unknown; billing?: unknown; proposalIssued?: boolean }) {
+  return Boolean(input.briefing && input.billing && input.proposalIssued);
 }
 
 export function proposalClientStatus(event: PrismEvent) {

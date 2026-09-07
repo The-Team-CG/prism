@@ -13,11 +13,12 @@ import {
 } from "../model/proposal-review-rules";
 
 export function useClientProposalTabViewModel() {
-  const { selectedEvent, briefing, billing, payments, officialDraft, refresh, setNotice, setError, setBusy, busy } =
+  const { selectedEvent, briefing, billing, payments, documents, officialDraft, refresh, setNotice, setError, setBusy, busy } =
     useClientWorkspace();
   const [revisionNote, setRevisionNote] = useState("");
   const pendingDecision = useRef<{ action: ReviewEventProposalInput["action"]; revisionNote: string; key: string } | null>(null);
-  const packageReady = proposalPackageReady({ briefing, billing });
+  const packageReady = proposalPackageReady({ briefing, billing, proposalIssued: documents.some((document) =>
+    ["proposal", "ce_proposal", "briefing_proposal"].includes(document.type) && document.status === "issued") });
   const event = selectedEvent;
 
   async function submit(action: ReviewEventProposalInput["action"]) {
