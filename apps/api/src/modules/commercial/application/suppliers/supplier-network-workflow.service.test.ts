@@ -13,6 +13,7 @@ function createService() {
     category: 'Technicals',
     eventDayVerificationStatus: SupplierVerificationStatus.SelfReported,
     status: 'pending',
+    assignmentStatus: 'selected',
   };
   const audit = vi.fn();
   const suppliers = {
