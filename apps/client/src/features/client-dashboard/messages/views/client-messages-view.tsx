@@ -1,6 +1,9 @@
 "use client";
 
 import { MessageSquareText, Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import type { PrismCommunicationThread } from "@prism/types";
+import { prismApi } from "@/lib/prism-api";
 import { Input } from "@/app/components/ui/input";
 import {
   clientActivityActor,
@@ -35,7 +38,21 @@ export function ClientMessagesView() {
       })),
     ].sort((a, b) => (a.timestamp ?? "").localeCompare(b.timestamp ?? ""));
   
-    const clientInitials = session.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+  const clientInitials = session.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+    const [threads, setThreads] = useState<PrismCommunicationThread[]>([]);
+    const [draft, setDraft] = useState("");
+    const [error, setError] = useState<string | null>(null);
+    useEffect(() => {
+      if (!selectedEvent?.id) return;
+      void prismApi.communicationThreads(selectedEvent.id).then(setThreads).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Unable to load messages"));
+    }, [selectedEvent?.id]);
+    const activeThread = threads[0];
+    async function sendMessage() {
+      if (!activeThread || !draft.trim()) return;
+      const message = await prismApi.sendCommunicationMessage(activeThread.id, draft.trim(), `client-${activeThread.id}-${Date.now()}`);
+      setThreads((current) => current.map((thread) => thread.id === activeThread.id ? { ...thread, messages: [...thread.messages, message] } : thread));
+      setDraft("");
+    }
   
     return (
       <div className="space-y-4">
@@ -59,7 +76,7 @@ export function ClientMessagesView() {
         {/* Chat thread */}
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex flex-col" style={{ minHeight: "420px" }}>
           <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
-            {chatMessages.length ? chatMessages.map((msg) => (
+            {error ? <p className="text-sm text-destructive">{error}</p> : activeThread ? activeThread.messages.map((msg) => ({ id: msg.id, text: msg.body, timestamp: msg.createdAt, sender: msg.senderRole, initials: msg.senderRole.slice(0, 2).toUpperCase(), fromPmcm: msg.senderRole !== "client" })).map((msg) => (
               <div key={msg.id} className={`flex items-end gap-3 ${msg.fromPmcm ? "" : "flex-row-reverse"}`}>
                 <span className={`grid size-8 shrink-0 place-items-center rounded-full text-[11px] font-black ${
                   msg.fromPmcm
@@ -81,6 +98,8 @@ export function ClientMessagesView() {
                   </span>
                 </div>
               </div>
+            )) : chatMessages.length ? chatMessages.map((msg) => (
+              <div key={msg.id} className="text-sm text-muted-foreground">{msg.text}</div>
             )) : (
               <div className="flex h-full flex-col items-center justify-center py-12 text-center">
                 <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-muted">
@@ -100,18 +119,21 @@ export function ClientMessagesView() {
               <Input
                 placeholder="Message PMCM…"
                 className="flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 text-sm"
-                disabled
+                disabled={!activeThread}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
               />
               <button
                 type="button"
-                disabled
+                disabled={!activeThread || !draft.trim()}
+                onClick={() => void sendMessage()}
                 className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--prism-signal)]/20 text-[var(--prism-signal)] opacity-50 cursor-not-allowed"
               >
                 <Send className="size-3.5" />
               </button>
             </div>
             <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-              Messaging available after portal activation · Contact PMCM directly for urgent matters
+              {activeThread ? "Replies are event-scoped and visible to active participants." : "Messaging becomes available when PMCM opens an event thread."}
             </p>
           </div>
         </div>
