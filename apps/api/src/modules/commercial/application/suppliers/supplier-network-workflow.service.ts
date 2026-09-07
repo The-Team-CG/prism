@@ -29,6 +29,7 @@ import {
   SUPPLIER_PARE_AUTOMATION,
 } from '../../contracts/supplier-ops.tokens';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
+import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput } from '@prism/types';
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
   await prisma.$queryRaw`SELECT id FROM "supplier_ops"."quote_requests" WHERE id = ${requestId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized primary-key row lock rechecks assignment state and identity.
@@ -103,6 +104,14 @@ export class SupplierNetworkWorkflowService {
 
   async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actor: ResolvedEventOpsActor) {
     return this.supplierProfileCommandsService.addSupplierReview(supplierId, input, actor);
+  }
+
+  async addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, actor: ResolvedEventOpsActor) {
+    return this.supplierProfileCommandsService.addReliabilityNote(supplierId, input, actor);
+  }
+
+  async promoteSupplier(supplierId: string, input: PromoteSupplierInput, actor: ResolvedEventOpsActor) {
+    return this.supplierProfileCommandsService.promoteSupplier(supplierId, input, actor);
   }
 
   async addSupplierCertification(

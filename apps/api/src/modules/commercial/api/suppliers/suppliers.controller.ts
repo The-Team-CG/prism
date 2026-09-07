@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, Query, UseG
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
-import { createSupplierReviewSchema, type CreateSupplierReviewInput, type PrismVerifiedEventActor } from '@prism/types';
+import { createSupplierReliabilityNoteSchema, createSupplierReviewSchema, promoteSupplierSchema, type CreateSupplierReliabilityNoteInput, type CreateSupplierReviewInput, type PrismVerifiedEventActor, type PromoteSupplierInput } from '@prism/types';
 import {
   ChangeSupplierTierDto,
   CreateSupplierCertificationDto,
@@ -66,6 +66,30 @@ export class OpsSuppliersController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.supplierCommands.addSupplierReview(supplierId, input, actor);
+  }
+
+  @Post(':supplierId/reliability-notes')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
+  addReliabilityNote(
+    @Param('supplierId') supplierId: string,
+    @Body(zodBody(createSupplierReliabilityNoteSchema)) input: CreateSupplierReliabilityNoteInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.supplierCommands.addReliabilityNote(supplierId, input, actor);
+  }
+
+  @Post(':supplierId/promote')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(EventSessionGuard)
+  promote(
+    @Param('supplierId') supplierId: string,
+    @Body(zodBody(promoteSupplierSchema)) input: PromoteSupplierInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.supplierCommands.promoteSupplier(supplierId, input, actor);
   }
 
   @Post(':supplierId/certifications')

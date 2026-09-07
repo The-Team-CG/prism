@@ -17,6 +17,7 @@ import type {
   SupplierProfile,
   UpdateSupplierInput,
 } from '../../contracts/supplier-directory.port';
+import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput } from '@prism/types';
 import { SUPPLIER_DIRECTORY } from '../../contracts/supplier-ops.tokens';
 
 type SupplierResult = SupplierProfile;
@@ -147,6 +148,41 @@ export class SupplierProfileCommandsService {
             expiresAt: input.expiresAt ?? null,
             status: input.status ?? 'submitted',
           },
+        });
+      },
+    });
+  }
+
+  async addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, actor: ResolvedEventOpsActor) {
+    return this.workflowCommandService.execute<{ supplier: SupplierResult; noteId: string; replayed?: boolean }, SupplierResult>({
+      name: 'add_supplier_reliability_note',
+      eventId: input.eventId,
+      sideEffectMode: 'same_tx',
+      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier private reliability note', input.eventId),
+      write: (transactionContext) => this.suppliersService.addReliabilityNote(supplierId, input, transactionContext),
+      sideEffects: async (result, transactionContext) => {
+        if (result.replayed) return;
+        const supplier = result.supplier;
+        await writeAudit(this.auditWriter, input.eventId, actor.name, `Added private supplier reliability note: ${supplier.name}`, {
+          actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Suppliers,
+          actionType: AuditActionType.Create, affectedType: 'supplier_reliability_note', affectedId: result.noteId,
+          affectedLabel: supplier.name, metadata: { idempotencyKey: input.idempotencyKey ?? null },
+        }, transactionContext);
+      },
+      project: (result) => result.supplier,
+    });
+  }
+
+  async promoteSupplier(supplierId: string, input: PromoteSupplierInput, actor: ResolvedEventOpsActor) {
+    return this.workflowCommandService.execute<SupplierResult>({
+      name: 'promote_supplier', eventId: input.eventId, sideEffectMode: 'same_tx',
+      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier promotion', input.eventId),
+      write: (transactionContext) => this.suppliersService.promoteSupplier(supplierId, input, transactionContext),
+      sideEffects: async (supplier) => {
+        await writeAudit(this.auditWriter, input.eventId, actor.name, `Promoted supplier: ${supplier.name}`, {
+          actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Suppliers,
+          actionType: AuditActionType.Update, affectedType: 'supplier', affectedId: supplier.id,
+          affectedLabel: supplier.name, metadata: { tier: input.tier, reason: input.reason },
         });
       },
     });

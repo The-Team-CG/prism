@@ -113,6 +113,9 @@ export class SupplierApplicationService {
     }
 
     const nextStatus = applicationStatusForReviewAction(input.action);
+    if (input.action === 'approve' && (!existing.categoryId || !existing.category?.active)) {
+      throw new BadRequestException('A supplier category is required before approval');
+    }
     const now = new Date();
     const row = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const changed = await tx.opsSupplierApplication.updateMany({
@@ -121,12 +124,32 @@ export class SupplierApplicationService {
         status: nextStatus,
         declineReason: input.action === 'decline' ? input.declineReason?.trim() ?? null : existing.declineReason,
         reviewedAt: now,
-        approvedAt: existing.approvedAt,
+        approvedAt: input.action === 'approve' ? now : existing.approvedAt,
         },
       });
       if (changed.count !== 1) throw new BadRequestException('Supplier application has already been reviewed');
       const updated = await tx.opsSupplierApplication.findUnique({ where: { id: applicationId }, include: { category: true } });
       if (!updated) throw new NotFoundException('Supplier application not found');
+      if (input.action === 'approve' && updated.categoryId) {
+        const supplierId = `sup_application_${applicationId}`;
+        const supplier = await tx.opsSupplier.findUnique({ where: { id: supplierId } });
+        if (!supplier) {
+          await tx.opsSupplier.create({
+            data: {
+              id: supplierId,
+              categoryId: updated.categoryId,
+              name: updated.companyName.trim(),
+              contactName: updated.contactName.trim(),
+              email: updated.email.trim(),
+              phone: updated.phone.trim(),
+              tier: 'pending_first_event',
+              bniMember: updated.bniMember,
+              serviceInclusions: updated.serviceInclusions.trim(),
+              performanceNotes: updated.additionalNotes.trim(),
+            },
+          });
+        }
+      }
       await writeAudit(this.auditWriter, undefined, actor.name, `Reviewed supplier application: ${updated.companyName}`, {
         actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'suppliers',
         affectedType: 'supplier_application', affectedId: updated.id, affectedLabel: updated.companyName,
