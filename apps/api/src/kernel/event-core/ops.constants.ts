@@ -42,6 +42,7 @@ export const SupplierQuoteStatus = {
 export const CoordinatorAssignmentStatus = {
   PendingAcknowledgement: 'pending_acknowledgement',
   Acknowledged: 'acknowledged',
+  Declined: 'declined',
   Cancelled: 'cancelled',
   Replaced: 'replaced',
 } as const;

@@ -449,8 +449,9 @@ export class EventReadModelsService {
       auditLogs,
       notificationLogs,
     ] = await this.queries.pmcmEventWorkspace(eventId);
-    const [coordinatorAssignments, guestCheckIns, guestFeedback, registrationPlatform] = await Promise.all([
+    const [coordinatorAssignments, coordinatorCoverage, guestCheckIns, guestFeedback, registrationPlatform] = await Promise.all([
       this.staffingReader.listAssignmentsForEvent(eventId),
+      this.staffingReader.listCoverageForEvent?.(eventId) ?? Promise.resolve([]),
       this.guestReader.listCheckInsForEvent(eventId),
       this.guestReader.listFeedbackForEvent(eventId),
       this.registrationPlatformReader?.getByEventId(eventId) ?? Promise.resolve(null),
@@ -463,6 +464,7 @@ export class EventReadModelsService {
       supplierQuoteRequests: supplierQuoteRequests.map(mappers.mapSupplierQuoteRequest),
       supplierQuotes: supplierQuotes.map(mappers.mapSupplierQuote),
       coordinatorAssignments: coordinatorAssignments.map(mappers.mapCoordinatorAssignment),
+      coordinatorCoverage,
       complianceChecks: complianceChecks.map(mappers.mapComplianceCheck),
       billingSources: billingSources.map(mappers.mapBillingSource),
       billingStatements: billingStatements.map(mappers.mapBillingStatement),

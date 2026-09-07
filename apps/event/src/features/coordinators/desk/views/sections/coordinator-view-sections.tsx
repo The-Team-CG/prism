@@ -227,6 +227,8 @@ export type CoordinatorWorkspaceModel = {
   roleViewLoading: boolean;
   sessionName: string;
   acknowledge: () => void;
+  decline: (reason?: string) => void;
+  withdraw: () => void;
   scrollTo: (id: string) => void;
   taskForm: CoordinatorTaskFormModel;
   issueForm: CoordinatorIssueFormModel;
@@ -240,6 +242,8 @@ export function CoordinatorGreetingBanner({
   attendanceStatus,
   sessionName,
   onAcknowledge,
+  onDecline,
+  onWithdraw,
 }: {
   event?: { eventName: string; clientName: string; eventDate: string };
   assignment?: { status: string } | null;
@@ -248,9 +252,11 @@ export function CoordinatorGreetingBanner({
   attendanceStatus: string;
   sessionName: string;
   onAcknowledge: () => void;
+  onDecline: (reason?: string) => void;
+  onWithdraw: () => void;
 }) {
   const greeting = coordinatorGreetingCopy(event);
-  const showAcknowledge = Boolean(assignment && assignment.status !== "acknowledged");
+  const showAcknowledge = Boolean(assignment && assignment.status !== "acknowledged" && assignment.status !== "declined");
   const showAcknowledged = assignment?.status === "acknowledged";
 
   return (
@@ -272,6 +278,28 @@ export function CoordinatorGreetingBanner({
           {showAcknowledged ? (
             <div className="mt-5 inline-flex items-center gap-2 rounded-lg bg-white/15 px-4 py-2 text-sm font-bold backdrop-blur-sm">
               <CheckCircle2 className="size-4" /> Role acknowledged
+            </div>
+          ) : null}
+          {assignment && assignment.status !== "acknowledged" ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {assignment.status !== "declined" ? (
+                <Button
+                  variant="outline"
+                  className="rounded-lg border-white/50 bg-transparent font-bold text-white hover:bg-white/10"
+                  onClick={() => onDecline(window.prompt("Why are you declining this assignment?")?.trim())}
+                  disabled={busy}
+                >
+                  Decline
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                className="rounded-lg border-white/50 bg-transparent font-bold text-white hover:bg-white/10"
+                onClick={onWithdraw}
+                disabled={busy}
+              >
+                Withdraw
+              </Button>
             </div>
           ) : null}
         </div>

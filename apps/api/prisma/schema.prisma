@@ -268,6 +268,7 @@ model OpsEvent {
   supplierReviews             OpsSupplierReview[]
   supplierReliabilityNotes    OpsSupplierReliabilityNote[]
   coordinatorAssignments      OpsCoordinatorAssignment[]
+  coordinatorCoverage         OpsEventCoverageRequirement[]
   eventDayTasks               OpsEventDayTask[]
   urgentIssues                OpsUrgentIssue[]
   eventDayLogs                OpsEventDayLog[]
@@ -683,10 +684,47 @@ model OpsCoordinator {
 
   user             OpsUser?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
   assignments      OpsCoordinatorAssignment[]
+  availability     OpsCoordinatorAvailability[]
   reliabilityNotes OpsCoordinatorReliabilityNote[]
 
   @@index([active, name], map: "coordinators_active_name_idx")
   @@map("coordinators")
+  @@schema("staffing_ops")
+}
+
+model OpsCoordinatorAvailability {
+  id            String   @id
+  coordinatorId String   @map("coordinator_id")
+  startsAt      DateTime @map("starts_at")
+  endsAt        DateTime @map("ends_at")
+  kind          String   @default("unavailable")
+  note          String   @default("")
+  declaredBy    String   @map("declared_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  coordinator OpsCoordinator @relation(fields: [coordinatorId], references: [id], onDelete: Cascade)
+
+  @@index([coordinatorId, startsAt, endsAt], map: "coordinator_availability_coordinator_id_starts_at_ends_at_idx")
+  @@map("coordinator_availability")
+  @@schema("staffing_ops")
+}
+
+model OpsEventCoverageRequirement {
+  id             String   @id
+  eventId        String   @map("event_id")
+  role           String
+  required       Int
+  requiredSkills String[] @default([]) @map("required_skills")
+  createdBy      String   @map("created_by")
+  updatedBy      String   @map("updated_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, role], map: "event_coverage_requirements_event_id_role_key")
+  @@index([eventId], map: "event_coverage_requirements_event_id_idx")
+  @@map("event_coverage_requirements")
   @@schema("staffing_ops")
 }
 
@@ -709,16 +747,37 @@ model OpsCoordinatorAssignment {
   conflictEventId        String?   @map("conflict_event_id")
   conflictEventName      String?   @map("conflict_event_name")
   acknowledgedAt         DateTime? @map("acknowledged_at")
+  acknowledgedBy         String?   @map("acknowledged_by")
+  acknowledgementReason  String?   @map("acknowledgement_reason")
+  withdrawalReason       String?   @map("withdrawal_reason")
+  withdrawnAt             DateTime? @map("withdrawn_at")
+  withdrawnBy             String?   @map("withdrawn_by")
   createdAt              DateTime  @default(now()) @map("created_at")
 
   event            OpsEvent                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   coordinator      OpsCoordinator?                 @relation(fields: [coordinatorId], references: [id], onDelete: SetNull)
   reliabilityNotes OpsCoordinatorReliabilityNote[]
+  acknowledgmentHistory OpsCoordinatorAssignmentAcknowledgment[]
 
   @@index([eventId, status], map: "coordinator_assignments_event_id_status_idx")
   @@index([coordinatorId, eventDate], map: "coordinator_assignments_coordinator_id_event_date_idx")
   @@index([eventId, attendanceStatus], map: "coordinator_assignments_event_id_attendance_status_idx")
   @@map("coordinator_assignments")
+  @@schema("staffing_ops")
+}
+
+model OpsCoordinatorAssignmentAcknowledgment {
+  id           String   @id
+  assignmentId String   @map("assignment_id")
+  state        String
+  reason       String   @default("")
+  actor        String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  assignment OpsCoordinatorAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId, createdAt], map: "coordinator_assignment_ack_history_assignment_id_created_at_idx")
+  @@map("coordinator_assignment_acknowledgments")
   @@schema("staffing_ops")
 }
 

@@ -10,6 +10,7 @@ import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module'
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
+import { OpsCoordinatorCapacityController } from './api/staffing/coordinator-capacity.controller';
 import { OpsGuestController } from './api/guest/guest.controller';
 import { OpsRegistrationPlatformController } from './api/guest/registration-platform.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tokens';
@@ -37,7 +38,7 @@ import { RegistrationPlatformService } from './application/guest/registration-pl
  */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, IdentityAccessModule, EventSessionModule, EventLifecycleModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsGuestController, OpsRegistrationPlatformController],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController],
   providers: [
     CoordinatorsService,
     CoordinatorWorkspaceReadService,

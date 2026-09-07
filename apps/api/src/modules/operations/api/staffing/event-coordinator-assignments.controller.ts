@@ -1,13 +1,18 @@
 import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import type { PrismVerifiedEventActor } from '@prism/types';
+import { zodBody } from '@prism/kernel/shared';
 import {
-  CreateCoordinatorAssignmentDto,
-  ReplaceCoordinatorAssignmentDto,
-  WithdrawCoordinatorAssignmentDto,
-} from './staffing-ops.dto';
-import { CoordinatorsService } from '../../application/staffing/coordinators.service';
+  coordinatorAssignmentAcknowledgementSchema,
+  createCoordinatorAssignmentSchema,
+  replaceCoordinatorAssignmentSchema,
+  withdrawCoordinatorAssignmentSchema,
+  type CoordinatorAssignmentAcknowledgementInput,
+  type CreateCoordinatorAssignmentInput,
+  type WithdrawCoordinatorAssignmentInput,
+  type PrismVerifiedEventActor,
+} from '@prism/types';
+import { CoordinatorsService, type ReplaceCoordinatorAssignmentInput } from '../../application/staffing/coordinators.service';
 
 @Controller('events')
 export class OpsEventCoordinatorAssignmentsController {
@@ -21,7 +26,7 @@ export class OpsEventCoordinatorAssignmentsController {
   @HttpCode(HttpStatus.CREATED)
   assignCoordinator(
     @Param('eventId') eventId: string,
-    @Body() dto: CreateCoordinatorAssignmentDto,
+    @Body(zodBody(createCoordinatorAssignmentSchema)) dto: CreateCoordinatorAssignmentInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -34,9 +39,12 @@ export class OpsEventCoordinatorAssignmentsController {
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+    @Body(zodBody(coordinatorAssignmentAcknowledgementSchema)) dto?: CoordinatorAssignmentAcknowledgementInput,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId, actor);
+    return dto
+      ? this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId, actor, dto)
+      : this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId, actor);
   }
 
   @Patch(':eventId/coordinators/:assignmentId/withdraw')
@@ -44,7 +52,7 @@ export class OpsEventCoordinatorAssignmentsController {
   withdrawCoordinator(
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
-    @Body() dto: WithdrawCoordinatorAssignmentDto,
+    @Body(zodBody(withdrawCoordinatorAssignmentSchema)) dto: WithdrawCoordinatorAssignmentInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
@@ -56,7 +64,7 @@ export class OpsEventCoordinatorAssignmentsController {
   replaceCoordinator(
     @Param('eventId') eventId: string,
     @Param('assignmentId') assignmentId: string,
-    @Body() dto: ReplaceCoordinatorAssignmentDto,
+    @Body(zodBody(replaceCoordinatorAssignmentSchema)) dto: ReplaceCoordinatorAssignmentInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
