@@ -165,7 +165,7 @@ function renderQuotations(ctx: SectionContext) {
 
 function renderFiles(ctx: SectionContext) {
   if (!ctx.workspace) return null;
-  return <FilesPage workspace={ctx.workspace} />;
+  return <FilesPage workspace={ctx.workspace} session={ctx.session} />;
 }
 
 function renderPayments(ctx: SectionContext) {

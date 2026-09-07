@@ -4,8 +4,13 @@ import type {
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   CreatePrismInquiryInput,
+  CreateRegistrationPlatformInput,
   CreateSupplierApplicationInput,
   CreateUrgentIssueInput,
+  ArchiveSearchFilters,
+  ReviewEventProposalInput,
+  ReviewSupplierApplicationInput,
+  PrismArchivedEventSearchHit,
   PrismBillingWorkspace,
   PrismClientActionCenter,
   PrismClientWorkspace,
@@ -30,8 +35,10 @@ import type {
   PrismUrgentIssue,
   PrismCoordinatorAssignment,
   PrismSupplierApplication,
+  ImportHeadcountInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
+  UpdateRegistrationPlatformInput,
   UpdateSupplierEventStatusInput,
   UploadContractInput,
 } from "@prism/types";
@@ -51,11 +58,17 @@ export type {
   CreateGuestFeedbackInput,
   CreateSupplierApplicationInput,
   CreatePrismInquiryInput,
+  CreateRegistrationPlatformInput,
   CreateUrgentIssueInput,
+  ArchiveSearchFilters,
+  ReviewEventProposalInput,
+  ReviewSupplierApplicationInput,
+  ImportHeadcountInput,
   SubmitSupplierQuoteInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateInquiryStatusInput,
+  UpdateRegistrationPlatformInput,
   UpdateSupplierEventStatusInput,
   UploadConformeInput,
   UploadContractInput,
@@ -97,6 +110,8 @@ export interface EventOpsClient {
     list(actor?: EventOpsActorQuery): Promise<PrismEvent[]>;
     detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     fileRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismFileRequirementsMatrix>;
+    reviewProposal(eventId: string, input: ReviewEventProposalInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    searchArchive(filters?: ArchiveSearchFilters, actor?: EventOpsActorQuery): Promise<PrismArchivedEventSearchHit[]>;
   };
   clientWorkspace: {
     detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
@@ -112,6 +127,21 @@ export interface EventOpsClient {
     commandInbox(actor?: EventOpsActorQuery): Promise<PrismPmcmCommandInbox>;
     eventWorkspace(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPmcmEventWorkspace>;
     registrationPlatform(eventId: string, actor?: EventOpsActorQuery): Promise<PrismRegistrationPlatform | null>;
+    upsertRegistrationPlatform(
+      eventId: string,
+      input: CreateRegistrationPlatformInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismRegistrationPlatform>;
+    updateRegistrationPlatform(
+      eventId: string,
+      input: UpdateRegistrationPlatformInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismRegistrationPlatform>;
+    importHeadcount(
+      eventId: string,
+      input: ImportHeadcountInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismRegistrationPlatform>;
   };
   guest: {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
@@ -141,6 +171,12 @@ export interface EventOpsClient {
   supplierApplications: {
     create(input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication>;
     listCategories(): Promise<{ id: string; name: string }[]>;
+    listInbox(actor?: EventOpsActorQuery): Promise<PrismSupplierApplication[]>;
+    review(
+      applicationId: string,
+      input: ReviewSupplierApplicationInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismSupplierApplication>;
   };
 }
 
@@ -163,6 +199,18 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           actorPath(`/events/${eventId}/file-requirements`, actor),
           withBase(options),
         ),
+      reviewProposal: (eventId, input, actor = {}) =>
+        prismRequest<PrismEvent>(
+          actorPath(`/events/${eventId}/proposal/review`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      searchArchive: (filters = {}, actor = {}) => {
+        const query = toQueryString({ ...actor, ...filters });
+        return prismRequest<PrismArchivedEventSearchHit[]>(
+          query ? `/events/archive?${query}` : "/events/archive",
+          withBase(options),
+        );
+      },
     },
     clientWorkspace: {
       detail: (actor = {}) => prismRequest<PrismClientWorkspace>(actorPath("/client/workspace", actor), withBase(options)),
@@ -208,6 +256,21 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<PrismPmcmEventWorkspace>(actorPath(`/pmcm/events/${eventId}/workspace`, actor), withBase(options)),
       registrationPlatform: (eventId, actor = {}) =>
         prismRequest<PrismRegistrationPlatform | null>(actorPath(`/events/${eventId}/registration-platform`, actor), withBase(options)),
+      upsertRegistrationPlatform: (eventId, input, actor = {}) =>
+        prismRequest<PrismRegistrationPlatform>(
+          actorPath(`/events/${eventId}/registration-platform`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      updateRegistrationPlatform: (eventId, input, actor = {}) =>
+        prismRequest<PrismRegistrationPlatform>(
+          actorPath(`/events/${eventId}/registration-platform`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      importHeadcount: (eventId, input, actor = {}) =>
+        prismRequest<PrismRegistrationPlatform>(
+          actorPath(`/events/${eventId}/registration-platform/headcount-import`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
     },
     guest: {
       eventPass: (accessCode) =>
@@ -261,6 +324,16 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<{ id: string; name: string }[]>(
           "/supplier-applications/categories",
           withBase(options),
+        ),
+      listInbox: (actor = {}) =>
+        prismRequest<PrismSupplierApplication[]>(
+          actorPath("/supplier-applications/inbox", actor),
+          withBase(options),
+        ),
+      review: (applicationId, input, actor = {}) =>
+        prismRequest<PrismSupplierApplication>(
+          actorPath(`/supplier-applications/${applicationId}/review`, actor),
+          withBase(options, { method: "PATCH", body: input }),
         ),
     },
   };

@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { EventSessionGuard } from '@prism/kernel/event-session';
 import { OpsEventClosureController } from './event-closure.controller';
 
 function controllerPath(controller: Function): string {
@@ -43,12 +44,13 @@ function createController() {
     archiveEvent: vi.fn(async () => event),
     listEventInsights: vi.fn(async () => [insight]),
     generateEventInsights: vi.fn(async () => insight),
+    searchArchive: vi.fn(async () => [{ id: 'evt_sample', eventName: 'Sample Gala', venue: 'Ballroom' }]),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((input = {}) => ({
-      role: input.actorRole ?? OpsUserRole.PmcmAdmin,
-      name: input.actorName ?? 'PMCM Admin',
-      email: input.actorEmail,
+    resolveActor: vi.fn((input = {}, verifiedActor) => ({
+      role: verifiedActor?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin,
+      name: verifiedActor?.actorName ?? input.actorName ?? 'PMCM Admin',
+      email: verifiedActor?.actorEmail ?? input.actorEmail,
     })),
   };
   const guestReader = { guestAccessCode: vi.fn(() => 'SAMPLE-GALA-EVT') };
@@ -63,6 +65,24 @@ function createController() {
 }
 
 describe('OpsEventClosureController', () => {
+  it('requires a verified session to search the archive', () => {
+    const guards = Reflect.getMetadata('__guards__', OpsEventClosureController.prototype.searchArchive);
+    expect(guards).toContain(EventSessionGuard);
+  });
+
+  it('searches archived events with the verified actor', async () => {
+    const { controller, eventClosureService, eventAccessPolicyService } = createController();
+    const actor = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
+    await expect(controller.searchArchive({ venue: 'Ballroom' }, actor as never)).resolves.toEqual([
+      { id: 'evt_sample', eventName: 'Sample Gala', venue: 'Ballroom' },
+    ]);
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, actor);
+    expect(eventClosureService.searchArchive).toHaveBeenCalledWith(
+      { venue: 'Ballroom' },
+      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
+    );
+  });
+
   it('keeps event closure routes under the events route base', () => {
     expect(controllerPath(OpsEventClosureController)).toBe('events');
   });

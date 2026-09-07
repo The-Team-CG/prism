@@ -29,6 +29,7 @@ import {
 } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
+import { runDashboardActionWithSuccess } from "./dashboard-action-runner";
 
 export type { EventDashboardClientProps };
 
@@ -157,6 +158,25 @@ export function useEventDashboardShellViewModel({
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function runWithSuccess(actionLabel: string, action: () => Promise<unknown>) {
+    setBusy(actionLabel);
+    setError(null);
+    try {
+      return await runDashboardActionWithSuccess(
+        action,
+        {
+          refresh,
+          refreshSelectedEventWorkspace,
+          refreshApprovals,
+          loadLiveOps: selectedEvent?.id ? () => loadLiveOps(true) : undefined,
+        },
+        (message) => setError(message),
+      );
     } finally {
       setBusy(null);
     }
@@ -346,7 +366,9 @@ export function useEventDashboardShellViewModel({
     createSupplier: (input: Parameters<typeof commands.createSupplier>[0]) => run("create supplier", () => commands.createSupplier(input)),
     updateSupplierProfile: (supplierId: string, input: Parameters<typeof commands.updateSupplier>[1]) => run("update supplier", () => commands.updateSupplier(supplierId, input)),
     changeSupplierTier: (supplierId: string, tier: Parameters<typeof commands.changeSupplierTier>[1]["tier"], reason: string) => run("supplier tier change", () => commands.changeSupplierTier(supplierId, { tier, reason })),
-    addSupplierReview: (supplierId: string, input: Parameters<typeof commands.addSupplierReview>[1]) => session ? run("supplier private review", () => commands.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }, session)) : Promise.resolve(),
+    addSupplierReview: (supplierId: string, input: Parameters<typeof commands.addSupplierReview>[1]) => session
+      ? runWithSuccess("supplier private review", () => commands.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }, session))
+      : Promise.resolve(false),
     addSupplierCertification: (supplierId: string, input: Parameters<typeof commands.addSupplierCertification>[1]) => run("supplier certification", () => commands.addSupplierCertification(supplierId, input)),
     requestSupplierQuotes: (input: Parameters<typeof commands.requestSupplierQuotes>[1]) => selectedEvent ? run("request supplier quotes", () => commands.requestSupplierQuotes(selectedEvent.id, input)) : Promise.resolve(),
     selectSupplierQuote: (quoteId: string) => selectedEvent ? run("select supplier quote", () => commands.selectSupplierQuote(selectedEvent.id, quoteId)) : Promise.resolve(),

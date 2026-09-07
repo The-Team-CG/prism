@@ -5,9 +5,12 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import type { ArchiveSearchFilters } from '@prism/types';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { archivedEventMatchesSearch } from '../../domain/archive-search.policy';
+import { mapArchivedEventSearchHit } from './closure.mappers';
 
 export type ArchiveEventInput = EventOpsActorInput & {
   overrideReason?: string;
@@ -178,6 +181,25 @@ export class EventClosureService {
         });
       },
     });
+  }
+
+  async searchArchive(filters: ArchiveSearchFilters, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'event archive search',
+    );
+    const events = await this.prisma.opsEvent.findMany({
+      where: { archived: true },
+      include: {
+        inquiry: true,
+        briefings: { orderBy: { submittedAt: 'desc' }, take: 1 },
+      },
+      orderBy: { eventDate: 'desc' },
+    });
+    return events
+      .map(mapArchivedEventSearchHit)
+      .filter((hit) => archivedEventMatchesSearch(hit, filters));
   }
 
   private async requireEvent(eventId: string) {

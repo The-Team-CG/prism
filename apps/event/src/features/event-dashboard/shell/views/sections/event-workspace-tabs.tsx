@@ -12,8 +12,10 @@ import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
+import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventMessagesWorkspace } from "@/app/(portal)/dashboard/components/event-messages-workspace";
+import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import type { PrismFloorPlanDraft } from "@prism/types";
@@ -201,6 +203,8 @@ export function EventWorkspaceSuppliersTab() {
         </CardBody>
       </Card>
 
+      <PmcmSupplierReadinessBoard requests={vm.quoteRequests} quotes={vm.quotes} />
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
@@ -298,6 +302,11 @@ export function EventWorkspaceClosureTab() {
       billingSources={vm.billingSources}
       billingStatements={vm.billingStatements}
       insights={vm.eventInsights}
+      supplierCategories={vm.supplierCategories}
+      suppliers={vm.suppliers}
+      quoteRequests={vm.quoteRequests}
+      reviewerName={vm.session.name}
+      canReviewSuppliers={isPmcmAdmin(vm.session.role)}
       busy={Boolean(vm.busy)}
       onCreateRule={vm.createComplianceRule}
       onRunCompliance={vm.runComplianceChecks}
@@ -310,6 +319,7 @@ export function EventWorkspaceClosureTab() {
       onArchive={vm.archiveSelectedEvent}
       onLoadInsights={vm.loadEventInsights}
       onGenerateInsights={vm.generateEventInsights}
+      onAddReview={vm.addSupplierReview}
     />
   );
 }
@@ -335,6 +345,7 @@ export function EventWorkspaceRegistrationTab() {
       platform={vm.registrationPlatform}
       suppliers={vm.suppliers}
       busy={Boolean(vm.busy)}
+      loadError={vm.commandDataErrors.registrationPlatform}
       onUpsert={vm.upsertRegistrationPlatform}
       onUpdate={vm.updateRegistrationPlatform}
       onImportHeadcount={vm.importHeadcount}

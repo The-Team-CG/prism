@@ -127,6 +127,8 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  fileRequirements: (eventId: string, session: PrismAuthenticatedSession) =>
+    eventOpsClient.events.fileRequirements(eventId, actorFromSession(session)),
   listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>
     request("/api/supplier-applications/categories"),
 };

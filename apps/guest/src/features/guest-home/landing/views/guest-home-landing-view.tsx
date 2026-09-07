@@ -8,8 +8,6 @@ import {
   HelpCircle,
   LockKeyhole,
   MessageCircleHeart,
-  QrCode,
-  ScanLine,
   ShieldCheck,
   TicketCheck,
   UserCheck,
@@ -137,7 +135,7 @@ export function GuestHomeLandingView() {
               </div>
               <div className="mt-10 grid grid-cols-2 gap-5 sm:grid-cols-4">
                 {[
-                  [QrCode, "Code required"],
+                  [TicketCheck, "Access code"],
                   [ShieldCheck, "Consent first"],
                   [Zap, "Fast check-in"],
                   [MessageCircleHeart, "Feedback reviewed"],
@@ -163,7 +161,7 @@ export function GuestHomeLandingView() {
       <section className="px-5 py-10 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-5 rounded-lg border border-primary/12 bg-card p-7 shadow-[0_20px_70px_rgba(23,18,22,0.08)] md:grid-cols-4">
           {[
-            [QrCode, "Code required", "A valid code is required before your pass opens."],
+            [TicketCheck, "Access code", "A valid access code is required before your pass opens. Camera QR check-in is not enabled."],
             [ShieldCheck, "Consent first", "We ask for consent before check-in."],
             [Zap, "Fast check-in", "Arrive, confirm, and check in quickly."],
             [MessageCircleHeart, "Feedback reviewed", "Your feedback helps improve future events."],
@@ -193,7 +191,7 @@ export function GuestHomeLandingView() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              [QrCode, "Event pass", "Private access, just for you."],
+              [TicketCheck, "Event pass", "Private access, just for you."],
               [ShieldCheck, "Consent", "We value your privacy."],
               [UserCheck, "Check-in ready", "Show this screen at the venue."],
             ].map(([Icon, title, text]) => (
@@ -208,7 +206,7 @@ export function GuestHomeLandingView() {
           <h2 className="text-center prism-serif text-4xl font-black leading-[0.98] text-(--prism-ink)">A simple flow from arrival to feedback</h2>
           <div className="mt-10 grid gap-6 md:grid-cols-4">
             {[
-              [QrCode, "Enter code", "Open your event pass with the code from your host."],
+              [TicketCheck, "Enter code", "Open your event pass with the code from your host."],
               [ShieldCheck, "Confirm consent", "Review and confirm consent before checking in."],
               [UserCheck, "Check in", "Arrive at the venue and check in with our team."],
               [MessageCircleHeart, "Share feedback", "After the event, tell us about your experience."],

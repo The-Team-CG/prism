@@ -15,8 +15,7 @@ import { mapAuditLog } from '@prism/contexts/platform-ops';
 import { mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import type { FinanceCommands } from '@prism/contexts/commercial';
 import type { FloorplanReader } from '@prism/contexts/floorplan';
-import type { GuestReader, StaffingReader } from '@prism/contexts/operations';
-import type { RegistrationPlatformService } from '@prism/contexts/operations';
+import type { GuestReader, RegistrationPlatformReader, StaffingReader } from '@prism/contexts/operations';
 import { createPmcmDashboardMappers } from './event-read-model.mappers';
 
 const COORDINATOR_ROLE_REQUIREMENTS = [
@@ -111,7 +110,7 @@ export type EventReadModelMapperDependencies = {
 export type PmcmReadModelMapperDependencies = EventReadModelMapperDependencies & {
   financeCommands: FinanceCommands;
   staffingReader: StaffingReader;
-  registrationPlatformService: RegistrationPlatformService;
+  registrationPlatformReader: RegistrationPlatformReader;
 };
 
 export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDependencies) {
@@ -137,7 +136,7 @@ export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDepe
     mapFloorPlanDraft: dependencies.floorplanReader.mapFloorPlanDraft.bind(dependencies.floorplanReader),
     mapAuditLog,
     mapNotificationLog,
-    mapRegistrationPlatform: dependencies.registrationPlatformService.mapRegistrationPlatform.bind(dependencies.registrationPlatformService),
+    mapRegistrationPlatform: dependencies.registrationPlatformReader.mapRegistrationPlatform.bind(dependencies.registrationPlatformReader),
   });
 }
 

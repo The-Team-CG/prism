@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { FLOORPLAN_READER } from '../../../floorplan/contracts/floorplan.tokens';
 import type { FloorplanReader } from '../../../floorplan/contracts/floorplan-reader.port';
@@ -7,6 +7,13 @@ import type { GuestReader } from '../../../operations/contracts/guest-reader.por
 import { ArchiveEventDto, ClosureActorDto } from './closure.dto';
 import { mapClosureEvent, mapEventInsight, mapPostEventDocument } from '../../application/closure/closure.mappers';
 import { EventClosureService } from '../../application/closure/event-closure.service';
+import {
+  archiveSearchFiltersSchema,
+  type ArchiveSearchFilters,
+  type PrismVerifiedEventActor,
+} from '@prism/types';
+import { zodQuery } from '@prism/kernel/shared';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 
 @Controller('events')
 export class OpsEventClosureController {
@@ -16,6 +23,16 @@ export class OpsEventClosureController {
     @Inject(GUEST_READER) private readonly guestReader: GuestReader,
     @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
   ) {}
+
+  @Get('archive')
+  @UseGuards(EventSessionGuard)
+  searchArchive(
+    @Query(zodQuery(archiveSearchFiltersSchema)) filters: ArchiveSearchFilters,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventClosureService.searchArchive(filters, actor);
+  }
 
   @Patch(':eventId/post-event-documents/:documentId/complete')
   async completePostEventDocument(

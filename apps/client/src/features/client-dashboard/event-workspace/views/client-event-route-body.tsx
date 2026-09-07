@@ -73,14 +73,7 @@ function renderActions(ctx: ClientWorkspaceValue) {
 function renderProposal(ctx: ClientWorkspaceValue) {
   if (!ctx.selectedEvent) return null;
   return (
-    <ClientProposalTab
-      selectedEvent={ctx.selectedEvent}
-      briefing={ctx.briefing}
-      billing={ctx.billing}
-      payments={ctx.payments}
-      officialDraft={ctx.officialDraft}
-      setTab={(next) => ctx.navigateToEventRoute(next)}
-    />
+    <ClientProposalTab setTab={(next) => ctx.navigateToEventRoute(next)} />
   );
 }
 

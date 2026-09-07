@@ -165,15 +165,10 @@ function CompactRecordRow({ item }: { item: CompactRecordItem }) {
         <span className="flex flex-wrap items-center gap-2">
           <span className="truncate text-sm font-black text-foreground">{item.title}</span>
           {/* PA-291: the shared StatusBadge STATUS_MAP has no entry for in_progress,
-              done, or blocked, so all three fall to the neutral default tier. Reuse
-              liveOpsPillClass here, in this row only. The shared component and the
-              other two StatusBadge call sites are deliberately left unchanged. */}
+              done, or blocked. Keep its shared markup and add the live-ops color
+              classes for those statuses. */}
           {item.status ? (
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ring-1 ${liveOpsPillClass(item.status)}`}
-            >
-              {item.status.replaceAll("_", " ")}
-            </span>
+            <StatusBadge status={item.status} className={liveOpsPillClass(item.status)} />
           ) : null}
         </span>
         {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}

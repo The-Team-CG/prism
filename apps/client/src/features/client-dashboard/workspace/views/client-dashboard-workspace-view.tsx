@@ -19,6 +19,7 @@ import {
   type PreferenceForm,
 } from "../client-workspace-context";
 import {
+  deriveClientActionCenterFromWorkspace,
   FLOOR_PLAN_PREVIEW_CACHE_MS,
   draftIsOfficial,
   floorPlanPreviewCache,
@@ -113,7 +114,7 @@ export function ClientDashboardWorkspaceView({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
-  const { actionCenter, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardViewModel({
+  const { actionCenter, actionCenterLoadFailed, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardViewModel({
     route,
     eventId,
     portalView,
@@ -147,7 +148,11 @@ export function ClientDashboardWorkspaceView({
   const officialDraft = selectOfficialDraft(eventDrafts);
   const preferenceDrafts = selectPreferenceDrafts(eventDrafts);
   const { audit, billing, briefing, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
-  const clientActions = selectClientDashboardActions(actionCenter, selectedEvent?.id);
+  const resolvedActionCenter =
+    actionCenter ??
+    (actionCenterLoadFailed && state && session ? deriveClientActionCenterFromWorkspace(state, session) : null);
+  const actionCenterFromWorkspaceFallback = Boolean(actionCenterLoadFailed && !actionCenter && resolvedActionCenter);
+  const clientActions = selectClientDashboardActions(resolvedActionCenter, selectedEvent?.id);
   const nextAction = selectNextAction(clientActions);
   const isEventScopedView = isEventScopedClientRoute(route, eventId);
 
@@ -411,7 +416,8 @@ export function ClientDashboardWorkspaceView({
     portalView,
     session,
     state,
-    actionCenter,
+    actionCenter: resolvedActionCenter,
+    actionCenterFromWorkspaceFallback,
     error,
     notice,
     busy,
