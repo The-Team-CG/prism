@@ -216,6 +216,9 @@ export class InquiriesService {
     >({
       name: 'upload_conforme',
       validateState: async () => {
+        if (input.type && input.type !== 'signed_conforme') {
+          throw new BadRequestException('Conforme upload must be a signed conforme document');
+        }
         inquiry = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId } });
         if (!inquiry) throw new NotFoundException('Inquiry not found');
         if (inquiry.status !== 'accepted') {
