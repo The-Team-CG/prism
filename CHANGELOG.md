@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- W21 live operations: persisted multi-day schedule days and ordered segments with planned/actual timestamps and variance, explicit Event Day System Operator designation, transactional audited handoffs with carried outstanding items, structured per-day EOD reports and PMCM replies, derived run-sheet composition, server-clock operational timers, and an explicit no-schedule state. External notification delivery remains queued under W11's provider gate.
 - Trust remediation now resolves audit tails by full hash reachability, records forbidden-access audit failures as durable integrity incidents, queues security notifications through the idempotent notification outbox only for resolved PMCM addresses, and persists a durable email/IP password-reset limiter with reset request/consumption audit events.
 - W18 staffing slice: persisted coordinator availability windows and event coverage requirements, transactional availability guards, deterministic required/assigned/acknowledged coverage, coordinator acknowledgement/decline and withdrawal history, PMCM replacement flow, and idempotent acknowledgement reminder outbox intent. Reminders remain queued with the existing explicit provider configuration reason when no delivery adapter is bound.
 - Briefing submissions preserve prior history, reject locked or post-planning events, and persist audit/notification intent atomically with the verified actor.

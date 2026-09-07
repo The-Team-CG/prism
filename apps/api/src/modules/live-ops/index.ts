@@ -5,5 +5,6 @@ export * from './application/live-ops.mappers';
 export * from './application/live-operations.service';
 export * from './application/event-live-ops-command.service';
 export * from './application/event-live-ops-read.service';
+export * from './application/event-schedule.service';
 export * from './domain/urgent-issue-status.policy';
 export * from './domain/live-ops-escalation.policy';
