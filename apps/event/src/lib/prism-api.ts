@@ -80,6 +80,9 @@ import type {
   CreateSupplierReliabilityNoteInput,
   PromoteSupplierInput,
   AuditLogFilters,
+  UpdateWalkInPolicyInput,
+  GuestRosterSearchInput,
+  UpdateGuestVerificationInput,
 } from "@prism/types";
 
 export type {
@@ -768,6 +771,10 @@ export const prismApi = {
   importHeadcount: (eventId: string, input: ImportHeadcountInput) =>
     eventOpsClient.pmcm.importHeadcount(eventId, input),
   searchGuestRoster: (eventId: string, query = "") => eventOpsClient.guest.roster(eventId, query, { role: "pmcm-admin" }),
+  searchGuestRosterWithFilters: (eventId: string, filters: GuestRosterSearchInput) => eventOpsClient.guest.searchRoster(eventId, filters, { role: "pmcm-admin" }),
   importGuestRoster: (eventId: string, input: ImportGuestRosterInput) => eventOpsClient.guest.importRoster(eventId, input, { role: "pmcm-admin" }),
   checkInGuestRoster: (eventId: string, rosterEntryId: string) => eventOpsClient.guest.checkInRoster(eventId, rosterEntryId, { role: "coordinator" }),
+  verifyGuestRoster: (eventId: string, rosterEntryId: string, status: UpdateGuestVerificationInput["status"]) => eventOpsClient.guest.verifyRoster(eventId, rosterEntryId, { status }, { role: "pmcm-admin" }),
+  getWalkInPolicy: (eventId: string) => eventOpsClient.guest.walkInPolicy(eventId, { role: "pmcm-admin" }),
+  updateWalkInPolicy: (eventId: string, input: UpdateWalkInPolicyInput) => eventOpsClient.guest.updateWalkInPolicy(eventId, input, { role: "pmcm-admin" }),
 };
