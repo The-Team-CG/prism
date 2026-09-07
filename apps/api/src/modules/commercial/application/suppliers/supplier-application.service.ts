@@ -159,7 +159,9 @@ export class SupplierApplicationService {
 
   private async convertApprovedApplication(tx: Prisma.TransactionClient, applicationId: string, updated: any, input: ReviewSupplierApplicationInput) {
     const supplierId = `sup_application_${applicationId}`;
-    const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: updated.email.trim().toLowerCase() } });
+    const normalizedEmail = updated.email.trim().toLowerCase();
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${normalizedEmail}))`;
+    const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: { equals: normalizedEmail, mode: 'insensitive' } } });
     if (conflictingSupplier && conflictingSupplier.id !== supplierId) throw new BadRequestException('A supplier with this email already exists');
     const supplier = await tx.opsSupplier.findUnique({ where: { id: supplierId } });
     if (!supplier) await tx.opsSupplier.create({ data: { id: supplierId, categoryId: updated.categoryId, name: updated.companyName.trim(), contactName: updated.contactName.trim(), email: updated.email.trim(), phone: updated.phone.trim(), tier: 'pending_first_event', bniMember: updated.bniMember, serviceInclusions: updated.serviceInclusions.trim(), performanceNotes: updated.additionalNotes.trim() } });
