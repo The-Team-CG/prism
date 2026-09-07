@@ -28,6 +28,7 @@ import {
   Phase4ClosureBoard,
   Phase4ComplianceSection,
   Phase4InsightsSection,
+  ActualEventEndSection,
 } from "./phase4-workspace-sections";
 
 export function Phase4Workspace({
@@ -52,6 +53,7 @@ export function Phase4Workspace({
   onGenerateBillingStatement,
   onLoadCloseGates,
   onArchive,
+  onRecordActualEventEnd,
   onLoadInsights,
   onGenerateInsights,
   onAddReview,
@@ -88,6 +90,7 @@ export function Phase4Workspace({
   onGenerateBillingStatement: (sourceId: string) => Promise<void>;
   onLoadCloseGates: () => Promise<PrismCloseGates>;
   onArchive: (overrideReason?: string) => Promise<void>;
+  onRecordActualEventEnd: (input: { actualEndedAt: string; correctionReason?: string }) => Promise<void>;
   onLoadInsights: () => Promise<PrismEventInsight[]>;
   onGenerateInsights: () => Promise<void>;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
@@ -166,6 +169,7 @@ export function Phase4Workspace({
   return (
     <div className="space-y-5">
       <Phase4ClosureBoard event={event} closeGates={closeGates} cards={closureCards} />
+      <ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} />
       <Phase4ComplianceSection
         phase={phase}
         ruleTitle={ruleTitle}

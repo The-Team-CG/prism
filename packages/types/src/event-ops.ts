@@ -261,6 +261,8 @@ export interface PrismEvent {
   clientName: string;
   eventName: string;
   eventDate: string;
+  actualEndedAt?: string | null;
+  actualEndedBy?: string | null;
   status: string;
   clientPortalStatus: "locked" | "unlocked";
   readiness: string;

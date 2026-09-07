@@ -63,6 +63,7 @@ import type {
   CreateRegistrationPlatformInput,
   UpdateRegistrationPlatformInput,
   ImportHeadcountInput,
+  RecordActualEventEndInput,
   CreateEventDayTaskInput,
   EscalateLiveOpsInput,
   ReplaceCoordinatorAssignmentInput,
@@ -719,6 +720,8 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify({ overrideReason, actorName: "Ms. Mys" }),
     }),
+  recordActualEventEnd: (eventId: string, input: RecordActualEventEndInput) =>
+    request<PrismEvent>(withPmcmActor(`/api/events/${eventId}/actual-end`), { method: "POST", body: JSON.stringify(input) }),
   searchArchive: (filters: { venue?: string; eventType?: string; month?: string } = {}) =>
     eventOpsClient.events.searchArchive(filters),
   eventInsights: (eventId: string) => request<PrismEventInsight[]>(withPmcmActor(`/api/events/${eventId}/insights`)),
