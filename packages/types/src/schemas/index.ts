@@ -87,6 +87,13 @@ export {
   type TwoFactorTokenInput,
   type VerifyTwoFactorInput,
 } from "./auth-inputs.js";
+
+export {
+  executePrivacyRequestSchema,
+  type ExecutePrivacyRequestInput,
+  aiGovernanceDryRunSchema,
+  type AiGovernanceDryRunInput,
+} from "./session-trust-inputs.js";
 export {
   PrismContractError,
   parseContract,
