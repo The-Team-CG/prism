@@ -110,7 +110,7 @@ describe('OpsEventClosureController', () => {
     );
 
     expect(eventClosureService.completePostEventDocument).toHaveBeenCalledWith('evt_sample', 'post_1', expect.objectContaining({ role: OpsUserRole.PmcmAdmin }));
-    expect(eventClosureService.archiveEvent).toHaveBeenCalledWith('evt_sample', { actorName: 'Maxine' });
+    expect(eventClosureService.archiveEvent).toHaveBeenCalledWith('evt_sample', expect.objectContaining({ actorName: 'Maxine', actorRole: OpsUserRole.PmcmAdmin }));
     expect(guestReader.guestAccessCode).toHaveBeenCalled();
   });
 
