@@ -20,6 +20,14 @@ export interface AuditWriteInput {
 
 export interface AuditWriter {
   write(input: AuditWriteInput, context?: PrismTransactionContext): Promise<unknown>;
+  /** Durable fallback when the primary audit chain is unavailable. */
+  recordIntegrityIncident?(input: {
+    source: string;
+    reason: string;
+    eventId?: string;
+    actor?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<unknown>;
 }
 
 export type AuditWriteOptions = Omit<AuditWriteInput, 'eventId' | 'actor' | 'action'>;
