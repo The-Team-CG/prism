@@ -45,7 +45,7 @@ function createGuestWorkflowFixture() {
 
   const prisma = {
     opsEvent: {
-      findMany: vi.fn(async () => state.events),
+      findMany: vi.fn(async ({ where }: any = {}) => state.events.filter((event) => where?.archived === undefined || event.archived === where.archived)),
     },
     opsGuestCheckIn: {
       count: vi.fn(async ({ where }: any = {}) =>
@@ -108,6 +108,14 @@ describe('GuestWorkflowService', () => {
     await expect(
       service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5 }),
     ).rejects.toThrow('Privacy consent is required before guest feedback submission');
+  });
+
+  it('does not allow archived events to resolve ordinary guest check-in access', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    state.events[0].archived = true;
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+      guestName: 'Archived Guest', privacyConsentAccepted: true,
+    })).rejects.toThrow('Guest event code was not found');
   });
 
   it('records guest check-ins and moderated feedback through command methods', async () => {

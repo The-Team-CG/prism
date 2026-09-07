@@ -36,14 +36,19 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       validateState: async () => {
         const current = await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         existed = Boolean(current);
-        await this.validateAssignedSupplier(eventId, input.supplierId);
+        await this.validateAssignedSupplier(this.prisma, eventId, input.supplierId);
         if (input.expectedPaxMin !== undefined && input.expectedPaxMax !== undefined && input.expectedPaxMin > input.expectedPaxMax) {
           throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
         }
       },
       sideEffectMode: 'same_tx',
       validateStateInTransaction: async (transactionContext) => {
-        existed = Boolean(await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }));
+        const current = await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
+        existed = Boolean(current);
+        await this.validateAssignedSupplier(transactionContext.prisma, eventId, input.supplierId);
+        const min = input.expectedPaxMin ?? current?.expectedPaxMin ?? 0;
+        const max = input.expectedPaxMax ?? current?.expectedPaxMax ?? 0;
+        if (min > max) throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
       },
       write: async (transactionContext) => {
         const db = transactionContext?.prisma ?? this.prisma;
@@ -93,7 +98,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       name: 'registration_platform_update',
       sideEffectMode: 'same_tx',
       validateState: async () => {
-        await this.validateAssignedSupplier(eventId, input.supplierId ?? existing.supplierId ?? undefined);
+        await this.validateAssignedSupplier(this.prisma, eventId, input.supplierId ?? existing.supplierId ?? undefined);
         const effectiveMin = input.expectedPaxMin ?? existing.expectedPaxMin;
         const effectiveMax = input.expectedPaxMax ?? existing.expectedPaxMax;
         if (effectiveMin > effectiveMax) {
@@ -109,6 +114,10 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       validateStateInTransaction: async (transactionContext) => {
         const current = await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         if (!current || current.status !== existing.status) throw new ConflictException('Registration platform changed; retry the command');
+        await this.validateAssignedSupplier(transactionContext.prisma, eventId, input.supplierId ?? current.supplierId ?? undefined);
+        const min = input.expectedPaxMin ?? current.expectedPaxMin;
+        const max = input.expectedPaxMax ?? current.expectedPaxMax;
+        if (min > max) throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
       },
       write: (transactionContext) => {
         const db = transactionContext?.prisma ?? this.prisma;
@@ -188,9 +197,9 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
     });
   }
 
-  private async validateAssignedSupplier(eventId: string, supplierId?: string | null): Promise<void> {
+  private async validateAssignedSupplier(db: Pick<PrismaService, 'opsSupplier' | 'opsSupplierQuoteRequest'>, eventId: string, supplierId?: string | null): Promise<void> {
     if (!supplierId) return;
-    const supplier = await this.prisma.opsSupplier.findUnique({
+    const supplier = await db.opsSupplier.findUnique({
       where: { id: supplierId },
       include: { category: true },
     });
@@ -199,7 +208,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
     if (!supplier || !['digitalregistration', 'registration'].includes(normalizedCategory)) {
       throw new BadRequestException('Supplier must belong to the Digital Registration category');
     }
-    const assignment = await this.prisma.opsSupplierQuoteRequest.findFirst({
+    const assignment = await db.opsSupplierQuoteRequest.findFirst({
       where: {
         eventId,
         supplierId,
