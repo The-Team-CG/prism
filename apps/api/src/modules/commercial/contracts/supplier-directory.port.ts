@@ -44,6 +44,7 @@ export type ChangeSupplierTierResult = {
 export type AddSupplierReviewResult = {
   supplier: SupplierProfile;
   reviewId: string;
+  replayed?: boolean;
 };
 
 export interface SupplierDirectory {
