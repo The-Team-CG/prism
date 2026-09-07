@@ -54,7 +54,7 @@ describe('OpsInquiriesController', () => {
       eventAccessPolicyService as any,
     );
 
-    await expect(controller.list({ actorRole: 'pmcm-admin' })).resolves.toEqual([{ id: 'inq_sample' }]);
+    await expect(controller.list(verifiedPmcmActor as any)).resolves.toEqual([{ id: 'inq_sample' }]);
     await expect(
       controller.logOnBehalf({ clientName: 'Ana', email: 'ana@example.com' } as any, verifiedPmcmActor as any),
     ).resolves.toEqual({
@@ -63,11 +63,11 @@ describe('OpsInquiriesController', () => {
     await expect(controller.create({ clientName: 'Ana', email: 'ana@example.com' } as any)).resolves.toEqual({
       id: 'inq_created',
     });
-    await expect(controller.updateStatus('inq_sample', { status: 'accepted' })).resolves.toEqual({
+    await expect(controller.updateStatus('inq_sample', { status: 'accepted' }, verifiedPmcmActor as any)).resolves.toEqual({
       id: 'inq_sample',
       status: 'accepted',
     });
-    await expect(controller.sendConformeReminder('inq_sample')).resolves.toEqual({
+    await expect(controller.sendConformeReminder('inq_sample', verifiedPmcmActor as any)).resolves.toEqual({
       id: 'inq_sample',
       lastConformeReminderAt: 'now',
     });
@@ -78,8 +78,9 @@ describe('OpsInquiriesController', () => {
     });
 
     expect(inquiryWorkflowService.listInquiries).toHaveBeenCalledWith(
-      { actorRole: 'pmcm-admin' },
+      {},
       expect.objectContaining({ inquiriesService, allowedAdminRoles: ['pmcm-admin', 'system'] }),
+      verifiedPmcmActor,
     );
     expect(inquiryWorkflowService.logInquiryOnBehalf).toHaveBeenCalledWith(
       expect.objectContaining({ clientName: 'Ana' }),
@@ -95,10 +96,12 @@ describe('OpsInquiriesController', () => {
       'inq_sample',
       { status: 'accepted' },
       expect.objectContaining({ inquiriesService }),
+      verifiedPmcmActor,
     );
     expect(inquiryWorkflowService.sendConformeReminder).toHaveBeenCalledWith(
       'inq_sample',
       expect.objectContaining({ inquiriesService }),
+      verifiedPmcmActor,
     );
     expect(inquiryWorkflowService.uploadConforme).toHaveBeenCalledWith(
       'inq_sample',
