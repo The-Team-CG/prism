@@ -1,4 +1,5 @@
 import type { PAREBudgetAnalysis, PARECandidate, PAREContext } from '../pare.types';
+import { assertPareExecutionAllowed } from '../pare-execution.policy';
 
 // ─── Mock fallback ────────────────────────────────────────────────────────────
 
@@ -103,6 +104,7 @@ export class BudgetAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
   async runPareBudgetAgent(ctx: PAREContext): Promise<PAREBudgetAnalysis> {
+    assertPareExecutionAllowed(this.mode);
     const top = (ctx.candidates ?? [])[0];
     if (!top) {
       return {
