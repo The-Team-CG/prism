@@ -200,7 +200,7 @@ export class GuestWorkflowService {
       for (const row of input.rows) {
         rows.push(await (tx as any).opsGuestRosterEntry.upsert({
           where: { eventId_sourceKey: { eventId, sourceKey: row.sourceKey } },
-          create: { id: `g re_${randomUUID()}`.replace(' ', ''), eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
+          create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
           update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
         }));
       }
@@ -212,6 +212,45 @@ export class GuestWorkflowService {
 
   async searchRoster(eventId: string, query = '') {
     return (this.prisma as any).opsGuestRosterEntry.findMany({ where: { eventId, withdrawnAt: null, eligibility: 'eligible', ...(query.trim() ? { normalizedName: { contains: query.trim().toLowerCase() } } : {}) }, orderBy: { normalizedName: 'asc' } });
+  }
+
+  async checkInRosterEntry(eventId: string, rosterEntryId: string, actor: { id?: string; name: string; role: string }) {
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.opsEvent.findFirst({ where: { id: eventId, archived: false } });
+      if (!event) throw new NotFoundException('Event not found or archived');
+      const roster = await (tx as any).opsGuestRosterEntry.findFirst({
+        where: { id: rosterEntryId, eventId, withdrawnAt: null, eligibility: 'eligible' },
+      });
+      if (!roster) throw new BadRequestException('Roster entry is not eligible for check-in');
+      const existing = await tx.opsGuestCheckIn.findFirst({
+        where: { eventId, guestName: roster.guestName, status: 'checked_in' },
+      });
+      if (existing) return existing;
+      const checkIn = await tx.opsGuestCheckIn.create({
+        data: {
+          id: `gci_${randomUUID()}`,
+          eventId,
+          guestName: roster.guestName,
+          checkInMode: 'roster',
+          status: 'checked_in',
+          walkIn: false,
+          verificationStatus: 'verified',
+          privacyConsentAccepted: true,
+          privacyNoticeVersion: '2026-05-01',
+          marketingConsentAccepted: false,
+        },
+      });
+      await writeAudit(this.auditWriter, eventId, actor.name, `Roster guest checked in: ${roster.guestName}`, {
+        actorRole: actor.role,
+        category: AuditCategory.Events,
+        actionType: AuditActionType.Update,
+        affectedType: 'guest_check_in',
+        affectedId: checkIn.id,
+        affectedLabel: roster.guestName,
+        metadata: { rosterEntryId, checkInMode: 'roster', actorId: actor.id },
+      }, { prisma: tx, correlationId: `roster_checkin_${rosterEntryId}` });
+      return checkIn;
+    });
   }
 
   private async resolveGuestEventByAccessCode(accessCode: string, requireFeedbackWindow = false) {

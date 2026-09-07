@@ -33,6 +33,20 @@ export class OpsGuestController {
     return this.guestWorkflowService.searchRoster(eventId, query ?? '');
   }
 
+  @Post('events/:eventId/roster/:rosterEntryId/check-in')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
+  async checkInRoster(
+    @Param('eventId') eventId: string,
+    @Param('rosterEntryId') rosterEntryId: string,
+    @VerifiedEventActor() verifiedActor: any,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator, OpsUserRole.System], 'guest roster check-in', eventId);
+    const checkIn = await this.guestWorkflowService.checkInRosterEntry(eventId, rosterEntryId, actor);
+    return this.guestWorkflowService.mapGuestCheckIn(checkIn);
+  }
+
   @Get('events/:accessCode')
   async eventByAccessCode(@Param('accessCode') accessCode: string) {
     const event = await this.guestWorkflowService.getEventByAccessCode(accessCode);

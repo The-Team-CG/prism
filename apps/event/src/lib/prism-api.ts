@@ -63,6 +63,7 @@ import type {
   CreateRegistrationPlatformInput,
   UpdateRegistrationPlatformInput,
   ImportHeadcountInput,
+  ImportGuestRosterInput,
   RecordActualEventEndInput,
   CreateEventDayTaskInput,
   EscalateLiveOpsInput,
@@ -760,4 +761,7 @@ export const prismApi = {
     eventOpsClient.pmcm.updateRegistrationPlatform(eventId, input),
   importHeadcount: (eventId: string, input: ImportHeadcountInput) =>
     eventOpsClient.pmcm.importHeadcount(eventId, input),
+  searchGuestRoster: (eventId: string, query = "") => eventOpsClient.guest.roster(eventId, query, { role: "pmcm-admin" }),
+  importGuestRoster: (eventId: string, input: ImportGuestRosterInput) => eventOpsClient.guest.importRoster(eventId, input, { role: "pmcm-admin" }),
+  checkInGuestRoster: (eventId: string, rosterEntryId: string) => eventOpsClient.guest.checkInRoster(eventId, rosterEntryId, { role: "coordinator" }),
 };

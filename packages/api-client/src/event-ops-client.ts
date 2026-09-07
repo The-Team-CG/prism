@@ -19,6 +19,7 @@ import type {
   PrismEvent,
   PrismFileRequirementsMatrix,
   PrismGuestCheckIn,
+  PrismGuestRosterEntry,
   PrismGuestEventPass,
   PrismGuestFeedback,
   PrismInquiry,
@@ -39,6 +40,7 @@ import type {
   PrismCoordinatorAssignment,
   PrismSupplierApplication,
   ImportHeadcountInput,
+  ImportGuestRosterInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateRegistrationPlatformInput,
@@ -150,6 +152,9 @@ export interface EventOpsClient {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
     checkIn(accessCode: string, input: CreateGuestCheckInInput): Promise<PrismGuestCheckIn>;
     feedback(accessCode: string, input: CreateGuestFeedbackInput): Promise<PrismGuestFeedback>;
+    roster(eventId: string, query?: string, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
+    importRoster(eventId: string, input: ImportGuestRosterInput, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
+    checkInRoster(eventId: string, rosterEntryId: string, actor?: EventOpsActorQuery): Promise<PrismGuestCheckIn>;
   };
   supplierWorkspace: {
     /** Identity comes from the session bearer token (PA-284); no actor query. */
@@ -292,6 +297,23 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<PrismGuestFeedback>(
           `/guest/events/${encodeURIComponent(accessCode)}/feedback`,
           withBase(options, { method: "POST", body: input }),
+        ),
+      roster: (eventId, query = "", actor = {}) => {
+        const params = toQueryString({ ...actor, ...(query.trim() ? { query: query.trim() } : {}) });
+        return prismRequest<PrismGuestRosterEntry[]>(
+          `/guest/events/${eventId}/roster${params ? `?${params}` : ""}`,
+          withBase(options),
+        );
+      },
+      importRoster: (eventId, input, actor = {}) =>
+        prismRequest<PrismGuestRosterEntry[]>(
+          actorPath(`/guest/events/${eventId}/roster/import`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      checkInRoster: (eventId, rosterEntryId, actor = {}) =>
+        prismRequest<PrismGuestCheckIn>(
+          actorPath(`/guest/events/${eventId}/roster/${rosterEntryId}/check-in`, actor),
+          withBase(options, { method: "POST" }),
         ),
     },
     coordinator: {
