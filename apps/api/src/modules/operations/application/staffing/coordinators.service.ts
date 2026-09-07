@@ -60,41 +60,34 @@ export class CoordinatorsService {
   }
 
 
-  async listAssignmentsForCoordinator(coordinatorId?: string | null, coordinatorName?: string | null) {
-    const [byId, byName] = await Promise.all([
+  async listAssignmentsForCoordinator(coordinatorId?: string | null, _coordinatorName?: string | null) {
+    const [byId] = await Promise.all([
       coordinatorId
         ? this.prisma.opsCoordinatorAssignment.findMany({
-            where: { coordinatorId },
-            orderBy: { createdAt: 'desc' },
-          })
-        : Promise.resolve([] as OpsCoordinatorAssignment[]),
-      coordinatorName
-        ? this.prisma.opsCoordinatorAssignment.findMany({
-            where: { coordinatorName },
+            where: { coordinatorId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
             orderBy: { createdAt: 'desc' },
           })
         : Promise.resolve([] as OpsCoordinatorAssignment[]),
     ]);
 
-    return [...byId, ...byName].filter(
-      (assignment, index, assignments) => assignments.findIndex((item) => item.id === assignment.id) === index,
-    );
+    return byId;
   }
 
   listAssignmentsForEvent(eventId: string) {
     return this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } });
   }
 
-  async resolveCoordinatorForActor(actor: { coordinatorId?: string | null; email?: string | null; name?: string | null }) {
+  async resolveCoordinatorForActor(actor: { id?: string | null; coordinatorId?: string | null; email?: string | null }) {
     const coordinators = await this.prisma.opsCoordinator.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
     });
     const coordinator = coordinators.find(
       (item: OpsCoordinator) =>
+        this.sameText(actor.id, item.userId) ||
+        this.sameText(actor.coordinatorId, item.userId) ||
         this.sameText(actor.coordinatorId, item.id) ||
-        this.sameText(actor.email, item.email) ||
-        this.sameText(actor.name, item.name),
+        this.sameText(actor.email, item.email),
     );
     if (!coordinator) throw new NotFoundException('Coordinator profile not found for actor');
     return coordinator as OpsCoordinator;
@@ -102,16 +95,16 @@ export class CoordinatorsService {
 
   async findAssignmentForEventActor(
     eventId: string,
-    actor: { coordinatorId?: string | null; email?: string | null; name?: string | null },
+    actor: { id?: string | null; coordinatorId?: string | null; email?: string | null },
   ) {
     const coordinator = await this.resolveCoordinatorForActor(actor);
-    const assignments = await this.listAssignmentsForEvent(eventId);
+    const assignments = (await this.listAssignmentsForEvent(eventId)).filter(
+      (item) => item.status !== CoordinatorAssignmentStatus.Cancelled && item.status !== CoordinatorAssignmentStatus.Replaced,
+    );
     return (
       assignments.find(
         (item) =>
-          this.sameText(item.coordinatorId, coordinator.id) ||
-          this.sameText(item.coordinatorName, coordinator.name) ||
-          this.sameText(item.coordinatorName, actor.name),
+          this.sameText(item.coordinatorId, coordinator.id),
       ) ?? null
     );
   }
