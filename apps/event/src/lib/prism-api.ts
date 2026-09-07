@@ -659,6 +659,27 @@ export const prismApi = {
     request<PrismCoordinatorWorkspace>(withCoordinatorActor("/api/coordinator/workspace", session)),
   coordinatorRoleView: (session: { name: string; email: string; role: string }, eventId: string) =>
     request<PrismCoordinatorRoleView>(withCoordinatorActor(`/api/coordinator/events/${eventId}/role-view`, session)),
+  // EP-11-S02: coordinator-authored event-day records. Mirrors coordinatorRoleView
+  // above: session first, then eventId, wrapped in withCoordinatorActor. Deliberately
+  // NOT withPmcmActor, which hardcodes actorRole=pmcm-admin and actorName=Ms. Mys.
+  createCoordinatorEventDayTask: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    input: CreateEventDayTaskInput,
+  ) =>
+    request<PrismEventDayTask>(withCoordinatorActor(`/api/events/${eventId}/event-day/tasks`, session), {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  createCoordinatorUrgentIssue: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    input: CreateUrgentIssueInput,
+  ) =>
+    request<PrismUrgentIssue>(withCoordinatorActor(`/api/events/${eventId}/urgent-issues`, session), {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
   markPayment: (eventId: string, milestoneId: string, status: "pending" | "paid" | "at_risk" = "paid") =>
     request<PrismPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, {
       method: "PATCH",
