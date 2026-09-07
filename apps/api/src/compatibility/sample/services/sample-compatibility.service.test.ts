@@ -2587,7 +2587,7 @@ describe('SampleCompatibilityService', () => {
     ]);
   });
 
-  it('blocks archive until close gates pass and allows archive once indicators are complete', async () => {
+  it('keeps unsupported logistics blocked and requires an explicit archive override', async () => {
     const fake = createPrisma();
     fake.state.events.push({
       id: 'evt_sample',
@@ -2633,8 +2633,9 @@ describe('SampleCompatibilityService', () => {
     fake.state.milestones[0] = { ...fake.state.milestones[0], status: 'paid', amountPaid: 260000, remainingBalance: 0 };
 
     const ready = await (service as any).getCloseGates('evt_sample');
-    expect(ready.ready).toBe(true);
-    const archived = await (service as any).archiveEvent('evt_sample', { actorRole: OpsUserRole.PmcmAdmin });
+    expect(ready.ready).toBe(false);
+    expect(ready.missingKeys).toEqual(['logistics']);
+    const archived = await (service as any).archiveEvent('evt_sample', { actorRole: OpsUserRole.PmcmAdmin, overrideReason: 'Logistics verified offline; asset return confirmation retained by PMCM.' });
     expect(archived.archived).toBe(true);
   });
 

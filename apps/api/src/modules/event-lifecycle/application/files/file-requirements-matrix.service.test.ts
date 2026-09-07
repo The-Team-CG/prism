@@ -16,6 +16,7 @@ function createPrisma() {
   const milestones = [{ id: 'pay_1', eventId: 'evt_file', status: 'paid', remainingBalance: 0 }];
   const supplierReviews = [{ id: 'rev_1', eventId: 'evt_file' }];
   return {
+    opsUrgentIssue: { findMany: vi.fn(async () => [] as Array<{ id: string; status: string; severity: string }>) },
     opsEvent: { findUnique: vi.fn(async () => event) },
     opsDocument: { findMany: vi.fn(async () => documents) },
     opsPostEventDocument: { findMany: vi.fn(async () => postEventDocuments) },
@@ -41,10 +42,53 @@ describe('FileRequirementsMatrixService', () => {
       'official_floorplan',
       'supplier_reviews',
       'client_feedback',
+      'logistics',
+      'issues',
     ]);
     expect(matrix.items.find((item) => item.key === 'supplier_reviews')?.visibleToRoles).toEqual(['pmcm-admin']);
-    expect(closeGates.ready).toBe(true);
-    expect(closeGates.missingKeys).toEqual([]);
+    expect(closeGates.ready).toBe(false);
+    expect(closeGates.missingKeys).toEqual(['logistics']);
+    expect(closeGates.gates.map(gate => gate.key)).toEqual(['documents', 'billing', 'logistics', 'issues', 'feedback']);
     expect(prisma.opsDocument.findMany).toHaveBeenCalledWith({ where: { eventId: 'evt_file' } });
+  });
+
+  it('does not let a signed conforme or generic report clear pending tracked deliverables', async () => {
+    const prisma = createPrisma();
+    prisma.opsPostEventDocument.findMany.mockResolvedValue([
+      { id: 'ped_report', eventId: 'evt_file', title: 'Completion report', status: 'pending' },
+      { id: 'post_feedback', eventId: 'evt_file', title: 'Client feedback', status: 'submitted' },
+    ]);
+    const result = await new FileRequirementsMatrixService(prisma as never).closeGates('evt_file');
+    expect(result.missingKeys).toContain('documents');
+  });
+
+  it('does not report an absent deliverables checklist as complete', async () => {
+    const prisma = createPrisma();
+    prisma.opsPostEventDocument.findMany.mockResolvedValue([]);
+    const result = await new FileRequirementsMatrixService(prisma as never).closeGates('evt_file');
+    expect(result.missingKeys).toContain('documents');
+  });
+
+  it('blocks unresolved urgent issues independently of supplier reviews', async () => {
+    const prisma = createPrisma();
+    prisma.opsUrgentIssue.findMany.mockResolvedValue([{ id: 'issue_1', status: 'open', severity: 'critical' }]);
+    const result = await new FileRequirementsMatrixService(prisma as never).closeGates('evt_file');
+    expect(result.missingKeys).toContain('issues');
+    expect(prisma.opsUrgentIssue.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: 'evt_file', status: { not: 'resolved' } } }));
+  });
+
+  it('does not treat an empty payment schedule as fully paid', async () => {
+    const prisma = createPrisma();
+    prisma.opsPaymentMilestone.findMany.mockResolvedValue([]);
+    const result = await new FileRequirementsMatrixService(prisma as never).closeGates('evt_file');
+    expect(result.missingKeys).toContain('billing');
+  });
+
+  it('does not treat supplier feedback or a blank client form as client feedback', async () => {
+    const prisma = createPrisma();
+    prisma.opsPostEventDocument.findMany.mockResolvedValue([{ id: 'blank', eventId: 'evt_file', title: 'Client feedback', status: 'pending' }]);
+    prisma.opsDocument.findMany.mockResolvedValue([{ id: 'supplier', eventId: 'evt_file', type: 'supplier_feedback', status: 'submitted' }]);
+    const result = await new FileRequirementsMatrixService(prisma as never).closeGates('evt_file');
+    expect(result.missingKeys).toContain('feedback');
   });
 });
