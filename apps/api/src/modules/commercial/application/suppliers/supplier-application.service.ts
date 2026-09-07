@@ -24,6 +24,8 @@ function conversionHash(applicationId: string, input: ReviewSupplierApplicationI
   return createHash('sha256').update(JSON.stringify({ applicationId, action: input.action, notes: input.notes?.trim() ?? '' })).digest('hex');
 }
 
+type SupplierApplicationWithCategory = Prisma.OpsSupplierApplicationGetPayload<{ include: { category: true } }>;
+
 @Injectable()
 export class SupplierApplicationService {
   constructor(
@@ -146,7 +148,7 @@ export class SupplierApplicationService {
     return mapSupplierApplication(row);
   }
 
-  private approvalReplay(existing: any, applicationId: string, input: ReviewSupplierApplicationInput) {
+  private approvalReplay(existing: SupplierApplicationWithCategory, applicationId: string, input: ReviewSupplierApplicationInput): SupplierApplicationWithCategory | null {
     if (existing.status !== 'approved' || input.action !== 'approve' || !existing.convertedSupplierId) return null;
     if (existing.conversionIdempotencyKey !== (input.idempotencyKey ?? `supplier-application:${applicationId}`) || existing.conversionPayloadHash !== conversionHash(applicationId, input)) throw new BadRequestException('Approval replay payload does not match the original conversion');
     return existing;
@@ -157,14 +159,15 @@ export class SupplierApplicationService {
     if (status !== 'pending' && action !== 'approve') throw new BadRequestException('Only approval can complete an application already in progress');
   }
 
-  private async convertApprovedApplication(tx: Prisma.TransactionClient, applicationId: string, updated: any, input: ReviewSupplierApplicationInput) {
+  private async convertApprovedApplication(tx: Prisma.TransactionClient, applicationId: string, updated: SupplierApplicationWithCategory, input: ReviewSupplierApplicationInput) {
+    if (!updated.categoryId) throw new BadRequestException('A supplier category is required before conversion');
     const supplierId = `sup_application_${applicationId}`;
     const normalizedEmail = updated.email.trim().toLowerCase();
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${normalizedEmail}))`;
     const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: { equals: normalizedEmail, mode: 'insensitive' } } });
     if (conflictingSupplier && conflictingSupplier.id !== supplierId) throw new BadRequestException('A supplier with this email already exists');
     const supplier = await tx.opsSupplier.findUnique({ where: { id: supplierId } });
-    if (!supplier) await tx.opsSupplier.create({ data: { id: supplierId, categoryId: updated.categoryId, name: updated.companyName.trim(), contactName: updated.contactName.trim(), email: updated.email.trim(), phone: updated.phone.trim(), tier: 'pending_first_event', bniMember: updated.bniMember, serviceInclusions: updated.serviceInclusions.trim(), performanceNotes: updated.additionalNotes.trim() } });
+    if (!supplier) await tx.opsSupplier.create({ data: { id: supplierId, categoryId: updated.categoryId, name: updated.companyName.trim(), contactName: updated.contactName.trim(), email: normalizedEmail, phone: updated.phone.trim(), tier: 'pending_first_event', bniMember: updated.bniMember, serviceInclusions: updated.serviceInclusions.trim(), performanceNotes: updated.additionalNotes.trim() } });
     await tx.opsSupplierApplication.update({ where: { id: applicationId }, data: { convertedSupplierId: supplierId, conversionIdempotencyKey: input.idempotencyKey ?? `supplier-application:${applicationId}`, conversionPayloadHash: conversionHash(applicationId, input) } });
   }
 
