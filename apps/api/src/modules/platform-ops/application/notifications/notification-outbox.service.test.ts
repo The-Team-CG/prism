@@ -26,6 +26,17 @@ function createService() {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) =>
         notifications.find((notification) => notification.id === where.id) ?? null,
       ),
+      findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const found = notifications.find((notification) => notification.id === where.id);
+        if (!found) throw new Error('Missing notification');
+        return found;
+      }),
+      updateMany: vi.fn(async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+        const found = notifications.find((row) => row.id === where.id && row.status === where.status);
+        if (!found) return { count: 0 };
+        Object.assign(found, data);
+        return { count: 1 };
+      }),
       update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const index = notifications.findIndex((notification) => notification.id === where.id);
         if (index === -1) throw new Error('Notification not found');
@@ -43,6 +54,12 @@ function createService() {
 }
 
 describe('NotificationOutboxService', () => {
+  it.each(['queued', 'failed'])('rejects acknowledgement of %s work', async (status) => {
+    const { service, notifications } = createService();
+    notifications.push({ id: 'not_1', recipient: 'client@example.test', status });
+    await expect(service.acknowledge('not_1', { role: 'client', email: 'client@example.test' } as never)).rejects.toThrow(/provider-accepted/);
+    expect(notifications[0].status).toBe(status);
+  });
   it('allows a verified recipient to acknowledge only their own notification', async () => {
     const { service, notifications } = createService();
     notifications.push({ id: 'not_1', recipient: 'client@example.test', status: 'sent' });

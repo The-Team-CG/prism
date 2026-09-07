@@ -58,6 +58,8 @@ export function EventActivityPanel({
                   </div>
                   <p className="mt-1 text-right text-[11px] font-semibold text-muted-foreground">
                     {label(notification.channel)} to {notification.recipient}
+                    {" · "}{notification.status === "sent" ? "Sent to provider" : label(notification.status)}
+                    {notification.failureReason ? ` · ${notification.failureReason}` : ""}
                   </p>
                 </div>
               </div>

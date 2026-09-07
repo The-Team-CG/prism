@@ -947,9 +947,8 @@ export class SampleCompatibilityService implements OnModuleInit {
     recipient: string,
     message: string,
     channel: 'email' | 'viber' = 'email',
-    options: { forceFail?: boolean } = {},
   ) {
-    return this.notificationOutboxService.queue(eventId, recipient, message, channel, options);
+    return this.notificationOutboxService.queue(eventId, recipient, message, channel);
   }
 
   private async processNotificationQueue() {
