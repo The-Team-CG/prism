@@ -227,6 +227,9 @@ export const createCommunicationThreadSchema = z.object({
   eventId: nonEmptyStringSchema,
   subject: nonEmptyStringSchema,
   participantActorIds: z.array(nonEmptyStringSchema).max(20).optional(),
+}).superRefine((value, ctx) => {
+  const ids = value.participantActorIds ?? [];
+  if (new Set(ids).size !== ids.length) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Duplicate thread participants are not allowed', path: ['participantActorIds'] });
 });
 export type CreateCommunicationThreadInput = z.infer<typeof createCommunicationThreadSchema>;
 
