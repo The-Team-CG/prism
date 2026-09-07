@@ -19,6 +19,12 @@ export interface SignedUploadUrlFactory {
   createSignedUploadUrl(request: SignedUploadUrlRequest): Promise<SignedUploadUrlResult>;
 }
 
+/**
+ * @deprecated W10's canonical provider-neutral contract is
+ * `platform-ops/contracts/storage/storage.port.ts`. This compatibility shim
+ * remains only for callers that have not yet moved to the durable object
+ * workflow; it is never bound as a storage provider.
+ */
 @Injectable()
 export class MetadataOnlySignedUploadUrlFactory implements SignedUploadUrlFactory {
   async createSignedUploadUrl(_request: SignedUploadUrlRequest): Promise<SignedUploadUrlResult> {
