@@ -194,4 +194,16 @@ describe('InquiriesService', () => {
     expect(prisma.opsBillingSource.create).not.toHaveBeenCalled();
     expect(prisma.opsBillingStatement.create).not.toHaveBeenCalled();
   });
+
+  it('rejects non-conforme document types before activating the portal', async () => {
+    const { service, prisma } = createService([inquiry({ status: 'accepted' })]);
+
+    await expect(service.uploadConforme(
+      'inq_existing',
+      { type: 'billing_statement', fileName: 'wrong.pdf' },
+      { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true },
+    )).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
 });
