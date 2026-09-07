@@ -20,6 +20,11 @@ export class CommunicationController {
     return this.service.listThreads(eventId, this.access.resolveActor({}, verified));
   }
 
+  @Get('participants')
+  participants(@Query('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.listEligibleParticipants(eventId, this.access.resolveActor({}, verified));
+  }
+
   @Post('threads/:threadId/messages')
   send(@Param('threadId') threadId: string, @Body(zodBody(sendCommunicationMessageSchema)) input: SendCommunicationMessageInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.sendMessage(threadId, input, this.access.resolveActor({}, verified));

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MessageSquareText, Search, Send } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
 
 import type { PrismAuditLog, PrismCommunicationThread, PrismEvent, PrismNotificationLog } from "@prism/types";
 import { prismApi } from "@/lib/prism-api";
@@ -24,13 +25,14 @@ export function EventMessagesWorkspace({
   audit: PrismAuditLog[];
   notificationLogs: PrismNotificationLog[];
 }) {
-  const fallbackThreads = useMemo(
-    () => buildEventMessageThreads({ event, audit, notificationLogs }),
-    [audit, event, notificationLogs],
-  );
+  useMemo(() => buildEventMessageThreads({ event, audit, notificationLogs }), [audit, event, notificationLogs]);
   const [persistedThreads, setPersistedThreads] = useState<PrismCommunicationThread[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reload, setReload] = useState(0);
+  const [participants, setParticipants] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [subject, setSubject] = useState("");
   const threads = persistedThreads.map((thread) => ({ id: thread.id, title: thread.subject, detail: `${thread.messages.length} messages`, tag: thread.status, status: thread.status, messages: thread.messages.map((message) => ({ id: message.id, author: message.senderRole, initials: initialsFrom(message.senderRole), body: message.body, time: message.createdAt, mine: message.senderId === session.id })) }));
   const [activeThreadId, setActiveThreadId] = useState<string>();
   const [draft, setDraft] = useState("");
@@ -38,8 +40,9 @@ export function EventMessagesWorkspace({
     let cancelled = false;
     setLoading(true); setLoadError(null);
     void prismApi.communicationThreads(event.id).then((next) => { if (!cancelled) { setPersistedThreads(next); setActiveThreadId(next[0]?.id); } }).catch((reason: unknown) => { if (!cancelled) setLoadError(reason instanceof Error ? reason.message : "Unable to load communication threads"); }).finally(() => { if (!cancelled) setLoading(false); });
+    void prismApi.communicationParticipants(event.id).then(setParticipants).catch(() => setParticipants([]));
     return () => { cancelled = true; };
-  }, [event.id]);
+  }, [event.id, reload]);
 
   useEffect(() => {
     if (threads.some((thread) => thread.id === activeThreadId)) return;
@@ -58,11 +61,16 @@ export function EventMessagesWorkspace({
   if (loading) {
     return <EmptyState icon={MessageSquareText} title="Loading message threads" description="Checking persisted event communication…" />;
   }
+
+  function createThread() {
+    if (!subject.trim() || selectedParticipants.length === 0) return;
+    void prismApi.createCommunicationThread(event.id, subject.trim(), selectedParticipants).then((thread) => { setPersistedThreads((current) => [thread, ...current]); setActiveThreadId(thread.id); setSubject(""); setSelectedParticipants([]); }).catch((reason: unknown) => setLoadError(reason instanceof Error ? reason.message : "Unable to create thread"));
+  }
   if (loadError && !activeThread) {
-    return <EmptyState icon={MessageSquareText} title="Unable to load message threads" description={loadError} />;
+    return <EmptyState icon={MessageSquareText} title="Unable to load message threads" description={loadError} action={<Button type="button" onClick={() => setReload((value) => value + 1)}>Retry</Button>} />;
   }
   if (!activeThread) {
-    return <EmptyState icon={MessageSquareText} title="No message threads" description="Create a thread after selecting verified event participants." />;
+    return <EmptyState icon={MessageSquareText} title="No message threads" description="Create a thread with verified event participants." action={<div className="w-full max-w-md space-y-2 text-left"><input className="h-10 w-full rounded-md border border-border px-3 text-sm" value={subject} onChange={(input) => setSubject(input.target.value)} placeholder="Thread subject" /><div className="max-h-32 space-y-1 overflow-auto rounded-md border border-border p-2">{participants.map((participant) => <label key={participant.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selectedParticipants.includes(participant.id)} onChange={() => setSelectedParticipants((current) => current.includes(participant.id) ? current.filter((id) => id !== participant.id) : [...current, participant.id])} /><span>{participant.name} · {participant.role}</span></label>)}</div><Button type="button" disabled={!subject.trim() || selectedParticipants.length === 0} onClick={createThread}>Create thread</Button></div>} />;
   }
 
   return (

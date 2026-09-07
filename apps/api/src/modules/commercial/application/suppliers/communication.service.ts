@@ -27,6 +27,10 @@ export class CommunicationService {
     });
   }
 
+  listEligibleParticipants(eventId: string, actor: ResolvedEventOpsActor) {
+    return this.participants.listEligibleForEvent(eventId, actor);
+  }
+
   async listThreads(eventId: string, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client, OpsUserRole.Supplier], 'communication threads', eventId);
     const verified = await this.participants.resolveForEvent(actor.id ?? '', eventId);
