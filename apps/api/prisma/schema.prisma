@@ -205,6 +205,8 @@ model OpsEvent {
   clientName            String    @map("client_name")
   eventName             String    @map("event_name")
   eventDate             DateTime  @map("event_date")
+  walkInPolicy          String    @default("closed") @map("walk_in_policy")
+  walkInThreshold       Int       @default(200) @map("walk_in_threshold")
   actualEndedAt         DateTime? @map("actual_ended_at")
   actualEndedBy         String?   @map("actual_ended_by")
   status                String    @default("planning")

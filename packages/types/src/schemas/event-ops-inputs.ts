@@ -155,6 +155,21 @@ export const recordActualEventEndSchema = z.object({
 });
 export type RecordActualEventEndInput = z.infer<typeof recordActualEventEndSchema>;
 
+export const importGuestRosterSchema = z.object({
+  source: nonEmptyStringSchema,
+  rows: z.array(z.object({
+    sourceKey: nonEmptyStringSchema,
+    guestName: nonEmptyStringSchema,
+    email: optionalTrimmedStringSchema,
+    phone: optionalTrimmedStringSchema,
+    eligibility: z.enum(["eligible", "ineligible"]).optional(),
+  })).min(1),
+});
+export type ImportGuestRosterInput = z.infer<typeof importGuestRosterSchema>;
+
+export const guestRosterSearchSchema = z.object({ query: optionalTrimmedStringSchema });
+export type GuestRosterSearchInput = z.infer<typeof guestRosterSearchSchema>;
+
 /* ── Supplier ─────────────────────────────────────────────────── */
 
 export const reviewSupplierApplicationSchema = z.object({
