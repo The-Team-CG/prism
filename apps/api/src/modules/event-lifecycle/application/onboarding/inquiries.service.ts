@@ -1,7 +1,6 @@
 import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { toPrismaJson } from '@prism/kernel/database';
 import type { PrismEventOpsActorContext } from '@prism/types';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { randomUUID } from 'node:crypto';
@@ -52,10 +51,6 @@ function addDays(value: Date, days: number) {
   const next = new Date(value);
   next.setDate(next.getDate() + days);
   return next;
-}
-
-function isoDate(value: Date) {
-  return value.toISOString().slice(0, 10);
 }
 
 function normalizeEmail(value: string) {
@@ -213,12 +208,10 @@ export class InquiriesService {
   ): Promise<OpsDocument> {
     let inquiry: OpsInquiry | null = null;
     let existingEvent: OpsEvent | null = null;
-    let billingYear = 0;
-    let billingCount = 0;
     const now = new Date();
 
     return this.workflowCommandService.execute<
-      { document: OpsDocument; event: OpsEvent; billingNumber?: string },
+      { document: OpsDocument; event: OpsEvent },
       OpsDocument
     >({
       name: 'upload_conforme',
@@ -230,10 +223,6 @@ export class InquiriesService {
         }
 
         existingEvent = await this.prisma.opsEvent.findFirst({ where: { inquiryId } });
-        billingYear = inquiry.eventDate.getFullYear();
-        billingCount = await this.prisma.opsBillingStatement.count({
-          where: { number: { startsWith: `BS-${billingYear}-` } },
-        });
       },
       write: async () => {
         if (!inquiry) throw new NotFoundException('Inquiry not found');
@@ -307,108 +296,10 @@ export class InquiriesService {
             },
           });
 
-          let billingNumber: string | undefined;
-          if ((await tx.opsBillingStatement.count({ where: { eventId: event.id } })) === 0) {
-            billingNumber = `BS-${billingYear}-${String(billingCount + 1).padStart(4, '0')}`;
-            const totalAmount = 520000;
-            const downpayment = Math.floor(totalAmount / 2);
-            const balance = totalAmount - downpayment;
-            const balanceDueDate = addDays(event.eventDate, -7);
-            const storageKey = `events/${event.id}/billing/${billingNumber}.pdf`;
-            const lineItems = [{ label: 'Approved event package', amount: totalAmount }];
-            const paymentSchedule = [
-              { label: 'Downpayment', percentage: 50, amount: downpayment, dueDate: isoDate(now) },
-              { label: 'Balance', percentage: 50, amount: balance, dueDate: isoDate(balanceDueDate) },
-            ];
-            const paymentMethods = [
-              { label: 'Bank Transfer', details: 'PMCM corporate bank account' },
-              { label: 'GCash', details: 'PMCM finance GCash number' },
-              { label: 'Cheque', details: 'Payable to PMCM Events Management' },
-            ];
-            const billingDocument = await tx.opsDocument.create({
-              data: {
-                id: `doc_${randomUUID()}`,
-                eventId: event.id,
-                type: 'billing_statement',
-                fileName: `${billingNumber}.pdf`,
-                status: 'generated',
-                mimeType: 'application/pdf',
-                storageBucket: 'document-vault',
-                storageKey,
-                uploadedByRole: 'system',
-              },
-            });
-            const billingSource = await tx.opsBillingSource.create({
-              data: {
-                id: `bsrc_${randomUUID()}`,
-                eventId: event.id,
-                sourceType: 'conforme_approved_ce',
-                sourceLabel: 'Approved onboarding CE/proposal total',
-                sourceDocumentId: billingDocument.id,
-                lineItems: toPrismaJson(lineItems),
-                paymentSchedule: toPrismaJson(paymentSchedule),
-                paymentMethods: toPrismaJson(paymentMethods),
-                totalAmount,
-                status: 'approved',
-                approvedAt: now,
-                approvedBy: actor.name,
-                approvalNotes: 'Generated from signed conforme onboarding source.',
-              },
-            });
-
-            await tx.opsBillingStatement.create({
-              data: {
-                id: `bill_${randomUUID()}`,
-                eventId: event.id,
-                sourceId: billingSource.id,
-                number: billingNumber,
-                clientName: inquiry!.clientName,
-                clientContact: inquiry!.email,
-                eventName: event.eventName,
-                eventDate: event.eventDate,
-                lineItems: toPrismaJson(lineItems),
-                paymentSchedule: toPrismaJson(paymentSchedule),
-                paymentMethods: toPrismaJson(paymentMethods),
-                totalAmount,
-                documentId: billingDocument.id,
-                pdfUrl: `/documents/${storageKey}`,
-                storageKey,
-                status: 'issued',
-              },
-            });
-
-            await tx.opsPaymentMilestone.createMany({
-              data: [
-                {
-                  id: `pay_${randomUUID()}`,
-                  eventId: event.id,
-                  label: 'Downpayment',
-                  percentage: 50,
-                  amount: downpayment,
-                  amountPaid: 0,
-                  remainingBalance: downpayment,
-                  dueDate: now,
-                  status: 'pending',
-                },
-                {
-                  id: `pay_${randomUUID()}`,
-                  eventId: event.id,
-                  label: 'Balance',
-                  percentage: 50,
-                  amount: balance,
-                  amountPaid: 0,
-                  remainingBalance: balance,
-                  dueDate: balanceDueDate,
-                  status: 'pending',
-                },
-              ],
-            });
-          }
-
-          return { document, event, billingNumber };
+          return { document, event };
         });
       },
-      sideEffects: async ({ document, event, billingNumber }) => {
+      sideEffects: async ({ document, event }) => {
         const sideEffects: Array<Promise<unknown>> = [
           this.audit(event.id, actor.name, 'Uploaded signed conforme and unlocked client portal', {
             actorRole: actor.role,
@@ -421,18 +312,6 @@ export class InquiriesService {
           }),
           this.notify(event.id, event.clientName, 'Client portal unlocked'),
         ];
-
-        if (billingNumber && inquiry) {
-          sideEffects.push(
-            this.audit(event.id, 'System', `Generated billing statement ${billingNumber}`, {
-              category: AuditCategory.Finance,
-              actionType: AuditActionType.Create,
-              affectedType: 'billing_statement',
-              affectedLabel: billingNumber,
-            }),
-            this.notify(event.id, inquiry.email, `Billing statement ${billingNumber} generated`),
-          );
-        }
 
         await Promise.all(sideEffects);
       },
