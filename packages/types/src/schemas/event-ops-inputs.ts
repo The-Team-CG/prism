@@ -223,6 +223,19 @@ export const promoteSupplierSchema = z.object({
 });
 export type PromoteSupplierInput = z.infer<typeof promoteSupplierSchema>;
 
+export const createCommunicationThreadSchema = z.object({
+  eventId: nonEmptyStringSchema,
+  subject: nonEmptyStringSchema,
+  participantActorIds: z.array(nonEmptyStringSchema).max(20).optional(),
+});
+export type CreateCommunicationThreadInput = z.infer<typeof createCommunicationThreadSchema>;
+
+export const sendCommunicationMessageSchema = z.object({
+  body: nonEmptyStringSchema,
+  idempotencyKey: nonEmptyStringSchema,
+});
+export type SendCommunicationMessageInput = z.infer<typeof sendCommunicationMessageSchema>;
+
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,
 });
