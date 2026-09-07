@@ -94,6 +94,7 @@ export {
   aiGovernanceDryRunSchema,
   type AiGovernanceDryRunInput,
 } from "./session-trust-inputs.js";
+export { supplierWithdrawalSchema, type SupplierWithdrawalInput } from "./session-spatial-inputs.js";
 export {
   PrismContractError,
   parseContract,

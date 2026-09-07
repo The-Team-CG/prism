@@ -114,7 +114,7 @@ export class SupplierNetworkWorkflowService {
     });
   }
 
-  async withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor) {
+  async withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor, eventId?: string) {
     let request: OpsSupplierQuoteRequest | null = null;
 
     const result = await this.workflowCommandService.execute<
@@ -128,6 +128,7 @@ export class SupplierNetworkWorkflowService {
       validateState: async () => {
         request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
         if (!request) throw new NotFoundException('Supplier quote request not found');
+        if (eventId && request.eventId !== eventId) throw new NotFoundException('Supplier quote request not found');
       },
       write: async (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
