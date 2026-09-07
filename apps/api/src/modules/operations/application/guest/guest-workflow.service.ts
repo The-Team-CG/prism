@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { DOCUMENT_VAULT, type DocumentVault, type UploadMetadataInput } from '@prism/contexts/event-lifecycle';
+import type { ImportGuestRosterInput } from '@prism/types';
 
 export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[] };
 
@@ -176,6 +177,30 @@ export class GuestWorkflowService {
         });
       },
     });
+  }
+
+  async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
+    const batchId = `roster_${randomUUID()}`;
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.opsEvent.findUnique({ where: { id: eventId } });
+      if (!event) throw new NotFoundException('Event not found');
+      const keys = input.rows.map((row) => row.sourceKey);
+      const rows = [];
+      for (const row of input.rows) {
+        rows.push(await tx.opsGuestRosterEntry.upsert({
+          where: { eventId_sourceKey: { eventId, sourceKey: row.sourceKey } },
+          create: { id: `g re_${randomUUID()}`.replace(' ', ''), eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
+          update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
+        }));
+      }
+      await tx.opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
+      await writeAudit(this.auditWriter, eventId, actor.name, 'Guest roster imported and reconciled', { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster', affectedId: eventId, metadata: { batchId, rowCount: rows.length, source: input.source, actorId: actor.id } }, { prisma: tx, correlationId: batchId });
+      return rows;
+    });
+  }
+
+  async searchRoster(eventId: string, query = '') {
+    return this.prisma.opsGuestRosterEntry.findMany({ where: { eventId, withdrawnAt: null, eligibility: 'eligible', ...(query.trim() ? { normalizedName: { contains: query.trim().toLowerCase() } } : {}) }, orderBy: { normalizedName: 'asc' } });
   }
 
   private async resolveGuestEventByAccessCode(accessCode: string, requireFeedbackWindow = false) {
