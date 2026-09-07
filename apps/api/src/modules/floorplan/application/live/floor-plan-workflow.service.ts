@@ -320,7 +320,7 @@ export class FloorPlanWorkflowService {
   }
 
   async requireEvent(eventId: string): Promise<OpsEvent> {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: { select: { email: true } } } });
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }
