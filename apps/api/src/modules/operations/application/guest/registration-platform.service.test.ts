@@ -7,7 +7,7 @@ const actor = { role: OpsUserRole.PmcmAdmin, name: 'Maxine', explicit: true };
 
 function createService(existing: Record<string, unknown> | null) {
   const prisma = {
-    opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample', status: 'archived', archived: true })) },
+    opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample', status: 'archived', archived: true, actualEndedAt: new Date('2026-09-07T12:00:00.000Z') })) },
     opsRegistrationPlatform: {
       findUnique: vi.fn(async () => existing),
       update: vi.fn(async (_args: { data: Record<string, unknown> }) => ({
@@ -103,7 +103,7 @@ describe('RegistrationPlatformService', () => {
 
   it('requires an ended event before importing a closed platform headcount', async () => {
     const { service, prisma } = createService({ id: 'reg_1', eventId: 'evt_sample', platformType: 'xperto', status: 'closed' });
-    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample', status: 'event_day', archived: false });
+    (prisma.opsEvent.findUnique as any).mockResolvedValue({ id: 'evt_sample', status: 'event_day', archived: false, actualEndedAt: null });
     await expect(service.importHeadcount('evt_sample', { headcountSource: 'XPERTO', importedHeadcount: 180 }, actor as any)).rejects.toBeInstanceOf(BadRequestException);
   });
 

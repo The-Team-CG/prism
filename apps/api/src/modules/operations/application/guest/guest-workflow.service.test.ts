@@ -12,6 +12,8 @@ function createGuestWorkflowFixture() {
         eventName: 'Ayala Tech Summit',
         clientName: 'Ana Reyes',
         eventDate: new Date('2026-06-18T00:00:00.000Z'),
+        actualEndedAt: new Date('2026-09-07T12:00:00.000Z'),
+        actualEndedBy: 'user_pmcm',
         status: 'event_day',
         clientPortalStatus: 'unlocked',
         readiness: 'Registration open',

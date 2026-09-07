@@ -9,8 +9,10 @@ import { EventClosureService } from '../../application/closure/event-closure.ser
 import {
   archiveSearchFiltersSchema,
   archiveEventSchema,
+  recordActualEventEndSchema,
   type ArchiveEventInput,
   type ArchiveSearchFilters,
+  type RecordActualEventEndInput,
   type PrismVerifiedEventActor,
 } from '@prism/types';
 import { zodBody, zodQuery } from '@prism/kernel/shared';
@@ -63,6 +65,15 @@ export class OpsEventClosureController {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'event archive', eventId);
     const event = await this.eventClosureService.archiveEvent(eventId, { overrideReason: dto.overrideReason, actorName: actor.name, actorRole: actor.role, actorEmail: actor.email, actorId: actor.id });
+    return mapClosureEvent(event, { guestReader: this.guestReader, floorplanReader: this.floorplanReader });
+  }
+
+  @Post(':eventId/actual-end')
+  @UseGuards(EventSessionGuard)
+  async recordActualEventEnd(@Param('eventId') eventId: string, @Body(zodBody(recordActualEventEndSchema)) dto: RecordActualEventEndInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'actual event end', eventId);
+    const event = await this.eventClosureService.recordActualEventEnd(eventId, dto, actor);
     return mapClosureEvent(event, { guestReader: this.guestReader, floorplanReader: this.floorplanReader });
   }
 

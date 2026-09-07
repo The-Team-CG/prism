@@ -5,7 +5,7 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import type { ArchiveSearchFilters } from '@prism/types';
+import type { ArchiveSearchFilters, RecordActualEventEndInput } from '@prism/types';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
@@ -32,6 +32,34 @@ export class EventClosureService {
   async closeGates(eventId: string) {
     await this.requireEvent(eventId);
     return this.fileRequirementsMatrixService.closeGates(eventId);
+  }
+
+  async recordActualEventEnd(eventId: string, input: RecordActualEventEndInput, actor: ResolvedEventOpsActor) {
+    const actualEndedAt = new Date(input.actualEndedAt);
+    if (Number.isNaN(actualEndedAt.getTime()) || actualEndedAt.getTime() > Date.now()) {
+      throw new BadRequestException('Actual event end must be a valid timestamp that is not in the future');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const current = await this.requireEvent(eventId, tx);
+      if (current.actualEndedAt && current.actualEndedAt.getTime() !== actualEndedAt.getTime() && !input.correctionReason?.trim()) {
+        throw new BadRequestException('A correction reason is required when changing the recorded event end');
+      }
+      const event = await tx.opsEvent.update({
+        where: { id: eventId, actualEndedAt: current.actualEndedAt },
+        data: { actualEndedAt, actualEndedBy: actor.id },
+      });
+      const context = { prisma: tx, correlationId: `actual_end_${randomUUID()}` };
+      await writeAudit(this.auditWriter, eventId, actor.name, current.actualEndedAt ? 'Corrected actual event end' : 'Recorded actual event end', {
+        actorRole: actor.role,
+        actorEmail: actor.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Events,
+        affectedType: 'event',
+        affectedId: eventId,
+        metadata: { actualEndedAt: actualEndedAt.toISOString(), actualEndedBy: actor.id, correctionReason: input.correctionReason?.trim() ?? null },
+      }, context);
+      return event;
+    }, { isolationLevel: 'Serializable' });
   }
 
   async archiveEvent(eventId: string, input: ArchiveEventInput = {}) {
