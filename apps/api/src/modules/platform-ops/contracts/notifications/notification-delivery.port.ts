@@ -9,6 +9,8 @@ export type NotificationDeliveryResult =
 /** Adapters must use the stable notification ID as the provider idempotency key.
  * Accepted means the provider accepted delivery, not that a human read it.
  * No adapter is bound until the delivery provider and access are approved.
+ * The worker times out after 30 seconds; adapters must also bound/cancel their
+ * transport request. An uncertain timeout may be retried with the same key.
  */
 export interface NotificationDeliveryPort {
   deliver(input: {

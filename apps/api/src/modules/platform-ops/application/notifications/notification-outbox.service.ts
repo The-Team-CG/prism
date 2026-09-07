@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, Optional, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import type { OpsNotificationLog } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
@@ -11,10 +11,11 @@ import { processNotificationQueue } from './notification-delivery-worker';
 
 export type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 
-const FORCE_FAIL_MARKER = 'FORCE_FAIL';
-
 @Injectable()
-export class NotificationOutboxService {
+export class NotificationOutboxService implements OnApplicationBootstrap, OnApplicationShutdown {
+  private timer?: ReturnType<typeof setInterval>;
+  private running = false;
+  private readonly logger = new Logger(NotificationOutboxService.name);
   constructor(
     private readonly prisma: PrismaService,
     @Optional() @Inject(NOTIFICATION_DELIVERY) private readonly delivery?: NotificationDeliveryPort,
@@ -25,7 +26,7 @@ export class NotificationOutboxService {
     recipient: string,
     message: string,
     channel: NotificationOutboxChannel = NotificationChannel.Email,
-    options: { forceFail?: boolean; correlationId?: string; idempotencyKey?: string } = {},
+    options: { correlationId?: string; idempotencyKey?: string } = {},
     context?: PrismTransactionContext,
   ) {
     const prisma = context?.prisma ?? this.prisma;
@@ -38,7 +39,7 @@ export class NotificationOutboxService {
       return legacy;
     }
 
-    const payloadHash = createHash('sha256').update(JSON.stringify([eventId ?? null, recipient, message, channel, options.forceFail ?? false])).digest('hex');
+    const payloadHash = createHash('sha256').update(JSON.stringify([eventId ?? null, recipient, message, channel])).digest('hex');
     const data = {
         id: `not_${randomUUID()}`,
         eventId,
@@ -50,7 +51,7 @@ export class NotificationOutboxService {
         correlationId,
         idempotencyKey: options.idempotencyKey ?? null,
         payloadHash,
-        failureReason: options.forceFail ? FORCE_FAIL_MARKER : null,
+        failureReason: this.delivery ? null : 'Delivery provider is not configured',
       };
     if (!options.idempotencyKey) return prisma.opsNotificationLog.create({ data });
     // A non-empty no-op update keeps Prisma on PostgreSQL's atomic ON CONFLICT path.
@@ -61,6 +62,25 @@ export class NotificationOutboxService {
 
   async processQueued(options: { maxAttempts?: number } = {}) {
     return processNotificationQueue(this.prisma, this.delivery, options.maxAttempts);
+  }
+
+  onApplicationBootstrap() {
+    if (!this.delivery) return;
+    this.timer = setInterval(() => { void this.runScheduled(); }, 30_000);
+    this.timer.unref();
+    void this.runScheduled();
+  }
+
+  onApplicationShutdown() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  private async runScheduled() {
+    if (this.running) return;
+    this.running = true;
+    try { await this.processQueued(); }
+    catch { this.logger.warn('Notification queue sweep failed; durable work remains available for retry'); }
+    finally { this.running = false; }
   }
 
   private findLegacyRetry(prisma: PrismaService | PrismTransactionContext['prisma'], key?: string) {
@@ -78,10 +98,15 @@ export class NotificationOutboxService {
     if (this.hasEventScopeMismatch(notification, actor)) {
       throw new ForbiddenException('Notification is outside the actor event scope');
     }
-    return this.prisma.opsNotificationLog.update({
-      where: { id: notificationId },
+    if (notification.status === 'acknowledged') return notification;
+    if (notification.status !== 'sent') throw new ConflictException('Only a provider-accepted notification can be acknowledged');
+    const updated = await this.prisma.opsNotificationLog.updateMany({
+      where: { id: notificationId, status: 'sent' },
       data: { status: 'acknowledged', acknowledgedAt: new Date() },
     });
+    const saved = await this.prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: notificationId } });
+    if (updated.count !== 1 && saved.status !== 'acknowledged') throw new ConflictException('Notification state changed; refresh before acknowledging');
+    return saved;
   }
 
   private isPrivileged(actor?: PrismVerifiedEventActor) {
