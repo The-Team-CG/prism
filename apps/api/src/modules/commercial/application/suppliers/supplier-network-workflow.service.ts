@@ -74,15 +74,18 @@ export class SupplierNetworkWorkflowService {
 
     return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'confirm_supplier_assignment',
+      context: { actorId: actor.id ?? actor.name, actorRole: actor.role, correlationId: `supplier-confirm:${requestId}` },
+      sideEffectMode: 'same_tx',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
         if (request.status !== 'selected' || !request.supplierId) {
           throw new BadRequestException('Only a selected supplier assignment can be confirmed');
         }
       },
-      write: () => {
+      write: (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
-        return this.prisma.opsSupplierQuoteRequest.update({
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        return prisma.opsSupplierQuoteRequest.update({
           where: { id: request.id },
           data: {
             assignmentStatus: 'confirmed',
@@ -90,7 +93,7 @@ export class SupplierNetworkWorkflowService {
           },
         });
       },
-      sideEffects: async (updated) => {
+      sideEffects: async (updated, transactionContext) => {
         if (!request) return;
         await writeAudit(this.auditWriter, request.eventId, actor.name, `Confirmed supplier assignment: ${request.supplierName}`, {
           actorRole: actor.role,
@@ -101,7 +104,7 @@ export class SupplierNetworkWorkflowService {
           affectedId: request.id,
           affectedLabel: request.supplierName,
           metadata: { assignmentStatus: updated.assignmentStatus ?? 'confirmed' },
-        });
+        }, transactionContext);
       },
     });
   }
