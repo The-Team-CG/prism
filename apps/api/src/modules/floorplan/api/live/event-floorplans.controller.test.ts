@@ -24,6 +24,7 @@ function createController() {
     requireCanMutateOfficialFloorplan: vi.fn(async () => undefined),
     requireActorRole: vi.fn(async () => undefined),
     canReadEvent: vi.fn(() => true),
+    requireCanReadEvent: vi.fn(async () => undefined),
     recordForbiddenAccess: vi.fn(async () => undefined),
   };
   const controller = new OpsEventFloorplansController(

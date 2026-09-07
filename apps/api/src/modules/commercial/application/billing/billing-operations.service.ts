@@ -316,7 +316,7 @@ export class BillingOperationsService {
     input: ApproveBillingSourceInput = {},
     actor: BillingActor,
   ) {
-    const approvedBy = input.approvedBy?.trim() || actor.name || 'PMCM Admin';
+    const approvedBy = actor.name;
     let source: OpsBillingSource | null = null;
 
     return this.workflowCommandService.execute<OpsBillingSource, ReturnType<BillingOperationsService['mapBillingSource']>>({

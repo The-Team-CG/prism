@@ -1,6 +1,31 @@
-import type { PrismEvent } from "@prism/types";
+import type { PrismEvent, PrismDocument, ReviewEventProposalInput } from "@prism/types";
 
 export const CLIENT_PROPOSAL_REVISION_CAP = 3;
+
+type PendingProposalDecision = {
+  eventId: string;
+  documentId: string;
+  action: ReviewEventProposalInput["action"];
+  revisionNote: string;
+  key: string;
+};
+
+export function latestIssuedProposal(documents: PrismDocument[]) {
+  return documents.filter((document) =>
+    ["proposal", "ce_proposal", "briefing_proposal"].includes(document.type) && document.status === "issued",
+  ).sort((left, right) => right.uploadedAt.localeCompare(left.uploadedAt) || right.id.localeCompare(left.id))[0];
+}
+
+export function retainProposalDecisionKey(
+  previous: PendingProposalDecision | null,
+  input: Omit<PendingProposalDecision, "key">,
+  createKey: () => string,
+): PendingProposalDecision {
+  const revisionNote = input.action === "request_revision" ? input.revisionNote.trim() : "";
+  if (previous && previous.eventId === input.eventId && previous.documentId === input.documentId &&
+    previous.action === input.action && previous.revisionNote === revisionNote) return previous;
+  return { ...input, revisionNote, key: createKey() };
+}
 
 export function proposalPackageReady(input: { briefing?: unknown; billing?: unknown; proposalIssued?: boolean }) {
   return Boolean(input.briefing && input.billing && input.proposalIssued);
@@ -15,7 +40,7 @@ export function remainingProposalRevisions(event: PrismEvent) {
 }
 
 export function canApproveProposal(event: PrismEvent, packageReady: boolean) {
-  return packageReady && proposalClientStatus(event) !== "approved";
+  return packageReady && !event.archived && event.clientPortalStatus === "unlocked" && proposalClientStatus(event) !== "approved";
 }
 
 export function canRequestProposalRevision(event: PrismEvent, packageReady: boolean) {

@@ -45,7 +45,10 @@ describe('OpsEventComplianceController', () => {
       ),
     };
     const policy = { resolveActor: vi.fn((_input, actor) => actor), requireActorRole: vi.fn(async () => undefined) };
-    const controller = new OpsEventComplianceController(complianceWorkflowService as any, policy as any);
+    const controller = new OpsEventComplianceController(
+      complianceWorkflowService as unknown as ConstructorParameters<typeof OpsEventComplianceController>[0],
+      policy as unknown as ConstructorParameters<typeof OpsEventComplianceController>[1],
+    );
     const actor = { id: 'pmcm_1', actorId: 'pmcm_1', role: 'pmcm-admin', actorRole: 'pmcm-admin', name: 'Maxine', actorName: 'Maxine', email: 'maxine@pmcm.test', actorEmail: 'maxine@pmcm.test' } as never;
 
     await expect(controller.runCompliance('evt_sample', { phase: 'planning' }, actor)).resolves.toEqual([

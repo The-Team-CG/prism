@@ -88,8 +88,7 @@ export class EventAccessPolicyService {
   canReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, scope: EventAccessScope = {}) {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
     if (actor.role === OpsUserRole.Client) {
-      const eventEmail = event.clientEmail ?? event.inquiry?.email;
-      return event.clientPortalStatus === 'unlocked' && (actor.verified ? Boolean(actor.email && eventEmail && this.sameText(actor.email, eventEmail)) : (actor.email ? this.sameText(actor.email, eventEmail) : this.sameText(actor.clientName, event.clientName)));
+      return event.clientPortalStatus === 'unlocked' && this.clientOwnsEvent(actor, event);
     }
     if (actor.role === OpsUserRole.Coordinator) {
       return Boolean(actor.eventId && actor.eventId === event.id);
@@ -99,6 +98,11 @@ export class EventAccessPolicyService {
       return Boolean(scope.supplierEventIds?.includes(event.id));
     }
     return false;
+  }
+
+  private clientOwnsEvent(actor: ResolvedEventOpsActor, event: ReadableEvent) {
+    if (actor.verified || actor.email) return this.sameText(actor.email, event.clientEmail ?? event.inquiry?.email);
+    return this.sameText(actor.clientName, event.clientName);
   }
 
   async requireCanReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, resource: string, scope: EventAccessScope = {}) {

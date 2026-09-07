@@ -5,6 +5,7 @@ import {
   canRequestProposalRevision,
   proposalPackageReady,
   remainingProposalRevisions,
+  retainProposalDecisionKey,
 } from "./proposal-review-rules";
 
 const event = (overrides: Partial<PrismEvent> = {}): PrismEvent =>
@@ -23,9 +24,10 @@ const event = (overrides: Partial<PrismEvent> = {}): PrismEvent =>
   }) as PrismEvent;
 
 describe("proposal-review-rules", () => {
-  it("requires briefing and billing before client review", () => {
+  it("requires an issued proposal in addition to briefing and billing", () => {
     expect(proposalPackageReady({})).toBe(false);
-    expect(proposalPackageReady({ briefing: {}, billing: {} })).toBe(true);
+    expect(proposalPackageReady({ briefing: {}, billing: {} })).toBe(false);
+    expect(proposalPackageReady({ briefing: {}, billing: {}, proposalIssued: true })).toBe(true);
   });
 
   it("blocks approve after the primary contact already approved", () => {
@@ -36,5 +38,27 @@ describe("proposal-review-rules", () => {
   it("caps revisions at three", () => {
     expect(remainingProposalRevisions(event({ proposalRevisionCount: 2 }))).toBe(1);
     expect(canRequestProposalRevision(event({ proposalRevisionCount: 3 }), true)).toBe(false);
+  });
+
+  it("keeps the same key after a lost response, including equivalent trimmed notes", () => {
+    const input = { eventId: 'event_1', documentId: 'proposal_v1', action: 'request_revision' as const, revisionNote: ' Adjust scope ' };
+    const pending = retainProposalDecisionKey(null, input, () => 'first-key');
+    const retry = retainProposalDecisionKey(pending, { ...input, revisionNote: 'Adjust scope' }, () => 'must-not-be-used');
+    expect(retry.key).toBe('first-key');
+    expect(retry.revisionNote).toBe('Adjust scope');
+  });
+
+  it.each([
+    { eventId: 'event_2' }, { documentId: 'proposal_v2' },
+    { action: 'approve' as const }, { revisionNote: 'Different decision' },
+  ])("uses a new key for a different decision identity: %j", (change) => {
+    const input = { eventId: 'event_1', documentId: 'proposal_v1', action: 'request_revision' as const, revisionNote: 'Adjust scope' };
+    const pending = retainProposalDecisionKey(null, input, () => 'first-key');
+    expect(retainProposalDecisionKey(pending, { ...input, ...change }, () => 'new-key').key).toBe('new-key');
+  });
+
+  it("denies client actions after locking or archive", () => {
+    expect(canApproveProposal(event({ archived: true }), true)).toBe(false);
+    expect(canRequestProposalRevision(event({ clientPortalStatus: 'locked' }), true)).toBe(false);
   });
 });

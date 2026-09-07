@@ -1,5 +1,12 @@
 # Documentation bundle update log
 
+## 2026-09-08
+
+- **Recorded:** P0 W01-W09 readiness with original effort/priority/risk estimates, implementation evidence and explicit proposal, logistics, privacy and live-AI blockers. Full catalog baseline counts remain historical.
+- **Decided:** Event authority and lifecycle policy: PMCM official layouts, designated attendance operator, recorded-end wrap-up, reasoned archive overrides, seven-day guest feedback including archive, and catalog categories with Private mapped to Individual. Downstream engineering remains separately identified.
+- **Updated:** Feature ledger, actual-system and readiness contracts to distinguish implemented corrections from complete workflows; promoted the working remediation plan into semantic living documents.
+- **Registered:** Focused pure closeout and event-scope read subpaths and built API session/module verification in architecture contracts and navigation indexes.
+
 ## 2026-09-04
 
 - **Recorded:** Overlay evidence for client proposal review (primary contact, revision cap),

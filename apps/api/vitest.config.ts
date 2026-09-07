@@ -26,6 +26,8 @@ export default defineConfig({
       '@prism/kernel/database': resolve(__dirname, './src/kernel/database/index.ts'),
       '@prism/kernel/shared': resolve(__dirname, './src/kernel/shared/index.ts'),
       '@prism/compatibility/sample': resolve(__dirname, './src/compatibility/sample/index.ts'),
+      '@prism/contexts/read-models/closeout': resolve(__dirname, './src/modules/read-models/closeout.ts'),
+      '@prism/contexts/read-models/event-scope': resolve(__dirname, './src/modules/read-models/event-scope.ts'),
       '@prism/contexts/read-models': resolve(__dirname, './src/modules/read-models/index.ts'),
       '@prism/kernel/event-core': resolve(__dirname, './src/kernel/event-core/index.ts'),
       '@prism/kernel/access-control': resolve(__dirname, './src/kernel/access-control/index.ts'),

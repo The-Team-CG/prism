@@ -19,11 +19,9 @@ export class OpsEventBriefingController {
   async submitBriefing(
     @Param('eventId') eventId: string,
     @Body(zodBody(submitBriefingSchema)) dto: SubmitBriefingInput,
-    @VerifiedEventActor() verifiedActor?: PrismVerifiedEventActor,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = verifiedActor ? this.eventAccessPolicyService.resolveActor({}, verifiedActor) : undefined;
-    return mapBriefing(await (actor
-      ? this.clientOnboardingWorkflowService.submitBriefing(eventId, dto, actor)
-      : this.clientOnboardingWorkflowService.submitBriefing(eventId, dto)));
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return mapBriefing(await this.clientOnboardingWorkflowService.submitBriefing(eventId, dto, actor));
   }
 }

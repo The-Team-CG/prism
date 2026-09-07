@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
+import { EventSessionModule } from '@prism/kernel/event-session';
 import { OpsAuditController, OpsPrivacyController } from './api/trust/audit-privacy.controller';
 import { OpsNotificationsController } from './api/notifications/notifications.controller';
 import { OpsAiGovernanceController } from './api/ai-governance/ai-governance.controller';
@@ -37,7 +38,7 @@ const notificationOutboxWriterProvider = {
  * workflow rather than a shared ownership claim.
  */
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, EventSessionModule],
   controllers: [OpsAuditController, OpsPrivacyController, OpsNotificationsController, OpsAiGovernanceController],
   providers: [
     AuditService,

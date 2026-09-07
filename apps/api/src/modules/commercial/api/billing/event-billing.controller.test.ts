@@ -48,7 +48,7 @@ describe('OpsEventBillingController', () => {
         actor as never,
       ),
     ).resolves.toEqual({ id: 'bsrc_new' });
-    await expect(controller.approveBillingSource('evt_sample', 'bsrc_new', { approvedBy: 'Maxine' }, actor as never)).resolves.toEqual({
+    await expect(controller.approveBillingSource('evt_sample', 'bsrc_new', { approvalNotes: 'Checked' }, actor as never)).resolves.toEqual({
       id: 'bsrc_new',
       status: 'approved',
     });

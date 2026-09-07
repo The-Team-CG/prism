@@ -161,10 +161,10 @@ describe('PrivacyOperationsService', () => {
     const { execute, tx } = executionFixture({ subjectType: 'guest' });
     await execute();
     expect(tx.opsGuestCheckIn.updateMany).toHaveBeenCalledWith({
-      where: { eventId: 'evt_sample', guestName: 'Ana Reyes' }, data: { guestName: 'Redacted guest' },
+      where: { eventId: 'evt_sample', guestName: { equals: 'Ana Reyes', mode: 'insensitive' } }, data: { guestName: 'Redacted guest' },
     });
     expect(tx.opsGuestFeedback.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { eventId: 'evt_sample', guestName: 'Ana Reyes' },
+      where: { eventId: 'evt_sample', guestName: { equals: 'Ana Reyes', mode: 'insensitive' } },
       data: expect.objectContaining({ comment: '[redacted by privacy request]', photoFileName: null, videoFileName: null }),
     }));
     expect(tx.opsInquiry.findMany).not.toHaveBeenCalled();

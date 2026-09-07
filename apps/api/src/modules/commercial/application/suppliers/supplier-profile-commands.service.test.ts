@@ -78,12 +78,12 @@ describe('SupplierProfileCommandsService', () => {
     const addSupplierReview = vi.fn(async () => ({ supplier: { id: 'sup_1', name: 'Acme AV' }, reviewId: 'review_abc123', replayed: true }));
     const audit = vi.fn();
     const service = new SupplierProfileCommandsService(
-      { addSupplierReview } as any,
-      { write: audit } as any,
-      { requireActorRole: vi.fn() } as any,
+      { addSupplierReview } as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[0],
+      { write: audit },
+      { requireActorRole: vi.fn() } as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[2],
       new WorkflowCommandService(),
     );
-    await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Done', idempotencyKey: 'key-1' }, pmcmAdminActor as any);
+    await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Done', idempotencyKey: 'key-1' }, pmcmAdminActor);
     expect(audit).not.toHaveBeenCalled();
   });
 });
