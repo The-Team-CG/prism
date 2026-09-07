@@ -40,8 +40,9 @@ export class OpsInquiriesController {
   }
 
   @Get()
-  list(@Query() actor: SampleActorDto) {
-    return this.inquiryWorkflowService.listInquiries(actor, this.inquiryWorkflowContext());
+  @UseGuards(EventSessionGuard)
+  list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.inquiryWorkflowService.listInquiries({}, this.inquiryWorkflowContext(), verifiedActor);
   }
 
   @Post('log-on-behalf')
@@ -61,17 +62,20 @@ export class OpsInquiriesController {
   }
 
   @Patch(':inquiryId/status')
+  @UseGuards(EventSessionGuard)
   updateStatus(
     @Param('inquiryId') inquiryId: string,
     @Body(zodBody(updateInquiryStatusSchema)) dto: UpdateInquiryStatusInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    return this.inquiryWorkflowService.updateInquiryStatus(inquiryId, dto, this.inquiryWorkflowContext());
+    return this.inquiryWorkflowService.updateInquiryStatus(inquiryId, dto, this.inquiryWorkflowContext(), verifiedActor);
   }
 
   @Post(':inquiryId/conforme-reminders')
   @HttpCode(HttpStatus.CREATED)
-  sendConformeReminder(@Param('inquiryId') inquiryId: string) {
-    return this.inquiryWorkflowService.sendConformeReminder(inquiryId, this.inquiryWorkflowContext());
+  @UseGuards(EventSessionGuard)
+  sendConformeReminder(@Param('inquiryId') inquiryId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.inquiryWorkflowService.sendConformeReminder(inquiryId, this.inquiryWorkflowContext(), verifiedActor);
   }
 
   @Post(':inquiryId/conforme')
