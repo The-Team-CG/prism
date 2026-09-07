@@ -32,8 +32,6 @@ export class ProposalClientReviewService {
       throw new ForbiddenException('Only the primary client contact can approve or request a proposal revision');
     }
 
-    if (event.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client proposal review is locked');
-    if (event.archived) throw new BadRequestException('Archived events cannot receive proposal decisions');
     const issuedProposal = await this.prisma.opsDocument.findFirst({
       where: { eventId, status: 'issued', type: { in: ['proposal', 'ce_proposal', 'briefing_proposal'] } },
       select: { id: true },
@@ -42,31 +40,32 @@ export class ProposalClientReviewService {
 
     const reviewKey = input.idempotencyKey?.trim() || `proposal-review:${eventId}:${input.action}:${event.proposalRevisionCount}`;
 
-    const current = {
-      status: event.proposalClientStatus,
-      revisionCount: event.proposalRevisionCount,
-    };
-    let next: ReturnType<typeof nextProposalClientReview>;
-    try {
-      next = nextProposalClientReview(current, input.action);
-    } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : 'Proposal review is not allowed');
-    }
-
     const updated = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const prior = await tx.opsAuditLog.findFirst({
         where: { eventId, affectedType: 'proposal_client_review', affectedId: reviewKey },
         orderBy: { createdAt: 'desc' },
       });
       if (prior) {
-        const metadata = prior.metadata as { action?: string; revisionNote?: string | null; actorEmail?: string | null; actorId?: string | null };
+        const metadata = prior.metadata as { action?: string; revisionNote?: string | null; actorEmail?: string | null; actorId?: string | null; proposalDocumentId?: string };
         if (
           metadata.action !== input.action ||
           (metadata.revisionNote ?? null) !== (input.revisionNote ?? null) ||
           (metadata.actorEmail ?? null) !== (actor.email ?? null) ||
-          (metadata.actorId ?? null) !== (actor.id ?? null)
+          (metadata.actorId ?? null) !== (actor.id ?? null) ||
+          metadata.proposalDocumentId !== issuedProposal.id
         ) throw new BadRequestException('Idempotency key was reused for another proposal decision');
         return tx.opsEvent.findUniqueOrThrow({ where: { id: eventId }, include: { floorPlanDrafts: true } });
+      }
+
+      if (event.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client proposal review is locked');
+      if (event.archived) throw new BadRequestException('Archived events cannot receive proposal decisions');
+
+      const current = { status: event.proposalClientStatus, revisionCount: event.proposalRevisionCount };
+      let next: ReturnType<typeof nextProposalClientReview>;
+      try {
+        next = nextProposalClientReview(current, input.action);
+      } catch (error) {
+        throw new BadRequestException(error instanceof Error ? error.message : 'Proposal review is not allowed');
       }
 
       const result = await tx.opsEvent.updateMany({
