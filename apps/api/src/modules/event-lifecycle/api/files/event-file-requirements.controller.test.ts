@@ -3,6 +3,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { OpsEventFileRequirementsController } from './event-file-requirements.controller';
+import { EventSessionGuard } from '@prism/kernel/event-session';
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
@@ -23,10 +24,11 @@ function createController() {
     requireEvent: vi.fn(async () => ({ id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' })),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((input = {}) => ({
-      role: input.actorRole ?? OpsUserRole.PmcmAdmin,
-      name: input.actorName ?? input.clientName ?? 'PMCM Admin',
-      clientName: input.clientName,
+    resolveActor: vi.fn((_input = {}, verifiedActor?: { actorRole?: string; actorName?: string; actorEmail?: string }) => ({
+      role: verifiedActor?.actorRole ?? OpsUserRole.PmcmAdmin,
+      name: verifiedActor?.actorName ?? 'PMCM Admin',
+      email: verifiedActor?.actorEmail,
+      clientName: verifiedActor?.actorRole === OpsUserRole.Client ? verifiedActor.actorName : undefined,
     })),
     requireCanReadEvent: vi.fn(async () => undefined),
   };
@@ -37,7 +39,22 @@ function createController() {
   return { controller, fileRequirementsMatrixService, eventAccessPolicyService };
 }
 
+const verified = (role: OpsUserRole, name: string, email = `${name.toLowerCase().replaceAll(' ', '.')}@pmcm.test`) => ({
+  id: `usr-${name}`,
+  role,
+  email,
+  name,
+  actorId: `usr-${name}`,
+  actorRole: role,
+  actorEmail: email,
+  actorName: name,
+  expiresAt: '2030-01-01T00:00:00.000Z',
+});
+
 describe('OpsEventFileRequirementsController', () => {
+  it('requires a verified event session for file requirement reads', () => {
+    expect(Reflect.getMetadata('__guards__', OpsEventFileRequirementsController.prototype.fileRequirements)).toContain(EventSessionGuard);
+  });
   it('keeps event file requirement routes under the events route base', () => {
     expect(controllerPath(OpsEventFileRequirementsController)).toBe('events');
   });
@@ -50,7 +67,7 @@ describe('OpsEventFileRequirementsController', () => {
   it('serves PMCM-visible file requirements through FileOps', async () => {
     const { controller, fileRequirementsMatrixService, eventAccessPolicyService } = createController();
 
-    await expect(controller.fileRequirements('evt_file', { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine' })).resolves.toEqual({
+    await expect(controller.fileRequirements('evt_file', verified(OpsUserRole.PmcmAdmin, 'Maxine'))).resolves.toEqual({
       eventId: 'evt_file',
       items: [
         { key: 'signed_conforme', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client] },
@@ -62,7 +79,7 @@ describe('OpsEventFileRequirementsController', () => {
 
     expect(fileRequirementsMatrixService.requireEvent).toHaveBeenCalledWith('evt_file');
     expect(eventAccessPolicyService.requireCanReadEvent).toHaveBeenCalledWith(
-      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', clientName: undefined },
+      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test', clientName: undefined },
       { id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' },
       'file requirements matrix',
     );
@@ -72,7 +89,7 @@ describe('OpsEventFileRequirementsController', () => {
   it('filters file requirements by actor-visible roles', async () => {
     const { controller } = createController();
 
-    await expect(controller.fileRequirements('evt_file', { actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' })).resolves.toEqual({
+    await expect(controller.fileRequirements('evt_file', verified(OpsUserRole.Client, 'Ana Reyes', 'ana@pmcm.test'))).resolves.toEqual({
       eventId: 'evt_file',
       items: [
         { key: 'signed_conforme', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client] },
@@ -85,7 +102,7 @@ describe('OpsEventFileRequirementsController', () => {
     const { controller } = createController();
 
     await expect(
-      controller.fileRequirements('evt_file', { actorRole: OpsUserRole.Supplier, actorName: 'Sonic Line Events' }),
+      controller.fileRequirements('evt_file', verified(OpsUserRole.Supplier, 'Sonic Line Events')),
     ).resolves.toEqual({
       eventId: 'evt_file',
       items: [{ key: 'supplier_contract', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Supplier] }],
@@ -96,14 +113,14 @@ describe('OpsEventFileRequirementsController', () => {
     const { controller, fileRequirementsMatrixService, eventAccessPolicyService } = createController();
     fileRequirementsMatrixService.requireEvent.mockRejectedValueOnce(new NotFoundException('Event not found'));
 
-    await expect(controller.fileRequirements('evt_missing', { actorRole: OpsUserRole.PmcmAdmin })).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.fileRequirements('evt_missing', verified(OpsUserRole.PmcmAdmin, 'Maxine'))).rejects.toBeInstanceOf(NotFoundException);
     expect(fileRequirementsMatrixService.buildForEvent).not.toHaveBeenCalled();
 
     eventAccessPolicyService.requireCanReadEvent.mockRejectedValueOnce(
       new ForbiddenException('guest cannot access file requirements matrix'),
     );
 
-    await expect(controller.fileRequirements('evt_file', { actorRole: OpsUserRole.Guest })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(controller.fileRequirements('evt_file', verified(OpsUserRole.Guest, 'Guest'))).rejects.toBeInstanceOf(ForbiddenException);
     expect(fileRequirementsMatrixService.buildForEvent).not.toHaveBeenCalled();
   });
 });

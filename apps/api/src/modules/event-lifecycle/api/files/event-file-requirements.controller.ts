@@ -1,6 +1,7 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { FileRequirementsActorDto } from './file-requirements.dto';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { FileRequirementsMatrixService } from '../../application/files/file-requirements-matrix.service';
 
 @Controller('events')
@@ -11,8 +12,9 @@ export class OpsEventFileRequirementsController {
   ) {}
 
   @Get(':eventId/file-requirements')
-  async fileRequirements(@Param('eventId') eventId: string, @Query() actorInput: FileRequirementsActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  async fileRequirements(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     const event = await this.fileRequirementsMatrixService.requireEvent(eventId);
 
     await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'file requirements matrix');

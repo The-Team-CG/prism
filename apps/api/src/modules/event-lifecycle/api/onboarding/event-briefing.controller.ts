@@ -1,19 +1,29 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { EventAccessPolicyService } from '@prism/kernel/access-control';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
-import { submitBriefingSchema, type SubmitBriefingInput } from '@prism/types';
+import { submitBriefingSchema, type PrismVerifiedEventActor, type SubmitBriefingInput } from '@prism/types';
 import { mapBriefing } from '../../application/onboarding/inquiry.mappers';
 import { ClientOnboardingWorkflowService } from '../../application/onboarding/client-onboarding-workflow.service';
 
 @Controller('events')
 export class OpsEventBriefingController {
-  constructor(private readonly clientOnboardingWorkflowService: ClientOnboardingWorkflowService) {}
+  constructor(
+    private readonly clientOnboardingWorkflowService: ClientOnboardingWorkflowService,
+    private readonly eventAccessPolicyService: EventAccessPolicyService,
+  ) {}
 
   @Post(':eventId/briefing')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
   async submitBriefing(
     @Param('eventId') eventId: string,
     @Body(zodBody(submitBriefingSchema)) dto: SubmitBriefingInput,
+    @VerifiedEventActor() verifiedActor?: PrismVerifiedEventActor,
   ) {
-    return mapBriefing(await this.clientOnboardingWorkflowService.submitBriefing(eventId, dto));
+    const actor = verifiedActor ? this.eventAccessPolicyService.resolveActor({}, verifiedActor) : undefined;
+    return mapBriefing(await (actor
+      ? this.clientOnboardingWorkflowService.submitBriefing(eventId, dto, actor)
+      : this.clientOnboardingWorkflowService.submitBriefing(eventId, dto)));
   }
 }

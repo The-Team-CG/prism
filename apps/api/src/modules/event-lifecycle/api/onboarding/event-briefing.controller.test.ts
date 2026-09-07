@@ -1,12 +1,16 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsEventBriefingController } from './event-briefing.controller';
+import { EventSessionGuard } from '@prism/kernel/event-session';
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
 }
 
 describe('OpsEventBriefingController', () => {
+  it('requires a verified event session for briefing writes', () => {
+    expect(Reflect.getMetadata('__guards__', OpsEventBriefingController.prototype.submitBriefing)).toContain(EventSessionGuard);
+  });
   it('keeps event briefing routes under the events route base', () => {
     expect(controllerPath(OpsEventBriefingController)).toBe('events');
   });
@@ -24,7 +28,7 @@ describe('OpsEventBriefingController', () => {
     const clientOnboardingWorkflowService = {
       submitBriefing: vi.fn(async () => briefing),
     };
-    const controller = new OpsEventBriefingController(clientOnboardingWorkflowService as any);
+    const controller = new OpsEventBriefingController(clientOnboardingWorkflowService as any, { resolveActor: vi.fn() } as any);
     const dto = {
       venue: 'Ayala Hall',
       guestCount: 180,
