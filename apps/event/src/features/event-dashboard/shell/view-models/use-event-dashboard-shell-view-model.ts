@@ -431,9 +431,12 @@ export function useEventDashboardShellViewModel({
     upsertRegistrationPlatform: (input: Parameters<typeof commands.upsertRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.upsertRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     updateRegistrationPlatform: (input: Parameters<typeof commands.updateRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.updateRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     importHeadcount: (input: Parameters<typeof commands.importHeadcount>[1]) => selectedEvent ? run("import headcount", () => commands.importHeadcount(selectedEvent.id, input)) : Promise.resolve(),
-    searchGuestRoster: (query = "") => selectedEvent ? commands.searchGuestRoster(selectedEvent.id, query) : Promise.resolve([]),
+    searchGuestRoster: (filters = {}) => selectedEvent ? commands.searchGuestRosterWithFilters(selectedEvent.id, filters) : Promise.resolve([]),
     importGuestRoster: (input: Parameters<typeof commands.importGuestRoster>[1]) => selectedEvent ? commands.importGuestRoster(selectedEvent.id, input) : Promise.resolve([]),
     checkInGuestRoster: (rosterEntryId: string) => selectedEvent ? run("check in guest", () => commands.checkInGuestRoster(selectedEvent.id, rosterEntryId)) : Promise.resolve(),
+    verifyGuestRoster: (rosterEntryId: string, status: Parameters<typeof commands.verifyGuestRoster>[2]) => selectedEvent ? run("verify guest", () => commands.verifyGuestRoster(selectedEvent.id, rosterEntryId, status)) : Promise.resolve(),
+    getWalkInPolicy: () => selectedEvent ? commands.getWalkInPolicy(selectedEvent.id) : Promise.resolve(null),
+    updateWalkInPolicy: (input: Parameters<typeof commands.updateWalkInPolicy>[1]) => selectedEvent ? run("walk-in policy", () => commands.updateWalkInPolicy(selectedEvent.id, input)) : Promise.resolve(),
     uploadConformeTarget: (inquiry: PrismInquiry) => setConformeUploadTarget(inquiry),
     openConformeUpload: (inquiry: PrismInquiry) => {
       setConformeUploadTarget(inquiry);

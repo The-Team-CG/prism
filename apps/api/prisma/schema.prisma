@@ -283,6 +283,7 @@ model OpsEvent {
   eventInsights               OpsEventInsight[]
   guestCheckIns               OpsGuestCheckIn[]
   guestRosterEntries          OpsGuestRosterEntry[]
+  guestRosterImports          OpsGuestRosterImport[]
   guestFeedback               OpsGuestFeedback[]
   registrationPlatforms       OpsRegistrationPlatform[]
   privacyRequests             OpsPrivacyRequest[]
@@ -1133,6 +1134,7 @@ model OpsNotificationLog {
 model OpsGuestCheckIn {
   id                       String   @id
   eventId                  String   @map("event_id")
+  rosterEntryId            String?  @map("roster_entry_id")
   guestName                String   @map("guest_name")
   checkInMode              String   @default("name_search") @map("check_in_mode")
   status                   String   @default("checked_in")
@@ -1144,9 +1146,11 @@ model OpsGuestCheckIn {
   checkedInAt              DateTime @default(now()) @map("checked_in_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  rosterEntry OpsGuestRosterEntry? @relation(fields: [rosterEntryId], references: [id], onDelete: SetNull)
 
   @@index([eventId, checkedInAt], map: "check_ins_event_id_checked_in_at_idx")
   @@index([eventId, guestName], map: "check_ins_event_id_guest_name_idx")
+  @@unique([eventId, rosterEntryId], map: "check_ins_event_id_roster_entry_id_key")
   @@map("check_ins")
   @@schema("guest_ops")
 }
@@ -1159,7 +1163,10 @@ model OpsGuestRosterEntry {
   normalizedName  String    @map("normalized_name")
   email           String    @default("")
   phone           String    @default("")
+  category        String    @default("")
+  table           String    @default("")
   eligibility     String    @default("eligible")
+  verificationStatus String  @default("pending") @map("verification_status")
   source          String    @default("manual")
   importBatchId   String?   @map("import_batch_id")
   checkedInAt     DateTime? @map("checked_in_at")
@@ -1168,11 +1175,29 @@ model OpsGuestRosterEntry {
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkIns OpsGuestCheckIn[]
 
   @@unique([eventId, sourceKey], map: "guest_roster_event_source_key")
   @@index([eventId, normalizedName], map: "guest_roster_event_name_idx")
   @@index([eventId, eligibility], map: "guest_roster_event_eligibility_idx")
   @@map("guest_roster_entries")
+  @@schema("guest_ops")
+}
+
+model OpsGuestRosterImport {
+  id           String   @id
+  eventId      String   @map("event_id")
+  source       String
+  importedById String?  @map("imported_by_id")
+  importedBy   String   @map("imported_by")
+  importedAt   DateTime @default(now()) @map("imported_at")
+  rowCount     Int      @map("row_count")
+  rawFileUploadBlocked Boolean @default(true) @map("raw_file_upload_blocked")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, importedAt], map: "guest_roster_imports_event_imported_at_idx")
+  @@map("guest_roster_imports")
   @@schema("guest_ops")
 }
 

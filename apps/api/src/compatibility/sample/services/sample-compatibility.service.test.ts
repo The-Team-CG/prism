@@ -2889,6 +2889,8 @@ describe('SampleCompatibilityService', () => {
       clientName: 'Ana Reyes',
       eventName: 'Ayala Tech Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
+      walkInPolicy: 'open',
+      walkInThreshold: 200,
       status: 'event_day',
       clientPortalStatus: 'unlocked',
       readiness: 'Registration open',
