@@ -12,6 +12,7 @@ import type {
   OpsSupplierReviewDimensionRating,
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { randomUUID } from 'node:crypto';
 import { SupplierTier } from '@prism/kernel/event-core';
 import type { AddSupplierQuoteInput } from '../../contracts/commercial-workflow-commands.port';
@@ -155,7 +156,7 @@ export class SuppliersService {
     return { oldTier: existing.tier, supplier: this.mapSupplier(await this.supplierRow(supplier.id)) };
   }
 
-  async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput) {
+  async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, context?: PrismTransactionContext) {
     if (input.rating < 1 || input.rating > 5) throw new BadRequestException('Supplier review rating must be 1 to 5');
     await this.validateReviewEligibility(supplierId, input.eventId);
     const supplier = await this.supplierRow(supplierId);
@@ -163,7 +164,7 @@ export class SuppliersService {
     const dimensionRatings = input.dimensionRatings ?? [];
     await this.validateDimensionRatings(supplier.categoryId, dimensionRatings);
 
-    const persisted = await this.persistSupplierReview(supplierId, input, dimensionRatings);
+    const persisted = await this.persistSupplierReview(supplierId, input, dimensionRatings, context);
     const reviewId = persisted.reviewId;
     if (persisted.replayed) return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId, replayed: true };
     return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId };
@@ -173,10 +174,12 @@ export class SuppliersService {
     supplierId: string,
     input: CreateSupplierReviewInput,
     dimensionRatings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>,
+    context?: PrismTransactionContext,
   ) {
+    const db = context?.prisma ?? this.prisma;
     const reviewId = `review_${randomUUID()}`;
     try {
-      await this.prisma.opsSupplierReview.create({
+      await db.opsSupplierReview.create({
         data: {
           id: reviewId,
           supplierId,
@@ -198,7 +201,7 @@ export class SuppliersService {
       });
     } catch (error) {
       if (!input.idempotencyKey || !isIdempotencyKeyViolation(error)) throw error;
-      const existing = await this.prisma.opsSupplierReview.findFirst({
+      const existing = await db.opsSupplierReview.findFirst({
         where: { idempotencyKey: input.idempotencyKey },
       });
       if (!existing) throw error;
