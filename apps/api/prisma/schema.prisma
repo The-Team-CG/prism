@@ -247,6 +247,7 @@ model OpsEvent {
   postEventDocuments          OpsPostEventDocument[]
   eventInsights               OpsEventInsight[]
   guestCheckIns               OpsGuestCheckIn[]
+  guestRosterEntries          OpsGuestRosterEntry[]
   guestFeedback               OpsGuestFeedback[]
   registrationPlatforms       OpsRegistrationPlatform[]
   privacyRequests             OpsPrivacyRequest[]
@@ -1053,6 +1054,31 @@ model OpsGuestCheckIn {
   @@index([eventId, checkedInAt], map: "check_ins_event_id_checked_in_at_idx")
   @@index([eventId, guestName], map: "check_ins_event_id_guest_name_idx")
   @@map("check_ins")
+  @@schema("guest_ops")
+}
+
+model OpsGuestRosterEntry {
+  id              String    @id
+  eventId         String    @map("event_id")
+  sourceKey       String    @map("source_key")
+  guestName       String    @map("guest_name")
+  normalizedName  String    @map("normalized_name")
+  email           String    @default("")
+  phone           String    @default("")
+  eligibility     String    @default("eligible")
+  source          String    @default("manual")
+  importBatchId   String?   @map("import_batch_id")
+  checkedInAt     DateTime? @map("checked_in_at")
+  withdrawnAt     DateTime? @map("withdrawn_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, sourceKey], map: "guest_roster_event_source_key")
+  @@index([eventId, normalizedName], map: "guest_roster_event_name_idx")
+  @@index([eventId, eligibility], map: "guest_roster_event_eligibility_idx")
+  @@map("guest_roster_entries")
   @@schema("guest_ops")
 }
 
