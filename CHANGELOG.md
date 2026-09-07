@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Briefing submissions preserve prior history, reject locked or post-planning events, and persist audit/notification intent atomically with the verified actor.
 - Historical audit verification follows hash links, including same-millisecond records; ambiguous historical tails stop new appends for integrity review.
 - Serialized audit appends with a transactional global lock and monotonic timestamps; audit exports record the verified actor, and unavailable device/IP metadata is explicitly unknown.
 - Notification worker lifecycle scheduling when an adapter is bound, bounded provider waits, and sent-only acknowledgement; PMCM activity distinguishes provider acceptance from recipient delivery.
