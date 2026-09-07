@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, OpsInquiry } from '@prisma/client';
+import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, OpsInquiry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import {
@@ -193,6 +193,13 @@ export class PrivacyOperationsService {
 
   async createRequest(input: CreatePrivacyRequestInput, actor: PrivacyActor) {
     this.assertRequestType(input.requestType);
+    const subjectType = input.subjectType.trim().toLowerCase();
+    if (!['client', 'guest', 'supplier', 'account'].includes(subjectType)) {
+      throw new BadRequestException('Unsupported privacy subject type');
+    }
+    if (subjectType === 'guest' && !input.eventId) {
+      throw new BadRequestException('Guest privacy requests require an event scope');
+    }
     if (!input.subjectEmail && !input.subjectName) {
       throw new BadRequestException('Privacy request requires a subject email or subject name');
     }
@@ -201,7 +208,7 @@ export class PrivacyOperationsService {
       data: {
         id: `priv_${randomUUID()}`,
         eventId: input.eventId ?? null,
-        subjectType: input.subjectType.trim().toLowerCase(),
+        subjectType,
         subjectEmail: input.subjectEmail?.trim().toLowerCase() ?? '',
         subjectName: input.subjectName?.trim() ?? '',
         requestType: input.requestType,
@@ -260,46 +267,34 @@ export class PrivacyOperationsService {
   }
 
   async executeRequest(requestId: string, input: ExecutePrivacyRequestInput, actor: PrivacyActor) {
-    const request = await this.requireRequest(requestId);
-    if (request.status !== PrivacyRequestStatus.Approved) {
-      throw new BadRequestException('Privacy request must be approved before execution');
-    }
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`privacy-request:${requestId}`}, 0))`;
+      const request = await tx.opsPrivacyRequest.findUnique({ where: { id: requestId } });
+      if (!request) throw new NotFoundException('Privacy request not found');
+      if (request.status !== PrivacyRequestStatus.Approved) {
+        throw new BadRequestException('Privacy request must be approved before execution');
+      }
+      if (request.requestType !== PrivacyRequestType.Deletion) {
+        throw new BadRequestException('Access and correction execution is not supported yet');
+      }
+      this.assertDeletionIdentity(request);
 
-    const redaction = request.requestType === PrivacyRequestType.Deletion
-      ? await this.softRedactSubject(request)
-      : { touchedRecords: 0, surfaces: [] as string[] };
-
-    await this.auditService.audit(request.eventId ?? undefined, actor.name, 'Soft redaction summary for privacy request', {
-      actorRole: actor.role,
-      actionType: AuditActionType.Update,
-      category: AuditCategory.Access,
-      affectedType: 'privacy_request',
-      affectedId: request.id,
-      affectedLabel: request.subjectEmail || request.subjectName,
-      metadata: redaction,
+      const redaction = await this.softRedactSubject(request, tx);
+      await this.auditService.audit(request.eventId ?? undefined, actor.name, 'Soft redaction summary for privacy request', {
+        actorRole: actor.role,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Access,
+        affectedType: 'privacy_request',
+        affectedId: request.id,
+        affectedLabel: request.subjectEmail || request.subjectName,
+        metadata: redaction,
+      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: actor.name });
+      const saved = await tx.opsPrivacyRequest.update({
+        where: { id: requestId },
+        data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: actor.name, executedAt: new Date() },
+      });
+      return this.mapRequest(saved);
     });
-
-    const saved = await this.prisma.opsPrivacyRequest.update({
-      where: { id: requestId },
-      data: {
-        status: PrivacyRequestStatus.Executed,
-        executionNotes: input.executionNotes ?? '',
-        executedBy: actor.name,
-        executedAt: new Date(),
-      },
-    });
-
-    await this.auditService.audit(request.eventId ?? undefined, actor.name, `Executed privacy request: ${request.requestType}`, {
-      actorRole: actor.role,
-      actionType: AuditActionType.Resolve,
-      category: AuditCategory.Access,
-      affectedType: 'privacy_request',
-      affectedId: request.id,
-      affectedLabel: request.subjectEmail || request.subjectName,
-      metadata: { executionNotes: input.executionNotes ?? '', redaction },
-    });
-
-    return this.mapRequest(saved);
   }
 
   private privacySurface(
@@ -338,15 +333,15 @@ export class PrivacyOperationsService {
     }
   }
 
-  private async softRedactSubject(request: OpsPrivacyRequestRecord) {
+  private async softRedactSubject(request: OpsPrivacyRequestRecord, prisma: Prisma.TransactionClient) {
     const redactedEmail = `redacted+privacy_${request.id}@privacy.local`;
     const byEmail = request.subjectEmail ? request.subjectEmail.toLowerCase() : undefined;
     const byName = request.subjectName || undefined;
     const emailResult = byEmail
-      ? await this.redactEmailSurfaces(byEmail, redactedEmail)
+      ? await this.redactEmailSurfaces(byEmail, redactedEmail, prisma)
       : { surfaces: [] as string[], touchedRecords: 0 };
     const nameResult = byName
-      ? await this.redactNameSurfaces(request, byName)
+      ? await this.redactNameSurfaces(request, byName, prisma)
       : { surfaces: [] as string[], touchedRecords: 0 };
     return {
       touchedRecords: emailResult.touchedRecords + nameResult.touchedRecords,
@@ -355,16 +350,31 @@ export class PrivacyOperationsService {
     };
   }
 
+  private assertDeletionIdentity(request: OpsPrivacyRequestRecord) {
+    if (request.subjectType === 'client' && !request.subjectEmail) {
+      throw new BadRequestException('Client deletion requires a verified email identity');
+    }
+    if (request.subjectType === 'supplier' && !request.subjectEmail) {
+      throw new BadRequestException('Supplier deletion requires a verified email identity');
+    }
+    if (request.subjectType === 'guest' && (!request.subjectName || !request.eventId)) {
+      throw new BadRequestException('Guest deletion requires a name and event scope');
+    }
+    if (request.subjectType === 'account') {
+      throw new BadRequestException('Account deletion is not supported yet');
+    }
+  }
+
   private recordRedaction(surfaces: string[], surface: string, count: number) {
     if (count) surfaces.push(surface);
     return count;
   }
 
-  private async redactEmailSurfaces(byEmail: string, redactedEmail: string) {
+  private async redactEmailSurfaces(byEmail: string, redactedEmail: string, prisma: Prisma.TransactionClient) {
     const surfaces: string[] = [];
     let touchedRecords = 0;
-    const inquiries = await this.prisma.opsInquiry.updateMany({
-      where: { email: byEmail },
+    const inquiries = await prisma.opsInquiry.updateMany({
+      where: { OR: [{ email: { equals: byEmail, mode: 'insensitive' } }, { normalizedEmail: byEmail }] },
       data: {
         clientName: 'Redacted data subject',
         companyName: '',
@@ -376,8 +386,14 @@ export class PrivacyOperationsService {
     });
     touchedRecords += this.recordRedaction(surfaces, 'inquiry', inquiries.count);
 
-    const approvals = await this.prisma.opsApprovalRequest.updateMany({
-      where: { email: byEmail },
+    const linkedEvents = await prisma.opsEvent.updateMany({
+      where: { inquiry: { is: { OR: [{ email: { equals: byEmail, mode: 'insensitive' } }, { normalizedEmail: byEmail }] } } },
+      data: { clientName: 'Redacted data subject' },
+    });
+    touchedRecords += this.recordRedaction(surfaces, 'event_client_copy', linkedEvents.count);
+
+    const approvals = await prisma.opsApprovalRequest.updateMany({
+      where: { email: { equals: byEmail, mode: 'insensitive' } },
       data: {
         name: 'Redacted data subject',
         email: redactedEmail,
@@ -386,8 +402,8 @@ export class PrivacyOperationsService {
     });
     touchedRecords += this.recordRedaction(surfaces, 'approval_request', approvals.count);
 
-    const suppliers = await this.prisma.opsSupplier.updateMany({
-      where: { email: byEmail },
+    const suppliers = await prisma.opsSupplier.updateMany({
+      where: { email: { equals: byEmail, mode: 'insensitive' } },
       data: {
         contactName: 'Redacted supplier contact',
         email: redactedEmail,
@@ -396,23 +412,29 @@ export class PrivacyOperationsService {
       },
     });
     touchedRecords += this.recordRedaction(surfaces, 'supplier', suppliers.count);
+    const supplierApplications = await prisma.opsSupplierApplication.updateMany({
+      where: { OR: [{ email: { equals: byEmail, mode: 'insensitive' } }, { normalizedEmail: byEmail }] },
+      data: { contactName: 'Redacted supplier contact', email: redactedEmail, normalizedEmail: redactedEmail, phone: '' },
+    });
+    touchedRecords += this.recordRedaction(surfaces, 'supplier_application', supplierApplications.count);
     return { surfaces, touchedRecords };
   }
 
-  private async redactNameSurfaces(request: OpsPrivacyRequestRecord, byName: string) {
+  private async redactNameSurfaces(request: OpsPrivacyRequestRecord, byName: string, prisma: Prisma.TransactionClient) {
     const surfaces: string[] = [];
     let touchedRecords = 0;
     const guestWhere = {
       ...(request.eventId ? { eventId: request.eventId } : {}),
       guestName: byName,
     };
-    const checkIns = await this.prisma.opsGuestCheckIn.updateMany({
+    if (!request.eventId) throw new BadRequestException('Guest deletion requires an event scope');
+    const checkIns = await prisma.opsGuestCheckIn.updateMany({
       where: guestWhere,
       data: { guestName: 'Redacted guest' },
     });
     touchedRecords += this.recordRedaction(surfaces, 'guest_check_in', checkIns.count);
 
-    const feedback = await this.prisma.opsGuestFeedback.updateMany({
+    const feedback = await prisma.opsGuestFeedback.updateMany({
       where: guestWhere,
       data: {
         guestName: 'Redacted guest',
