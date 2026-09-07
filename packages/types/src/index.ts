@@ -3,6 +3,7 @@ export * from "./inquiry-link.js";
 export * from "./lifecycle.js";
 export * from "./session.js";
 export * from "./schemas/index.js";
+export * from "./storage.js";
 
 export type PrismRole = "pmcm" | "client" | "supplier" | "guest" | "coordinator";
 
