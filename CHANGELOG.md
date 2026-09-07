@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - A second sample event (`evt_sample_unassigned`) with no coordinator assignment so unassigned-event checks can run.
 
 ### Changed
+- Reconciled the complete catalog review and effort/priority/risk matrix against the P0 implementation, separating completed corrections, satisfied policy prerequisites and remaining catalog gaps.
+- Corrected the P0 verification report with the reproduced supplier-ownership fixture boundary failure (V01); retained it as an open review gate without changing application source.
 - Client floorplan copy now separates official read-only plans from layout preferences. Guest check-in no longer implies camera QR. Event file hub Share/Download/upload stay visibly gated.
 - Capped every production TypeScript/TSX function at McCabe complexity ≤ 10 (route tables, extracted section views, collectors, and shared floorplan canvas helpers).
 - Split remaining client-portal production functions (overview, home, proposal, approvals, inquiry, floorplan) so each stays at McCabe complexity ≤ 10, without changing portal behavior.
