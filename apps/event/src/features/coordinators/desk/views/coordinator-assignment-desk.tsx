@@ -7,7 +7,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { dateKey } from "@/features/pmcm-kit";
-import { suggestAvailableSameRoleCoordinators } from "../model/coordinators-desk-rules";
+import { isCoordinatorAssignmentActive, suggestAvailableSameRoleCoordinators } from "../model/coordinators-desk-rules";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>;
@@ -71,7 +71,7 @@ export function CoordinatorAssignmentDesk({
 
   const assignmentCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    eventAssignments.forEach((a) => {
+    eventAssignments.filter(isCoordinatorAssignmentActive).forEach((a) => {
       counts.set(a.role, (counts.get(a.role) ?? 0) + 1);
     });
     return counts;
@@ -82,6 +82,7 @@ export function CoordinatorAssignmentDesk({
       (a) =>
         a.coordinatorId === coordinator.id &&
         a.eventId !== event.id &&
+        isCoordinatorAssignmentActive(a) &&
         dateKey(a.eventDate) === eventDate,
     );
   }
