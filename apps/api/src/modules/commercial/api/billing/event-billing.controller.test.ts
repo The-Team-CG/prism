@@ -45,17 +45,17 @@ describe('OpsEventBillingController', () => {
       controller.createBillingSource(
         'evt_sample',
         { sourceLabel: 'Conforme billing', lineItems: [{ label: 'Package', amount: 100000 }] },
-        actor,
+        actor as never,
       ),
     ).resolves.toEqual({ id: 'bsrc_new' });
-    await expect(controller.approveBillingSource('evt_sample', 'bsrc_new', { approvedBy: 'Maxine' }, actor)).resolves.toEqual({
+    await expect(controller.approveBillingSource('evt_sample', 'bsrc_new', { approvedBy: 'Maxine' }, actor as never)).resolves.toEqual({
       id: 'bsrc_new',
       status: 'approved',
     });
-    await expect(controller.generateBillingStatement('evt_sample', { sourceId: 'bsrc_new' }, actor)).resolves.toEqual({
+    await expect(controller.generateBillingStatement('evt_sample', { sourceId: 'bsrc_new' }, actor as never)).resolves.toEqual({
       id: 'bill_new',
     });
-    await expect(controller.markPayment('evt_sample', 'pay_downpayment', { status: 'paid' }, actor)).resolves.toEqual({
+    await expect(controller.markPayment('evt_sample', 'pay_downpayment', { status: 'paid' }, actor as never)).resolves.toEqual({
       id: 'pay_downpayment',
       status: 'paid',
     });
@@ -64,10 +64,10 @@ describe('OpsEventBillingController', () => {
         'evt_sample',
         'pay_downpayment',
         { amountReceived: 50000, paymentDate: '2026-06-20', paymentMethod: 'Bank Transfer' },
-        actor,
+        actor as never,
       ),
     ).resolves.toEqual({ id: 'pay_downpayment', amountPaid: 50000 });
-    await expect(controller.sendBillingStatement('evt_sample', 'bill_new', actor)).resolves.toEqual({
+    await expect(controller.sendBillingStatement('evt_sample', 'bill_new', actor as never)).resolves.toEqual({
       id: 'bill_new',
       status: 'sent',
     });
@@ -107,7 +107,7 @@ describe('OpsEventBillingController', () => {
       controller.createBillingSource(
         'evt_sample',
         { sourceLabel: 'Conforme billing', lineItems: [{ label: 'Package', amount: 100000 }] },
-        { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' },
+        { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' } as never,
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 

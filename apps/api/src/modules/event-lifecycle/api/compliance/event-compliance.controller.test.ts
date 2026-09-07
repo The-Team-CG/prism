@@ -59,9 +59,9 @@ describe('OpsEventComplianceController', () => {
       }),
     );
 
-    expect(complianceWorkflowService.runCompliance).toHaveBeenCalledWith('evt_sample', { phase: 'planning' });
+    expect(complianceWorkflowService.runCompliance).toHaveBeenCalledWith('evt_sample', { phase: 'planning' }, actor);
     expect(complianceWorkflowService.resolveCompliance).toHaveBeenCalledWith('evt_sample', 'chk_contracts', {
       note: 'Done',
-    });
+    }, actor);
   });
 });

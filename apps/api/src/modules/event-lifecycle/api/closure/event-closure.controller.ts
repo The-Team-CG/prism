@@ -4,15 +4,16 @@ import { FLOORPLAN_READER } from '../../../floorplan/contracts/floorplan.tokens'
 import type { FloorplanReader } from '../../../floorplan/contracts/floorplan-reader.port';
 import { GUEST_READER } from '../../../operations/contracts/guest-ops.tokens';
 import type { GuestReader } from '../../../operations/contracts/guest-reader.port';
-import { ArchiveEventDto, ClosureActorDto } from './closure.dto';
 import { mapClosureEvent, mapEventInsight, mapPostEventDocument } from '../../application/closure/closure.mappers';
 import { EventClosureService } from '../../application/closure/event-closure.service';
 import {
   archiveSearchFiltersSchema,
+  archiveEventSchema,
+  type ArchiveEventInput,
   type ArchiveSearchFilters,
   type PrismVerifiedEventActor,
 } from '@prism/types';
-import { zodQuery } from '@prism/kernel/shared';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 
 @Controller('events')
@@ -39,7 +40,7 @@ export class OpsEventClosureController {
   async completePostEventDocument(
     @Param('eventId') eventId: string,
     @Param('documentId') documentId: string,
-    @VerifiedEventActor() verifiedActor?: PrismVerifiedEventActor,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'post-event document completion', eventId);
@@ -49,7 +50,7 @@ export class OpsEventClosureController {
 
   @Get(':eventId/close-gates')
   @UseGuards(EventSessionGuard)
-  closeGates(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor?: PrismVerifiedEventActor) {
+  closeGates(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'close gates', eventId).then(() =>
       this.eventClosureService.closeGates(eventId));
@@ -58,7 +59,7 @@ export class OpsEventClosureController {
   @Post(':eventId/archive')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.OK)
-  async archiveEvent(@Param('eventId') eventId: string, @Body() dto: ArchiveEventDto = {}, @VerifiedEventActor() verifiedActor?: PrismVerifiedEventActor) {
+  async archiveEvent(@Param('eventId') eventId: string, @Body(zodBody(archiveEventSchema)) dto: ArchiveEventInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'event archive', eventId);
     const event = await this.eventClosureService.archiveEvent(eventId, { overrideReason: dto.overrideReason, actorName: actor.name, actorRole: actor.role, actorEmail: actor.email, actorId: actor.id });
@@ -67,7 +68,7 @@ export class OpsEventClosureController {
 
   @Get(':eventId/insights')
   @UseGuards(EventSessionGuard)
-  async eventInsights(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor?: PrismVerifiedEventActor) {
+  async eventInsights(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     const insights = await this.eventClosureService.listEventInsights(eventId, actor);
     return insights.map(mapEventInsight);
@@ -76,7 +77,7 @@ export class OpsEventClosureController {
   @Post(':eventId/insights/generate')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
-  async generateEventInsights(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor?: PrismVerifiedEventActor) {
+  async generateEventInsights(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     const insight = await this.eventClosureService.generateEventInsights(eventId, actor);
     return mapEventInsight(insight);

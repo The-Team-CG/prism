@@ -14,7 +14,6 @@ export type ResolveComplianceInput = {
   action?: string;
   note?: string;
   overrideReason?: string;
-  actorName?: string;
 };
 
 export type CreateComplianceRuleInput = {
@@ -135,7 +134,7 @@ export class ComplianceWorkflowService {
     });
   }
 
-  async runCompliance(eventId: string, input: ComplianceRunInput = {}): Promise<OpsComplianceCheck[]> {
+  async runCompliance(eventId: string, input: ComplianceRunInput = {}, actor: ResolvedEventOpsActor): Promise<OpsComplianceCheck[]> {
     let phase = 'planning';
     let eventType = '';
     let matchingRules: OpsComplianceRule[] = [];
@@ -188,7 +187,9 @@ export class ComplianceWorkflowService {
           return tx.opsComplianceCheck.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } });
         }),
       sideEffects: async () => {
-        await writeAudit(this.auditWriter, eventId, 'PMCM Admin', 'Ran compliance checks', {
+        await writeAudit(this.auditWriter, eventId, actor.name, 'Ran compliance checks', {
+          actorRole: actor.role,
+          actorEmail: actor.email,
           actionType: AuditActionType.Create,
           category: AuditCategory.Compliance,
           metadata: { phase, eventType, ruleCount: matchingRules.length },
@@ -197,10 +198,9 @@ export class ComplianceWorkflowService {
     });
   }
 
-  async resolveCompliance(eventId: string, checkId: string, input: string | ResolveComplianceInput = {}) {
+  async resolveCompliance(eventId: string, checkId: string, input: string | ResolveComplianceInput = {}, actor: ResolvedEventOpsActor) {
     const resolvedInput: ResolveComplianceInput = typeof input === 'string' ? { note: input } : input;
     const action = resolvedInput.action ?? 'resolve';
-    const actorName = resolvedInput.actorName?.trim() || 'PMCM Admin';
     const now = new Date();
 
     return this.workflowCommandService.execute<OpsComplianceCheck>({
@@ -224,13 +224,13 @@ export class ComplianceWorkflowService {
                     note: resolvedInput.note ?? 'PMCM override recorded.',
                     overrideReason: resolvedInput.overrideReason!.trim(),
                     overrideAt: now,
-                    overrideBy: actorName,
+                    overrideBy: actor.name,
                   }
                 : {
                     status: 'resolved',
                     note: resolvedInput.note ?? 'Compliance item resolved during PMCM review.',
                     resolvedAt: now,
-                    resolvedBy: actorName,
+                    resolvedBy: actor.name,
                   },
           })
           .catch(() => {
@@ -239,7 +239,7 @@ export class ComplianceWorkflowService {
       sideEffects: async (check) => {
         await writeAudit(this.auditWriter,
           eventId,
-          actorName,
+          actor.name,
           action === 'override' ? 'Overrode compliance item' : 'Resolved compliance item',
           {
             actionType: AuditActionType.Resolve,
