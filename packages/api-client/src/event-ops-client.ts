@@ -196,6 +196,8 @@ export interface EventOpsClient {
     listParticipants(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCommunicationParticipantChoice[]>;
     createThread(input: CreateCommunicationThreadInput, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread>;
     sendMessage(threadId: string, input: SendCommunicationMessageInput, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread["messages"][number]>;
+    listMessages(threadId: string, query?: { cursor?: string; limit?: number }, actor?: EventOpsActorQuery): Promise<import('@prism/types').PrismCursorPage<PrismCommunicationThread["messages"][number]>>;
+    markThreadRead(threadId: string, actor?: EventOpsActorQuery): Promise<{ lastReadAt: string }>;
   };
 }
 
@@ -381,6 +383,14 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
       listParticipants: (eventId, actor = {}) => prismRequest<PrismCommunicationParticipantChoice[]>(actorPath(`/communication/participants?eventId=${encodeURIComponent(eventId)}`, actor), withBase(options)),
       createThread: (input, actor = {}) => prismRequest<PrismCommunicationThread>(actorPath('/communication/threads', actor), withBase(options, { method: 'POST', body: input })),
       sendMessage: (threadId, input, actor = {}) => prismRequest<PrismCommunicationThread['messages'][number]>(actorPath(`/communication/threads/${threadId}/messages`, actor), withBase(options, { method: 'POST', body: input })),
+      listMessages: (threadId, query = {}, actor = {}) => {
+        const params = new URLSearchParams();
+        if (query.cursor) params.set('cursor', query.cursor);
+        if (query.limit) params.set('limit', String(query.limit));
+        const suffix = params.toString() ? `?${params.toString()}` : '';
+        return prismRequest<import('@prism/types').PrismCursorPage<PrismCommunicationThread['messages'][number]>>(actorPath(`/communication/threads/${threadId}/messages${suffix}`, actor), withBase(options));
+      },
+      markThreadRead: (threadId, actor = {}) => prismRequest<{ lastReadAt: string }>(actorPath(`/communication/threads/${threadId}/read`, actor), withBase(options, { method: 'POST' })),
     },
   };
 }
