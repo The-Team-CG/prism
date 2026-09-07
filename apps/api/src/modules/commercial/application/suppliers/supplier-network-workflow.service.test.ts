@@ -13,7 +13,7 @@ function createService() {
     category: 'Technicals',
     eventDayVerificationStatus: SupplierVerificationStatus.SelfReported,
     status: 'pending',
-    assignmentStatus: 'selected',
+    assignmentStatus: 'pending_confirmation',
   };
   const audit = vi.fn();
   const suppliers = {
@@ -23,6 +23,7 @@ function createService() {
   };
   const eventAccessPolicyService = new EventAccessPolicyService({ write: vi.fn() } as any);
   const prisma = {
+    $queryRaw: vi.fn(async () => []),
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
@@ -134,8 +135,7 @@ describe('SupplierNetworkWorkflowService', () => {
     await expect(service.confirmSupplierAssignment('qr_sonic', {
       name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline', explicit: true,
     })).rejects.toThrow(/changed before confirmation/);
-    expect(prisma.opsSupplierQuoteRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ status: 'selected' }),
-    }));
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.opsSupplierQuoteRequest.updateMany).not.toHaveBeenCalled();
   });
 });
