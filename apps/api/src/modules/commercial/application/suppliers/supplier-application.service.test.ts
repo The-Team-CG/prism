@@ -53,6 +53,16 @@ function createPrisma() {
           return applications[index];
         },
       },
+      $transaction: async (callback: (tx: Record<string, unknown>) => Promise<unknown>) => callback({
+        opsSupplierApplication: {
+          updateMany: async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+            const row = applications.find((item) => item.id === where.id && item.status === where.status);
+            if (!row) return { count: 0 };
+            Object.assign(row, data); return { count: 1 };
+          },
+          findUnique: async ({ where }: { where: { id: string } }) => applications.find((row) => row.id === where.id) ?? null,
+        },
+      }),
     },
   };
 }
@@ -60,7 +70,7 @@ function createPrisma() {
 describe('SupplierApplicationService inbox', () => {
   it('rejects a client from listing or reviewing applications', async () => {
     const fake = createPrisma();
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never);
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) });
     await expect(service.listInbox(clientActor)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(
       service.reviewApplication('sap_1', { action: 'request_proposal' }, clientActor),
@@ -69,7 +79,7 @@ describe('SupplierApplicationService inbox', () => {
 
   it('lets PMCM request a proposal from the inbox', async () => {
     const fake = createPrisma();
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never);
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) });
     const listed = await service.listInbox(pmcmAdminActor);
     expect(listed[0]?.status).toBe('pending');
     const reviewed = await service.reviewApplication(
@@ -84,7 +94,7 @@ describe('SupplierApplicationService inbox', () => {
   it('rejects reviewing an application after a terminal transition', async () => {
     const fake = createPrisma();
     fake.applications[0].status = 'proposal_requested';
-    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never);
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) });
     await expect(service.reviewApplication('sap_1', { action: 'decline', declineReason: 'No fit' }, pmcmAdminActor))
       .rejects.toBeInstanceOf(BadRequestException);
   });
