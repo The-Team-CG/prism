@@ -156,22 +156,24 @@ export class SuppliersService {
   }
 
   async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput) {
-    const supplier = await this.supplierRow(supplierId);
     if (input.rating < 1 || input.rating > 5) throw new BadRequestException('Supplier review rating must be 1 to 5');
+    await this.validateReviewEligibility(supplierId, input.eventId);
+    const supplier = await this.supplierRow(supplierId);
 
     const dimensionRatings = input.dimensionRatings ?? [];
-    if (dimensionRatings.length > 0) {
-      const validDimensions = await this.prisma.opsSupplierReviewDimension.findMany({
-        where: { categoryId: supplier.categoryId, id: { in: dimensionRatings.map((rating) => rating.dimensionId) } },
-        select: { id: true },
-      });
-      const validDimensionIds = new Set(validDimensions.map((dimension) => dimension.id));
-      const invalidRating = dimensionRatings.find((rating) => !validDimensionIds.has(rating.dimensionId));
-      if (invalidRating) {
-        throw new BadRequestException("Dimension rating does not belong to the supplier's category");
-      }
-    }
+    await this.validateDimensionRatings(supplier.categoryId, dimensionRatings);
 
+    const persisted = await this.persistSupplierReview(supplierId, input, dimensionRatings);
+    const reviewId = persisted.reviewId;
+    if (persisted.replayed) return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId, replayed: true };
+    return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId };
+  }
+
+  private async persistSupplierReview(
+    supplierId: string,
+    input: CreateSupplierReviewInput,
+    dimensionRatings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>,
+  ) {
     const reviewId = `review_${randomUUID()}`;
     try {
       await this.prisma.opsSupplierReview.create({
@@ -200,10 +202,40 @@ export class SuppliersService {
         where: { idempotencyKey: input.idempotencyKey },
       });
       if (!existing) throw error;
-      return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId: existing.id };
+      if (this.reviewReplayMismatches(existing, supplierId, input)) {
+        throw new BadRequestException('Idempotency key was already used for a different supplier review');
+      }
+      return { reviewId: existing.id, replayed: true };
     }
+    return { reviewId, replayed: false };
+  }
 
-    return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId };
+  private reviewReplayMismatches(existing: { supplierId: string; eventId: string | null; rating: number; notes: string; reviewedBy: string }, supplierId: string, input: CreateSupplierReviewInput) {
+    return existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.rating !== input.rating || existing.notes !== input.notes || existing.reviewedBy !== (input.reviewedBy ?? 'PMCM Admin');
+  }
+
+  private async validateDimensionRatings(categoryId: string, ratings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>) {
+    if (ratings.length === 0) return;
+    const validDimensions = await this.prisma.opsSupplierReviewDimension.findMany({
+      where: { categoryId, id: { in: ratings.map((rating) => rating.dimensionId) } }, select: { id: true },
+    });
+    const validIds = new Set(validDimensions.map((dimension) => dimension.id));
+    if (ratings.some((rating) => !validIds.has(rating.dimensionId))) {
+      throw new BadRequestException("Dimension rating does not belong to the supplier's category");
+    }
+  }
+
+  private async validateReviewEligibility(supplierId: string, eventId?: string) {
+    if (!eventId) throw new BadRequestException('Supplier reviews require an event');
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true, status: true } });
+    if (!event) throw new BadRequestException('Supplier review event not found');
+    if (event.eventDate > new Date() || !['completed', 'closed', 'archived'].includes(event.status)) {
+      throw new BadRequestException('Supplier reviews are available only after event completion');
+    }
+    const confirmedAssignment = await this.prisma.opsSupplierQuoteRequest.findFirst({
+      where: { eventId, supplierId, assignmentStatus: 'confirmed' }, select: { id: true },
+    });
+    if (!confirmedAssignment) throw new BadRequestException('Supplier was not confirmed for this event');
   }
 
   async addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput) {

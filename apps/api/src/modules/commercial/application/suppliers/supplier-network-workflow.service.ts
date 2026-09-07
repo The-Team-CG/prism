@@ -76,6 +76,9 @@ export class SupplierNetworkWorkflowService {
       name: 'confirm_supplier_assignment',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
+        if (request.status !== 'selected' || !request.supplierId) {
+          throw new BadRequestException('Only a selected supplier assignment can be confirmed');
+        }
       },
       write: () => {
         if (!request) throw new NotFoundException('Supplier quote request not found');

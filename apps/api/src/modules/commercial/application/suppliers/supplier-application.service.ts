@@ -103,6 +103,9 @@ export class SupplierApplicationService {
       include: { category: true },
     });
     if (!existing) throw new NotFoundException('Supplier application not found');
+    if (['declined', 'approved', 'proposal_requested', 'meeting_scheduled'].includes(existing.status)) {
+      throw new BadRequestException('Supplier application has already been reviewed');
+    }
 
     const nextStatus = applicationStatusForReviewAction(input.action);
     const now = new Date();
