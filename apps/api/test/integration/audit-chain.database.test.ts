@@ -48,8 +48,8 @@ describe.skipIf(!live)('serialized audit append', () => {
       expect(await staleResult).toMatchObject({ code: 'P2034' });
       expect(await prisma.opsAuditLog.count({ where: { actor, action: 'Stale snapshot action' } })).toBe(0);
     } finally {
-      // Remove this fixture's tail only; never erase historical evidence to pass verification.
-      await prisma.opsAuditLog.deleteMany({ where: { actor } });
+      // Retain fixture audit evidence in this disposable DB: deleting a tail can
+      // break a later concurrent writer that has already linked to it.
       await prisma.$disconnect();
     }
   });

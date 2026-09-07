@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -13,6 +13,7 @@ import {
 } from '@prism/kernel/event-core';
 import { mapAuditLog } from './audit.mappers';
 import type { PrismVerifiedEventActor } from '@prism/types';
+import { orderLinkedAuditLogs, selectTiedAuditTail } from './audit-chain-order';
 
 type AuditLogFilters = {
   query?: string;
@@ -222,7 +223,8 @@ export class AuditService {
         title: 'Bulk audit export threshold exceeded',
         description: `${actor?.name ?? 'System'} exported ${logs.length} audit records.`,
         severity: 'warning',
-        metadata: { filters: input, recordCount: logs.length, threshold: BULK_EXPORT_ALERT_THRESHOLD },
+        triggeredBy: actor?.name ?? 'System',
+        metadata: { filters: input, recordCount: logs.length, threshold: BULK_EXPORT_ALERT_THRESHOLD, actorId: actor?.id ?? null, actorEmail: actor?.email ?? null },
       });
     }
 
@@ -249,8 +251,9 @@ export class AuditService {
     });
     let previousHash: string | null = null;
     let lastVerifiedHash: string | null = null;
-
-    for (const log of logs) {
+    const chain = orderLinkedAuditLogs(logs);
+    if (chain.firstBrokenLogId) return { valid: false, checkedCount: logs.length, firstBrokenLogId: chain.firstBrokenLogId, lastVerifiedHash, checkedAt: new Date().toISOString() };
+    for (const log of chain.ordered) {
       const expectedHash = this.hashAuditPayload({
         id: log.id,
         eventId: log.eventId ?? null,
@@ -308,10 +311,7 @@ export class AuditService {
     // A real row update locks appenders and rejects stale serializable snapshots.
     // An advisory lock alone would not refresh a caller's earlier snapshot.
     await prisma.opsAuditChainLock.update({ where: { id: 'global' }, data: { revision: { increment: 1 } } });
-    const previous = await prisma.opsAuditLog.findFirst({
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: { immutableHash: true, createdAt: true },
-    });
+    const previous = await this.auditTail(prisma);
 
     return prisma.opsAuditLog.create({
       data: this.buildAuditData({
@@ -323,6 +323,15 @@ export class AuditService {
         createdAt: new Date(Math.max(Date.now(), (previous?.createdAt.getTime() ?? 0) + 1)),
       }),
     });
+  }
+
+  private async auditTail(prisma: Prisma.TransactionClient) {
+    const latest = await prisma.opsAuditLog.findFirst({ orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
+    if (!latest) return null;
+    const ties = await prisma.opsAuditLog.findMany({ where: { createdAt: latest.createdAt }, select: { id: true, immutableHash: true, previousHash: true, createdAt: true }, take: 1001 });
+    const tail = selectTiedAuditTail(ties);
+    if (ties.length > 1000 || !tail) throw new ConflictException('Audit history has an ambiguous tail; integrity review is required');
+    return tail;
   }
 
   async recordLoginHistory(
