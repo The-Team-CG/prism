@@ -1,24 +1,24 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type { OpsNotificationLog } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NotificationChannel } from '@prism/kernel/event-core';
 import type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 import type { PrismVerifiedEventActor } from '@prism/types';
+import { NOTIFICATION_DELIVERY, type NotificationDeliveryPort } from '../../contracts/notifications/notification-delivery.port';
+import { processNotificationQueue } from './notification-delivery-worker';
 
 export type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 
-const DEFAULT_MAX_ATTEMPTS = 3;
 const FORCE_FAIL_MARKER = 'FORCE_FAIL';
-
-type NotificationLogDelegateWithCorrelationLookup = {
-  findFirst(args: { where: { correlationId: string } }): Promise<OpsNotificationLog | null>;
-};
 
 @Injectable()
 export class NotificationOutboxService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @Inject(NOTIFICATION_DELIVERY) private readonly delivery?: NotificationDeliveryPort,
+  ) {}
 
   async queue(
     eventId: string | undefined,
@@ -30,17 +30,16 @@ export class NotificationOutboxService {
   ) {
     const prisma = context?.prisma ?? this.prisma;
     const correlationId = options.correlationId ?? options.idempotencyKey ?? null;
-
-    if (options.idempotencyKey) {
-      const notificationLog = prisma.opsNotificationLog as unknown as NotificationLogDelegateWithCorrelationLookup;
-      const existing = await notificationLog.findFirst({
-        where: { correlationId: options.idempotencyKey },
-      });
-      if (existing) return existing;
+    const legacy = await this.findLegacyRetry(prisma, options.idempotencyKey);
+    if (legacy) {
+      if (legacy.eventId !== (eventId ?? null) || legacy.recipient !== recipient || legacy.message !== message || legacy.channel !== channel) {
+        throw new ConflictException('Notification idempotency key is bound to different content');
+      }
+      return legacy;
     }
 
-    return prisma.opsNotificationLog.create({
-      data: {
+    const payloadHash = createHash('sha256').update(JSON.stringify([eventId ?? null, recipient, message, channel, options.forceFail ?? false])).digest('hex');
+    const data = {
         id: `not_${randomUUID()}`,
         eventId,
         channel,
@@ -49,41 +48,25 @@ export class NotificationOutboxService {
         status: 'queued',
         attempts: 0,
         correlationId,
+        idempotencyKey: options.idempotencyKey ?? null,
+        payloadHash,
         failureReason: options.forceFail ? FORCE_FAIL_MARKER : null,
-      },
-    });
+      };
+    if (!options.idempotencyKey) return prisma.opsNotificationLog.create({ data });
+    // A non-empty no-op update keeps Prisma on PostgreSQL's atomic ON CONFLICT path.
+    const saved = await prisma.opsNotificationLog.upsert({ where: { idempotencyKey: options.idempotencyKey }, create: data, update: { idempotencyKey: options.idempotencyKey } });
+    if (saved.payloadHash !== payloadHash) throw new ConflictException('Notification idempotency key is bound to different content');
+    return saved;
   }
 
   async processQueued(options: { maxAttempts?: number } = {}) {
-    const maxAttempts = Math.max(1, options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
-    const queued = await this.prisma.opsNotificationLog.findMany({
-      where: { status: 'queued' },
-      orderBy: { createdAt: 'asc' },
-    });
-    const processed: OpsNotificationLog[] = [];
-    for (const notification of queued) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: queue worker processes at most 100 notifications per run.
-      const nextAttempt = (notification.attempts ?? 0) + 1;
-      const shouldFail = notification.failureReason?.startsWith(FORCE_FAIL_MARKER) ?? false;
-      const permanentlyFailed = shouldFail && nextAttempt >= maxAttempts;
-      const updated = await this.prisma.opsNotificationLog.update({
-        where: { id: notification.id },
-        data: shouldFail
-          ? {
-              status: permanentlyFailed ? 'failed' : 'queued',
-              attempts: nextAttempt,
-              failedAt: new Date(),
-              failureReason: `${FORCE_FAIL_MARKER}: Sample adapter forced failure (${nextAttempt}/${maxAttempts})`,
-            }
-          : {
-              status: 'sent',
-              attempts: nextAttempt,
-              sentAt: new Date(),
-              failureReason: null,
-            },
-      });
-      processed.push(updated);
-    }
-    return processed;
+    return processNotificationQueue(this.prisma, this.delivery, options.maxAttempts);
+  }
+
+  private findLegacyRetry(prisma: PrismaService | PrismTransactionContext['prisma'], key?: string) {
+    if (!key) return Promise.resolve(null);
+    // Earlier versions stored idempotency only in correlationId. Preserve those retries.
+    return prisma.opsNotificationLog.findFirst({ where: { correlationId: key, idempotencyKey: null } });
   }
 
   async acknowledge(notificationId: string, actor?: PrismVerifiedEventActor) {
