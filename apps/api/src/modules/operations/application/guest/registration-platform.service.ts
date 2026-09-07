@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsRegistrationPlatform } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
@@ -34,7 +34,9 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
     return this.workflowCommandService.execute<OpsRegistrationPlatform>({
       name: 'registration_platform_upsert',
       validateState: async () => {
-        existed = Boolean(await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }));
+        const current = await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
+        existed = Boolean(current);
+        await this.validateAssignedSupplier(eventId, input.supplierId);
       },
       write: async () => {
         if (existed) {
@@ -81,22 +83,36 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
 
     return this.workflowCommandService.execute<OpsRegistrationPlatform>({
       name: 'registration_platform_update',
-      validateState: async () => {},
-      write: () =>
-        this.prisma.opsRegistrationPlatform.update({
-          where: { eventId },
-          data: {
-            ...(input.platformType !== undefined && { platformType: input.platformType }),
-            ...(input.supplierId !== undefined && { supplierId: input.supplierId }),
-            ...(input.expectedPaxMin !== undefined && { expectedPaxMin: input.expectedPaxMin }),
-            ...(input.expectedPaxMax !== undefined && { expectedPaxMax: input.expectedPaxMax }),
-            ...(input.status !== undefined && {
-              status: input.status,
-              ...(input.status === 'live' && !existing.setupConfirmedAt && { setupConfirmedAt: new Date() }),
-            }),
-            ...(input.setupNotes !== undefined && { setupNotes: input.setupNotes }),
-          },
-        }),
+      validateState: async () => {
+        await this.validateAssignedSupplier(eventId, input.supplierId ?? existing.supplierId ?? undefined);
+        if (input.expectedPaxMin !== undefined && input.expectedPaxMax !== undefined && input.expectedPaxMin > input.expectedPaxMax) {
+          throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
+        }
+        if (input.status && !isAllowedTransition(existing.status, input.status)) {
+          throw new BadRequestException(`Invalid registration platform transition: ${existing.status} to ${input.status}`);
+        }
+      },
+      write: (transactionContext) => {
+        const db = transactionContext?.prisma ?? this.prisma;
+        const data = {
+          ...(input.platformType !== undefined && { platformType: input.platformType }),
+          ...(input.supplierId !== undefined && { supplierId: input.supplierId }),
+          ...(input.expectedPaxMin !== undefined && { expectedPaxMin: input.expectedPaxMin }),
+          ...(input.expectedPaxMax !== undefined && { expectedPaxMax: input.expectedPaxMax }),
+          ...(input.status !== undefined && {
+            status: input.status,
+            ...(input.status === 'live' && !existing.setupConfirmedAt && { setupConfirmedAt: new Date() }),
+          }),
+          ...(input.setupNotes !== undefined && { setupNotes: input.setupNotes }),
+        };
+        if (!transactionContext) return db.opsRegistrationPlatform.update({ where: { eventId }, data });
+        return db.opsRegistrationPlatform.updateMany({ where: { eventId, status: existing.status }, data }).then(async (result: { count: number }) => {
+          if (result.count !== 1) throw new ConflictException('Registration platform changed; retry the command');
+          const updated = await db.opsRegistrationPlatform.findUnique({ where: { eventId } });
+          if (!updated) throw new NotFoundException('Registration platform not found after update');
+          return updated;
+        });
+      },
       sideEffects: async (platform) => {
         await writeAudit(this.auditWriter, eventId, actor.name, `Registration platform updated: ${platform.platformType}`, {
           actorRole: actor.role,
@@ -112,10 +128,17 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
   }
 
   async importHeadcount(eventId: string, input: ImportHeadcountInput, actor: ResolvedEventOpsActor): Promise<OpsRegistrationPlatform> {
-    const existing = await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
+    const [existing, event] = await Promise.all([
+      this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }),
+      this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, status: true, archived: true } }),
+    ]);
     if (!existing) throw new NotFoundException('Registration platform not configured for this event');
+    if (!event) throw new NotFoundException('Event not found');
     if (existing.status !== 'closed') {
       throw new BadRequestException('Import headcount after the registration platform is closed');
+    }
+    if (!event.archived && !['closed', 'archived'].includes(event.status)) {
+      throw new BadRequestException('Import headcount after the event has ended');
     }
 
     return this.workflowCommandService.execute<OpsRegistrationPlatform>({
@@ -147,6 +170,30 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
     });
   }
 
+  private async validateAssignedSupplier(eventId: string, supplierId?: string | null): Promise<void> {
+    if (!supplierId) return;
+    const supplier = await this.prisma.opsSupplier.findUnique({
+      where: { id: supplierId },
+      include: { category: true },
+    });
+    const categoryLabel = supplier?.category?.name ?? supplier?.category?.slug ?? '';
+    const normalizedCategory = categoryLabel.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!supplier || !['digitalregistration', 'registration'].includes(normalizedCategory)) {
+      throw new BadRequestException('Supplier must belong to the Digital Registration category');
+    }
+    const assignment = await this.prisma.opsSupplierQuoteRequest.findFirst({
+      where: {
+        eventId,
+        supplierId,
+        status: 'selected',
+        category: { equals: 'Digital Registration', mode: 'insensitive' },
+      },
+    });
+    if (!assignment) {
+      throw new BadRequestException('Supplier must be selected for Digital Registration on this event');
+    }
+  }
+
   mapRegistrationPlatform(platform: OpsRegistrationPlatform): PrismRegistrationPlatform {
     return {
       id: platform.id,
@@ -166,4 +213,15 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       updatedAt: platform.updatedAt.toISOString(),
     };
   }
+}
+
+const ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {
+  not_started: ['not_started', 'configuring'],
+  configuring: ['configuring', 'live'],
+  live: ['live', 'closed'],
+  closed: ['closed'],
+};
+
+function isAllowedTransition(current: string, next: string): boolean {
+  return ALLOWED_TRANSITIONS[current]?.includes(next) ?? false;
 }
