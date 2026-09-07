@@ -41,6 +41,10 @@ export class EventClosureService {
     }
     return this.prisma.$transaction(async (tx) => {
       const current = await this.requireEvent(eventId, tx);
+      if (!['event_day', 'closure_archive', 'archived'].includes(current.status)) {
+        throw new BadRequestException('Actual event end can only be recorded during event day or closure');
+      }
+      const isChanged = !current.actualEndedAt || current.actualEndedAt.getTime() !== actualEndedAt.getTime();
       if (current.actualEndedAt && current.actualEndedAt.getTime() !== actualEndedAt.getTime() && !input.correctionReason?.trim()) {
         throw new BadRequestException('A correction reason is required when changing the recorded event end');
       }
@@ -49,6 +53,7 @@ export class EventClosureService {
         data: { actualEndedAt, actualEndedBy: actor.id },
       });
       const context = { prisma: tx, correlationId: `actual_end_${randomUUID()}` };
+      if (!isChanged) return event;
       await writeAudit(this.auditWriter, eventId, actor.name, current.actualEndedAt ? 'Corrected actual event end' : 'Recorded actual event end', {
         actorRole: actor.role,
         actorEmail: actor.email,
