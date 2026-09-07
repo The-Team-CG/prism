@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { SuppliersService } from './suppliers.service';
 
 function makeP2002(target: string[] | string): unknown {
@@ -102,6 +103,35 @@ describe('SuppliersService', () => {
       expect.objectContaining({ dimensionId: 'dim_quality', rating: 4 }),
     ]);
     expect(result.reviewId).toBeTruthy();
+  });
+
+  it('uses the transaction client for eligibility, dimensions, persistence, and result reads', async () => {
+    const rootEvent = async () => { throw new Error('root client must not be used'); };
+    const rootDimensions = async () => { throw new Error('root client must not be used'); };
+    const tx = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: async () => [{ id: 'dim_quality' }] },
+      opsSupplierReview: {
+        create: async () => ({ id: 'review_tx' }),
+      },
+    };
+    const root = {
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: rootEvent },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: rootDimensions },
+      opsSupplierReview: { create: async () => ({ id: 'review_root' }) },
+    };
+    const service = new SuppliersService(root as never);
+
+    const result = await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Tx' }, {
+      prisma: tx as never,
+      correlationId: 'test',
+    } satisfies PrismTransactionContext);
+
+    expect(result.reviewId).toMatch(/^review_/);
   });
 
   it('maps an existing review with no dimension ratings back without error', () => {

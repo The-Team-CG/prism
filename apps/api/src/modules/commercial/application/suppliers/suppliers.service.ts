@@ -157,17 +157,18 @@ export class SuppliersService {
   }
 
   async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, context?: PrismTransactionContext) {
+    const db = context?.prisma ?? this.prisma;
     if (input.rating < 1 || input.rating > 5) throw new BadRequestException('Supplier review rating must be 1 to 5');
-    await this.validateReviewEligibility(supplierId, input.eventId);
-    const supplier = await this.supplierRow(supplierId);
+    await this.validateReviewEligibility(supplierId, input.eventId, db);
+    const supplier = await this.supplierRow(supplierId, db);
 
     const dimensionRatings = input.dimensionRatings ?? [];
-    await this.validateDimensionRatings(supplier.categoryId, dimensionRatings);
+    await this.validateDimensionRatings(supplier.categoryId, dimensionRatings, db);
 
     const persisted = await this.persistSupplierReview(supplierId, input, dimensionRatings, context);
     const reviewId = persisted.reviewId;
-    if (persisted.replayed) return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId, replayed: true };
-    return { supplier: this.mapSupplier(await this.supplierRow(supplierId)), reviewId };
+    if (persisted.replayed) return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), reviewId, replayed: true };
+    return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), reviewId };
   }
 
   private async persistSupplierReview(
@@ -224,9 +225,9 @@ export class SuppliersService {
     return left.dimensionId.localeCompare(right.dimensionId) || left.rating - right.rating;
   }
 
-  private async validateDimensionRatings(categoryId: string, ratings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>) {
+  private async validateDimensionRatings(categoryId: string, ratings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>, db: PrismaService | Prisma.TransactionClient) {
     if (ratings.length === 0) return;
-    const validDimensions = await this.prisma.opsSupplierReviewDimension.findMany({
+    const validDimensions = await db.opsSupplierReviewDimension.findMany({
       where: { categoryId, id: { in: ratings.map((rating) => rating.dimensionId) } }, select: { id: true },
     });
     const validIds = new Set(validDimensions.map((dimension) => dimension.id));
@@ -235,14 +236,14 @@ export class SuppliersService {
     }
   }
 
-  private async validateReviewEligibility(supplierId: string, eventId?: string) {
+  private async validateReviewEligibility(supplierId: string, eventId: string | undefined, db: PrismaService | Prisma.TransactionClient) {
     if (!eventId) throw new BadRequestException('Supplier reviews require an event');
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true, status: true } });
+    const event = await db.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true, status: true } });
     if (!event) throw new BadRequestException('Supplier review event not found');
     if (event.eventDate > new Date() || !['completed', 'closed', 'archived'].includes(event.status)) {
       throw new BadRequestException('Supplier reviews are available only after event completion');
     }
-    const confirmedAssignment = await this.prisma.opsSupplierQuoteRequest.findFirst({
+    const confirmedAssignment = await db.opsSupplierQuoteRequest.findFirst({
       where: { eventId, supplierId, assignmentStatus: 'confirmed' }, select: { id: true },
     });
     if (!confirmedAssignment) throw new BadRequestException('Supplier was not confirmed for this event');
@@ -267,8 +268,8 @@ export class SuppliersService {
     return this.mapSupplier(await this.supplierRow(supplierId));
   }
 
-  async supplierRow(supplierId: string) {
-    const supplier = await this.prisma.opsSupplier.findUnique({
+  async supplierRow(supplierId: string, db: PrismaService | Prisma.TransactionClient = this.prisma) {
+    const supplier = await db.opsSupplier.findUnique({
       where: { id: supplierId },
       include: {
         category: true,
