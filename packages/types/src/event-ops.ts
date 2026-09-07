@@ -589,6 +589,21 @@ export interface PrismGuestCheckIn {
   checkedInAt: string;
 }
 
+export interface PrismGuestRosterEntry {
+  id: string;
+  eventId: string;
+  sourceKey: string;
+  guestName: string;
+  email?: string | null;
+  phone?: string | null;
+  eligibility: string;
+  source: string;
+  importBatchId: string;
+  withdrawnAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PrismGuestEventPass {
   id: string;
   eventName: string;
