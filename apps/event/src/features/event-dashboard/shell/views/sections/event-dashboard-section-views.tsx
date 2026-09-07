@@ -421,11 +421,13 @@ export function EventDashboardSuppliersSectionView() {
   const {
     supplierCategories,
     suppliers,
+    selectedEvent,
     session,
     toggleSupplierBni,
     createSupplier,
     updateSupplierProfile,
     changeSupplierTier,
+    promoteSupplier,
     addSupplierReview,
     addSupplierCertification,
     navigateEvent,
@@ -442,6 +444,8 @@ export function EventDashboardSuppliersSectionView() {
         onCreateSupplier={createSupplier}
         onUpdateSupplier={updateSupplierProfile}
         onChangeTier={changeSupplierTier}
+        eventId={selectedEvent?.id}
+        onPromote={promoteSupplier}
         onAddReview={addSupplierReview}
         onAddCertification={addSupplierCertification}
         onOpenEvent={(eventId) => navigateEvent(eventId, "overview")}
