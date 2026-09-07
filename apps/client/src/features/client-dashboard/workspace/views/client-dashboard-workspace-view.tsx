@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CreatePrismInquiryInput, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
-import { cloneTemplateObjects, loadTemplates, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
+import { cloneTemplateObjects, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
 import { ClientPortalSidebar } from "./sections/client-portal-sidebar";
 import { ClientWrongPortalView } from "./sections/client-wrong-portal-view";
 import { ClientDashboardLoadingShell } from "./sections/client-dashboard-loading-shell";
@@ -126,21 +126,7 @@ export function ClientDashboardWorkspaceView({
   const [officialProject, setOfficialProject] = useState<Project | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [floorPlanTemplates, setFloorPlanTemplates] = useState<FloorPlanTemplate[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadTemplates()
-      .then((templates) => {
-        if (!cancelled) setFloorPlanTemplates(templates);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load floor plan templates");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [setError]);
+  const floorPlanTemplates: FloorPlanTemplate[] = [];
 
   const events = useMemo(() => selectClientEvents(state, session), [session, state]);
   const selectedEvent = selectSelectedClientEvent(events, eventId, selectedEventId);
