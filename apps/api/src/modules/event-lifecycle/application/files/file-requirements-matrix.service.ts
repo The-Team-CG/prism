@@ -9,7 +9,8 @@ import type {
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { readUnresolvedCloseoutIssues } from '@prism/contexts/read-models';
+import { readUnresolvedCloseoutIssues } from '@prism/contexts/read-models/closeout';
+import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 
 export type FileRequirementStatus = 'missing' | 'pending' | 'submitted' | 'generated' | 'approved' | 'complete';
 
@@ -40,8 +41,8 @@ function trackedDeliverablesStatus(documents: OpsPostEventDocument[]): FileRequi
 export class FileRequirementsMatrixService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async requireEvent(eventId: string): Promise<OpsEvent> {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+  async requireEvent(eventId: string) {
+    const event = await readEventAccessScope(this.prisma, eventId);
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }

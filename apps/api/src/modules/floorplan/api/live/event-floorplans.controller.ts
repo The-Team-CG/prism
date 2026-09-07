@@ -2,6 +2,7 @@ import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param,
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
+import { scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
 import { zodBody } from '@prism/kernel/shared';
 import {
   createFloorPlanDraftSchema,
@@ -107,10 +108,8 @@ export class OpsEventFloorplansController {
     const { type = 'approved' } = query;
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     const event = await this.requireEvent(eventId);
-    if (!this.eventAccessPolicyService.canReadEvent(actor, event)) {
-      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'official floorplan snapshot', eventId);
-      throw new ForbiddenException(`${actor.role} cannot access official floorplan snapshot`);
-    }
+    const scoped = scopeActorToEvent(actor, event);
+    await this.eventAccessPolicyService.requireCanReadEvent(scoped.actor, event, 'official floorplan snapshot', scoped.scope);
     return this.floorPlanWorkflowService.getFloorPlanSnapshot(eventId, draftId, type);
   }
 

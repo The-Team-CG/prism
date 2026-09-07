@@ -19,7 +19,10 @@ export class PublishController {
   }
 
   @Get(':slug')
-  getSnapshot(@Param('slug') slug: string) {
+  @UseGuards(EventSessionGuard)
+  async getSnapshot(@Param('slug') slug: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.access.resolveActor({}, verifiedActor);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'published layout inventory');
     return this.publishService.getPublishedLayout(slug);
   }
 }

@@ -34,7 +34,6 @@ export const createBillingSourceSchema = z.object({
 export type CreateBillingSourceInput = z.infer<typeof createBillingSourceSchema>;
 
 export const approveBillingSourceSchema = z.object({
-  approvedBy: optionalTrimmedStringSchema,
   approvalNotes: optionalTrimmedStringSchema,
 });
 export type ApproveBillingSourceInput = z.infer<typeof approveBillingSourceSchema>;

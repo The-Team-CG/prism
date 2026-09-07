@@ -89,16 +89,27 @@ export class NotificationOutboxService {
   async acknowledge(notificationId: string, actor?: PrismVerifiedEventActor) {
     const notification = await this.prisma.opsNotificationLog.findUnique({ where: { id: notificationId } });
     if (!notification) throw new NotFoundException('Notification not found');
-    const privileged = actor?.role === 'pmcm-admin' || actor?.role === 'system';
-    if (actor && !privileged && notification.recipient.trim().toLowerCase() !== actor.email.trim().toLowerCase()) {
+    if (this.hasRecipientMismatch(notification, actor)) {
       throw new ForbiddenException('Only the notification recipient can acknowledge this notification');
     }
-    if (actor && !privileged && notification.eventId && actor.eventId && notification.eventId !== actor.eventId) {
+    if (this.hasEventScopeMismatch(notification, actor)) {
       throw new ForbiddenException('Notification is outside the actor event scope');
     }
     return this.prisma.opsNotificationLog.update({
       where: { id: notificationId },
       data: { status: 'acknowledged', acknowledgedAt: new Date() },
     });
+  }
+
+  private isPrivileged(actor?: PrismVerifiedEventActor) {
+    return !actor || actor.role === 'pmcm-admin' || actor.role === 'system';
+  }
+
+  private hasRecipientMismatch(notification: OpsNotificationLog, actor?: PrismVerifiedEventActor) {
+    return Boolean(actor && !this.isPrivileged(actor) && notification.recipient.trim().toLowerCase() !== actor.email.trim().toLowerCase());
+  }
+
+  private hasEventScopeMismatch(notification: OpsNotificationLog, actor?: PrismVerifiedEventActor) {
+    return Boolean(actor && !this.isPrivileged(actor) && notification.eventId && actor.eventId && notification.eventId !== actor.eventId);
   }
 }

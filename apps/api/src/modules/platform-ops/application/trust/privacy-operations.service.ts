@@ -275,7 +275,7 @@ export class PrivacyOperationsService {
 
   async executeRequest(requestId: string, input: ExecutePrivacyRequestInput, actor: PrivacyActor) {
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`privacy-request:${requestId}`}, 0))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`privacy-request:${requestId}`}, 0))`; // QUERY_AUDIT_RAW_SQL: parameterized request advisory lock prevents duplicate privacy execution.
       const request = await tx.opsPrivacyRequest.findUnique({ where: { id: requestId } });
       if (!request) throw new NotFoundException('Privacy request not found');
       if (request.status !== PrivacyRequestStatus.Approved) {
@@ -455,7 +455,7 @@ export class PrivacyOperationsService {
     let touchedRecords = 0;
     const guestWhere = {
       ...(request.eventId ? { eventId: request.eventId } : {}),
-      guestName: byName,
+      guestName: { equals: byName.trim(), mode: 'insensitive' as const },
     };
     if (!request.eventId) throw new BadRequestException('Guest deletion requires an event scope');
     const checkIns = await prisma.opsGuestCheckIn.updateMany({

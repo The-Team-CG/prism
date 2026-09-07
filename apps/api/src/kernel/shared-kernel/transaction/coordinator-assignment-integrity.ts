@@ -10,5 +10,5 @@ export async function lockCoordinatorAssignmentDay(
   eventDate: Date,
 ) {
   const day = eventDate.toISOString().slice(0, 10);
-  await prisma.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`coordinator-assignment:${coordinatorId}:${day}`}, 0))`;
+  await prisma.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`coordinator-assignment:${coordinatorId}:${day}`}, 0))`; // QUERY_AUDIT_RAW_SQL: parameterized coordinator/day advisory lock serializes booking and replacement.
 }

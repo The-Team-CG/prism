@@ -31,7 +31,7 @@ import {
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
-  await prisma.$queryRaw`SELECT id FROM "supplier_ops"."quote_requests" WHERE id = ${requestId} FOR UPDATE`;
+  await prisma.$queryRaw`SELECT id FROM "supplier_ops"."quote_requests" WHERE id = ${requestId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized primary-key row lock rechecks assignment state and identity.
 }
 
 function requireLockedConfirmationRequest(
@@ -492,7 +492,7 @@ export class SupplierNetworkWorkflowService {
       (item) =>
         this.eventAccessPolicyService.sameText(actor.supplierId, item.id) ||
         this.eventAccessPolicyService.sameText(actor.email, item.email) ||
-        this.eventAccessPolicyService.sameText(actor.name, item.name),
+        (!actor.verified && this.eventAccessPolicyService.sameText(actor.name, item.name)),
     );
     if (!supplier) throw new NotFoundException('Supplier profile not found for actor');
     return supplier;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   archiveEventSchema,
+  approveBillingSourceSchema,
   createBillingSourceSchema,
   recordPaymentSchema,
   resolveComplianceSchema,
@@ -46,5 +47,11 @@ describe("session commercial write schemas", () => {
 
     expect(compliance).not.toHaveProperty("actorName");
     expect(archive).not.toHaveProperty("actorName");
+  });
+
+  it("removes caller-controlled billing approver identity", () => {
+    const parsed = approveBillingSourceSchema.parse({ approvedBy: "Spoofed approver", approvalNotes: "Checked" });
+    expect(parsed).toEqual({ approvalNotes: "Checked" });
+    expect(parsed).not.toHaveProperty("approvedBy");
   });
 });

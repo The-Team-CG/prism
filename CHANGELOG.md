@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- P0 correctness readiness report with effort, priority, risk, PostgreSQL/HTTP acceptance evidence and explicit remaining catalog blockers; accepted event authority, feedback-window and client-category policy.
 - Coordinator portal task and urgent-issue logging with role-safe actor attribution and per-flow failure handling (EP-11-S02).
 - Client primary-contact proposal approve/request-revision (cap 3) on the client proposal tab, PMCM archived-event search by venue/type/month, plus PMCM supplier-applications inbox (request proposal, schedule, decline), same-role coordinator suggestions on double-book blocks, client remaining-balance billing copy, and supplier-category gap hard-block copy on the readiness board.
 - PMCM closure review prompts for confirmed supplier assignments, with category dimensions, private notes, shared Zod validation, and retry-safe success handling through the existing audit/idempotency path.
@@ -44,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Removed `.github/CODEOWNERS`; GitHub Free cannot enforce it on this private repository.
 
 ### Fixed
+- Removed fabricated approved billing at signed-conforme intake and reconciled client partial-payment totals.
+- Made proposal decisions, staffing conflicts, supplier transitions/review retries, archive effects and supported privacy redaction enforce identity, lifecycle and transactional integrity.
+- Required verified sessions and authoritative role/event ownership on sensitive routes, including commercial, briefing, files, trust, compliance and raw layout inventory; blocked live AI before external calls.
 - Coordinator acknowledge refresh no longer clears an already-loaded role-safe desk on failure (PA-294).
 - Client approvals rules import model helpers directly instead of the workspace barrel, so `test:coverage` no longer pulls views/`prism-api` into the 50% CI gate.
 - Registration-platform mutations now require a verified PMCM session, stamp setup confirmation on `live`, and allow headcount import only after the platform is closed.

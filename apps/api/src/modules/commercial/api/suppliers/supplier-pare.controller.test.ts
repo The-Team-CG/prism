@@ -17,7 +17,10 @@ function createController() {
   const eventAccessPolicyService = { resolveActor: (_input: unknown, actor: any) => ({ role: actor?.actorRole, name: actor?.actorName, email: actor?.actorEmail }), requireActorRole: vi.fn(async () => undefined) };
   const verifiedActor = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
   return {
-    controller: new OpsSupplierPareController(supplierNetworkWorkflowService as any, eventAccessPolicyService as any),
+    controller: new OpsSupplierPareController(
+      supplierNetworkWorkflowService as unknown as ConstructorParameters<typeof OpsSupplierPareController>[0],
+      eventAccessPolicyService as unknown as ConstructorParameters<typeof OpsSupplierPareController>[1],
+    ),
     supplierNetworkWorkflowService,
     eventAccessPolicyService,
     verifiedActor,
