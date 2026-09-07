@@ -6,6 +6,8 @@ import type {
   CreatePrismInquiryInput,
   CreateRegistrationPlatformInput,
   CreateSupplierApplicationInput,
+  CreateCommunicationThreadInput,
+  SendCommunicationMessageInput,
   CreateUrgentIssueInput,
   ArchiveSearchFilters,
   ReviewEventProposalInput,
@@ -29,6 +31,7 @@ import type {
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
+  PrismCommunicationThread,
   PrismCoordinatorWorkspace,
   PrismLiveOps,
   PrismEventDayTask,
@@ -177,6 +180,11 @@ export interface EventOpsClient {
       input: ReviewSupplierApplicationInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismSupplierApplication>;
+  };
+  communication: {
+    listThreads(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread[]>;
+    createThread(input: CreateCommunicationThreadInput, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread>;
+    sendMessage(threadId: string, input: SendCommunicationMessageInput, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread["messages"][number]>;
   };
 }
 
@@ -335,6 +343,11 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           actorPath(`/supplier-applications/${applicationId}/review`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
+    },
+    communication: {
+      listThreads: (eventId, actor = {}) => prismRequest<PrismCommunicationThread[]>(actorPath(`/communication/threads?eventId=${encodeURIComponent(eventId)}`, actor), withBase(options)),
+      createThread: (input, actor = {}) => prismRequest<PrismCommunicationThread>(actorPath('/communication/threads', actor), withBase(options, { method: 'POST', body: input })),
+      sendMessage: (threadId, input, actor = {}) => prismRequest<PrismCommunicationThread['messages'][number]>(actorPath(`/communication/threads/${threadId}/messages`, actor), withBase(options, { method: 'POST', body: input })),
     },
   };
 }
