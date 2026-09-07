@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsOnboardingController } from './onboarding.controller';
+const verifiedActor = { id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
@@ -30,7 +31,7 @@ describe('OpsOnboardingController', () => {
       eventAccessPolicyService as any,
     );
 
-    const result = await controller.list({ actorRole: 'pmcm-admin' });
+    const result = await controller.list(verifiedActor as any);
 
     expect(result.inquiries[0]).toMatchObject({ id: 'inq_sample', eventDate: '2026-07-10' });
     expect(result.events[0]).toMatchObject({
@@ -40,7 +41,7 @@ describe('OpsOnboardingController', () => {
     });
     expect(result.documents[0]).toMatchObject({ id: 'doc_sample', uploadedAt: '2026-06-20T09:00:00.000Z' });
     expect(inquiryWorkflowService.listOnboarding).toHaveBeenCalledWith(
-      { actorRole: 'pmcm-admin' },
+      {},
       expect.objectContaining({
         inquiriesService,
         allowedAdminRoles: ['pmcm-admin', 'system'],
@@ -48,6 +49,7 @@ describe('OpsOnboardingController', () => {
         mapDocument: expect.any(Function),
         mapEvent: expect.any(Function),
       }),
+      verifiedActor,
     );
   });
 });
