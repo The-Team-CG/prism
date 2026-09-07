@@ -11,7 +11,6 @@ import {
   type PrismVerifiedEventActor,
 } from '@prism/types';
 import {
-  FloorPlanActorDto,
   FloorPlanSnapshotQueryDto,
 } from './floorplan.dto';
 import { FloorPlanWorkflowService } from '../../application/live/floor-plan-workflow.service';
@@ -40,13 +39,14 @@ export class OpsEventFloorplansController {
   }
 
   @Post(':eventId/floorplan-preferences')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
   async createFloorPlanPreference(
     @Param('eventId') eventId: string,
     @Body(zodBody(createFloorPlanPreferenceSchema)) dto: CreateFloorPlanPreferenceInput,
-    @Query() actorInput: FloorPlanActorDto,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System],

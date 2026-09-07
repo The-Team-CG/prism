@@ -58,7 +58,18 @@ describe('OpsEventFloorplansController', () => {
 
   it('serves client preferences and snapshots through floorplan ownership', async () => {
     const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
-    const actor = { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes', clientName: 'Ana Reyes' };
+    const actor = {
+      id: 'client_ana',
+      actorId: 'client_ana',
+      role: OpsUserRole.Client,
+      actorRole: OpsUserRole.Client,
+      email: 'ana@example.test',
+      actorEmail: 'ana@example.test',
+      name: 'Ana Reyes',
+      actorName: 'Ana Reyes',
+      clientName: 'Ana Reyes',
+      expiresAt: '2026-07-03T12:00:00.000Z',
+    };
 
     const preference = createFloorPlanPreferenceSchema.parse({
       name: 'Client Preference',
@@ -75,7 +86,7 @@ describe('OpsEventFloorplansController', () => {
         actor,
       ),
     ).resolves.toEqual({ id: 'fpd_pref' });
-    await expect(controller.getFloorPlanSnapshot('evt_sample', 'fpd_pref', { ...actor, type: 'submitted' }, verifiedPmcmActor as any)).resolves.toEqual({ objects: [] });
+    await expect(controller.getFloorPlanSnapshot('evt_sample', 'fpd_pref', { type: 'submitted' }, actor)).resolves.toEqual({ objects: [] });
 
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
       { role: OpsUserRole.Client, name: 'Ana Reyes' },

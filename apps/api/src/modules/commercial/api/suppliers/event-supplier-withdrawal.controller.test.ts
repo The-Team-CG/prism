@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { EventSessionGuard } from '@prism/kernel/event-session';
 import { OpsEventSupplierWithdrawalController } from './event-supplier-withdrawal.controller';
 
 function controllerPath(controller: Function): string {
@@ -26,22 +27,38 @@ function createController() {
   };
 }
 
+const verifiedActor = {
+  id: 'pmcm_admin',
+  actorId: 'pmcm_admin',
+  role: OpsUserRole.PmcmAdmin,
+  actorRole: OpsUserRole.PmcmAdmin,
+  email: 'admin@pmcm.test',
+  actorEmail: 'admin@pmcm.test',
+  name: 'PMCM Admin',
+  actorName: 'PMCM Admin',
+  expiresAt: '2026-07-03T12:00:00.000Z',
+};
+
 describe('OpsEventSupplierWithdrawalController', () => {
   it('keeps the event route base path stable', () => {
     expect(controllerPath(OpsEventSupplierWithdrawalController)).toBe('events');
   });
 
+  it('requires a verified event session for supplier withdrawal', () => {
+    const guards = Reflect.getMetadata('__guards__', OpsEventSupplierWithdrawalController.prototype.withdrawSupplier);
+    expect(guards).toContain(EventSessionGuard);
+  });
+
   it('delegates supplier withdrawal with the default reason', async () => {
     const { actor, controller, eventAccessPolicyService, supplierNetworkWorkflowService } = createController();
-    const actorQuery = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'PMCM Admin' };
+    await controller.withdrawSupplier('evt_sample', 'qr_sample', {}, verifiedActor);
 
-    await controller.withdrawSupplier('evt_sample', 'qr_sample', {}, actorQuery as any);
-
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith(actorQuery);
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(supplierNetworkWorkflowService.withdrawSupplier).toHaveBeenCalledWith(
       'qr_sample',
       'Withdrawn by PMCM Admin',
       actor,
+      'evt_sample',
     );
   });
 
@@ -52,13 +69,14 @@ describe('OpsEventSupplierWithdrawalController', () => {
       'evt_sample',
       'qr_sample',
       { reason: 'Supplier unavailable' },
-      { actorRole: OpsUserRole.PmcmAdmin } as any,
+      verifiedActor,
     );
 
     expect(supplierNetworkWorkflowService.withdrawSupplier).toHaveBeenCalledWith(
       'qr_sample',
       'Supplier unavailable',
       actor,
+      'evt_sample',
     );
   });
 });
