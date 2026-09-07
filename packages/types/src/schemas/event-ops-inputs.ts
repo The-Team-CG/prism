@@ -98,6 +98,7 @@ export type ArchiveSearchFilters = z.infer<typeof archiveSearchFiltersSchema>;
 
 export const createGuestCheckInSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,
+  rosterEntryId: optionalTrimmedStringSchema,
   checkInMode: z.enum(["name_search", "walk_in"]).or(z.string().trim().min(1)).optional(),
   walkIn: z.boolean().optional(),
   verificationStatus: z.enum(["verified", "flagged"]).or(z.string().trim().min(1)).optional(),
