@@ -317,6 +317,7 @@ export function EventWorkspaceClosureTab() {
       onGenerateBillingStatement={vm.generateBillingStatement}
       onLoadCloseGates={vm.loadCloseGates}
       onArchive={vm.archiveSelectedEvent}
+      onRecordActualEventEnd={vm.recordActualEventEnd}
       onLoadInsights={vm.loadEventInsights}
       onGenerateInsights={vm.generateEventInsights}
       onAddReview={vm.addSupplierReview}

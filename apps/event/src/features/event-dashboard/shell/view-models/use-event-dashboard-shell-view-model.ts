@@ -383,6 +383,7 @@ export function useEventDashboardShellViewModel({
     generateBillingStatement: (sourceId: string) => selectedEvent ? run("generate billing statement", () => commands.generateBillingStatement(selectedEvent.id, sourceId)) : Promise.resolve(),
     loadCloseGates: () => selectedEvent ? commands.closeGates(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     archiveSelectedEvent: (reason?: string) => selectedEvent ? run("archive event", () => commands.archiveEvent(selectedEvent.id, reason)) : Promise.resolve(),
+    recordActualEventEnd: (input: Parameters<typeof commands.recordActualEventEnd>[1]) => selectedEvent ? run("record actual event end", () => commands.recordActualEventEnd(selectedEvent.id, input)) : Promise.resolve(),
     loadEventInsights: () => selectedEvent ? commands.eventInsights(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: string, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
