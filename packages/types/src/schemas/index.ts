@@ -96,10 +96,15 @@ export {
   requestApprovalSchema,
   twoFactorTokenSchema,
   verifyTwoFactorSchema,
+  passwordSchema,
+  requestPasswordResetSchema,
+  consumePasswordResetSchema,
   type LoginInput,
   type RequestApprovalInput,
   type TwoFactorTokenInput,
   type VerifyTwoFactorInput,
+  type RequestPasswordResetInput,
+  type ConsumePasswordResetInput,
 } from "./auth-inputs.js";
 
 export {

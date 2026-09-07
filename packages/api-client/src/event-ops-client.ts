@@ -99,6 +99,10 @@ function actorPath(path: string, actor: EventOpsActorQuery = {}): string {
 }
 
 export interface EventOpsClient {
+  auth: {
+    requestPasswordReset(email: string): Promise<{ message: string; deliveryAvailable: boolean }>;
+    consumePasswordReset(token: string, password: string): Promise<{ message: string }>;
+  };
   /**
    * @deprecated Compatibility-only seed/demo aggregate. New role app work must
    * use scoped clients such as clientWorkspace, supplierWorkspace,
@@ -197,6 +201,10 @@ export interface EventOpsClient {
 
 export function createEventOpsClient(options: EventOpsClientOptions = {}): EventOpsClient {
   return {
+    auth: {
+      requestPasswordReset: (email) => prismRequest('/auth/password-reset/request', withBase(options, { method: 'POST', body: { email } })),
+      consumePasswordReset: (token, password) => prismRequest('/auth/password-reset/consume', withBase(options, { method: 'POST', body: { token, password } })),
+    },
     sample: {
       state: () => prismRequest<PrismSampleState>("/sample/state", withBase(options)),
       reset: () => prismRequest<PrismSampleState>("/sample/reset", withBase(options, { method: "POST" })),

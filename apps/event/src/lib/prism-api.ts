@@ -398,6 +398,10 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  requestPasswordReset: (email: string) =>
+    request<{ message: string; deliveryAvailable: boolean }>('/api/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) }),
+  consumePasswordReset: (input: { token: string; password: string }) =>
+    request<{ message: string }>('/api/auth/password-reset/consume', { method: 'POST', body: JSON.stringify(input) }),
   approvalRequests: () => request<PrismApprovalRequest[]>("/api/auth/approval-requests"),
   loginHistory: (userId: string) => request<PrismLoginHistory[]>(`/api/auth/users/${userId}/login-history`),
   auditLogs: (filters: AuditLogFilters = {}) => {

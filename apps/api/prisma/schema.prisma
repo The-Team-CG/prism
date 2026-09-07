@@ -122,12 +122,30 @@ model OpsUser {
   permanentLockout Boolean   @default(false) @map("permanent_lockout")
   lastLoginAt      DateTime? @map("last_login_at")
   twoFactorSecret  String?   @map("two_factor_secret")
+  sessionVersion   Int       @default(0) @map("session_version")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   loginHistory       OpsLoginHistory[]
+  passwordResetTokens OpsPasswordResetToken[]
   coordinatorProfile OpsCoordinator?
 
   @@map("users")
+  @@schema("identity")
+}
+
+model OpsPasswordResetToken {
+  id         String    @id
+  userId     String    @map("user_id")
+  tokenHash  String    @unique(map: "password_reset_tokens_token_hash_key") @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt], map: "password_reset_tokens_user_id_expires_at_idx")
+  @@index([expiresAt], map: "password_reset_tokens_expires_at_idx")
+  @@map("password_reset_tokens")
   @@schema("identity")
 }
 

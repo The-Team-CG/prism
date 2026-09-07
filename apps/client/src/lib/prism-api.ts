@@ -486,6 +486,14 @@ export const prismApi = {
         if (user.approvalStatus !== "approved") throw new Error("This account is waiting for admin approval");
         return { ...user, signedInAt: now() };
       })),
+  requestPasswordReset: (email: string) =>
+    USE_REMOTE_API
+      ? request<{ message: string; deliveryAvailable: boolean }>('/api/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) })
+      : Promise.resolve({ message: 'If an account exists for that email, password reset instructions will be sent.', deliveryAvailable: false }),
+  consumePasswordReset: (input: { token: string; password: string }) =>
+    USE_REMOTE_API
+      ? request<{ message: string }>('/api/auth/password-reset/consume', { method: 'POST', body: JSON.stringify(input) })
+      : Promise.resolve({ message: 'Password reset completed. Please sign in again.' }),
   requestApproval: (email: string, consent: PrivacyConsentInput = { privacyConsentAccepted: true, privacyNoticeVersion: "2026-05-01" }) =>
     USE_REMOTE_API
       ? request<PrismApprovalRequest>("/api/auth/approval-requests", {

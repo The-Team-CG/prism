@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project are documented in this file.
 
@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - Briefing submissions preserve prior history, reject locked or post-planning events, and persist audit/notification intent atomically with the verified actor.
 - Historical audit verification follows hash links, including same-millisecond records; ambiguous historical tails stop new appends for integrity review.
+- Native password recovery contracts and single-use 15-minute hashed reset tokens with durable session-version revocation; reset delivery remains explicitly unavailable until a trusted provider is configured.
 - Serialized audit appends with a transactional global lock and monotonic timestamps; audit exports record the verified actor, and unavailable device/IP metadata is explicitly unknown.
 - Notification worker lifecycle scheduling when an adapter is bound, bounded provider waits, and sent-only acknowledgement; PMCM activity distinguishes provider acceptance from recipient delivery.
 - Durable notification idempotency, bounded worker claims, retry backoff and provider receipt storage; absent provider configuration keeps delivery queued with an explicit reason instead of fabricating sent status.

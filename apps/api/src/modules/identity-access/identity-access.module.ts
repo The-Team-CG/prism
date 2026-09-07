@@ -11,6 +11,7 @@ import { AUTH_AUDIT } from './contracts/auth-audit.port';
 import { AuthAuditAdapter } from './infrastructure/auth/auth-audit.adapter';
 import { ParticipantReaderService } from './application/participants/participant-reader.service';
 import { PARTICIPANT_READER } from './contracts/participant-reader.port';
+import { PasswordResetService } from './application/auth/password-reset.service';
 
 /**
  * Identity-access bounded-context composition root for user accounts,
@@ -24,7 +25,7 @@ import { PARTICIPANT_READER } from './contracts/participant-reader.port';
 @Module({
   imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule],
   controllers: [OpsAuthController],
-  providers: [AuthOperationsService, TotpService, AuthAuditAdapter, ParticipantReaderService, { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter }, { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService }],
+  providers: [AuthOperationsService, PasswordResetService, TotpService, AuthAuditAdapter, ParticipantReaderService, { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter }, { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService }],
   exports: [AuthOperationsService, PARTICIPANT_READER],
 })
 export class IdentityAccessModule {}

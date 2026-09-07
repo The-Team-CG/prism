@@ -26,6 +26,7 @@ export interface PrismEventOpsActorContext {
   actorEmail?: string;
   name?: string;
   actorName?: string;
+  sessionVersion?: number;
   clientName?: string;
   supplierId?: string;
   coordinatorId?: string;
@@ -125,6 +126,7 @@ export interface PrismUser {
   lastLoginAt?: string | null;
   lockedUntil?: string | null;
   permanentLockout?: boolean;
+  sessionVersion?: number;
 }
 
 export interface PrismAuthenticatedSession extends PrismUser {
