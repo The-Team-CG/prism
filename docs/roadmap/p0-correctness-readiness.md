@@ -32,8 +32,11 @@ sources:
 - **Scope:** W01-W09 from the catalog effort, priority and risk matrix.
 - **Use/change:** Review release readiness, reproduce checks or complete a named dependency; update when evidence or blockers change.
 - **Verify with:** Shared contract builds, affected portal/API tests and typechecks, boundary/complexity checks, isolated PostgreSQL transactions and the actual built API HTTP sweep.
+- **Current verification blocker:** V01 — the documentation refresh reran the boundary scan on unchanged implementation source and found a Prisma-mutation rule violation in the supplier ownership database test. The earlier boundary-pass record is superseded; implementation completion is not merge readiness.
 
 ## Reading the matrix
+
+The [complete catalog review](../../feature-catalog-review-2026-09-07.md) now reconciles individual feature states and blockers against this implementation. The [full effort/priority/risk matrix](../../feature-effort-priority-risk-matrix-2026-09-07.md) retains all 52 packages, with nine completed P0 packages excluded from its 43-package remaining-work totals. Use those refreshed reports for catalog-wide status; the counts below describe the original baseline.
 
 The catalog review at baseline `3d01c6c95f6955843539c8c3ba0ef3779941de79` counted 137 unique IDs: 11 implemented, 79 partial and 47 not implemented. Ninety IDs had an overlapping blocker; 37 behavior rows were unassessed. Its 52 work packages contained nine P0, 24 P1, 11 P2 and eight P3 packages. Those are historical review counts, not a new whole-catalog score after these corrections.
 
@@ -78,9 +81,10 @@ The database acceptance uses a fresh schema in an isolated PostgreSQL 18 instanc
 | Shared schema tests | Five files, 37 tests passed, including billing approval actor stripping. |
 | Typechecks | Types, API-client, API and all four portals passed. |
 | API build and actual HTTP | Nest build passed; 113 guarded routes, 361 checks passed, zero failures and zero unexpected public routes. |
-| Architecture checks | Boundary check and 11 boundary/complexity test cases passed; 5680 production functions meet the maximum complexity of 10. |
+| Architecture checks | Latest boundary scan **failed** on `apps/api/src/modules/read-models/application/services/supplier-ownership.database.test.ts`: read models must not mutate Prisma state (V01). All 11 boundary/complexity checker tests passed again. The earlier complexity run covered 5680 production functions at maximum 10; that scan was not repeated for the documentation refresh. |
 | Database structure and queries | Prisma schema validated; offline schema SQL generated; query audit passed for 242 API source files. Parameterized lock queries carry explicit query-audit reasons. |
 | Documentation | Frontmatter, relative links and transient-path audit passed for the changed bundle documents. |
+| GitHub checks on implementation commit `02b6896` | Node CI, Gitleaks and CodeQL passed in [run 34151935285](https://github.com/The-Team-CG/prism/actions/runs/34151935285). These results do not negate the separately reproduced direct boundary failure V01. |
 
 The HTTP suite exercises signed session expiry, actor spoofing, own/foreign client
 reads, active coordinator access, cancelled/replaced assignments and inactive
@@ -106,6 +110,7 @@ so an ordinary unit-only CI pass must not be presented as database proof.
 
 | Blocker | Affected complete feature | Owner and next action |
 | --- | --- | --- |
+| V01: supplier ownership database fixture violates the read-model mutation boundary rule | Repository verification gate for this implementation branch; catalog runtime statuses are unchanged | D: relocate the integration fixture or review a narrowly scoped test-rule adjustment while preserving the production read-model write prohibition, then rerun boundaries and CI. No source changes are made by this report refresh. |
 | No production proposal issuer/version creation path | Proposal review and source-linked commercial lifecycle | B/D: implement W12 with shared version/issue contracts, then C verifies a real client review journey. |
 | No authoritative logistics completion or actual event-end timestamp | Automatic close readiness, wrap-up and timed guest feedback | B/D: implement W27; retain explicit missing gates and audited overrides meanwhile. |
 | Native-account/file/retention scope not implemented for privacy execution | Full privacy rights fulfillment | D: specify and implement W29/W10; never relabel unsupported requests as Executed. |
