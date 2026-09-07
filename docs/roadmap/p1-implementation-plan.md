@@ -51,6 +51,14 @@ All 24 packages start under assessment; this table is an execution allocation, n
 
 ## Initial known constraints
 
+### Verified baseline and first platform slice
+
+V01 is corrected: the cross-context integration fixture now lives under `apps/api/test/integration`, is discovered explicitly by Vitest, and passes against isolated PostgreSQL. Direct boundaries pass (1018 production files after the notification slice); 11 checker tests pass. Actual-end and supplier conversion/history persistence is additive, with null historical provenance preserved; its migration was applied only to disposable loopback PostgreSQL. The worktree has its own generated Prisma client.
+
+W11 now has a provider-neutral delivery port, at most 100 claims per invocation, lease-token compare-and-set settlement, exponential retry scheduling, unique payload-bound idempotency and persisted provider acceptance receipts. A missing adapter retains queued status and an explicit configuration reason; it never fabricates delivery success. Real concurrent PostgreSQL tests cover duplicate queue requests, changed-content rejection, competing workers, deferred retries and expired-lease recovery. Provider approval/access, adapter implementation, delivery receipts beyond provider acceptance, automatic scheduling and full email/Viber role-path acceptance remain outstanding. This is partial W11, not a delivered external notification service.
+
+Historical `sent` records originated under the sample adapter and are not retroactive proof of provider delivery. Legacy correlation-key retries are preserved; new notifications use a separate unique idempotency key. Provider adapters must honor the stable notification ID across retries, including recovery after uncertain acceptance.
+
 - V01 is a reproduced test-placement boundary failure at the baseline; implementation begins by correcting it.
 - Real storage and email/Viber provider choices/access, exact compliance rule inventory, privacy retention/legal-hold policy and the 37 unlisted system behaviors require verification before being called available inputs.
 - P0's accepted operator, seven-day feedback across archive and catalog-category policies are decisions already made; do not ask for them again. Category migration is P2 W31 unless a P1 dependency needs a narrowly identified prerequisite.
