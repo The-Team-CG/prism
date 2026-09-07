@@ -16,6 +16,7 @@ import { OpsComplianceController } from './api/compliance/compliance-rules.contr
 import { OpsEventComplianceController } from './api/compliance/event-compliance.controller';
 import { COMPLIANCE_COMMANDS, COMPLIANCE_READER } from './contracts/compliance-ops.tokens';
 import { ComplianceWorkflowService } from './application/compliance/compliance-workflow.service';
+import { ComplianceReevaluationScheduler } from './application/compliance/compliance-reevaluation.scheduler';
 import { CLOSURE_COMMANDS, CLOSURE_READINESS_READER } from './contracts/closure-ops.tokens';
 import { EventClosureService } from './application/closure/event-closure.service';
 import { OpsEventFileRequirementsController } from './api/files/event-file-requirements.controller';
@@ -70,6 +71,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: INQUIRY_COMMANDS, useExisting: InquiriesService },
     { provide: CLIENT_ONBOARDING_COMMANDS, useExisting: ClientOnboardingWorkflowService },
     ComplianceWorkflowService,
+    ComplianceReevaluationScheduler,
     { provide: COMPLIANCE_COMMANDS, useExisting: ComplianceWorkflowService },
     { provide: COMPLIANCE_READER, useExisting: ComplianceWorkflowService },
     EventClosureService,

@@ -176,10 +176,12 @@ function Phase4ComplianceCheckCard({
         <div>
           <p className="font-black">{check.title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{check.note}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Evaluation: {check.evaluationStatus} · {check.definitionStatus}</p>
         </div>
         <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", phase4StatusTone(check.status))}>{label(check.status)}</span>
       </div>
       {check.overrideReason && <p className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-800">Override: {check.overrideReason}</p>}
+      {check.evidence.length > 0 && <ul className="mt-3 list-disc pl-5 text-xs text-muted-foreground">{check.evidence.map((item) => <li key={item}>{item}</li>)}</ul>}
       {check.status === "open" && (
         <div className="mt-4 flex flex-wrap gap-2">
           <button disabled={busy} onClick={() => onResolve(check.id)} className="h-8 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Resolve</button>

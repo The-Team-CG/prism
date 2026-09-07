@@ -15,6 +15,9 @@ export function mapComplianceRule(rule: OpsComplianceRule) {
     conditionKey: rule.conditionKey,
     title: rule.title,
     note: rule.note,
+    definitionStatus: rule.definitionStatus,
+    remediation: rule.remediation,
+    phaseApplicability: rule.phase.split(',').map((phase) => phase.trim()).filter(Boolean),
     active: rule.active,
     createdAt: timestamp(rule.createdAt),
     updatedAt: timestamp(rule.updatedAt),
@@ -32,6 +35,11 @@ export function mapComplianceCheck(check: OpsComplianceCheck) {
     overrideReason?: string | null;
     overrideAt?: Date | null;
     overrideBy?: string | null;
+    runId?: string | null;
+    evaluationStatus?: string;
+    evidence?: unknown;
+    definitionStatus?: string;
+    remediation?: string;
   };
   return {
     id: check.id,
@@ -49,5 +57,10 @@ export function mapComplianceCheck(check: OpsComplianceCheck) {
     overrideReason: expanded.overrideReason ?? null,
     overrideAt: expanded.overrideAt ? timestamp(expanded.overrideAt) : null,
     overrideBy: expanded.overrideBy ?? null,
+    runId: expanded.runId ?? null,
+    evaluationStatus: (expanded.evaluationStatus ?? 'not_satisfied') as 'satisfied' | 'not_satisfied' | 'not_applicable',
+    evidence: Array.isArray(expanded.evidence) ? expanded.evidence.filter((item): item is string => typeof item === 'string') : [],
+    definitionStatus: expanded.definitionStatus ?? 'PROVISIONAL',
+    remediation: expanded.remediation ?? check.note,
   };
 }

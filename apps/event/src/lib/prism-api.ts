@@ -14,6 +14,8 @@ import type {
   PrismCloseGates,
   PrismComplianceCheck,
   PrismComplianceRule,
+  PrismComplianceRun,
+  PrismComplianceRisk,
   PrismCoordinator,
   PrismCoordinatorAssignment,
   PrismCoordinatorRoleRequirement,
@@ -83,6 +85,7 @@ import type {
   CreateSupplierReliabilityNoteInput,
   PromoteSupplierInput,
   AuditLogFilters,
+  CreateComplianceRiskInput,
   UpdateWalkInPolicyInput,
   GuestRosterSearchInput,
   UpdateGuestVerificationInput,
@@ -618,6 +621,10 @@ export const prismApi = {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
+  complianceRuns: (eventId: string) => request<PrismComplianceRun[]>(`/api/events/${eventId}/compliance/runs`),
+  complianceRisks: (eventId: string) => request<PrismComplianceRisk[]>(`/api/events/${eventId}/compliance/risks`),
+  createComplianceRisk: (eventId: string, input: CreateComplianceRiskInput) => request<PrismComplianceRisk>(`/api/events/${eventId}/compliance/risks`, { method: "POST", body: JSON.stringify(input) }),
+  updateComplianceRisk: (eventId: string, riskId: string, input: Partial<CreateComplianceRiskInput>) => request<PrismComplianceRisk>(`/api/events/${eventId}/compliance/risks/${riskId}`, { method: "PATCH", body: JSON.stringify(input) }),
   assignCoordinator: (eventId: string, input: AssignCoordinatorInput) =>
     request<PrismCoordinatorAssignment>(`/api/events/${eventId}/coordinators`, {
       method: "POST",
