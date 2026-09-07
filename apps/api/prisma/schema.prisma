@@ -965,6 +965,14 @@ model OpsEventInsight {
   @@schema("compliance_ops")
 }
 
+model OpsAuditChainLock {
+  id       String @id
+  revision Int    @default(0)
+
+  @@map("audit_chain_locks")
+  @@schema("trust_ops")
+}
+
 model OpsAuditLog {
   id            String   @id
   eventId       String?  @map("event_id")

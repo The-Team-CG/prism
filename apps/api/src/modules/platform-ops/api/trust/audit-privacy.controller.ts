@@ -90,7 +90,7 @@ export class OpsAuditController {
   async exportLogs(@Body(zodBody(auditLogFiltersSchema)) dto: AuditLogFilters, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'audit export');
-    return this.auditService.exportAuditLogs(dto);
+    return this.auditService.exportAuditLogs(dto, verifiedActor);
   }
 
   @Get('alerts')

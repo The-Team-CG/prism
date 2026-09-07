@@ -30,7 +30,7 @@ describe('trust-ops audit/privacy controllers', () => {
     await expect(controller.integrity(verified())).resolves.toEqual({ valid: true });
 
     expect(auditService.listAuditLogs).toHaveBeenCalledWith({ limit: '25' });
-    expect(auditService.exportAuditLogs).toHaveBeenCalledWith({ limit: '25' });
+    expect(auditService.exportAuditLogs).toHaveBeenCalledWith({ limit: '25' }, expect.objectContaining({ id: 'u1', role: 'system' }));
     expect(auditService.listSecurityAlerts).toHaveBeenCalledTimes(1);
     expect(auditService.verifyIntegrity).toHaveBeenCalledTimes(1);
   });

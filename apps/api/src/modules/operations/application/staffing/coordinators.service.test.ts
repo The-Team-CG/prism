@@ -99,6 +99,7 @@ function createPrisma() {
         return assignments[index];
       },
     },
+    opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
     opsAuditLog: {
       findFirst: async () => null,
       create: async ({ data }: { data: unknown }) => {
@@ -108,7 +109,13 @@ function createPrisma() {
     },
     opsNotificationLog: {
       findFirst: async ({ where }: { where: { correlationId?: string } }) =>
-        notifications.find((notification) => notification.correlationId === where.correlationId) ?? null,
+        notifications.find((notification) => notification.correlationId === where.correlationId && notification.idempotencyKey == null) ?? null,
+      upsert: async ({ where, create }: { where: { idempotencyKey: string }; create: Record<string, unknown> }) => {
+        const existing = notifications.find((notification) => notification.idempotencyKey === where.idempotencyKey);
+        if (existing) return existing;
+        notifications.push(create);
+        return create;
+      },
       create: async ({ data }: { data: unknown }) => {
         notifications.push(data);
         return data;
