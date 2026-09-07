@@ -5,6 +5,10 @@ export function sameCoordinatorName(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+export function isCoordinatorAssignmentActive(assignment: { status?: string }): boolean {
+  return assignment.status !== "cancelled" && assignment.status !== "replaced";
+}
+
 /** Ack refresh failures must not wipe the role-safe desk (PA-294). */
 export function shouldPreserveRoleViewOnAcknowledgeFailure() {
   return true;

@@ -18,9 +18,10 @@ export type ResolvedEventOpsActor = {
   eventId?: string;
   accessCode?: string;
   explicit: boolean;
+  verified?: boolean;
 };
 
-type ReadableEvent = Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'>;
+type ReadableEvent = Pick<OpsEvent, 'id' | 'clientName' | 'clientPortalStatus'> & { clientEmail?: string | null; inquiry?: { email?: string | null } | null };
 
 type EventAccessScope = {
   supplierEventIds?: readonly string[];
@@ -56,6 +57,7 @@ export class EventAccessPolicyService {
       eventId: input.eventId,
       accessCode: input.accessCode,
       explicit: Boolean(input.actorRole ?? input.role),
+      verified: false,
     };
   }
 
@@ -67,6 +69,7 @@ export class EventAccessPolicyService {
       name: verifiedActor.actorName,
       clientName: verifiedActor.actorRole === OpsUserRole.Client ? verifiedActor.actorName : undefined,
       explicit: true,
+      verified: true,
     };
   }
 
@@ -85,7 +88,7 @@ export class EventAccessPolicyService {
   canReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, scope: EventAccessScope = {}) {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
     if (actor.role === OpsUserRole.Client) {
-      return event.clientPortalStatus === 'unlocked' && this.sameText(actor.clientName, event.clientName);
+      return event.clientPortalStatus === 'unlocked' && this.clientOwnsEvent(actor, event);
     }
     if (actor.role === OpsUserRole.Coordinator) {
       return Boolean(actor.eventId && actor.eventId === event.id);
@@ -95,6 +98,11 @@ export class EventAccessPolicyService {
       return Boolean(scope.supplierEventIds?.includes(event.id));
     }
     return false;
+  }
+
+  private clientOwnsEvent(actor: ResolvedEventOpsActor, event: ReadableEvent) {
+    if (actor.verified || actor.email) return this.sameText(actor.email, event.clientEmail ?? event.inquiry?.email);
+    return this.sameText(actor.clientName, event.clientName);
   }
 
   async requireCanReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, resource: string, scope: EventAccessScope = {}) {

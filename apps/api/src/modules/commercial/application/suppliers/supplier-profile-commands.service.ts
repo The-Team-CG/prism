@@ -12,6 +12,7 @@ import type {
   CreateSupplierCertificationInput,
   CreateSupplierInput,
   CreateSupplierReviewInput,
+  AddSupplierReviewResult,
   SupplierDirectory,
   SupplierProfile,
   UpdateSupplierInput,
@@ -95,16 +96,18 @@ export class SupplierProfileCommandsService {
   }
 
   async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actor: ResolvedEventOpsActor) {
-    return this.workflowCommandService.execute<{ supplier: SupplierResult; reviewId: string }, SupplierResult>({
+    return this.workflowCommandService.execute<AddSupplierReviewResult, SupplierResult>({
       name: 'add_supplier_review',
       eventId: input.eventId,
+      sideEffectMode: 'same_tx',
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier private review', input.eventId),
-      write: () =>
+      write: (transactionContext) =>
         this.suppliersService.addSupplierReview(supplierId, {
           ...input,
           reviewedBy: actor.name || input.reviewedBy || 'System',
-        }),
-      sideEffects: async (result) => {
+        }, transactionContext),
+      sideEffects: async (result, transactionContext) => {
+        if (result.replayed) return;
         await writeAudit(this.auditWriter, input.eventId, actor.name, `Added private supplier review: ${result.supplier.name}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
@@ -114,7 +117,7 @@ export class SupplierProfileCommandsService {
           affectedId: result.reviewId,
           affectedLabel: result.supplier.name,
           metadata: { rating: input.rating },
-        });
+        }, transactionContext);
       },
       project: (result) => result.supplier,
     });

@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsBriefing, Prisma } from '@prisma/client';
 import type { SubmitBriefingInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
@@ -7,6 +7,8 @@ import { randomUUID } from 'node:crypto';
 import { AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { OpsUserRole } from '@prism/kernel/event-core';
 
 export type { SubmitBriefingInput } from '@prism/types';
 
@@ -17,9 +19,20 @@ export class ClientOnboardingWorkflowService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    private readonly eventAccessPolicyService?: EventAccessPolicyService,
   ) {}
 
-  async submitBriefing(eventId: string, input: SubmitBriefingInput): Promise<OpsBriefing> {
+  async submitBriefing(eventId: string, input: SubmitBriefingInput, actor?: ResolvedEventOpsActor): Promise<OpsBriefing> {
+    if (actor) {
+      if (!this.eventAccessPolicyService) throw new ForbiddenException('Briefing actor context is unavailable');
+      await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System], 'client briefing', eventId);
+      const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
+      if (!event) throw new NotFoundException('Event not found');
+      await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'client briefing');
+      if (actor.role === OpsUserRole.Client && actor.email?.trim().toLowerCase() !== event.inquiry.email.trim().toLowerCase()) {
+        throw new ForbiddenException('Only the primary client contact can submit the briefing');
+      }
+    }
     return this.workflowCommandService.execute<OpsBriefing>({
       name: 'submit_client_briefing',
       eventId,

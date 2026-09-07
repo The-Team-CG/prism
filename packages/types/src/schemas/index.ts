@@ -87,6 +87,40 @@ export {
   type TwoFactorTokenInput,
   type VerifyTwoFactorInput,
 } from "./auth-inputs.js";
+
+export {
+  executePrivacyRequestSchema,
+  type ExecutePrivacyRequestInput,
+  aiGovernanceDryRunSchema,
+  type AiGovernanceDryRunInput,
+} from "./session-trust-inputs.js";
+export { supplierWithdrawalSchema, type SupplierWithdrawalInput, createEventFromTemplateSchema, type CreateEventFromTemplateInput, createTemplateSchema, type CreateTemplateInput, updateTemplateSchema, type UpdateTemplateInput, updatePlanSchema, type UpdatePlanInput } from "./session-spatial-inputs.js";
+export {
+  addSupplierQuoteSchema,
+  createBillingSourceSchema,
+  approveBillingSourceSchema,
+  generateBillingStatementSchema,
+  markPaymentSchema,
+  recordPaymentSchema,
+  requestSupplierQuotesSchema,
+  runComplianceSchema,
+  resolveComplianceSchema,
+  createComplianceRuleSchema,
+  updateComplianceRuleSchema,
+  archiveEventSchema,
+  type AddSupplierQuoteInput,
+  type CreateBillingSourceInput,
+  type ApproveBillingSourceInput,
+  type GenerateBillingStatementInput,
+  type MarkPaymentInput,
+  type RecordPaymentInput,
+  type RequestSupplierQuotesInput,
+  type RunComplianceInput,
+  type ResolveComplianceInput,
+  type CreateComplianceRuleInput,
+  type UpdateComplianceRuleInput,
+  type ArchiveEventInput,
+} from "./session-commercial-inputs.js";
 export {
   PrismContractError,
   parseContract,

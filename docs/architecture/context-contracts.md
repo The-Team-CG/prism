@@ -4,12 +4,12 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-08"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "codex/architecture-alignment-fe-be"
+last_verified: "2026-09-08; closeout read seam and API runtime composition"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -83,6 +83,8 @@ these facilities. Kernel code must not import `modules/*`.
 | Source | Target or resource | Contract rule | Current treatment |
 | --- | --- | --- | --- |
 | `modules/read-models` | owning business contexts | public index, serialisable read contract, or approved reader | read-only composition; no command/write ownership |
+| `modules/event-lifecycle` | `@prism/contexts/read-models/closeout` | explicit pure public subpath | Reads unresolved urgent issues using the caller's transaction. It imports no Nest controller/module barrel, so archive commands avoid a runtime lifecycle/read-model composition cycle. The boundary checker permits this exact subpath only. |
+| `modules/event-lifecycle`, `modules/floorplan` | `@prism/contexts/read-models/event-scope` | explicit pure public subpath | Joins inquiry email, supplier request identity and active coordinator assignments/profiles for event reads. A shared identity helper derives authorized scope; controllers do not trust actor/query labels or expose the joined identity fields as public DTOs. |
 | `kernel/access-control` | platform audit behavior | kernel-owned focused port; composition-root adapter | `AUDIT_WRITER` is implemented in the kernel and bound to platform-ops by `PlatformOpsAuditWriterModule`; kernel has no business-context import |
 | `modules/identity-access` | platform trust behavior | identity application depends on `AUTH_AUDIT`; only its infrastructure adapter knows the platform implementation | authentication and account workflows use a focused audit/lockout seam; no `AuditService` import remains in the application layer |
 | `modules/event-lifecycle` | document storage behavior | `DOCUMENT_VAULT` port owned by the lifecycle context | onboarding workflows use the port; metadata-only storage is the current composition adapter |

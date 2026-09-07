@@ -6,8 +6,11 @@ import type {
   OpsPaymentMilestone,
   OpsPostEventDocument,
   OpsSupplierReview,
+  Prisma,
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
+import { readUnresolvedCloseoutIssues } from '@prism/contexts/read-models/closeout';
+import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 
 export type FileRequirementStatus = 'missing' | 'pending' | 'submitted' | 'generated' | 'approved' | 'complete';
 
@@ -30,40 +33,58 @@ export type FileRequirementsMatrix = {
   items: FileRequirementMatrixItem[];
 };
 
+function trackedDeliverablesStatus(documents: OpsPostEventDocument[]): FileRequirementStatus {
+  return documents.length > 0 && documents.every(document => document.status === 'submitted') ? 'complete' : 'missing';
+}
+
 @Injectable()
 export class FileRequirementsMatrixService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async requireEvent(eventId: string): Promise<OpsEvent> {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+  async requireEvent(eventId: string) {
+    const event = await readEventAccessScope(this.prisma, eventId);
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }
 
-  async buildForEvent(eventId: string): Promise<FileRequirementsMatrix> {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
-    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews] = await Promise.all([
-      this.prisma.opsDocument.findMany({ where: { eventId } }),
-      this.prisma.opsPostEventDocument.findMany({ where: { eventId } }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId } }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId } }),
-      this.prisma.opsSupplierReview.findMany({ where: { eventId } }),
+  async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma): Promise<FileRequirementsMatrix> {
+    const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues] = await Promise.all([
+      prisma.opsDocument.findMany({ where: { eventId } }),
+      prisma.opsPostEventDocument.findMany({ where: { eventId } }),
+      prisma.opsBillingStatement.findMany({ where: { eventId } }),
+      prisma.opsPaymentMilestone.findMany({ where: { eventId } }),
+      prisma.opsSupplierReview.findMany({ where: { eventId } }),
+      readUnresolvedCloseoutIssues(prisma, eventId),
     ]);
 
     return {
       eventId,
-      items: this.itemsForEvent(event, documents, postEventDocuments, billingStatements, milestones, supplierReviews),
+      items: [
+        ...this.itemsForEvent(event, documents, postEventDocuments, billingStatements, milestones, supplierReviews),
+        {
+          key: 'logistics', label: 'Logistics', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
+          sourceWorkflow: 'closure', status: 'missing', auditCategory: 'events',
+          detail: 'Logistics completion is not recorded by the current workflow. PMCM must verify asset returns and document an archive override.',
+        },
+        {
+          key: 'issues', label: 'Issues', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
+          sourceWorkflow: 'live_ops', status: issues.length === 0 ? 'complete' : 'pending', auditCategory: 'events',
+          detail: `${issues.length} unresolved urgent issue(s)`,
+        },
+      ],
     };
   }
 
-  async closeGates(eventId: string) {
-    const matrix = await this.buildForEvent(eventId);
+  async closeGates(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
+    const matrix = await this.buildForEvent(eventId, prisma);
     const byKey = new Map(matrix.items.map((item) => [item.key, item]));
     const gates = [
-      this.gate('documents', 'Post-event documents', byKey.get('post_event_documents')),
+      this.gate('documents', 'Deliverables', byKey.get('post_event_documents')),
       this.gate('billing', 'Billing and payment schedule', byKey.get('billing_statement')),
-      this.gate('floorplan_logistics', 'Floorplan/logistics closure', byKey.get('official_floorplan')),
-      this.gate('supplier_reviews', 'Supplier review capture', byKey.get('supplier_reviews')),
+      this.gate('logistics', 'Logistics', byKey.get('logistics')),
+      this.gate('issues', 'Issues', byKey.get('issues')),
       this.gate('feedback', 'Client feedback indicator', byKey.get('client_feedback')),
     ];
 
@@ -84,15 +105,13 @@ export class FileRequirementsMatrixService {
     milestones: OpsPaymentMilestone[],
     supplierReviews: OpsSupplierReview[],
   ): FileRequirementMatrixItem[] {
-    const submittedDocuments = documents.filter((document) =>
-      ['submitted', 'approved', 'generated', 'sent'].includes(document.status),
-    );
+    const pendingDeliverables = postEventDocuments.filter(document => document.status !== 'submitted');
     const feedbackDocs = [
       ...postEventDocuments.filter((document) =>
-        document.title.toLowerCase().includes('feedback') && document.status === 'submitted',
+        ['client feedback', 'client feedback form'].includes(document.title.trim().toLowerCase()) && document.status === 'submitted',
       ),
       ...documents.filter((document) =>
-        document.type.toLowerCase().includes('feedback') && ['submitted', 'approved'].includes(document.status),
+        document.type === 'client_feedback' && ['submitted', 'approved'].includes(document.status),
       ),
     ];
     const unpaidMilestones = milestones.filter((milestone) => milestone.status !== 'paid' || milestone.remainingBalance > 0);
@@ -115,11 +134,10 @@ export class FileRequirementsMatrixService {
         ownerRole: 'pmcm-admin',
         visibleToRoles: ['pmcm-admin', 'client'],
         sourceWorkflow: 'closure',
-        status: submittedDocuments.length > 0 ? 'complete' : 'missing',
-        uploadedAssetId: submittedDocuments[0]?.id,
+        status: trackedDeliverablesStatus(postEventDocuments),
         generatedDocumentId: postEventDocuments[0]?.id,
         auditCategory: 'documents',
-        detail: `${submittedDocuments.length} submitted/generated document(s) on file`,
+        detail: `${postEventDocuments.length} tracked deliverable(s); ${pendingDeliverables.length} awaiting submission`,
       },
       {
         key: 'billing_statement',
@@ -127,15 +145,13 @@ export class FileRequirementsMatrixService {
         ownerRole: 'pmcm-admin',
         visibleToRoles: ['pmcm-admin', 'client'],
         sourceWorkflow: 'commercial',
-        status: billingStatements.length > 0 && unpaidMilestones.length === 0 ? 'complete' : 'pending',
+        status: billingStatements.length > 0 && milestones.length > 0 && unpaidMilestones.length === 0 ? 'complete' : 'pending',
         generatedDocumentId: billingStatements[0]?.id,
         auditCategory: 'finance',
         detail:
           billingStatements.length === 0
             ? 'No billing statement generated'
-            : unpaidMilestones.length === 0
-              ? 'Billing exists and all milestones are paid'
-              : `${unpaidMilestones.length} payment milestone(s) still unpaid`,
+            : `${milestones.length} payment milestone(s); ${unpaidMilestones.length} still unpaid`,
       },
       {
         key: 'official_floorplan',

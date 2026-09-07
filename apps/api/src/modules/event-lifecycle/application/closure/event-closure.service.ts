@@ -1,5 +1,5 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsComplianceCheck, OpsEvent, OpsEventInsight, OpsPostEventDocument } from '@prisma/client';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { OpsComplianceCheck, OpsEvent, OpsEventInsight, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
@@ -37,68 +37,56 @@ export class EventClosureService {
   async archiveEvent(eventId: string, input: ArchiveEventInput = {}) {
     const actor = this.eventAccessPolicyService.resolveActor(input);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event archive', eventId);
-    const actorName = input.actorName?.trim() || actor.name;
-    let closeGates = await this.closeGates(eventId);
+    const actorName = actor.name;
     const overrideReason = input.overrideReason?.trim();
 
-    return this.workflowCommandService.execute<OpsEvent>({
-      name: 'archive_event',
-      eventId,
-      validateState: async () => {
-        const event = await this.requireEvent(eventId);
-        this.eventLifecycleService.assertCanArchive(event, closeGates, overrideReason);
-      },
-      write: () =>
-        this.prisma.opsEvent
-          .update({
-            where: { id: eventId },
-            data: {
-              archived: true,
-              archivedAt: new Date(),
-              archiveOverrideReason: overrideReason || null,
-              archiveOverrideBy: overrideReason ? actorName : null,
-              archiveChecklist: toPrismaJson(closeGates),
-              status: 'archived',
-              readiness: 'Closed',
-            },
-          })
-          .catch(() => {
-            throw new NotFoundException('Event not found');
-          }),
-      sideEffects: async (event) => {
-        closeGates = await this.closeGates(eventId).catch(() => closeGates);
-        await Promise.all([
-          writeAudit(this.auditWriter, eventId, actorName, overrideReason ? 'Archived event with override' : 'Archived event', {
-            actionType: AuditActionType.Archive,
-            category: AuditCategory.Events,
-            severity: overrideReason ? 'warning' : 'info',
-            metadata: { overrideReason, missingKeys: closeGates.missingKeys, gates: closeGates.gates },
-          }),
-          writeNotification(this.notificationOutboxWriter, eventId, event.clientName, 'Event workspace archived'),
-        ]);
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const context = { prisma: tx, correlationId: `archive_${randomUUID()}` };
+      const current = await this.requireEvent(eventId, tx);
+      const closeGates = await this.fileRequirementsMatrixService.closeGates(eventId, tx);
+      this.eventLifecycleService.assertCanArchive(current, closeGates, overrideReason);
+      const event = await tx.opsEvent.update({
+        where: { id: eventId, archived: false, status: current.status },
+        data: {
+          archived: true, archivedAt: new Date(),
+          archiveOverrideReason: overrideReason || null,
+          archiveOverrideBy: overrideReason ? actorName : null,
+          archiveChecklist: toPrismaJson(closeGates), status: 'archived', readiness: 'Closed',
+        },
+      });
+      await writeAudit(this.auditWriter, eventId, actorName, overrideReason ? 'Archived event with override' : 'Archived event', {
+        actorRole: actor.role, actorEmail: actor.email,
+        actionType: AuditActionType.Archive, category: AuditCategory.Events,
+        affectedType: 'event', affectedId: eventId,
+        severity: overrideReason ? 'warning' : 'info',
+        metadata: { overrideReason, missingKeys: closeGates.missingKeys, gates: closeGates.gates },
+      }, context);
+      await writeNotification(this.notificationOutboxWriter, eventId, event.clientName, 'Event workspace archived', undefined, {}, context);
+      return event;
+    }, { isolationLevel: 'Serializable' });
   }
 
-  async completePostEventDocument(eventId: string, documentId: string) {
-    return this.workflowCommandService.execute<OpsPostEventDocument>({
-      name: 'complete_post_event_document',
-      eventId,
-      validateState: async () => {
-        await this.requireEvent(eventId);
-      },
-      write: () =>
-        this.prisma.opsPostEventDocument
+  async completePostEventDocument(eventId: string, documentId: string, actor?: ResolvedEventOpsActor) {
+    const resolvedActor = actor ?? this.eventAccessPolicyService.resolveActor({});
+    await this.eventAccessPolicyService.requireActorRole(resolvedActor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'post-event deliverable completion', eventId);
+    return this.prisma.$transaction(async (tx) => {
+      const event = await this.requireEvent(eventId, tx);
+      if (event.archived) throw new BadRequestException('Archived event deliverables are read-only');
+      const document = await tx.opsPostEventDocument
           .update({
-            where: { id: documentId },
+            where: { id: documentId, eventId },
             data: { status: 'submitted' },
           })
           .catch(() => {
             throw new NotFoundException('Post-event document not found');
-          }),
-      sideEffects: async (document) => {
-        await writeAudit(this.auditWriter, eventId, 'PMCM Admin', `Completed ${document.title}`);
-      },
+          });
+      await writeAudit(this.auditWriter, eventId, resolvedActor.name, `Completed ${document.title}`, {
+        actorRole: resolvedActor.role, actorEmail: resolvedActor.email,
+        affectedType: 'post_event_document', affectedId: document.id,
+      }, {
+        prisma: tx, correlationId: `deliverable_${randomUUID()}`,
+      });
+      return document;
     });
   }
 
@@ -202,8 +190,8 @@ export class EventClosureService {
       .filter((hit) => archivedEventMatchesSearch(hit, filters));
   }
 
-  private async requireEvent(eventId: string) {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+  private async requireEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
+    const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }

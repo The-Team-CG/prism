@@ -4,12 +4,12 @@ title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-08"
 authority: informative
 owner: "B (Francis)"
 audience: [product, engineering, design, reviewers]
 scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
-last_verified: "1f73cea"
+last_verified: "2026-09-08; P0 correctness overlay"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -43,6 +43,23 @@ For software architecture,
 app/package/API boundaries, and technical stop rules, use
 [`../architecture/current-architecture.md`](../architecture/current-architecture.md).
 For target maturity, use [`future-state.md`](future-state.md).
+
+## Current correctness limits
+
+The [P0 readiness report](../roadmap/p0-correctness-readiness.md) distinguishes
+implemented corrections from incomplete end-to-end capabilities. Signed conforme
+does not create an approved bill. Proposal review requires a real issued version;
+the production issuing workflow remains absent. Archive checks five explicit gates
+and requires a reasoned override while logistics completion has no authoritative
+source. Supported privacy deletion is operational soft redaction; unsupported
+rights and native-account erasure remain unexecuted. Live AI is disabled before
+external calls.
+
+The [authority and lifecycle policy](event-authority-and-lifecycle-policy.md)
+records the approved attendance operator, wrap-up, feedback window and client
+category decisions. Their acceptance does not mean those downstream features are
+running. Current guest access still closes at archive until the recorded-end and
+feedback-window work is implemented.
 
 ## System Identity
 

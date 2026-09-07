@@ -1,6 +1,7 @@
 import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, OpsEventDayTask, OpsUrgentIssue, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
+import { lockCoordinatorAssignmentDay } from '@prism/kernel/shared-kernel';
 import { toPrismaJson } from '@prism/kernel/database';
 import type {
   CreateEventDayTaskInput,
@@ -491,6 +492,24 @@ export class LiveOperationsService {
         if (!event || !current || !coordinator) throw new NotFoundException('Coordinator assignment not found');
         return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          const assignmentDate = current!.eventDate ?? event!.eventDate;
+          if (assignmentDate) {
+            await lockCoordinatorAssignmentDay(tx, coordinator!.id, assignmentDate);
+            const conflict = await tx.opsCoordinatorAssignment.findFirst({
+              where: {
+                coordinatorId: coordinator!.id,
+                eventDate: assignmentDate,
+                eventId: { not: eventId },
+                status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] },
+              },
+              include: { event: { select: { eventName: true } } },
+            });
+            if (conflict) {
+              throw new BadRequestException(
+                `${coordinator!.name} is already assigned to ${conflict.event.eventName} on this date.`,
+              );
+            }
+          }
           const replacementAssignment = await tx.opsCoordinatorAssignment.create({
             data: {
               id: `coord_asg_${randomUUID()}`,

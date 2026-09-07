@@ -16,6 +16,9 @@ function createService() {
       findMany: vi.fn(async ({ where }: { where: { status: string } }) =>
         notifications.filter((notification) => notification.status === where.status),
       ),
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) =>
+        notifications.find((notification) => notification.id === where.id) ?? null,
+      ),
       update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const index = notifications.findIndex((notification) => notification.id === where.id);
         if (index === -1) throw new Error('Notification not found');
@@ -33,6 +36,27 @@ function createService() {
 }
 
 describe('NotificationOutboxService', () => {
+  it('allows a verified recipient to acknowledge only their own notification', async () => {
+    const { service, notifications } = createService();
+    notifications.push({ id: 'not_1', recipient: 'client@example.test', status: 'sent' });
+    const actor = { email: 'CLIENT@example.test', role: 'client' } as never;
+    await expect(service.acknowledge('not_1', actor)).resolves.toMatchObject({ status: 'acknowledged' });
+  });
+
+  it('denies a verified actor acknowledging another recipient notification', async () => {
+    const { service, notifications } = createService();
+    notifications.push({ id: 'not_1', recipient: 'client@example.test', status: 'sent' });
+    const actor = { email: 'other@example.test', role: 'client' } as never;
+    await expect(service.acknowledge('not_1', actor)).rejects.toThrow(/recipient/);
+  });
+
+  it('denies a recipient acknowledging a notification from another event scope', async () => {
+    const { service, notifications } = createService();
+    notifications.push({ id: 'not_1', eventId: 'evt_other', recipient: 'client@example.test', status: 'sent' });
+    const actor = { email: 'client@example.test', role: 'client', eventId: 'evt_current' } as never;
+    await expect(service.acknowledge('not_1', actor)).rejects.toThrow(/event scope/);
+  });
+
   it('persists audit correlation when queueing notification work', async () => {
     const { prisma, service } = createService();
 

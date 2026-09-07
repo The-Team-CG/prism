@@ -13,6 +13,8 @@ export type WorkflowCommandDefinition<TWriteResult, TResult = TWriteResult> = {
   sideEffectMode?: PrismSideEffectMode;
   validatePermission?: () => Promise<void> | void;
   validateState?: () => Promise<void> | void;
+  /** State checks that must run after the transaction has started. */
+  validateStateInTransaction?: (transactionContext: PrismTransactionContext) => Promise<void> | void;
   write: (transactionContext?: PrismTransactionContext) => Promise<TWriteResult>;
   sideEffects?: (result: TWriteResult, transactionContext?: PrismTransactionContext) => Promise<void> | void;
   project?: (result: TWriteResult) => TResult;
@@ -29,6 +31,7 @@ export class WorkflowCommandService {
     await definition.validateState?.();
 
     const runWrite = async (transactionContext?: PrismTransactionContext) => {
+      if (transactionContext) await definition.validateStateInTransaction?.(transactionContext);
       const result = await definition.write(transactionContext);
       await definition.sideEffects?.(result, transactionContext);
       return result;

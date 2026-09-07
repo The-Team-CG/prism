@@ -43,13 +43,13 @@ describe('OpsComplianceController', () => {
     const controller = new OpsComplianceController(complianceWorkflowService as any, eventAccessPolicyService as any);
     const actorInput = { actorRole: 'pmcm-admin', actorName: 'Maxine' };
 
-    await expect(controller.listRules(actorInput)).resolves.toEqual([
+    await expect(controller.listRules(actorInput as never)).resolves.toEqual([
       expect.objectContaining({ id: 'crule_contracts', eventId: null, createdAt: '2026-06-01T00:00:00.000Z' }),
     ]);
-    await expect(controller.createRule({ conditionKey: 'new_rule', title: 'New rule' }, actorInput)).resolves.toEqual(
+    await expect(controller.createRule({ conditionKey: 'new_rule', title: 'New rule' }, actorInput as never)).resolves.toEqual(
       expect.objectContaining({ id: 'crule_new', title: 'New rule' }),
     );
-    await expect(controller.updateRule('crule_new', { conditionKey: 'new_rule', title: 'Updated rule' }, actorInput)).resolves.toEqual(
+    await expect(controller.updateRule('crule_new', { conditionKey: 'new_rule', title: 'Updated rule' }, actorInput as never)).resolves.toEqual(
       expect.objectContaining({ id: 'crule_new', title: 'Updated rule' }),
     );
 

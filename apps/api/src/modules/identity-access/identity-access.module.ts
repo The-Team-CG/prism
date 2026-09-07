@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
+import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
@@ -19,7 +20,7 @@ import { AuthAuditAdapter } from './infrastructure/auth/auth-audit.adapter';
  * Read-only: none.
  */
 @Module({
-  imports: [DatabaseModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule],
+  imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule],
   controllers: [OpsAuthController],
   providers: [AuthOperationsService, TotpService, AuthAuditAdapter, { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter }],
   exports: [AuthOperationsService],

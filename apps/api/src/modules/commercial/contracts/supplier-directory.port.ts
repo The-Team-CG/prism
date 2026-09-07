@@ -1,4 +1,5 @@
 import type { CreateSupplierReviewInput } from '@prism/types';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
 export type { CreateSupplierReviewInput } from '@prism/types';
 
@@ -44,13 +45,14 @@ export type ChangeSupplierTierResult = {
 export type AddSupplierReviewResult = {
   supplier: SupplierProfile;
   reviewId: string;
+  replayed?: boolean;
 };
 
 export interface SupplierDirectory {
   createSupplier(input: CreateSupplierInput): Promise<SupplierProfile>;
   updateSupplier(supplierId: string, input: UpdateSupplierInput): Promise<SupplierProfile>;
   changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput): Promise<ChangeSupplierTierResult>;
-  addSupplierReview(supplierId: string, input: CreateSupplierReviewInput): Promise<AddSupplierReviewResult>;
+  addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, context?: PrismTransactionContext): Promise<AddSupplierReviewResult>;
   addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput): Promise<SupplierProfile>;
   listSuppliers(): Promise<SupplierProfile[]>;
 }

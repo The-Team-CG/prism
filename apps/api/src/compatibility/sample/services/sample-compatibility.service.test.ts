@@ -28,6 +28,12 @@ import { SampleStateService } from './sample-state.service';
 import { SupplierNetworkWorkflowService, SupplierProfileCommandsService, SuppliersService } from '@prism/contexts/commercial';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 
+type InquiryWorkflowHarness = {
+  inquiryWorkflowService: InquiryWorkflowService;
+  inquiryWorkflowContext: () => Parameters<InquiryWorkflowService['updateInquiryStatus']>[2];
+};
+type GuestNameFilter = string | { equals: string; mode?: string };
+
 function inquiry(overrides: Record<string, unknown> = {}) {
   const createdAt = new Date('2026-04-29T00:00:00.000Z');
   return {
@@ -194,6 +200,14 @@ function createPrisma(seedInquiry: any = inquiry()) {
     aiApprovals: [] as any[],
     loginHistory: [] as any[],
   };
+  const withInquiryRelation = (event: any) => {
+    const relatedInquiry = state.inquiries.find((item) => item.id === event.inquiryId);
+    return {
+      ...event,
+      clientEmail: event.clientEmail ?? relatedInquiry?.email,
+      inquiry: relatedInquiry ? { email: relatedInquiry.email } : undefined,
+    };
+  };
   const prisma = {
     opsUser: {
       findUnique: async ({ where }: { where: { email?: string; id?: string } }) =>
@@ -240,16 +254,16 @@ function createPrisma(seedInquiry: any = inquiry()) {
       },
     },
     opsEvent: {
-      findFirst: async () => state.events[0] ?? null,
+      findFirst: async () => (state.events[0] ? withInquiryRelation(state.events[0]) : null),
       findMany: async ({ where }: { where?: { archived?: boolean; id?: string; clientName?: string } } = {}) =>
         state.events.filter((event) => {
           if (typeof where?.archived === 'boolean' && event.archived !== where.archived) return false;
           if (where?.id && event.id !== where.id) return false;
           if (where?.clientName && event.clientName !== where.clientName) return false;
           return true;
-        }),
+        }).map(withInquiryRelation),
       findUnique: async ({ where }: { where: { id: string } }) =>
-        state.events.find((event) => event.id === where.id) ?? null,
+        state.events.find((event) => event.id === where.id) ? withInquiryRelation(state.events.find((event) => event.id === where.id)) : null,
       create: async ({ data }: { data: any }) => {
         const event = { ...data, archived: false, floorPlanStatus: 'not_started', createdAt: new Date(), updatedAt: new Date() };
         state.events.push(event);
@@ -526,6 +540,13 @@ function createPrisma(seedInquiry: any = inquiry()) {
           if (where?.status && request.status !== where.status) return false;
           return true;
         }),
+      findFirst: async ({ where }: { where?: { eventId?: string; supplierId?: string; assignmentStatus?: string } } = {}) =>
+        state.quoteRequests.find((request) => {
+          if (where?.eventId && request.eventId !== where.eventId) return false;
+          if (where?.supplierId && request.supplierId !== where.supplierId) return false;
+          if (where?.assignmentStatus && request.assignmentStatus !== where.assignmentStatus) return false;
+          return true;
+        }) ?? null,
       updateMany: async ({ where, data }: { where?: { eventId?: string; categoryId?: string; id?: { not?: string } }; data: any }) => {
         let count = 0;
         state.quoteRequests = state.quoteRequests.map((request) => {
@@ -853,11 +874,12 @@ function createPrisma(seedInquiry: any = inquiry()) {
         state.guestCheckIns.filter((item) => !where?.eventId || item.eventId === where.eventId).length,
       findMany: async ({ where }: { where?: { eventId?: string } } = {}) =>
         state.guestCheckIns.filter((item) => !where?.eventId || item.eventId === where.eventId),
-      updateMany: async ({ where, data }: { where?: { eventId?: string; guestName?: string }; data: any }) => {
+      updateMany: async ({ where, data }: { where?: { eventId?: string; guestName?: GuestNameFilter }; data: any }) => {
         let count = 0;
         state.guestCheckIns = state.guestCheckIns.map((item) => {
           if (where?.eventId && item.eventId !== where.eventId) return item;
-          if (where?.guestName && item.guestName !== where.guestName) return item;
+          if (where?.guestName && typeof where.guestName === 'string' && item.guestName !== where.guestName) return item;
+          if (where?.guestName && typeof where.guestName === 'object' && item.guestName.toLowerCase() !== where.guestName.equals.toLowerCase()) return item;
           count += 1;
           return { ...item, ...data };
         });
@@ -872,11 +894,12 @@ function createPrisma(seedInquiry: any = inquiry()) {
       },
       findMany: async ({ where }: { where?: { eventId?: string } } = {}) =>
         state.guestFeedback.filter((item) => !where?.eventId || item.eventId === where.eventId),
-      updateMany: async ({ where, data }: { where?: { eventId?: string; guestName?: string }; data: any }) => {
+      updateMany: async ({ where, data }: { where?: { eventId?: string; guestName?: GuestNameFilter }; data: any }) => {
         let count = 0;
         state.guestFeedback = state.guestFeedback.map((item) => {
           if (where?.eventId && item.eventId !== where.eventId) return item;
-          if (where?.guestName && item.guestName !== where.guestName) return item;
+          if (where?.guestName && typeof where.guestName === 'string' && item.guestName !== where.guestName) return item;
+          if (where?.guestName && typeof where.guestName === 'object' && item.guestName.toLowerCase() !== where.guestName.equals.toLowerCase()) return item;
           count += 1;
           return { ...item, ...data };
         });
@@ -897,11 +920,26 @@ function createPrisma(seedInquiry: any = inquiry()) {
         }),
       findUnique: async ({ where }: { where: { id: string } }) =>
         state.privacyRequests.find((item) => item.id === where.id) ?? null,
+      findUniqueOrThrow: async ({ where }: { where: { id: string } }) => {
+        const request = state.privacyRequests.find((item) => item.id === where.id);
+        if (!request) throw new Error('not found');
+        return request;
+      },
       update: async ({ where, data }: { where: { id: string }; data: any }) => {
         const index = state.privacyRequests.findIndex((item) => item.id === where.id);
         if (index === -1) throw new Error('not found');
         state.privacyRequests[index] = { ...state.privacyRequests[index], ...data, updatedAt: new Date() };
         return state.privacyRequests[index];
+      },
+      updateMany: async ({ where, data }: { where?: { id?: string; status?: string }; data: any }) => {
+        let count = 0;
+        state.privacyRequests = state.privacyRequests.map((item) => {
+          if (where?.id && item.id !== where.id) return item;
+          if (where?.status && item.status !== where.status) return item;
+          count += 1;
+          return { ...item, ...data, updatedAt: new Date() };
+        });
+        return { count };
       },
     },
     opsEventDayTask: {
@@ -972,6 +1010,8 @@ function createPrisma(seedInquiry: any = inquiry()) {
       findMany: async () => state.aiApprovals,
     },
     $transaction: async (callback: (tx: unknown) => unknown) => callback(prisma),
+    $queryRaw: async () => [],
+    $executeRaw: async () => 0,
   };
 
   return { prisma, state };
@@ -1157,8 +1197,16 @@ describe('SampleCompatibilityService', () => {
   it('accepts an inquiry and starts the conforme workflow', async () => {
     const fake = createPrisma();
     const service = createSampleCompatibilityService(fake.prisma as any);
+    const harness = service as unknown as InquiryWorkflowHarness;
+    const context = harness.inquiryWorkflowContext();
+    context.resolveActor = () => ({ role: OpsUserRole.PmcmAdmin, name: 'Ms. Mys', explicit: true });
 
-    const accepted = await (service as any).updateInquiryStatus('inq_sample', { status: 'accepted' });
+    const accepted = await harness.inquiryWorkflowService.updateInquiryStatus(
+      'inq_sample',
+      { status: 'accepted' },
+      context,
+      undefined,
+    );
 
     expect(accepted.status).toBe('accepted');
     expect(accepted.acceptedAt).toBeTruthy();
@@ -1169,8 +1217,16 @@ describe('SampleCompatibilityService', () => {
   it('requires a permanent decline reason', async () => {
     const fake = createPrisma();
     const service = createSampleCompatibilityService(fake.prisma as any);
+    const harness = service as unknown as InquiryWorkflowHarness;
+    const context = harness.inquiryWorkflowContext();
+    context.resolveActor = () => ({ role: OpsUserRole.PmcmAdmin, name: 'Ms. Mys', explicit: true });
 
-    await expect((service as any).updateInquiryStatus('inq_sample', { status: 'declined' })).rejects.toBeInstanceOf(
+    await expect(harness.inquiryWorkflowService.updateInquiryStatus(
+      'inq_sample',
+      { status: 'declined' },
+      context,
+      undefined,
+    )).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -1285,15 +1341,9 @@ describe('SampleCompatibilityService', () => {
     expect(document.status).toBe('approved');
     expect(fake.state.events[0].clientPortalStatus).toBe('unlocked');
     expect(fake.state.inquiry.conformeSignedAt).toBeTruthy();
-    expect(fake.state.billings).toHaveLength(1);
-    expect(fake.state.milestones).toHaveLength(2);
-    expect(fake.state.billings[0].number).toBe('BS-2026-0001');
-    expect(fake.state.billings[0].lineItems).toEqual([{ label: 'Approved event package', amount: 520000 }]);
-    expect(fake.state.documents.some((item) => item.type === 'billing_statement')).toBe(true);
-    expect(fake.state.milestones.map((item) => [item.label, item.amount])).toEqual([
-      ['Downpayment', 260000],
-      ['Balance', 260000],
-    ]);
+    expect(fake.state.billings).toHaveLength(0);
+    expect(fake.state.milestones).toHaveLength(0);
+    expect(fake.state.documents.some((item) => item.type === 'billing_statement')).toBe(false);
   });
 
   it('enforces PmcmAdmin-only access and records the resolved actor on conforme upload', async () => {
@@ -1462,13 +1512,17 @@ describe('SampleCompatibilityService', () => {
       clientName: 'Ana Reyes',
       eventName: 'Ayala Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
-      status: 'planning',
+      status: 'closed',
       clientPortalStatus: 'unlocked',
       readiness: 'Supplier quotes pending',
       archived: false,
       floorPlanStatus: 'not_started',
       createdAt: new Date(),
       updatedAt: new Date(),
+    });
+    fake.state.quoteRequests.push({
+      id: 'qr_review', eventId: 'evt_sample', supplierId: 'sup_sonicline',
+      status: 'selected', assignmentStatus: 'confirmed',
     });
     const service = createSampleCompatibilityService(fake.prisma as any);
     const actor = { actorRole: 'pmcm-admin', actorName: 'Ms. Mys', actorEmail: 'mys@pmcm.test' };
@@ -1494,6 +1548,10 @@ describe('SampleCompatibilityService', () => {
       },
       actor,
     );
+    fake.state.quoteRequests.push({
+      id: 'qr_review', eventId: 'evt_sample', supplierId: created.id,
+      status: 'selected', assignmentStatus: 'confirmed',
+    });
     const reviewed = await (service as any).addSupplierReview(
       created.id,
       { eventId: 'evt_sample', rating: 4, notes: 'Private PMCM review after first walkthrough.', reviewedBy: 'Ms. Mys' },
@@ -2587,7 +2645,7 @@ describe('SampleCompatibilityService', () => {
     ]);
   });
 
-  it('blocks archive until close gates pass and allows archive once indicators are complete', async () => {
+  it('keeps unsupported logistics blocked and requires an explicit archive override', async () => {
     const fake = createPrisma();
     fake.state.events.push({
       id: 'evt_sample',
@@ -2633,8 +2691,12 @@ describe('SampleCompatibilityService', () => {
     fake.state.milestones[0] = { ...fake.state.milestones[0], status: 'paid', amountPaid: 260000, remainingBalance: 0 };
 
     const ready = await (service as any).getCloseGates('evt_sample');
-    expect(ready.ready).toBe(true);
-    const archived = await (service as any).archiveEvent('evt_sample', { actorRole: OpsUserRole.PmcmAdmin });
+    expect(ready.ready).toBe(false);
+    expect(ready.missingKeys).toEqual(['logistics']);
+    const archiveCommands = service as unknown as {
+      archiveEvent(eventId: string, input: { actorRole: string; overrideReason: string }): Promise<{ archived: boolean }>;
+    };
+    const archived = await archiveCommands.archiveEvent('evt_sample', { actorRole: OpsUserRole.PmcmAdmin, overrideReason: 'Logistics verified offline; asset return confirmation retained by PMCM.' });
     expect(archived.archived).toBe(true);
   });
 
@@ -3120,19 +3182,14 @@ describe('SampleCompatibilityService', () => {
 
     expect(approved.status).toBe('approved');
     expect(executed.status).toBe('executed');
-    expect(fake.state.inquiries[0]).toMatchObject({
-      clientName: 'Redacted data subject',
-      companyName: '',
-      message: '[redacted by privacy request]',
-    });
-    expect(fake.state.inquiries[0].email).toContain('redacted+privacy_priv_');
-    expect(fake.state.approvalRequests[0].name).toBe('Redacted data subject');
+    expect(fake.state.inquiries[0].clientName).toBe('Sofia Lim');
+    expect(fake.state.approvalRequests[0].name).toBe('Sofia Lim');
     expect(fake.state.guestCheckIns[0].guestName).toBe('Redacted guest');
     expect(fake.state.guestFeedback[0]).toMatchObject({
       guestName: 'Redacted guest',
       comment: '[redacted by privacy request]',
     });
-    expect(fake.state.auditLogs).toHaveLength(4);
+    expect(fake.state.auditLogs).toHaveLength(3);
     await expect((service as any).verifyAuditIntegrity({ actorRole: 'pmcm-admin' })).resolves.toMatchObject({ valid: true });
   });
 

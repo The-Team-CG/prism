@@ -25,7 +25,7 @@ const coordinator = {
 };
 
 const pmcmAdminActor = { id: 'admin_1', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true };
-const coordinatorActor = { id: 'coord_marco', role: OpsUserRole.Coordinator, name: 'Marco Santos', explicit: true };
+const coordinatorActor = { id: 'coord_marco', role: OpsUserRole.Coordinator, name: 'Marco Santos', email: 'marco@pmcm.test', explicit: true };
 const clientActor = { id: 'client_1', role: OpsUserRole.Client, name: 'Some Client', explicit: true };
 
 function createAccessPolicy() {
@@ -63,6 +63,7 @@ function createPrisma() {
   const notifications: any[] = [];
   const audits: any[] = [];
   const transactionCalls: string[] = [];
+  const queryOrder: string[] = [];
 
   const prisma = {
     opsEvent: { findUnique: async () => event },
@@ -72,16 +73,18 @@ function createPrisma() {
     },
     opsCoordinatorAssignment: {
       findFirst: async ({ where }: { where?: { id?: string } } = {}) => {
+        queryOrder.push('assignment.findFirst');
         if (where?.id) {
           return assignments.find((item) => item.id === where.id) ?? null;
         }
         return assignments[0] ?? null;
       },
-      findMany: async ({ where }: { where?: { eventId?: string; coordinatorId?: string; coordinatorName?: string } } = {}) =>
+      findMany: async ({ where }: { where?: { eventId?: string; coordinatorId?: string; coordinatorName?: string; status?: { notIn?: string[] } } } = {}) =>
         assignments.filter((assignment) => {
           if (where?.eventId && assignment.eventId !== where.eventId) return false;
           if (where?.coordinatorId && assignment.coordinatorId !== where.coordinatorId) return false;
           if (where?.coordinatorName && assignment.coordinatorName !== where.coordinatorName) return false;
+          if (where?.status?.notIn?.includes(assignment.status)) return false;
           return true;
         }),
       create: async ({ data }: { data: any }) => {
@@ -115,6 +118,10 @@ function createPrisma() {
       transactionCalls.push('same_tx');
       return callback(prisma);
     },
+    $executeRaw: async () => {
+      queryOrder.push('pg_advisory_xact_lock');
+      return 0;
+    },
   };
 
   return {
@@ -122,6 +129,7 @@ function createPrisma() {
     notifications,
     audits,
     transactionCalls,
+    queryOrder,
     prisma,
   };
 }
@@ -165,6 +173,9 @@ describe('CoordinatorsService', () => {
     expect(fake.notifications).toHaveLength(2);
     expect(fake.audits).toHaveLength(1);
     expect(fake.transactionCalls).toEqual(['same_tx']);
+    expect(fake.queryOrder.lastIndexOf('pg_advisory_xact_lock')).toBeLessThan(
+      fake.queryOrder.lastIndexOf('assignment.findFirst'),
+    );
   });
 
   it('rejects assignCoordinator for a non-PmcmAdmin actor', async () => {
@@ -196,7 +207,7 @@ describe('CoordinatorsService', () => {
     await expect(service.listCoordinators()).resolves.toEqual([
       expect.objectContaining({ id: 'coord_marco', name: 'Marco Santos' }),
     ]);
-    const assignments = await service.listAssignmentsForCoordinator(coordinator.id, coordinator.name);
+    const assignments = await service.listAssignmentsForCoordinator(coordinator.id);
     expect(assignments).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -206,6 +217,27 @@ describe('CoordinatorsService', () => {
         }),
       ]),
     );
+  });
+
+  it('resolves coordinator identity by verified email or user identity, never a namesake', async () => {
+    const fake = createPrisma();
+    const namesake = { ...coordinator, id: 'coord_namesake', userId: 'usr_namesake', email: 'namesake@pmcm.test' };
+    (fake.prisma.opsCoordinator as unknown as { findMany: () => Promise<typeof coordinator[]> }).findMany = async () => [coordinator, namesake];
+    const service = createService(fake.prisma as unknown);
+
+    await expect(service.resolveCoordinatorForActor({ email: 'unknown@pmcm.test' })).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.resolveCoordinatorForActor({ id: coordinator.userId })).resolves.toMatchObject({ id: coordinator.id });
+  });
+
+  it('omits cancelled and replaced assignments from coordinator scope', async () => {
+    const fake = createPrisma();
+    fake.assignments.push(
+      { ...fake.assignments[0], id: 'coord_asg_cancelled', status: 'cancelled' },
+      { ...fake.assignments[0], id: 'coord_asg_replaced', status: 'replaced' },
+    );
+    const service = createService(fake.prisma as unknown);
+    const assignments = await service.listAssignmentsForCoordinator(coordinator.id);
+    expect(assignments.map((item) => item.id)).not.toEqual(expect.arrayContaining(['coord_asg_cancelled', 'coord_asg_replaced']));
   });
 
   it('acknowledges a pending coordinator assignment for a PmcmAdmin actor', async () => {

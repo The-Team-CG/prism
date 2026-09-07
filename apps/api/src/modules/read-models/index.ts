@@ -19,5 +19,6 @@ export * from './contracts/ports/live-ops-read-models.tokens';
 export * from './contracts/ports/pmcm-event-read-model.port';
 export * from './contracts/ports/supplier-event-read-model.port';
 export * from './application/queries/event-read-models.queries';
+export * from './application/queries/closeout-issue-reader';
 export * from './application/services/event-read-models.service';
 export * from './application/services/live-ops-read-models.service';

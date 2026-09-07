@@ -7,6 +7,7 @@ function controllerPath(controller: Function): string {
 }
 
 describe('OpsNotificationsController', () => {
+  const actor = { id: 'u1', actorId: 'u1', role: 'pmcm-admin' as const, actorRole: 'pmcm-admin' as const, email: 'admin@example.test', actorEmail: 'admin@example.test', name: 'Admin', actorName: 'Admin', expiresAt: '2099-01-01T00:00:00.000Z' };
   it('keeps the public notifications route base stable under notification-ops ownership', () => {
     expect(controllerPath(OpsNotificationsController)).toBe('notifications');
   });
@@ -32,7 +33,7 @@ describe('OpsNotificationsController', () => {
     };
     const controller = new OpsNotificationsController(notificationOutboxService as any);
 
-    await expect(controller.acknowledge('not_sample')).resolves.toEqual({
+    await expect(controller.acknowledge('not_sample', actor)).resolves.toEqual({
       id: 'not_sample',
       eventId: 'evt_sample',
       channel: 'email',
@@ -47,6 +48,6 @@ describe('OpsNotificationsController', () => {
       acknowledgedAt: '2026-06-20T10:00:00.000Z',
       createdAt: '2026-06-20T09:00:00.000Z',
     });
-    expect(notificationOutboxService.acknowledge).toHaveBeenCalledWith('not_sample');
+    expect(notificationOutboxService.acknowledge).toHaveBeenCalledWith('not_sample', actor);
   });
 });
