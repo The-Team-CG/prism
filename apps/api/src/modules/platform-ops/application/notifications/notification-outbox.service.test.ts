@@ -50,6 +50,13 @@ describe('NotificationOutboxService', () => {
     await expect(service.acknowledge('not_1', actor)).rejects.toThrow(/recipient/);
   });
 
+  it('denies a recipient acknowledging a notification from another event scope', async () => {
+    const { service, notifications } = createService();
+    notifications.push({ id: 'not_1', eventId: 'evt_other', recipient: 'client@example.test', status: 'sent' });
+    const actor = { email: 'client@example.test', role: 'client', eventId: 'evt_current' } as never;
+    await expect(service.acknowledge('not_1', actor)).rejects.toThrow(/event scope/);
+  });
+
   it('persists audit correlation when queueing notification work', async () => {
     const { prisma, service } = createService();
 
