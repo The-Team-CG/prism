@@ -366,6 +366,7 @@ export function useEventDashboardShellViewModel({
     createSupplier: (input: Parameters<typeof commands.createSupplier>[0]) => run("create supplier", () => commands.createSupplier(input)),
     updateSupplierProfile: (supplierId: string, input: Parameters<typeof commands.updateSupplier>[1]) => run("update supplier", () => commands.updateSupplier(supplierId, input)),
     changeSupplierTier: (supplierId: string, tier: Parameters<typeof commands.changeSupplierTier>[1]["tier"], reason: string) => run("supplier tier change", () => commands.changeSupplierTier(supplierId, { tier, reason })),
+    promoteSupplier: (supplierId: string, tier: Parameters<typeof commands.promoteSupplier>[1]["tier"], reason: string) => selectedEvent ? run("supplier promotion", () => commands.promoteSupplier(supplierId, { eventId: selectedEvent.id, tier, reason, idempotencyKey: `promotion-${supplierId}-${selectedEvent.id}` })) : Promise.resolve(),
     addSupplierReview: (supplierId: string, input: Parameters<typeof commands.addSupplierReview>[1]) => session
       ? runWithSuccess("supplier private review", () => commands.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }, session))
       : Promise.resolve(false),

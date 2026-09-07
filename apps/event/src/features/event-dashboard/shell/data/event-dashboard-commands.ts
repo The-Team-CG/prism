@@ -24,6 +24,7 @@ export type EventDashboardCommands = Pick<
   | "createSupplier"
   | "createUrgentIssue"
   | "changeSupplierTier"
+  | "promoteSupplier"
   | "declineApprovalRequest"
   | "declineInquiry"
   | "escalateEventDayTask"
@@ -81,6 +82,7 @@ export const eventDashboardCommands = {
   createSupplier: prismApi.createSupplier,
   createUrgentIssue: prismApi.createUrgentIssue,
   changeSupplierTier: prismApi.changeSupplierTier,
+  promoteSupplier: prismApi.promoteSupplier,
   declineApprovalRequest: prismApi.declineApprovalRequest,
   declineInquiry: prismApi.declineInquiry,
   escalateEventDayTask: prismApi.escalateEventDayTask,
