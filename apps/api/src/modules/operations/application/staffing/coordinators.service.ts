@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
+import { lockCoordinatorAssignmentDay } from '@prism/kernel/shared-kernel';
 import type { PrismCommandContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -618,7 +619,7 @@ export class CoordinatorsService {
     if (!coordinator) return;
     const event = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
     if (!event?.eventDate) return;
-    await prisma.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`coordinator:${coordinator.id}:${isoDate(event.eventDate)}`}, 0))`;
+    await lockCoordinatorAssignmentDay(prisma, coordinator.id, event.eventDate);
   }
 
   // PA-276: acknowledgeCoordinator previously updated by assignmentId alone, letting any
