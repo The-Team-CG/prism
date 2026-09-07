@@ -3,6 +3,7 @@ import { PrismaService } from '@prism/kernel/database';
 import type { CreateSupplierApplicationInput, ReviewSupplierApplicationInput } from '@prism/types';
 import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
@@ -17,6 +18,10 @@ function normalizeEmail(value: string) {
 
 function daysBetween(left: Date, right: Date) {
   return Math.abs(left.getTime() - right.getTime()) / 86_400_000;
+}
+
+function conversionHash(applicationId: string, input: ReviewSupplierApplicationInput) {
+  return createHash('sha256').update(JSON.stringify({ applicationId, action: input.action, notes: input.notes?.trim() ?? '' })).digest('hex');
 }
 
 @Injectable()
@@ -69,7 +74,7 @@ export class SupplierApplicationService {
         privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
         status: 'pending',
       },
-      include: { category: true },
+      include: { category: true, convertedSupplier: true },
     });
 
     return mapSupplierApplication(row);
@@ -108,6 +113,12 @@ export class SupplierApplicationService {
       include: { category: true },
     });
     if (!existing) throw new NotFoundException('Supplier application not found');
+    if (existing.status === 'approved' && input.action === 'approve' && existing.convertedSupplierId) {
+      if (existing.conversionPayloadHash && existing.conversionPayloadHash !== conversionHash(applicationId, input)) {
+        throw new BadRequestException('Approval replay payload does not match the original conversion');
+      }
+      return mapSupplierApplication(existing);
+    }
     if (['declined', 'approved', 'proposal_requested', 'meeting_scheduled'].includes(existing.status)) {
       throw new BadRequestException('Supplier application has already been reviewed');
     }
@@ -132,6 +143,10 @@ export class SupplierApplicationService {
       if (!updated) throw new NotFoundException('Supplier application not found');
       if (input.action === 'approve' && updated.categoryId) {
         const supplierId = `sup_application_${applicationId}`;
+        const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: updated.email.trim().toLowerCase() } });
+        if (conflictingSupplier && conflictingSupplier.id !== supplierId) {
+          throw new BadRequestException('A supplier with this email already exists');
+        }
         const supplier = await tx.opsSupplier.findUnique({ where: { id: supplierId } });
         if (!supplier) {
           await tx.opsSupplier.create({
@@ -149,6 +164,14 @@ export class SupplierApplicationService {
             },
           });
         }
+        await tx.opsSupplierApplication.update({
+          where: { id: applicationId },
+          data: {
+            convertedSupplierId: supplierId,
+            conversionIdempotencyKey: input.idempotencyKey ?? `supplier-application:${applicationId}`,
+            conversionPayloadHash: conversionHash(applicationId, input),
+          },
+        });
       }
       await writeAudit(this.auditWriter, undefined, actor.name, `Reviewed supplier application: ${updated.companyName}`, {
         actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'suppliers',
