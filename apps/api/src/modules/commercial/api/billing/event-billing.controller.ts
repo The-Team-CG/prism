@@ -2,14 +2,20 @@ import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, UseGuards }
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import type { PrismVerifiedEventActor } from '@prism/types';
+import { zodBody } from '@prism/kernel/shared';
 import {
-  ApproveBillingSourceDto,
-  CreateBillingSourceDto,
-  GenerateBillingStatementDto,
-  MarkPaymentDto,
-  RecordPaymentDto,
-} from './billing.dto';
+  approveBillingSourceSchema,
+  createBillingSourceSchema,
+  generateBillingStatementSchema,
+  markPaymentSchema,
+  recordPaymentSchema,
+  type ApproveBillingSourceInput,
+  type CreateBillingSourceInput,
+  type GenerateBillingStatementInput,
+  type MarkPaymentInput,
+  type PrismVerifiedEventActor,
+  type RecordPaymentInput,
+} from '@prism/types';
 import { BillingOperationsService } from '../../application/billing/billing-operations.service';
 
 @Controller('events')
@@ -24,8 +30,8 @@ export class OpsEventBillingController {
   @HttpCode(HttpStatus.CREATED)
   async createBillingSource(
     @Param('eventId') eventId: string,
-    @Body() dto: CreateBillingSourceDto,
-    @VerifiedEventActor() verifiedActor: unknown,
+    @Body(zodBody(createBillingSourceSchema)) dto: CreateBillingSourceInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing source', eventId);
     return this.billingOperationsService.createBillingSource(eventId, dto, actor);
@@ -36,8 +42,8 @@ export class OpsEventBillingController {
   async approveBillingSource(
     @Param('eventId') eventId: string,
     @Param('sourceId') sourceId: string,
-    @Body() dto: ApproveBillingSourceDto,
-    @VerifiedEventActor() verifiedActor: unknown,
+    @Body(zodBody(approveBillingSourceSchema)) dto: ApproveBillingSourceInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing source approval', eventId);
     return this.billingOperationsService.approveBillingSource(eventId, sourceId, dto, actor);
@@ -48,8 +54,8 @@ export class OpsEventBillingController {
   @HttpCode(HttpStatus.CREATED)
   async generateBillingStatement(
     @Param('eventId') eventId: string,
-    @Body() dto: GenerateBillingStatementDto = {},
-    @VerifiedEventActor() verifiedActor: unknown,
+    @Body(zodBody(generateBillingStatementSchema)) dto: GenerateBillingStatementInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing statement', eventId);
     return this.billingOperationsService.generateBillingStatement(eventId, dto.sourceId, actor);
@@ -60,8 +66,8 @@ export class OpsEventBillingController {
   async markPayment(
     @Param('eventId') eventId: string,
     @Param('milestoneId') milestoneId: string,
-    @Body() dto: MarkPaymentDto,
-    @VerifiedEventActor() verifiedActor: unknown,
+    @Body(zodBody(markPaymentSchema)) dto: MarkPaymentInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'payment milestone', eventId);
     return this.billingOperationsService.markPayment(eventId, milestoneId, dto.status, actor);
@@ -73,8 +79,8 @@ export class OpsEventBillingController {
   async recordPayment(
     @Param('eventId') eventId: string,
     @Param('milestoneId') milestoneId: string,
-    @Body() dto: RecordPaymentDto,
-    @VerifiedEventActor() verifiedActor: unknown,
+    @Body(zodBody(recordPaymentSchema)) dto: RecordPaymentInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'payment recording', eventId);
     return this.billingOperationsService.recordPayment(eventId, milestoneId, dto, actor);
@@ -86,14 +92,14 @@ export class OpsEventBillingController {
   async sendBillingStatement(
     @Param('eventId') eventId: string,
     @Param('billingId') billingId: string,
-    @VerifiedEventActor() verifiedActor: unknown,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing statement delivery', eventId);
     return this.billingOperationsService.sendBillingStatement(eventId, billingId, actor);
   }
 
-  private async requireFinanceActor(verifiedActor: unknown, resource: string, eventId: string) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor as PrismVerifiedEventActor);
+  private async requireFinanceActor(verifiedActor: PrismVerifiedEventActor, resource: string, eventId: string) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],

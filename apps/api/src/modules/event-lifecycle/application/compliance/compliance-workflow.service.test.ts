@@ -4,7 +4,7 @@ import { AuditService } from '@prism/contexts/platform-ops';
 import { AuditWriterAdapter } from '@prism/contexts/platform-ops';
 import { ComplianceWorkflowService } from './compliance-workflow.service';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { WorkflowCommandService } from '@prism/kernel/event-core';
+import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 
 function createService() {
   const state = {
@@ -85,7 +85,7 @@ describe('ComplianceWorkflowService', () => {
   it('generates matching compliance checks and updates readiness in one workflow command', async () => {
     const { service, state, auditService } = createService();
 
-    const checks = await service.runCompliance('evt_sample', { phase: 'planning' });
+    const checks = await service.runCompliance('evt_sample', { phase: 'planning' }, { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true });
 
     expect(checks).toHaveLength(1);
     expect(checks[0]).toMatchObject({ ruleId: 'rule_must', status: 'open', title: 'Supplier contracts ready' });
@@ -103,7 +103,7 @@ describe('ComplianceWorkflowService', () => {
     const { service, state } = createService();
     state.checks.push({ id: 'chk_sample', eventId: 'evt_sample', title: 'Supplier contracts ready', status: 'open' });
 
-    await expect(service.resolveCompliance('evt_sample', 'chk_sample', { action: 'override' })).rejects.toBeInstanceOf(
+    await expect(service.resolveCompliance('evt_sample', 'chk_sample', { action: 'override' }, { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true })).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });

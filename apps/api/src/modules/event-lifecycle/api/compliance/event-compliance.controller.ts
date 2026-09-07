@@ -2,8 +2,14 @@ import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, UseGuards }
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import type { PrismVerifiedEventActor } from '@prism/types';
-import { ResolveComplianceDto, RunComplianceDto } from './compliance.dto';
+import { zodBody } from '@prism/kernel/shared';
+import {
+  resolveComplianceSchema,
+  runComplianceSchema,
+  type ResolveComplianceInput,
+  type RunComplianceInput,
+  type PrismVerifiedEventActor,
+} from '@prism/types';
 import { mapComplianceCheck } from '../../application/compliance/compliance.mappers';
 import { ComplianceWorkflowService } from '../../application/compliance/compliance-workflow.service';
 
@@ -14,9 +20,9 @@ export class OpsEventComplianceController {
   @Post(':eventId/compliance')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
-  async runCompliance(@Param('eventId') eventId: string, @Body() dto: RunComplianceDto = {}, @VerifiedEventActor() verifiedActor: unknown) {
-    await this.requireOperator(eventId, verifiedActor);
-    const checks = await this.complianceWorkflowService.runCompliance(eventId, dto);
+  async runCompliance(@Param('eventId') eventId: string, @Body(zodBody(runComplianceSchema)) dto: RunComplianceInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = await this.requireOperator(eventId, verifiedActor);
+    const checks = await this.complianceWorkflowService.runCompliance(eventId, dto, actor);
     return checks.map(mapComplianceCheck);
   }
 
@@ -25,16 +31,17 @@ export class OpsEventComplianceController {
   async resolveCompliance(
     @Param('eventId') eventId: string,
     @Param('checkId') checkId: string,
-    @Body() dto: ResolveComplianceDto,
-    @VerifiedEventActor() verifiedActor: unknown,
+    @Body(zodBody(resolveComplianceSchema)) dto: ResolveComplianceInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    await this.requireOperator(eventId, verifiedActor);
-    const check = await this.complianceWorkflowService.resolveCompliance(eventId, checkId, dto);
+    const actor = await this.requireOperator(eventId, verifiedActor);
+    const check = await this.complianceWorkflowService.resolveCompliance(eventId, checkId, dto, actor);
     return mapComplianceCheck(check);
   }
 
-  private requireOperator(eventId: string, verifiedActor: unknown) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor as PrismVerifiedEventActor);
-    return this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance', eventId);
+  private async requireOperator(eventId: string, verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'compliance', eventId);
+    return actor;
   }
 }
