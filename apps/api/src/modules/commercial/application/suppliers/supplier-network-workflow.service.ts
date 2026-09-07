@@ -34,6 +34,46 @@ async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, reques
   await prisma.$queryRaw`SELECT id FROM "supplier_ops"."quote_requests" WHERE id = ${requestId} FOR UPDATE`;
 }
 
+function requireLockedConfirmationRequest(
+  request: OpsSupplierQuoteRequest | null,
+  expectedAssignmentStatus: string,
+  expectedEventId: string,
+  expectedSupplierId: string,
+) {
+  if (
+    !request ||
+    request.assignmentStatus !== expectedAssignmentStatus ||
+    request.eventId !== expectedEventId ||
+    request.supplierId !== expectedSupplierId ||
+    request.status !== 'selected' ||
+    request.assignmentStatus !== 'pending_confirmation' ||
+    !request.supplierId
+  ) {
+    throw new BadRequestException('Supplier assignment changed before confirmation');
+  }
+  return request;
+}
+
+function requireLockedWithdrawalRequest(
+  request: OpsSupplierQuoteRequest | null,
+  expectedAssignmentStatus: string,
+  expectedEventId: string,
+  expectedSupplierId: string,
+) {
+  if (
+    !request ||
+    request.assignmentStatus !== expectedAssignmentStatus ||
+    request.eventId !== expectedEventId ||
+    request.supplierId !== expectedSupplierId ||
+    request.status !== 'selected' ||
+    !request.supplierId ||
+    !['pending_confirmation', 'confirmed'].includes(request.assignmentStatus)
+  ) {
+    throw new BadRequestException('Supplier assignment changed before withdrawal');
+  }
+  return request;
+}
+
 @Injectable()
 export class SupplierNetworkWorkflowService {
   private readonly logger = new Logger(SupplierNetworkWorkflowService.name);
@@ -76,6 +116,8 @@ export class SupplierNetworkWorkflowService {
   async confirmSupplierAssignment(requestId: string, actor: ResolvedEventOpsActor) {
     let request: OpsSupplierQuoteRequest | null = null;
     let expectedAssignmentStatus = '';
+    let expectedEventId = '';
+    let expectedSupplierId = '';
 
     return this.workflowCommandService.execute<OpsSupplierQuoteRequest>({
       name: 'confirm_supplier_assignment',
@@ -84,6 +126,8 @@ export class SupplierNetworkWorkflowService {
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
         expectedAssignmentStatus = request.assignmentStatus;
+        expectedEventId = request.eventId;
+        expectedSupplierId = request.supplierId ?? '';
         if (request.status !== 'selected' || request.assignmentStatus !== 'pending_confirmation' || !request.supplierId) {
           throw new BadRequestException('Only a selected supplier assignment can be confirmed');
         }
@@ -92,21 +136,17 @@ export class SupplierNetworkWorkflowService {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         const prisma = transactionContext?.prisma ?? this.prisma;
         await lockSupplierQuoteRequest(prisma, requestId);
-        request = await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
-        if (
-          !request ||
-          request.assignmentStatus !== expectedAssignmentStatus ||
-          request.status !== 'selected' ||
-          request.assignmentStatus !== 'pending_confirmation' ||
-          !request.supplierId
-        ) {
-          throw new BadRequestException('Supplier assignment changed before confirmation');
-        }
+        request = requireLockedConfirmationRequest(
+          await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } }),
+          expectedAssignmentStatus,
+          expectedEventId,
+          expectedSupplierId,
+        );
         return prisma.opsSupplierQuoteRequest.updateMany({
           where: {
             id: request.id,
-            eventId: request.eventId,
-            supplierId: request.supplierId,
+            eventId: expectedEventId,
+            supplierId: expectedSupplierId,
             status: 'selected',
             assignmentStatus: expectedAssignmentStatus,
           },
@@ -140,6 +180,8 @@ export class SupplierNetworkWorkflowService {
   async withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor, eventId?: string) {
     let request: OpsSupplierQuoteRequest | null = null;
     let expectedAssignmentStatus = '';
+    let expectedEventId = '';
+    let expectedSupplierId = '';
 
     const result = await this.workflowCommandService.execute<
       { request: OpsSupplierQuoteRequest; event: OpsEvent | null },
@@ -154,10 +196,12 @@ export class SupplierNetworkWorkflowService {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         if (eventId && request.eventId !== eventId) throw new NotFoundException('Supplier quote request not found');
         expectedAssignmentStatus = request.assignmentStatus;
+        expectedEventId = request.eventId;
+        expectedSupplierId = request.supplierId ?? '';
         if (
           request.status !== 'selected' ||
           !request.supplierId ||
-          request.assignmentStatus !== 'pending_confirmation'
+          !['pending_confirmation', 'confirmed'].includes(request.assignmentStatus)
         ) {
           throw new BadRequestException('Only a selected supplier assignment can be withdrawn');
         }
@@ -166,21 +210,17 @@ export class SupplierNetworkWorkflowService {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         const prisma = transactionContext?.prisma ?? this.prisma;
         await lockSupplierQuoteRequest(prisma, requestId);
-        request = await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
-        if (
-          !request ||
-          request.assignmentStatus !== expectedAssignmentStatus ||
-          request.status !== 'selected' ||
-          !request.supplierId ||
-          request.assignmentStatus !== 'pending_confirmation'
-        ) {
-          throw new BadRequestException('Supplier assignment changed before withdrawal');
-        }
+        request = requireLockedWithdrawalRequest(
+          await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } }),
+          expectedAssignmentStatus,
+          expectedEventId,
+          expectedSupplierId,
+        );
         const changed = await prisma.opsSupplierQuoteRequest.updateMany({
           where: {
             id: request.id,
-            eventId: request.eventId,
-            supplierId: request.supplierId,
+            eventId: expectedEventId,
+            supplierId: expectedSupplierId,
             status: 'selected',
             assignmentStatus: expectedAssignmentStatus,
           },
