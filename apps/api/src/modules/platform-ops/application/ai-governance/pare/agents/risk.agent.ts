@@ -1,4 +1,5 @@
 import type { PARERisk, PARERiskLevel, PAREContext, PARECandidate } from '../pare.types';
+import { assertPareExecutionAllowed } from '../pare-execution.policy';
 
 function timelineRisk(daysUntilEvent: number) {
   if (daysUntilEvent <= 7) {
@@ -160,6 +161,7 @@ export class RiskAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
   async runPareRiskAgent(ctx: PAREContext): Promise<PARERisk> {
+    assertPareExecutionAllowed(this.mode);
     if (this.mode === 'live') return this.runWithClaude(ctx);
     return mockRisk(ctx);
   }
