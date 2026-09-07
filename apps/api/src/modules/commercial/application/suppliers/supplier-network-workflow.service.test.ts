@@ -12,6 +12,7 @@ function createService() {
     supplierName: 'Sonic Line Events',
     category: 'Technicals',
     eventDayVerificationStatus: SupplierVerificationStatus.SelfReported,
+    status: 'pending',
   };
   const audit = vi.fn();
   const suppliers = {
@@ -102,5 +103,14 @@ describe('SupplierNetworkWorkflowService', () => {
 
     expect(suppliers.listSuppliers).not.toHaveBeenCalled();
     expect(prisma.opsSupplierQuoteRequest.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects confirmation before PMCM selects the supplier', async () => {
+    const { service, request, prisma } = createService();
+    await expect(service.confirmSupplierAssignment('qr_sonic', {
+      name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline', explicit: true,
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.opsSupplierQuoteRequest.update).not.toHaveBeenCalled();
+    request.status = 'selected';
   });
 });

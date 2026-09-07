@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { SupplierApplicationService } from './supplier-application.service';
@@ -79,5 +79,13 @@ describe('SupplierApplicationService inbox', () => {
     );
     expect(reviewed.status).toBe('proposal_requested');
     expect(reviewed.reviewedAt).toBeTruthy();
+  });
+
+  it('rejects reviewing an application after a terminal transition', async () => {
+    const fake = createPrisma();
+    fake.applications[0].status = 'proposal_requested';
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never);
+    await expect(service.reviewApplication('sap_1', { action: 'decline', declineReason: 'No fit' }, pmcmAdminActor))
+      .rejects.toBeInstanceOf(BadRequestException);
   });
 });
