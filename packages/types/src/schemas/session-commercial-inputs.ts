@@ -1,6 +1,28 @@
 import { z } from "zod";
 import { nonEmptyStringSchema, optionalTrimmedStringSchema } from "./common.js";
 
+export const addSupplierQuoteSchema = z.object({
+  requestId: optionalTrimmedStringSchema,
+  supplierId: optionalTrimmedStringSchema,
+  categoryId: optionalTrimmedStringSchema,
+  supplierName: optionalTrimmedStringSchema,
+  category: optionalTrimmedStringSchema,
+  amount: z.number().int().min(0).optional(),
+  inclusions: z.array(nonEmptyStringSchema).optional(),
+  paymentTerms: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+  status: optionalTrimmedStringSchema,
+});
+export type AddSupplierQuoteInput = z.infer<typeof addSupplierQuoteSchema>;
+
+export const requestSupplierQuotesSchema = z.object({
+  categoryId: nonEmptyStringSchema,
+  supplierIds: z.array(nonEmptyStringSchema).optional(),
+  confidentialBid: z.boolean().optional(),
+  deadline: optionalTrimmedStringSchema,
+});
+export type RequestSupplierQuotesInput = z.infer<typeof requestSupplierQuotesSchema>;
+
 export const createBillingSourceSchema = z.object({
   sourceType: optionalTrimmedStringSchema,
   sourceLabel: nonEmptyStringSchema,

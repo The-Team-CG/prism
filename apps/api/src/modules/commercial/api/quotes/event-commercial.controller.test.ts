@@ -2,10 +2,20 @@ import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { EventSessionGuard } from '@prism/kernel/event-session';
+import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsEventCommercialController } from './event-commercial.controller';
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
+}
+
+function verifiedActor(role: PrismVerifiedEventActor['actorRole'] = OpsUserRole.PmcmAdmin): PrismVerifiedEventActor {
+  return {
+    id: 'pmcm_session', actorId: 'pmcm_session', role, actorRole: role,
+    email: 'pmcm@pmcm.test', actorEmail: 'pmcm@pmcm.test', name: 'Maxine', actorName: 'Maxine',
+    expiresAt: '2026-08-25T00:00:00.000Z',
+  };
 }
 
 function createController() {
@@ -53,10 +63,10 @@ function createController() {
     selectSupplierQuote: vi.fn(async () => ({ ...quote, status: 'selected', selectedAt: now, lockedAt: now })),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((input = {}) => ({
-      role: input.actorRole ?? OpsUserRole.PmcmAdmin,
-      name: input.actorName ?? 'PMCM Admin',
-      email: input.actorEmail,
+    resolveActor: vi.fn((input = {}, verified?: PrismVerifiedEventActor) => ({
+      role: verified?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin,
+      name: verified?.actorName ?? input.actorName ?? 'PMCM Admin',
+      email: verified?.actorEmail ?? input.actorEmail,
     })),
     requireActorRole: vi.fn(async () => undefined),
   };
@@ -72,9 +82,17 @@ describe('OpsEventCommercialController', () => {
     expect(controllerPath(OpsEventCommercialController)).toBe('events');
   });
 
+  it.each(['addSupplierQuote', 'requestSupplierQuotes', 'selectSupplierQuote'] as const)(
+    'requires a verified session for %s',
+    (methodName) => {
+      const guards = Reflect.getMetadata('__guards__', OpsEventCommercialController.prototype[methodName]);
+      expect(guards).toContain(EventSessionGuard);
+    },
+  );
+
   it('serves event quote commands through CommercialOps with PMCM route policy', async () => {
     const { controller, commercialWorkflowService, eventAccessPolicyService } = createController();
-    const actor = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
+    const actor = verifiedActor();
 
     await expect(
       controller.addSupplierQuote(
@@ -104,7 +122,7 @@ describe('OpsEventCommercialController', () => {
 
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(3);
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
-      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
+      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'pmcm@pmcm.test' },
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       'supplier quote details',
       'evt_sample',
@@ -132,7 +150,7 @@ describe('OpsEventCommercialController', () => {
       controller.addSupplierQuote(
         'evt_sample',
         { requestId: 'qr_sample', supplierId: 'sup_technical', amount: 180000 },
-        { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' },
+        verifiedActor(OpsUserRole.Client),
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
