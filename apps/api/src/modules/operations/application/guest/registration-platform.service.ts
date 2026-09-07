@@ -12,6 +12,7 @@ import type {
   UpdateRegistrationPlatformInput,
 } from '@prism/types';
 import type { RegistrationPlatformReader } from '../../contracts/registration-platform-reader.port';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
 @Injectable()
 export class RegistrationPlatformService implements RegistrationPlatformReader {
@@ -36,22 +37,23 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       validateState: async () => {
         const current = await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         existed = Boolean(current);
-        await this.validateAssignedSupplier(this.prisma, eventId, input.supplierId);
+        await this.validateAssignedSupplier(this.prisma, eventId, input.supplierId !== undefined ? input.supplierId : current?.supplierId);
         if (input.expectedPaxMin !== undefined && input.expectedPaxMax !== undefined && input.expectedPaxMin > input.expectedPaxMax) {
           throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
         }
       },
       sideEffectMode: 'same_tx',
       validateStateInTransaction: async (transactionContext) => {
+        await this.lockEvent(transactionContext, eventId);
         const current = await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         existed = Boolean(current);
-        await this.validateAssignedSupplier(transactionContext.prisma, eventId, input.supplierId);
+        await this.validateAssignedSupplier(transactionContext.prisma, eventId, input.supplierId !== undefined ? input.supplierId : current?.supplierId);
         const min = input.expectedPaxMin ?? current?.expectedPaxMin ?? 0;
         const max = input.expectedPaxMax ?? current?.expectedPaxMax ?? 0;
         if (min > max) throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
       },
       write: async (transactionContext) => {
-        const db = transactionContext?.prisma ?? this.prisma;
+        const db = this.transaction(transactionContext).prisma;
         if (existed) {
           return db.opsRegistrationPlatform.update({
             where: { eventId },
@@ -98,7 +100,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       name: 'registration_platform_update',
       sideEffectMode: 'same_tx',
       validateState: async () => {
-        await this.validateAssignedSupplier(this.prisma, eventId, input.supplierId ?? existing.supplierId ?? undefined);
+        await this.validateAssignedSupplier(this.prisma, eventId, input.supplierId !== undefined ? input.supplierId : existing.supplierId);
         const effectiveMin = input.expectedPaxMin ?? existing.expectedPaxMin;
         const effectiveMax = input.expectedPaxMax ?? existing.expectedPaxMax;
         if (effectiveMin > effectiveMax) {
@@ -112,15 +114,16 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
         }
       },
       validateStateInTransaction: async (transactionContext) => {
+        await this.lockEvent(transactionContext, eventId);
         const current = await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         if (!current || current.status !== existing.status) throw new ConflictException('Registration platform changed; retry the command');
-        await this.validateAssignedSupplier(transactionContext.prisma, eventId, input.supplierId ?? current.supplierId ?? undefined);
+        await this.validateAssignedSupplier(transactionContext.prisma, eventId, input.supplierId !== undefined ? input.supplierId : current.supplierId);
         const min = input.expectedPaxMin ?? current.expectedPaxMin;
         const max = input.expectedPaxMax ?? current.expectedPaxMax;
         if (min > max) throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
       },
       write: (transactionContext) => {
-        const db = transactionContext?.prisma ?? this.prisma;
+        const db = this.transaction(transactionContext).prisma;
         const data = {
           ...(input.platformType !== undefined && { platformType: input.platformType }),
           ...(input.supplierId !== undefined && { supplierId: input.supplierId }),
@@ -132,7 +135,6 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
           }),
           ...(input.setupNotes !== undefined && { setupNotes: input.setupNotes }),
         };
-        if (!transactionContext) return db.opsRegistrationPlatform.update({ where: { eventId }, data });
         return db.opsRegistrationPlatform.updateMany({ where: { eventId, status: existing.status }, data }).then(async (result: { count: number }) => {
           if (result.count !== 1) throw new ConflictException('Registration platform changed; retry the command');
           const updated = await db.opsRegistrationPlatform.findUnique({ where: { eventId } });
@@ -170,11 +172,19 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
 
     return this.workflowCommandService.execute<OpsRegistrationPlatform>({
       name: 'registration_headcount_import',
+      sideEffectMode: 'same_tx',
       validateState: async () => {
         if (input.importedHeadcount < 0) throw new BadRequestException('Headcount must be non-negative');
       },
-      write: () =>
-        this.prisma.opsRegistrationPlatform.update({
+      validateStateInTransaction: async (context) => {
+        await this.lockEvent(context, eventId);
+        const current = await context.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
+        const currentEvent = await context.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { actualEndedAt: true } });
+        if (!current || current.status !== 'closed' || !currentEvent?.actualEndedAt) throw new ConflictException('Platform or event state changed; refresh before importing');
+        await this.validateAssignedSupplier(context.prisma, eventId, current.supplierId);
+      },
+      write: (context) =>
+        this.transaction(context).prisma.opsRegistrationPlatform.update({
           where: { eventId },
           data: {
             headcountSource: input.headcountSource,
@@ -197,8 +207,18 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
     });
   }
 
+  private transaction(context?: PrismTransactionContext): PrismTransactionContext {
+    if (!context) throw new ConflictException('Transactional registration context is unavailable');
+    return context;
+  }
+
+  private async lockEvent(context: PrismTransactionContext, eventId: string) {
+    // QUERY_AUDIT_RAW_SQL: parameterized row lock serializes event registration commands with lifecycle changes.
+    await context.prisma.$queryRaw`SELECT id FROM event_core.events WHERE id = ${eventId} FOR UPDATE`;
+  }
+
   private async validateAssignedSupplier(db: Pick<PrismaService, 'opsSupplier' | 'opsSupplierQuoteRequest'>, eventId: string, supplierId?: string | null): Promise<void> {
-    if (!supplierId) return;
+    if (!supplierId) throw new BadRequestException('A selected Digital Registration supplier is required');
     const supplier = await db.opsSupplier.findUnique({
       where: { id: supplierId },
       include: { category: true },
@@ -213,7 +233,6 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
         eventId,
         supplierId,
         status: 'selected',
-        category: { equals: 'Digital Registration', mode: 'insensitive' },
       },
     });
     if (!assignment) {

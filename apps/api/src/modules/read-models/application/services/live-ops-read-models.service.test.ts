@@ -35,6 +35,8 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     clientPortalStatus: 'unlocked',
     readiness: 'ready',
     archived: false,
+    walkInPolicy: 'closed',
+    walkInThreshold: 200,
     actualEndedAt: null,
     actualEndedBy: null,
     archivedAt: null,
