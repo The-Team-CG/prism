@@ -85,12 +85,17 @@ export class SupplierNetworkWorkflowService {
       write: (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         const prisma = transactionContext?.prisma ?? this.prisma;
-        return prisma.opsSupplierQuoteRequest.update({
-          where: { id: request.id },
+        return prisma.opsSupplierQuoteRequest.updateMany({
+          where: { id: request.id, status: 'selected' },
           data: {
             assignmentStatus: 'confirmed',
             assignmentConfirmedAt: new Date(),
           },
+        }).then(async (changed) => {
+          if (changed.count !== 1) throw new BadRequestException('Supplier assignment changed before confirmation');
+          const updated = await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: request!.id } });
+          if (!updated) throw new NotFoundException('Supplier quote request not found');
+          return updated;
         });
       },
       sideEffects: async (updated, transactionContext) => {
@@ -127,14 +132,16 @@ export class SupplierNetworkWorkflowService {
       write: async (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         const prisma = transactionContext?.prisma ?? this.prisma;
+        const changed = await prisma.opsSupplierQuoteRequest.updateMany({
+          where: { id: request.id, assignmentStatus: request.assignmentStatus },
+          data: { assignmentStatus: 'withdrawn' },
+        });
+        if (changed.count !== 1) throw new BadRequestException('Supplier assignment changed before withdrawal');
         const [updated, event] = await Promise.all([
-            prisma.opsSupplierQuoteRequest.update({
-              where: { id: request!.id },
-              data: { assignmentStatus: 'withdrawn' },
-              include: { supplier: true },
-            }),
+            prisma.opsSupplierQuoteRequest.findUnique({ where: { id: request.id }, include: { supplier: true } }),
             prisma.opsEvent.findUnique({ where: { id: request!.eventId } }),
           ]);
+        if (!updated) throw new NotFoundException('Supplier quote request not found');
         return { request: updated, event };
       },
       sideEffects: async (result, transactionContext) => {
