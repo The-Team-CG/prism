@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Additive P1 persistence for actual event end and actor, application-to-supplier conversion binding, reliability-note attribution/idempotency, and durable supplier promotion history.
+- P1 execution plan covering all 24 catalog work packages, independent agent ownership, acceptance evidence and concrete blocker reporting.
 - P0 correctness readiness report with effort, priority, risk, PostgreSQL/HTTP acceptance evidence and explicit remaining catalog blockers; accepted event authority, feedback-window and client-category policy.
 - Coordinator portal task and urgent-issue logging with role-safe actor attribution and per-flow failure handling (EP-11-S02).
 - Client primary-contact proposal approve/request-revision (cap 3) on the client proposal tab, PMCM archived-event search by venue/type/month, plus PMCM supplier-applications inbox (request proposal, schedule, decline), same-role coordinator suggestions on double-book blocks, client remaining-balance billing copy, and supplier-category gap hard-block copy on the readiness board.
@@ -47,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Removed `.github/CODEOWNERS`; GitHub Free cannot enforce it on this private repository.
 
 ### Fixed
+- Moved the cross-context supplier ownership database fixture into the API integration-test directory and registered test discovery, preserving the production read-model mutation boundary (V01).
 - Removed fabricated approved billing at signed-conforme intake and reconciled client partial-payment totals.
 - Made proposal decisions, staffing conflicts, supplier transitions/review retries, archive effects and supported privacy redaction enforce identity, lifecycle and transactional integrity.
 - Required verified sessions and authoritative role/event ownership on sensitive routes, including commercial, briefing, files, trust, compliance and raw layout inventory; blocked live AI before external calls.
