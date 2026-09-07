@@ -59,6 +59,8 @@ W11 now has a provider-neutral delivery port, at most 100 claims per invocation,
 
 Historical `sent` records originated under the sample adapter and are not retroactive proof of provider delivery. Legacy correlation-key retries are preserved; new notifications use a separate unique idempotency key. Provider adapters must honor the stable notification ID across retries, including recovery after uncertain acceptance.
 
+W30's first local correction serializes audit appends through a singleton row updated in the same transaction as latest-hash lookup and insertion. New timestamps are strictly monotonic; verifier ordering is `(createdAt,id)`. Standalone audit calls open a transaction, and caller-owned transactions retain atomic rollback. PostgreSQL tests cover eight concurrent appends, nested rollback and stale Serializable snapshot rejection. Export audit records use the verified actor and unknown device/IP metadata rather than sample values. Historical hashes are preserved; this does not repair an old broken chain or establish database-enforced append-only storage. Full mutation coverage, immutable storage/retention integration and runtime export verification remain W30 residual scope.
+
 - V01 is a reproduced test-placement boundary failure at the baseline; implementation begins by correcting it.
 - Real storage and email/Viber provider choices/access, exact compliance rule inventory, privacy retention/legal-hold policy and the 37 unlisted system behaviors require verification before being called available inputs.
 - P0's accepted operator, seven-day feedback across archive and catalog-category policies are decisions already made; do not ask for them again. Category migration is P2 W31 unless a P1 dependency needs a narrowly identified prerequisite.

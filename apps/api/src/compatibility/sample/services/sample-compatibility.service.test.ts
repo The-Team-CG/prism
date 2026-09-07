@@ -717,6 +717,7 @@ function createPrisma(seedInquiry: any = inquiry()) {
       findUnique: async ({ where }: { where: { id: string } }) =>
         state.floorPlans.find((plan) => plan.id === where.id) ?? null,
     },
+    opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
     opsAuditLog: {
       findFirst: async () => state.auditLogs[state.auditLogs.length - 1] ?? null,
       findMany: async ({ where }: { where?: { eventId?: string; category?: string; actionType?: string } } = {}) =>

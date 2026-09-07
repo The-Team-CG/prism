@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Serialized audit appends with a transactional global lock and monotonic timestamps; audit exports record the verified actor, and unavailable device/IP metadata is explicitly unknown.
 - Notification worker lifecycle scheduling when an adapter is bound, bounded provider waits, and sent-only acknowledgement; PMCM activity distinguishes provider acceptance from recipient delivery.
 - Durable notification idempotency, bounded worker claims, retry backoff and provider receipt storage; absent provider configuration keeps delivery queued with an explicit reason instead of fabricating sent status.
 - Additive P1 persistence for actual event end and actor, application-to-supplier conversion binding, reliability-note attribution/idempotency, and durable supplier promotion history.
