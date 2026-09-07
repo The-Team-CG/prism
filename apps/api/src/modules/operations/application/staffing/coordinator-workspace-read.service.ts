@@ -28,7 +28,6 @@ export class CoordinatorWorkspaceReadService {
     const coordinator = await this.coordinatorsService.resolveCoordinatorForActor(actor);
     const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(
       coordinator.id,
-      coordinator.name,
     );
     const eventIds = new Set(visibleAssignments.map((assignment) => assignment.eventId));
     const events = await this.prisma.opsEvent.findMany({
