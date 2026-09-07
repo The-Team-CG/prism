@@ -100,6 +100,8 @@ export function CoordinatorView({
           attendanceStatus={attendanceStatus}
           sessionName={session.name}
           onAcknowledge={vm.acknowledge}
+          onDecline={vm.decline}
+          onWithdraw={vm.withdraw}
         />
         <CoordinatorBoundaryNotice />
         <CoordinatorStatusSummary

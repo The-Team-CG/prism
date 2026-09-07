@@ -1,5 +1,22 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, Prisma } from '@prisma/client';
+import type {
+  CreateCoordinatorAssignmentInput,
+  CreateCoordinatorAvailabilityInput,
+  CreateCoordinatorCoverageRequirementInput,
+  CoordinatorAssignmentAcknowledgementInput,
+  ReplaceCoordinatorAssignmentInput,
+  WithdrawCoordinatorAssignmentInput,
+} from '@prism/types';
+
+export type {
+  CreateCoordinatorAssignmentInput,
+  CreateCoordinatorAvailabilityInput,
+  CreateCoordinatorCoverageRequirementInput,
+  CoordinatorAssignmentAcknowledgementInput,
+  ReplaceCoordinatorAssignmentInput,
+  WithdrawCoordinatorAssignmentInput,
+} from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { lockCoordinatorAssignmentDay } from '@prism/kernel/shared-kernel';
@@ -8,24 +25,17 @@ import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRol
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
 
-export type CreateCoordinatorAssignmentInput = {
-  coordinatorId?: string;
-  coordinatorName?: string;
-  role?: string;
-  overrideConflict?: boolean;
+export type StaffingCoverageRow = {
+  role: string;
+  required: number;
+  assigned: number;
+  acknowledged: number;
+  requiredSkills: string[];
+  assignedSkills: string[];
+  satisfied: boolean;
 };
 
-export type WithdrawCoordinatorAssignmentInput = {
-  reason?: string;
-};
-
-export type ReplaceCoordinatorAssignmentInput = {
-  replacementCoordinatorId?: string;
-  replacementCoordinatorName?: string;
-  replacementRole?: string;
-  reason?: string;
-  overrideConflict?: boolean;
-};
+const ACKNOWLEDGEMENT_LEAD_TIME_DAYS = 7;
 
 type CoordinatorConflict = OpsCoordinatorAssignment & {
   event: {
@@ -65,16 +75,161 @@ export class CoordinatorsService {
       ? this.prisma.opsCoordinatorAssignment.findMany({
           where: { coordinatorId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
           orderBy: { createdAt: 'desc' },
+          include: { acknowledgmentHistory: { orderBy: { createdAt: 'asc' } } },
         })
       : [] as OpsCoordinatorAssignment[];
   }
 
   listAssignmentsForEvent(eventId: string) {
-    return this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } });
+    return this.prisma.opsCoordinatorAssignment.findMany({
+      where: { eventId },
+      orderBy: { createdAt: 'asc' },
+      include: { acknowledgmentHistory: { orderBy: { createdAt: 'asc' } } },
+    });
   }
 
-  async resolveCoordinatorForActor(actor: { id?: string | null; coordinatorId?: string | null; email?: string | null }) {
-    const coordinators = await this.prisma.opsCoordinator.findMany({
+  async listAvailability(coordinatorId: string) {
+    const rows = await this.prisma.opsCoordinatorAvailability.findMany({
+      where: { coordinatorId },
+      orderBy: { startsAt: 'asc' },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      coordinatorId: row.coordinatorId,
+      startsAt: timestamp(row.startsAt),
+      endsAt: timestamp(row.endsAt),
+      kind: row.kind,
+      note: row.note,
+      declaredBy: row.declaredBy,
+      createdAt: timestamp(row.createdAt),
+    }));
+  }
+
+  async createAvailability(
+    coordinatorId: string,
+    input: CreateCoordinatorAvailabilityInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator availability');
+    const coordinator = await this.prisma.opsCoordinator.findUnique({ where: { id: coordinatorId } });
+    if (!coordinator) throw new NotFoundException('Coordinator not found');
+    return this.prisma.opsCoordinatorAvailability.create({
+      data: {
+        id: `coord_avail_${randomUUID()}`,
+        coordinatorId,
+        startsAt: new Date(input.startsAt),
+        endsAt: new Date(input.endsAt),
+        kind: input.kind,
+        note: input.note ?? '',
+        declaredBy: actor.name,
+      },
+    });
+  }
+
+  async listCoverageForEvent(eventId: string): Promise<StaffingCoverageRow[]> {
+    const [requirements, assignments] = await Promise.all([
+      this.prisma.opsEventCoverageRequirement.findMany({ where: { eventId }, orderBy: { role: 'asc' } }),
+      this.prisma.opsCoordinatorAssignment.findMany({
+        where: { eventId },
+        include: { coordinator: { select: { skillsTags: true } } },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+    const active = assignments.filter((item) =>
+      item.status !== CoordinatorAssignmentStatus.Cancelled && item.status !== CoordinatorAssignmentStatus.Replaced,
+    );
+    return requirements.map((requirement) => {
+      const roleAssignments = active.filter((item) => item.role === requirement.role);
+      const assignedSkills = Array.from(new Set(
+        roleAssignments.flatMap((assignment) => assignment.coordinator?.skillsTags ?? []),
+      ));
+      const acknowledged = roleAssignments.filter((item) => item.status === CoordinatorAssignmentStatus.Acknowledged).length;
+      return {
+        role: requirement.role,
+        required: requirement.required,
+        assigned: roleAssignments.length,
+        acknowledged,
+        requiredSkills: requirement.requiredSkills,
+        assignedSkills,
+        satisfied:
+          roleAssignments.length >= requirement.required &&
+          acknowledged >= requirement.required &&
+          requirement.requiredSkills.every((skill) => assignedSkills.includes(skill)),
+      };
+    });
+  }
+
+  async upsertCoverageRequirement(
+    eventId: string,
+    input: CreateCoordinatorCoverageRequirementInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator coverage');
+    await this.requireEvent(eventId);
+    return this.prisma.opsEventCoverageRequirement.upsert({
+      where: { eventId_role: { eventId, role: input.role } },
+      create: {
+        id: `coord_cov_${randomUUID()}`,
+        eventId,
+        role: input.role,
+        required: input.required,
+        requiredSkills: input.requiredSkills,
+        createdBy: actor.name,
+        updatedBy: actor.name,
+      },
+      update: {
+        required: input.required,
+        requiredSkills: input.requiredSkills,
+        updatedBy: actor.name,
+      },
+    });
+  }
+
+  async enqueueAcknowledgementReminders(eventId: string | undefined, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'coordinator acknowledgement reminders',
+      eventId,
+    );
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() + ACKNOWLEDGEMENT_LEAD_TIME_DAYS);
+    const assignments = await this.prisma.opsCoordinatorAssignment.findMany({
+      where: {
+        ...(eventId ? { eventId } : {}),
+        status: CoordinatorAssignmentStatus.PendingAcknowledgement,
+        eventDate: { lte: cutoff },
+      },
+      include: { event: { select: { eventName: true, eventDate: true } }, coordinator: { select: { email: true } } },
+      orderBy: { eventDate: 'asc' },
+    });
+    const results = [] as Array<{ assignmentId: string; status: string; reason: string }>;
+    for (const assignment of assignments) {
+      const cycle = isoDate(assignment.eventDate ?? assignment.event.eventDate);
+      const queued = await this.notificationOutboxWriter.write({
+        eventId: assignment.eventId,
+        recipient: assignment.coordinator?.email ?? assignment.coordinatorName,
+        message: `Acknowledgment reminder: confirm your ${assignment.role} assignment for ${assignment.event.eventName}.`,
+        channel: 'email',
+        correlationId: `coord-ack-reminder:${assignment.id}:${cycle}`,
+        idempotencyKey: `coord-ack-reminder:${assignment.id}:${cycle}`,
+      });
+      const delivered = queued as { status?: string; failureReason?: string } | null;
+      results.push({
+        assignmentId: assignment.id,
+        status: delivered?.status ?? 'queued',
+        reason: delivered?.failureReason ?? 'Delivery provider is not configured',
+      });
+    }
+    return { leadTimeDays: ACKNOWLEDGEMENT_LEAD_TIME_DAYS, reminders: results };
+  }
+
+  async resolveCoordinatorForActor(
+    actor: { id?: string | null; coordinatorId?: string | null; email?: string | null },
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const coordinators = await prisma.opsCoordinator.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
     });
@@ -116,6 +271,23 @@ export class CoordinatorsService {
 
     if (!coordinator.roleTags.includes(role)) {
       throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
+    }
+
+    const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
+    const unavailable = availabilityModel
+      ? await availabilityModel.findFirst({
+          where: { coordinatorId: coordinator.id, startsAt: { lte: event.eventDate }, endsAt: { gt: event.eventDate } },
+          orderBy: { startsAt: 'asc' },
+        })
+      : null;
+    if (unavailable) {
+      throw new BadRequestException({
+        code: 'COORDINATOR_UNAVAILABLE',
+        message: `${coordinator.name} is unavailable for ${isoDate(event.eventDate)}.`,
+        availabilityId: unavailable.id,
+        kind: unavailable.kind,
+        note: unavailable.note,
+      });
     }
 
     const conflict = (await prisma.opsCoordinatorAssignment.findFirst({
@@ -232,7 +404,12 @@ export class CoordinatorsService {
     });
   }
 
-  async acknowledgeCoordinator(eventId: string, assignmentId: string, actor: ResolvedEventOpsActor) {
+  async acknowledgeCoordinator(
+    eventId: string,
+    assignmentId: string,
+    actor: ResolvedEventOpsActor,
+    input: CoordinatorAssignmentAcknowledgementInput = { decision: 'acknowledged' },
+  ) {
     // FLAGGED SCOPING DECISION (EP-02-S05 / AC8): acknowledge allows PmcmAdmin AND Coordinator,
     // not PmcmAdmin-only, because the real coordinator self-service flow (coordinator-view.tsx)
     // calls this endpoint for a coordinator to confirm their own assignment. Revisit only if
@@ -263,28 +440,51 @@ export class CoordinatorsService {
         await this.requireEvent(eventId);
         await this.requireOwnedAssignment(eventId, assignmentId, actor);
       },
+      validateStateInTransaction: async ({ prisma }) => {
+        await this.requireOwnedAssignment(eventId, assignmentId, actor, prisma);
+      },
       write: (transactionContext) => {
         const prisma = transactionContext?.prisma ?? this.prisma;
         return prisma.opsCoordinatorAssignment
           .update({
             where: { id: assignmentId },
-            data: { status: CoordinatorAssignmentStatus.Acknowledged, acknowledgedAt: new Date() },
+            data: {
+              status: input.decision === 'acknowledged' ? CoordinatorAssignmentStatus.Acknowledged : CoordinatorAssignmentStatus.Declined,
+              acknowledgedAt: new Date(),
+              acknowledgedBy: actor.id ?? actor.name,
+              acknowledgementReason: input.reason ?? '',
+            },
           })
           .catch(() => {
             throw new NotFoundException('Coordinator assignment not found');
           });
       },
       sideEffects: async (assignment, transactionContext) => {
-        await this.auditWriter.write({
+        const historyModel = 'opsCoordinatorAssignmentAcknowledgment' in (transactionContext?.prisma ?? this.prisma)
+          ? (transactionContext?.prisma ?? this.prisma).opsCoordinatorAssignmentAcknowledgment
+          : undefined;
+        await Promise.all([
+          historyModel?.create({
+            data: {
+              id: `coord_ack_${randomUUID()}`,
+              assignmentId: assignment.id,
+              state: input.decision,
+              reason: input.reason ?? '',
+              actor: actor.id ?? actor.name,
+            },
+          }),
+          this.auditWriter.write({
           eventId,
           actor: actor.name,
-          action: 'Acknowledged coordinator assignment',
-          actionType: AuditActionType.Update,
+          action: input.decision === 'acknowledged' ? 'Acknowledged coordinator assignment' : 'Declined coordinator assignment',
+          actionType: input.decision === 'acknowledged' ? AuditActionType.Update : AuditActionType.Decline,
           category: AuditCategory.Events,
           affectedType: 'coordinator_assignment',
           affectedId: assignment.id,
           affectedLabel: assignment.coordinatorName,
-        }, transactionContext);
+          metadata: { reason: input.reason ?? '' },
+          }, transactionContext),
+        ]);
       },
       project: (assignment) => this.mapCoordinatorAssignment(assignment),
     });
@@ -296,9 +496,7 @@ export class CoordinatorsService {
     input: WithdrawCoordinatorAssignmentInput,
     actor: ResolvedEventOpsActor,
   ) {
-    // FLAGGED SCOPING DECISION (EP-02-S05 / AC8): withdraw is PmcmAdmin-only by design,
-    // there is no coordinator-facing withdraw UI today. Revisit if that changes.
-    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator withdrawal');
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator], 'coordinator withdrawal');
 
     const commandContext: PrismCommandContext = {
       actorId: actor.id ?? actor.name,
@@ -320,19 +518,28 @@ export class CoordinatorsService {
         await this.requireEvent(eventId);
         const existing = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
         if (!existing) throw new NotFoundException('Coordinator assignment not found');
-        if (
-          existing.status === CoordinatorAssignmentStatus.Cancelled ||
-          existing.status === CoordinatorAssignmentStatus.Replaced
-        ) {
+        if (actor.role === OpsUserRole.Coordinator) {
+          await this.requireOwnedAssignment(eventId, assignmentId, actor);
+          if (!input.reason?.trim()) throw new BadRequestException('Withdrawal reason is required');
+        }
+        if (existing.status === CoordinatorAssignmentStatus.Cancelled || existing.status === CoordinatorAssignmentStatus.Replaced) {
           throw new BadRequestException('Coordinator assignment is already withdrawn or replaced');
         }
+      },
+      validateStateInTransaction: async ({ prisma }) => {
+        if (actor.role === OpsUserRole.Coordinator) await this.requireOwnedAssignment(eventId, assignmentId, actor, prisma);
       },
       write: (transactionContext) => {
         const prisma = transactionContext?.prisma ?? this.prisma;
         return prisma.opsCoordinatorAssignment
           .update({
             where: { id: assignmentId },
-            data: { status: CoordinatorAssignmentStatus.Cancelled },
+            data: {
+              status: CoordinatorAssignmentStatus.Cancelled,
+              withdrawalReason: input.reason ?? '',
+              withdrawnAt: new Date(),
+              withdrawnBy: actor.id ?? actor.name,
+            },
           })
           .catch(() => {
             throw new NotFoundException('Coordinator assignment not found');
@@ -398,26 +605,22 @@ export class CoordinatorsService {
       validateState: async () => {
         const existing = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
         if (!existing) throw new NotFoundException('Coordinator assignment not found');
-        if (
-          existing.status === CoordinatorAssignmentStatus.Cancelled ||
-          existing.status === CoordinatorAssignmentStatus.Replaced
-        ) {
+        if (existing.status === CoordinatorAssignmentStatus.Replaced ||
+          (existing.status === CoordinatorAssignmentStatus.Cancelled && !existing.withdrawalReason)) {
           throw new BadRequestException('Coordinator assignment is already withdrawn or replaced');
         }
         await this.resolveAssignmentPlan(eventId, {
           coordinatorId: input.replacementCoordinatorId,
           coordinatorName: input.replacementCoordinatorName,
-          role: input.replacementRole,
+          role: input.replacementRole ?? input.role,
           overrideConflict: input.overrideConflict,
         });
       },
       validateStateInTransaction: async (transactionContext) => {
         oldAssignment = await transactionContext.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
         if (!oldAssignment) throw new NotFoundException('Coordinator assignment not found');
-        if (
-          oldAssignment.status === CoordinatorAssignmentStatus.Cancelled ||
-          oldAssignment.status === CoordinatorAssignmentStatus.Replaced
-        ) {
+        if (oldAssignment.status === CoordinatorAssignmentStatus.Replaced ||
+          (oldAssignment.status === CoordinatorAssignmentStatus.Cancelled && !oldAssignment.withdrawalReason)) {
           throw new BadRequestException('Coordinator assignment is already withdrawn or replaced');
         }
         await this.lockCoordinatorDate(transactionContext.prisma, {
@@ -427,7 +630,7 @@ export class CoordinatorsService {
         plan = await this.resolveAssignmentPlan(eventId, {
           coordinatorId: input.replacementCoordinatorId,
           coordinatorName: input.replacementCoordinatorName,
-          role: input.replacementRole,
+          role: input.replacementRole ?? input.role,
           overrideConflict: input.overrideConflict,
         }, transactionContext.prisma);
       },
@@ -516,6 +719,16 @@ export class CoordinatorsService {
   }
 
   mapCoordinatorAssignment(assignment: OpsCoordinatorAssignment) {
+    const withHistory = assignment as OpsCoordinatorAssignment & {
+      acknowledgmentHistory?: Array<{
+        id: string;
+        assignmentId: string;
+        state: string;
+        reason: string;
+        actor: string;
+        createdAt: Date;
+      }>;
+    };
     return {
       id: assignment.id,
       eventId: assignment.eventId,
@@ -541,6 +754,19 @@ export class CoordinatorsService {
       conflictEventId: assignment.conflictEventId ?? null,
       conflictEventName: assignment.conflictEventName ?? null,
       acknowledgedAt: assignment.acknowledgedAt ? timestamp(assignment.acknowledgedAt) : null,
+      acknowledgedBy: assignment.acknowledgedBy ?? null,
+      acknowledgementReason: assignment.acknowledgementReason ?? '',
+      withdrawalReason: assignment.withdrawalReason ?? '',
+      withdrawnAt: assignment.withdrawnAt ? timestamp(assignment.withdrawnAt) : null,
+      withdrawnBy: assignment.withdrawnBy ?? null,
+      acknowledgementHistory: withHistory.acknowledgmentHistory?.map((entry) => ({
+        id: entry.id,
+        assignmentId: entry.assignmentId,
+        state: entry.state,
+        reason: entry.reason,
+        actor: entry.actor,
+        createdAt: timestamp(entry.createdAt),
+      })) ?? [],
       createdAt: timestamp(assignment.createdAt),
     };
   }
@@ -559,9 +785,17 @@ export class CoordinatorsService {
     const busyIds = new Set(
       busy.map((row) => row.coordinatorId).filter((id): id is string => Boolean(id)),
     );
+    const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
+    const unavailable = availabilityModel
+      ? await availabilityModel.findMany({
+          where: { startsAt: { lte: event.eventDate }, endsAt: { gt: event.eventDate } },
+          select: { coordinatorId: true },
+        })
+      : [];
+    const unavailableIds = new Set(unavailable.map((item) => item.coordinatorId));
     return coordinators
       .filter(
-        (item) => item.id !== excludeCoordinatorId && item.roleTags.includes(role) && !busyIds.has(item.id),
+        (item) => item.id !== excludeCoordinatorId && item.roleTags.includes(role) && !busyIds.has(item.id) && !unavailableIds.has(item.id),
       )
       .slice(0, 5)
       .map((item) => ({ id: item.id, name: item.name, role }));
@@ -615,14 +849,19 @@ export class CoordinatorsService {
   // authenticated Coordinator acknowledge any assignment regardless of who it belonged to
   // or which event it was scoped to. This closes both gaps: the assignment must belong to
   // the route's eventId, and a Coordinator actor must own the assignment being acknowledged.
-  private async requireOwnedAssignment(eventId: string, assignmentId: string, actor: ResolvedEventOpsActor) {
-    const assignment = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId } });
+  private async requireOwnedAssignment(
+    eventId: string,
+    assignmentId: string,
+    actor: ResolvedEventOpsActor,
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const assignment = await prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId } });
     if (!assignment || assignment.eventId !== eventId) {
       throw new NotFoundException('Coordinator assignment not found');
     }
 
     if (actor.role === OpsUserRole.Coordinator) {
-      const coordinator = await this.resolveCoordinatorForActor(actor);
+      const coordinator = await this.resolveCoordinatorForActor(actor, prisma);
       const owns =
         this.eventAccessPolicyService.sameText(assignment.coordinatorId, coordinator.id) ||
         this.eventAccessPolicyService.sameText(assignment.coordinatorName, coordinator.name);
