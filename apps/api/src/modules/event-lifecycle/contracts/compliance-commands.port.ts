@@ -14,10 +14,11 @@ export interface ComplianceCommands {
     input: UpdateComplianceRuleInput,
     actor: ResolvedEventOpsActor,
   ): Promise<OpsComplianceRule>;
-  runCompliance(eventId: string, input?: ComplianceRunInput): Promise<OpsComplianceCheck[]>;
+  runCompliance(eventId: string, input: ComplianceRunInput, actor: ResolvedEventOpsActor): Promise<OpsComplianceCheck[]>;
   resolveCompliance(
     eventId: string,
     checkId: string,
-    input?: string | ResolveComplianceInput,
+    input: string | ResolveComplianceInput,
+    actor: ResolvedEventOpsActor,
   ): Promise<OpsComplianceCheck>;
 }

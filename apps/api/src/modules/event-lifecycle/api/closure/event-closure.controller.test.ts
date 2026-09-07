@@ -99,7 +99,7 @@ describe('OpsEventClosureController', () => {
       status: 'submitted',
     });
     await expect(controller.closeGates('evt_sample', verifiedActor)).resolves.toEqual({ ready: true, missingKeys: [] });
-    await expect(controller.archiveEvent('evt_sample', { actorName: 'Maxine' }, verifiedActor)).resolves.toEqual(
+    await expect(controller.archiveEvent('evt_sample', {}, verifiedActor)).resolves.toEqual(
       expect.objectContaining({
         id: 'evt_sample',
         eventDate: '2026-07-20',
