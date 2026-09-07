@@ -253,6 +253,7 @@ model OpsEvent {
   privacyRequests             OpsPrivacyRequest[]
   auditLogs                   OpsAuditLog[]
   notificationLogs            OpsNotificationLog[]
+  communicationThreads        OpsCommunicationThread[]
   securityAlerts              OpsSecurityAlert[]
   aiAuditLogs                 OpsAiAuditLog[]
   aiApprovalRecords           OpsAiApprovalRecord[]
@@ -1212,4 +1213,57 @@ model OpsSecurityAlert {
   @@index([severity, createdAt], map: "security_alerts_severity_created_at_idx")
   @@map("security_alerts")
   @@schema("identity")
+}
+
+model OpsCommunicationThread {
+  id        String   @id
+  eventId   String   @map("event_id")
+  subject   String
+  status    String   @default("open")
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  event        OpsEvent                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participants OpsCommunicationParticipant[]
+  messages     OpsCommunicationMessage[]
+
+  @@index([eventId, updatedAt], map: "communication_threads_event_id_updated_at_idx")
+  @@schema("supplier_ops")
+  @@map("communication_threads")
+}
+
+model OpsCommunicationParticipant {
+  id        String   @id
+  threadId  String   @map("thread_id")
+  actorId   String   @map("actor_id")
+  actorRole String   @map("actor_role")
+  actorEmail String? @map("actor_email")
+  active    Boolean  @default(true)
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  thread OpsCommunicationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, actorId], map: "communication_participants_thread_actor_key")
+  @@index([actorId, active], map: "communication_participants_actor_active_idx")
+  @@schema("supplier_ops")
+  @@map("communication_participants")
+}
+
+model OpsCommunicationMessage {
+  id             String   @id
+  threadId       String   @map("thread_id")
+  senderId       String   @map("sender_id")
+  senderRole     String   @map("sender_role")
+  senderEmail    String?  @map("sender_email")
+  body           String
+  payloadHash    String   @map("payload_hash")
+  idempotencyKey String   @unique(map: "communication_messages_idempotency_key_key") @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  thread OpsCommunicationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt], map: "communication_messages_thread_id_created_at_idx")
+  @@schema("supplier_ops")
+  @@map("communication_messages")
 }
