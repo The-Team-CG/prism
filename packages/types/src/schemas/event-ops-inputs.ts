@@ -149,6 +149,12 @@ export const importHeadcountSchema = z.object({
 });
 export type ImportHeadcountInput = z.infer<typeof importHeadcountSchema>;
 
+export const recordActualEventEndSchema = z.object({
+  actualEndedAt: z.string().datetime({ offset: true }),
+  correctionReason: optionalTrimmedStringSchema,
+});
+export type RecordActualEventEndInput = z.infer<typeof recordActualEventEndSchema>;
+
 /* ── Supplier ─────────────────────────────────────────────────── */
 
 export const reviewSupplierApplicationSchema = z.object({

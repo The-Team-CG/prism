@@ -45,9 +45,10 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       validateStateInTransaction: async (transactionContext) => {
         existed = Boolean(await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }));
       },
-      write: async () => {
+      write: async (transactionContext) => {
+        const db = transactionContext?.prisma ?? this.prisma;
         if (existed) {
-          return this.prisma.opsRegistrationPlatform.update({
+          return db.opsRegistrationPlatform.update({
             where: { eventId },
             data: {
               platformType: input.platformType,
@@ -58,7 +59,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
             },
           });
         }
-        return this.prisma.opsRegistrationPlatform.create({
+        return db.opsRegistrationPlatform.create({
           data: {
             id: `reg_${randomUUID()}`,
             eventId,
@@ -70,7 +71,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
           },
         });
       },
-      sideEffects: async (platform) => {
+      sideEffects: async (platform, transactionContext) => {
         await writeAudit(this.auditWriter, eventId, actor.name, `Registration platform configured: ${input.platformType}`, {
           actorRole: actor.role,
           category: AuditCategory.Events,
@@ -79,7 +80,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
           affectedId: platform.id,
           affectedLabel: input.platformType,
           metadata: { platformType: input.platformType, supplierId: input.supplierId },
-        });
+        }, transactionContext);
       },
     });
   }
@@ -130,7 +131,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
           return updated;
         });
       },
-      sideEffects: async (platform) => {
+      sideEffects: async (platform, transactionContext) => {
         await writeAudit(this.auditWriter, eventId, actor.name, `Registration platform updated: ${platform.platformType}`, {
           actorRole: actor.role,
           category: AuditCategory.Events,
@@ -139,7 +140,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
           affectedId: platform.id,
           affectedLabel: platform.platformType,
           metadata: input,
-        });
+        }, transactionContext);
       },
     });
   }
@@ -147,15 +148,15 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
   async importHeadcount(eventId: string, input: ImportHeadcountInput, actor: ResolvedEventOpsActor): Promise<OpsRegistrationPlatform> {
     const [existing, event] = await Promise.all([
       this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }),
-      this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, status: true, archived: true } }),
+      this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, status: true, archived: true, actualEndedAt: true } }),
     ]);
     if (!existing) throw new NotFoundException('Registration platform not configured for this event');
     if (!event) throw new NotFoundException('Event not found');
     if (existing.status !== 'closed') {
       throw new BadRequestException('Import headcount after the registration platform is closed');
     }
-    if (!event.archived && !['closed', 'archived'].includes(event.status)) {
-      throw new BadRequestException('Import headcount after the event has ended');
+    if (!event.actualEndedAt) {
+      throw new BadRequestException('Import headcount after the actual event end is recorded');
     }
 
     return this.workflowCommandService.execute<OpsRegistrationPlatform>({
@@ -173,7 +174,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
             importedAt: new Date(),
           },
         }),
-      sideEffects: async (platform) => {
+      sideEffects: async (platform, transactionContext) => {
         await writeAudit(this.auditWriter, eventId, actor.name, `Headcount imported: ${input.importedHeadcount} guests from ${input.headcountSource}`, {
           actorRole: actor.role,
           category: AuditCategory.Events,
@@ -182,7 +183,7 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
           affectedId: platform.id,
           affectedLabel: input.headcountSource,
           metadata: { importedHeadcount: input.importedHeadcount, source: input.headcountSource },
-        });
+        }, transactionContext);
       },
     });
   }
