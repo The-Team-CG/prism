@@ -33,6 +33,8 @@ import { SupplierNetworkWorkflowService } from './application/suppliers/supplier
 import { SupplierProfileCommandsService } from './application/suppliers/supplier-profile-commands.service';
 import { SuppliersService } from './application/suppliers/suppliers.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
+import { CommunicationController } from './api/suppliers/communication.controller';
+import { CommunicationService } from './application/suppliers/communication.service';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -86,6 +88,7 @@ const supplierCommandsProvider = {
     OpsSupplierWorkspaceCommandsController,
     OpsSupplierPareController,
     OpsEventBillingController,
+    CommunicationController,
   ],
   providers: [
     CommercialWorkflowService,
@@ -103,6 +106,7 @@ const supplierCommandsProvider = {
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
     { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
     BillingOperationsService,
+    CommunicationService,
     { provide: FINANCE_COMMANDS, useExisting: BillingOperationsService },
     { provide: PAYMENT_STATUS_READER, useExisting: BillingOperationsService },
   ],
