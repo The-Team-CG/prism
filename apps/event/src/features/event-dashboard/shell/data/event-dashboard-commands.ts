@@ -15,6 +15,7 @@ export type EventDashboardCommands = Pick<
   | "approveBillingSource"
   | "approveFloorPlanDraft"
   | "archiveEvent"
+  | "recordActualEventEnd"
   | "assignCoordinator"
   | "createBillingSource"
   | "createComplianceRule"
@@ -68,6 +69,7 @@ export const eventDashboardCommands = {
   approveBillingSource: prismApi.approveBillingSource,
   approveFloorPlanDraft: prismApi.approveFloorPlanDraft,
   archiveEvent: prismApi.archiveEvent,
+  recordActualEventEnd: prismApi.recordActualEventEnd,
   assignCoordinator: prismApi.assignCoordinator,
   createBillingSource: prismApi.createBillingSource,
   createComplianceRule: prismApi.createComplianceRule,
