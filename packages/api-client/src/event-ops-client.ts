@@ -3,6 +3,8 @@ import type {
   CreateEventDayTaskInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
+  ModerateGuestFeedbackInput,
+  WithdrawGuestFeedbackConsentInput,
   CreatePrismInquiryInput,
   CreateRegistrationPlatformInput,
   CreateSupplierApplicationInput,
@@ -62,6 +64,8 @@ export type {
   CreateFloorPlanPreferenceInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
+  ModerateGuestFeedbackInput,
+  WithdrawGuestFeedbackConsentInput,
   CreateSupplierApplicationInput,
   CreatePrismInquiryInput,
   CreateRegistrationPlatformInput,
@@ -157,6 +161,9 @@ export interface EventOpsClient {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
     checkIn(accessCode: string, input: CreateGuestCheckInInput): Promise<PrismGuestCheckIn>;
     feedback(accessCode: string, input: CreateGuestFeedbackInput): Promise<PrismGuestFeedback>;
+    withdrawFeedbackConsent(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput): Promise<PrismGuestFeedback>;
+    pendingFeedback(eventId: string, actor?: EventOpsActorQuery): Promise<PrismGuestFeedback[]>;
+    moderateFeedback(eventId: string, feedbackId: string, input: ModerateGuestFeedbackInput, actor?: EventOpsActorQuery): Promise<PrismGuestFeedback>;
     roster(eventId: string, query?: string, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
     importRoster(eventId: string, input: ImportGuestRosterInput, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
     checkInRoster(eventId: string, rosterEntryId: string, actor?: EventOpsActorQuery): Promise<PrismGuestCheckIn>;
@@ -306,6 +313,21 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
       feedback: (accessCode, input) =>
         prismRequest<PrismGuestFeedback>(
           `/guest/events/${encodeURIComponent(accessCode)}/feedback`,
+          withBase(options, { method: "POST", body: input }),
+        ),
+      withdrawFeedbackConsent: (accessCode, feedbackId, input) =>
+        prismRequest<PrismGuestFeedback>(
+          `/guest/events/${encodeURIComponent(accessCode)}/feedback/${encodeURIComponent(feedbackId)}/consent-withdrawal`,
+          withBase(options, { method: "POST", body: input }),
+        ),
+      pendingFeedback: (eventId, actor = {}) =>
+        prismRequest<PrismGuestFeedback[]>(
+          actorPath(`/guest/events/${eventId}/feedback/moderation`, actor),
+          withBase(options),
+        ),
+      moderateFeedback: (eventId, feedbackId, input, actor = {}) =>
+        prismRequest<PrismGuestFeedback>(
+          actorPath(`/guest/events/${eventId}/feedback/${feedbackId}/moderate`, actor),
           withBase(options, { method: "POST", body: input }),
         ),
       roster: (eventId, query = "", actor = {}) => {

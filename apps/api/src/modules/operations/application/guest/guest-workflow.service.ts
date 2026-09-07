@@ -1,11 +1,17 @@
 import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback } from '@prisma/client';
+import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { DOCUMENT_VAULT, type DocumentVault, type UploadMetadataInput } from '@prism/contexts/event-lifecycle';
-import type { ImportGuestRosterInput } from '@prism/types';
+import { DOCUMENT_VAULT, type DocumentVault } from '@prism/contexts/event-lifecycle';
+import type {
+  CreateGuestFeedbackInput,
+  ImportGuestRosterInput,
+  ModerateGuestFeedbackInput,
+  UploadMetadataInput,
+  WithdrawGuestFeedbackConsentInput,
+} from '@prism/types';
 
 export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[]; walkInPolicy?: string | null; walkInThreshold?: number | null };
 type GuestRosterEntry = { id: string; eventId: string; sourceKey: string; guestName: string; eligibility: string; email: string; phone: string };
@@ -23,16 +29,9 @@ export type GuestCheckInInput = {
   marketingConsentAccepted?: boolean;
 };
 
-export type GuestFeedbackInput = {
-  guestName: string;
-  rating: number;
-  comment?: string;
-  photo?: UploadMetadataInput;
-  video?: UploadMetadataInput;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-};
+export type GuestFeedbackInput = CreateGuestFeedbackInput;
+
+export type GuestFeedbackModerator = { id?: string; name: string; email?: string; role: string };
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'video/mp4'] as const;
@@ -74,6 +73,25 @@ export class GuestWorkflowService {
     if (eventIds.length === 0) return Promise.resolve([]);
     return this.prisma.opsGuestFeedback.findMany({
       where: { eventId: { in: eventIds } },
+      orderBy: { submittedAt: 'desc' },
+    });
+  }
+
+  listPendingFeedbackForEvent(eventId: string) {
+    return this.prisma.opsGuestFeedback.findMany({
+      where: { eventId, moderationStatus: 'pending_review' },
+      orderBy: { submittedAt: 'asc' },
+    });
+  }
+
+  listPublishableFeedbackForEvent(eventId: string, purpose: 'marketing' | 'insight' = 'marketing') {
+    return this.prisma.opsGuestFeedback.findMany({
+      where: {
+        eventId,
+        moderationStatus: 'approved',
+        privacyConsentAccepted: true,
+        ...(purpose === 'marketing' ? { marketingConsentAccepted: true } : {}),
+      },
       orderBy: { submittedAt: 'desc' },
     });
   }
@@ -142,11 +160,11 @@ export class GuestWorkflowService {
   async submitFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput): Promise<OpsGuestFeedback> {
     let event: EventWithDrafts | null = null;
     let guestName = '';
-    let photoFileName: string | null = null;
-    let videoFileName: string | null = null;
 
     return this.workflowCommandService.execute<OpsGuestFeedback>({
       name: 'guest_feedback',
+      sideEffectMode: 'same_tx',
+      context: { actorId: 'guest', actorRole: OpsUserRole.Guest, correlationId: `guest_feedback_${randomUUID()}` },
       validateState: async () => {
         event = await this.resolveGuestEventByAccessCode(accessCode, true);
         guestName = input.guestName?.trim();
@@ -160,24 +178,37 @@ export class GuestWorkflowService {
         this.assertFeedbackWindow(event);
 
         const prefix = `events/${event.id}/guest-feedback`;
-        photoFileName = input.photo ? this.validateUploadMetadata(input.photo, prefix).generatedFileName : null;
-        videoFileName = input.video ? this.validateUploadMetadata(input.video, prefix).generatedFileName : null;
+        if (input.photo) this.validateUploadMetadata(input.photo, prefix);
+        if (input.video) this.validateUploadMetadata(input.video, prefix);
       },
-      write: () => {
+      validateStateInTransaction: async ({ prisma: tx }) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
-        return this.prisma.opsGuestFeedback.create({
+        const currentEvent = await tx.opsEvent.findUnique({ where: { id: event.id }, select: { actualEndedAt: true, eventDate: true } });
+        if (!currentEvent) throw new NotFoundException('Guest event code was not found');
+        this.assertFeedbackWindow(currentEvent);
+      },
+      write: (transactionContext) => {
+        if (!event) throw new NotFoundException('Guest event code was not found');
+        const db = transactionContext?.prisma ?? this.prisma;
+        const feedbackId = `gfb_${randomUUID()}`;
+        const mediaAttachments: Prisma.OpsGuestFeedbackMediaCreateWithoutFeedbackInput[] = [];
+        if (input.photo) mediaAttachments.push({ id: `gfm_${randomUUID()}`, kind: 'photo', originalFileName: input.photo.fileName, mimeType: input.photo.mimeType ?? '', sizeBytes: input.photo.sizeBytes ?? 0, status: 'pending_storage', blocker: 'W10 object storage provider and credentials are not available' });
+        if (input.video) mediaAttachments.push({ id: `gfm_${randomUUID()}`, kind: 'video', originalFileName: input.video.fileName, mimeType: input.video.mimeType ?? '', sizeBytes: input.video.sizeBytes ?? 0, status: 'pending_storage', blocker: 'W10 object storage provider and credentials are not available' });
+        return db.opsGuestFeedback.create({
           data: {
-            id: `gfb_${randomUUID()}`,
+            id: feedbackId,
             eventId: event.id,
             guestName,
             rating: input.rating,
             comment: input.comment?.trim() ?? '',
-            photoFileName,
-            videoFileName,
+            // Binary bytes are not stored until W10 supplies an approved object-storage adapter.
+            photoFileName: null,
+            videoFileName: null,
             privacyConsentAccepted: true,
             privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
             moderationStatus: 'pending_review',
+            ...(mediaAttachments.length > 0 ? { mediaAttachments: { create: mediaAttachments } } : {}),
           },
         });
       },
@@ -259,14 +290,76 @@ export class GuestWorkflowService {
     });
   }
 
-  private async resolveGuestEventByAccessCode(accessCode: string, requireFeedbackWindow = false) {
+  async withdrawFeedbackConsentByAccessCode(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput) {
+    const event = await this.resolveGuestEventByAccessCode(accessCode, true);
+    this.assertFeedbackWindow(event);
+    return this.prisma.$transaction(async (tx) => {
+      const currentEvent = await tx.opsEvent.findUnique({ where: { id: event.id }, select: { actualEndedAt: true, eventDate: true } });
+      if (!currentEvent) throw new NotFoundException('Guest event code was not found');
+      this.assertFeedbackWindow(currentEvent);
+      const feedback = await tx.opsGuestFeedback.findFirst({ where: { id: feedbackId, eventId: event.id } });
+      if (!feedback) throw new NotFoundException('Feedback record was not found');
+      const now = new Date();
+      const updated = await tx.opsGuestFeedback.update({
+        where: { id: feedbackId },
+        data: {
+          ...(input.withdrawPrivacyConsent ? { privacyConsentAccepted: false, privacyConsentWithdrawnAt: now } : {}),
+          ...(input.withdrawMarketingConsent ? { marketingConsentAccepted: false, marketingConsentWithdrawnAt: now } : {}),
+        },
+      });
+      await writeAudit(this.auditWriter, event.id, feedback.guestName, 'Guest feedback consent withdrawn', {
+        actorRole: OpsUserRole.Guest,
+        category: AuditCategory.Events,
+        actionType: AuditActionType.Update,
+        affectedType: 'guest_feedback_consent',
+        affectedId: feedbackId,
+        affectedLabel: feedback.guestName,
+        metadata: { withdrawPrivacyConsent: Boolean(input.withdrawPrivacyConsent), withdrawMarketingConsent: Boolean(input.withdrawMarketingConsent) },
+      }, { prisma: tx, correlationId: `feedback_consent_${feedbackId}` });
+      return updated;
+    });
+  }
+
+  async moderateFeedback(eventId: string, feedbackId: string, input: ModerateGuestFeedbackInput, actor: GuestFeedbackModerator) {
+    if (input.action !== 'approve' && !input.reason?.trim()) {
+      throw new BadRequestException('A reason is required for rejected or hidden feedback');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const feedback = await tx.opsGuestFeedback.findFirst({ where: { id: feedbackId, eventId } });
+      if (!feedback) throw new NotFoundException('Feedback record was not found');
+      const updated = await tx.opsGuestFeedback.update({
+        where: { id: feedbackId },
+        data: {
+          moderationStatus: input.action === 'approve' ? 'approved' : input.action === 'reject' ? 'rejected' : 'hidden',
+          moderationReason: input.reason?.trim() || null,
+          moderatedById: actor.id ?? null,
+          moderatedBy: actor.name,
+          moderatedAt: new Date(),
+        },
+      });
+      const actionLabel = input.action === 'approve' ? 'approved' : input.action === 'reject' ? 'rejected' : 'hidden';
+      await writeAudit(this.auditWriter, eventId, actor.name, `Guest feedback ${actionLabel}`, {
+        actorEmail: actor.email,
+        actorRole: actor.role,
+        category: AuditCategory.Events,
+        actionType: input.action === 'approve' ? AuditActionType.Approve : AuditActionType.Decline,
+        affectedType: 'guest_feedback',
+        affectedId: feedbackId,
+        affectedLabel: feedback.guestName,
+        metadata: { actorId: actor.id, moderationStatus: updated.moderationStatus, reason: input.reason?.trim() || null },
+      }, { prisma: tx, correlationId: `feedback_moderation_${feedbackId}` });
+      return updated;
+    });
+  }
+
+  private async resolveGuestEventByAccessCode(accessCode: string, feedbackPath = false) {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
     const events = await this.prisma.opsEvent.findMany({
-      where: requireFeedbackWindow ? {} : { archived: false },
+      where: feedbackPath ? {} : { archived: false },
       include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
       orderBy: { eventDate: 'asc' },
     });
-    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode && (!requireFeedbackWindow || this.isFeedbackWindowOpen(item)));
+    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
     if (!event) throw new NotFoundException('Guest event code was not found');
     return event;
   }
@@ -278,9 +371,10 @@ export class GuestWorkflowService {
   }
 
   private assertFeedbackWindow(event: { actualEndedAt?: Date | null; eventDate: Date }): void {
-    if (!this.isFeedbackWindowOpen(event)) {
-      throw new BadRequestException('Guest feedback is available for seven days after the actual event end');
-    }
+    if (!event.actualEndedAt) throw new BadRequestException('Guest feedback is unavailable because the actual event end has not been recorded');
+    const now = Date.now();
+    if (now < event.actualEndedAt.getTime()) throw new BadRequestException('Guest feedback opens after the event has actually ended');
+    if (now > event.actualEndedAt.getTime() + 7 * 24 * 60 * 60 * 1000) throw new BadRequestException('The seven-day guest feedback window has closed');
   }
 
   guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>) {
@@ -348,6 +442,21 @@ export class GuestWorkflowService {
       privacyNoticeVersion: (feedback as any).privacyNoticeVersion ?? '',
       marketingConsentAccepted: (feedback as any).marketingConsentAccepted ?? false,
       moderationStatus: feedback.moderationStatus,
+      moderationReason: (feedback as any).moderationReason ?? null,
+      moderatedById: (feedback as any).moderatedById ?? null,
+      moderatedBy: (feedback as any).moderatedBy ?? null,
+      moderatedAt: (feedback as any).moderatedAt?.toISOString?.() ?? null,
+      privacyConsentWithdrawnAt: (feedback as any).privacyConsentWithdrawnAt?.toISOString?.() ?? null,
+      marketingConsentWithdrawnAt: (feedback as any).marketingConsentWithdrawnAt?.toISOString?.() ?? null,
+      mediaAttachments: ((feedback as any).mediaAttachments ?? []).map((media: any) => ({
+        id: media.id,
+        kind: media.kind,
+        originalFileName: media.originalFileName,
+        mimeType: media.mimeType,
+        sizeBytes: media.sizeBytes,
+        status: media.status,
+        blocker: media.blocker,
+      })),
       submittedAt: feedback.submittedAt.toISOString(),
     };
   }
