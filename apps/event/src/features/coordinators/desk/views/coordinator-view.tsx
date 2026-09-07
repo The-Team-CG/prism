@@ -136,6 +136,8 @@ export function CoordinatorView({
           roleViewError={roleViewError}
           roleView={roleView}
           registrationRole={registrationRole}
+          taskForm={vm.taskForm}
+          issueForm={vm.issueForm}
         />
       </div>
     </PrismDashboardShell>

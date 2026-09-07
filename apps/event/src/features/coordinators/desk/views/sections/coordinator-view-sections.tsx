@@ -28,8 +28,11 @@ import {
   coordinatorAssignmentDetail,
   coordinatorGreetingCopy,
   coordinatorIssueActionCopy,
+  coordinatorIssueFormCopy,
   coordinatorTaskActionCopy,
+  coordinatorTaskFormCopy,
 } from "../../model/coordinator-view-copy";
+import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 
 type StatusSummaryItem = {
@@ -161,7 +164,12 @@ function CompactRecordRow({ item }: { item: CompactRecordItem }) {
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
           <span className="truncate text-sm font-black text-foreground">{item.title}</span>
-          {item.status ? <StatusBadge status={item.status} /> : null}
+          {/* PA-291: the shared StatusBadge STATUS_MAP has no entry for in_progress,
+              done, or blocked. Keep its shared markup and add the live-ops color
+              classes for those statuses. */}
+          {item.status ? (
+            <StatusBadge status={item.status} className={liveOpsPillClass(item.status)} />
+          ) : null}
         </span>
         {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
         {item.meta ? <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{item.meta}</span> : null}
@@ -220,6 +228,8 @@ export type CoordinatorWorkspaceModel = {
   sessionName: string;
   acknowledge: () => void;
   scrollTo: (id: string) => void;
+  taskForm: CoordinatorTaskFormModel;
+  issueForm: CoordinatorIssueFormModel;
 };
 
 export function CoordinatorGreetingBanner({
@@ -528,16 +538,264 @@ function CoordinatorAssignedBadge({
   );
 }
 
+export type CoordinatorTaskFormModel = {
+  title: string;
+  setTitle: (value: string) => void;
+  role: string;
+  setRole: (value: string) => void;
+  priority: string;
+  setPriority: (value: string) => void;
+  notes: string;
+  setNotes: (value: string) => void;
+  dueAt: string;
+  setDueAt: (value: string) => void;
+  assignToMe: boolean;
+  setAssignToMe: (value: boolean) => void;
+  roleOptions: string[];
+  routesAway: boolean;
+  busy: boolean;
+  error: string | null;
+  submit: () => void;
+};
+
+export type CoordinatorIssueFormModel = {
+  title: string;
+  setTitle: (value: string) => void;
+  severity: string;
+  setSeverity: (value: string) => void;
+  affectedArea: string;
+  setAffectedArea: (value: string) => void;
+  description: string;
+  setDescription: (value: string) => void;
+  slaDueAt: string;
+  setSlaDueAt: (value: string) => void;
+  assignToMe: boolean;
+  setAssignToMe: (value: boolean) => void;
+  busy: boolean;
+  error: string | null;
+  submit: () => void;
+};
+
+const FIELD_LABEL = "text-xs font-bold text-muted-foreground";
+const FIELD_INPUT = "h-11 rounded-md border border-border bg-white px-3 text-sm";
+const FIELD_AREA = "rounded-md border border-border bg-white px-3 py-2 text-sm";
+const FORM_SUBMIT =
+  "h-11 rounded-md bg-(--prism-ink) px-3 text-sm font-bold text-sidebar-foreground disabled:opacity-60";
+const FORM_ALERT =
+  "rounded-md bg-(--prism-danger)/10 px-3 py-2 text-xs font-bold text-(--prism-danger)";
+
+function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel }) {
+  const copy = coordinatorTaskFormCopy(taskForm.busy, taskForm.routesAway);
+  return (
+    <CCard>
+      <CCardHeader>
+        <div className="flex items-center gap-2">
+          <ClipboardList className="size-4 text-(--prism-signal)" />
+          <h3 className="text-sm font-bold text-foreground">Log an event-day task</h3>
+        </div>
+      </CCardHeader>
+      <CCardBody className="space-y-3">
+        <label className="grid gap-1.5">
+          <span className={FIELD_LABEL}>Task title (required)</span>
+          <input
+            value={taskForm.title}
+            onChange={(e) => taskForm.setTitle(e.target.value)}
+            required
+            placeholder="Stage cue check, ingress sweep"
+            className={FIELD_INPUT}
+          />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5">
+            <span className={FIELD_LABEL}>Assigned role (required)</span>
+            <select
+              value={taskForm.role}
+              onChange={(e) => taskForm.setRole(e.target.value)}
+              required
+              className={FIELD_INPUT}
+            >
+              {taskForm.roleOptions.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5">
+            <span className={FIELD_LABEL}>Priority</span>
+            <select
+              value={taskForm.priority}
+              onChange={(e) => taskForm.setPriority(e.target.value)}
+              className={FIELD_INPUT}
+            >
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </label>
+        </div>
+        <label className="grid gap-1.5">
+          <span className={FIELD_LABEL}>Notes</span>
+          <textarea
+            value={taskForm.notes}
+            onChange={(e) => taskForm.setNotes(e.target.value)}
+            rows={2}
+            className={FIELD_AREA}
+          />
+        </label>
+        <label className="grid gap-1.5">
+          <span className={FIELD_LABEL}>Due time</span>
+          <input
+            type="datetime-local"
+            value={taskForm.dueAt}
+            onChange={(e) => taskForm.setDueAt(e.target.value)}
+            className={FIELD_INPUT}
+          />
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={taskForm.assignToMe}
+            onChange={(e) => taskForm.setAssignToMe(e.target.checked)}
+            className="size-4"
+          />
+          <span className={FIELD_LABEL}>Assign to me</span>
+        </label>
+        {copy.routesAwayNotice ? (
+          <p className="rounded-md bg-(--prism-amber)/10 px-3 py-2 text-xs text-(--prism-amber)">
+            {copy.routesAwayNotice}
+          </p>
+        ) : null}
+        {taskForm.error ? (
+          <p role="alert" className={FORM_ALERT}>
+            {taskForm.error}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          disabled={taskForm.busy || !taskForm.title.trim()}
+          onClick={taskForm.submit}
+          className={FORM_SUBMIT}
+        >
+          {copy.submitLabel}
+        </button>
+      </CCardBody>
+    </CCard>
+  );
+}
+
+function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormModel }) {
+  const copy = coordinatorIssueFormCopy(issueForm.busy);
+  return (
+    <CCard>
+      <CCardHeader>
+        <div className="flex items-center gap-2">
+          <Radio className="size-4 text-(--prism-signal)" />
+          <h3 className="text-sm font-bold text-foreground">Log an urgent issue</h3>
+        </div>
+      </CCardHeader>
+      <CCardBody className="space-y-3">
+        <label className="grid gap-1.5">
+          <span className={FIELD_LABEL}>Issue title (required)</span>
+          <input
+            value={issueForm.title}
+            onChange={(e) => issueForm.setTitle(e.target.value)}
+            required
+            placeholder="Supplier late, walk-in queue overflow"
+            className={FIELD_INPUT}
+          />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5">
+            <span className={FIELD_LABEL}>Severity</span>
+            <select
+              value={issueForm.severity}
+              onChange={(e) => issueForm.setSeverity(e.target.value)}
+              className={FIELD_INPUT}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </label>
+          <label className="grid gap-1.5">
+            <span className={FIELD_LABEL}>Affected area</span>
+            <input
+              value={issueForm.affectedArea}
+              onChange={(e) => issueForm.setAffectedArea(e.target.value)}
+              placeholder="e.g. Main Hall, Registration Desk"
+              className={FIELD_INPUT}
+            />
+          </label>
+        </div>
+        <label className="grid gap-1.5">
+          <span className={FIELD_LABEL}>Description</span>
+          <textarea
+            value={issueForm.description}
+            onChange={(e) => issueForm.setDescription(e.target.value)}
+            rows={2}
+            className={FIELD_AREA}
+          />
+        </label>
+        <label className="grid gap-1.5">
+          <span className={FIELD_LABEL}>SLA due time</span>
+          <input
+            type="datetime-local"
+            value={issueForm.slaDueAt}
+            onChange={(e) => issueForm.setSlaDueAt(e.target.value)}
+            className={FIELD_INPUT}
+          />
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={issueForm.assignToMe}
+            onChange={(e) => issueForm.setAssignToMe(e.target.checked)}
+            className="size-4"
+          />
+          <span className={FIELD_LABEL}>Assign to me</span>
+        </label>
+        {issueForm.error ? (
+          <p role="alert" className={FORM_ALERT}>
+            {issueForm.error}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          disabled={issueForm.busy || !issueForm.title.trim()}
+          onClick={issueForm.submit}
+          className={FORM_SUBMIT}
+        >
+          {copy.submitLabel}
+        </button>
+      </CCardBody>
+    </CCard>
+  );
+}
+
 export function CoordinatorRoleData({
   roleViewLoading,
   roleViewError,
   roleView,
   registrationRole,
-}: Pick<CoordinatorWorkspaceModel, "roleViewLoading" | "roleViewError" | "roleView" | "registrationRole">) {
+  taskForm,
+  issueForm,
+}: Pick<
+  CoordinatorWorkspaceModel,
+  "roleViewLoading" | "roleViewError" | "roleView" | "registrationRole" | "taskForm" | "issueForm"
+>) {
   if (roleViewLoading) return <CoordinatorRoleLoadingCard />;
   if (roleViewError) return <CoordinatorRoleErrorCard message={roleViewError} />;
   if (!roleView) return null;
-  return <CoordinatorRoleQueueAndLive roleView={roleView} registrationRole={registrationRole} />;
+  return (
+    <CoordinatorRoleQueueAndLive
+      roleView={roleView}
+      registrationRole={registrationRole}
+      taskForm={taskForm}
+      issueForm={issueForm}
+    />
+  );
 }
 
 function CoordinatorRoleLoadingCard() {
@@ -575,9 +833,13 @@ function CoordinatorRoleErrorCard({ message }: { message: string }) {
 function CoordinatorRoleQueueAndLive({
   roleView,
   registrationRole,
+  taskForm,
+  issueForm,
 }: {
   roleView: PrismCoordinatorRoleView;
   registrationRole: boolean;
+  taskForm: CoordinatorTaskFormModel;
+  issueForm: CoordinatorIssueFormModel;
 }) {
   const checkInCopy = registrationRole
     ? `${roleView.guestAttendanceCount} checked in, including walk-ins flagged for PMCM review.`
@@ -585,6 +847,8 @@ function CoordinatorRoleQueueAndLive({
 
   return (
     <div className="grid gap-4 xl:grid-cols-2">
+      <CoordinatorTaskForm taskForm={taskForm} />
+      <CoordinatorIssueForm issueForm={issueForm} />
       <CCard>
         <CCardHeader>
           <div className="flex items-center gap-2">
