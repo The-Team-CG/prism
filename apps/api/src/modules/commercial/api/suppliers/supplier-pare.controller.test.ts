@@ -14,7 +14,7 @@ function createController() {
     pareApprove: vi.fn(async () => ({ id: 'aip_sample', status: 'approved' })),
     pareReject: vi.fn(async () => ({ id: 'aip_sample', status: 'rejected' })),
   };
-  const eventAccessPolicyService = { resolveActor: (_input: unknown, actor: unknown) => actor, requireActorRole: vi.fn(async () => undefined) };
+  const eventAccessPolicyService = { resolveActor: (_input: unknown, actor: any) => ({ role: actor?.actorRole, name: actor?.actorName, email: actor?.actorEmail }), requireActorRole: vi.fn(async () => undefined) };
   const verifiedActor = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
   return {
     controller: new OpsSupplierPareController(supplierNetworkWorkflowService as any, eventAccessPolicyService as any),

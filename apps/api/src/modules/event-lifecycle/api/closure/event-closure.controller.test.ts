@@ -52,6 +52,7 @@ function createController() {
       name: verifiedActor?.actorName ?? input.actorName ?? 'PMCM Admin',
       email: verifiedActor?.actorEmail ?? input.actorEmail,
     })),
+    requireActorRole: vi.fn(async () => undefined),
   };
   const guestReader = { guestAccessCode: vi.fn(() => 'SAMPLE-GALA-EVT') };
   const floorplanReader = { mapFloorPlanDraft: vi.fn((draft) => draft) };
@@ -108,7 +109,7 @@ describe('OpsEventClosureController', () => {
       }),
     );
 
-    expect(eventClosureService.completePostEventDocument).toHaveBeenCalledWith('evt_sample', 'post_1');
+    expect(eventClosureService.completePostEventDocument).toHaveBeenCalledWith('evt_sample', 'post_1', expect.objectContaining({ role: OpsUserRole.PmcmAdmin }));
     expect(eventClosureService.archiveEvent).toHaveBeenCalledWith('evt_sample', { actorName: 'Maxine' });
     expect(guestReader.guestAccessCode).toHaveBeenCalled();
   });
@@ -130,7 +131,7 @@ describe('OpsEventClosureController', () => {
       expect.objectContaining({ id: 'ins_1', privateNotes: 'PMCM-only' }),
     );
 
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith(actor);
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, actor);
     expect(eventClosureService.listEventInsights).toHaveBeenCalledWith(
       'evt_sample',
       { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
