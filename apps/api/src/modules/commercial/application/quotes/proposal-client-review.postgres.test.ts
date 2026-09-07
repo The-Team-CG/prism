@@ -1,4 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditService } from '@prism/contexts/platform-ops';
 import { AuditWriterAdapter } from '@prism/contexts/platform-ops';
@@ -6,8 +8,15 @@ import { ProposalClientReviewService } from './proposal-client-review.service';
 import { OpsUserRole } from '@prism/kernel/event-core';
 
 const url = process.env.P0_TEST_DATABASE_URL;
-const enabled = Boolean(url && new URL(url).hostname === '127.0.0.1' && new URL(url).port === '55437');
-const ids = { inquiry: 'p0_w02_inquiry', event: 'p0_w02_event', document: 'p0_w02_proposal' };
+if (url) {
+  const parsed = new URL(url);
+  if (parsed.hostname !== '127.0.0.1' || parsed.port !== '55437' || parsed.pathname !== '/prism_p0') {
+    throw new Error('P0_TEST_DATABASE_URL must target the isolated 127.0.0.1:55437/prism_p0 database');
+  }
+}
+const enabled = Boolean(url);
+const prefix = `p0_w02_${randomUUID()}`;
+const ids = { inquiry: `${prefix}_inquiry`, event: `${prefix}_event`, document: `${prefix}_proposal`, secondDocument: `${prefix}_proposal_v2` };
 const actor = { id: 'p0_w02_client', role: OpsUserRole.Client, name: 'P0 Client', email: 'p0-w02@example.test', explicit: true };
 
 describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
@@ -21,7 +30,8 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
   };
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = url;
+    for (const variable of ['SUPABASE_DB_URL', 'DATABASE_URL', 'PRISMA_DATABASE_URL', 'DIRECT_URL']) process.env[variable] = url;
+    process.env.DB_SSL = 'false';
     prisma = new PrismaService();
     await prisma.$connect();
     await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
@@ -31,11 +41,12 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
     await prisma.opsInquiry.create({ data: { id: ids.inquiry, clientName: 'P0 Client', email: actor.email, normalizedEmail: actor.email, eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientType: 'Corporate', source: 'Other', message: 'test', privacyConsentAccepted: true, privacyNoticeVersion: 'test' } });
     await prisma.opsEvent.create({ data: { id: ids.event, inquiryId: ids.inquiry, clientName: 'P0 Client', eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientPortalStatus: 'unlocked', readiness: 'ready' } });
     await prisma.opsDocument.create({ data: { id: ids.document, eventId: ids.event, type: 'proposal', fileName: 'p0.pdf', status: 'issued' } });
-    const access = { requireActorRole: async () => undefined };
-    service = new ProposalClientReviewService(prisma, access as never, new AuditWriterAdapter(new AuditService(prisma)));
+    const writer = new AuditWriterAdapter(new AuditService(prisma));
+    service = new ProposalClientReviewService(prisma, new EventAccessPolicyService(writer), writer);
   });
 
   afterAll(async () => {
+    if (!prisma) return;
     await prisma.opsAuditLog.deleteMany({ where: { eventId: ids.event } });
     await prisma.opsDocument.deleteMany({ where: { id: ids.document } });
     await prisma.opsEvent.deleteMany({ where: { id: ids.event } });
@@ -55,10 +66,10 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
     await reset();
     await service.review(ids.event, { action: 'request_revision', revisionNote: 'Need detail', idempotencyKey: 'p0-version-1' }, actor);
     await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-version-2' }, actor)).rejects.toThrow(/newer issued proposal/i);
-    await prisma.opsDocument.create({ data: { id: 'p0_w02_proposal_v2', eventId: ids.event, type: 'proposal', fileName: 'p0-v2.pdf', status: 'issued' } });
+    await prisma.opsDocument.create({ data: { id: ids.secondDocument, eventId: ids.event, type: 'proposal', fileName: 'p0-v2.pdf', status: 'issued' } });
     await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-version-3' }, actor)).resolves.toMatchObject({ proposalClientStatus: 'approved' });
     await expect(service.review(ids.event, { action: 'approve', idempotencyKey: 'p0-version-3' }, actor)).resolves.toMatchObject({ proposalClientStatus: 'approved' });
-    await prisma.opsDocument.delete({ where: { id: 'p0_w02_proposal_v2' } });
+    await prisma.opsDocument.delete({ where: { id: ids.secondDocument } });
   });
 
   it('rejects locked, archived, and non-primary clients', async () => {
@@ -96,7 +107,7 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
         throw new Error('simulated audit failure');
       },
     };
-    const failingService = new ProposalClientReviewService(prisma, { requireActorRole: async () => undefined } as never, failingWriter);
+    const failingService = new ProposalClientReviewService(prisma, new EventAccessPolicyService(realWriter), failingWriter);
     await expect(failingService.review(ids.event, { action: 'request_revision', revisionNote: 'Must rollback', idempotencyKey: 'p0-audit-failure' }, actor)).rejects.toThrow('simulated audit failure');
     await expect(prisma.opsEvent.findUniqueOrThrow({ where: { id: ids.event } })).resolves.toMatchObject({ proposalRevisionCount: 0, proposalClientStatus: 'pending' });
     await expect(prisma.opsAuditLog.count({ where: { eventId: ids.event, affectedId: 'p0-audit-failure' } })).resolves.toBe(0);

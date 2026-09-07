@@ -21,11 +21,17 @@ function createController() {
   };
   const fileRequirementsMatrixService = {
     buildForEvent: vi.fn(async () => matrix),
-    requireEvent: vi.fn(async () => ({ id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' })),
+    requireEvent: vi.fn(async () => ({
+      id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked',
+      inquiry: { email: 'ana@pmcm.test' },
+      supplierQuoteRequests: [{ supplierId: 'supplier_1', supplier: { email: 'sonic.line@pmcm.test' } }],
+      coordinatorAssignments: [{ coordinatorId: 'coord_marco', coordinator: { userId: 'usr-Marco', email: 'marco@pmcm.test' } }],
+    })),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((_input = {}, verifiedActor?: { actorRole?: string; actorName?: string; actorEmail?: string }) => ({
+    resolveActor: vi.fn((_input = {}, verifiedActor?: { actorId?: string; actorRole?: string; actorName?: string; actorEmail?: string }) => ({
       role: verifiedActor?.actorRole ?? OpsUserRole.PmcmAdmin,
+      id: verifiedActor?.actorId,
       name: verifiedActor?.actorName ?? 'PMCM Admin',
       email: verifiedActor?.actorEmail,
       clientName: verifiedActor?.actorRole === OpsUserRole.Client ? verifiedActor.actorName : undefined,
@@ -79,9 +85,10 @@ describe('OpsEventFileRequirementsController', () => {
 
     expect(fileRequirementsMatrixService.requireEvent).toHaveBeenCalledWith('evt_file');
     expect(eventAccessPolicyService.requireCanReadEvent).toHaveBeenCalledWith(
-      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test', clientName: undefined },
-      { id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' },
+      expect.objectContaining({ role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test', clientName: undefined }),
+      expect.objectContaining({ id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' }),
       'file requirements matrix',
+      { supplierEventIds: [] },
     );
     expect(fileRequirementsMatrixService.buildForEvent).toHaveBeenCalledWith('evt_file');
   });
@@ -96,6 +103,23 @@ describe('OpsEventFileRequirementsController', () => {
         { key: 'official_floorplan', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Client, OpsUserRole.Coordinator] },
       ],
     });
+  });
+
+  it('binds coordinator reads to an active event assignment', async () => {
+    const { controller, eventAccessPolicyService } = createController();
+    const actor = verified(OpsUserRole.Coordinator, 'Marco');
+    await controller.fileRequirements('evt_file', actor);
+    expect(eventAccessPolicyService.requireCanReadEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: 'evt_file' }), expect.anything(), 'file requirements matrix', { supplierEventIds: [] },
+    );
+  });
+
+  it('passes supplier ownership scope from the event quote relationship', async () => {
+    const { controller, eventAccessPolicyService } = createController();
+    await controller.fileRequirements('evt_file', verified(OpsUserRole.Supplier, 'Sonic', 'sonic.line@pmcm.test'));
+    expect(eventAccessPolicyService.requireCanReadEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ role: OpsUserRole.Supplier }), expect.anything(), 'file requirements matrix', { supplierEventIds: ['evt_file'] },
+    );
   });
 
   it('does not expose client-only file requirements to suppliers', async () => {

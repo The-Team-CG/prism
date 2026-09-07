@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
 
@@ -319,8 +320,8 @@ export class FloorPlanWorkflowService {
     };
   }
 
-  async requireEvent(eventId: string): Promise<OpsEvent> {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: { select: { email: true } } } });
+  async requireEvent(eventId: string) {
+    const event = await readEventAccessScope(this.prisma, eventId);
     if (!event) throw new NotFoundException('Event not found');
     return event;
   }

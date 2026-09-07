@@ -140,7 +140,7 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
       await prisma.opsGuestCheckIn.create({ data: { id: id(), eventId: event.id, guestName } });
       await prisma.opsGuestFeedback.create({ data: { id: id(), eventId: event.id, guestName, rating: 4, comment: 'personal', photoFileName: 'photo.jpg' } });
     }
-    const pending = await request('', { subjectType: 'guest', subjectName: guestName, eventId: first.event.id });
+    const pending = await request('', { subjectType: 'guest', subjectName: ` ${guestName.toLowerCase()} `, eventId: first.event.id });
     await service.executeRequest(pending.id, {}, operator);
     expect(await prisma.opsGuestFeedback.findFirstOrThrow({ where: { eventId: first.event.id } })).toMatchObject({
       guestName: 'Redacted guest', comment: '[redacted by privacy request]', photoFileName: null,
