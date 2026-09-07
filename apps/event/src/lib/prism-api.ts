@@ -746,6 +746,8 @@ export const prismApi = {
   communicationParticipants: (eventId: string) => eventOpsClient.communication.listParticipants(eventId),
   createCommunicationThread: (eventId: string, subject: string, participantActorIds: string[]) => eventOpsClient.communication.createThread({ eventId, subject, participantActorIds }),
   sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string) => eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }),
+  communicationMessages: (threadId: string, cursor?: string, limit?: number) => eventOpsClient.communication.listMessages(threadId, { cursor, limit }),
+  markCommunicationThreadRead: (threadId: string) => eventOpsClient.communication.markThreadRead(threadId),
   generateEventInsights: (eventId: string) =>
     request<PrismEventInsight>(`/api/events/${eventId}/insights/generate`, { method: "POST" }),
 

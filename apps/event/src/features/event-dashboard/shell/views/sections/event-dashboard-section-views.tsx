@@ -38,7 +38,7 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { SupplierDirectory, SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
 import { AuditTrailPanel } from "@/features/audit/trail";
-import { EventMessagesWorkspace } from "@/app/(portal)/dashboard/components/event-messages-workspace";
+import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 
 const phpMoney = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -369,8 +369,6 @@ export function EventDashboardMessagesSectionView() {
   const {
     selectedEvent,
     session,
-    audit,
-    notificationLogs,
   } = useEventDashboardLoadedRouteViewModel();
   return (
 
@@ -378,8 +376,6 @@ export function EventDashboardMessagesSectionView() {
             <EventMessagesWorkspace
               event={selectedEvent}
               session={session}
-              audit={audit}
-              notificationLogs={notificationLogs}
             />
           ) : (
             <EmptyState icon={MessageSquareText} title="Select an event" description="Client, supplier, coordinator, and internal threads are event-scoped." />
