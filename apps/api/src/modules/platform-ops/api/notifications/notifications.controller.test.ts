@@ -48,6 +48,6 @@ describe('OpsNotificationsController', () => {
       acknowledgedAt: '2026-06-20T10:00:00.000Z',
       createdAt: '2026-06-20T09:00:00.000Z',
     });
-    expect(notificationOutboxService.acknowledge).toHaveBeenCalledWith('not_sample');
+    expect(notificationOutboxService.acknowledge).toHaveBeenCalledWith('not_sample', actor);
   });
 });
