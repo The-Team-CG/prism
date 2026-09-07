@@ -93,6 +93,9 @@ export class NotificationOutboxService {
     if (actor && !privileged && notification.recipient.trim().toLowerCase() !== actor.email.trim().toLowerCase()) {
       throw new ForbiddenException('Only the notification recipient can acknowledge this notification');
     }
+    if (actor && !privileged && notification.eventId && actor.eventId && notification.eventId !== actor.eventId) {
+      throw new ForbiddenException('Notification is outside the actor event scope');
+    }
     return this.prisma.opsNotificationLog.update({
       where: { id: notificationId },
       data: { status: 'acknowledged', acknowledgedAt: new Date() },
