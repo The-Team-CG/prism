@@ -35,6 +35,8 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     clientPortalStatus: 'unlocked',
     readiness: 'ready',
     archived: false,
+    actualEndedAt: null,
+    actualEndedBy: null,
     archivedAt: null,
     archiveOverrideReason: null,
     archiveOverrideBy: null,
