@@ -207,7 +207,7 @@ describe('CoordinatorsService', () => {
     await expect(service.listCoordinators()).resolves.toEqual([
       expect.objectContaining({ id: 'coord_marco', name: 'Marco Santos' }),
     ]);
-    const assignments = await service.listAssignmentsForCoordinator(coordinator.id, coordinator.name);
+    const assignments = await service.listAssignmentsForCoordinator(coordinator.id);
     expect(assignments).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -222,8 +222,8 @@ describe('CoordinatorsService', () => {
   it('resolves coordinator identity by verified email or user identity, never a namesake', async () => {
     const fake = createPrisma();
     const namesake = { ...coordinator, id: 'coord_namesake', userId: 'usr_namesake', email: 'namesake@pmcm.test' };
-    (fake.prisma.opsCoordinator as any).findMany = async () => [coordinator, namesake];
-    const service = createService(fake.prisma as any);
+    (fake.prisma.opsCoordinator as unknown as { findMany: () => Promise<typeof coordinator[]> }).findMany = async () => [coordinator, namesake];
+    const service = createService(fake.prisma as unknown);
 
     await expect(service.resolveCoordinatorForActor({ email: 'unknown@pmcm.test' })).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.resolveCoordinatorForActor({ id: coordinator.userId })).resolves.toMatchObject({ id: coordinator.id });
@@ -235,7 +235,7 @@ describe('CoordinatorsService', () => {
       { ...fake.assignments[0], id: 'coord_asg_cancelled', status: 'cancelled' },
       { ...fake.assignments[0], id: 'coord_asg_replaced', status: 'replaced' },
     );
-    const service = createService(fake.prisma as any);
+    const service = createService(fake.prisma as unknown);
     const assignments = await service.listAssignmentsForCoordinator(coordinator.id);
     expect(assignments.map((item) => item.id)).not.toEqual(expect.arrayContaining(['coord_asg_cancelled', 'coord_asg_replaced']));
   });

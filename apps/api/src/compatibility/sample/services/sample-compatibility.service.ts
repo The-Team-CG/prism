@@ -1133,7 +1133,6 @@ export class SampleCompatibilityService implements OnModuleInit {
     const coordinator = await this.resolveCoordinatorForActor(actor);
     const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(
       coordinator.id,
-      coordinator.name,
     );
     const eventIds = new Set(visibleAssignments.map((assignment: any) => assignment.eventId));
     const events = await this.prisma.opsEvent.findMany({
