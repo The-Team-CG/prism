@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
+  moderateGuestFeedbackSchema,
+  withdrawGuestFeedbackConsentSchema,
   createSupplierApplicationSchema,
   createSupplierReviewSchema,
   createSupplierReliabilityNoteSchema,
@@ -75,6 +77,14 @@ describe("event-ops write schemas", () => {
         rating: 5,
       }).success,
     ).toBe(true);
+  });
+
+  it("requires reasons for negative moderation and at least one consent withdrawal", () => {
+    expect(moderateGuestFeedbackSchema.safeParse({ action: "approve" }).success).toBe(true);
+    expect(moderateGuestFeedbackSchema.safeParse({ action: "reject" }).success).toBe(false);
+    expect(moderateGuestFeedbackSchema.safeParse({ action: "hide", reason: "Contains private details" }).success).toBe(true);
+    expect(withdrawGuestFeedbackConsentSchema.safeParse({}).success).toBe(false);
+    expect(withdrawGuestFeedbackConsentSchema.safeParse({ withdrawMarketingConsent: true }).success).toBe(true);
   });
 
   it("validates supplier event-day status enum", () => {

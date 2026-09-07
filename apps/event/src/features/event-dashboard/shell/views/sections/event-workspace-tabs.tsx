@@ -15,6 +15,7 @@ import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard } from "@/features/suppliers/readiness";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";
+import { FeedbackModerationPanel } from "@/features/feedback/moderation";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
@@ -295,33 +296,36 @@ export function EventWorkspaceClosureTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
-    <Phase4Workspace
-      event={vm.selectedEvent}
-      rules={vm.complianceRules}
-      checks={vm.checks}
-      billingSources={vm.billingSources}
-      billingStatements={vm.billingStatements}
-      insights={vm.eventInsights}
-      supplierCategories={vm.supplierCategories}
-      suppliers={vm.suppliers}
-      quoteRequests={vm.quoteRequests}
-      reviewerName={vm.session.name}
-      canReviewSuppliers={isPmcmAdmin(vm.session.role)}
-      busy={Boolean(vm.busy)}
-      onCreateRule={vm.createComplianceRule}
-      onRunCompliance={vm.runComplianceChecks}
-      onResolveCompliance={vm.resolveComplianceCheck}
-      onOverrideCompliance={vm.overrideComplianceCheck}
-      onCreateBillingSource={vm.createBillingSource}
-      onApproveBillingSource={vm.approveBillingSource}
-      onGenerateBillingStatement={vm.generateBillingStatement}
-      onLoadCloseGates={vm.loadCloseGates}
-      onArchive={vm.archiveSelectedEvent}
-      onRecordActualEventEnd={vm.recordActualEventEnd}
-      onLoadInsights={vm.loadEventInsights}
-      onGenerateInsights={vm.generateEventInsights}
-      onAddReview={vm.addSupplierReview}
-    />
+    <>
+      <Phase4Workspace
+        event={vm.selectedEvent}
+        rules={vm.complianceRules}
+        checks={vm.checks}
+        billingSources={vm.billingSources}
+        billingStatements={vm.billingStatements}
+        insights={vm.eventInsights}
+        supplierCategories={vm.supplierCategories}
+        suppliers={vm.suppliers}
+        quoteRequests={vm.quoteRequests}
+        reviewerName={vm.session.name}
+        canReviewSuppliers={isPmcmAdmin(vm.session.role)}
+        busy={Boolean(vm.busy)}
+        onCreateRule={vm.createComplianceRule}
+        onRunCompliance={vm.runComplianceChecks}
+        onResolveCompliance={vm.resolveComplianceCheck}
+        onOverrideCompliance={vm.overrideComplianceCheck}
+        onCreateBillingSource={vm.createBillingSource}
+        onApproveBillingSource={vm.approveBillingSource}
+        onGenerateBillingStatement={vm.generateBillingStatement}
+        onLoadCloseGates={vm.loadCloseGates}
+        onArchive={vm.archiveSelectedEvent}
+        onRecordActualEventEnd={vm.recordActualEventEnd}
+        onLoadInsights={vm.loadEventInsights}
+        onGenerateInsights={vm.generateEventInsights}
+        onAddReview={vm.addSupplierReview}
+      />
+      <FeedbackModerationPanel eventId={vm.selectedEvent.id} />
+    </>
   );
 }
 

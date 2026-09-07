@@ -114,6 +114,24 @@ export const createGuestFeedbackSchema = privacyConsentSchema.extend({
 });
 export type CreateGuestFeedbackInput = z.infer<typeof createGuestFeedbackSchema>;
 
+export const moderateGuestFeedbackSchema = z.object({
+  action: z.enum(["approve", "reject", "hide"]),
+  reason: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (value.action !== "approve" && !value.reason?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A reason is required for rejected or hidden feedback", path: ["reason"] });
+  }
+});
+export type ModerateGuestFeedbackInput = z.infer<typeof moderateGuestFeedbackSchema>;
+
+export const withdrawGuestFeedbackConsentSchema = z.object({
+  withdrawPrivacyConsent: z.boolean().optional(),
+  withdrawMarketingConsent: z.boolean().optional(),
+}).refine((value) => value.withdrawPrivacyConsent || value.withdrawMarketingConsent, {
+  message: "Select at least one consent to withdraw",
+});
+export type WithdrawGuestFeedbackConsentInput = z.infer<typeof withdrawGuestFeedbackConsentSchema>;
+
 /* ── Registration platform (PMCM) ─────────────────────────────── */
 
 export const prismRegistrationPlatformTypeSchema = z.enum(["xperto", "clickpass", "custom", "none"]);

@@ -61,6 +61,7 @@ import type {
   PrismAuthenticatedSession,
   PrismRegistrationPlatform,
   CreateRegistrationPlatformInput,
+  ModerateGuestFeedbackInput,
   UpdateRegistrationPlatformInput,
   ImportHeadcountInput,
   ImportGuestRosterInput,
@@ -787,4 +788,7 @@ export const prismApi = {
   verifyGuestRoster: (eventId: string, rosterEntryId: string, status: UpdateGuestVerificationInput["status"]) => eventOpsClient.guest.verifyRoster(eventId, rosterEntryId, { status }, { role: "pmcm-admin" }),
   getWalkInPolicy: (eventId: string) => eventOpsClient.guest.walkInPolicy(eventId, { role: "pmcm-admin" }),
   updateWalkInPolicy: (eventId: string, input: UpdateWalkInPolicyInput) => eventOpsClient.guest.updateWalkInPolicy(eventId, input, { role: "pmcm-admin" }),
+  pendingGuestFeedback: (eventId: string) => eventOpsClient.guest.pendingFeedback(eventId, { role: "pmcm-admin" }),
+  moderateGuestFeedback: (eventId: string, feedbackId: string, input: ModerateGuestFeedbackInput) =>
+    eventOpsClient.guest.moderateFeedback(eventId, feedbackId, input, { role: "pmcm-admin" }),
 };

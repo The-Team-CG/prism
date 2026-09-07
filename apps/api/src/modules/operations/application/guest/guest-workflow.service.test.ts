@@ -46,6 +46,7 @@ function createGuestWorkflowFixture() {
   const prisma = {
     opsEvent: {
       findMany: vi.fn(async ({ where }: any = {}) => state.events.filter((event) => where?.archived === undefined || event.archived === where.archived)),
+      findUnique: vi.fn(async ({ where }: any) => state.events.find((event) => event.id === where.id) ?? null),
     },
     opsGuestCheckIn: {
       count: vi.fn(async ({ where }: any = {}) =>
@@ -75,7 +76,14 @@ function createGuestWorkflowFixture() {
         state.guestFeedback.push(row);
         return row;
       }),
+      findFirst: vi.fn(async ({ where }: any) => state.guestFeedback.find((item) => item.id === where.id && item.eventId === where.eventId) ?? null),
+      update: vi.fn(async ({ where, data }: any) => {
+        const row = state.guestFeedback.find((item) => item.id === where.id);
+        Object.assign(row, data);
+        return row;
+      }),
     },
+    $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
   };
   const auditWriter = { write: vi.fn() };
   const service = new GuestWorkflowService(
@@ -225,5 +233,45 @@ describe('GuestWorkflowService', () => {
     expect(guestEventJson).not.toContain('budgetRange');
     expect(guestEventJson).not.toContain('serviceRequirements');
     expect(guestEventJson).not.toContain('privateNotes');
+  });
+
+  it('enforces the actual-end anchored seven-day window with distinct reasons', async () => {
+    vi.useFakeTimers();
+    const { service, state } = createGuestWorkflowFixture();
+    vi.setSystemTime(new Date('2026-09-07T11:59:59.000Z'));
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Before', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('opens after the event has actually ended');
+    vi.setSystemTime(new Date('2026-09-14T12:00:00.000Z'));
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'At deadline', rating: 5, privacyConsentAccepted: true })).resolves.toMatchObject({ guestName: 'At deadline' });
+    vi.setSystemTime(new Date('2026-09-14T12:00:00.001Z'));
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'After', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('seven-day guest feedback window has closed');
+    (state.events[0] as any).actualEndedAt = null;
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Unknown end', rating: 5, privacyConsentAccepted: true })).rejects.toThrow('actual event end has not been recorded');
+    vi.useRealTimers();
+  });
+
+  it('keeps archived feedback open while check-in remains denied and records moderation decisions', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    const { service, state, auditWriter } = createGuestWorkflowFixture();
+    state.events[0].archived = true;
+    const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Archived Guest', rating: 4, privacyConsentAccepted: true });
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', { guestName: 'Archived Guest', privacyConsentAccepted: true })).rejects.toThrow('Guest event code was not found');
+    const updated = await service.moderateFeedback('evt_sample', feedback.id, { action: 'reject', reason: 'Contains private details' }, { id: 'pmcm-1', name: 'Maxine', role: 'pmcm-admin' });
+    expect(updated).toMatchObject({ moderationStatus: 'rejected', moderationReason: 'Contains private details', moderatedById: 'pmcm-1', moderatedBy: 'Maxine' });
+    expect(auditWriter.write).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it('withdraws consent during the open window and prevents publishable consent assumptions', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    const { service, state } = createGuestWorkflowFixture();
+    const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Consent Guest', rating: 5, privacyConsentAccepted: true, marketingConsentAccepted: true, privacyNoticeVersion: '2026-09-01' });
+    const withdrawn = await service.withdrawFeedbackConsentByAccessCode('AYALA-TECH-MPLE', feedback.id, { withdrawPrivacyConsent: true, withdrawMarketingConsent: true });
+    expect(withdrawn).toMatchObject({ privacyConsentAccepted: false, marketingConsentAccepted: false });
+    expect((withdrawn as any).privacyConsentWithdrawnAt).toBeInstanceOf(Date);
+    expect(state.guestFeedback[0].privacyNoticeVersion).toBe('2026-09-01');
+    vi.useRealTimers();
   });
 });
