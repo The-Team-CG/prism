@@ -766,6 +766,8 @@ export interface PrismLiveOps {
   guestAttendanceCount: number;
   guestCheckIns: PrismGuestCheckIn[];
   eventDayLogs: PrismEventDayLog[];
+  schedule?: PrismEventSchedule;
+  timer?: PrismLiveOpsTimer;
 }
 
 export interface PrismEventDayStatusFeedItem {
@@ -787,6 +789,94 @@ export interface PrismEventDayStatusFeed {
   eventDayLogs: PrismEventDayLog[];
   guestAttendanceCount: number;
   guestCheckIns: PrismGuestCheckIn[];
+}
+
+export type PrismScheduleDayStatus = "planned" | "active" | "complete" | string;
+export type PrismScheduleSegmentStatus = "planned" | "active" | "complete" | "skipped" | string;
+
+export interface PrismEventScheduleSegment {
+  id: string;
+  dayId: string;
+  sequence: number;
+  title: string;
+  plannedStartAt: string;
+  plannedEndAt: string;
+  ownerRole: string;
+  location: string;
+  status: PrismScheduleSegmentStatus;
+  actualStartedAt: string | null;
+  actualEndedAt: string | null;
+  startVarianceMinutes: number | null;
+  endVarianceMinutes: number | null;
+}
+
+export interface PrismEventScheduleDay {
+  id: string;
+  eventId: string;
+  dayDate: string;
+  label: string;
+  status: PrismScheduleDayStatus;
+  segments: PrismEventScheduleSegment[];
+}
+
+export interface PrismEventSchedule {
+  eventId: string;
+  authored: boolean;
+  days: PrismEventScheduleDay[];
+  serverTime: string;
+}
+
+export interface PrismEventRunSheet {
+  eventId: string;
+  day: PrismEventScheduleDay;
+  coordinators: PrismCoordinatorAssignment[];
+  supplierCommitments: Array<{ id: string; supplierName: string; category: string; status: string; notes: string }>;
+  openTasks: PrismEventDayTask[];
+  openIssues: PrismUrgentIssue[];
+}
+
+export interface PrismEventHandoff {
+  id: string;
+  eventId: string;
+  dayId: string;
+  role: string;
+  fromAssignmentId: string;
+  toAssignmentId: string;
+  handedOffBy: string;
+  receivedBy: string;
+  handedOffAt: string;
+  outstandingItems: string[];
+}
+
+export interface PrismEventEodReply {
+  id: string;
+  reportId: string;
+  authorId: string;
+  authorRole: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface PrismEventEodReport {
+  id: string;
+  eventId: string;
+  dayId: string;
+  authoredBy: string;
+  authoredByRole: string;
+  progress: string[];
+  issues: string[];
+  risksForTomorrow: string[];
+  submittedAt: string;
+  replies: PrismEventEodReply[];
+}
+
+export interface PrismLiveOpsTimer {
+  status: "no_schedule" | "before_start" | "active" | "between_segments" | "complete";
+  label: string;
+  segmentId?: string;
+  secondsRemaining?: number;
+  secondsElapsed?: number;
+  serverTime: string;
 }
 
 export interface PrismCoordinatorWorkspace {
