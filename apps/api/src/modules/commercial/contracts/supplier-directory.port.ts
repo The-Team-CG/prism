@@ -1,4 +1,4 @@
-import type { CreateSupplierReviewInput } from '@prism/types';
+import type { CreateSupplierReliabilityNoteInput, CreateSupplierReviewInput, PromoteSupplierInput } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
 export type { CreateSupplierReviewInput } from '@prism/types';
@@ -53,6 +53,8 @@ export interface SupplierDirectory {
   updateSupplier(supplierId: string, input: UpdateSupplierInput): Promise<SupplierProfile>;
   changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput): Promise<ChangeSupplierTierResult>;
   addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, context?: PrismTransactionContext): Promise<AddSupplierReviewResult>;
+  addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, context?: PrismTransactionContext): Promise<{ supplier: SupplierProfile; noteId: string; replayed?: boolean }>;
+  promoteSupplier(supplierId: string, input: PromoteSupplierInput, context?: PrismTransactionContext): Promise<SupplierProfile>;
   addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput): Promise<SupplierProfile>;
   listSuppliers(): Promise<SupplierProfile[]>;
 }

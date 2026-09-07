@@ -143,6 +143,8 @@ function createService(
     updateSupplier: async () => { throw new Error('not exercised'); },
     changeSupplierTier: async () => { throw new Error('not exercised'); },
     addSupplierReview: async () => { throw new Error('not exercised'); },
+    addReliabilityNote: async () => { throw new Error('not exercised'); },
+    promoteSupplier: async () => { throw new Error('not exercised'); },
     addSupplierCertification: async () => { throw new Error('not exercised'); },
   };
   let requestRead = false;
