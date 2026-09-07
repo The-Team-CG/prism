@@ -6,6 +6,8 @@ import { WorkflowCommandService } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 
+const pmcmAdminActor = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true };
+
 describe('SupplierProfileCommandsService', () => {
   it('executes supplier review write and side effects with audit logging', async () => {
     const suppliersService = {
@@ -70,5 +72,18 @@ describe('SupplierProfileCommandsService', () => {
       service.addSupplierReview('sup_1', { eventId: 'evt_close_1', rating: 5, notes: 'Private PMCM note' }, actor),
     ).rejects.toThrow(ForbiddenException);
     expect(suppliersService.addSupplierReview).not.toHaveBeenCalled();
+  });
+
+  it('does not emit a duplicate audit for an idempotent review replay', async () => {
+    const addSupplierReview = vi.fn(async () => ({ supplier: { id: 'sup_1', name: 'Acme AV' }, reviewId: 'review_abc123', replayed: true }));
+    const audit = vi.fn();
+    const service = new SupplierProfileCommandsService(
+      { addSupplierReview } as any,
+      { write: audit } as any,
+      { requireActorRole: vi.fn() } as any,
+      new WorkflowCommandService(),
+    );
+    await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Done', idempotencyKey: 'key-1' }, pmcmAdminActor as any);
+    expect(audit).not.toHaveBeenCalled();
   });
 });

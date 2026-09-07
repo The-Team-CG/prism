@@ -77,6 +77,8 @@ describe('SuppliersService', () => {
     const createCalls: any[] = [];
     const prisma = {
       opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
       opsSupplierReviewDimension: {
         findMany: async () => [{ id: 'dim_quality' }],
       },
@@ -91,7 +93,7 @@ describe('SuppliersService', () => {
     const service = new SuppliersService(prisma as any);
     const result = await service.addSupplierReview('sup_1', {
       rating: 5,
-      notes: 'Great work',
+      eventId: 'evt_1', notes: 'Great work',
       dimensionRatings: [{ dimensionId: 'dim_quality', rating: 4 }],
     });
 
@@ -140,17 +142,19 @@ describe('SuppliersService', () => {
   it('returns the existing review when a retry raises a P2002 on the idempotency key', async () => {
     const prisma = {
       opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
       opsSupplierReview: {
         create: async () => {
           throw makeP2002(['idempotencyKey']);
         },
-        findFirst: async () => ({ id: 'review_existing' }),
+        findFirst: async () => ({ id: 'review_existing', supplierId: 'sup_1', eventId: 'evt_1', rating: 5, notes: 'Retry', reviewedBy: 'PMCM Admin' }),
       },
     };
 
     const service = new SuppliersService(prisma as any);
     const result = await service.addSupplierReview('sup_1', {
-      rating: 5,
+      eventId: 'evt_1', rating: 5,
       notes: 'Retry',
       idempotencyKey: 'draft-key-1',
     });
@@ -162,6 +166,8 @@ describe('SuppliersService', () => {
     const error = makeP2002(['id']);
     const prisma = {
       opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
       opsSupplierReview: {
         create: async () => {
           throw error;
@@ -175,7 +181,7 @@ describe('SuppliersService', () => {
     const service = new SuppliersService(prisma as any);
 
     await expect(
-      service.addSupplierReview('sup_1', { rating: 5, notes: 'Retry', idempotencyKey: 'draft-key-1' }),
+        service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Retry', idempotencyKey: 'draft-key-1' }),
     ).rejects.toBe(error);
   });
 });
