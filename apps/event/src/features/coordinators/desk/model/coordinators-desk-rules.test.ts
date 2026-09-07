@@ -5,6 +5,7 @@ import {
   isTaskOutsideOwnQueue,
   taskAssignedRoleOptions,
   isRegistrationCoordinatorRole,
+  isCoordinatorAssignmentActive,
   pickActiveAssignment,
   sameCoordinatorName,
   shouldPreserveRoleViewOnAcknowledgeFailure,
@@ -32,6 +33,12 @@ describe("coordinators-desk-rules", () => {
       { attendanceStatus: "present" },
     ]);
     expect(active?.attendanceStatus).toBe("present");
+  });
+
+  it("does not count cancelled or replaced assignments as active", () => {
+    expect(isCoordinatorAssignmentActive({ status: "acknowledged" })).toBe(true);
+    expect(isCoordinatorAssignmentActive({ status: "cancelled" })).toBe(false);
+    expect(isCoordinatorAssignmentActive({ status: "replaced" })).toBe(false);
   });
 
   it("suggests same-role coordinators who are free on the event date", () => {

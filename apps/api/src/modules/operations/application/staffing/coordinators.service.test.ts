@@ -115,6 +115,7 @@ function createPrisma() {
       transactionCalls.push('same_tx');
       return callback(prisma);
     },
+    $executeRaw: async () => 0,
   };
 
   return {
