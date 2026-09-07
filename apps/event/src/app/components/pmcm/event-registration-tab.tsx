@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { QrCode, Upload, Users } from "lucide-react";
+import { QrCode, Upload, Users, UserRoundCheck } from "lucide-react";
 
 import type {
   PrismRegistrationPlatform,
@@ -7,6 +7,8 @@ import type {
   CreateRegistrationPlatformInput,
   UpdateRegistrationPlatformInput,
   ImportHeadcountInput,
+  ImportGuestRosterInput,
+  PrismGuestRosterEntry,
 } from "@prism/types";
 import { createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -466,7 +468,23 @@ function HeadcountSection({
   );
 }
 
+function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn }: { eventId: string; busy: boolean; onSearch: (query?: string) => Promise<PrismGuestRosterEntry[]>; onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>; onCheckIn: (id: string) => Promise<unknown> }) {
+  const [query, setQuery] = useState("");
+  const [rows, setRows] = useState<PrismGuestRosterEntry[]>([]);
+  const [payload, setPayload] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  async function search() { setRows(await onSearch(query)); }
+  async function importRows() {
+    try {
+      const parsed = JSON.parse(payload) as ImportGuestRosterInput;
+      const result = await onImport(parsed); setRows(result); setPayload(""); setMessage(`Imported ${result.length} roster rows`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to import roster"); }
+  }
+  return <Panel title="Guest roster and registration desk" icon={UserRoundCheck}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Registration staff search this event roster and check in eligible guests; walk-ins remain closed until explicitly enabled.</p><textarea value={payload} onChange={(e) => setPayload(e.target.value)} rows={4} className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs" placeholder={'{"source":"xperto","rows":[{"sourceKey":"A-1","guestName":"Ada Lovelace"}]}'}/><div className="flex gap-2"><button type="button" disabled={busy || !payload} onClick={() => void importRows()} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Import roster</button>{message ? <span className="self-center text-sm text-muted-foreground">{message}</span> : null}</div><div className="flex gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void search(); }} className="h-10 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Search guest name"/><button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button></div><div className="divide-y divide-border border-y border-border">{rows.map((row) => <div key={`${eventId}-${row.id}`} className="flex items-center justify-between py-2 text-sm"><span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.email || row.phone || row.sourceKey}</span></span><button type="button" disabled={busy} onClick={() => void onCheckIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button></div>)}{rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No eligible roster rows loaded.</p> : null}</div></div></Panel>;
+}
+
 export function EventRegistrationTab({
+  eventId,
   platform,
   suppliers,
   busy,
@@ -474,7 +492,11 @@ export function EventRegistrationTab({
   onUpsert,
   onUpdate,
   onImportHeadcount,
+  onSearchRoster,
+  onImportRoster,
+  onCheckInRoster,
 }: {
+  eventId: string;
   platform: PrismRegistrationPlatform | null;
   suppliers: PrismSupplier[];
   busy: boolean;
@@ -482,6 +504,9 @@ export function EventRegistrationTab({
   onUpsert: (input: CreateRegistrationPlatformInput) => void;
   onUpdate: (input: UpdateRegistrationPlatformInput) => void;
   onImportHeadcount: (input: ImportHeadcountInput) => void;
+  onSearchRoster: (query?: string) => Promise<PrismGuestRosterEntry[]>;
+  onImportRoster: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>;
+  onCheckInRoster: (id: string) => Promise<unknown>;
 }) {
   const digitalRegSuppliers = suppliers.filter((s) => s.categorySlug === "digital-registration");
   return (
@@ -499,6 +524,7 @@ export function EventRegistrationTab({
         onUpdate={onUpdate}
       />
       {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
+      <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} />
     </div>
   );
 }

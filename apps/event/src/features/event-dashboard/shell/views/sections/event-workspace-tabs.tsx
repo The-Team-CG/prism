@@ -350,6 +350,10 @@ export function EventWorkspaceRegistrationTab() {
       onUpsert={vm.upsertRegistrationPlatform}
       onUpdate={vm.updateRegistrationPlatform}
       onImportHeadcount={vm.importHeadcount}
+      eventId={vm.selectedEvent.id}
+      onSearchRoster={vm.searchGuestRoster}
+      onImportRoster={vm.importGuestRoster}
+      onCheckInRoster={vm.checkInGuestRoster}
     />
   );
 }
