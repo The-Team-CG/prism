@@ -17,12 +17,16 @@ export class TemplatesController {
   }
 
   @Get()
-  list() {
+  @UseGuards(EventSessionGuard)
+  async list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    await this.requireAuthoring(verifiedActor);
     return this.templatesService.listTemplates();
   }
 
   @Get(':templateId')
-  getOne(@Param('templateId') templateId: string) {
+  @UseGuards(EventSessionGuard)
+  async getOne(@Param('templateId') templateId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    await this.requireAuthoring(verifiedActor);
     return this.templatesService.getTemplate(templateId);
   }
 
