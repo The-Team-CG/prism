@@ -7,7 +7,12 @@ const live = Boolean(url && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(
 
 describe.skipIf(!live)('verified client ownership against PostgreSQL', () => {
   it('separates same-name clients by inquiry email', async () => {
+    process.env.P0_TEST_DATABASE_URL = url;
+    process.env.SUPABASE_DB_URL = url;
     process.env.DATABASE_URL = url;
+    process.env.PRISMA_DATABASE_URL = url;
+    process.env.DIRECT_URL = url;
+    process.env.DB_SSL = 'false';
     const prisma = new PrismaService();
     const suffix = Math.random().toString(36).slice(2);
     const ids = [`inq_owner_${suffix}`, `inq_other_${suffix}`];
@@ -15,7 +20,8 @@ describe.skipIf(!live)('verified client ownership against PostgreSQL', () => {
       for (const [index, id] of ids.entries()) {
         await prisma.opsInquiry.create({ data: { id, clientName: 'Same Name', email: `client${index}@${suffix}.test`, eventName: `Event ${index}`, eventDate: new Date('2026-09-01'), clientType: 'Private', status: 'accepted', normalizedEmail: `client${index}@${suffix}.test`, events: { create: { id: `evt_${id}`, clientName: 'Same Name', eventName: `Event ${index}`, eventDate: new Date('2026-09-01'), clientPortalStatus: 'unlocked' } } } });
       }
-      const rows = await prisma.opsEvent.findMany({ where: { id: { startsWith: `evt_inq_` } }, include: { inquiry: { select: { email: true } } } });
+      const eventIds = ids.map((id) => `evt_${id}`);
+      const rows = await prisma.opsEvent.findMany({ where: { id: { in: eventIds } }, include: { inquiry: { select: { email: true } } } });
       const policy = new EventAccessPolicyService({ write: async () => ({}) });
       const actor = policy.resolveVerifiedActor({ id: 'u', actorId: 'u', role: 'client', actorRole: 'client', email: `client0@${suffix}.test`, actorEmail: `client0@${suffix}.test`, name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
       const own = rows.find((row) => row.inquiry.email === actor.email);
@@ -23,6 +29,7 @@ describe.skipIf(!live)('verified client ownership against PostgreSQL', () => {
       expect(own && policy.canReadEvent(actor, own)).toBe(true);
       expect(foreign && policy.canReadEvent(actor, foreign)).toBe(false);
     } finally {
+      await prisma.opsEvent.deleteMany({ where: { id: { in: ids.map((id) => `evt_${id}`) } } });
       await prisma.opsInquiry.deleteMany({ where: { id: { in: ids } } });
       await prisma.$disconnect();
     }
