@@ -2,6 +2,8 @@
 
 ## 2026-09-08
 
+- **Verified:** Integration-fixture relocation and partial W11 durable delivery worker, including provider gates and historical sample-delivery evidence limits.
+
 - **Started:** User-authorized P1 implementation across all 24 packages, with Luna implementation agents and Opus-first review/advice. The Opus provider rejected the encrypted task payload; Sol is the active fallback reviewer.
 - **Reconciled:** Full catalog assessment and planning matrix against P0 implementation commit `02b6896`; retained the historical baseline, refreshed feature/finding status, and excluded nine completed P0 packages from the 43 remaining packages.
 - **Corrected:** Fresh verification found V01, a read-model mutation boundary violation in the supplier ownership database fixture. The latest boundary failure supersedes the earlier pass record; this documentation delivery preserves source unchanged.
