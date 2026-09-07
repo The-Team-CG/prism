@@ -63,6 +63,7 @@ function createPrisma() {
   const notifications: any[] = [];
   const audits: any[] = [];
   const transactionCalls: string[] = [];
+  const queryOrder: string[] = [];
 
   const prisma = {
     opsEvent: { findUnique: async () => event },
@@ -72,6 +73,7 @@ function createPrisma() {
     },
     opsCoordinatorAssignment: {
       findFirst: async ({ where }: { where?: { id?: string } } = {}) => {
+        queryOrder.push('assignment.findFirst');
         if (where?.id) {
           return assignments.find((item) => item.id === where.id) ?? null;
         }
@@ -115,7 +117,10 @@ function createPrisma() {
       transactionCalls.push('same_tx');
       return callback(prisma);
     },
-    $executeRaw: async () => 0,
+    $executeRaw: async () => {
+      queryOrder.push('pg_advisory_xact_lock');
+      return 0;
+    },
   };
 
   return {
@@ -123,6 +128,7 @@ function createPrisma() {
     notifications,
     audits,
     transactionCalls,
+    queryOrder,
     prisma,
   };
 }
@@ -166,6 +172,9 @@ describe('CoordinatorsService', () => {
     expect(fake.notifications).toHaveLength(2);
     expect(fake.audits).toHaveLength(1);
     expect(fake.transactionCalls).toEqual(['same_tx']);
+    expect(fake.queryOrder.lastIndexOf('pg_advisory_xact_lock')).toBeLessThan(
+      fake.queryOrder.lastIndexOf('assignment.findFirst'),
+    );
   });
 
   it('rejects assignCoordinator for a non-PmcmAdmin actor', async () => {
