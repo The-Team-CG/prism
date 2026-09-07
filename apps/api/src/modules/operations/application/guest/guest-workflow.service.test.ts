@@ -138,6 +138,64 @@ describe('GuestWorkflowService', () => {
     expect(auditWriter.write).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ['closed', 'Walk-in registration is closed for this event'],
+    ['threshold-exceeded', 'Walk-in registration threshold has been reached for this event'],
+  ])('enforces %s walk-in policy', async (mode, message) => {
+    const { service, state } = createGuestWorkflowFixture();
+    if (mode === 'threshold-exceeded') {
+      (state.events[0] as any).walkInPolicy = 'threshold';
+      (state.events[0] as any).walkInThreshold = 1;
+    } else {
+      (state.events[0] as any).walkInPolicy = 'closed';
+    }
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+      guestName: 'Walk In Guest', walkIn: true, privacyConsentAccepted: true,
+    })).rejects.toThrow(message);
+  });
+
+  it('permits open and available threshold walk-ins', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    (state.events[0] as any).walkInPolicy = 'open';
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+      guestName: 'Open Walk In', walkIn: true, privacyConsentAccepted: true,
+    })).resolves.toMatchObject({ guestName: 'Open Walk In', walkIn: true });
+    (state.events[0] as any).walkInPolicy = 'threshold';
+    (state.events[0] as any).walkInThreshold = 4;
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', {
+      guestName: 'Threshold Walk In', walkIn: true, privacyConsentAccepted: true,
+    })).resolves.toMatchObject({ guestName: 'Threshold Walk In', walkIn: true });
+  });
+
+  it('deduplicates roster check-in by roster identity when names repeat', async () => {
+    const roster = [
+      { id: 'gre_one', eventId: 'evt_sample', guestName: 'Maria Santos', eligibility: 'eligible', verificationStatus: 'pending', withdrawnAt: null, checkedInAt: null },
+      { id: 'gre_two', eventId: 'evt_sample', guestName: 'Maria Santos', eligibility: 'eligible', verificationStatus: 'pending', withdrawnAt: null, checkedInAt: null },
+    ];
+    const checkIns: any[] = [];
+    const tx = {
+      $queryRaw: vi.fn(),
+      opsEvent: { findFirst: vi.fn(async () => ({ id: 'evt_sample', archived: false })) },
+      opsGuestRosterEntry: {
+        findFirst: vi.fn(async ({ where }: any) => roster.find((entry) => entry.id === where.id && entry.eventId === where.eventId && entry.withdrawnAt === null && entry.eligibility === 'eligible') ?? null),
+        update: vi.fn(async ({ where, data }: any) => Object.assign(roster.find((entry) => entry.id === where.id)!, data)),
+      },
+      opsGuestCheckIn: {
+        findFirst: vi.fn(async ({ where }: any) => checkIns.find((checkIn) => checkIn.eventId === where.eventId && checkIn.rosterEntryId === where.rosterEntryId && checkIn.status === where.status) ?? null),
+        create: vi.fn(async ({ data }: any) => { const checkIn = { ...data, checkedInAt: new Date('2026-06-18T09:00:00.000Z') }; checkIns.push(checkIn); return checkIn; }),
+      },
+    };
+    const prisma = { $transaction: async (work: (context: typeof tx) => Promise<unknown>) => work(tx) };
+    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), new DocumentVaultService());
+
+    const first = await service.checkInRosterEntry('evt_sample', 'gre_one', { name: 'Registration', role: 'coordinator' });
+    const second = await service.checkInRosterEntry('evt_sample', 'gre_two', { name: 'Registration', role: 'coordinator' });
+
+    expect([first.rosterEntryId, second.rosterEntryId]).toEqual(['gre_one', 'gre_two']);
+    expect(checkIns).toHaveLength(2);
+    expect(roster.map((entry) => entry.checkedInAt)).toEqual([expect.any(Date), expect.any(Date)]);
+  });
+
   it('maps guest event, check-in, and feedback payloads without PMCM-only fields', async () => {
     const { service, state } = createGuestWorkflowFixture();
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', {

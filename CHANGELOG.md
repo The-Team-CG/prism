@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - A production cyclomatic-complexity gate (`check:complexity`, max 10) with unit tests wired into `test:boundaries`.
 - Shared Zod write contracts for PMCM registration-platform create/update and post-event headcount import.
 - Prisma migration for `guest_ops.registration_platforms` (EP-13-S05).
+- W19 guest operations: PMCM-authoritative walk-in policy (`closed`, `open`, `threshold`) with transactional enforcement and audit history; structured, idempotent roster import/reconciliation with provenance and W10 raw-file gating; event-scoped registration search, verification and roster-linked check-in; PMCM/client policy surfaces.
 - Centralized CI/CD (staging trunk, main prod), Sonar, Vercel deploy path, Dependabot, security scans
 - The frontend/backend architecture-alignment report, Prisma persistence ownership register, and ADR-0006 for focused ports and composition-root adapters.
 - A second sample event (`evt_sample_unassigned`) with no coordinator assignment so unassigned-event checks can run.

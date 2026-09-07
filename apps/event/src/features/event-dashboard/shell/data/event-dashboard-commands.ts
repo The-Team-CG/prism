@@ -60,8 +60,12 @@ export type EventDashboardCommands = Pick<
   | "updateRegistrationPlatform"
   | "importHeadcount"
   | "searchGuestRoster"
+  | "searchGuestRosterWithFilters"
   | "importGuestRoster"
   | "checkInGuestRoster"
+  | "verifyGuestRoster"
+  | "getWalkInPolicy"
+  | "updateWalkInPolicy"
 >;
 
 /** Stable dashboard command adapter; individual features depend on this port. */
@@ -118,6 +122,10 @@ export const eventDashboardCommands = {
   updateRegistrationPlatform: prismApi.updateRegistrationPlatform,
   importHeadcount: prismApi.importHeadcount,
   searchGuestRoster: prismApi.searchGuestRoster,
+  searchGuestRosterWithFilters: prismApi.searchGuestRosterWithFilters,
   importGuestRoster: prismApi.importGuestRoster,
   checkInGuestRoster: prismApi.checkInGuestRoster,
+  verifyGuestRoster: prismApi.verifyGuestRoster,
+  getWalkInPolicy: prismApi.getWalkInPolicy,
+  updateWalkInPolicy: prismApi.updateWalkInPolicy,
 } satisfies EventDashboardCommands;

@@ -263,6 +263,8 @@ export interface PrismEvent {
   clientName: string;
   eventName: string;
   eventDate: string;
+  walkInPolicy?: "closed" | "open" | "threshold";
+  walkInThreshold?: number;
   actualEndedAt?: string | null;
   actualEndedBy?: string | null;
   status: string;
@@ -620,6 +622,7 @@ export interface PrismCoordinatorCoverage {
 export interface PrismGuestCheckIn {
   id: string;
   eventId: string;
+  rosterEntryId?: string | null;
   guestName: string;
   checkInMode: string;
   status: string;
@@ -635,9 +638,13 @@ export interface PrismGuestRosterEntry {
   guestName: string;
   email?: string | null;
   phone?: string | null;
+  category?: string | null;
+  table?: string | null;
   eligibility: string;
+  verificationStatus: "pending" | "verified" | "rejected";
   source: string;
-  importBatchId: string;
+  importBatchId?: string | null;
+  checkedInAt?: string | null;
   withdrawnAt?: string | null;
   createdAt?: string;
   updatedAt?: string;

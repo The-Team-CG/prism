@@ -190,6 +190,8 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     clientName: event.clientName,
     eventName: event.eventName,
     eventDate: isoDate(event.eventDate),
+    walkInPolicy: event.walkInPolicy as 'closed' | 'open' | 'threshold',
+    walkInThreshold: event.walkInThreshold,
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
     readiness: event.readiness,

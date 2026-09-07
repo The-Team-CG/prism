@@ -42,11 +42,14 @@ import type {
   PrismSupplierApplication,
   ImportHeadcountInput,
   ImportGuestRosterInput,
+  GuestRosterSearchInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateRegistrationPlatformInput,
+  UpdateWalkInPolicyInput,
   UpdateSupplierEventStatusInput,
   UploadContractInput,
+  UpdateGuestVerificationInput,
 } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
@@ -158,8 +161,12 @@ export interface EventOpsClient {
     checkIn(accessCode: string, input: CreateGuestCheckInInput): Promise<PrismGuestCheckIn>;
     feedback(accessCode: string, input: CreateGuestFeedbackInput): Promise<PrismGuestFeedback>;
     roster(eventId: string, query?: string, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
+    searchRoster(eventId: string, filters?: GuestRosterSearchInput, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
     importRoster(eventId: string, input: ImportGuestRosterInput, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
     checkInRoster(eventId: string, rosterEntryId: string, actor?: EventOpsActorQuery): Promise<PrismGuestCheckIn>;
+    verifyRoster(eventId: string, rosterEntryId: string, input: UpdateGuestVerificationInput, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry>;
+    walkInPolicy(eventId: string, actor?: EventOpsActorQuery): Promise<{ eventId: string; policy: "closed" | "open" | "threshold"; threshold: number }>;
+    updateWalkInPolicy(eventId: string, input: UpdateWalkInPolicyInput, actor?: EventOpsActorQuery): Promise<{ eventId: string; policy: "closed" | "open" | "threshold"; threshold: number }>;
   };
   supplierWorkspace: {
     /** Identity comes from the session bearer token (PA-284); no actor query. */
@@ -315,6 +322,13 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           withBase(options),
         );
       },
+      searchRoster: (eventId, filters = {}, actor = {}) => {
+        const params = toQueryString({ ...actor, ...filters });
+        return prismRequest<PrismGuestRosterEntry[]>(
+          `/guest/events/${eventId}/roster/search${params ? `?${params}` : ""}`,
+          withBase(options),
+        );
+      },
       importRoster: (eventId, input, actor = {}) =>
         prismRequest<PrismGuestRosterEntry[]>(
           actorPath(`/guest/events/${eventId}/roster/import`, actor),
@@ -325,6 +339,15 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           actorPath(`/guest/events/${eventId}/roster/${rosterEntryId}/check-in`, actor),
           withBase(options, { method: "POST" }),
         ),
+      verifyRoster: (eventId, rosterEntryId, input, actor = {}) =>
+        prismRequest<PrismGuestRosterEntry>(
+          actorPath(`/guest/events/${eventId}/roster/${rosterEntryId}/verification`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      walkInPolicy: (eventId, actor = {}) =>
+        prismRequest(actorPath(`/events/${eventId}/walk-in-policy`, actor), withBase(options)),
+      updateWalkInPolicy: (eventId, input, actor = {}) =>
+        prismRequest(actorPath(`/events/${eventId}/walk-in-policy`, actor), withBase(options, { method: "PATCH", body: input })),
     },
     coordinator: {
       workspace: (actor = {}) =>
