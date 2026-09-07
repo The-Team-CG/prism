@@ -15,8 +15,22 @@ export function orderLinkedAuditLogs<T extends LinkedAudit>(logs: T[]): { ordere
     ordered.push(next);
     next = children.get(next.immutableHash);
   }
-  if (ordered.length !== logs.length || next) return { ordered, firstBrokenLogId: logs.find((row) => !ordered.includes(row))?.id ?? logs[0]?.id ?? null };
+  if (ordered.length !== logs.length || next) {
+    const orderedIds = new Set(ordered.map((row) => row.id));
+    return { ordered, firstBrokenLogId: logs.find((row) => !orderedIds.has(row.id))?.id ?? logs[0]?.id ?? null };
+  }
   return { ordered, firstBrokenLogId: null };
+}
+
+/** Return every leaf in the complete hash graph. A valid chain has one leaf. */
+export function auditTailCandidates<T extends LinkedAudit>(logs: T[]): T[] {
+  const parentHashes = new Set(logs.map((row) => row.previousHash).filter((hash): hash is string => Boolean(hash)));
+  const seenHashes = new Set<string>();
+  return logs.filter((row) => {
+    if (seenHashes.has(row.immutableHash)) return false;
+    seenHashes.add(row.immutableHash);
+    return !parentHashes.has(row.immutableHash);
+  });
 }
 
 export function selectTiedAuditTail<T extends LinkedAudit>(logs: T[]): T | undefined {

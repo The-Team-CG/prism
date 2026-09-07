@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, Optional, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { PrismaService } from '../../database';
@@ -10,16 +10,14 @@ export type EventSessionRequest = Request & {
 
 @Injectable()
 export class EventSessionGuard implements CanActivate {
-  constructor(private readonly authSessionService: AuthSessionService, @Optional() private readonly prisma?: PrismaService) {}
+  constructor(private readonly authSessionService: AuthSessionService, private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<EventSessionRequest>();
     const token = this.extractToken(request);
     const actor = this.authSessionService.verifyAccessToken(token);
-    if (this.prisma) {
-      const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id }, select: { sessionVersion: true } });
-      if (!user || user.sessionVersion !== (actor.sessionVersion ?? 0)) throw new UnauthorizedException('Session has been revoked');
-    }
+    const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id }, select: { sessionVersion: true } });
+    if (!user || user.sessionVersion !== (actor.sessionVersion ?? 0)) throw new UnauthorizedException('Session has been revoked');
     request.prismActor = actor;
     return true;
   }

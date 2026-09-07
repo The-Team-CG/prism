@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
@@ -24,8 +25,8 @@ export class OpsAuthController {
 
   @Post('password-reset/request')
   @HttpCode(HttpStatus.ACCEPTED)
-  requestPasswordReset(@Body(zodBody(requestPasswordResetSchema)) dto: RequestPasswordResetInput) {
-    return this.passwordResetService!.request(dto.email);
+  requestPasswordReset(@Req() request: Request, @Body(zodBody(requestPasswordResetSchema)) dto: RequestPasswordResetInput) {
+    return this.passwordResetService!.request(dto.email, request.ip || 'unknown');
   }
 
   @Post('password-reset/consume')
