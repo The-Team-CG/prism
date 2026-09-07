@@ -131,4 +131,8 @@ export const prismApi = {
     eventOpsClient.events.fileRequirements(eventId, actorFromSession(session)),
   listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>
     request("/api/supplier-applications/categories"),
+  communicationThreads: (eventId: string, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.listThreads(eventId, actorFromSession(session)),
+  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }, actorFromSession(session)),
 };

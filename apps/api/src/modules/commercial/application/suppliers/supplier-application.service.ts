@@ -113,18 +113,9 @@ export class SupplierApplicationService {
       include: { category: true },
     });
     if (!existing) throw new NotFoundException('Supplier application not found');
-    if (existing.status === 'approved' && input.action === 'approve' && existing.convertedSupplierId) {
-      if (existing.conversionPayloadHash && existing.conversionPayloadHash !== conversionHash(applicationId, input)) {
-        throw new BadRequestException('Approval replay payload does not match the original conversion');
-      }
-      return mapSupplierApplication(existing);
-    }
-    if (['declined', 'approved'].includes(existing.status)) {
-      throw new BadRequestException('Supplier application has already been reviewed');
-    }
-    if (existing.status !== 'pending' && input.action !== 'approve') {
-      throw new BadRequestException('Only approval can complete an application already in progress');
-    }
+    const replay = this.approvalReplay(existing, applicationId, input);
+    if (replay) return mapSupplierApplication(replay);
+    this.assertReviewTransition(existing.status, input.action);
 
     const nextStatus = applicationStatusForReviewAction(input.action);
     if (input.action === 'approve' && (!existing.categoryId || !existing.category?.active)) {
@@ -144,38 +135,7 @@ export class SupplierApplicationService {
       if (changed.count !== 1) throw new BadRequestException('Supplier application has already been reviewed');
       const updated = await tx.opsSupplierApplication.findUnique({ where: { id: applicationId }, include: { category: true } });
       if (!updated) throw new NotFoundException('Supplier application not found');
-      if (input.action === 'approve' && updated.categoryId) {
-        const supplierId = `sup_application_${applicationId}`;
-        const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: updated.email.trim().toLowerCase() } });
-        if (conflictingSupplier && conflictingSupplier.id !== supplierId) {
-          throw new BadRequestException('A supplier with this email already exists');
-        }
-        const supplier = await tx.opsSupplier.findUnique({ where: { id: supplierId } });
-        if (!supplier) {
-          await tx.opsSupplier.create({
-            data: {
-              id: supplierId,
-              categoryId: updated.categoryId,
-              name: updated.companyName.trim(),
-              contactName: updated.contactName.trim(),
-              email: updated.email.trim(),
-              phone: updated.phone.trim(),
-              tier: 'pending_first_event',
-              bniMember: updated.bniMember,
-              serviceInclusions: updated.serviceInclusions.trim(),
-              performanceNotes: updated.additionalNotes.trim(),
-            },
-          });
-        }
-        await tx.opsSupplierApplication.update({
-          where: { id: applicationId },
-          data: {
-            convertedSupplierId: supplierId,
-            conversionIdempotencyKey: input.idempotencyKey ?? `supplier-application:${applicationId}`,
-            conversionPayloadHash: conversionHash(applicationId, input),
-          },
-        });
-      }
+      if (input.action === 'approve' && updated.categoryId) await this.convertApprovedApplication(tx, applicationId, updated, input);
       await writeAudit(this.auditWriter, undefined, actor.name, `Reviewed supplier application: ${updated.companyName}`, {
         actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'suppliers',
         affectedType: 'supplier_application', affectedId: updated.id, affectedLabel: updated.companyName,
@@ -184,6 +144,26 @@ export class SupplierApplicationService {
       return updated;
     });
     return mapSupplierApplication(row);
+  }
+
+  private approvalReplay(existing: any, applicationId: string, input: ReviewSupplierApplicationInput) {
+    if (existing.status !== 'approved' || input.action !== 'approve' || !existing.convertedSupplierId) return null;
+    if (existing.conversionIdempotencyKey !== (input.idempotencyKey ?? `supplier-application:${applicationId}`) || existing.conversionPayloadHash !== conversionHash(applicationId, input)) throw new BadRequestException('Approval replay payload does not match the original conversion');
+    return existing;
+  }
+
+  private assertReviewTransition(status: string, action: ReviewSupplierApplicationInput['action']) {
+    if (['declined', 'approved'].includes(status)) throw new BadRequestException('Supplier application has already been reviewed');
+    if (status !== 'pending' && action !== 'approve') throw new BadRequestException('Only approval can complete an application already in progress');
+  }
+
+  private async convertApprovedApplication(tx: Prisma.TransactionClient, applicationId: string, updated: any, input: ReviewSupplierApplicationInput) {
+    const supplierId = `sup_application_${applicationId}`;
+    const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: updated.email.trim().toLowerCase() } });
+    if (conflictingSupplier && conflictingSupplier.id !== supplierId) throw new BadRequestException('A supplier with this email already exists');
+    const supplier = await tx.opsSupplier.findUnique({ where: { id: supplierId } });
+    if (!supplier) await tx.opsSupplier.create({ data: { id: supplierId, categoryId: updated.categoryId, name: updated.companyName.trim(), contactName: updated.contactName.trim(), email: updated.email.trim(), phone: updated.phone.trim(), tier: 'pending_first_event', bniMember: updated.bniMember, serviceInclusions: updated.serviceInclusions.trim(), performanceNotes: updated.additionalNotes.trim() } });
+    await tx.opsSupplierApplication.update({ where: { id: applicationId }, data: { convertedSupplierId: supplierId, conversionIdempotencyKey: input.idempotencyKey ?? `supplier-application:${applicationId}`, conversionPayloadHash: conversionHash(applicationId, input) } });
   }
 
   private requirePmcm(actor: ResolvedEventOpsActor, resource: string) {
