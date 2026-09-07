@@ -4,6 +4,8 @@ import {
   createGuestFeedbackSchema,
   createSupplierApplicationSchema,
   createSupplierReviewSchema,
+  createSupplierReliabilityNoteSchema,
+  promoteSupplierSchema,
   reviewEventProposalSchema,
   archiveSearchFiltersSchema,
   reviewSupplierApplicationSchema,
@@ -102,6 +104,13 @@ describe("event-ops write schemas", () => {
   it("validates supplier quote amount", () => {
     expect(submitSupplierQuoteSchema.safeParse({ amount: 12000 }).success).toBe(true);
     expect(submitSupplierQuoteSchema.safeParse({ amount: -1 }).success).toBe(false);
+  });
+
+  it("requires an event and reason for supplier reliability and promotion actions", () => {
+    expect(createSupplierReliabilityNoteSchema.safeParse({ eventId: "evt_1", note: "On time" }).success).toBe(true);
+    expect(createSupplierReliabilityNoteSchema.safeParse({ eventId: "", note: "On time" }).success).toBe(false);
+    expect(promoteSupplierSchema.safeParse({ eventId: "evt_1", tier: "tier_1", reason: "Completed assessment" }).success).toBe(true);
+    expect(promoteSupplierSchema.safeParse({ eventId: "evt_1", tier: "pending_first_event", reason: "Promote" }).success).toBe(false);
   });
 
   it("validates inquiry status transitions", () => {
