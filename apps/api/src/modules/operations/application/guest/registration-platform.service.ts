@@ -37,6 +37,13 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
         const current = await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
         existed = Boolean(current);
         await this.validateAssignedSupplier(eventId, input.supplierId);
+        if (input.expectedPaxMin !== undefined && input.expectedPaxMax !== undefined && input.expectedPaxMin > input.expectedPaxMax) {
+          throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
+        }
+      },
+      sideEffectMode: 'same_tx',
+      validateStateInTransaction: async (transactionContext) => {
+        existed = Boolean(await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }));
       },
       write: async () => {
         if (existed) {
@@ -83,14 +90,24 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
 
     return this.workflowCommandService.execute<OpsRegistrationPlatform>({
       name: 'registration_platform_update',
+      sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.validateAssignedSupplier(eventId, input.supplierId ?? existing.supplierId ?? undefined);
-        if (input.expectedPaxMin !== undefined && input.expectedPaxMax !== undefined && input.expectedPaxMin > input.expectedPaxMax) {
+        const effectiveMin = input.expectedPaxMin ?? existing.expectedPaxMin;
+        const effectiveMax = input.expectedPaxMax ?? existing.expectedPaxMax;
+        if (effectiveMin > effectiveMax) {
           throw new BadRequestException('Minimum expected headcount cannot exceed maximum');
         }
         if (input.status && !isAllowedTransition(existing.status, input.status)) {
           throw new BadRequestException(`Invalid registration platform transition: ${existing.status} to ${input.status}`);
         }
+        if (input.status === 'live' && !(input.supplierId ?? existing.supplierId)) {
+          throw new BadRequestException('A selected Digital Registration supplier is required before going live');
+        }
+      },
+      validateStateInTransaction: async (transactionContext) => {
+        const current = await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
+        if (!current || current.status !== existing.status) throw new ConflictException('Registration platform changed; retry the command');
       },
       write: (transactionContext) => {
         const db = transactionContext?.prisma ?? this.prisma;
