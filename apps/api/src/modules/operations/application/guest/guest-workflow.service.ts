@@ -11,6 +11,7 @@ export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[] };
 
 export type GuestCheckInInput = {
   guestName: string;
+  rosterEntryId?: string;
   checkInMode?: string;
   walkIn?: boolean;
   verificationStatus?: string;
@@ -83,15 +84,25 @@ export class GuestWorkflowService {
       name: 'guest_check_in',
       validateState: async () => {
         event = await this.resolveGuestEventByAccessCode(accessCode);
-        guestName = input.guestName?.trim();
+        if (input.rosterEntryId) {
+          const roster = await (this.prisma as any).opsGuestRosterEntry.findFirst({ where: { id: input.rosterEntryId, eventId: event.id, withdrawnAt: null } });
+          if (!roster || roster.eligibility !== 'eligible') throw new BadRequestException('Roster entry is not eligible for check-in');
+          guestName = roster.guestName;
+        }
+        if (!input.rosterEntryId) guestName = input.guestName?.trim();
         if (!guestName) throw new BadRequestException('Guest name is required');
         if (!input.privacyConsentAccepted) {
           throw new BadRequestException('Privacy consent is required before guest check-in');
         }
         checkInMode = input.checkInMode ?? (input.walkIn ? 'walk_in' : 'name_search');
+        if (input.walkIn && (!(event as any).walkInPolicy || (event as any).walkInPolicy === 'closed')) throw new BadRequestException('Walk-in registration is closed for this event');
       },
-      write: () => {
+      write: async () => {
         if (!event) throw new NotFoundException('Guest event code was not found');
+        if (input.rosterEntryId) {
+          const existingRosterCheckIn = await this.prisma.opsGuestCheckIn.findFirst({ where: { eventId: event.id, guestName, status: 'checked_in' } });
+          if (existingRosterCheckIn) return existingRosterCheckIn;
+        }
         return this.prisma.opsGuestCheckIn.create({
           data: {
             id: `gci_${randomUUID()}`,
@@ -181,26 +192,26 @@ export class GuestWorkflowService {
 
   async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
     const batchId = `roster_${randomUUID()}`;
-    return this.prisma.$transaction(async (tx) => {
+      return this.prisma.$transaction(async (tx) => {
       const event = await tx.opsEvent.findUnique({ where: { id: eventId } });
       if (!event) throw new NotFoundException('Event not found');
       const keys = input.rows.map((row) => row.sourceKey);
       const rows = [];
       for (const row of input.rows) {
-        rows.push(await tx.opsGuestRosterEntry.upsert({
+        rows.push(await (tx as any).opsGuestRosterEntry.upsert({
           where: { eventId_sourceKey: { eventId, sourceKey: row.sourceKey } },
           create: { id: `g re_${randomUUID()}`.replace(' ', ''), eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
           update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
         }));
       }
-      await tx.opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
+      await (tx as any).opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
       await writeAudit(this.auditWriter, eventId, actor.name, 'Guest roster imported and reconciled', { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster', affectedId: eventId, metadata: { batchId, rowCount: rows.length, source: input.source, actorId: actor.id } }, { prisma: tx, correlationId: batchId });
       return rows;
     });
   }
 
   async searchRoster(eventId: string, query = '') {
-    return this.prisma.opsGuestRosterEntry.findMany({ where: { eventId, withdrawnAt: null, eligibility: 'eligible', ...(query.trim() ? { normalizedName: { contains: query.trim().toLowerCase() } } : {}) }, orderBy: { normalizedName: 'asc' } });
+    return (this.prisma as any).opsGuestRosterEntry.findMany({ where: { eventId, withdrawnAt: null, eligibility: 'eligible', ...(query.trim() ? { normalizedName: { contains: query.trim().toLowerCase() } } : {}) }, orderBy: { normalizedName: 'asc' } });
   }
 
   private async resolveGuestEventByAccessCode(accessCode: string, requireFeedbackWindow = false) {

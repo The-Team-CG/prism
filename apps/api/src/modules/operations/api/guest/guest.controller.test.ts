@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
+import { OpsUserRole } from '@prism/kernel/event-core';
 import { OpsGuestController } from './guest.controller';
 
 function controllerPath(controller: Function): string {
@@ -21,7 +22,7 @@ describe('OpsGuestController', () => {
       submitFeedbackByAccessCode: vi.fn(async () => ({ id: 'gfb_1', guestName: 'Sofia Lim' })),
       mapGuestFeedback: vi.fn((feedback) => ({ id: feedback.id, guestName: feedback.guestName })),
     };
-    const controller = new OpsGuestController(guestWorkflowService as any);
+  const controller = new OpsGuestController(guestWorkflowService as any, { resolveActor: vi.fn(() => ({ role: OpsUserRole.PmcmAdmin, name: 'Maxine' })), requireActorRole: vi.fn(async () => undefined) } as any);
 
     await expect(controller.eventByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ id: 'evt_sample', attendanceCount: 2 });
     await expect(controller.checkIn('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', privacyConsentAccepted: true })).resolves.toEqual({ id: 'gci_1', guestName: 'Sofia Lim' });
