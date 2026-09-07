@@ -82,14 +82,14 @@ export function NotificationEvidence({ logs }: { logs: PrismNotificationLog[] })
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <MailCheck className="size-4 text-(--prism-amber)" />
-            <h3 className="text-sm font-bold text-foreground">Queued notification evidence</h3>
+            <h3 className="text-sm font-bold text-foreground">Notification activity</h3>
           </div>
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground">
-            {logs.length} queued
+            {logs.filter((entry) => entry.status === "queued").length} queued
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Local in-app queue only. SendGrid/Viber delivery is deferred until external adapters are enabled.
+          Sent means provider acceptance, not recipient delivery. Historical sample statuses do not confirm delivery.
         </p>
       </CardHeader>
       <CardBody>
@@ -98,9 +98,10 @@ export function NotificationEvidence({ logs }: { logs: PrismNotificationLog[] })
             <div key={n.id} className="rounded-xl border border-border bg-muted/30 p-3.5">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-bold text-foreground">{label(n.channel)} to {n.recipient}</p>
-                <StatusBadge status={n.status} label={label(n.status)} />
+                <StatusBadge status={n.status} label={n.status === "sent" ? "Sent to provider" : label(n.status)} />
               </div>
               <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{n.message}</p>
+              {n.failureReason ? <p className="mt-1 text-xs text-muted-foreground">{n.failureReason}</p> : null}
             </div>
           ))}
         </div>

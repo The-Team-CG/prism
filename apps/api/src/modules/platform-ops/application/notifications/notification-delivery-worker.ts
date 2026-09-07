@@ -15,7 +15,7 @@ function available(now: Date): Prisma.OpsNotificationLogWhereInput {
 async function deliver(row: OpsNotificationLog, adapter?: NotificationDeliveryPort): Promise<NotificationDeliveryResult> {
   if (!adapter) return { status: 'unconfigured' };
   try {
-    const result = await adapter.deliver({ idempotencyKey: row.id, channel: row.channel, recipient: row.recipient, message: row.message });
+    const result = await withTimeout(adapter.deliver({ idempotencyKey: row.id, channel: row.channel, recipient: row.recipient, message: row.message }));
     if (result.status === 'accepted' && !result.receipt.trim()) return { status: 'retryable_failure' };
     return result;
   } catch {
@@ -24,11 +24,21 @@ async function deliver(row: OpsNotificationLog, adapter?: NotificationDeliveryPo
   }
 }
 
+async function withTimeout(delivery: Promise<NotificationDeliveryResult>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([delivery, new Promise<NotificationDeliveryResult>((resolve) => {
+      timer = setTimeout(() => resolve({ status: 'retryable_failure' }), 30_000);
+      timer.unref();
+    })]);
+  } finally { if (timer) clearTimeout(timer); }
+}
+
 function settlement(row: OpsNotificationLog, result: NotificationDeliveryResult, maxAttempts: number, now: Date): Prisma.OpsNotificationLogUpdateManyMutationInput {
   const release = { leaseToken: null, leaseExpiresAt: null };
   if (result.status === 'unconfigured') return { ...release, failureReason: 'Delivery provider is not configured', nextAttemptAt: new Date(now.getTime() + UNCONFIGURED_DELAY_MS) };
   const attempts = row.attempts + 1;
-  if (result.status === 'accepted') return { ...release, attempts, status: 'sent', sentAt: now, providerReceipt: result.receipt, failureReason: null };
+  if (result.status === 'accepted') return { ...release, attempts, status: 'sent', sentAt: now, providerReceipt: result.receipt, failureReason: null, failedAt: null };
   const terminal = result.status === 'permanent_failure' || attempts >= maxAttempts;
   return { ...release, attempts, status: terminal ? 'failed' : 'queued', failedAt: now,
     failureReason: terminal ? 'Delivery failed; operator review required' : 'Delivery failed; retry scheduled',

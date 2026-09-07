@@ -37,11 +37,24 @@ describe.skipIf(!live)('durable notification delivery', () => {
       expect(deliver).toHaveBeenCalledTimes(1);
       expect(await prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: first.id } })).toMatchObject({ status: 'queued', attempts: 1, sentAt: null });
       expect(await worker.processQueued()).toEqual([]);
+      const failureAdapters: NotificationDeliveryPort[] = [
+        { deliver: async () => ({ status: 'permanent_failure' }) },
+        { deliver: async () => ({ status: 'accepted', receipt: '' }) },
+        { deliver: async () => { throw new Error('private provider diagnostic'); } },
+      ];
+      for (const [index, adapter] of failureAdapters.entries()) {
+        const row = await service.queue(undefined, 'fixture@example.test', 'Failure test', 'email', { idempotencyKey: `${prefix}_${index}` });
+        const failed = await new NotificationOutboxService(fixturePrisma, adapter).processQueued({ maxAttempts: 1 });
+        expect(failed[0]).toMatchObject({ id: row.id, status: 'failed', attempts: 1, sentAt: null, providerReceipt: null, failureReason: 'Delivery failed; operator review required' });
+        await expect(service.acknowledge(row.id)).rejects.toThrow(/provider-accepted/);
+      }
       await prisma.opsNotificationLog.update({ where: { id: first.id }, data: { nextAttemptAt: new Date(0), leaseToken: 'crashed-worker', leaseExpiresAt: new Date(0) } });
       deliver.mockResolvedValue({ status: 'accepted', receipt: 'test-provider-receipt' });
       expect((await worker.processQueued())[0]).toMatchObject({ status: 'sent', attempts: 2, providerReceipt: 'test-provider-receipt', leaseToken: null });
       expect(deliver.mock.calls.map(([input]) => input.idempotencyKey)).toEqual([first.id, first.id]);
       expect(await worker.processQueued()).toEqual([]);
+      expect(await service.acknowledge(first.id)).toMatchObject({ status: 'acknowledged' });
+      expect(await service.acknowledge(first.id)).toMatchObject({ status: 'acknowledged' });
     } finally {
       await prisma.opsNotificationLog.deleteMany({ where: { idempotencyKey: { startsWith: prefix } } });
       await prisma.$disconnect();

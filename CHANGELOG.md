@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Notification worker lifecycle scheduling when an adapter is bound, bounded provider waits, and sent-only acknowledgement; PMCM activity distinguishes provider acceptance from recipient delivery.
 - Durable notification idempotency, bounded worker claims, retry backoff and provider receipt storage; absent provider configuration keeps delivery queued with an explicit reason instead of fabricating sent status.
 - Additive P1 persistence for actual event end and actor, application-to-supplier conversion binding, reliability-note attribution/idempotency, and durable supplier promotion history.
 - P1 execution plan covering all 24 catalog work packages, independent agent ownership, acceptance evidence and concrete blocker reporting.
