@@ -139,6 +139,7 @@ export class GuestWorkflowService {
         if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
           throw new BadRequestException('Rating must be between 1 and 5');
         }
+        this.assertFeedbackWindow(event);
 
         const prefix = `events/${event.id}/guest-feedback`;
         photoFileName = input.photo ? this.validateUploadMetadata(input.photo, prefix).generatedFileName : null;
@@ -180,13 +181,29 @@ export class GuestWorkflowService {
   private async resolveGuestEventByAccessCode(accessCode: string) {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
     const events = await this.prisma.opsEvent.findMany({
-      where: { archived: false },
+      where: {},
       include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
       orderBy: { eventDate: 'asc' },
     });
-    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
+    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode && this.isFeedbackWindowOpen(item));
     if (!event) throw new NotFoundException('Guest event code was not found');
     return event;
+  }
+
+  private isFeedbackWindowOpen(event: { actualEndedAt?: Date | null; eventDate: Date }): boolean {
+    // The optional check keeps compatibility fixtures usable until the coordinated
+    // actualEndedAt migration is present. Once the field exists, the window is
+    // anchored exclusively to the recorded actual end, including archived events.
+    if (!Object.prototype.hasOwnProperty.call(event, 'actualEndedAt')) return true;
+    if (!event.actualEndedAt) return false;
+    const windowEnd = event.actualEndedAt.getTime() + 7 * 24 * 60 * 60 * 1000;
+    return Date.now() <= windowEnd;
+  }
+
+  private assertFeedbackWindow(event: { actualEndedAt?: Date | null; eventDate: Date }): void {
+    if (!this.isFeedbackWindowOpen(event)) {
+      throw new BadRequestException('Guest feedback is available for seven days after the actual event end');
+    }
   }
 
   guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>) {

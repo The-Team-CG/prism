@@ -17,8 +17,8 @@ function createService(existing: Record<string, unknown> | null) {
         id: 'reg_1',
       })),
     },
-    opsSupplier: { findUnique: vi.fn(async () => null) },
-    opsSupplierQuoteRequest: { findFirst: vi.fn(async () => null) },
+    opsSupplier: { findUnique: vi.fn(async () => ({ id: 'sup_reg', category: { name: 'Digital Registration', slug: 'digital-registration' } })) },
+    opsSupplierQuoteRequest: { findFirst: vi.fn(async () => ({ id: 'assignment_1', status: 'selected' })) },
   };
   const workflowCommandService = {
     execute: vi.fn(async (command: { validateState?: () => Promise<void>; write: () => Promise<unknown>; sideEffects?: (result: unknown) => Promise<void> }) => {
@@ -40,6 +40,7 @@ describe('RegistrationPlatformService', () => {
       eventId: 'evt_sample',
       platformType: 'xperto',
       status: 'configuring',
+      supplierId: 'sup_reg',
       setupConfirmedAt: null,
     };
     const { service, prisma } = createService(existing);
