@@ -495,6 +495,18 @@ export class LiveOperationsService {
           const assignmentDate = current!.eventDate ?? event!.eventDate;
           if (assignmentDate) {
             await lockCoordinatorAssignmentDay(tx, coordinator!.id, assignmentDate);
+            const availabilityModel = 'opsCoordinatorAvailability' in tx ? tx.opsCoordinatorAvailability : undefined;
+            const unavailable = availabilityModel
+              ? await availabilityModel.findFirst({
+                  where: { coordinatorId: coordinator!.id, startsAt: { lte: assignmentDate }, endsAt: { gt: assignmentDate } },
+                  orderBy: { startsAt: 'asc' },
+                })
+              : null;
+            if (unavailable) {
+              throw new BadRequestException(
+                `${coordinator!.name} is unavailable for ${assignmentDate.toISOString().slice(0, 10)} (${unavailable.kind}).`,
+              );
+            }
             const conflict = await tx.opsCoordinatorAssignment.findFirst({
               where: {
                 coordinatorId: coordinator!.id,
