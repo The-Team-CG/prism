@@ -30,7 +30,7 @@ export type FeedbackMediaMeta = {
 export type FeedbackPayload = {
   guestName: string;
   rating: number;
-  comment: string;
+  comment?: string;
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
   marketingConsentAccepted: boolean;
