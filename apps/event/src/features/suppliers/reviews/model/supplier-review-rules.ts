@@ -15,7 +15,7 @@ export function selectSupplierReviewSubjects(
   const seenSupplierIds = new Set<string>();
 
   return quoteRequests.flatMap((request) => {
-    if (request.assignmentStatus !== "confirmed" || !request.supplierId || seenSupplierIds.has(request.supplierId)) {
+    if (request.eventId !== eventId || request.assignmentStatus !== "confirmed" || !request.supplierId || seenSupplierIds.has(request.supplierId)) {
       return [];
     }
 

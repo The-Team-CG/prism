@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { WorkflowCommandService } from '@prism/kernel/event-core';
+import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { InquiriesService } from './inquiries.service';
 
 function inquiry(overrides: Record<string, unknown> = {}) {
@@ -46,8 +46,27 @@ function inquiry(overrides: Record<string, unknown> = {}) {
 
 function createService(existing = [inquiry()]) {
   const records: any[] = [...existing];
+  const events: any[] = [];
+  const documents: any[] = [];
   const notifications: any[] = [];
   const audits: any[] = [];
+  const transaction = {
+    opsEvent: {
+      create: vi.fn(async ({ data }) => { const row = { ...data }; events.push(row); return row; }),
+      update: vi.fn(async ({ where, data }) => { const row = events.find((item) => item.id === where.id); Object.assign(row, data); return row; }),
+    },
+    opsPostEventDocument: { createMany: vi.fn(async () => ({ count: 2 })) },
+    opsDocument: {
+      create: vi.fn(async ({ data }) => { const row = { ...data }; documents.push(row); return row; }),
+    },
+    opsInquiry: {
+      update: vi.fn(async ({ where, data }) => {
+        const index = records.findIndex((item) => item.id === where.id);
+        records[index] = { ...records[index], ...data };
+        return records[index];
+      }),
+    },
+  };
   const prisma = {
     opsInquiry: {
       findMany: vi.fn(async () => records),
@@ -64,6 +83,10 @@ function createService(existing = [inquiry()]) {
       }),
       updateMany: vi.fn(async () => ({ count: 0 })),
     },
+    opsEvent: { findFirst: vi.fn(async () => null) },
+    opsBillingSource: { create: vi.fn(), count: vi.fn() },
+    opsBillingStatement: { create: vi.fn(), count: vi.fn() },
+    $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)),
   };
   const auditWriter = { write: vi.fn(async (...entry: unknown[]) => audits.push(entry)) };
   const notificationOutboxWriter = { write: vi.fn(async (...entry: unknown[]) => notifications.push(entry)) };
@@ -157,5 +180,30 @@ describe('InquiriesService', () => {
     expect((created as any).normalizedEmail).toBe('ana@ayala.test');
     expect((created as any).duplicateOfInquiryId).toBe('inq_same_window');
     expect((created as any).previousDeclinedInquiryId).toBe('inq_declined');
+  });
+
+  it('does not fabricate an approved billing source when conforme is signed', async () => {
+    const { service, prisma } = createService([inquiry({ status: 'accepted' })]);
+
+    await service.uploadConforme(
+      'inq_existing',
+      { fileName: 'signed-conforme.pdf' },
+      { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true },
+    );
+
+    expect(prisma.opsBillingSource.create).not.toHaveBeenCalled();
+    expect(prisma.opsBillingStatement.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-conforme document types before activating the portal', async () => {
+    const { service, prisma } = createService([inquiry({ status: 'accepted' })]);
+
+    await expect(service.uploadConforme(
+      'inq_existing',
+      { type: 'billing_statement', fileName: 'wrong.pdf' },
+      { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true },
+    )).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

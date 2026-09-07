@@ -1133,7 +1133,6 @@ export class SampleCompatibilityService implements OnModuleInit {
     const coordinator = await this.resolveCoordinatorForActor(actor);
     const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(
       coordinator.id,
-      coordinator.name,
     );
     const eventIds = new Set(visibleAssignments.map((assignment: any) => assignment.eventId));
     const events = await this.prisma.opsEvent.findMany({
@@ -1606,13 +1605,13 @@ export class SampleCompatibilityService implements OnModuleInit {
     return this.mapComplianceRule(rule);
   }
 
-  private async runCompliance(eventId: string, input: ComplianceRunInput = {}) {
-    const checks = await this.complianceWorkflowService.runCompliance(eventId, input);
+  private async runCompliance(eventId: string, input: ComplianceRunInput = {}, actorInput: SampleActorInput = {}) {
+    const checks = await this.complianceWorkflowService.runCompliance(eventId, input, this.resolveActor(actorInput));
     return checks.map((check) => this.mapComplianceCheck(check));
   }
 
-  private async resolveCompliance(eventId: string, checkId: string, input: string | ResolveComplianceInput = {}) {
-    const check = await this.complianceWorkflowService.resolveCompliance(eventId, checkId, input);
+  private async resolveCompliance(eventId: string, checkId: string, input: string | ResolveComplianceInput = {}, actorInput: SampleActorInput = {}) {
+    const check = await this.complianceWorkflowService.resolveCompliance(eventId, checkId, input, this.resolveActor(actorInput));
     return this.mapComplianceCheck(check);
   }
 

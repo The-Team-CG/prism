@@ -4,6 +4,6 @@ import type { ArchiveEventInput } from '../application/closure/event-closure.ser
 
 export interface ClosureCommands {
   archiveEvent(eventId: string, input?: ArchiveEventInput): Promise<OpsEvent>;
-  completePostEventDocument(eventId: string, documentId: string): Promise<OpsPostEventDocument>;
+  completePostEventDocument(eventId: string, documentId: string, actor?: ResolvedEventOpsActor): Promise<OpsPostEventDocument>;
   generateEventInsights(eventId: string, actor: ResolvedEventOpsActor): Promise<OpsEventInsight>;
 }

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@prism/kernel/database';
+import type { OpsAiApprovalRecord, OpsAiAuditLog } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService, toPrismaJson } from '@prism/kernel/database';
+import { assertPareExecutionAllowed, configuredPareMode, type PAREMode } from './pare-execution.policy';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { EventContextAgent } from './agents/event-context.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';
@@ -18,7 +20,6 @@ import type {
   PARERisk,
 } from './pare.types';
 
-type PAREMode = 'mock' | 'live';
 type ApprovalRow = {
   id: string;
   aiAuditLogId: string;
@@ -36,6 +37,13 @@ type AuditRow = {
   createdAt?: Date | string | null;
 };
 
+function requireMatchingAudit(record: OpsAiApprovalRecord, audit: OpsAiAuditLog | null): OpsAiAuditLog {
+  if (!audit || audit.featureName !== 'PARE' || audit.eventId !== record.eventId) {
+    throw new BadRequestException('A matching durable PARE audit is required');
+  }
+  return audit;
+}
+
 @Injectable()
 export class PAREService {
   private readonly mode: PAREMode;
@@ -46,12 +54,8 @@ export class PAREService {
   private readonly riskAgent: RiskAgent;
   private readonly messageDrafterAgent: MessageDrafterAgent;
 
-  // In-memory fallback store — used when DB is unreachable
-  private readonly memoryAuditLogs = new Map<string, AuditRow>();
-  private readonly memoryApprovals = new Map<string, ApprovalRow>();
-
   constructor(private readonly prisma: PrismaService) {
-    this.mode = (process.env.PARE_MODE as PAREMode) ?? 'mock';
+    this.mode = configuredPareMode(process.env.PARE_MODE);
     this.sanitizer = new DataSanitizerService();
     this.eventContextAgent = new EventContextAgent(prisma);
     this.supplierFinderAgent = new SupplierFinderAgent(prisma);
@@ -60,28 +64,8 @@ export class PAREService {
     this.messageDrafterAgent = new MessageDrafterAgent(this.mode);
   }
 
-  private async dbCreate<T>(model: any, data: Record<string, unknown>, memoryStore: Map<string, any>): Promise<T> {
-    try {
-      return await model.create({ data });
-    } catch {
-      const row = { ...data } as T;
-      memoryStore.set(data.id as string, row);
-      return row;
-    }
-  }
-
-  private async dbUpdate<T>(model: any, id: string, data: Record<string, unknown>, memoryStore: Map<string, any>): Promise<T> {
-    try {
-      return await model.update({ where: { id }, data });
-    } catch {
-      const existing = memoryStore.get(id) ?? { id };
-      const updated = { ...existing, ...data } as T;
-      memoryStore.set(id, updated);
-      return updated;
-    }
-  }
-
   async handleEmergencyTrigger(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREApprovalRecord> {
+    assertPareExecutionAllowed(this.mode);
     const triggeredAt = new Date();
 
     // Agent 1 — event context
@@ -119,28 +103,23 @@ export class PAREService {
       pareResult as unknown as Record<string, unknown>,
     );
     const aiAuditLogId = randomUUID();
-    const audit = await this.dbCreate<AuditRow>(
-      this.prisma.opsAiAuditLog,
-      {
+    return this.prisma.$transaction(async (tx) => {
+      const audit = await tx.opsAiAuditLog.create({ data: {
         id: aiAuditLogId,
         eventId: ctx.eventId,
         featureName: 'PARE',
-        modelVersion: this.mode === 'live' ? 'claude-sonnet-4-6' : 'mock',
-        dataCategories,
-        sanitizedPayload,
-        zdrConfirmed: this.mode === 'live' ? false : true,
+        modelVersion: 'mock',
+        dataCategories: toPrismaJson(dataCategories),
+        sanitizedPayload: toPrismaJson(sanitizedPayload),
+        zdrConfirmed: true,
         humanApprovalRequired: true,
         status: 'pending_human_approval',
         createdAt: triggeredAt,
-      },
-      this.memoryAuditLogs,
-    );
+      } });
 
     // Create approval record — PMCM Admin must approve before any action fires
     const approvalRecordId = randomUUID();
-    const approval = await this.dbCreate<ApprovalRow>(
-      this.prisma.opsAiApprovalRecord,
-      {
+    const approval = await tx.opsAiApprovalRecord.create({ data: {
         id: approvalRecordId,
         aiAuditLogId,
         eventId: ctx.eventId,
@@ -148,11 +127,10 @@ export class PAREService {
         requestedBy: 'PARE Engine',
         status: 'pending_human_approval',
         requestedAt: triggeredAt,
-      },
-      this.memoryApprovals,
-    );
+      } });
 
     return this.mapApprovalRecord(approval, audit);
+    });
   }
 
   async getPendingApprovals(eventId?: string): Promise<PAREApprovalRecord[]> {
@@ -162,45 +140,48 @@ export class PAREService {
     };
     if (eventId) where['eventId'] = eventId;
 
-    let approvals: ApprovalRow[];
-    try {
-      approvals = await this.prisma.opsAiApprovalRecord.findMany({
+    const approvals = await this.prisma.opsAiApprovalRecord.findMany({
         where,
         take: 100,
         orderBy: { requestedAt: 'desc' },
-      });
-    } catch {
-      approvals = Array.from(this.memoryApprovals.values()).filter(
-        (r) => r.status === 'pending_human_approval' && (!eventId || r.eventId === eventId),
-      );
-    }
+    });
     return Promise.all(approvals.map((record: ApprovalRow) => this.mapApprovalRecordWithAudit(record)));
   }
 
   async approveRecommendation(approvalRecordId: string, approvedBy: string): Promise<PAREApprovalRecord> {
-    const updateData = { status: 'approved', humanApproved: true, approvedBy, approvedAt: new Date() };
-    const updated = await this.dbUpdate<ApprovalRow>(
-      this.prisma.opsAiApprovalRecord, approvalRecordId, updateData, this.memoryApprovals,
-    );
-    if (updated?.aiAuditLogId) {
-      await this.dbUpdate(
-        this.prisma.opsAiAuditLog, updated.aiAuditLogId, { humanApproved: true, status: 'approved' }, this.memoryAuditLogs,
-      );
-    }
-    return this.mapApprovalRecordWithAudit(updated);
+    assertPareExecutionAllowed(this.mode);
+    return this.reviewRecommendation(approvalRecordId, approvedBy, 'approved');
   }
 
   async rejectRecommendation(approvalRecordId: string, rejectedBy: string): Promise<PAREApprovalRecord> {
-    const updateData = { status: 'rejected', humanApproved: false, approvedBy: rejectedBy, approvedAt: new Date() };
-    const updated = await this.dbUpdate<ApprovalRow>(
-      this.prisma.opsAiApprovalRecord, approvalRecordId, updateData, this.memoryApprovals,
-    );
-    if (updated?.aiAuditLogId) {
-      await this.dbUpdate(
-        this.prisma.opsAiAuditLog, updated.aiAuditLogId, { humanApproved: false, status: 'rejected' }, this.memoryAuditLogs,
-      );
-    }
-    return this.mapApprovalRecordWithAudit(updated);
+    return this.reviewRecommendation(approvalRecordId, rejectedBy, 'rejected');
+  }
+
+  private async reviewRecommendation(id: string, reviewedBy: string, status: 'approved' | 'rejected') {
+    return this.prisma.$transaction(async (tx) => {
+      const record = await tx.opsAiApprovalRecord.findUnique({ where: { id } });
+      if (!record || record.featureName !== 'PARE') throw new NotFoundException('PARE recommendation not found');
+      if (record.status !== 'pending_human_approval') throw new BadRequestException('Only pending PARE recommendations can be reviewed');
+      const audit = requireMatchingAudit(record, await tx.opsAiAuditLog.findUnique({ where: { id: record.aiAuditLogId } }));
+      if (status === 'approved') this.assertMockAudit(audit);
+      const data = { status, humanApproved: status === 'approved', approvedBy: reviewedBy, approvedAt: new Date() };
+      const claimed = await tx.opsAiApprovalRecord.updateMany({
+        where: { id, status: 'pending_human_approval' }, data,
+      });
+      if (claimed.count !== 1) throw new ConflictException('PARE recommendation was already reviewed');
+      const audited = await tx.opsAiAuditLog.updateMany({
+        where: { id: audit.id, status: 'pending_human_approval' },
+        data: { status, humanApproved: data.humanApproved },
+      });
+      if (audited.count !== 1) throw new ConflictException('PARE audit is no longer pending');
+      return this.mapApprovalRecord({ ...record, ...data }, audit);
+    });
+  }
+
+  private assertMockAudit(audit: OpsAiAuditLog) {
+    const payload = this.asRecord(audit.sanitizedPayload);
+    const verifiedMock = audit.modelVersion === 'mock' && payload.mode === 'mock' && audit.zdrConfirmed;
+    assertPareExecutionAllowed(verifiedMock ? 'mock' : 'live');
   }
 
   private async mapApprovalRecordWithAudit(record: ApprovalRow): Promise<PAREApprovalRecord> {
@@ -210,15 +191,7 @@ export class PAREService {
 
   private async findAuditLog(aiAuditLogId: string): Promise<AuditRow | null> {
     if (!aiAuditLogId) return null;
-    try {
-      if (typeof this.prisma.opsAiAuditLog.findUnique === 'function') {
-        return await this.prisma.opsAiAuditLog.findUnique({ where: { id: aiAuditLogId } });
-      }
-      const records = await this.prisma.opsAiAuditLog.findMany({ where: { id: aiAuditLogId }, take: 1 });
-      return records[0] ?? null;
-    } catch {
-      return this.memoryAuditLogs.get(aiAuditLogId) ?? null;
-    }
+    return this.prisma.opsAiAuditLog.findUnique({ where: { id: aiAuditLogId } });
   }
 
   private mapApprovalRecord(record: ApprovalRow, audit: AuditRow | null): PAREApprovalRecord {

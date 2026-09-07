@@ -44,8 +44,8 @@ export interface InquiryWorkflowContext {
 export class InquiryWorkflowService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listInquiries(actorInput: PrismEventOpsActorContext = {}, context: InquiryWorkflowContext) {
-    const actor = context.resolveActor(actorInput);
+  async listInquiries(actorInput: PrismEventOpsActorContext = {}, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
+    const actor = context.resolveActor(verifiedActor ? {} : actorInput, verifiedActor);
     await context.requireActorRole(actor, context.allowedAdminRoles, 'inquiries');
 
     const inquiries = await this.prisma.opsInquiry.findMany({
@@ -56,8 +56,8 @@ export class InquiryWorkflowService {
     return inquiries.map(context.mapInquiry);
   }
 
-  async listOnboarding(actorInput: PrismEventOpsActorContext = {}, context: InquiryWorkflowContext) {
-    const actor = context.resolveActor(actorInput);
+  async listOnboarding(actorInput: PrismEventOpsActorContext = {}, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
+    const actor = context.resolveActor(verifiedActor ? {} : actorInput, verifiedActor);
     await context.requireActorRole(actor, context.allowedAdminRoles, 'onboarding');
 
     const [inquiries, events, documents] = await Promise.all([
@@ -95,12 +95,16 @@ export class InquiryWorkflowService {
     return context.mapInquiry(inquiry);
   }
 
-  async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput, context: InquiryWorkflowContext) {
+  async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
+    const actor = context.resolveActor({}, verifiedActor);
+    await context.requireActorRole(actor, context.allowedAdminRoles, 'inquiry status');
     const inquiry = await context.inquiriesService.updateInquiryStatus(inquiryId, input);
     return context.mapInquiry(inquiry);
   }
 
-  async sendConformeReminder(inquiryId: string, context: InquiryWorkflowContext) {
+  async sendConformeReminder(inquiryId: string, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
+    const actor = context.resolveActor({}, verifiedActor);
+    await context.requireActorRole(actor, context.allowedAdminRoles, 'conforme reminder');
     const inquiry = await context.inquiriesService.sendConformeReminder(inquiryId);
     return context.mapInquiry(inquiry);
   }

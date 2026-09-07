@@ -1,9 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
 import type { CreateSupplierApplicationInput, ReviewSupplierApplicationInput } from '@prism/types';
+import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { Inject } from '@nestjs/common';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { mapSupplierApplication } from './supplier-application.mappers';
 import { applicationStatusForReviewAction } from './supplier-application-status';
 
@@ -20,6 +24,7 @@ export class SupplierApplicationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
   ) {}
 
   async createSupplierApplication(input: CreateSupplierApplicationInput) {
@@ -103,18 +108,31 @@ export class SupplierApplicationService {
       include: { category: true },
     });
     if (!existing) throw new NotFoundException('Supplier application not found');
+    if (['declined', 'approved', 'proposal_requested', 'meeting_scheduled'].includes(existing.status)) {
+      throw new BadRequestException('Supplier application has already been reviewed');
+    }
 
     const nextStatus = applicationStatusForReviewAction(input.action);
     const now = new Date();
-    const row = await this.prisma.opsSupplierApplication.update({
-      where: { id: applicationId },
-      data: {
+    const row = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const changed = await tx.opsSupplierApplication.updateMany({
+        where: { id: applicationId, status: 'pending' },
+        data: {
         status: nextStatus,
         declineReason: input.action === 'decline' ? input.declineReason?.trim() ?? null : existing.declineReason,
         reviewedAt: now,
         approvedAt: existing.approvedAt,
-      },
-      include: { category: true },
+        },
+      });
+      if (changed.count !== 1) throw new BadRequestException('Supplier application has already been reviewed');
+      const updated = await tx.opsSupplierApplication.findUnique({ where: { id: applicationId }, include: { category: true } });
+      if (!updated) throw new NotFoundException('Supplier application not found');
+      await writeAudit(this.auditWriter, undefined, actor.name, `Reviewed supplier application: ${updated.companyName}`, {
+        actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'suppliers',
+        affectedType: 'supplier_application', affectedId: updated.id, affectedLabel: updated.companyName,
+        metadata: { status: updated.status, action: input.action },
+      }, { prisma: tx, correlationId: `supplier-application-review:${updated.id}`, actorId: actor.id ?? actor.name });
+      return updated;
     });
     return mapSupplierApplication(row);
   }

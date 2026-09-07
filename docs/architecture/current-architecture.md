@@ -4,12 +4,12 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-08"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "codex/architecture-alignment-fe-be"
+last_verified: "2026-09-08; P0 context and session composition"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -45,6 +45,19 @@ target direction. Accepted architecture decisions are indexed in
 - **Use when:** Locating ownership or deciding where a new route, contract, service, or query belongs.
 - **Change when:** A runtime boundary, bounded-context owner, package contract, or compatibility rule changes.
 - **Verify with:** Repository boundary checks, touched package checks, and API/portal verification.
+
+The closeout command reads unresolved issues through the explicit pure public
+`@prism/contexts/read-models/closeout` subpath, using its transaction client.
+This avoids importing the read-model controller/module barrel back into lifecycle
+commands. The exact subpath is registered in the boundary checker and
+[context contracts](context-contracts.md); it does not permit arbitrary private
+cross-context imports. Session-guarded controllers import the session and access
+modules through their owning Nest composition roots. Built API HTTP acceptance
+checks verify this runtime dependency graph as well as the route guards.
+File-matrix and official snapshot reads use the similarly focused
+`@prism/contexts/read-models/event-scope` seam for trusted inquiry and assignment
+identity. Empty identities and inactive coordinator assignments/profiles confer
+no event scope.
 
 ## Architecture principles
 

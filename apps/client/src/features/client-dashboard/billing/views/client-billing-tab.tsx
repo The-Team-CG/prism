@@ -40,7 +40,7 @@ import {
   portalStatusLabel,
 } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
-import { clientMilestoneFollowUpCopy, clientMilestoneRemaining } from "../model/client-billing-rules";
+import { clientBillingSummary, clientMilestoneFollowUpCopy, clientMilestoneRemaining } from "../model/client-billing-rules";
 
 
 export function ClientBillingTab({
@@ -50,9 +50,7 @@ export function ClientBillingTab({
   payments: PrismPaymentMilestone[];
   billing?: PrismBillingStatement;
 }) {
-  const totalPaid = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
-  const totalAmount = billing?.totalAmount ?? payments.reduce((s, p) => s + p.amount, 0);
-  const balance = totalAmount - totalPaid;
+  const { totalAmount, totalPaid, balance } = clientBillingSummary(payments, billing);
 
   return (
     <div className="space-y-5">

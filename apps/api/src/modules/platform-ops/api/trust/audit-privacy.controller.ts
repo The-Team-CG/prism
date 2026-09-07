@@ -1,5 +1,9 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Logger, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Logger, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
+import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
+import type { PrismVerifiedEventActor } from '@prism/types';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
+import { auditLogFiltersSchema, createPrivacyRequestSchema, reviewPrivacyRequestSchema, executePrivacyRequestSchema, type AuditLogFilters, type CreatePrivacyRequestInput, type ReviewPrivacyRequestInput, type ExecutePrivacyRequestInput } from '@prism/types';
 import {
   CreatePrivacyRequestDto,
   ExecutePrivacyRequestDto,
@@ -21,19 +25,14 @@ type TrustActor = {
   coordinatorId?: string;
 };
 
-function resolveActor(input: SampleActorDto = {}): TrustActor {
-  const requestedRole = (input.actorRole ?? OpsUserRole.PmcmAdmin).trim().toLowerCase();
-  const knownRoles = Object.values(OpsUserRole) as string[];
-  const role = knownRoles.includes(requestedRole) ? requestedRole : OpsUserRole.Unknown;
-  const name = input.actorName ?? input.clientName ?? (role === OpsUserRole.PmcmAdmin ? 'PMCM Admin' : role);
+function resolveActor(input: PrismVerifiedEventActor): TrustActor {
+  const role = input.role;
+  const name = input.name;
   return {
-    id: input.actorId,
+    id: input.id,
     role,
-    email: input.actorEmail,
+    email: input.email,
     name,
-    clientName: input.clientName,
-    supplierId: input.supplierId,
-    coordinatorId: input.coordinatorId,
   };
 }
 
@@ -78,30 +77,34 @@ export class OpsAuditController {
   }
 
   @Get('logs')
-  async listLogs(@Query() query: ListAuditLogsDto) {
-    const actor = resolveActor(query);
+  @UseGuards(EventSessionGuard)
+  async listLogs(@Query(zodQuery(auditLogFiltersSchema)) query: AuditLogFilters, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'audit logs');
     return this.auditService.listAuditLogs(query);
   }
 
   @Post('export')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.OK)
-  async exportLogs(@Body() dto: ExportAuditLogsDto) {
-    const actor = resolveActor(dto);
+  async exportLogs(@Body(zodBody(auditLogFiltersSchema)) dto: AuditLogFilters, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'audit export');
     return this.auditService.exportAuditLogs(dto);
   }
 
   @Get('alerts')
-  async listAlerts(@Query() actorInput: SampleActorDto) {
-    const actor = resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  async listAlerts(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'security alerts');
     return this.auditService.listSecurityAlerts();
   }
 
   @Get('integrity')
-  async integrity(@Query() actorInput: SampleActorDto) {
-    const actor = resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  async integrity(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'audit integrity');
     return this.auditService.verifyIntegrity();
   }
@@ -119,45 +122,51 @@ export class OpsPrivacyController {
   }
 
   @Get('inventory')
-  async inventory(@Query() query: SampleActorDto & { eventId?: string }) {
-    const actor = resolveActor(query);
+  @UseGuards(EventSessionGuard)
+  async inventory(@Query() query: { eventId?: string }, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy inventory', query.eventId);
     return this.privacyOperationsService.getInventory(query);
   }
 
   @Get('retention-policies')
-  async retentionPolicies(@Query() actorInput: SampleActorDto) {
-    const actor = resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  async retentionPolicies(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy retention policies');
     return this.privacyOperationsService.listRetentionPolicies();
   }
 
   @Get('requests')
-  async requests(@Query() query: SampleActorDto & { eventId?: string; status?: string }) {
-    const actor = resolveActor(query);
+  @UseGuards(EventSessionGuard)
+  async requests(@Query() query: { eventId?: string; status?: string }, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy requests', query.eventId);
     return this.privacyOperationsService.listRequests(query);
   }
 
   @Post('requests')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
-  async createRequest(@Body() dto: CreatePrivacyRequestDto, @Query() actorInput: SampleActorDto) {
-    const actor = resolveActor(actorInput);
+  async createRequest(@Body(zodBody(createPrivacyRequestSchema)) dto: CreatePrivacyRequestInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy requests', dto.eventId);
     return this.privacyOperationsService.createRequest(dto, { name: actor.name, role: actor.role });
   }
 
   @Patch('requests/:requestId/review')
-  async reviewRequest(@Param('requestId') requestId: string, @Body() dto: ReviewPrivacyRequestDto, @Query() actorInput: SampleActorDto) {
-    const actor = resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  async reviewRequest(@Param('requestId') requestId: string, @Body(zodBody(reviewPrivacyRequestSchema)) dto: ReviewPrivacyRequestInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy request review');
     return this.privacyOperationsService.reviewRequest(requestId, dto, { name: actor.name, role: actor.role });
   }
 
   @Post('requests/:requestId/execute')
   @HttpCode(HttpStatus.OK)
-  async executeRequest(@Param('requestId') requestId: string, @Body() dto: ExecutePrivacyRequestDto, @Query() actorInput: SampleActorDto) {
-    const actor = resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  async executeRequest(@Param('requestId') requestId: string, @Body(zodBody(executePrivacyRequestSchema)) dto: ExecutePrivacyRequestInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy request execution');
     return this.privacyOperationsService.executeRequest(requestId, dto, { name: actor.name, role: actor.role });
   }

@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent } from '@prisma/client';
+import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
+import { lockCoordinatorAssignmentDay } from '@prism/kernel/shared-kernel';
 import type { PrismCommandContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -59,41 +60,30 @@ export class CoordinatorsService {
   }
 
 
-  async listAssignmentsForCoordinator(coordinatorId?: string | null, coordinatorName?: string | null) {
-    const [byId, byName] = await Promise.all([
-      coordinatorId
-        ? this.prisma.opsCoordinatorAssignment.findMany({
-            where: { coordinatorId },
-            orderBy: { createdAt: 'desc' },
-          })
-        : Promise.resolve([] as OpsCoordinatorAssignment[]),
-      coordinatorName
-        ? this.prisma.opsCoordinatorAssignment.findMany({
-            where: { coordinatorName },
-            orderBy: { createdAt: 'desc' },
-          })
-        : Promise.resolve([] as OpsCoordinatorAssignment[]),
-    ]);
-
-    return [...byId, ...byName].filter(
-      (assignment, index, assignments) => assignments.findIndex((item) => item.id === assignment.id) === index,
-    );
+  async listAssignmentsForCoordinator(coordinatorId?: string | null) {
+    return coordinatorId
+      ? this.prisma.opsCoordinatorAssignment.findMany({
+          where: { coordinatorId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
+          orderBy: { createdAt: 'desc' },
+        })
+      : [] as OpsCoordinatorAssignment[];
   }
 
   listAssignmentsForEvent(eventId: string) {
     return this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } });
   }
 
-  async resolveCoordinatorForActor(actor: { coordinatorId?: string | null; email?: string | null; name?: string | null }) {
+  async resolveCoordinatorForActor(actor: { id?: string | null; coordinatorId?: string | null; email?: string | null }) {
     const coordinators = await this.prisma.opsCoordinator.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
     });
     const coordinator = coordinators.find(
       (item: OpsCoordinator) =>
+        this.sameText(actor.id, item.userId) ||
+        this.sameText(actor.coordinatorId, item.userId) ||
         this.sameText(actor.coordinatorId, item.id) ||
-        this.sameText(actor.email, item.email) ||
-        this.sameText(actor.name, item.name),
+        this.sameText(actor.email, item.email),
     );
     if (!coordinator) throw new NotFoundException('Coordinator profile not found for actor');
     return coordinator as OpsCoordinator;
@@ -101,16 +91,16 @@ export class CoordinatorsService {
 
   async findAssignmentForEventActor(
     eventId: string,
-    actor: { coordinatorId?: string | null; email?: string | null; name?: string | null },
+    actor: { id?: string | null; coordinatorId?: string | null; email?: string | null },
   ) {
     const coordinator = await this.resolveCoordinatorForActor(actor);
-    const assignments = await this.listAssignmentsForEvent(eventId);
+    const assignments = (await this.listAssignmentsForEvent(eventId)).filter(
+      (item) => item.status !== CoordinatorAssignmentStatus.Cancelled && item.status !== CoordinatorAssignmentStatus.Replaced,
+    );
     return (
       assignments.find(
         (item) =>
-          this.sameText(item.coordinatorId, coordinator.id) ||
-          this.sameText(item.coordinatorName, coordinator.name) ||
-          this.sameText(item.coordinatorName, actor.name),
+          this.sameText(item.coordinatorId, coordinator.id),
       ) ?? null
     );
   }
@@ -118,28 +108,29 @@ export class CoordinatorsService {
   private async resolveAssignmentPlan(
     eventId: string,
     input: CreateCoordinatorAssignmentInput,
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<{ event: OpsEvent; coordinator: OpsCoordinator; role: string; conflict: CoordinatorConflict | null }> {
-    const event = await this.requireEvent(eventId);
-    const coordinator = await this.resolveCoordinator(input);
+    const event = await this.requireEvent(eventId, prisma);
+    const coordinator = await this.resolveCoordinator(input, prisma);
     const role = input.role || coordinator.roleTags[0] || 'General Coordinator';
 
     if (!coordinator.roleTags.includes(role)) {
       throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
     }
 
-    const conflict = (await this.prisma.opsCoordinatorAssignment.findFirst({
+    const conflict = (await prisma.opsCoordinatorAssignment.findFirst({
       where: {
         coordinatorId: coordinator.id,
         eventDate: event.eventDate,
         eventId: { not: event.id },
-        status: { not: CoordinatorAssignmentStatus.Cancelled },
+        status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] },
       },
       include: { event: true },
       orderBy: { createdAt: 'desc' },
     })) as CoordinatorConflict | null;
 
     if (conflict && !input.overrideConflict) {
-      const sameRoleSuggestions = await this.listAvailableSameRole(event, role, coordinator.id);
+      const sameRoleSuggestions = await this.listAvailableSameRole(event, role, coordinator.id, prisma);
       throw new BadRequestException({
         code: 'COORDINATOR_DOUBLE_BOOKING',
         message: `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
@@ -191,7 +182,11 @@ export class CoordinatorsService {
       context: commandContext,
       sideEffectMode: 'same_tx',
       validateState: async () => {
-        plan = await this.resolveAssignmentPlan(eventId, input);
+        await this.resolveAssignmentPlan(eventId, input);
+      },
+      validateStateInTransaction: async (transactionContext) => {
+        await this.lockCoordinatorDate(transactionContext.prisma, input, eventId);
+        plan = await this.resolveAssignmentPlan(eventId, input, transactionContext.prisma);
       },
       write: (transactionContext) => {
         if (!plan) throw new NotFoundException('Coordinator not found');
@@ -401,7 +396,23 @@ export class CoordinatorsService {
       context: commandContext,
       sideEffectMode: 'same_tx',
       validateState: async () => {
-        oldAssignment = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
+        const existing = await this.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
+        if (!existing) throw new NotFoundException('Coordinator assignment not found');
+        if (
+          existing.status === CoordinatorAssignmentStatus.Cancelled ||
+          existing.status === CoordinatorAssignmentStatus.Replaced
+        ) {
+          throw new BadRequestException('Coordinator assignment is already withdrawn or replaced');
+        }
+        await this.resolveAssignmentPlan(eventId, {
+          coordinatorId: input.replacementCoordinatorId,
+          coordinatorName: input.replacementCoordinatorName,
+          role: input.replacementRole,
+          overrideConflict: input.overrideConflict,
+        });
+      },
+      validateStateInTransaction: async (transactionContext) => {
+        oldAssignment = await transactionContext.prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
         if (!oldAssignment) throw new NotFoundException('Coordinator assignment not found');
         if (
           oldAssignment.status === CoordinatorAssignmentStatus.Cancelled ||
@@ -409,12 +420,16 @@ export class CoordinatorsService {
         ) {
           throw new BadRequestException('Coordinator assignment is already withdrawn or replaced');
         }
+        await this.lockCoordinatorDate(transactionContext.prisma, {
+          coordinatorId: input.replacementCoordinatorId,
+          coordinatorName: input.replacementCoordinatorName,
+        }, eventId);
         plan = await this.resolveAssignmentPlan(eventId, {
           coordinatorId: input.replacementCoordinatorId,
           coordinatorName: input.replacementCoordinatorName,
           role: input.replacementRole,
           overrideConflict: input.overrideConflict,
-        });
+        }, transactionContext.prisma);
       },
       write: async (transactionContext) => {
         if (!oldAssignment || !plan) throw new NotFoundException('Coordinator assignment not found');
@@ -530,15 +545,15 @@ export class CoordinatorsService {
     };
   }
 
-  private async listAvailableSameRole(event: OpsEvent, role: string, excludeCoordinatorId: string) {
-    const coordinators = await this.prisma.opsCoordinator.findMany({
+  private async listAvailableSameRole(event: OpsEvent, role: string, excludeCoordinatorId: string, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
+    const coordinators = await prisma.opsCoordinator.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
     });
-    const busy = await this.prisma.opsCoordinatorAssignment.findMany({
+    const busy = await prisma.opsCoordinatorAssignment.findMany({
       where: {
         eventDate: event.eventDate,
-        status: { not: CoordinatorAssignmentStatus.Cancelled },
+        status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] },
       },
     });
     const busyIds = new Set(
@@ -552,10 +567,10 @@ export class CoordinatorsService {
       .map((item) => ({ id: item.id, name: item.name, role }));
   }
 
-  private async resolveCoordinator(input: CreateCoordinatorAssignmentInput) {
+  private async resolveCoordinator(input: CreateCoordinatorAssignmentInput, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
     const coordinator = input.coordinatorId
-      ? await this.prisma.opsCoordinator.findUnique({ where: { id: input.coordinatorId } })
-      : await this.prisma.opsCoordinator.findFirst({
+      ? await prisma.opsCoordinator.findUnique({ where: { id: input.coordinatorId } })
+      : await prisma.opsCoordinator.findFirst({
           where: { name: input.coordinatorName ?? '', active: true },
         });
 
@@ -567,10 +582,33 @@ export class CoordinatorsService {
     return Boolean(left && right && left.trim().toLowerCase() === right.trim().toLowerCase());
   }
 
-  private async requireEvent(eventId: string) {
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+  private async requireEvent(eventId: string, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
+    const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     return event;
+  }
+
+  private async lockCoordinatorDate(
+    prisma: Prisma.TransactionClient,
+    input: {
+      coordinatorId?: string;
+      coordinatorName?: string;
+      replacementCoordinatorId?: string;
+      replacementCoordinatorName?: string;
+    },
+    eventId: string,
+  ) {
+    const coordinatorId = input.coordinatorId ?? input.replacementCoordinatorId;
+    const coordinatorName = input.coordinatorName ?? input.replacementCoordinatorName;
+    const coordinator = coordinatorId
+      ? await prisma.opsCoordinator.findUnique({ where: { id: coordinatorId }, select: { id: true } })
+      : coordinatorName
+        ? await prisma.opsCoordinator.findFirst({ where: { name: coordinatorName }, select: { id: true } })
+        : null;
+    if (!coordinator) return;
+    const event = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
+    if (!event?.eventDate) return;
+    await lockCoordinatorAssignmentDay(prisma, coordinator.id, event.eventDate);
   }
 
   // PA-276: acknowledgeCoordinator previously updated by assignmentId alone, letting any

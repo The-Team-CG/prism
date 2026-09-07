@@ -4,12 +4,12 @@ title: "P.R.I.S.M redesign readiness foundation"
 description: "Durable gates for sample state, sessions, app ownership, shared contracts, external dependencies, and safe redesign work."
 tags: [readiness, contracts, roles, compatibility, governance]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-08"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, QA, reviewers]
 scope: "contracts, sample state, sessions, database runtime, external dependencies, and readiness gates"
-last_verified: "581e676"
+last_verified: "2026-09-08; P0 correctness and session acceptance"
 sources:
   - id: constitution
     resource: "docs/constitution.md"
@@ -41,6 +41,19 @@ It does not replace the feature ledger or architecture docs. It states
 sample-state fencing, session conventions, owner boundaries, contract gates, and
 legacy-removal conditions so any contributor can apply them without
 undocumented context.
+
+## Correctness gates
+
+- Do not fabricate approved commercial evidence during onboarding. Proposal review requires an issued version; missing production issuance remains an explicit W12 blocker.
+- Closeout must read authoritative deliverable, payment, issue and client-feedback evidence. Missing logistics completion cannot pass through an unrelated approved layout; PMCM must record an override reason.
+- Privacy execution may mark only a supported, successfully committed operation complete. Full native-account/file erasure, access and correction workflows remain gated.
+- Sensitive HTTP routes derive identity from signed sessions. Display names, body/query roles and expired tokens grant no authority. Native password/TOTP behavior remains in place.
+- Live AI and unknown modes fail before network/SDK effects, including direct agent entry points. Mock mode does not establish provider approval or zero-retention compliance.
+- The [authority/lifecycle policy](event-authority-and-lifecycle-policy.md) records accepted rules; its downstream implementation limits remain explicit.
+
+The [P0 readiness report](../roadmap/p0-correctness-readiness.md) records acceptance
+evidence and the remaining blockers. Local database and HTTP tests are separate
+from browser, staging and production readiness.
 
 ## Purpose
 

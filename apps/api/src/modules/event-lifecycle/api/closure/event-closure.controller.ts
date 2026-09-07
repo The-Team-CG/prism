@@ -4,15 +4,16 @@ import { FLOORPLAN_READER } from '../../../floorplan/contracts/floorplan.tokens'
 import type { FloorplanReader } from '../../../floorplan/contracts/floorplan-reader.port';
 import { GUEST_READER } from '../../../operations/contracts/guest-ops.tokens';
 import type { GuestReader } from '../../../operations/contracts/guest-reader.port';
-import { ArchiveEventDto, ClosureActorDto } from './closure.dto';
 import { mapClosureEvent, mapEventInsight, mapPostEventDocument } from '../../application/closure/closure.mappers';
 import { EventClosureService } from '../../application/closure/event-closure.service';
 import {
   archiveSearchFiltersSchema,
+  archiveEventSchema,
+  type ArchiveEventInput,
   type ArchiveSearchFilters,
   type PrismVerifiedEventActor,
 } from '@prism/types';
-import { zodQuery } from '@prism/kernel/shared';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 
 @Controller('events')
@@ -35,37 +36,49 @@ export class OpsEventClosureController {
   }
 
   @Patch(':eventId/post-event-documents/:documentId/complete')
+  @UseGuards(EventSessionGuard)
   async completePostEventDocument(
     @Param('eventId') eventId: string,
     @Param('documentId') documentId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const document = await this.eventClosureService.completePostEventDocument(eventId, documentId);
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'post-event document completion', eventId);
+    const document = await this.eventClosureService.completePostEventDocument(eventId, documentId, actor);
     return mapPostEventDocument(document);
   }
 
   @Get(':eventId/close-gates')
-  closeGates(@Param('eventId') eventId: string) {
-    return this.eventClosureService.closeGates(eventId);
+  @UseGuards(EventSessionGuard)
+  closeGates(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'close gates', eventId).then(() =>
+      this.eventClosureService.closeGates(eventId));
   }
 
   @Post(':eventId/archive')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.OK)
-  async archiveEvent(@Param('eventId') eventId: string, @Body() dto: ArchiveEventDto = {}) {
-    const event = await this.eventClosureService.archiveEvent(eventId, dto);
+  async archiveEvent(@Param('eventId') eventId: string, @Body(zodBody(archiveEventSchema)) dto: ArchiveEventInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'event archive', eventId);
+    const event = await this.eventClosureService.archiveEvent(eventId, { overrideReason: dto.overrideReason, actorName: actor.name, actorRole: actor.role, actorEmail: actor.email, actorId: actor.id });
     return mapClosureEvent(event, { guestReader: this.guestReader, floorplanReader: this.floorplanReader });
   }
 
   @Get(':eventId/insights')
-  async eventInsights(@Param('eventId') eventId: string, @Query() actorInput: ClosureActorDto) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  @UseGuards(EventSessionGuard)
+  async eventInsights(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     const insights = await this.eventClosureService.listEventInsights(eventId, actor);
     return insights.map(mapEventInsight);
   }
 
   @Post(':eventId/insights/generate')
+  @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
-  async generateEventInsights(@Param('eventId') eventId: string, @Query() actorInput: ClosureActorDto = {}) {
-    const actor = this.eventAccessPolicyService.resolveActor(actorInput);
+  async generateEventInsights(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     const insight = await this.eventClosureService.generateEventInsights(eventId, actor);
     return mapEventInsight(insight);
   }

@@ -52,6 +52,7 @@ function createController() {
       name: verifiedActor?.actorName ?? input.actorName ?? 'PMCM Admin',
       email: verifiedActor?.actorEmail ?? input.actorEmail,
     })),
+    requireActorRole: vi.fn(async () => undefined),
   };
   const guestReader = { guestAccessCode: vi.fn(() => 'SAMPLE-GALA-EVT') };
   const floorplanReader = { mapFloorPlanDraft: vi.fn((draft) => draft) };
@@ -90,14 +91,15 @@ describe('OpsEventClosureController', () => {
   it('serves closeout commands through ClosureOps mappers', async () => {
     const { controller, eventClosureService, guestReader } = createController();
 
-    await expect(controller.completePostEventDocument('evt_sample', 'post_1')).resolves.toEqual({
+    const verifiedActor = { id: 'pmcm_1', actorId: 'pmcm_1', role: OpsUserRole.PmcmAdmin, actorRole: OpsUserRole.PmcmAdmin, name: 'Maxine', actorName: 'Maxine', email: 'maxine@pmcm.test', actorEmail: 'maxine@pmcm.test' } as never;
+    await expect(controller.completePostEventDocument('evt_sample', 'post_1', verifiedActor)).resolves.toEqual({
       id: 'post_1',
       eventId: 'evt_sample',
       title: 'Feedback',
       status: 'submitted',
     });
-    await expect(controller.closeGates('evt_sample')).resolves.toEqual({ ready: true, missingKeys: [] });
-    await expect(controller.archiveEvent('evt_sample', { actorName: 'Maxine' })).resolves.toEqual(
+    await expect(controller.closeGates('evt_sample', verifiedActor)).resolves.toEqual({ ready: true, missingKeys: [] });
+    await expect(controller.archiveEvent('evt_sample', {}, verifiedActor)).resolves.toEqual(
       expect.objectContaining({
         id: 'evt_sample',
         eventDate: '2026-07-20',
@@ -107,8 +109,8 @@ describe('OpsEventClosureController', () => {
       }),
     );
 
-    expect(eventClosureService.completePostEventDocument).toHaveBeenCalledWith('evt_sample', 'post_1');
-    expect(eventClosureService.archiveEvent).toHaveBeenCalledWith('evt_sample', { actorName: 'Maxine' });
+    expect(eventClosureService.completePostEventDocument).toHaveBeenCalledWith('evt_sample', 'post_1', expect.objectContaining({ role: OpsUserRole.PmcmAdmin }));
+    expect(eventClosureService.archiveEvent).toHaveBeenCalledWith('evt_sample', expect.objectContaining({ actorName: 'Maxine', actorRole: OpsUserRole.PmcmAdmin }));
     expect(guestReader.guestAccessCode).toHaveBeenCalled();
   });
 
@@ -116,7 +118,7 @@ describe('OpsEventClosureController', () => {
     const { controller, eventClosureService, eventAccessPolicyService } = createController();
     const actor = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
 
-    await expect(controller.eventInsights('evt_sample', actor)).resolves.toEqual([
+    await expect(controller.eventInsights('evt_sample', actor as never)).resolves.toEqual([
       expect.objectContaining({
         id: 'ins_1',
         summary: 'Closed cleanly',
@@ -125,11 +127,11 @@ describe('OpsEventClosureController', () => {
         updatedAt: '2026-07-21T01:00:00.000Z',
       }),
     ]);
-    await expect(controller.generateEventInsights('evt_sample', actor)).resolves.toEqual(
+    await expect(controller.generateEventInsights('evt_sample', actor as never)).resolves.toEqual(
       expect.objectContaining({ id: 'ins_1', privateNotes: 'PMCM-only' }),
     );
 
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith(actor);
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, actor);
     expect(eventClosureService.listEventInsights).toHaveBeenCalledWith(
       'evt_sample',
       { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
@@ -147,7 +149,7 @@ describe('OpsEventClosureController', () => {
     );
 
     await expect(
-      controller.eventInsights('evt_sample', { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' }),
+      controller.eventInsights('evt_sample', { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' } as never),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
