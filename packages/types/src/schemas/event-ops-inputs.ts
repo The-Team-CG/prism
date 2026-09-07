@@ -73,6 +73,7 @@ export type SubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
 export const reviewEventProposalSchema = z.object({
   action: z.enum(["approve", "request_revision"]),
   revisionNote: optionalTrimmedStringSchema,
+  idempotencyKey: optionalTrimmedStringSchema,
 }).superRefine((value, ctx) => {
   if (value.action === "request_revision" && !value.revisionNote?.trim()) {
     ctx.addIssue({
