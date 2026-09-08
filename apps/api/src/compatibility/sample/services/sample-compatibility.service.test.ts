@@ -843,6 +843,8 @@ function createPrisma(seedInquiry: any = inquiry()) {
     opsNotificationLog: {
       findUnique: async ({ where }: { where: { id: string } }) =>
         state.notifications.find((item) => item.id === where.id) ?? null,
+      findFirst: async ({ where }: { where?: { correlationId?: string; idempotencyKey?: null } } = {}) =>
+        state.notifications.find((item) => (!where?.correlationId || item.correlationId === where.correlationId) && (where?.idempotencyKey === undefined || item.idempotencyKey === where.idempotencyKey)) ?? null,
       findMany: async ({ where }: { where?: { eventId?: string; status?: string } } = {}) =>
         state.notifications.filter((item) => {
           if (where?.eventId && item.eventId !== where.eventId) return false;
@@ -851,6 +853,13 @@ function createPrisma(seedInquiry: any = inquiry()) {
         }),
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: data.createdAt ?? new Date() };
+        state.notifications.push(row);
+        return row;
+      },
+      upsert: async ({ where, create, update }: { where: { idempotencyKey: string }; create: any; update: any }) => {
+        const existing = state.notifications.find((item) => item.idempotencyKey === where.idempotencyKey);
+        if (existing) return { ...existing, ...update };
+        const row = { ...create, createdAt: create.createdAt ?? new Date() };
         state.notifications.push(row);
         return row;
       },
