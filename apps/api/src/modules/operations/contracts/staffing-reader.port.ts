@@ -11,7 +11,7 @@ export interface StaffingReader {
   listCoordinators(): Promise<unknown[]>;
   listAssignmentsForCoordinator(
     coordinatorId?: string | null,
-    coordinatorName?: string | null,
+    includeHistoricalOrName?: boolean | string | null,
   ): Promise<OpsCoordinatorAssignment[]>;
   listAssignmentsForEvent(eventId: string): Promise<OpsCoordinatorAssignment[]>;
   resolveCoordinatorForActor(actor: StaffingActorLookup): Promise<OpsCoordinator>;

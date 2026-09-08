@@ -6,6 +6,8 @@ import {
 } from '@prism/kernel/access-control';
 import type {
   CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
   CreateUrgentIssueInput,
   EscalateLiveOpsInput,
   ReplaceCoordinatorAssignmentInput,
@@ -40,7 +42,8 @@ export class EventLiveOpsCommandService {
   ) {}
 
   async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: ResolvedEventOpsActor) {
-    await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    this.requireCoordinatorTaskScope(actor, assignment, designatedOperator, input.assignedRole, input.ownerName);
     const task = await this.liveOperationsService.createEventDayTask(eventId, input, actor);
     return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -51,7 +54,8 @@ export class EventLiveOpsCommandService {
     input: UpdateEventDayTaskInput,
     actor: ResolvedEventOpsActor,
   ) {
-    await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.liveOperationsService.updateEventDayTask(eventId, taskId, input, actor);
     return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -62,7 +66,8 @@ export class EventLiveOpsCommandService {
     input: EscalateLiveOpsInput,
     actor: ResolvedEventOpsActor,
   ) {
-    await this.requireEventDayWriteActor(eventId, actor, 'event-day task escalation');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day task escalation');
+    await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.liveOperationsService.escalateEventDayTask(eventId, taskId, input, actor);
     return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -104,12 +109,12 @@ export class EventLiveOpsCommandService {
     // PA-298: updateCoordinatorAttendance previously discarded requireEventDayWriteActor's
     // resolved assignment, letting any Coordinator assigned to the event mark any other
     // coordinator's attendance by changing the assignmentId path segment.
-    const { assignment: actorAssignment } = await this.requireEventDayWriteActor(
+    const { assignment: actorAssignment, designatedOperator } = await this.requireEventDayWriteActor(
       eventId,
       actor,
       'coordinator attendance',
     );
-    if (actor.role === OpsUserRole.Coordinator && actorAssignment?.id !== assignmentId) {
+    if (actor.role === OpsUserRole.Coordinator && !designatedOperator && actorAssignment?.id !== assignmentId) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator attendance', eventId);
       throw new ForbiddenException("Coordinator cannot mark another coordinator's attendance");
     }
@@ -118,6 +123,28 @@ export class EventLiveOpsCommandService {
       assignment,
       this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
     );
+  }
+
+  async requestTaskReassignment(eventId: string, taskId: string, input: CreateEventTaskReassignmentInput, actor: ResolvedEventOpsActor) {
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'task reassignment');
+    if (actor.role === OpsUserRole.Coordinator && !designatedOperator) {
+      await this.requireTaskScope(eventId, taskId, actor, assignment, false);
+      throw new ForbiddenException('Only the designated Event Day System Operator may request task reassignment');
+    }
+    return this.liveOperationsService.requestTaskReassignment(eventId, taskId, input, actor);
+  }
+
+  async listTaskReassignmentRequests(eventId: string, actor: ResolvedEventOpsActor) {
+    const { designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'task reassignment requests');
+    if (actor.role === OpsUserRole.Coordinator && !designatedOperator) {
+      throw new ForbiddenException('Only the designated Event Day System Operator may view task reassignment requests');
+    }
+    return this.liveOperationsService.listTaskReassignmentRequests(eventId);
+  }
+
+  async decideTaskReassignment(eventId: string, requestId: string, input: DecideEventTaskReassignmentInput, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'task reassignment decision', eventId);
+    return this.liveOperationsService.decideTaskReassignment(eventId, requestId, input, actor);
   }
 
   async replaceCoordinatorAssignment(
@@ -153,7 +180,11 @@ export class EventLiveOpsCommandService {
     input: VerifySupplierStatusInput,
     actor: ResolvedEventOpsActor,
   ) {
-    await this.requireEventDayWriteActor(eventId, actor, 'supplier setup verification');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'supplier setup verification');
+    if (actor.role === OpsUserRole.Coordinator && !designatedOperator && !this.isIngressRole(assignment?.role)) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'supplier setup verification', eventId);
+      throw new ForbiddenException('Only the ingress coordinator or designated operator may verify supplier setup');
+    }
     const updated = await this.supplierCommands.verifySupplierEventStatus(eventId, requestId, input, actor);
     const verifiedBy = actor.name;
     const metadata = { verificationStatus: input.verificationStatus, verifiedBy, notes: input.notes ?? '' };
@@ -201,7 +232,13 @@ export class EventLiveOpsCommandService {
       actor.role === OpsUserRole.Coordinator
         ? await this.requireCoordinatorAssignmentForEvent(eventId, actor)
         : null;
-    return { actor, assignment };
+    const designationModel = 'opsEventOperatorDesignation' in this.prisma ? this.prisma.opsEventOperatorDesignation : undefined;
+    const designatedOperator = actor.role === OpsUserRole.Coordinator && Boolean(
+      designationModel && assignment?.coordinatorId && await designationModel.findFirst({
+        where: { eventId, coordinatorId: assignment.coordinatorId, revokedAt: null },
+      }),
+    );
+    return { actor, assignment, designatedOperator };
   }
 
   private async requireEvent(eventId: string) {
@@ -217,6 +254,48 @@ export class EventLiveOpsCommandService {
       throw new ForbiddenException('Coordinator is not assigned to this event');
     }
     return assignment;
+  }
+
+  private isIngressRole(role?: string | null) {
+    const value = role?.toLowerCase() ?? '';
+    return value.includes('ingress') || value.includes('egress');
+  }
+
+  private requireCoordinatorTaskScope(
+    actor: ResolvedEventOpsActor,
+    assignment: Awaited<ReturnType<EventLiveOpsCommandService['requireCoordinatorAssignmentForEvent']>> | null,
+    designatedOperator: boolean,
+    assignedRole?: string,
+    ownerName?: string,
+  ) {
+    if (actor.role !== OpsUserRole.Coordinator || designatedOperator || !assignment) return;
+    const role = assignedRole?.trim();
+    const owner = ownerName?.trim();
+    if (role && !this.eventAccessPolicyService.sameText(role, assignment.role) && !this.eventAccessPolicyService.sameText(role, 'General Coordinator')) {
+      throw new ForbiddenException('Coordinator may only create tasks for their role');
+    }
+    if (owner && !this.eventAccessPolicyService.sameText(owner, assignment.coordinatorName)) {
+      throw new ForbiddenException('Coordinator may only create tasks for their own queue');
+    }
+  }
+
+  private async requireTaskScope(
+    eventId: string,
+    taskId: string,
+    actor: ResolvedEventOpsActor,
+    assignment: Awaited<ReturnType<EventLiveOpsCommandService['requireCoordinatorAssignmentForEvent']>> | null,
+    designatedOperator: boolean,
+  ) {
+    if (actor.role !== OpsUserRole.Coordinator || designatedOperator) return;
+    const task = await this.prisma.opsEventDayTask.findFirst({ where: { id: taskId, eventId } });
+    if (!task) throw new NotFoundException('Event-day task not found');
+    const roleMatches = this.eventAccessPolicyService.sameText(task.assignedRole, assignment?.role) ||
+      this.eventAccessPolicyService.sameText(task.assignedRole, 'General Coordinator');
+    const ownerMatches = !task.ownerName || this.eventAccessPolicyService.sameText(task.ownerName, assignment?.coordinatorName);
+    if (!assignment || !roleMatches || !ownerMatches) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task scope', eventId);
+      throw new ForbiddenException('Coordinator may only update tasks in their own queue');
+    }
   }
 
 }

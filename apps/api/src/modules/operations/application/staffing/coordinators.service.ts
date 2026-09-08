@@ -70,10 +70,16 @@ export class CoordinatorsService {
   }
 
 
-  async listAssignmentsForCoordinator(coordinatorId?: string | null) {
+  async listAssignmentsForCoordinator(
+    coordinatorId?: string | null,
+    includeHistoricalOrName: boolean | string | null = false,
+  ) {
+    const includeHistorical = includeHistoricalOrName === true;
     return coordinatorId
       ? this.prisma.opsCoordinatorAssignment.findMany({
-          where: { coordinatorId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
+          where: includeHistorical
+            ? { coordinatorId }
+            : { coordinatorId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
           orderBy: { createdAt: 'desc' },
           include: { acknowledgmentHistory: { orderBy: { createdAt: 'asc' } } },
         })
