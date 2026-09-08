@@ -68,6 +68,8 @@ import type {
   PrismEventHandoff,
   PrismEventEodReport,
   PrismStoredObject,
+  PrismAddendum,
+  PrismEventFreezeException,
   RequestStorageUploadInput,
   ConfirmStorageUploadInput,
 } from "@prism/types";
@@ -153,6 +155,11 @@ export interface EventOpsClient {
     requestDocumentUpload(input: RequestStorageUploadInput, actor?: EventOpsActorQuery): Promise<unknown>;
     confirmDocumentUpload(eventId: string, objectId: string, input: ConfirmStorageUploadInput, actor?: EventOpsActorQuery): Promise<PrismStoredObject>;
     documentDownloadAuthorization(objectId: string, actor?: EventOpsActorQuery): Promise<unknown>;
+    addenda(eventId: string, actor?: EventOpsActorQuery): Promise<PrismAddendum[]>;
+    freeze(eventId: string, input: import('@prism/types').FreezeEventInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    requestFreezeException(eventId: string, input: import('@prism/types').RequestFreezeExceptionInput, actor?: EventOpsActorQuery): Promise<PrismEventFreezeException>;
+    decideFreezeException(eventId: string, exceptionId: string, input: import('@prism/types').DecideFreezeExceptionInput, actor?: EventOpsActorQuery): Promise<PrismEventFreezeException>;
+    issueAddendum(eventId: string, input: import('@prism/types').IssueAddendumInput, actor?: EventOpsActorQuery): Promise<PrismAddendum>;
   };
   clientWorkspace: {
     detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
@@ -291,6 +298,11 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
       requestDocumentUpload: (input, actor = {}) => prismRequest(actorPath(`/events/${input.eventId}/documents/upload-request`, actor), withBase(options, { method: "POST", body: input })),
       confirmDocumentUpload: (eventId, objectId, input, actor = {}) => prismRequest<PrismStoredObject>(actorPath(`/events/${eventId}/documents/${objectId}/confirm`, actor), withBase(options, { method: "POST", body: input })),
       documentDownloadAuthorization: (objectId, actor = {}) => prismRequest(actorPath(`/storage/objects/${objectId}/download-authorization`, actor), withBase(options)),
+      addenda: (eventId, actor = {}) => prismRequest<PrismAddendum[]>(actorPath(`/events/${eventId}/addenda`, actor), withBase(options)),
+      freeze: (eventId, input, actor = {}) => prismRequest(actorPath(`/events/${eventId}/freeze`, actor), withBase(options, { method: 'POST', body: input })),
+      requestFreezeException: (eventId, input, actor = {}) => prismRequest<PrismEventFreezeException>(actorPath(`/events/${eventId}/freeze-exceptions`, actor), withBase(options, { method: 'POST', body: input })),
+      decideFreezeException: (eventId, exceptionId, input, actor = {}) => prismRequest<PrismEventFreezeException>(actorPath(`/events/${eventId}/freeze-exceptions/${exceptionId}`, actor), withBase(options, { method: 'PATCH', body: input })),
+      issueAddendum: (eventId, input, actor = {}) => prismRequest<PrismAddendum>(actorPath(`/events/${eventId}/addenda`, actor), withBase(options, { method: 'POST', body: input })),
     },
     clientWorkspace: {
       detail: (actor = {}) => prismRequest<PrismClientWorkspace>(actorPath("/client/workspace", actor), withBase(options)),

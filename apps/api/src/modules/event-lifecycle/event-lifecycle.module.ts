@@ -28,6 +28,8 @@ import { FileRequirementsMatrixService } from './application/files/file-requirem
 import { EventDocumentJourneyController } from './api/files/event-document-journey.controller';
 import { EventDecisionController } from './api/decisions/event-decision.controller';
 import { EventDecisionService } from './application/decisions/event-decision.service';
+import { ChangeManagementController } from './api/change/change-management.controller';
+import { ChangeManagementService } from './application/change/change-management.service';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -67,6 +69,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     OpsEventFileRequirementsController,
     EventDocumentJourneyController,
     EventDecisionController,
+    ChangeManagementController,
   ],
   providers: [
     InquiriesService,
@@ -89,6 +92,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: FILE_REQUIREMENT_READER, useExisting: FileRequirementsMatrixService },
     { provide: FILE_REQUIREMENT_COMMANDS, useValue: metadataOnlyFileCommands },
     EventDecisionService,
+    ChangeManagementService,
   ],
   exports: [
     InquiriesService,
@@ -108,6 +112,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     SIGNED_UPLOAD_URL_FACTORY,
+    ChangeManagementService,
   ],
 })
 export class EventLifecycleModule {}

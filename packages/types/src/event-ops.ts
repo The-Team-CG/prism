@@ -278,6 +278,10 @@ export interface PrismEvent {
   proposalRevisionCount?: number;
   proposalReviewedAt?: string | null;
   proposalReviewedBy?: string | null;
+  freezeStatus?: "open" | "frozen" | string;
+  freezeAt?: string | null;
+  freezeDeadlineAt?: string | null;
+  freezeReason?: string;
   activeFloorPlanDraftId?: string;
   floorPlanDrafts?: PrismFloorPlanDraft[];
 }
@@ -1547,6 +1551,34 @@ type CreateFloorPlanDraftInput = {
 export interface PrismCostEstimateLine { id: string; category: string; description: string; quantity: number; unitAmount: number; totalAmount: number; sourceLineId?: string | null; }
 export interface PrismCostEstimate { id: string; eventId: string; budgetAmount: number; totalAmount: number; alignment: "within_budget" | "over_budget"; status: "draft" | "approved"; lines: PrismCostEstimateLine[]; notes: string; createdAt: string; }
 export interface PrismProposalVersion { id: string; eventId: string; versionNumber: number; title: string; summary: string; costEstimateId: string; totalAmount: number; status: "draft" | "issued" | "superseded"; revisionNote: string; issuedAt?: string | null; }
+
+export type PrismAddendumStatus = "issued";
+export interface PrismAddendum {
+  id: string;
+  eventId: string;
+  versionNumber: number;
+  title: string;
+  summary: string;
+  status: PrismAddendumStatus;
+  documentId: string;
+  documentState: "pending" | "available";
+  signatureMethod: "scanned_document";
+  comparison: { contract: unknown[]; quotes: unknown[] };
+  financialDelta: number;
+  issuedAt: string;
+}
+export interface PrismEventFreezeException {
+  id: string;
+  eventId: string;
+  requestedChange: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  requestedBy: string;
+  decidedBy?: string | null;
+  decisionNote?: string | null;
+  requestedAt: string;
+  decidedAt?: string | null;
+}
 
 type AddSupplierQuoteInput = {
   requestId?: string;
