@@ -672,6 +672,11 @@ export interface PrismGuestEventPass {
   activeFloorPlanDraftId?: string;
   guestAccessCode: string;
   attendanceCount: number;
+  watermark: string;
+}
+
+export interface PrismGuestEventWatermark {
+  watermark: string;
 }
 
 export interface PrismGuestFeedback {
