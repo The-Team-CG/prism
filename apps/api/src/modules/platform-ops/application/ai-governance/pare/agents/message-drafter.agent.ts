@@ -116,13 +116,14 @@ function executeDrafterTool(toolName: string, ctx: PAREContext): string {
 export class MessageDrafterAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
-  async runPareMessageDraftAgent(ctx: PAREContext): Promise<PAREDrafts> {
+  async runPareMessageDraftAgent(ctx: PAREContext, signal?: AbortSignal): Promise<PAREDrafts> {
     assertPareExecutionAllowed(this.mode);
-    if (this.mode === 'live') return this.runWithClaude(ctx);
+    throwIfAborted(signal);
+    if (this.mode === 'live') return this.runWithClaude(ctx, signal);
     return mockDrafts(ctx);
   }
 
-  private async runWithClaude(ctx: PAREContext): Promise<PAREDrafts> {
+  private async runWithClaude(ctx: PAREContext, signal?: AbortSignal): Promise<PAREDrafts> {
     const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -144,6 +145,7 @@ These drafts will be reviewed and approved by PMCM Admin (Ms. Mys) before sendin
     const messages: any[] = [{ role: 'user', content: userPrompt }];
 
     for (let i = 0; i < 6; i++) {
+      throwIfAborted(signal);
       const isLastChance = i >= 4;
       const tool_choice = isLastChance
         ? { type: 'tool' as const, name: 'submit_message_drafts' }
@@ -156,7 +158,7 @@ These drafts will be reviewed and approved by PMCM Admin (Ms. Mys) before sendin
         tools: DRAFTER_TOOLS as any,
         tool_choice,
         messages,
-      });
+      }, { signal });
 
       messages.push({ role: 'assistant', content: response.content });
 
@@ -184,4 +186,8 @@ These drafts will be reviewed and approved by PMCM Admin (Ms. Mys) before sendin
 
     return mockDrafts(ctx);
   }
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('PARE execution aborted');
 }

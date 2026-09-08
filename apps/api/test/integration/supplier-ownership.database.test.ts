@@ -7,7 +7,7 @@ import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import type { AuditWriter } from '@prism/kernel/access-control';
 import { SuppliersService } from '../../src/modules/commercial/application/suppliers/suppliers.service';
 import { SupplierNetworkWorkflowService } from '../../src/modules/commercial/application/suppliers/supplier-network-workflow.service';
-import type { SupplierPareAutomation } from '../../src/modules/commercial/contracts/supplier-pare-automation.port';
+import type { PareApprovalGovernance } from '@prism/contexts/platform-ops';
 import type { SupplierDocumentVault } from '../../src/modules/commercial/contracts/supplier-document-vault.port';
 import type { SupplierProfileCommandsService } from '../../src/modules/commercial/application/suppliers/supplier-profile-commands.service';
 import { EventReadModelQueries } from '../../src/modules/read-models/application/queries/event-read-models.queries';
@@ -122,11 +122,10 @@ describe.skipIf(!live)('supplier identity ownership against PostgreSQL', () => {
           return undefined;
         },
       };
-      const pareService: SupplierPareAutomation = {
+      const pareService: PareApprovalGovernance = {
         getPendingApprovals: async () => [],
-        approveRecommendation: async () => ({ id: 'test', eventId: 'test' }),
-        rejectRecommendation: async () => ({ id: 'test', eventId: 'test' }),
-        handleEmergencyTrigger: async () => ({ id: 'test', eventId: 'test' }),
+        approveRecommendation: async () => ({ id: 'test' } as never),
+        rejectRecommendation: async () => ({ id: 'test' } as never),
       };
       const documentVault: SupplierDocumentVault = {
         validateUploadMetadata: () => ({
@@ -147,6 +146,7 @@ describe.skipIf(!live)('supplier identity ownership against PostgreSQL', () => {
         policy,
         new WorkflowCommandService(new PrismTransactionRunner(prisma)),
         pareService,
+        { queue: async () => ({}) },
         documentVault,
       );
 

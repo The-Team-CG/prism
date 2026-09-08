@@ -17,7 +17,6 @@ export * from './contracts/supplier-commands.port';
 export * from './contracts/supplier-directory.port';
 export * from './contracts/supplier-document-vault.port';
 export * from './contracts/supplier-ops.tokens';
-export * from './contracts/supplier-pare-automation.port';
 export * from './contracts/supplier-readiness-reader.port';
 export * from './application/suppliers/supplier-network-workflow.service';
 export * from './application/suppliers/supplier-profile-commands.service';

@@ -2,6 +2,14 @@ import { ServiceUnavailableException } from '@nestjs/common';
 
 export type PAREMode = 'mock' | 'live';
 
+export class PareConfigurationError extends ServiceUnavailableException {
+  readonly code = 'PARE_CONFIGURATION';
+  constructor(message: string) {
+    super(message);
+    this.name = 'PareConfigurationError';
+  }
+}
+
 export function configuredPareMode(value: string | undefined): PAREMode {
   if (value === undefined || value === 'mock') return 'mock';
   if (value === 'live') return 'live';
@@ -11,7 +19,7 @@ export function configuredPareMode(value: string | undefined): PAREMode {
 /** Live execution has no approved provider/sanitizer/audit capability yet. */
 export function assertPareExecutionAllowed(mode: string): void {
   if (mode !== 'mock') {
-    throw new ServiceUnavailableException(
+    throw new PareConfigurationError(
       'Live PARE is disabled until provider retention, sanitization and durable approval controls are verified. Use mock mode.',
     );
   }

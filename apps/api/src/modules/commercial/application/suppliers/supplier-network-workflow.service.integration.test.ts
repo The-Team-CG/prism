@@ -5,10 +5,10 @@ import { PrismaService } from '@prism/kernel/database';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { WorkflowCommandService, OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
-import { AuditService, AuditWriterAdapter } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, PareDispatchOutboxService } from '@prism/contexts/platform-ops';
 import { SupplierNetworkWorkflowService } from './supplier-network-workflow.service';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
-import type { SupplierPareAutomation } from '../../contracts/supplier-pare-automation.port';
+import type { PareApprovalGovernance } from '@prism/contexts/platform-ops';
 import type { SupplierDocumentVault } from '../../contracts/supplier-document-vault.port';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
@@ -23,6 +23,7 @@ function validateDatabaseUrl(value: string) {
 if (databaseUrl) validateDatabaseUrl(databaseUrl);
 
 const databaseSuite = describe.skipIf(!databaseUrl);
+let pareCalls = 0;
 
 type Fixture = {
   inquiryId: string;
@@ -127,7 +128,7 @@ function supplierActor(fixture: Fixture) {
 function createService(
   prisma: PrismaService,
   auditWriter: AuditWriter,
-  pareService: SupplierPareAutomation,
+  pareService: PareApprovalGovernance,
   fixture: Fixture,
   afterFirstRequestRead?: () => Promise<void>,
 ) {
@@ -167,6 +168,7 @@ function createService(
       return Reflect.get(target, property, receiver);
     },
   }) as unknown as PrismaService;
+  const pareOutbox = new PareDispatchOutboxService(prisma, {} as any);
   return new SupplierNetworkWorkflowService(
     servicePrisma,
     suppliers,
@@ -175,6 +177,7 @@ function createService(
     access,
     workflow,
     pareService,
+    { queue: async (input, context) => { pareCalls += 1; return pareOutbox.queue(input, context); } },
     {} as unknown as SupplierDocumentVault,
   );
 }
@@ -182,13 +185,8 @@ function createService(
 databaseSuite('SupplierNetworkWorkflowService PostgreSQL transition invariants', () => {
   let prisma: PrismaService;
   let auditWriter: AuditWriter;
-  let pareCalls = 0;
-  const pareService: SupplierPareAutomation = {
+  const pareService: PareApprovalGovernance = {
     getPendingApprovals: async () => [],
-    handleEmergencyTrigger: async () => {
-      pareCalls += 1;
-      return { id: 'p0_w04_pare_stub' } as never;
-    },
     approveRecommendation: async () => ({ id: 'p0_w04_pare_stub' }) as never,
     rejectRecommendation: async () => ({ id: 'p0_w04_pare_stub' }) as never,
   };
@@ -256,6 +254,7 @@ databaseSuite('SupplierNetworkWorkflowService PostgreSQL transition invariants',
       const request = await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: fixture.requestId } });
       expect(request?.assignmentStatus).toBe('pending_confirmation');
       expect(pareCalls).toBe(previousPareCalls);
+      await expect(prisma.opsPareDispatch.count({ where: { requestId: fixture.requestId } })).resolves.toBe(0);
     } finally {
       await cleanupFixture(prisma, fixture);
     }
@@ -271,6 +270,7 @@ databaseSuite('SupplierNetworkWorkflowService PostgreSQL transition invariants',
       const service = createService(prisma, auditWriter, pareService, fixture);
       const withdrawn = await service.withdrawSupplier(fixture.requestId, 'Confirmed supplier cancelled', pmcmActor);
       expect(withdrawn.assignmentStatus).toBe('withdrawn');
+      await expect(prisma.opsPareDispatch.count({ where: { requestId: fixture.requestId } })).resolves.toBe(1);
     } finally {
       await cleanupFixture(prisma, fixture);
     }

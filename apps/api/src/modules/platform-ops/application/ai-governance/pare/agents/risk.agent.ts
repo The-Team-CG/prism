@@ -160,13 +160,14 @@ function executeRiskTool(toolName: string, input: Record<string, unknown>, ctx: 
 export class RiskAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
-  async runPareRiskAgent(ctx: PAREContext): Promise<PARERisk> {
+  async runPareRiskAgent(ctx: PAREContext, signal?: AbortSignal): Promise<PARERisk> {
     assertPareExecutionAllowed(this.mode);
-    if (this.mode === 'live') return this.runWithClaude(ctx);
+    throwIfAborted(signal);
+    if (this.mode === 'live') return this.runWithClaude(ctx, signal);
     return mockRisk(ctx);
   }
 
-  private async runWithClaude(ctx: PAREContext): Promise<PARERisk> {
+  private async runWithClaude(ctx: PAREContext, signal?: AbortSignal): Promise<PARERisk> {
     const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -190,6 +191,7 @@ Call get_event_timeline, get_client_preferences, get_supplier_history, then subm
     const messages: any[] = [{ role: 'user', content: userPrompt }];
 
     for (let i = 0; i < 8; i++) {
+      throwIfAborted(signal);
       const isLastChance = i >= 6;
       const tool_choice = isLastChance
         ? { type: 'tool' as const, name: 'submit_risk_assessment' }
@@ -202,7 +204,7 @@ Call get_event_timeline, get_client_preferences, get_supplier_history, then subm
         tools: RISK_TOOLS as any,
         tool_choice,
         messages,
-      });
+      }, { signal });
 
       messages.push({ role: 'assistant', content: response.content });
 
@@ -231,4 +233,8 @@ Call get_event_timeline, get_client_preferences, get_supplier_history, then subm
 
     return mockRisk(ctx);
   }
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('PARE execution aborted');
 }

@@ -90,6 +90,7 @@ flowchart LR
   Prisma --> Postgres["Postgres or seeded sample database"]
   Api --> Audit["Audit log"]
   Api --> Notifications["Notification outbox"]
+  Api --> PareDispatch["PARE dispatch outbox"]
   Api --> AiGov["AI governance records"]
 ```
 
@@ -217,11 +218,25 @@ an invariant must hold independently of HTTP and Prisma.
 | Compliance and billing | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` |
 | Trust, privacy, and audit | `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsLoginHistory`, `OpsSecurityAlert` |
 | Guest operations | `OpsGuestCheckIn`, `OpsGuestFeedback` |
-| AI governance | `OpsAiAuditLog`, `OpsAiApprovalRecord` |
+| AI governance | `OpsAiAuditLog`, `OpsAiApprovalRecord`, `OpsPareDispatch` |
 
 The database remains one shared Postgres/Prisma boundary. Context ownership notes
 and intentional read-join documentation are required before independent service
 extraction; a source move alone does not imply database isolation.
+
+Supplier withdrawal is a durable asynchronous boundary: `commercial` writes the
+withdrawal and audit, then uses the public platform-ops dispatch-writer contract
+inside the same `WorkflowCommandService` transaction to enqueue
+`OpsPareDispatch`. The platform-ops worker claims rows with a lease token,
+reloads the supplier request by ID, executes PARE without a database transaction
+around the call, and settles success, bounded retry, or terminal failure. A
+dispatch ID is stored on `OpsAiApprovalRecord` so a crash after approval creation
+is safe to redeliver. The dispatch keeps an event FK for event-scoped cleanup but
+does not own a commercial request FK; a missing or no-longer-withdrawn request is
+a terminal worker outcome. Execution is bounded below the lease duration, aborts
+provider calls on timeout, and tracks active executions through shutdown. Approval
+recovery validates the sanitized request ID and dispatch ownership, while the
+worker restores the idempotent `pare_triggered` activity audit.
 
 ## Lifecycle architecture
 
