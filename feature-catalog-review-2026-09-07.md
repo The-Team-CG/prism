@@ -7,7 +7,7 @@ authority: informative
 owner: "D (Anthony) — platform trust review"
 scope: "All preserved V4 feature tables, AI overview reconciliation and current FL-001 through FL-028 ledger families"
 updated: "2026-09-08"
-last_verified: "02b6896f56b58476dba0bc736cdf9cb11222c033"
+last_verified: "3342df8"
 ---
 
 # P.R.I.S.M feature catalog implementation review
