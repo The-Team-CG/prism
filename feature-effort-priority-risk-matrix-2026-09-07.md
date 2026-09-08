@@ -36,6 +36,39 @@ sources:
 
 This refresh assesses implementation commit `02b6896f56b58476dba0bc736cdf9cb11222c033` in [draft PR #40](https://github.com/The-Team-CG/prism/pull/40), relative to baseline staging `3d01c6c`. It is branch implementation evidence, not a claim that staging or production has these changes. W01–W07 and W09 deliver corrections; W08 records accepted policy. Complete proposal, closeout, privacy and AI workflows remain gated by downstream packages.
 
+## 2026-09-08 P1 implementation update
+
+The P1 integration branch `codex/p1-implementation-2026-09-08` now includes the W25, W26 and W51 deliveries in addition to the earlier P1 slices. The status below is package-level engineering evidence; **Implemented local slice** means the repository behavior is present and tested, while provider, policy, database and browser gates can still keep the catalog feature **Partial**.
+
+| Package | Effort | Priority / risk | Current package status | Remaining gap or blocker |
+| --- | --- | --- | --- | --- |
+| W10 storage | XL | High / High | Implemented local slice | Production provider, identity, bucket policy and provider-backed acceptance remain open. |
+| W11 delivery | XL | High / High | Partial | Provider approval, credentials, adapter, receipts and live email/Viber acceptance. |
+| W12 proposal/CE | XL | High / High | Implemented local slice | W10 storage, approved proposal policy and W43 export depth. |
+| W13 onboarding/documents | XL | High / High | Implemented local slice | W10 bytes, W11 invitations and W41 bid onboarding. |
+| W14 billing | XL | High / High | Implemented local slice | Production document storage, billing-policy confirmation and W11 reminders. |
+| W15 supplier application/status | L | Medium / High | In progress | Application/status parity and promotion acceptance are being closed in the remaining Luna slice. |
+| W16 supplier selection/readiness | XXL | High / High | Implemented local slice | Client-owned supplier tickets, escalation semantics, W10 bytes and W11 delivery. |
+| W17 communication threads | L | High / Medium | Implemented local slice | External delivery remains W11-gated. |
+| W18 staffing | XL | High / High | Implemented local slice | W10/W11 provider work and W45 recommendations. |
+| W19 guest masterlist | XL | High / High | Implemented local slice | Raw-file storage (W10) and QR entry (W35). |
+| W20 coordinator/operator tools | XXL | High / High | Implemented local slice | W16 ingress depth, W11 delivery and W27 wrap-up depth. |
+| W21 live operations | XL | High / High | Implemented local slice | W10/W11 and W45/W47 dependent capabilities. |
+| W22 registration coordination | M | Medium / Medium | Implemented local slice | Disposable PostgreSQL and external-platform runtime acceptance. |
+| W23 feedback/moderation | L | High / High | Implemented local slice | W10 media bytes, W35 QR and W49 intelligence. |
+| W24 compliance/risk | XL | High / High | Implemented local slice | Owner confirmation of provisional rule inventory and DB acceptance. |
+| W25 cancellation/postponement | XXL | High / High | Implemented local slice | W14 settlement, W16 supplier acceptance, W10/W11 providers and full rescheduling UI. |
+| W26 freeze/addenda | XL | High / High | Integrated | W10/W11 provider effects, optional W43 e-signature and PostgreSQL migration/concurrency acceptance. |
+| W27 wrap-up/archive/insights | XXL | High / High | Implemented local slice | W10/W11/W14/W40 depth and W49 AI scope remain partial. |
+| W28 authentication/recovery | L | High / High | Implemented local slice | Provider-backed reset delivery; external IdP remains out of scope. |
+| W29 privacy/retention | XXL | High / High | Blocked / not implemented | Approved rights, retention and legal-hold policy plus W10 file lifecycle. |
+| W30 audit/tamper resistance | L | High / High | Implemented local slice | Full mutation coverage, immutable storage/retention integration and DB acceptance. |
+| W40 supplier reviews | L | High / High | Implemented local slice | Deeper assessment policy and promotion acceptance remain partial. |
+| W50 source reconciliation | S | Medium / Low | Documentation slice delivered | Original 37 behavior definitions and acceptance text are still missing. |
+| W51 action center/UX | L | Medium / Medium | Integrated | Browser, mobile, keyboard traversal and screen-reader acceptance require the running stack. |
+
+This update records implementation progress without relabeling provider- or policy-gated behavior as complete. The integration branch currently has green static/unit gates, while PostgreSQL/Docker and browser runtime evidence remain unavailable in this environment.
+
 Completed P0 rows retain their original priority, estimate and fix risk as historical planning/review information. Their effort is **excluded from remaining-work totals**. Downstream estimates are retained without re-estimating the whole program; they already excluded prerequisite effort.
 
 - [How to read the matrix](#how-to-read-the-matrix)
