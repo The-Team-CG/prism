@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { SupplierApplicationService } from './supplier-application.service';
@@ -23,6 +23,7 @@ function createPrisma() {
       companyName: 'Northstar',
       contactName: 'Ava',
       email: 'ava@northstar.test',
+      normalizedEmail: 'ava@northstar.test',
       phone: '',
       categoryId: null,
       pastEvents: '',
@@ -89,6 +90,15 @@ describe('SupplierApplicationService inbox', () => {
     );
     expect(reviewed.status).toBe('proposal_requested');
     expect(reviewed.reviewedAt).toBeTruthy();
+  });
+
+  it('returns a redacted public status only when the submitting email matches', async () => {
+    const fake = createPrisma();
+    const service = new SupplierApplicationService(fake.prisma as never, createAccessPolicy() as never, { write: async () => ({}) });
+    await expect(service.getPublicStatus({ applicationId: 'sap_1', email: 'AVA@NORTHSTAR.TEST' })).resolves.toMatchObject({
+      id: 'sap_1', companyName: 'Northstar', status: 'pending', submittedAt: '2026-09-01T00:00:00.000Z', reviewedAt: null,
+    });
+    await expect(service.getPublicStatus({ applicationId: 'sap_1', email: 'other@example.test' })).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects reviewing an application after a terminal transition', async () => {

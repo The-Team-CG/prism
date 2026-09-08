@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
+  moderateGuestFeedbackSchema,
+  withdrawGuestFeedbackConsentSchema,
   createSupplierApplicationSchema,
   createSupplierReviewSchema,
+  createSupplierReliabilityNoteSchema,
+  promoteSupplierSchema,
   reviewEventProposalSchema,
   archiveSearchFiltersSchema,
   reviewSupplierApplicationSchema,
@@ -14,6 +18,11 @@ import {
   updateUrgentIssueSchema,
   escalateLiveOpsRecordSchema,
   replaceCoordinatorAssignmentSchema,
+  createCoordinatorAssignmentSchema,
+  coordinatorAssignmentAcknowledgementSchema,
+  withdrawCoordinatorAssignmentSchema,
+  createCoordinatorAvailabilitySchema,
+  createCoordinatorCoverageRequirementSchema,
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
   createFloorPlanDraftSchema,
@@ -70,6 +79,14 @@ describe("event-ops write schemas", () => {
     ).toBe(true);
   });
 
+  it("requires reasons for negative moderation and at least one consent withdrawal", () => {
+    expect(moderateGuestFeedbackSchema.safeParse({ action: "approve" }).success).toBe(true);
+    expect(moderateGuestFeedbackSchema.safeParse({ action: "reject" }).success).toBe(false);
+    expect(moderateGuestFeedbackSchema.safeParse({ action: "hide", reason: "Contains private details" }).success).toBe(true);
+    expect(withdrawGuestFeedbackConsentSchema.safeParse({}).success).toBe(false);
+    expect(withdrawGuestFeedbackConsentSchema.safeParse({ withdrawMarketingConsent: true }).success).toBe(true);
+  });
+
   it("validates supplier event-day status enum", () => {
     expect(updateSupplierEventStatusSchema.safeParse({ status: "arrived" }).success).toBe(true);
     expect(updateSupplierEventStatusSchema.safeParse({ status: "maybe" }).success).toBe(false);
@@ -102,6 +119,13 @@ describe("event-ops write schemas", () => {
   it("validates supplier quote amount", () => {
     expect(submitSupplierQuoteSchema.safeParse({ amount: 12000 }).success).toBe(true);
     expect(submitSupplierQuoteSchema.safeParse({ amount: -1 }).success).toBe(false);
+  });
+
+  it("requires an event and reason for supplier reliability and promotion actions", () => {
+    expect(createSupplierReliabilityNoteSchema.safeParse({ eventId: "evt_1", note: "On time" }).success).toBe(true);
+    expect(createSupplierReliabilityNoteSchema.safeParse({ eventId: "", note: "On time" }).success).toBe(false);
+    expect(promoteSupplierSchema.safeParse({ eventId: "evt_1", tier: "tier_1", reason: "Completed assessment" }).success).toBe(true);
+    expect(promoteSupplierSchema.safeParse({ eventId: "evt_1", tier: "pending_first_event", reason: "Promote" }).success).toBe(false);
   });
 
   it("validates inquiry status transitions", () => {
@@ -265,5 +289,25 @@ describe("event-ops write schemas", () => {
   it("keeps conforme uploads on the shared file contract", () => {
     expect(uploadConformeSchema.safeParse({ fileName: "signed-conforme.pdf" }).success).toBe(true);
     expect(uploadConformeSchema.safeParse({ fileName: "malware.exe" }).success).toBe(false);
+  });
+
+  it("validates staffing availability, coverage, and acknowledgement writes", () => {
+    expect(createCoordinatorAssignmentSchema.safeParse({ coordinatorId: "coord_1", role: "Floor Director" }).success).toBe(true);
+    expect(createCoordinatorAssignmentSchema.safeParse({ role: "Floor Director" }).success).toBe(false);
+    expect(coordinatorAssignmentAcknowledgementSchema.safeParse({ decision: "acknowledged" }).success).toBe(true);
+    expect(coordinatorAssignmentAcknowledgementSchema.safeParse({ decision: "declined" }).success).toBe(false);
+    expect(withdrawCoordinatorAssignmentSchema.safeParse({ reason: "No longer available" }).success).toBe(true);
+    expect(withdrawCoordinatorAssignmentSchema.safeParse({ reason: " " }).success).toBe(false);
+    expect(createCoordinatorAvailabilitySchema.safeParse({
+      startsAt: "2026-06-18T00:00:00.000Z",
+      endsAt: "2026-06-19T00:00:00.000Z",
+      kind: "blocked",
+    }).success).toBe(true);
+    expect(createCoordinatorAvailabilitySchema.safeParse({
+      startsAt: "2026-06-19T00:00:00.000Z",
+      endsAt: "2026-06-18T00:00:00.000Z",
+    }).success).toBe(false);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", required: 2 }).success).toBe(true);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", required: -1 }).success).toBe(false);
   });
 });

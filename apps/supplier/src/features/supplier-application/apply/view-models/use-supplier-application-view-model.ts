@@ -19,6 +19,7 @@ export function useSupplierApplicationViewModel() {
   const [form, setForm] = useState<SupplierApplicationForm>(INITIAL_SUPPLIER_APPLICATION_FORM);
   const [currentStep, setCurrentStep] = useState(0);
   const [status, setStatus] = useState<SupplierApplicationSubmitStatus>("idle");
+  const [applicationId, setApplicationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
@@ -62,7 +63,8 @@ export function useSupplierApplicationViewModel() {
     setStatus("loading");
     setError(null);
     try {
-      await submitSupplierApplication(form);
+      const application = await submitSupplierApplication(form);
+      setApplicationId(application.id);
       setStatus("submitted");
       setForm(INITIAL_SUPPLIER_APPLICATION_FORM);
       setCurrentStep(0);
@@ -74,6 +76,7 @@ export function useSupplierApplicationViewModel() {
 
   function resetSubmitted() {
     setStatus("idle");
+    setApplicationId(null);
     setError(null);
   }
 
@@ -86,6 +89,7 @@ export function useSupplierApplicationViewModel() {
     currentStep,
     status,
     submitted,
+    applicationId,
     busy,
     error,
     categories,

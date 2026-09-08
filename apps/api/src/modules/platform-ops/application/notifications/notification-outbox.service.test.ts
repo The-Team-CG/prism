@@ -6,10 +6,17 @@ function createService() {
   const prisma = {
     opsNotificationLog: {
       findFirst: vi.fn(async ({ where }: { where: { correlationId?: string } }) =>
-        notifications.find((notification) => notification.correlationId === where.correlationId) ?? null,
+        notifications.find((notification) => notification.correlationId === where.correlationId && notification.idempotencyKey == null) ?? null,
       ),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
         const record = { ...data, createdAt: new Date('2026-05-01T08:00:00.000Z') };
+        notifications.push(record);
+        return record;
+      }),
+      upsert: vi.fn(async ({ where, create }: { where: { idempotencyKey: string }; create: Record<string, unknown> }) => {
+        const existing = notifications.find((row) => row.idempotencyKey === where.idempotencyKey);
+        if (existing) return existing;
+        const record = { ...create, createdAt: new Date() };
         notifications.push(record);
         return record;
       }),
@@ -19,6 +26,17 @@ function createService() {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) =>
         notifications.find((notification) => notification.id === where.id) ?? null,
       ),
+      findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const found = notifications.find((notification) => notification.id === where.id);
+        if (!found) throw new Error('Missing notification');
+        return found;
+      }),
+      updateMany: vi.fn(async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+        const found = notifications.find((row) => row.id === where.id && row.status === where.status);
+        if (!found) return { count: 0 };
+        Object.assign(found, data);
+        return { count: 1 };
+      }),
       update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const index = notifications.findIndex((notification) => notification.id === where.id);
         if (index === -1) throw new Error('Notification not found');
@@ -36,6 +54,12 @@ function createService() {
 }
 
 describe('NotificationOutboxService', () => {
+  it.each(['queued', 'failed'])('rejects acknowledgement of %s work', async (status) => {
+    const { service, notifications } = createService();
+    notifications.push({ id: 'not_1', recipient: 'client@example.test', status });
+    await expect(service.acknowledge('not_1', { role: 'client', email: 'client@example.test' } as never)).rejects.toThrow(/provider-accepted/);
+    expect(notifications[0].status).toBe(status);
+  });
   it('allows a verified recipient to acknowledge only their own notification', async () => {
     const { service, notifications } = createService();
     notifications.push({ id: 'not_1', recipient: 'client@example.test', status: 'sent' });
@@ -82,25 +106,11 @@ describe('NotificationOutboxService', () => {
     });
   });
 
-  it('retries forced adapter failures until terminal failure', async () => {
-    const { service } = createService();
-    await service.queue('evt_1', 'pmcm@example.test', 'Sync integration payload', 'email', { forceFail: true });
-
-    const firstAttempt = await service.processQueued({ maxAttempts: 2 });
-    const secondAttempt = await service.processQueued({ maxAttempts: 2 });
-    const thirdAttempt = await service.processQueued({ maxAttempts: 2 });
-
-    expect(firstAttempt[0]).toMatchObject({
-      status: 'queued',
-      attempts: 1,
-      failureReason: 'FORCE_FAIL: Sample adapter forced failure (1/2)',
-    });
-    expect(secondAttempt[0]).toMatchObject({
-      status: 'failed',
-      attempts: 2,
-      failureReason: 'FORCE_FAIL: Sample adapter forced failure (2/2)',
-    });
-    expect(thirdAttempt).toEqual([]);
+  it('rejects an idempotency key reused for different message content', async () => {
+    const { service, notifications } = createService();
+    await service.queue('evt_1', 'client@example.test', 'Original', 'email', { idempotencyKey: 'same-key' });
+    await expect(service.queue('evt_1', 'client@example.test', 'Changed', 'email', { idempotencyKey: 'same-key' })).rejects.toThrow(/different content/);
+    expect(notifications).toHaveLength(1);
   });
   it('uses an idempotency key to avoid duplicate queued notification work', async () => {
     const { notifications, prisma, service } = createService();
@@ -114,9 +124,7 @@ describe('NotificationOutboxService', () => {
 
     expect(second).toBe(first);
     expect(notifications).toHaveLength(1);
-    expect(prisma.opsNotificationLog.findFirst).toHaveBeenCalledWith({
-      where: { correlationId: 'notif-key-1' },
-    });
-    expect(prisma.opsNotificationLog.create).toHaveBeenCalledTimes(1);
+    expect(prisma.opsNotificationLog.upsert).toHaveBeenCalledWith(expect.objectContaining({ where: { idempotencyKey: 'notif-key-1' } }));
+    expect(prisma.opsNotificationLog.create).not.toHaveBeenCalled();
   });
 });

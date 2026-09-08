@@ -76,6 +76,7 @@ function inquiryTriageFields(inquiry: OpsInquiry) {
 
 export function mapInquiry(inquiry: OpsInquiry) {
   const reminderDueAt = inquiryReminderDueAt(inquiry);
+  const statusHistory = (inquiry as OpsInquiry & { statusHistory?: Array<{ id: string; fromStatus: string | null; toStatus: string; transition: string; actorId: string | null; actorRole: string | null; actorName: string | null; createdAt: Date }> }).statusHistory;
   return {
     id: inquiry.id,
     clientName: inquiry.clientName,
@@ -105,6 +106,7 @@ export function mapInquiry(inquiry: OpsInquiry) {
     portalInvitationOpenedAt: optionalTimestamp(inquiry.portalInvitationOpenedAt),
     portalInvitationExpiresAt: optionalTimestamp(inquiry.portalInvitationExpiresAt),
     createdAt: timestamp(inquiry.createdAt),
+    statusHistory: statusHistory?.map((item) => ({ ...item, createdAt: timestamp(item.createdAt) })) ?? [],
   };
 }
 
@@ -219,6 +221,12 @@ export function mapBriefing(briefing: {
   serviceRequirements: unknown;
   notes: string;
   submittedAt: Date;
+  confirmedDate?: Date | null;
+  confirmedStartTime?: string | null;
+  confirmedEndTime?: string | null;
+  program?: unknown;
+  moodAndStyling?: string;
+  stylingBudget?: number | null;
 }) {
   return {
     eventId: briefing.eventId,
@@ -228,5 +236,11 @@ export function mapBriefing(briefing: {
     serviceRequirements: Array.isArray(briefing.serviceRequirements) ? (briefing.serviceRequirements as string[]) : [],
     notes: briefing.notes,
     submittedAt: briefing.submittedAt.toISOString(),
+    confirmedDate: briefing.confirmedDate?.toISOString() ?? null,
+    confirmedStartTime: briefing.confirmedStartTime ?? null,
+    confirmedEndTime: briefing.confirmedEndTime ?? null,
+    program: Array.isArray(briefing.program) ? briefing.program : [],
+    moodAndStyling: briefing.moodAndStyling ?? '',
+    stylingBudget: briefing.stylingBudget ?? null,
   };
 }

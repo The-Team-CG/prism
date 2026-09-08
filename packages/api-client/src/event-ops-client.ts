@@ -1,11 +1,17 @@
 import type {
   ConfirmSupplierReadinessInput,
   CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
+  ModerateGuestFeedbackInput,
+  WithdrawGuestFeedbackConsentInput,
   CreatePrismInquiryInput,
   CreateRegistrationPlatformInput,
   CreateSupplierApplicationInput,
+  CreateCommunicationThreadInput,
+  SendCommunicationMessageInput,
   CreateUrgentIssueInput,
   ArchiveSearchFilters,
   ReviewEventProposalInput,
@@ -17,6 +23,7 @@ import type {
   PrismEvent,
   PrismFileRequirementsMatrix,
   PrismGuestCheckIn,
+  PrismGuestRosterEntry,
   PrismGuestEventPass,
   PrismGuestFeedback,
   PrismInquiry,
@@ -29,18 +36,42 @@ import type {
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
+  PrismCommunicationThread,
+  PrismCommunicationParticipantChoice,
   PrismCoordinatorWorkspace,
   PrismLiveOps,
   PrismEventDayTask,
+  PrismEventTaskReassignmentRequest,
   PrismUrgentIssue,
   PrismCoordinatorAssignment,
   PrismSupplierApplication,
   ImportHeadcountInput,
+  ImportGuestRosterInput,
+  GuestRosterSearchInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateRegistrationPlatformInput,
+  UpdateWalkInPolicyInput,
   UpdateSupplierEventStatusInput,
   UploadContractInput,
+  UpdateGuestVerificationInput,
+  CreateEventScheduleDayInput,
+  CreateEventScheduleSegmentInput,
+  UpdateEventScheduleSegmentStatusInput,
+  CreateEventOperatorDesignationInput,
+  CreateEventHandoffInput,
+  CreateEventEodReportInput,
+  CreateEventEodReplyInput,
+  PrismEventSchedule,
+  PrismEventScheduleSegment,
+  PrismEventRunSheet,
+  PrismEventHandoff,
+  PrismEventEodReport,
+  PrismStoredObject,
+  PrismAddendum,
+  PrismEventFreezeException,
+  RequestStorageUploadInput,
+  ConfirmStorageUploadInput,
 } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
@@ -53,9 +84,13 @@ export type EventOpsActorQuery = PrismEventOpsActorContext;
 export type {
   ConfirmSupplierReadinessInput,
   CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
   CreateFloorPlanPreferenceInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
+  ModerateGuestFeedbackInput,
+  WithdrawGuestFeedbackConsentInput,
   CreateSupplierApplicationInput,
   CreatePrismInquiryInput,
   CreateRegistrationPlatformInput,
@@ -93,6 +128,10 @@ function actorPath(path: string, actor: EventOpsActorQuery = {}): string {
 }
 
 export interface EventOpsClient {
+  auth: {
+    requestPasswordReset(email: string): Promise<{ message: string; deliveryAvailable: boolean }>;
+    consumePasswordReset(token: string, password: string): Promise<{ message: string }>;
+  };
   /**
    * @deprecated Compatibility-only seed/demo aggregate. New role app work must
    * use scoped clients such as clientWorkspace, supplierWorkspace,
@@ -112,6 +151,15 @@ export interface EventOpsClient {
     fileRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismFileRequirementsMatrix>;
     reviewProposal(eventId: string, input: ReviewEventProposalInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     searchArchive(filters?: ArchiveSearchFilters, actor?: EventOpsActorQuery): Promise<PrismArchivedEventSearchHit[]>;
+    documents(eventId: string, actor?: EventOpsActorQuery): Promise<PrismStoredObject[]>;
+    requestDocumentUpload(input: RequestStorageUploadInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    confirmDocumentUpload(eventId: string, objectId: string, input: ConfirmStorageUploadInput, actor?: EventOpsActorQuery): Promise<PrismStoredObject>;
+    documentDownloadAuthorization(objectId: string, actor?: EventOpsActorQuery): Promise<unknown>;
+    addenda(eventId: string, actor?: EventOpsActorQuery): Promise<PrismAddendum[]>;
+    freeze(eventId: string, input: import('@prism/types').FreezeEventInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    requestFreezeException(eventId: string, input: import('@prism/types').RequestFreezeExceptionInput, actor?: EventOpsActorQuery): Promise<PrismEventFreezeException>;
+    decideFreezeException(eventId: string, exceptionId: string, input: import('@prism/types').DecideFreezeExceptionInput, actor?: EventOpsActorQuery): Promise<PrismEventFreezeException>;
+    issueAddendum(eventId: string, input: import('@prism/types').IssueAddendumInput, actor?: EventOpsActorQuery): Promise<PrismAddendum>;
   };
   clientWorkspace: {
     detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
@@ -147,6 +195,16 @@ export interface EventOpsClient {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
     checkIn(accessCode: string, input: CreateGuestCheckInInput): Promise<PrismGuestCheckIn>;
     feedback(accessCode: string, input: CreateGuestFeedbackInput): Promise<PrismGuestFeedback>;
+    withdrawFeedbackConsent(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput): Promise<PrismGuestFeedback>;
+    pendingFeedback(eventId: string, actor?: EventOpsActorQuery): Promise<PrismGuestFeedback[]>;
+    moderateFeedback(eventId: string, feedbackId: string, input: ModerateGuestFeedbackInput, actor?: EventOpsActorQuery): Promise<PrismGuestFeedback>;
+    roster(eventId: string, query?: string, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
+    searchRoster(eventId: string, filters?: GuestRosterSearchInput, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
+    importRoster(eventId: string, input: ImportGuestRosterInput, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry[]>;
+    checkInRoster(eventId: string, rosterEntryId: string, actor?: EventOpsActorQuery): Promise<PrismGuestCheckIn>;
+    verifyRoster(eventId: string, rosterEntryId: string, input: UpdateGuestVerificationInput, actor?: EventOpsActorQuery): Promise<PrismGuestRosterEntry>;
+    walkInPolicy(eventId: string, actor?: EventOpsActorQuery): Promise<{ eventId: string; policy: "closed" | "open" | "threshold"; threshold: number }>;
+    updateWalkInPolicy(eventId: string, input: UpdateWalkInPolicyInput, actor?: EventOpsActorQuery): Promise<{ eventId: string; policy: "closed" | "open" | "threshold"; threshold: number }>;
   };
   supplierWorkspace: {
     /** Identity comes from the session bearer token (PA-284); no actor query. */
@@ -163,8 +221,21 @@ export interface EventOpsClient {
   };
   liveOps: {
     eventDayWorkspace(eventId: string, actor?: EventOpsActorQuery): Promise<PrismLiveOps>;
+    schedule(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventSchedule>;
+    createScheduleDay(eventId: string, input: CreateEventScheduleDayInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    createScheduleSegment(eventId: string, dayId: string, input: CreateEventScheduleSegmentInput, actor?: EventOpsActorQuery): Promise<PrismEventScheduleSegment>;
+    updateScheduleSegmentStatus(eventId: string, segmentId: string, input: UpdateEventScheduleSegmentStatusInput, actor?: EventOpsActorQuery): Promise<PrismEventScheduleSegment>;
+    runSheet(eventId: string, dayId?: string, actor?: EventOpsActorQuery): Promise<PrismEventRunSheet | { eventId: string; authored: false; reason: 'no_schedule' }>;
+    designateOperator(eventId: string, input: CreateEventOperatorDesignationInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    createHandoff(eventId: string, input: CreateEventHandoffInput, actor?: EventOpsActorQuery): Promise<PrismEventHandoff>;
+    listEodReports(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventEodReport[]>;
+    submitEodReport(eventId: string, input: CreateEventEodReportInput, actor?: EventOpsActorQuery): Promise<PrismEventEodReport>;
+    replyEodReport(eventId: string, reportId: string, input: CreateEventEodReplyInput, actor?: EventOpsActorQuery): Promise<PrismEventEodReport['replies'][number]>;
     createTask(eventId: string, input: CreateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
     updateTask(eventId: string, taskId: string, input: UpdateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
+    listTaskReassignmentRequests(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventTaskReassignmentRequest[]>;
+    requestTaskReassignment(eventId: string, taskId: string, input: CreateEventTaskReassignmentInput, actor?: EventOpsActorQuery): Promise<PrismEventTaskReassignmentRequest>;
+    decideTaskReassignment(eventId: string, requestId: string, input: DecideEventTaskReassignmentInput, actor?: EventOpsActorQuery): Promise<PrismEventTaskReassignmentRequest>;
     updateCoordinatorAttendance(eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
     createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor?: EventOpsActorQuery): Promise<PrismUrgentIssue>;
   };
@@ -178,10 +249,22 @@ export interface EventOpsClient {
       actor?: EventOpsActorQuery,
     ): Promise<PrismSupplierApplication>;
   };
+  communication: {
+    listThreads(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread[]>;
+    listParticipants(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCommunicationParticipantChoice[]>;
+    createThread(input: CreateCommunicationThreadInput, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread>;
+    sendMessage(threadId: string, input: SendCommunicationMessageInput, actor?: EventOpsActorQuery): Promise<PrismCommunicationThread["messages"][number]>;
+    listMessages(threadId: string, query?: { cursor?: string; limit?: number }, actor?: EventOpsActorQuery): Promise<import('@prism/types').PrismCursorPage<PrismCommunicationThread["messages"][number]>>;
+    markThreadRead(threadId: string, actor?: EventOpsActorQuery): Promise<{ lastReadAt: string }>;
+  };
 }
 
 export function createEventOpsClient(options: EventOpsClientOptions = {}): EventOpsClient {
   return {
+    auth: {
+      requestPasswordReset: (email) => prismRequest('/auth/password-reset/request', withBase(options, { method: 'POST', body: { email } })),
+      consumePasswordReset: (token, password) => prismRequest('/auth/password-reset/consume', withBase(options, { method: 'POST', body: { token, password } })),
+    },
     sample: {
       state: () => prismRequest<PrismSampleState>("/sample/state", withBase(options)),
       reset: () => prismRequest<PrismSampleState>("/sample/reset", withBase(options, { method: "POST" })),
@@ -211,6 +294,15 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           withBase(options),
         );
       },
+      documents: (eventId, actor = {}) => prismRequest<PrismStoredObject[]>(actorPath(`/events/${eventId}/documents`, actor), withBase(options)),
+      requestDocumentUpload: (input, actor = {}) => prismRequest(actorPath(`/events/${input.eventId}/documents/upload-request`, actor), withBase(options, { method: "POST", body: input })),
+      confirmDocumentUpload: (eventId, objectId, input, actor = {}) => prismRequest<PrismStoredObject>(actorPath(`/events/${eventId}/documents/${objectId}/confirm`, actor), withBase(options, { method: "POST", body: input })),
+      documentDownloadAuthorization: (objectId, actor = {}) => prismRequest(actorPath(`/storage/objects/${objectId}/download-authorization`, actor), withBase(options)),
+      addenda: (eventId, actor = {}) => prismRequest<PrismAddendum[]>(actorPath(`/events/${eventId}/addenda`, actor), withBase(options)),
+      freeze: (eventId, input, actor = {}) => prismRequest(actorPath(`/events/${eventId}/freeze`, actor), withBase(options, { method: 'POST', body: input })),
+      requestFreezeException: (eventId, input, actor = {}) => prismRequest<PrismEventFreezeException>(actorPath(`/events/${eventId}/freeze-exceptions`, actor), withBase(options, { method: 'POST', body: input })),
+      decideFreezeException: (eventId, exceptionId, input, actor = {}) => prismRequest<PrismEventFreezeException>(actorPath(`/events/${eventId}/freeze-exceptions/${exceptionId}`, actor), withBase(options, { method: 'PATCH', body: input })),
+      issueAddendum: (eventId, input, actor = {}) => prismRequest<PrismAddendum>(actorPath(`/events/${eventId}/addenda`, actor), withBase(options, { method: 'POST', body: input })),
     },
     clientWorkspace: {
       detail: (actor = {}) => prismRequest<PrismClientWorkspace>(actorPath("/client/workspace", actor), withBase(options)),
@@ -285,6 +377,54 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           `/guest/events/${encodeURIComponent(accessCode)}/feedback`,
           withBase(options, { method: "POST", body: input }),
         ),
+      withdrawFeedbackConsent: (accessCode, feedbackId, input) =>
+        prismRequest<PrismGuestFeedback>(
+          `/guest/events/${encodeURIComponent(accessCode)}/feedback/${encodeURIComponent(feedbackId)}/consent-withdrawal`,
+          withBase(options, { method: "POST", body: input }),
+        ),
+      pendingFeedback: (eventId, actor = {}) =>
+        prismRequest<PrismGuestFeedback[]>(
+          actorPath(`/guest/events/${eventId}/feedback/moderation`, actor),
+          withBase(options),
+        ),
+      moderateFeedback: (eventId, feedbackId, input, actor = {}) =>
+        prismRequest<PrismGuestFeedback>(
+          actorPath(`/guest/events/${eventId}/feedback/${feedbackId}/moderate`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      roster: (eventId, query = "", actor = {}) => {
+        const params = toQueryString({ ...actor, ...(query.trim() ? { query: query.trim() } : {}) });
+        return prismRequest<PrismGuestRosterEntry[]>(
+          `/guest/events/${eventId}/roster${params ? `?${params}` : ""}`,
+          withBase(options),
+        );
+      },
+      searchRoster: (eventId, filters = {}, actor = {}) => {
+        const params = toQueryString({ ...actor, ...filters });
+        return prismRequest<PrismGuestRosterEntry[]>(
+          `/guest/events/${eventId}/roster/search${params ? `?${params}` : ""}`,
+          withBase(options),
+        );
+      },
+      importRoster: (eventId, input, actor = {}) =>
+        prismRequest<PrismGuestRosterEntry[]>(
+          actorPath(`/guest/events/${eventId}/roster/import`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      checkInRoster: (eventId, rosterEntryId, actor = {}) =>
+        prismRequest<PrismGuestCheckIn>(
+          actorPath(`/guest/events/${eventId}/roster/${rosterEntryId}/check-in`, actor),
+          withBase(options, { method: "POST" }),
+        ),
+      verifyRoster: (eventId, rosterEntryId, input, actor = {}) =>
+        prismRequest<PrismGuestRosterEntry>(
+          actorPath(`/guest/events/${eventId}/roster/${rosterEntryId}/verification`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      walkInPolicy: (eventId, actor = {}) =>
+        prismRequest(actorPath(`/events/${eventId}/walk-in-policy`, actor), withBase(options)),
+      updateWalkInPolicy: (eventId, input, actor = {}) =>
+        prismRequest(actorPath(`/events/${eventId}/walk-in-policy`, actor), withBase(options, { method: "PATCH", body: input })),
     },
     coordinator: {
       workspace: (actor = {}) =>
@@ -293,6 +433,16 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     liveOps: {
       eventDayWorkspace: (eventId, actor = {}) =>
         prismRequest<PrismLiveOps>(actorPath(`/events/${eventId}/live-ops`, actor), withBase(options)),
+      schedule: (eventId, actor = {}) => prismRequest<PrismEventSchedule>(actorPath(`/events/${eventId}/schedule`, actor), withBase(options)),
+      createScheduleDay: (eventId, input, actor = {}) => prismRequest(actorPath(`/events/${eventId}/schedule/days`, actor), withBase(options, { method: 'POST', body: input })),
+      createScheduleSegment: (eventId, dayId, input, actor = {}) => prismRequest<PrismEventScheduleSegment>(actorPath(`/events/${eventId}/schedule/days/${dayId}/segments`, actor), withBase(options, { method: 'POST', body: input })),
+      updateScheduleSegmentStatus: (eventId, segmentId, input, actor = {}) => prismRequest<PrismEventScheduleSegment>(actorPath(`/events/${eventId}/schedule/segments/${segmentId}/status`, actor), withBase(options, { method: 'PATCH', body: input })),
+      runSheet: (eventId, dayId, actor = {}) => { const query = dayId ? `?dayId=${encodeURIComponent(dayId)}` : ''; return prismRequest<PrismEventRunSheet | { eventId: string; authored: false; reason: 'no_schedule' }>(actorPath(`/events/${eventId}/run-sheet${query}`, actor), withBase(options)); },
+      designateOperator: (eventId, input, actor = {}) => prismRequest(actorPath(`/events/${eventId}/operator-designation`, actor), withBase(options, { method: 'POST', body: input })),
+      createHandoff: (eventId, input, actor = {}) => prismRequest<PrismEventHandoff>(actorPath(`/events/${eventId}/handoffs`, actor), withBase(options, { method: 'POST', body: input })),
+      listEodReports: (eventId, actor = {}) => prismRequest<PrismEventEodReport[]>(actorPath(`/events/${eventId}/eod-reports`, actor), withBase(options)),
+      submitEodReport: (eventId, input, actor = {}) => prismRequest<PrismEventEodReport>(actorPath(`/events/${eventId}/eod-reports`, actor), withBase(options, { method: 'POST', body: input })),
+      replyEodReport: (eventId, reportId, input, actor = {}) => prismRequest<PrismEventEodReport['replies'][number]>(actorPath(`/events/${eventId}/eod-reports/${reportId}/replies`, actor), withBase(options, { method: 'POST', body: input })),
       createTask: (eventId, input, actor = {}) =>
         prismRequest<PrismEventDayTask>(
           actorPath(`/events/${eventId}/event-day/tasks`, actor),
@@ -303,6 +453,12 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           actorPath(`/events/${eventId}/event-day/tasks/${taskId}`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
+      listTaskReassignmentRequests: (eventId, actor = {}) =>
+        prismRequest<PrismEventTaskReassignmentRequest[]>(actorPath(`/events/${eventId}/event-day/task-reassignments`, actor), withBase(options)),
+      requestTaskReassignment: (eventId, taskId, input, actor = {}) =>
+        prismRequest<PrismEventTaskReassignmentRequest>(actorPath(`/events/${eventId}/event-day/tasks/${taskId}/reassignments`, actor), withBase(options, { method: "POST", body: input })),
+      decideTaskReassignment: (eventId, requestId, input, actor = {}) =>
+        prismRequest<PrismEventTaskReassignmentRequest>(actorPath(`/events/${eventId}/event-day/task-reassignments/${requestId}`, actor), withBase(options, { method: "PATCH", body: input })),
       updateCoordinatorAttendance: (eventId, assignmentId, input, actor = {}) =>
         prismRequest<PrismCoordinatorAssignment>(
           actorPath(`/events/${eventId}/coordinators/${assignmentId}/status`, actor),
@@ -335,6 +491,20 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           actorPath(`/supplier-applications/${applicationId}/review`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
+    },
+    communication: {
+      listThreads: (eventId, actor = {}) => prismRequest<PrismCommunicationThread[]>(actorPath(`/communication/threads?eventId=${encodeURIComponent(eventId)}`, actor), withBase(options)),
+      listParticipants: (eventId, actor = {}) => prismRequest<PrismCommunicationParticipantChoice[]>(actorPath(`/communication/participants?eventId=${encodeURIComponent(eventId)}`, actor), withBase(options)),
+      createThread: (input, actor = {}) => prismRequest<PrismCommunicationThread>(actorPath('/communication/threads', actor), withBase(options, { method: 'POST', body: input })),
+      sendMessage: (threadId, input, actor = {}) => prismRequest<PrismCommunicationThread['messages'][number]>(actorPath(`/communication/threads/${threadId}/messages`, actor), withBase(options, { method: 'POST', body: input })),
+      listMessages: (threadId, query = {}, actor = {}) => {
+        const params = new URLSearchParams();
+        if (query.cursor) params.set('cursor', query.cursor);
+        if (query.limit) params.set('limit', String(query.limit));
+        const suffix = params.toString() ? `?${params.toString()}` : '';
+        return prismRequest<import('@prism/types').PrismCursorPage<PrismCommunicationThread['messages'][number]>>(actorPath(`/communication/threads/${threadId}/messages${suffix}`, actor), withBase(options));
+      },
+      markThreadRead: (threadId, actor = {}) => prismRequest<{ lastReadAt: string }>(actorPath(`/communication/threads/${threadId}/read`, actor), withBase(options, { method: 'POST' })),
     },
   };
 }

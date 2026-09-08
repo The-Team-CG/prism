@@ -8,6 +8,7 @@ import type {
   SupplierProfile,
   UpdateSupplierInput,
 } from './supplier-directory.port';
+import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput, CreateSupplierScheduleInput } from '@prism/types';
 import type { UploadMetadataInput } from './supplier-document-vault.port';
 import type { SupplierPareApprovalRecord } from './supplier-pare-automation.port';
 
@@ -31,6 +32,8 @@ export interface SupplierCommands {
   updateSupplier(supplierId: string, input: UpdateSupplierInput, actor: ResolvedEventOpsActor): Promise<SupplierProfile>;
   changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput, actor: ResolvedEventOpsActor): Promise<SupplierProfile>;
   addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actor: ResolvedEventOpsActor): Promise<SupplierProfile>;
+  addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, actor: ResolvedEventOpsActor): Promise<SupplierProfile>;
+  promoteSupplier(supplierId: string, input: PromoteSupplierInput, actor: ResolvedEventOpsActor): Promise<SupplierProfile>;
   addSupplierCertification(
     supplierId: string,
     input: CreateSupplierCertificationInput,
@@ -62,4 +65,6 @@ export interface SupplierCommands {
     input: UploadMetadataInput,
     actor: ResolvedEventOpsActor,
   ): Promise<OpsSupplierQuoteRequest>;
+  createSupplierSchedule(eventId: string, input: CreateSupplierScheduleInput, actor: ResolvedEventOpsActor): Promise<unknown>;
+  listSupplierSchedules(eventId: string, actor: ResolvedEventOpsActor): Promise<unknown[]>;
 }

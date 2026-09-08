@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
+import { OpsUserRole } from '@prism/kernel/event-core';
 import { OpsGuestController } from './guest.controller';
 
 function controllerPath(controller: Function): string {
@@ -21,7 +22,7 @@ describe('OpsGuestController', () => {
       submitFeedbackByAccessCode: vi.fn(async () => ({ id: 'gfb_1', guestName: 'Sofia Lim' })),
       mapGuestFeedback: vi.fn((feedback) => ({ id: feedback.id, guestName: feedback.guestName })),
     };
-    const controller = new OpsGuestController(guestWorkflowService as any);
+  const controller = new OpsGuestController(guestWorkflowService as any, { resolveActor: vi.fn(() => ({ role: OpsUserRole.PmcmAdmin, name: 'Maxine' })), requireActorRole: vi.fn(async () => undefined) } as any);
 
     await expect(controller.eventByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({ id: 'evt_sample', attendanceCount: 2 });
     await expect(controller.checkIn('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', privacyConsentAccepted: true })).resolves.toEqual({ id: 'gci_1', guestName: 'Sofia Lim' });
@@ -30,5 +31,22 @@ describe('OpsGuestController', () => {
     expect(guestWorkflowService.countCheckInsForEvent).toHaveBeenCalledWith('evt_sample');
     expect(guestWorkflowService.checkInByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', privacyConsentAccepted: true });
     expect(guestWorkflowService.submitFeedbackByAccessCode).toHaveBeenCalledWith('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true });
+  });
+
+  it('forbids non-PMCM actors from moderation mutations', async () => {
+    const guestWorkflowService = { moderateFeedback: vi.fn() };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn(() => ({ role: 'coordinator', name: 'Coordinator' })),
+      requireActorRole: vi.fn(async () => { throw new Error('forbidden'); }),
+    };
+    const controller = new OpsGuestController(guestWorkflowService as any, eventAccessPolicyService as any);
+    await expect(controller.moderateFeedback('evt_sample', 'gfb_1', { action: 'approve' }, { actorId: 'coord-1' } as any)).rejects.toThrow('forbidden');
+    expect(guestWorkflowService.moderateFeedback).not.toHaveBeenCalled();
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'coordinator' }),
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'guest feedback moderation',
+      'evt_sample',
+    );
   });
 });

@@ -14,6 +14,7 @@ import { SupplierLiveOpsController } from './api/supplier-live-ops.controller';
 import { EventLiveOpsCommandService } from './application/event-live-ops-command.service';
 import { EventLiveOpsReadService } from './application/event-live-ops-read.service';
 import { LiveOperationsService } from './application/live-operations.service';
+import { EventScheduleService } from './application/event-schedule.service';
 
 /**
  * Owned tables: OpsCoordinatorAssignment (live-ops-triggered updates; day-to-day staffing assignment owned by staffing-ops), OpsCoordinatorReliabilityNote, OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue.
@@ -36,7 +37,8 @@ import { LiveOperationsService } from './application/live-operations.service';
     LiveOperationsService,
     EventLiveOpsReadService,
     EventLiveOpsCommandService,
+    EventScheduleService,
   ],
-  exports: [LiveOperationsService, EventLiveOpsReadService, EventLiveOpsCommandService],
+  exports: [LiveOperationsService, EventLiveOpsReadService, EventLiveOpsCommandService, EventScheduleService],
 })
 export class LiveOpsModule {}

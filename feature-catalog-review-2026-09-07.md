@@ -7,16 +7,33 @@ authority: informative
 owner: "D (Anthony) — platform trust review"
 scope: "All preserved V4 feature tables, AI overview reconciliation and current FL-001 through FL-028 ledger families"
 updated: "2026-09-08"
-last_verified: "02b6896f56b58476dba0bc736cdf9cb11222c033"
+last_verified: "3342df8"
 ---
 
 # P.R.I.S.M feature catalog implementation review
 
 **As of 8 September 2026, the reviewed catalog contains 137 unique feature IDs across 140 occurrences: 13 implemented, 77 partially implemented and 47 with no implementation found. Of those, 73 have at least one remaining named blocker or prerequisite to full catalog completion.** These are source-code assessments, supported by focused checks; they are not production acceptance or deployment certification.
 
-Historical baseline: `3d01c6c95f6955843539c8c3ba0ef3779941de79` on freshly fetched `origin/staging`; the original report assessed that snapshot. Current update: [P0 implementation commit `02b6896`](https://github.com/The-Team-CG/prism/commit/02b6896f56b58476dba0bc736cdf9cb11222c033), including the current P0 readiness and authority/lifecycle policy documents. Historical evidence links remain immutable and are labelled by their baseline commit; current update evidence is indexed as E25. No product implementation beyond the supplied commit was made in this report.
+Historical baseline: `3d01c6c95f6955843539c8c3ba0ef3779941de79` on freshly fetched `origin/staging`; the original report assessed that snapshot. Current update: [P0 implementation commit `02b6896`](https://github.com/The-Team-CG/prism/commit/02b6896f56b58476dba0bc736cdf9cb11222c033), including the current P0 readiness and authority/lifecycle policy documents. Historical evidence links remain immutable and are labelled by their baseline commit; the dated P1 section records current integration evidence and supersedes the historical implementation scope for progress reporting.
 
 This is a reconciliation of the P0 changes: affected catalog rows and prerequisites were reassessed; unchanged rows carry forward the baseline findings. The assessed implementation is on the draft PR branch, not a claim of delivery to staging or production.
+
+## 2026-09-08 P1 implementation update
+
+The current P1 integration branch contains the local implementation slices for W10, W12–W16, W17–W25, W27–W28, W30, W40, W50 and the integrated W26/W51 deliveries. W11 remains a provider-gated partial. W15 now includes a public email-matched application status journey, while full supplier promotion still depends on W40 assessment and PMCM review. W29 remains blocked by the missing approved privacy, retention and legal-hold policy. These package labels describe implementation evidence, not production readiness.
+
+The most material catalog status changes since the historical assessment are:
+
+| Catalog area | Current review position | Evidence / remaining limitation |
+| --- | --- | --- |
+| Cancellation and postponement (FR-96/FR-97) | Partial with a durable local decision core | W25 records actor, reason, prior state, financial/assignment/supplier impacts and audited intent; refunds, supplier acceptance, provider delivery and full rescheduling remain open. |
+| Freeze and addenda (FR-77, New-SY3, New-SY4) | Partial with integrated local workflow | W26 provides freeze exceptions, monotonic scanned addenda and deterministic impact propagation; W10/W11/W43 and PostgreSQL acceptance remain gates. |
+| Action centers and shared UX (FR-27 and W51 surfaces) | Partial with integrated deterministic presentation | PMCM/client/supplier/guest actions have persisted-source ordering, explicit unavailable states and accessibility affordances; browser/mobile/screen-reader acceptance is still unavailable. |
+| Billing, documents, storage and delivery | Partial | Durable metadata, contracts and queued intent exist; production object storage and notification providers are not configured. |
+| Supplier application/status (W15) | Partial with local status journey | The supplier can check a redacted application state using reference plus submitting email; deeper promotion/profile parity remains coupled to W40 assessment and PMCM review. |
+| Privacy and retention (FR-56, New-SEC2) | Partial / blocked | P0 privacy corrections exist, but full rights fulfillment, retention and legal holds require approved policy and W10 file lifecycle. |
+
+The historical 137-ID counts below remain the auditable catalog denominator. This P1 update intentionally does not convert partial, provider-gated or runtime-unverified rows into **Implemented** merely because a local contract or test exists.
 
 **Planning view:** [Effort, priority and risk matrix](feature-effort-priority-risk-matrix-2026-09-07.md) — 52 tracked packages: nine completed P0 packages and 43 remaining packages, rough person-day bands, impact versus fix risk, dependencies, one proposed DRI per package, and a lookup covering all 137 catalog IDs. Estimates apply to packages once; implemented features are retained.
 
@@ -34,7 +51,7 @@ The strongest implemented areas are inquiry intake, supplier directory/tiering a
 
 ## At a glance
 
-Owner D coordinates the evidence review for B operations, C external portals and A UX. Use this report for catalog status and the linked matrix for remaining work. **V01 is an open verification gate; this branch is not fully verified for merge.**
+Owner D coordinates the evidence review for B operations, C external portals and A UX. Use this report for catalog status and the linked matrix for remaining work. **V01 was an open historical P0 verification gate; the current P1 branch passes static boundaries, while database and browser runtime acceptance remain unavailable.**
 
 | Current review | Count |
 | --- | ---: |
@@ -76,7 +93,8 @@ The [preserved V4 catalog](docs/reference/prism-v4/complete-feature-catalog.md) 
 - `FR-49`, `FR-64` and `FR-90` occur twice across personas. They are assessed consistently and counted once in the overall totals. The full matrix keeps all 140 occurrences for traceability.
 - `New-S1`, `New-SUP3` and `New-EX1` are different source IDs describing the same public supplier-registration implementation. They count as three catalog IDs, not three separate engineering deliveries.
 - The AI overview uses `FR-15` for theme suggestions, while the detailed table uses it for supplier tiers and uses `FR-11` for theme suggestions. `FR-10+` appears only in the overview for compliance AI advisory. Both ambiguities are explicitly reconciled below.
-- The 37 automatic system behaviors are counted but are not individually listed in this preserved file. Their individual status remains **unassessed** until a source with stable behavior IDs and acceptance text is supplied.
+- The manuscript's **127 numbered features** are also not fully present as rows. The detailed tables carry `FR-1` through `FR-97` with seven unused numbers (`FR-57`, `FR-71`, `FR-72`, `FR-73`, `FR-74`, `FR-85`, `FR-86`), which is **90 numbered FR IDs**, plus **10 `FR-AI-*` IDs**, for 100 numbered features against the claimed 127. The remaining 27 manuscript-numbered features are not recoverable from this file; the 37 `New-*` IDs are reviewer-assigned identifiers for described features that the preserved tables never numbered, and they are not the system behaviors. This reconciliation closes the numbering half of W50; only the behavior definitions remain outstanding.
+- The 37 automatic system behaviors are counted but are not individually listed in this preserved file. `docs/reference/prism-v4/complete-feature-catalog.md` line 54 records only the arithmetic (31 V3 behaviors + 6 AI-related = 37); no behavior table, ID scheme or acceptance text exists anywhere in the repository or its Git history. Their individual status remains **unassessed**, and W50 stays blocked on one specific input: the original V4 manuscript section that enumerates the behaviors with stable IDs and acceptance text. No engineering work unblocks it.
 - No completion percentage against 164 or effort estimate is defensible from these source counts. The original DOCX was not independently retrieved; this review uses the repository’s preserved reference.
 
 | Original scope tag | Implemented | Partial | Not implemented | Unique IDs | Has blocker |

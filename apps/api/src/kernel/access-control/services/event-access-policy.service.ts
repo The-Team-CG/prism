@@ -173,6 +173,20 @@ export class EventAccessPolicyService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Forbidden access audit log could not be recorded: ${message}`);
+      if (this.auditWriter.recordIntegrityIncident) {
+        try {
+          await this.auditWriter.recordIntegrityIncident({
+            source: 'event-access-policy.forbidden-access',
+            reason: message,
+            eventId,
+            actor: actor.name,
+            metadata: { resource, actorId: actor.id, role: actor.role, email: actor.email },
+          });
+        } catch (incidentError) {
+          const incidentMessage = incidentError instanceof Error ? incidentError.message : String(incidentError);
+          this.logger.error(`Audit integrity incident could not be persisted: ${incidentMessage}`);
+        }
+      }
     }
   }
 }

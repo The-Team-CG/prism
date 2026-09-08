@@ -12,26 +12,30 @@ function createContext(request: Record<string, unknown>): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
+function prismaFor(version = 0) {
+  return { opsUser: { findUnique: vi.fn().mockResolvedValue({ sessionVersion: version }) } } as never;
+}
+
 describe('EventSessionGuard', () => {
-  it('rejects a request with no session token', () => {
+  it('rejects a request with no session token', async () => {
     const authSessionService = { verifyAccessToken: vi.fn() } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService);
+    const guard = new EventSessionGuard(authSessionService, prismaFor());
     const context = createContext({ headers: {} });
 
-    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     expect(authSessionService.verifyAccessToken).not.toHaveBeenCalled();
   });
 
-  it('rejects a spoofed actorRole query parameter with no session token (PA-138)', () => {
+  it('rejects a spoofed actorRole query parameter with no session token (PA-138)', async () => {
     const authSessionService = { verifyAccessToken: vi.fn() } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService);
+    const guard = new EventSessionGuard(authSessionService, prismaFor());
     const context = createContext({ headers: {}, query: { actorRole: 'pmcm-admin' } });
 
-    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
     expect(authSessionService.verifyAccessToken).not.toHaveBeenCalled();
   });
 
-  it('accepts a bearer token and attaches the verified actor to the request', () => {
+  it('accepts a bearer token and attaches the verified actor to the request', async () => {
     const verifiedActor = {
       id: 'user_pmcm',
       actorId: 'user_pmcm',
@@ -46,23 +50,39 @@ describe('EventSessionGuard', () => {
     const authSessionService = {
       verifyAccessToken: vi.fn(() => verifiedActor),
     } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService);
+    const guard = new EventSessionGuard(authSessionService, prismaFor());
     const request: Record<string, unknown> = { headers: { authorization: 'Bearer valid-token' } };
     const context = createContext(request);
 
-    expect(guard.canActivate(context)).toBe(true);
+    await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(authSessionService.verifyAccessToken).toHaveBeenCalledWith('valid-token');
     expect(request.prismActor).toEqual(verifiedActor);
   });
 
-  it('accepts the x-prism-session header as an alternative to Authorization', () => {
+  it('accepts the x-prism-session header as an alternative to Authorization', async () => {
     const authSessionService = {
       verifyAccessToken: vi.fn(() => ({ actorRole: 'client' })),
     } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService);
+    const guard = new EventSessionGuard(authSessionService, prismaFor());
     const context = createContext({ headers: { 'x-prism-session': 'session-token' } });
 
-    expect(guard.canActivate(context)).toBe(true);
+    await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(authSessionService.verifyAccessToken).toHaveBeenCalledWith('session-token');
+  });
+
+  it('rejects a signed session whose durable user epoch has changed', async () => {
+    const authSessionService = {
+      verifyAccessToken: vi.fn(() => ({ id: 'user_1', sessionVersion: 0 })),
+    } as unknown as AuthSessionService;
+    const prisma = { opsUser: { findUnique: vi.fn().mockResolvedValue({ sessionVersion: 1 }) } };
+    const guard = new EventSessionGuard(authSessionService, prisma as never);
+    await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow('revoked');
+  });
+
+  it('does not allow a guard without a durable user lookup', async () => {
+    const authSessionService = { verifyAccessToken: vi.fn(() => ({ id: 'user_1', sessionVersion: 0 })) } as unknown as AuthSessionService;
+    const prisma = { opsUser: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
+    const guard = new EventSessionGuard(authSessionService, prisma);
+    await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow('revoked');
   });
 });

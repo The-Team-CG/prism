@@ -4,6 +4,7 @@ export * from './contracts/staffing-ops.tokens';
 export * from './application/staffing/coordinators.service';
 export * from './application/staffing/coordinator-workspace-read.service';
 export * from './api/staffing/coordinators.controller';
+export * from './api/staffing/coordinator-capacity.controller';
 export * from './api/staffing/coordinator-workspace.controller';
 export * from './api/staffing/event-coordinator-assignments.controller';
 export * from './api/staffing/staffing-ops.dto';

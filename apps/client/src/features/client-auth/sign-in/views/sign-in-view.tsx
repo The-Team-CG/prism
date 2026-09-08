@@ -143,6 +143,10 @@ export function SignInView() {
                   </button>
 
                   <div className="flex items-center justify-between gap-3 text-sm">
+                    <a href="/password-reset" className="text-[#c01867] transition hover:text-[#a81459]">Forgot password?</a>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 text-sm">
                     <a href="/sign-up" className="text-[#c01867] transition hover:text-[#a81459]">
                       Need access? Request here
                     </a>

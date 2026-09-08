@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { QrCode, Upload, Users } from "lucide-react";
+import { QrCode, Upload, Users, UserRoundCheck } from "lucide-react";
 
 import type {
   PrismRegistrationPlatform,
@@ -7,8 +7,13 @@ import type {
   CreateRegistrationPlatformInput,
   UpdateRegistrationPlatformInput,
   ImportHeadcountInput,
+  ImportGuestRosterInput,
+  PrismGuestRosterEntry,
+  GuestRosterSearchInput,
+  UpdateWalkInPolicyInput,
+  UpdateGuestVerificationInput,
 } from "@prism/types";
-import { createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
+import { createRegistrationPlatformSchema, importGuestRosterSchema, importHeadcountSchema, parseContract } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Panel } from "@/features/pmcm-kit/primitives";
 
@@ -466,7 +471,31 @@ function HeadcountSection({
   );
 }
 
+function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn, onVerify }: { eventId: string; busy: boolean; onSearch: (filters?: GuestRosterSearchInput) => Promise<PrismGuestRosterEntry[]>; onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>; onCheckIn: (id: string) => Promise<unknown>; onVerify: (id: string, status: UpdateGuestVerificationInput["status"]) => Promise<unknown> }) {
+  const [query, setQuery] = useState("");
+  const [eligibility, setEligibility] = useState<"eligible" | "ineligible" | "">("");
+  const [checkedIn, setCheckedIn] = useState<"all" | "yes" | "no">("all");
+  const [rows, setRows] = useState<PrismGuestRosterEntry[]>([]);
+  const [payload, setPayload] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  async function search() { setRows(await onSearch({ namePrefix: query, eligibility: eligibility || undefined, checkedIn: checkedIn === "all" ? undefined : checkedIn === "yes" })); }
+  async function importRows() {
+    try {
+      const parsed = parseContract(importGuestRosterSchema, JSON.parse(payload), "Guest roster import");
+      const result = await onImport(parsed); setRows(result); setPayload(""); setMessage(`Imported ${result.length} roster rows`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to import roster"); }
+  }
+  return <Panel title="Guest roster and registration desk" icon={UserRoundCheck}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM imports authoritative guest rows. Registration staff search this event roster and check in eligible guests; walk-ins follow the policy above.</p><textarea value={payload} onChange={(e) => setPayload(e.target.value)} rows={4} className="rounded-md border border-border bg-background px-3 py-2 font-mono text-xs" placeholder={'{"source":"xperto","rows":[{"sourceKey":"A-1","guestName":"Ada Lovelace","category":"VIP","table":"T1"}]}'}/><div className="flex gap-2"><button type="button" disabled={busy || !payload} onClick={() => void importRows()} className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Import roster</button>{message ? <span className="self-center text-sm text-muted-foreground">{message}</span> : null}</div><div className="flex flex-wrap gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void search(); }} className="h-10 min-w-48 flex-1 rounded-md border border-border bg-background px-3 text-sm" placeholder="Name prefix"/><select value={eligibility} onChange={(e) => setEligibility(e.target.value as typeof eligibility)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="">All eligibility</option><option value="eligible">Eligible</option><option value="ineligible">Ineligible</option></select><select value={checkedIn} onChange={(e) => setCheckedIn(e.target.value as typeof checkedIn)} className="h-10 rounded-md border border-border bg-background px-3 text-sm"><option value="all">All attendance</option><option value="yes">Checked in</option><option value="no">Not checked in</option></select><button type="button" onClick={() => void search()} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">Search</button></div><div className="divide-y divide-border border-y border-border">{rows.map((row) => <div key={`${eventId}-${row.id}`} className="flex items-center justify-between gap-2 py-2 text-sm"><span><strong>{row.guestName}</strong><span className="ml-2 text-muted-foreground">{row.category || row.table || row.email || row.phone || row.sourceKey}</span></span><div className="flex items-center gap-2"><select aria-label={`Verification for ${row.guestName}`} value={row.verificationStatus} disabled={busy} onChange={(event) => void onVerify(row.id, event.target.value as UpdateGuestVerificationInput["status"])} className="h-8 rounded-md border border-border bg-background px-2 text-xs"><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select><button type="button" disabled={busy || Boolean(row.withdrawnAt) || row.verificationStatus === "rejected"} onClick={() => void onCheckIn(row.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-bold">Check in</button></div></div>)}{rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No roster rows match.</p> : null}</div></div></Panel>;
+}
+
+function WalkInPolicySection({ policy, threshold, busy, onUpdate }: { policy: "closed" | "open" | "threshold"; threshold: number; busy: boolean; onUpdate: (input: UpdateWalkInPolicyInput) => void }) {
+  const [selectedPolicy, setSelectedPolicy] = useState(policy);
+  const [selectedThreshold, setSelectedThreshold] = useState(String(threshold));
+  return <Panel title="Walk-in policy" icon={Users}><div className="flex flex-col gap-3"><p className="text-sm text-muted-foreground">PMCM owns this event setting. Threshold walk-ins are admitted only while checked-in attendance is below the limit; the API enforces the limit during check-in.</p><div className="flex flex-wrap items-end gap-3"><label className="flex min-w-44 flex-col gap-1 text-xs font-semibold text-muted-foreground">Policy<select value={selectedPolicy} onChange={(event) => setSelectedPolicy(event.target.value as typeof selectedPolicy)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"><option value="closed">Closed</option><option value="open">Open</option><option value="threshold">Threshold</option></select></label>{selectedPolicy === "threshold" ? <label className="flex w-32 flex-col gap-1 text-xs font-semibold text-muted-foreground">Limit<input type="number" min={1} value={selectedThreshold} onChange={(event) => setSelectedThreshold(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground" /></label> : null}<button type="button" disabled={busy} onClick={() => onUpdate({ policy: selectedPolicy, ...(selectedPolicy === "threshold" || selectedThreshold !== String(threshold) ? { threshold: Number(selectedThreshold) } : {}) })} className="h-10 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">Save policy</button></div></div></Panel>;
+}
+
 export function EventRegistrationTab({
+  eventId,
   platform,
   suppliers,
   busy,
@@ -474,7 +503,15 @@ export function EventRegistrationTab({
   onUpsert,
   onUpdate,
   onImportHeadcount,
+  onSearchRoster,
+  onImportRoster,
+  onCheckInRoster,
+  onVerifyRoster,
+  walkInPolicy,
+  walkInThreshold,
+  onUpdateWalkInPolicy,
 }: {
+  eventId: string;
   platform: PrismRegistrationPlatform | null;
   suppliers: PrismSupplier[];
   busy: boolean;
@@ -482,6 +519,13 @@ export function EventRegistrationTab({
   onUpsert: (input: CreateRegistrationPlatformInput) => void;
   onUpdate: (input: UpdateRegistrationPlatformInput) => void;
   onImportHeadcount: (input: ImportHeadcountInput) => void;
+  onSearchRoster: (filters?: GuestRosterSearchInput) => Promise<PrismGuestRosterEntry[]>;
+  onImportRoster: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>;
+  onCheckInRoster: (id: string) => Promise<unknown>;
+  onVerifyRoster: (id: string, status: UpdateGuestVerificationInput["status"]) => Promise<unknown>;
+  walkInPolicy: "closed" | "open" | "threshold";
+  walkInThreshold: number;
+  onUpdateWalkInPolicy: (input: UpdateWalkInPolicyInput) => void;
 }) {
   const digitalRegSuppliers = suppliers.filter((s) => s.categorySlug === "digital-registration");
   return (
@@ -498,7 +542,9 @@ export function EventRegistrationTab({
         onUpsert={onUpsert}
         onUpdate={onUpdate}
       />
+      <WalkInPolicySection policy={walkInPolicy} threshold={walkInThreshold} busy={busy} onUpdate={onUpdateWalkInPolicy} />
       {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
+      <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
     </div>
   );
 }

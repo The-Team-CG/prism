@@ -15,6 +15,7 @@ export function SupplierApplicationView() {
     form,
     currentStep,
     submitted,
+    applicationId,
     busy,
     error,
     categories,
@@ -34,7 +35,7 @@ export function SupplierApplicationView() {
     await submit();
   }
 
-  if (submitted) return <SupplierApplicationSubmitted onReset={resetSubmitted} />;
+  if (submitted) return <SupplierApplicationSubmitted applicationId={applicationId} onReset={resetSubmitted} />;
 
   return (
     <main className="h-dvh bg-background text-foreground">

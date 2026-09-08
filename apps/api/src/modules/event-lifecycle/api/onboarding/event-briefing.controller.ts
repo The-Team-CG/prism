@@ -22,6 +22,15 @@ export class OpsEventBriefingController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return mapBriefing(await this.clientOnboardingWorkflowService.submitBriefing(eventId, dto, actor));
+    const briefing = mapBriefing(await this.clientOnboardingWorkflowService.submitBriefing(eventId, dto, actor));
+    return {
+      eventId: briefing.eventId,
+      venue: briefing.venue,
+      guestCount: briefing.guestCount,
+      budgetRange: briefing.budgetRange,
+      serviceRequirements: briefing.serviceRequirements,
+      notes: briefing.notes,
+      submittedAt: briefing.submittedAt,
+    };
   }
 }

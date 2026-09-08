@@ -947,9 +947,8 @@ export class SampleCompatibilityService implements OnModuleInit {
     recipient: string,
     message: string,
     channel: 'email' | 'viber' = 'email',
-    options: { forceFail?: boolean } = {},
   ) {
-    return this.notificationOutboxService.queue(eventId, recipient, message, channel, options);
+    return this.notificationOutboxService.queue(eventId, recipient, message, channel);
   }
 
   private async processNotificationQueue() {
@@ -968,7 +967,7 @@ export class SampleCompatibilityService implements OnModuleInit {
 
   private async uploadConforme(
     inquiryId: string,
-    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number; storageObjectId?: string },
     actorInput: SampleActorInput = {},
   ) {
     return this.inquiryWorkflowService.uploadConforme(inquiryId, input, actorInput, this.inquiryWorkflowContext());
@@ -1131,9 +1130,7 @@ export class SampleCompatibilityService implements OnModuleInit {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator workspace');
     const coordinator = await this.resolveCoordinatorForActor(actor);
-    const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(
-      coordinator.id,
-    );
+    const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(coordinator.id);
     const eventIds = new Set(visibleAssignments.map((assignment: any) => assignment.eventId));
     const events = await this.prisma.opsEvent.findMany({
       where: { archived: false },
@@ -2466,6 +2463,8 @@ export class SampleCompatibilityService implements OnModuleInit {
           clientName: 'Ana Reyes',
           eventName: 'Ayala Tech Summit 2026',
           eventDate: new Date('2026-06-18'),
+          walkInPolicy: 'open',
+          walkInThreshold: 200,
           status: 'planning',
           clientPortalStatus: 'unlocked',
           readiness: 'Floorplan approved',
@@ -2984,6 +2983,11 @@ export class SampleCompatibilityService implements OnModuleInit {
       overrideReason?: string | null;
       overrideAt?: Date | null;
       overrideBy?: string | null;
+      evaluationStatus?: string;
+      evidence?: unknown;
+      definitionStatus?: string;
+      remediation?: string;
+      runId?: string | null;
     };
     return {
       id: check.id,
@@ -3001,6 +3005,11 @@ export class SampleCompatibilityService implements OnModuleInit {
       overrideReason: expanded.overrideReason ?? null,
       overrideAt: expanded.overrideAt ? timestamp(expanded.overrideAt) : null,
       overrideBy: expanded.overrideBy ?? null,
+      evaluationStatus: (expanded.evaluationStatus ?? (check.status === 'open' ? 'not_satisfied' : 'satisfied')) as 'satisfied' | 'not_satisfied' | 'not_applicable',
+      evidence: Array.isArray(expanded.evidence) ? expanded.evidence.filter((item): item is string => typeof item === 'string') : [],
+      definitionStatus: expanded.definitionStatus ?? 'PROVISIONAL',
+      remediation: expanded.remediation ?? check.note,
+      runId: expanded.runId ?? null,
     };
   }
 
