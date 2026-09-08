@@ -19,6 +19,7 @@ import { ComplianceWorkflowService } from './application/compliance/compliance-w
 import { ComplianceReevaluationScheduler } from './application/compliance/compliance-reevaluation.scheduler';
 import { CLOSURE_COMMANDS, CLOSURE_READINESS_READER } from './contracts/closure-ops.tokens';
 import { EventClosureService } from './application/closure/event-closure.service';
+import { EventWrapUpReminderScheduler } from './application/closure/event-wrap-up-reminder.scheduler';
 import { OpsEventFileRequirementsController } from './api/files/event-file-requirements.controller';
 import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER, SIGNED_UPLOAD_URL_FACTORY } from './contracts/file-ops.tokens';
 import { DocumentVaultService } from './application/files/document-vault.service';
@@ -38,8 +39,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
  * Owned tables: OpsBriefing, OpsDocument (inquiry/onboarding document kinds),
- * OpsEvent, OpsInquiry, OpsPostEventDocument, OpsComplianceCheck,
- * OpsComplianceRule, and OpsEventInsight. Transitional onboarding writes
+ * OpsEvent, OpsInquiry, OpsPostEventDocument, OpsEventWrapUp,
+ * OpsComplianceCheck, OpsComplianceRule, and OpsEventInsight. Transitional onboarding writes
  * create the initial OpsBillingSource, OpsBillingStatement, and
  * OpsPaymentMilestone rows; ongoing finance ownership remains in commercial.
  * Read-only: ongoing billing records via commercial and OpsSupplierReview via
@@ -74,6 +75,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: COMPLIANCE_COMMANDS, useExisting: ComplianceWorkflowService },
     { provide: COMPLIANCE_READER, useExisting: ComplianceWorkflowService },
     EventClosureService,
+    EventWrapUpReminderScheduler,
     { provide: CLOSURE_COMMANDS, useExisting: EventClosureService },
     { provide: CLOSURE_READINESS_READER, useExisting: EventClosureService },
     DocumentVaultService,

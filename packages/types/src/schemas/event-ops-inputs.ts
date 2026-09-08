@@ -88,6 +88,8 @@ export type ReviewEventProposalInput = z.infer<typeof reviewEventProposalSchema>
 export const archiveSearchFiltersSchema = z.object({
   venue: optionalTrimmedStringSchema,
   eventType: optionalTrimmedStringSchema,
+  eventName: optionalTrimmedStringSchema,
+  clientName: optionalTrimmedStringSchema,
   month: z
     .string()
     .trim()
@@ -95,6 +97,31 @@ export const archiveSearchFiltersSchema = z.object({
     .refine((value) => !value || /^\d{4}-\d{2}$/.test(value), "month must be YYYY-MM"),
 });
 export type ArchiveSearchFilters = z.infer<typeof archiveSearchFiltersSchema>;
+
+export const wrapUpModeSchema = z.enum(["full", "quick"]);
+export type WrapUpMode = z.infer<typeof wrapUpModeSchema>;
+
+export const wrapUpSectionSchema = z.object({
+  status: z.enum(["pending", "complete", "blocked"]).default("pending"),
+  evidence: z.string().trim().max(4000).default(""),
+  completedAt: z.string().datetime({ offset: true }).nullable().default(null),
+});
+
+export const startEventWrapUpSchema = z.object({ mode: wrapUpModeSchema.default("full") });
+export type StartEventWrapUpInput = z.infer<typeof startEventWrapUpSchema>;
+
+export const updateEventWrapUpSchema = z.object({
+  mode: wrapUpModeSchema.optional(),
+  requiredItems: z.record(z.string(), z.boolean()).optional(),
+  sections: z.object({
+    logistics: wrapUpSectionSchema.optional(),
+    issues: wrapUpSectionSchema.optional(),
+    feedback: wrapUpSectionSchema.optional(),
+  }).optional(),
+  clientAcknowledged: z.boolean().optional(),
+  clientAcknowledgementNote: z.string().trim().max(2000).optional(),
+});
+export type UpdateEventWrapUpInput = z.infer<typeof updateEventWrapUpSchema>;
 
 export const createGuestCheckInSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,

@@ -3,6 +3,7 @@ import { createEventOpsClient } from "@prism/api-client";
 
 import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
 import type {
+  ArchiveSearchFilters,
   SampleRole,
   PrismApprovalRequest,
   PrismAuditExport,
@@ -28,6 +29,9 @@ import type {
   PrismEventDayStatusFeed,
   PrismEventDayTask,
   PrismEventInsight,
+  PrismEventWrapUp,
+  StartEventWrapUpInput,
+  UpdateEventWrapUpInput,
   PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
   PrismFloorPlanPreference,
@@ -788,7 +792,10 @@ export const prismApi = {
     }),
   recordActualEventEnd: (eventId: string, input: RecordActualEventEndInput) =>
     request<PrismEvent>(withPmcmActor(`/api/events/${eventId}/actual-end`), { method: "POST", body: JSON.stringify(input) }),
-  searchArchive: (filters: { venue?: string; eventType?: string; month?: string } = {}) =>
+  getEventWrapUp: (eventId: string) => request<PrismEventWrapUp | null>(withPmcmActor(`/api/events/${eventId}/wrap-up`)),
+  startEventWrapUp: (eventId: string, input: StartEventWrapUpInput) => request<PrismEventWrapUp>(withPmcmActor(`/api/events/${eventId}/wrap-up`), { method: "POST", body: JSON.stringify(input) }),
+  updateEventWrapUp: (eventId: string, input: UpdateEventWrapUpInput) => request<PrismEventWrapUp>(withPmcmActor(`/api/events/${eventId}/wrap-up`), { method: "PATCH", body: JSON.stringify(input) }),
+  searchArchive: (filters: ArchiveSearchFilters = {}) =>
     eventOpsClient.events.searchArchive(filters),
   eventInsights: (eventId: string) => request<PrismEventInsight[]>(withPmcmActor(`/api/events/${eventId}/insights`)),
   communicationThreads: (eventId: string) => eventOpsClient.communication.listThreads(eventId),
