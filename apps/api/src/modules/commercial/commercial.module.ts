@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
-import { PAREService } from '../platform-ops/application/ai-governance/pare/pare.service';
 import { EventCoreModule } from '@prism/kernel/event-core';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { DOCUMENT_VAULT } from '../event-lifecycle/contracts/document-vault.port';
@@ -23,7 +22,6 @@ import {
   SUPPLIER_COMMANDS,
   SUPPLIER_DIRECTORY,
   SUPPLIER_DOCUMENT_VAULT,
-  SUPPLIER_PARE_AUTOMATION,
 } from './contracts/supplier-ops.tokens';
 import { FINANCE_COMMANDS, PAYMENT_STATUS_READER } from './contracts/finance-ops.tokens';
 import { CommercialWorkflowService } from './application/quotes/commercial-workflow.service';
@@ -109,7 +107,6 @@ const supplierCommandsProvider = {
     SupplierNetworkWorkflowService,
     supplierCommandsProvider,
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
-    { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
     BillingOperationsService,
     CommunicationService,
     ProposalLifecycleService,

@@ -15,6 +15,8 @@ import { PrivacyOperationsService } from './application/trust/privacy-operations
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
 import { PAREService } from './application/ai-governance/pare/pare.service';
+import { PareDispatchOutboxService } from './application/ai-governance/pare/pare-dispatch-outbox.service';
+import { PARE_APPROVAL_GOVERNANCE, PARE_DISPATCH_WRITER } from './contracts/ai-governance/pare-ops.tokens';
 import { StorageObjectService } from './application/storage/storage-object.service';
 import { StorageValidationService } from './application/storage/storage-validation.service';
 import { STORAGE_ADAPTER } from './contracts/storage/storage.port';
@@ -52,7 +54,8 @@ const storageAdapterProvider = {
  * `ai-governance` Nest library modules (2026-09-01).
  *
  * Owned tables: OpsAuditLog, OpsLoginHistory, OpsNotificationLog,
- * OpsPrivacyRequest, OpsSecurityAlert, OpsAiApprovalRecord, and OpsAiAuditLog.
+ * OpsPareDispatch, OpsPrivacyRequest, OpsSecurityAlert, OpsAiApprovalRecord,
+ * and OpsAiAuditLog.
  * OpsApprovalRequest is owned by identity-access; privacy erasure may update
  * identity, event, guest, and other records as an explicit platform governance
  * workflow rather than a shared ownership claim.
@@ -70,6 +73,9 @@ const storageAdapterProvider = {
     notificationOutboxWriterProvider,
     AiGovernanceService,
     PAREService,
+    PareDispatchOutboxService,
+    { provide: PARE_APPROVAL_GOVERNANCE, useExisting: PAREService },
+    { provide: PARE_DISPATCH_WRITER, useExisting: PareDispatchOutboxService },
     StorageValidationService,
     StorageObjectService,
     storageAdapterProvider,
@@ -84,6 +90,9 @@ const storageAdapterProvider = {
     notificationOutboxWriterProvider,
     AiGovernanceService,
     PAREService,
+    PareDispatchOutboxService,
+    PARE_APPROVAL_GOVERNANCE,
+    PARE_DISPATCH_WRITER,
     StorageValidationService,
     StorageObjectService,
     STORAGE_ADAPTER,
