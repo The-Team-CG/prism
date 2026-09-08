@@ -33,3 +33,5 @@ export * from './contracts/file-requirement-commands.port';
 export * from './contracts/file-requirement-reader.port';
 export * from './contracts/signed-upload-url-factory.port';
 export * from './application/files/file-requirements-matrix.service';
+export * from './api/decisions/event-decision.controller';
+export * from './application/decisions/event-decision.service';

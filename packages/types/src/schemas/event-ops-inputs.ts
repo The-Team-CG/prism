@@ -7,6 +7,21 @@ import {
   uploadMetadataSchema,
 } from "./common.js";
 
+export const eventDecisionSchema = z.object({
+  decision: z.enum(["cancelled", "postponed", "date_to_be_confirmed"]),
+  reason: nonEmptyStringSchema,
+  newEventDate: isoDateStringSchema.optional(),
+  cancellationFeeAmount: z.number().int().nonnegative().default(0),
+  depositTreatment: z.enum(["retain", "credit", "waive", "pending_review"]).default("pending_review"),
+  supplierImpact: z.enum(["release_obligations", "preserve_obligations", "pending_review"]).default("pending_review"),
+  idempotencyKey: nonEmptyStringSchema.optional(),
+}).superRefine((value, ctx) => {
+  if (value.decision === "postponed" && !value.newEventDate) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["newEventDate"], message: "A new date is required for postponement" });
+  }
+});
+export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
+
 /**
  * Write DTOs for portal ↔ API mutations.
  * Schemas are the source of truth; types are `z.infer`.
