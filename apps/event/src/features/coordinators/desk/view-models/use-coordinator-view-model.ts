@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { EventSession } from "@/app/lib/session";
 import {
   createEventDayTaskSchema,
+  createEventTaskReassignmentSchema,
   createUrgentIssueSchema,
   coordinatorAssignmentAcknowledgementSchema,
   withdrawCoordinatorAssignmentSchema,
@@ -16,6 +17,7 @@ import {
   withdrawAndRefreshWorkspace,
   createTaskAndRefreshRoleView,
   createUrgentIssueAndRefreshRoleView,
+  requestTaskReassignmentAndRefreshRoleView,
   loadCoordinatorRoleView,
 } from "../use-cases/coordinator-desk-actions";
 import {
@@ -69,6 +71,8 @@ export function useCoordinatorViewModel({
   const [issueDescription, setIssueDescription] = useState("");
   const [issueSlaDueAt, setIssueSlaDueAt] = useState("");
   const [issueAssignToMe, setIssueAssignToMe] = useState(false);
+  const [reassignmentBusy, setReassignmentBusy] = useState(false);
+  const [reassignmentError, setReassignmentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!event?.id) {
@@ -220,6 +224,29 @@ export function useCoordinatorViewModel({
     }
   }
 
+  async function requestReassignment(taskId: string) {
+    if (!event || !roleView?.isDesignatedOperator) return;
+    const toOwnerRole = window.prompt("Role to take this task")?.trim() ?? "";
+    const toOwnerName = window.prompt("Coordinator name (optional)")?.trim() ?? "";
+    const reason = window.prompt("Why does this task need reassignment?")?.trim() ?? "";
+    setReassignmentBusy(true);
+    setReassignmentError(null);
+    try {
+      const input = parseContract(
+        createEventTaskReassignmentSchema,
+        { toOwnerRole, toOwnerName: toOwnerName || undefined, reason },
+        "Task reassignment request",
+      );
+      setRoleView(
+        await requestTaskReassignmentAndRefreshRoleView({ session, eventId: event.id, taskId, input }),
+      );
+    } catch (err) {
+      setReassignmentError(err instanceof Error ? err.message : "Unable to request task reassignment.");
+    } finally {
+      setReassignmentBusy(false);
+    }
+  }
+
   function selectSection(section: string) {
     setActiveSection(section);
   }
@@ -289,6 +316,11 @@ export function useCoordinatorViewModel({
       busy: issueBusy,
       error: issueError,
       submit: logUrgentIssue,
+    },
+    reassignment: {
+      busy: reassignmentBusy,
+      error: reassignmentError,
+      request: requestReassignment,
     },
   };
 }
