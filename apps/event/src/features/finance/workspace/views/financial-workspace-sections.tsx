@@ -133,6 +133,7 @@ export function BillingStatementCard({
           {statement?.number ?? "Awaiting billing source"}
         </h3>
         {statement ? <StatusBadge status={statement.status} label={label(statement.status)} className="mt-2" /> : null}
+        {statement && statement.storageState !== "stored" ? <p className="mt-2 text-xs text-amber-700">PDF storage is pending W10 provider configuration; the statement metadata remains available.</p> : null}
       </CardHeader>
       {statement ? (
         <BillingStatementBody
@@ -216,6 +217,8 @@ function BillingStatementBody({
       <div className="flex flex-wrap gap-2 pt-1">
         <a
           href={billingStatementHref}
+          aria-disabled={!billingStatementHref}
+          tabIndex={billingStatementHref ? 0 : -1}
           target="_blank"
           className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold text-foreground transition hover:bg-muted"
         >
