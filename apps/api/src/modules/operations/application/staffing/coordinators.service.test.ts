@@ -201,7 +201,10 @@ describe('CoordinatorsService', () => {
     }];
     const prisma = {
       opsEventCoverageRequirement: { findMany: async () => requirements },
-      opsCoordinatorAssignment: { findMany: async () => assignments },
+      opsCoordinatorAssignment: {
+        findMany: async () => assignments,
+        groupBy: async () => [{ role: 'Floor Director', status: CoordinatorAssignmentStatus.Acknowledged, _count: { _all: 1 } }],
+      },
     };
     const service = createService(prisma as any);
 

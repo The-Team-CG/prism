@@ -77,11 +77,12 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
         : null;
     const { data, scheduleDays, reassignmentRequests, designatedOperator } = await this.loadW20Context(eventId, coordinatorAssignment);
     if (!data.event) throw new NotFoundException('Event not found');
-    const [coordinatorAssignments, guestCheckIns] = await Promise.all([
+    const [coordinatorAssignments, guestCheckIns, guestAttendanceCount] = await Promise.all([
       coordinatorAssignment && !designatedOperator
         ? Promise.resolve([coordinatorAssignment])
         : this.staffingReader.listAssignmentsForEvent(eventId),
       this.guestReader.listCheckInsForEvent(eventId),
+      this.guestReader.countCheckInsForEvent(eventId),
     ]);
 
     const assignedCoordinator = coordinatorAssignment;
@@ -106,7 +107,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       urgentIssues: urgentIssues.map(mapUrgentIssue),
       supplierStatuses,
       coordinatorAssignments: mappedAssignments,
-      guestAttendanceCount: guestCheckIns.length,
+      guestAttendanceCount,
       guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
       eventDayLogs: data.eventDayLogs.map(mapEventDayLog),
       isDesignatedOperator: designatedOperator,
