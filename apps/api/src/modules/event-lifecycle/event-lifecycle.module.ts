@@ -26,6 +26,8 @@ import { DocumentVaultService } from './application/files/document-vault.service
 import { DOCUMENT_VAULT } from './contracts/document-vault.port';
 import { FileRequirementsMatrixService } from './application/files/file-requirements-matrix.service';
 import { EventDocumentJourneyController } from './api/files/event-document-journey.controller';
+import { EventDecisionController } from './api/decisions/event-decision.controller';
+import { EventDecisionService } from './application/decisions/event-decision.service';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -64,6 +66,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     OpsEventComplianceController,
     OpsEventFileRequirementsController,
     EventDocumentJourneyController,
+    EventDecisionController,
   ],
   providers: [
     InquiriesService,
@@ -85,6 +88,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FileRequirementsMatrixService,
     { provide: FILE_REQUIREMENT_READER, useExisting: FileRequirementsMatrixService },
     { provide: FILE_REQUIREMENT_COMMANDS, useValue: metadataOnlyFileCommands },
+    EventDecisionService,
   ],
   exports: [
     InquiriesService,
