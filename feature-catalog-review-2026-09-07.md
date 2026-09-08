@@ -18,6 +18,23 @@ Historical baseline: `3d01c6c95f6955843539c8c3ba0ef3779941de79` on freshly fetch
 
 This is a reconciliation of the P0 changes: affected catalog rows and prerequisites were reassessed; unchanged rows carry forward the baseline findings. The assessed implementation is on the draft PR branch, not a claim of delivery to staging or production.
 
+## 2026-09-08 P1 implementation update
+
+The current P1 integration branch contains the local implementation slices for W10, W12–W14, W16–W25, W27–W28, W30, W40, W50 and the integrated W26/W51 deliveries. W11 remains a provider-gated partial. W15 is the remaining local supplier-application/status slice being completed by Luna. W29 remains blocked by the missing approved privacy, retention and legal-hold policy. These package labels describe implementation evidence, not production readiness.
+
+The most material catalog status changes since the historical assessment are:
+
+| Catalog area | Current review position | Evidence / remaining limitation |
+| --- | --- | --- |
+| Cancellation and postponement (FR-96/FR-97) | Partial with a durable local decision core | W25 records actor, reason, prior state, financial/assignment/supplier impacts and audited intent; refunds, supplier acceptance, provider delivery and full rescheduling remain open. |
+| Freeze and addenda (FR-77, New-SY3, New-SY4) | Partial with integrated local workflow | W26 provides freeze exceptions, monotonic scanned addenda and deterministic impact propagation; W10/W11/W43 and PostgreSQL acceptance remain gates. |
+| Action centers and shared UX (FR-27 and W51 surfaces) | Partial with integrated deterministic presentation | PMCM/client/supplier/guest actions have persisted-source ordering, explicit unavailable states and accessibility affordances; browser/mobile/screen-reader acceptance is still unavailable. |
+| Billing, documents, storage and delivery | Partial | Durable metadata, contracts and queued intent exist; production object storage and notification providers are not configured. |
+| Supplier application/status (W15) | Partial | Existing conversion/promotion foundations remain; application/status parity is the remaining local implementation slice. |
+| Privacy and retention (FR-56, New-SEC2) | Partial / blocked | P0 privacy corrections exist, but full rights fulfillment, retention and legal holds require approved policy and W10 file lifecycle. |
+
+The historical 137-ID counts below remain the auditable catalog denominator. This P1 update intentionally does not convert partial, provider-gated or runtime-unverified rows into **Implemented** merely because a local contract or test exists.
+
 **Planning view:** [Effort, priority and risk matrix](feature-effort-priority-risk-matrix-2026-09-07.md) — 52 tracked packages: nine completed P0 packages and 43 remaining packages, rough person-day bands, impact versus fix risk, dependencies, one proposed DRI per package, and a lookup covering all 137 catalog IDs. Estimates apply to packages once; implemented features are retained.
 
 The strongest implemented areas are inquiry intake, supplier directory/tiering and public applications, the floorplan editor, client layout preferences, partial-payment recording, coordinator double-booking detection and the simple usher/general-coordinator role flow. Most broader journeys have real persisted building blocks but still lack required states, operational safeguards, storage, delivery or specialist screens.
