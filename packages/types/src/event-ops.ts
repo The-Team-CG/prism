@@ -1185,7 +1185,8 @@ export interface PrismEventWrapUp {
     feedback: PrismWrapUpSection;
   };
   clientAcknowledgedAt: string | null;
-  clientAcknowledgedBy: string | null;
+  acknowledgementRecordedBy: string | null;
+  acknowledgementSource: 'pmcm_recorded' | 'client';
   clientAcknowledgementNote: string;
   completedAt: string | null;
   completedBy: string | null;

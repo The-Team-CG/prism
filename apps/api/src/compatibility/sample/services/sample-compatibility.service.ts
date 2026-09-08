@@ -967,7 +967,7 @@ export class SampleCompatibilityService implements OnModuleInit {
 
   private async uploadConforme(
     inquiryId: string,
-    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number; storageObjectId?: string },
     actorInput: SampleActorInput = {},
   ) {
     return this.inquiryWorkflowService.uploadConforme(inquiryId, input, actorInput, this.inquiryWorkflowContext());
@@ -1130,9 +1130,7 @@ export class SampleCompatibilityService implements OnModuleInit {
     const actor = this.resolveActor(actorInput);
     await this.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator workspace');
     const coordinator = await this.resolveCoordinatorForActor(actor);
-    const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(
-      coordinator.id,
-    );
+    const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(coordinator.id);
     const eventIds = new Set(visibleAssignments.map((assignment: any) => assignment.eventId));
     const events = await this.prisma.opsEvent.findMany({
       where: { archived: false },

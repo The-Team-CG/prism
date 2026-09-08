@@ -61,7 +61,8 @@ export function mapPostEventDocument(document: OpsPostEventDocument) {
     status: document.status,
     ...(document.required !== undefined ? { required: document.required } : {}),
     ...(document.clientAcknowledgedAt !== undefined ? { clientAcknowledgedAt: document.clientAcknowledgedAt?.toISOString() ?? null } : {}),
-    ...(document.clientAcknowledgedBy !== undefined ? { clientAcknowledgedBy: document.clientAcknowledgedBy } : {}),
+    ...(document.acknowledgementRecordedBy !== undefined ? { acknowledgementRecordedBy: document.acknowledgementRecordedBy } : {}),
+    ...(document.acknowledgementSource !== undefined ? { acknowledgementSource: document.acknowledgementSource } : {}),
     ...(document.clientAcknowledgementNote !== undefined ? { clientAcknowledgementNote: document.clientAcknowledgementNote } : {}),
   };
 }
@@ -74,7 +75,8 @@ export function mapEventWrapUp(record: OpsEventWrapUp) {
     twentyFourHourReminderAt: record.twentyFourHourReminderAt?.toISOString() ?? null,
     requiredItems: record.requiredItems ?? {}, sections: record.sections ?? {},
     clientAcknowledgedAt: record.clientAcknowledgedAt?.toISOString() ?? null,
-    clientAcknowledgedBy: record.clientAcknowledgedBy,
+    acknowledgementRecordedBy: record.acknowledgementRecordedBy,
+    acknowledgementSource: record.acknowledgementSource,
     clientAcknowledgementNote: record.clientAcknowledgementNote,
     completedAt: record.completedAt?.toISOString() ?? null, completedBy: record.completedBy,
   };
