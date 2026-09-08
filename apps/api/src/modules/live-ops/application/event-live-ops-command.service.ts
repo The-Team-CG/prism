@@ -128,7 +128,6 @@ export class EventLiveOpsCommandService {
   async requestTaskReassignment(eventId: string, taskId: string, input: CreateEventTaskReassignmentInput, actor: ResolvedEventOpsActor) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'task reassignment');
     if (actor.role === OpsUserRole.Coordinator && !designatedOperator) {
-      await this.requireTaskScope(eventId, taskId, actor, assignment, false);
       throw new ForbiddenException('Only the designated Event Day System Operator may request task reassignment');
     }
     return this.liveOperationsService.requestTaskReassignment(eventId, taskId, input, actor);
@@ -232,9 +231,9 @@ export class EventLiveOpsCommandService {
       actor.role === OpsUserRole.Coordinator
         ? await this.requireCoordinatorAssignmentForEvent(eventId, actor)
         : null;
-    const designationModel = 'opsEventOperatorDesignation' in this.prisma ? this.prisma.opsEventOperatorDesignation : undefined;
+    const designationModel = this.prisma.opsEventOperatorDesignation;
     const designatedOperator = actor.role === OpsUserRole.Coordinator && Boolean(
-      designationModel && assignment?.coordinatorId && await designationModel.findFirst({
+      assignment?.coordinatorId && await designationModel.findFirst({
         where: { eventId, coordinatorId: assignment.coordinatorId, revokedAt: null },
       }),
     );
@@ -271,7 +270,7 @@ export class EventLiveOpsCommandService {
     if (actor.role !== OpsUserRole.Coordinator || designatedOperator || !assignment) return;
     const role = assignedRole?.trim();
     const owner = ownerName?.trim();
-    if (role && !this.eventAccessPolicyService.sameText(role, assignment.role) && !this.eventAccessPolicyService.sameText(role, 'General Coordinator')) {
+    if (role && !this.eventAccessPolicyService.sameText(role, assignment.role)) {
       throw new ForbiddenException('Coordinator may only create tasks for their role');
     }
     if (owner && !this.eventAccessPolicyService.sameText(owner, assignment.coordinatorName)) {
@@ -289,8 +288,7 @@ export class EventLiveOpsCommandService {
     if (actor.role !== OpsUserRole.Coordinator || designatedOperator) return;
     const task = await this.prisma.opsEventDayTask.findFirst({ where: { id: taskId, eventId } });
     if (!task) throw new NotFoundException('Event-day task not found');
-    const roleMatches = this.eventAccessPolicyService.sameText(task.assignedRole, assignment?.role) ||
-      this.eventAccessPolicyService.sameText(task.assignedRole, 'General Coordinator');
+    const roleMatches = this.eventAccessPolicyService.sameText(task.assignedRole, assignment?.role);
     const ownerMatches = !task.ownerName || this.eventAccessPolicyService.sameText(task.ownerName, assignment?.coordinatorName);
     if (!assignment || !roleMatches || !ownerMatches) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task scope', eventId);

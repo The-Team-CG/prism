@@ -102,6 +102,7 @@ function createPrisma(seedInquiry: any = inquiry()) {
     ] as any[],
     events: [] as any[],
     documents: [] as any[],
+    storedObjects: [] as any[],
     briefings: [] as any[],
     floorPlanDrafts: [] as any[],
     billings: [] as any[],
@@ -658,6 +659,9 @@ function createPrisma(seedInquiry: any = inquiry()) {
         state.documents.push(document);
         return document;
       },
+    },
+    opsStoredObject: {
+      findUnique: async ({ where }: { where: { id: string } }) => state.storedObjects.find((item) => item.id === where.id) ?? null,
     },
     opsBriefing: {
       findMany: async ({ where }: { where?: { eventId?: string | { in: string[] } } } = {}) => {
@@ -1341,11 +1345,14 @@ describe('SampleCompatibilityService', () => {
 
   it('uploads a signed conforme and unlocks event onboarding records', async () => {
     const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
+    fake.state.events.push({ id: 'evt_sample', inquiryId: 'inq_sample', clientName: 'Ana Reyes', eventName: 'Ayala Summit', eventDate: new Date('2026-06-18'), status: 'inquiry', clientPortalStatus: 'locked', archived: false });
+    fake.state.storedObjects.push({ id: 'sto_conforme', eventId: 'evt_sample', usage: 'signed_conforme', lifecycleState: 'stored' });
     const service = createSampleCompatibilityService(fake.prisma as any);
 
     const document = await (service as any).uploadConforme('inq_sample', {
       type: 'signed_conforme',
       fileName: 'signed-conforme.pdf',
+      storageObjectId: 'sto_conforme',
     }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(document.status).toBe('approved');
@@ -1358,6 +1365,8 @@ describe('SampleCompatibilityService', () => {
 
   it('enforces PmcmAdmin-only access and records the resolved actor on conforme upload', async () => {
     const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
+    fake.state.events.push({ id: 'evt_sample', inquiryId: 'inq_sample', clientName: 'Ana Reyes', eventName: 'Ayala Summit', eventDate: new Date('2026-06-18'), status: 'inquiry', clientPortalStatus: 'locked', archived: false });
+    fake.state.storedObjects.push({ id: 'sto_conforme', eventId: 'evt_sample', usage: 'signed_conforme', lifecycleState: 'stored' });
     const auditService = new AuditService(fake.prisma as any);
     const auditWriter = new AuditWriterAdapter(auditService);
     const notificationOutboxService = new NotificationOutboxService(fake.prisma as any);
@@ -1384,7 +1393,7 @@ describe('SampleCompatibilityService', () => {
     await expect(
       inquiryWorkflowService.uploadConforme(
         'inq_sample',
-        { type: 'signed_conforme', fileName: 'signed-conforme.pdf' },
+        { type: 'signed_conforme', fileName: 'signed-conforme.pdf', storageObjectId: 'sto_conforme' },
         { actorRole: 'client' },
         context as any,
       ),
@@ -1392,13 +1401,13 @@ describe('SampleCompatibilityService', () => {
 
     await inquiryWorkflowService.uploadConforme(
       'inq_sample',
-      { type: 'signed_conforme', fileName: 'signed-conforme.pdf' },
+      { type: 'signed_conforme', fileName: 'signed-conforme.pdf', storageObjectId: 'sto_conforme' },
       { actorRole: 'pmcm-admin', actorName: 'Ms. Mys', actorEmail: 'mys@pmcm.test' },
       context as any,
     );
 
     const conformeAudit = fake.state.auditLogs.find(
-      (entry: any) => entry.action === 'Uploaded signed conforme and unlocked client portal',
+      (entry: any) => entry.action === 'Confirmed stored signed conforme and unlocked client portal',
     );
     expect(conformeAudit?.actor).toBe('Ms. Mys');
     expect(conformeAudit?.actorEmail).toBe('mys@pmcm.test');

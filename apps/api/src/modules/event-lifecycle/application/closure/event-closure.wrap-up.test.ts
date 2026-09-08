@@ -5,7 +5,7 @@ import { buildInsightDimensions, EventClosureService } from './event-closure.ser
 
 const actor = { id: 'pmcm_1', name: 'PMCM', email: 'pmcm@test', role: OpsUserRole.PmcmAdmin } as any;
 function harness(actualEndedAt: Date | null = new Date('2026-09-07T00:00:00.000Z')) {
-  const event = { id: 'evt_1', clientName: 'Client', eventName: 'Event', status: 'event_day', archived: false, actualEndedAt, actualEndedBy: 'pmcm_1' };
+  const event = { id: 'evt_1', clientName: 'Client', eventName: 'Event', status: 'event_day', archived: false, actualEndedAt, actualEndedBy: 'pmcm_1', inquiry: { email: 'client@example.test' } };
   const records: any[] = [];
   const tx = {
     opsEvent: { findUnique: vi.fn(async () => event), findMany: vi.fn(async () => [event]) },
@@ -54,11 +54,13 @@ describe('EventClosureService wrap-up', () => {
     }, actor);
     expect(updated.status).toBe('complete');
     expect(records[0].sections.logistics.completedAt).toEqual(expect.any(String));
-    expect(records[0].clientAcknowledgedAt).toEqual(expect.any(Date));
+    expect(records[0].acknowledgementRecordedBy).toBe(actor.id);
+    expect(records[0].acknowledgementSource).toBe('pmcm_recorded');
   });
 
   it('records a deterministic reminder once and never archives', async () => {
     const { service, prisma, records, notifications } = harness();
+    await service.startWrapUp('evt_1', { mode: 'full' }, actor);
     await service.runWrapUpReminderSweep(new Date('2026-09-07T12:00:00.000Z'));
     await service.runWrapUpReminderSweep(new Date('2026-09-07T12:00:01.000Z'));
     await service.runWrapUpReminderSweep(new Date('2026-09-08T00:00:00.000Z'));
