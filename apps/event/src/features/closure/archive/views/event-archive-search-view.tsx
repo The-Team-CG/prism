@@ -19,7 +19,7 @@ export function EventArchiveSearchView() {
       </div>
       <div className="space-y-4 px-6 py-5">
         {vm.error ? <p className="text-sm font-semibold text-(--prism-amber)">{vm.error}</p> : null}
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-6">
           <label className="text-xs font-semibold text-muted-foreground">
             Venue
             <input
@@ -28,6 +28,8 @@ export function EventArchiveSearchView() {
               className="mt-1 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
             />
           </label>
+          <label className="text-xs font-semibold text-muted-foreground">Event name<input value={vm.eventName} onChange={(event) => vm.setEventName(event.target.value)} className="mt-1 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>
+          <label className="text-xs font-semibold text-muted-foreground">Client name<input value={vm.clientName} onChange={(event) => vm.setClientName(event.target.value)} className="mt-1 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>
           <label className="text-xs font-semibold text-muted-foreground">
             Event type
             <input

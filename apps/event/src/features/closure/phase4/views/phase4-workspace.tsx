@@ -31,6 +31,7 @@ import {
   Phase4InsightsSection,
   ActualEventEndSection,
 } from "./phase4-workspace-sections";
+import { EventWrapUpView } from "../../wrap-up";
 
 export function Phase4Workspace({
   event,
@@ -171,6 +172,7 @@ export function Phase4Workspace({
     <div className="space-y-5">
       <Phase4ClosureBoard event={event} closeGates={closeGates} cards={closureCards} />
       <ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} />
+      <EventWrapUpView eventId={event.id} />
       <Phase4ComplianceSection
         phase={phase}
         ruleTitle={ruleTitle}
