@@ -336,6 +336,14 @@ export const submitSupplierQuoteSchema = z.object({
 });
 export type SubmitSupplierQuoteInput = z.infer<typeof submitSupplierQuoteSchema>;
 
+export const supplierAvailabilitySchema = z.object({
+  availableOn: isoDateStringSchema,
+  capacity: z.number().int().min(0).max(1000),
+  blocked: z.boolean().optional(),
+  notes: optionalTrimmedStringSchema,
+});
+export type SupplierAvailabilityInput = z.infer<typeof supplierAvailabilitySchema>;
+
 /* ── Live ops ─────────────────────────────────────────────────── */
 
 export const createEventScheduleDaySchema = z.object({
