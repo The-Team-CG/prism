@@ -397,6 +397,23 @@ export const updateEventDayTaskSchema = z.object({
 });
 export type UpdateEventDayTaskInput = z.infer<typeof updateEventDayTaskSchema>;
 
+export const createEventTaskReassignmentSchema = z.object({
+  toOwnerRole: nonEmptyStringSchema,
+  toOwnerName: optionalTrimmedStringSchema,
+  reason: nonEmptyStringSchema,
+});
+export type CreateEventTaskReassignmentInput = z.infer<typeof createEventTaskReassignmentSchema>;
+
+export const decideEventTaskReassignmentSchema = z.object({
+  decision: z.enum(["approved", "rejected"]),
+  reason: optionalTrimmedStringSchema,
+}).superRefine((value, context) => {
+  if (value.decision === "rejected" && !value.reason?.trim()) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["reason"], message: "A rejection reason is required" });
+  }
+});
+export type DecideEventTaskReassignmentInput = z.infer<typeof decideEventTaskReassignmentSchema>;
+
 export const updateCoordinatorAttendanceSchema = z.object({
   status: nonEmptyStringSchema,
   notes: optionalTrimmedStringSchema,

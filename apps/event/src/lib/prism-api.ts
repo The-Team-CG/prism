@@ -69,6 +69,9 @@ import type {
   ImportGuestRosterInput,
   RecordActualEventEndInput,
   CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
+  PrismEventTaskReassignmentRequest,
   EscalateLiveOpsInput,
   ReplaceCoordinatorAssignmentInput,
   CoordinatorAssignmentAcknowledgementInput,
@@ -717,6 +720,33 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  listCoordinatorTaskReassignments: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+  ) =>
+    request<PrismEventTaskReassignmentRequest[]>(
+      withCoordinatorActor(`/api/events/${eventId}/event-day/task-reassignments`, session),
+    ),
+  requestCoordinatorTaskReassignment: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    taskId: string,
+    input: CreateEventTaskReassignmentInput,
+  ) =>
+    request<PrismEventTaskReassignmentRequest>(
+      withCoordinatorActor(`/api/events/${eventId}/event-day/tasks/${taskId}/reassignments`, session),
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  decideCoordinatorTaskReassignment: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    requestId: string,
+    input: DecideEventTaskReassignmentInput,
+  ) =>
+    request<PrismEventTaskReassignmentRequest>(
+      withCoordinatorActor(`/api/events/${eventId}/event-day/task-reassignments/${requestId}`, session),
+      { method: "PATCH", body: JSON.stringify(input) },
+    ),
   markPayment: (eventId: string, milestoneId: string, status: "pending" | "paid" | "at_risk" = "paid") =>
     request<PrismPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, {
       method: "PATCH",

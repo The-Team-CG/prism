@@ -737,6 +737,27 @@ export interface PrismEventDayTask {
   updatedAt: string;
 }
 
+export type PrismEventTaskReassignmentStatus = "pending" | "approved" | "rejected" | "auto_approved" | string;
+
+export interface PrismEventTaskReassignmentRequest {
+  id: string;
+  eventId: string;
+  taskId: string;
+  requestedBy: string;
+  requestedByRole: string;
+  fromOwnerRole: string;
+  fromOwnerName: string;
+  toOwnerRole: string;
+  toOwnerName: string;
+  reason: string;
+  status: PrismEventTaskReassignmentStatus;
+  requestedAt: string;
+  autoApproveAt: string;
+  decidedAt?: string | null;
+  decidedBy?: string | null;
+  decisionReason?: string | null;
+}
+
 export interface PrismUrgentIssue {
   id: string;
   eventId: string;
@@ -775,6 +796,7 @@ export interface PrismEventDayLog {
 
 export interface PrismLiveOps {
   event: PrismEvent;
+  briefing?: PrismBriefing | null;
   role?: string;
   tasks: PrismEventDayTask[];
   urgentIssues: PrismUrgentIssue[];
@@ -785,6 +807,9 @@ export interface PrismLiveOps {
   eventDayLogs: PrismEventDayLog[];
   schedule?: PrismEventSchedule;
   timer?: PrismLiveOpsTimer;
+  isDesignatedOperator?: boolean;
+  canMarkDelegatedAttendance?: boolean;
+  taskReassignmentRequests?: PrismEventTaskReassignmentRequest[];
 }
 
 export interface PrismEventDayStatusFeedItem {
