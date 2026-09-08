@@ -4,6 +4,7 @@ import {
   readPrismSession,
   savePrismSession,
   type PrismGuestEventPass,
+  type PrismGuestEventWatermark,
   type CreateGuestFeedbackInput,
 } from "@prism/types";
 import { guestJson } from "@/features/guest-shared/guest-http";
@@ -27,6 +28,10 @@ export const guestDashboardRepository = {
 
   fetchEvent(session: GuestSession): Promise<PrismGuestEventPass> {
     return guestJson<PrismGuestEventPass>(guestApiPath(session));
+  },
+
+  fetchWatermark(session: GuestSession): Promise<PrismGuestEventWatermark> {
+    return guestJson<PrismGuestEventWatermark>(guestApiPath(session, "/watermark"));
   },
 
   checkIn(session: GuestSession, payload: CheckInPayload): Promise<unknown> {

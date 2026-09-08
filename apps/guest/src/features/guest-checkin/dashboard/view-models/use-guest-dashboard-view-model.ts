@@ -15,7 +15,7 @@ import type { CheckInMode, GuestBusyAction, GuestDashboardStatus, GuestSession }
 import {
   leaveGuestEvent,
   loadGuestDashboardSession,
-  refreshGuestEvent,
+  refreshGuestEventIfChanged,
   submitGuestCheckIn,
   submitGuestFeedback,
 } from "../use-cases/guest-dashboard-actions";
@@ -67,7 +67,7 @@ export function useGuestDashboardViewModel() {
   const refreshEvent = useCallback(async (current = session) => {
     if (!current) return;
     try {
-      const next = await refreshGuestEvent(current);
+      const next = await refreshGuestEventIfChanged(current);
       setSession(next);
     } catch {
       // Silently ignore poll errors — stale data is acceptable
