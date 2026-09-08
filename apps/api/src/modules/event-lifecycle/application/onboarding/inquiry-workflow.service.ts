@@ -61,7 +61,7 @@ export class InquiryWorkflowService {
     await context.requireActorRole(actor, context.allowedAdminRoles, 'onboarding');
 
     const [inquiries, events, documents] = await Promise.all([
-      this.prisma.opsInquiry.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsInquiry.findMany({ take: 500, include: { statusHistory: { orderBy: { createdAt: 'asc' } } }, orderBy: { createdAt: 'desc' } }),
       this.prisma.opsEvent.findMany({
         take: 500,
         include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
@@ -98,7 +98,7 @@ export class InquiryWorkflowService {
   async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
     const actor = context.resolveActor({}, verifiedActor);
     await context.requireActorRole(actor, context.allowedAdminRoles, 'inquiry status');
-    const inquiry = await context.inquiriesService.updateInquiryStatus(inquiryId, input);
+    const inquiry = await context.inquiriesService.updateInquiryStatus(inquiryId, input, actor);
     return context.mapInquiry(inquiry);
   }
 

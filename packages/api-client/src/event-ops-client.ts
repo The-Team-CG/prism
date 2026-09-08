@@ -64,6 +64,9 @@ import type {
   PrismEventRunSheet,
   PrismEventHandoff,
   PrismEventEodReport,
+  PrismStoredObject,
+  RequestStorageUploadInput,
+  ConfirmStorageUploadInput,
 } from "@prism/types";
 import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
 
@@ -141,6 +144,10 @@ export interface EventOpsClient {
     fileRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismFileRequirementsMatrix>;
     reviewProposal(eventId: string, input: ReviewEventProposalInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     searchArchive(filters?: ArchiveSearchFilters, actor?: EventOpsActorQuery): Promise<PrismArchivedEventSearchHit[]>;
+    documents(eventId: string, actor?: EventOpsActorQuery): Promise<PrismStoredObject[]>;
+    requestDocumentUpload(input: RequestStorageUploadInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    confirmDocumentUpload(eventId: string, objectId: string, input: ConfirmStorageUploadInput, actor?: EventOpsActorQuery): Promise<PrismStoredObject>;
+    documentDownloadAuthorization(objectId: string, actor?: EventOpsActorQuery): Promise<unknown>;
   };
   clientWorkspace: {
     detail(actor?: EventOpsActorQuery): Promise<PrismClientWorkspace>;
@@ -272,6 +279,10 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           withBase(options),
         );
       },
+      documents: (eventId, actor = {}) => prismRequest<PrismStoredObject[]>(actorPath(`/events/${eventId}/documents`, actor), withBase(options)),
+      requestDocumentUpload: (input, actor = {}) => prismRequest(actorPath(`/events/${input.eventId}/documents/upload-request`, actor), withBase(options, { method: "POST", body: input })),
+      confirmDocumentUpload: (eventId, objectId, input, actor = {}) => prismRequest<PrismStoredObject>(actorPath(`/events/${eventId}/documents/${objectId}/confirm`, actor), withBase(options, { method: "POST", body: input })),
+      documentDownloadAuthorization: (objectId, actor = {}) => prismRequest(actorPath(`/storage/objects/${objectId}/download-authorization`, actor), withBase(options)),
     },
     clientWorkspace: {
       detail: (actor = {}) => prismRequest<PrismClientWorkspace>(actorPath("/client/workspace", actor), withBase(options)),
