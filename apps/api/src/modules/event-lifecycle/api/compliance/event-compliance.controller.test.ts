@@ -67,4 +67,16 @@ describe('OpsEventComplianceController', () => {
       note: 'Done',
     }, actor);
   });
+
+  it('rejects supplier override attempts before invoking the workflow', async () => {
+    const complianceWorkflowService = { resolveCompliance: vi.fn() };
+    const policy = {
+      resolveActor: vi.fn((_input, actor) => actor),
+      requireActorRole: vi.fn(async () => { throw new Error('forbidden'); }),
+    };
+    const controller = new OpsEventComplianceController(complianceWorkflowService as never, policy as never);
+    const supplier = { actorRole: 'supplier', actorName: 'Supplier' } as never;
+    await expect(controller.resolveCompliance('evt_sample', 'check_1', { action: 'override', overrideReason: 'reason' }, supplier)).rejects.toThrow('forbidden');
+    expect(complianceWorkflowService.resolveCompliance).not.toHaveBeenCalled();
+  });
 });

@@ -170,6 +170,8 @@ export {
   resolveComplianceSchema,
   createComplianceRuleSchema,
   updateComplianceRuleSchema,
+  createComplianceRiskSchema,
+  updateComplianceRiskSchema,
   archiveEventSchema,
   type AddSupplierQuoteInput,
   type CreateBillingSourceInput,
@@ -182,6 +184,8 @@ export {
   type ResolveComplianceInput,
   type CreateComplianceRuleInput,
   type UpdateComplianceRuleInput,
+  type CreateComplianceRiskInput,
+  type UpdateComplianceRiskInput,
   type ArchiveEventInput,
 } from "./session-commercial-inputs.js";
 export {

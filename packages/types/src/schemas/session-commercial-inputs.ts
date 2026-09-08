@@ -52,7 +52,10 @@ export const recordPaymentSchema = z.object({
 });
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
 
-export const runComplianceSchema = z.object({ phase: optionalTrimmedStringSchema }).default({});
+export const runComplianceSchema = z.object({
+  phase: optionalTrimmedStringSchema,
+  trigger: z.enum(["manual", "scheduled", "state_change"]).optional(),
+}).default({});
 export type RunComplianceInput = z.infer<typeof runComplianceSchema>;
 
 export const resolveComplianceSchema = z.object({
@@ -76,6 +79,20 @@ export const createComplianceRuleSchema = z.object({
 export type CreateComplianceRuleInput = z.infer<typeof createComplianceRuleSchema>;
 export const updateComplianceRuleSchema = createComplianceRuleSchema.partial();
 export type UpdateComplianceRuleInput = z.infer<typeof updateComplianceRuleSchema>;
+
+export const createComplianceRiskSchema = z.object({
+  phase: nonEmptyStringSchema,
+  title: nonEmptyStringSchema,
+  severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  owner: optionalTrimmedStringSchema,
+  mitigation: optionalTrimmedStringSchema,
+  status: z.enum(["open", "mitigated", "accepted", "closed"]).default("open"),
+  reason: optionalTrimmedStringSchema,
+});
+export type CreateComplianceRiskInput = z.infer<typeof createComplianceRiskSchema>;
+
+export const updateComplianceRiskSchema = createComplianceRiskSchema.partial();
+export type UpdateComplianceRiskInput = z.infer<typeof updateComplianceRiskSchema>;
 
 export const archiveEventSchema = z.object({ overrideReason: optionalTrimmedStringSchema }).default({});
 export type ArchiveEventInput = z.infer<typeof archiveEventSchema>;

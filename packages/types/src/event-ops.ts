@@ -943,6 +943,48 @@ export interface PrismComplianceCheck {
   overrideReason?: string | null;
   overrideAt?: string | null;
   overrideBy?: string | null;
+  evaluationStatus: "satisfied" | "not_satisfied" | "not_applicable";
+  evidence: string[];
+  definitionStatus: "DERIVED" | "PROVISIONAL" | string;
+  remediation: string;
+  runId?: string | null;
+}
+
+export interface PrismComplianceRun {
+  id: string;
+  eventId: string;
+  phase: string;
+  trigger: "manual" | "scheduled" | "state_change" | string;
+  status: "running" | "completed" | "failed" | string;
+  startedAt: string;
+  completedAt?: string | null;
+  ruleCount: number;
+  createdAt: string;
+  checks?: PrismComplianceCheck[];
+}
+
+export interface PrismComplianceRisk {
+  id: string;
+  eventId: string;
+  phase: string;
+  ruleId?: string | null;
+  title: string;
+  severity: "low" | "medium" | "high" | "critical" | string;
+  owner: string;
+  mitigation: string;
+  status: "open" | "mitigated" | "accepted" | "closed" | string;
+  source: "rule" | "pmcm" | string;
+  closedAt?: string | null;
+  closedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  history: Array<{
+    id: string;
+    action: string;
+    actor: string;
+    reason: string;
+    createdAt: string;
+  }>;
 }
 
 export interface PrismComplianceRule {
@@ -958,6 +1000,9 @@ export interface PrismComplianceRule {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  definitionStatus?: "DERIVED" | "PROVISIONAL" | string;
+  remediation?: string;
+  phaseApplicability?: string[];
 }
 
 export interface PrismBillingSource {
@@ -1341,6 +1386,8 @@ export interface PrismPmcmEventWorkspace {
   coordinatorAssignments: PrismCoordinatorAssignment[];
   coordinatorCoverage?: PrismCoordinatorCoverage[];
   complianceChecks: PrismComplianceCheck[];
+  complianceRuns?: PrismComplianceRun[];
+  complianceRisks?: PrismComplianceRisk[];
   billingSources: PrismBillingSource[];
   billingStatements: PrismBillingStatement[];
   paymentMilestones: PrismPaymentMilestone[];
