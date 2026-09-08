@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deriveClientActionCenterFromWorkspace, selectNextAction } from "./client-dashboard-view-rules";
+import { selectClientDashboardActions } from "./client-dashboard-selectors";
 import type { PrismClientWorkspace } from "@prism/types";
 
 function workspace(overrides: Partial<PrismClientWorkspace> = {}): PrismClientWorkspace {
@@ -64,5 +65,15 @@ describe("client action center derivation", () => {
       { id: "b", title: "Pay", description: "", detail: "", ctaLabel: "Open", icon: {} as never, targetTab: "billing", status: "pending", tone: "warning" },
     ]);
     expect(next?.id).toBe("b");
+  });
+
+  it("keeps action presentation deterministic when source order changes", () => {
+    const items = [
+      { id: "z", eventId: "evt_1", eventName: "Summit", kind: "briefing", priority: "attention", label: "Z", description: "", status: "missing" },
+      { id: "a", eventId: "evt_1", eventName: "Summit", kind: "briefing", priority: "attention", label: "A", description: "", status: "missing" },
+    ];
+    const toIds = (source: typeof items) => selectClientDashboardActions({ items }, "evt_1").map((item) => item.id);
+    expect(toIds(items)).toEqual(toIds([...items].reverse()));
+    expect(toIds(items)).toEqual(["a", "z"]);
   });
 });

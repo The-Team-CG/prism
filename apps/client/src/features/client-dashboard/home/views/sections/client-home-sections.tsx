@@ -172,12 +172,25 @@ export function ClientHomeActionCenter({
   clientActions,
   runClientAction,
   fromWorkspaceFallback,
+  loadFailed = false,
 }: {
-  actionCenter: PrismClientActionCenter;
+  actionCenter: PrismClientActionCenter | null;
   clientActions: ClientDashboardAction[];
   runClientAction: (action: ClientDashboardAction) => void;
   fromWorkspaceFallback?: boolean;
+  loadFailed?: boolean;
 }) {
+  if (loadFailed && !actionCenter) {
+    return (
+      <section aria-labelledby="client-action-center-heading" className="space-y-4">
+        <h2 id="client-action-center-heading" className="text-base font-black text-foreground">Action center</h2>
+        <div role="status" className="rounded-2xl border border-(--prism-amber)/20 bg-(--prism-amber)/8 px-5 py-6 text-sm text-muted-foreground">
+          Action center data is temporarily unavailable. Refresh to check for persisted next actions.
+        </div>
+      </section>
+    );
+  }
+  if (!actionCenter) return null;
   if (clientActions.length === 0 && !fromWorkspaceFallback) return null;
   return (
     <div className="space-y-4">

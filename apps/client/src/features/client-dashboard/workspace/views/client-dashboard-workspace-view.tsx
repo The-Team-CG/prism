@@ -19,7 +19,6 @@ import {
   type PreferenceForm,
 } from "../client-workspace-context";
 import {
-  deriveClientActionCenterFromWorkspace,
   FLOOR_PLAN_PREVIEW_CACHE_MS,
   draftIsOfficial,
   floorPlanPreviewCache,
@@ -134,10 +133,10 @@ export function ClientDashboardWorkspaceView({
   const officialDraft = selectOfficialDraft(eventDrafts);
   const preferenceDrafts = selectPreferenceDrafts(eventDrafts);
   const { audit, billing, briefing, documents, notifications, payments } = selectEventWorkspaceResources(state, selectedEvent);
-  const resolvedActionCenter =
-    actionCenter ??
-    (actionCenterLoadFailed && state && session ? deriveClientActionCenterFromWorkspace(state, session) : null);
-  const actionCenterFromWorkspaceFallback = Boolean(actionCenterLoadFailed && !actionCenter && resolvedActionCenter);
+  // This is a persisted read model. A failed load must not fall back to
+  // browser-clock-derived urgency from workspace data.
+  const resolvedActionCenter = actionCenter;
+  const actionCenterFromWorkspaceFallback = false;
   const clientActions = selectClientDashboardActions(resolvedActionCenter, selectedEvent?.id);
   const nextAction = selectNextAction(clientActions);
   const isEventScopedView = isEventScopedClientRoute(route, eventId);
@@ -403,6 +402,7 @@ export function ClientDashboardWorkspaceView({
     session,
     state,
     actionCenter: resolvedActionCenter,
+    actionCenterLoadFailed,
     actionCenterFromWorkspaceFallback,
     error,
     notice,
