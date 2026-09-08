@@ -96,7 +96,22 @@ import type {
   UpdateWalkInPolicyInput,
   GuestRosterSearchInput,
   UpdateGuestVerificationInput,
+  EventDecisionInput,
 } from "@prism/types";
+
+export type PrismEventDecision = {
+  id: string;
+  eventId: string;
+  decision: string;
+  reason: string;
+  actorName: string;
+  decidedAt: string;
+  priorState: unknown;
+  financialImpact: unknown;
+  assignmentImpact: unknown;
+  supplierImpact: string;
+  notificationIntent: string;
+};
 
 export type {
   SampleRole,
@@ -380,6 +395,8 @@ function withPmcmAdminActor(path: string, session: { name: string; email: string
 }
 
 export const prismApi = {
+  listEventDecisions: (eventId: string) => request<PrismEventDecision[]>(withPmcmActor(`/api/events/${eventId}/decisions`)),
+  recordEventDecision: (eventId: string, input: EventDecisionInput) => request<PrismEventDecision>(withPmcmActor(`/api/events/${eventId}/decisions`), { method: "POST", body: JSON.stringify(input) }),
   pmcmState: () =>
     eventOpsClient.pmcmDashboard.detail({
       actorRole: "pmcm-admin",
