@@ -113,6 +113,15 @@ before implementation.
 
 ## Intentional cross-context joins and writes
 
+Read-model collection queries use named per-collection `take` limits and a
+deterministic timestamp or business-key order with an ID tie-breaker. Nested
+history (floorplan drafts, supplier history, acknowledgements, and event-day
+logs) is bounded independently. Where a response derives readiness or
+attendance counts from a collection, the query runs an exact count alongside
+the bounded rows so a high-volume result cannot silently change the aggregate.
+Consumers should treat these arrays as bounded windows until an explicit paged
+contract is introduced.
+
 | Caller | Owner/resource | Allowed operation | Reason and guardrail |
 | --- | --- | --- | --- |
 | `read-models` | `event-lifecycle`, `commercial`, `operations`, `live-ops`, `floorplan`, `platform-ops` | Read scoped rows and map to role contracts | Build PMCM/client/supplier/coordinator projections. Queries stay bounded and read-only; authorization remains in the owning context/controller. |

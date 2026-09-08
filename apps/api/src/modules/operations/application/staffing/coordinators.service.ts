@@ -37,6 +37,10 @@ export type StaffingCoverageRow = {
 };
 
 const ACKNOWLEDGEMENT_LEAD_TIME_DAYS = 7;
+const MAX_STAFFING_COORDINATORS = 500;
+const MAX_STAFFING_ASSIGNMENTS = 500;
+const MAX_ACKNOWLEDGEMENT_HISTORY = 100;
+const MAX_STAFFING_AVAILABILITY = 500;
 
 type CoordinatorConflict = OpsCoordinatorAssignment & {
   event: {
@@ -65,7 +69,8 @@ export class CoordinatorsService {
   async listCoordinators() {
     const coordinators = await this.prisma.opsCoordinator.findMany({
       where: { active: true },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: MAX_STAFFING_COORDINATORS,
     });
     return coordinators.map((coordinator: OpsCoordinator) => this.mapCoordinator(coordinator));
   }
@@ -81,8 +86,9 @@ export class CoordinatorsService {
           where: includeHistorical
             ? { coordinatorId }
             : { coordinatorId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
-          orderBy: { createdAt: 'desc' },
-          include: { acknowledgmentHistory: { orderBy: { createdAt: 'asc' } } },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: MAX_STAFFING_ASSIGNMENTS,
+          include: { acknowledgmentHistory: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_ACKNOWLEDGEMENT_HISTORY } },
         })
       : [] as OpsCoordinatorAssignment[];
   }
@@ -90,15 +96,27 @@ export class CoordinatorsService {
   listAssignmentsForEvent(eventId: string) {
     return this.prisma.opsCoordinatorAssignment.findMany({
       where: { eventId },
-      orderBy: { createdAt: 'asc' },
-      include: { acknowledgmentHistory: { orderBy: { createdAt: 'asc' } } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: MAX_STAFFING_ASSIGNMENTS,
+      include: { acknowledgmentHistory: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_ACKNOWLEDGEMENT_HISTORY } },
+    });
+  }
+
+  countAssignmentsForEvent(eventId: string) {
+    return this.prisma.opsCoordinatorAssignment.count({ where: { eventId } });
+  }
+
+  countPendingAssignmentsForEvent(eventId: string) {
+    return this.prisma.opsCoordinatorAssignment.count({
+      where: { eventId, status: { in: ['pending', CoordinatorAssignmentStatus.PendingAcknowledgement] } },
     });
   }
 
   async listAvailability(coordinatorId: string) {
     const rows = await this.prisma.opsCoordinatorAvailability.findMany({
       where: { coordinatorId },
-      orderBy: { startsAt: 'asc' },
+      orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+      take: MAX_STAFFING_AVAILABILITY,
     });
     return rows.map((row) => ({
       id: row.id,
@@ -134,33 +152,43 @@ export class CoordinatorsService {
   }
 
   async listCoverageForEvent(eventId: string): Promise<StaffingCoverageRow[]> {
-    const [requirements, assignments] = await Promise.all([
-      this.prisma.opsEventCoverageRequirement.findMany({ where: { eventId }, orderBy: { role: 'asc' } }),
+    const [requirements, assignments, assignmentCounts] = await Promise.all([
+      this.prisma.opsEventCoverageRequirement.findMany({ where: { eventId }, orderBy: [{ role: 'asc' }, { id: 'asc' }], take: MAX_STAFFING_ASSIGNMENTS }),
       this.prisma.opsCoordinatorAssignment.findMany({
-        where: { eventId },
+        where: { eventId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
         include: { coordinator: { select: { skillsTags: true } } },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: MAX_STAFFING_ASSIGNMENTS,
+      }),
+      this.prisma.opsCoordinatorAssignment.groupBy({
+        by: ['role', 'status'],
+        where: { eventId, status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] } },
+        _count: { _all: true },
       }),
     ]);
-    const active = assignments.filter((item) =>
-      item.status !== CoordinatorAssignmentStatus.Cancelled && item.status !== CoordinatorAssignmentStatus.Replaced,
-    );
+    const countsByRole = new Map<string, { assigned: number; acknowledged: number }>();
+    for (const row of assignmentCounts) {
+      const current = countsByRole.get(row.role) ?? { assigned: 0, acknowledged: 0 };
+      current.assigned += row._count._all;
+      if (row.status === CoordinatorAssignmentStatus.Acknowledged) current.acknowledged += row._count._all;
+      countsByRole.set(row.role, current);
+    }
     return requirements.map((requirement) => {
-      const roleAssignments = active.filter((item) => item.role === requirement.role);
+      const roleAssignments = assignments.filter((item) => item.role === requirement.role);
+      const exactCounts = countsByRole.get(requirement.role) ?? { assigned: 0, acknowledged: 0 };
       const assignedSkills = Array.from(new Set(
         roleAssignments.flatMap((assignment) => assignment.coordinator?.skillsTags ?? []),
       ));
-      const acknowledged = roleAssignments.filter((item) => item.status === CoordinatorAssignmentStatus.Acknowledged).length;
       return {
         role: requirement.role,
         required: requirement.required,
-        assigned: roleAssignments.length,
-        acknowledged,
+        assigned: exactCounts.assigned,
+        acknowledged: exactCounts.acknowledged,
         requiredSkills: requirement.requiredSkills,
         assignedSkills,
         satisfied:
-          roleAssignments.length >= requirement.required &&
-          acknowledged >= requirement.required &&
+          exactCounts.assigned >= requirement.required &&
+          exactCounts.acknowledged >= requirement.required &&
           requirement.requiredSkills.every((skill) => assignedSkills.includes(skill)),
       };
     });
@@ -209,7 +237,7 @@ export class CoordinatorsService {
         eventDate: { lte: cutoff },
       },
       include: { event: { select: { eventName: true, eventDate: true } }, coordinator: { select: { email: true } } },
-      orderBy: { eventDate: 'asc' },
+      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
     });
     const results = [] as Array<{ assignmentId: string; status: string; reason: string }>;
     for (const assignment of assignments) {
@@ -238,7 +266,7 @@ export class CoordinatorsService {
   ) {
     const coordinators = await prisma.opsCoordinator.findMany({
       where: { active: true },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
     const coordinator = coordinators.find(
       (item: OpsCoordinator) =>
@@ -284,7 +312,7 @@ export class CoordinatorsService {
     const unavailable = availabilityModel
       ? await availabilityModel.findFirst({
           where: { coordinatorId: coordinator.id, startsAt: { lte: event.eventDate }, endsAt: { gt: event.eventDate } },
-          orderBy: { startsAt: 'asc' },
+          orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
         })
       : null;
     if (unavailable) {
@@ -305,7 +333,7 @@ export class CoordinatorsService {
         status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] },
       },
       include: { event: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     })) as CoordinatorConflict | null;
 
     if (conflict && !input.overrideConflict) {
@@ -781,7 +809,7 @@ export class CoordinatorsService {
   private async listAvailableSameRole(event: OpsEvent, role: string, excludeCoordinatorId: string, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
     const coordinators = await prisma.opsCoordinator.findMany({
       where: { active: true },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
     const busy = await prisma.opsCoordinatorAssignment.findMany({
       where: {

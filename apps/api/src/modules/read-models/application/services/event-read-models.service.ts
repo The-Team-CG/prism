@@ -134,44 +134,58 @@ export class EventReadModelsService {
       urgentIssues,
       billingStatements,
       paymentMilestones,
+      counts,
     ] = await this.queries.defenseReadiness(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
-    const [coordinatorAssignments, guestCheckIns, guestFeedback, closeGatesResult] = await Promise.all([
+    const [
+      coordinatorAssignments,
+      guestCheckIns,
+      guestFeedback,
+      closeGatesResult,
+      staffingAssignmentCount,
+      pendingStaffingAssignmentCount,
+      guestAttendanceCount,
+      pendingFeedbackCount,
+    ] = await Promise.all([
       this.staffingReader.listAssignmentsForEvent(eventId),
       this.guestReader.listCheckInsForEvent(eventId),
       this.guestReader.listFeedbackForEvent(eventId),
       this.closureReadinessReader.closeGates(eventId),
+      this.staffingReader.countAssignmentsForEvent(eventId),
+      this.staffingReader.countPendingAssignmentsForEvent(eventId),
+      this.guestReader.countCheckInsForEvent(eventId),
+      this.guestReader.countPendingFeedbackForEvent(eventId),
     ]);
     const closeGates = closeGatesResult as { ready: boolean; missingKeys: string[] };
     const floorPlanDrafts = event.floorPlanDrafts ?? [];
     const input = {
       eventName: event.eventName,
       archived: event.archived,
-      briefingsCount: briefings.length,
-      floorPlanDraftsCount: floorPlanDrafts.length,
-      approvedFloorplan: Boolean(floorPlanDrafts.find((draft: { status: string }) => draft.status === 'approved')),
-      quoteRequestsCount: quoteRequests.length,
-      selectedSupplierCount: countMatching(supplierQuotes, (quote: { status: string }) =>
-        ['selected', 'locked'].includes(quote.status),
-      ),
-      coordinatorAssignmentsCount: coordinatorAssignments.length,
-      pendingCoordinatorCount: countMatching(coordinatorAssignments, (assignment: { status: string }) =>
-        ['pending', 'pending_acknowledgement'].includes(assignment.status),
-      ),
-      billingStatementsCount: billingStatements.length,
-      unpaidMilestoneCount: countMatching(
-        paymentMilestones,
-        (milestone: { status: string; remainingBalance: number }) =>
-          milestone.status !== 'paid' || milestone.remainingBalance > 0,
-      ),
-      openTaskCount: countMatching(eventDayTasks, (task: { status: string }) => !['done', 'cancelled'].includes(task.status)),
-      openIssueCount: countMatching(urgentIssues, (issue: { status: string }) => !['resolved', 'closed'].includes(issue.status)),
-      guestCheckInsCount: guestCheckIns.length,
-      pendingFeedbackCount: countMatching(
-        guestFeedback,
-        (feedback: { moderationStatus: string }) => feedback.moderationStatus === 'pending_review',
-      ),
+      briefingsCount: counts?.briefings ?? briefings.length,
+      floorPlanDraftsCount: counts?.floorPlanDrafts ?? floorPlanDrafts.length,
+      approvedFloorplan: counts ? counts.approvedFloorplan > 0 : Boolean(floorPlanDrafts.find((draft: { status: string }) => draft.status === 'approved')),
+      quoteRequestsCount: counts?.quoteRequests ?? quoteRequests.length,
+      selectedSupplierCount:
+        counts?.selectedSupplierQuotes ??
+        countMatching(supplierQuotes, (quote: { status: string }) => ['selected', 'locked'].includes(quote.status)),
+      coordinatorAssignmentsCount: staffingAssignmentCount ?? coordinatorAssignments.length,
+      pendingCoordinatorCount:
+        pendingStaffingAssignmentCount ??
+        countMatching(coordinatorAssignments, (assignment: { status: string }) => ['pending', 'pending_acknowledgement'].includes(assignment.status)),
+      billingStatementsCount: counts?.billingStatements ?? billingStatements.length,
+      unpaidMilestoneCount:
+        counts?.unpaidPaymentMilestones ??
+        countMatching(
+          paymentMilestones,
+          (milestone: { status: string; remainingBalance: number }) => milestone.status !== 'paid' || milestone.remainingBalance > 0,
+        ),
+      openTaskCount:
+        counts?.eventDayTasks ?? countMatching(eventDayTasks, (task: { status: string }) => !['done', 'cancelled'].includes(task.status)),
+      openIssueCount:
+        counts?.urgentIssues ?? countMatching(urgentIssues, (issue: { status: string }) => !['resolved', 'closed'].includes(issue.status)),
+      guestCheckInsCount: guestAttendanceCount,
+      pendingFeedbackCount,
       closeGates,
     };
     const nextActions = buildDefenseActions(input);
@@ -455,12 +469,13 @@ export class EventReadModelsService {
       auditLogs,
       notificationLogs,
     ] = await this.queries.pmcmEventWorkspace(eventId);
-    const [coordinatorAssignments, coordinatorCoverage, guestCheckIns, guestFeedback, registrationPlatform] = await Promise.all([
+    const [coordinatorAssignments, coordinatorCoverage, guestCheckIns, guestFeedback, registrationPlatform, guestAttendanceCount] = await Promise.all([
       this.staffingReader.listAssignmentsForEvent(eventId),
       this.staffingReader.listCoverageForEvent?.(eventId) ?? Promise.resolve([]),
       this.guestReader.listCheckInsForEvent(eventId),
       this.guestReader.listFeedbackForEvent(eventId),
       this.registrationPlatformReader?.getByEventId(eventId) ?? Promise.resolve(null),
+      this.guestReader.countCheckInsForEvent(eventId),
     ]);
 
     return {
@@ -487,7 +502,7 @@ export class EventReadModelsService {
       auditLogs: auditLogs.map(mappers.mapAuditLog),
       notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
       registrationPlatform: registrationPlatform ? mappers.mapRegistrationPlatform(registrationPlatform) : null,
-      guestAttendanceCount: guestCheckIns.length,
+      guestAttendanceCount,
       guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
       guestFeedback: guestFeedback.map((feedback) => this.guestReader.mapGuestFeedback(feedback)),
     };

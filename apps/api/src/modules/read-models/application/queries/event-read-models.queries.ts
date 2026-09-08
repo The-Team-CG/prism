@@ -17,6 +17,44 @@ type SupplierWithProfile = OpsSupplier & {
   certifications: OpsSupplierCertification[];
 };
 
+export const MAX_VISIBLE_EVENTS = 500;
+export const MAX_EVENT_FLOORPLAN_DRAFTS = 100;
+export const MAX_LIVE_OPS_TASKS = 500;
+export const MAX_LIVE_OPS_ISSUES = 500;
+export const MAX_LIVE_OPS_SUPPLIER_REQUESTS = 500;
+export const MAX_LIVE_OPS_LOGS = 50;
+export const MAX_EVENT_SCHEDULE_DAYS = 100;
+export const MAX_EVENT_SCHEDULE_SEGMENTS = 200;
+export const MAX_TASK_REASSIGNMENT_REQUESTS = 100;
+export const MAX_READINESS_ROWS = 500;
+export const MAX_BILLING_ROWS = 500;
+export const MAX_CLIENT_WORKSPACE_ROWS = 500;
+export const MAX_CLIENT_ACTION_CENTER_ROWS = 500;
+export const MAX_SUPPLIER_WORKSPACE_ROWS = 500;
+export const MAX_SUPPLIER_EVENTS = 500;
+export const MAX_PMCM_INBOX_ROWS = 500;
+export const MAX_PMCM_EVENT_WORKSPACE_ROWS = 500;
+export const MAX_PMCM_DASHBOARD_ROWS = 500;
+export const MAX_ACTIVE_COORDINATORS = 500;
+export const MAX_ACTIVE_SUPPLIERS = 500;
+export const MAX_SUPPLIER_HISTORY_ROWS = 100;
+export const MAX_SUPPLIER_CERTIFICATIONS = 100;
+export const MAX_AUDIT_LOGS = 100;
+export const MAX_NOTIFICATION_LOGS = 100;
+
+type DefenseReadModelCounts = {
+  briefings: number;
+  floorPlanDrafts: number;
+  approvedFloorplan: number;
+  quoteRequests: number;
+  selectedSupplierQuotes: number;
+  eventDayTasks: number;
+  urgentIssues: number;
+  billingStatements: number;
+  paymentMilestones: number;
+  unpaidPaymentMilestones: number;
+};
+
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -33,8 +71,15 @@ export class EventReadModelQueries {
   visibleEvents() {
     return this.prisma.opsEvent.findMany({
       where: { archived: false },
-      include: { inquiry: { select: { email: true } }, floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-      orderBy: { eventDate: 'asc' },
+      include: {
+        inquiry: { select: { email: true } },
+        floorPlanDrafts: {
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+          take: MAX_EVENT_FLOORPLAN_DRAFTS,
+        },
+      },
+      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+      take: MAX_VISIBLE_EVENTS,
     });
   }
 
@@ -42,7 +87,13 @@ export class EventReadModelQueries {
   eventWithDrafts(eventId: string) {
     return this.prisma.opsEvent.findUnique({
       where: { id: eventId },
-      include: { inquiry: { select: { email: true } }, floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
+      include: {
+        inquiry: { select: { email: true } },
+        floorPlanDrafts: {
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+          take: MAX_EVENT_FLOORPLAN_DRAFTS,
+        },
+      },
     });
   }
 
@@ -50,11 +101,11 @@ export class EventReadModelQueries {
   liveOpsForEvent(eventId: string) {
     return Promise.all([
       this.eventWithDrafts(eventId),
-      this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsEventDayLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 50 }),
-      this.prisma.opsBriefing.findFirst({ where: { eventId }, orderBy: { submittedAt: 'desc' } }),
+      this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_LIVE_OPS_TASKS }),
+      this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_LIVE_OPS_ISSUES }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_LIVE_OPS_SUPPLIER_REQUESTS }),
+      this.prisma.opsEventDayLog.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_LIVE_OPS_LOGS }),
+      this.prisma.opsBriefing.findFirst({ where: { eventId }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }] }),
     ]).then(([event, tasks, urgentIssues, supplierRequests, eventDayLogs, briefing]) => ({
       event,
       tasks,
@@ -68,8 +119,9 @@ export class EventReadModelQueries {
   scheduleForEvent(eventId: string) {
     return this.prisma.opsEventScheduleDay.findMany({
       where: { eventId },
-      include: { segments: { orderBy: { sequence: 'asc' } } },
-      orderBy: { dayDate: 'asc' },
+      include: { segments: { orderBy: [{ sequence: 'asc' }, { id: 'asc' }], take: MAX_EVENT_SCHEDULE_SEGMENTS } },
+      orderBy: [{ dayDate: 'asc' }, { id: 'asc' }],
+      take: MAX_EVENT_SCHEDULE_DAYS,
     });
   }
 
@@ -83,7 +135,8 @@ export class EventReadModelQueries {
   taskReassignmentRequests(eventId: string) {
     return this.prisma.opsEventTaskReassignmentRequest.findMany({
       where: { eventId },
-      orderBy: { requestedAt: 'desc' },
+      orderBy: [{ requestedAt: 'desc' }, { id: 'desc' }],
+      take: MAX_TASK_REASSIGNMENT_REQUESTS,
     });
   }
 
@@ -91,41 +144,68 @@ export class EventReadModelQueries {
   defenseReadiness(eventId: string) {
     return Promise.all([
       this.eventWithDrafts(eventId),
-      this.prisma.opsBriefing.findMany({ where: { eventId }, orderBy: { submittedAt: 'desc' } }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsSupplierQuote.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.opsBriefing.findMany({ where: { eventId }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
+      this.prisma.opsSupplierQuote.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
+      this.prisma.opsEventDayTask.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
+      this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
+      this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_READINESS_ROWS }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_READINESS_ROWS }),
+      this.defenseReadinessCounts(eventId),
     ]);
+  }
+
+  private defenseReadinessCounts(eventId: string): Promise<DefenseReadModelCounts> {
+    return Promise.all([
+      this.prisma.opsBriefing.count({ where: { eventId } }),
+      this.prisma.opsFloorPlanDraft.count({ where: { eventId } }),
+      this.prisma.opsFloorPlanDraft.count({ where: { eventId, status: 'approved' } }),
+      this.prisma.opsSupplierQuoteRequest.count({ where: { eventId } }),
+      this.prisma.opsSupplierQuote.count({ where: { eventId, status: { in: ['selected', 'locked'] } } }),
+      this.prisma.opsEventDayTask.count({ where: { eventId, status: { notIn: ['done', 'cancelled'] } } }),
+      this.prisma.opsUrgentIssue.count({ where: { eventId, status: { notIn: ['resolved', 'closed'] } } }),
+      this.prisma.opsBillingStatement.count({ where: { eventId } }),
+      this.prisma.opsPaymentMilestone.count({ where: { eventId } }),
+      this.prisma.opsPaymentMilestone.count({ where: { eventId, OR: [{ status: { not: 'paid' } }, { remainingBalance: { gt: 0 } }] } }),
+    ]).then(([briefings, floorPlanDrafts, approvedFloorplan, quoteRequests, selectedSupplierQuotes, eventDayTasks, urgentIssues, billingStatements, paymentMilestones, unpaidPaymentMilestones]) => ({
+      briefings,
+      floorPlanDrafts,
+      approvedFloorplan,
+      quoteRequests,
+      selectedSupplierQuotes,
+      eventDayTasks,
+      urgentIssues,
+      billingStatements,
+      paymentMilestones,
+      unpaidPaymentMilestones,
+    }));
   }
 
   // Query budget: four finance queries for a bounded actor-visible event id set, no per-row Prisma loop.
   billingForEvents(eventIds: string[], includeInternalCosts: boolean) {
     return Promise.all([
       includeInternalCosts
-        ? this.prisma.opsBillingSource.findMany({ where: { eventId: { in: eventIds } }, orderBy: { createdAt: 'desc' } })
+        ? this.prisma.opsBillingSource.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS })
         : Promise.resolve([]),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: { recordedAt: 'desc' } }),
+      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_BILLING_ROWS }),
+      this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }], take: MAX_BILLING_ROWS }),
     ]);
   }
 
   // Query budget: seven client workspace queries for a bounded visible event id set, no per-row Prisma loop.
   clientWorkspaceForEvents(eventIds: string[]) {
     return Promise.all([
-      this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: { uploadedAt: 'desc' } }),
-      this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds } }, orderBy: { submittedAt: 'desc' } }),
-      this.prisma.opsFloorPlanDraft.findMany({ where: { eventId: { in: eventIds } }, orderBy: { updatedAt: 'desc' } }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: { recordedAt: 'desc' } }),
+      this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
+      this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
+      this.prisma.opsFloorPlanDraft.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
+      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
+      this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
       this.prisma.opsAuditLog.findMany({
         where: { eventId: { in: eventIds }, category: { not: AuditCategory.Access } },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: MAX_AUDIT_LOGS,
       }),
     ]);
   }
@@ -133,97 +213,99 @@ export class EventReadModelQueries {
   // Query budget: seven client action-center queries for a bounded visible event id set, no per-row Prisma loop.
   clientActionCenterForEvents(eventIds: string[]) {
     return Promise.all([
-      this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds } }, orderBy: { submittedAt: 'desc' } }),
-      this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: { uploadedAt: 'desc' } }),
-      this.prisma.opsFloorPlanDraft.findMany({ where: { eventId: { in: eventIds } }, orderBy: { updatedAt: 'desc' } }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: { recordedAt: 'desc' } }),
-      this.prisma.opsPostEventDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: { title: 'asc' } }),
+      this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      this.prisma.opsFloorPlanDraft.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      this.prisma.opsBillingStatement.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      this.prisma.opsPaymentRecord.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
+      this.prisma.opsPostEventDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ title: 'asc' }, { id: 'asc' }], take: MAX_CLIENT_ACTION_CENTER_ROWS }),
     ]);
   }
 
   // Query budget: two supplier quote queries for one supplier, no per-row Prisma loop.
   supplierWorkspaceForSupplier(supplierId: string) {
     return Promise.all([
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsSupplierQuote.findMany({ where: { supplierId }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_WORKSPACE_ROWS }),
+      this.prisma.opsSupplierQuote.findMany({ where: { supplierId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_WORKSPACE_ROWS }),
     ]);
   }
 
   // Query budget: one archived-filtered event query for supplier event ids, no per-row Prisma loop.
   supplierEvents(eventIds: string[]) {
     return eventIds.length
-      ? this.prisma.opsEvent.findMany({ where: { id: { in: eventIds }, archived: false } })
+      ? this.prisma.opsEvent.findMany({ where: { id: { in: eventIds }, archived: false }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_EVENTS })
       : Promise.resolve([]);
   }
 
   // Query budget: one bounded supplier quote-request query for one supplier, no per-row Prisma loop.
   supplierReadinessRequests(supplierId: string) {
-    return this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId }, orderBy: { createdAt: 'desc' } });
+    return this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_WORKSPACE_ROWS });
   }
 
   // Query budget: seven bounded PMCM command-inbox queries, no per-row Prisma loop.
   pmcmCommandInbox() {
     return Promise.all([
-      this.prisma.opsInquiry.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsInquiry.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       this.prisma.opsEvent.findMany({
         where: { archived: false },
-        include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-        orderBy: { eventDate: 'asc' },
+        include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_EVENT_FLOORPLAN_DRAFTS } },
+        orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+        take: MAX_VISIBLE_EVENTS,
       }),
-      this.prisma.opsPaymentMilestone.findMany({ take: 500, orderBy: { dueDate: 'asc' } }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsCoordinatorAssignment.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsFloorPlanDraft.findMany({ take: 500, orderBy: { updatedAt: 'desc' } }),
-      this.prisma.opsPostEventDocument.findMany({ take: 500, orderBy: { title: 'asc' } }),
+      this.prisma.opsPaymentMilestone.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }] }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsCoordinatorAssignment.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsFloorPlanDraft.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsPostEventDocument.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ title: 'asc' }, { id: 'asc' }] }),
     ]);
   }
 
   // Query budget: fourteen selected-event relation queries; guest, staffing, and registration reads use public reader ports outside this query builder.
   pmcmEventWorkspace(eventId: string) {
     return Promise.all([
-      this.prisma.opsDocument.findMany({ where: { eventId }, orderBy: { uploadedAt: 'desc' } }),
-      this.prisma.opsBriefing.findMany({ where: { eventId }, orderBy: { submittedAt: 'desc' } }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsSupplierQuote.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsComplianceCheck.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsBillingSource.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsPaymentRecord.findMany({ where: { eventId }, orderBy: { recordedAt: 'desc' } }),
-      this.prisma.opsPostEventDocument.findMany({ where: { eventId }, orderBy: { title: 'asc' } }),
-      this.prisma.opsEventInsight.findMany({ where: { eventId }, orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsFloorPlanDraft.findMany({ where: { eventId }, orderBy: { updatedAt: 'desc' } }),
-      this.prisma.opsAuditLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 100 }),
-      this.prisma.opsNotificationLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.prisma.opsDocument.findMany({ where: { eventId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsBriefing.findMany({ where: { eventId }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsSupplierQuote.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsComplianceCheck.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsBillingSource.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsBillingStatement.findMany({ where: { eventId }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsPaymentRecord.findMany({ where: { eventId }, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsPostEventDocument.findMany({ where: { eventId }, orderBy: [{ title: 'asc' }, { id: 'asc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsEventInsight.findMany({ where: { eventId }, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsFloorPlanDraft.findMany({ where: { eventId }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
+      this.prisma.opsAuditLog.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_AUDIT_LOGS }),
+      this.prisma.opsNotificationLog.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_NOTIFICATION_LOGS }),
     ]);
   }
 
   // Query budget: eighteen bounded PMCM dashboard queries plus supplier directory/category reads; staffing display cards use a reader port.
   pmcmDashboard() {
     return Promise.all([
-      this.prisma.opsUser.findMany({ take: 500, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsInquiry.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsUser.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
+      this.prisma.opsInquiry.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       this.prisma.opsEvent.findMany({
-        include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-        orderBy: { createdAt: 'desc' },
+        include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_EVENT_FLOORPLAN_DRAFTS } },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: MAX_VISIBLE_EVENTS,
       }),
-      this.prisma.opsDocument.findMany({ take: 500, orderBy: { uploadedAt: 'desc' } }),
-      this.prisma.opsBriefing.findMany({ take: 500, orderBy: { submittedAt: 'desc' } }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsSupplierQuote.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsComplianceRule.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsComplianceCheck.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsBillingSource.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsBillingStatement.findMany({ take: 500, orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsPaymentMilestone.findMany({ take: 500, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsPaymentRecord.findMany({ take: 500, orderBy: { recordedAt: 'desc' } }),
-      this.prisma.opsPostEventDocument.findMany({ take: 500, orderBy: { title: 'asc' } }),
-      this.prisma.opsEventInsight.findMany({ take: 500, orderBy: { generatedAt: 'desc' } }),
-      this.prisma.opsFloorPlanDraft.findMany({ take: 500, orderBy: { updatedAt: 'desc' } }),
-      this.prisma.opsAuditLog.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
-      this.prisma.opsNotificationLog.findMany({ take: 500, orderBy: { createdAt: 'desc' } }),
+      this.prisma.opsDocument.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsBriefing.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsSupplierQuote.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsComplianceRule.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsComplianceCheck.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsBillingSource.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsBillingStatement.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsPaymentMilestone.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
+      this.prisma.opsPaymentRecord.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ recordedAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsPostEventDocument.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ title: 'asc' }, { id: 'asc' }] }),
+      this.prisma.opsEventInsight.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ generatedAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsFloorPlanDraft.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsAuditLog.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+      this.prisma.opsNotificationLog.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       this.supplierCategories(),
       this.activeSuppliers(),
     ]);
@@ -231,33 +313,49 @@ export class EventReadModelQueries {
 
   // Query budget: one active coordinator dashboard query, no per-row Prisma loop.
   activeCoordinators() {
-    return this.prisma.opsCoordinator.findMany({ where: { active: true }, orderBy: { name: 'asc' } });
+    return this.prisma.opsCoordinator.findMany({ where: { active: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: MAX_ACTIVE_COORDINATORS });
   }
   // Query budget: one bounded coordinator assignment dashboard query, no per-row Prisma loop.
   boundedCoordinatorAssignments() {
-    return this.prisma.opsCoordinatorAssignment.findMany({ take: 500, orderBy: { createdAt: 'desc' } });
+    return this.prisma.opsCoordinatorAssignment.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
   }
 
   // Query budget: one active supplier directory query, no per-row Prisma loop.
   activeSuppliers() {
     return this.prisma.opsSupplier
       .findMany({
-        take: 500,
+        take: MAX_ACTIVE_SUPPLIERS,
         include: {
           category: true,
-          reviews: { include: { event: true }, orderBy: { createdAt: 'desc' } },
-          reliabilityNotes: { include: { event: true }, orderBy: { createdAt: 'desc' } },
-          certifications: { orderBy: { uploadedAt: 'desc' } },
+          reviews: { include: { event: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_HISTORY_ROWS },
+          reliabilityNotes: { include: { event: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_HISTORY_ROWS },
+          certifications: { orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_CERTIFICATIONS },
         },
-        orderBy: { name: 'asc' },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
       })
-      .then((suppliers) => suppliers.map((supplier) => this.mapSupplier(supplier)));
+      .then(async (suppliers) => {
+        if (suppliers.length === 0) return [];
+        // Compatibility/sample Prisma doubles may not expose groupBy; production
+        // Prisma does, and uses the exact aggregate to keep capped review rows
+        // from changing the displayed supplier rating.
+        const reviewAggregates = typeof this.prisma.opsSupplierReview.groupBy === 'function'
+          ? await this.prisma.opsSupplierReview.groupBy({
+              by: ['supplierId'],
+              where: { supplierId: { in: suppliers.map((supplier) => supplier.id) } },
+              _avg: { rating: true },
+            })
+          : [];
+        const aggregateRatingBySupplier = new Map(
+          reviewAggregates.map((aggregate) => [aggregate.supplierId, aggregate._avg.rating]),
+        );
+        return suppliers.map((supplier) => this.mapSupplier(supplier, aggregateRatingBySupplier.get(supplier.id)));
+      });
   }
 
   // Query budget: one supplier category query, no per-row Prisma loop.
   supplierCategories() {
     return this.prisma.opsSupplierCategory
-      .findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } })
+      .findMany({ where: { active: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], take: MAX_ACTIVE_SUPPLIERS })
       .then((categories) => categories.map((category) => this.mapSupplierCategory(category)));
   }
 
@@ -273,16 +371,20 @@ export class EventReadModelQueries {
     };
   }
 
-  private mapSupplier(supplier: SupplierWithProfile) {
+  private mapSupplier(supplier: SupplierWithProfile, exactAggregateRating?: number | null) {
     const ratings = supplier.reviews.map((review) => review.rating);
     const aggregateRating =
-      ratings.length > 0
-        ? Math.round((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length) * 10) / 10
-        : null;
+      exactAggregateRating !== undefined
+        ? exactAggregateRating === null
+          ? null
+          : Math.round(exactAggregateRating * 10) / 10
+        : ratings.length > 0
+          ? Math.round((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length) * 10) / 10
+          : null;
     const datedEvents = supplier.reviews
       .map((review) => review.event)
       .filter((event): event is OpsEvent => Boolean(event))
-      .sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime());
+      .sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime() || b.id.localeCompare(a.id));
 
     return {
       id: supplier.id,
