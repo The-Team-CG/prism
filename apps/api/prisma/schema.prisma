@@ -281,6 +281,9 @@ model OpsEvent {
   billingStatements           OpsBillingStatement[]
   paymentMilestones           OpsPaymentMilestone[]
   paymentRecords              OpsPaymentRecord[]
+  billingCorrections          OpsBillingCorrection[]
+  billingDisputes             OpsBillingDispute[]
+  additionalBillings          OpsAdditionalBilling[]
   postEventDocuments          OpsPostEventDocument[]
   eventInsights               OpsEventInsight[]
   guestCheckIns               OpsGuestCheckIn[]
@@ -1155,6 +1158,11 @@ model OpsBillingSource {
   approvedAt       DateTime? @map("approved_at")
   approvedBy       String?   @map("approved_by")
   approvalNotes    String    @default("") @map("approval_notes")
+  paymentTermsPolicyState String @default("standard") @map("payment_terms_policy_state")
+  paymentTermsOverrideReason String? @map("payment_terms_override_reason")
+  paymentTermsApprovedBy String? @map("payment_terms_approved_by")
+  idempotencyKey    String?   @unique(map: "billing_sources_idempotency_key_key") @map("idempotency_key")
+  payloadHash       String?   @map("payload_hash")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -1182,6 +1190,10 @@ model OpsBillingStatement {
   documentId      String?   @map("document_id")
   pdfUrl          String    @default("") @map("pdf_url")
   storageKey      String    @default("") @map("storage_key")
+  storageObjectId  String?   @map("storage_object_id")
+  storageState     String    @default("pending") @map("storage_state")
+  idempotencyKey   String?   @unique(map: "billing_statements_idempotency_key_key") @map("idempotency_key")
+  payloadHash      String?   @map("payload_hash")
   status          String    @default("issued")
   sentAt          DateTime? @map("sent_at")
   generatedAt     DateTime  @default(now()) @map("generated_at")
@@ -1223,6 +1235,8 @@ model OpsPaymentRecord {
   paymentDate     DateTime @map("payment_date")
   paymentMethod   String   @map("payment_method")
   referenceNumber String   @default("") @map("reference_number")
+  idempotencyKey  String?  @unique(map: "payment_records_idempotency_key_key") @map("idempotency_key")
+  payloadHash     String?  @map("payload_hash")
   recordedAt      DateTime @default(now()) @map("recorded_at")
 
   event     OpsEvent            @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -1231,6 +1245,76 @@ model OpsPaymentRecord {
   @@index([eventId, recordedAt], map: "payment_records_event_id_recorded_at_idx")
   @@index([milestoneId, recordedAt], map: "payment_records_milestone_id_recorded_at_idx")
   @@map("payment_records")
+  @@schema("finance_ops")
+}
+
+model OpsBillingCorrection {
+  id               String    @id
+  eventId          String    @map("event_id")
+  statementId      String    @map("statement_id")
+  reason           String
+  correctedTotalAmount Int?  @map("corrected_total_amount")
+  status           String    @default("pending")
+  requestedBy      String    @map("requested_by")
+  resolvedBy       String?   @map("resolved_by")
+  resolutionNotes  String?   @map("resolution_notes")
+  idempotencyKey   String    @unique(map: "billing_corrections_idempotency_key_key") @map("idempotency_key")
+  payloadHash      String    @map("payload_hash")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  resolvedAt       DateTime? @map("resolved_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, status], map: "billing_corrections_event_id_status_idx")
+  @@index([statementId, createdAt], map: "billing_corrections_statement_id_created_at_idx")
+  @@map("billing_corrections")
+  @@schema("finance_ops")
+}
+
+model OpsBillingDispute {
+  id               String    @id
+  eventId          String    @map("event_id")
+  statementId      String    @map("statement_id")
+  milestoneId      String?   @map("milestone_id")
+  amount           Int
+  reason           String
+  status           String    @default("open")
+  raisedBy         String    @map("raised_by")
+  resolvedBy       String?   @map("resolved_by")
+  resolutionNotes  String?   @map("resolution_notes")
+  idempotencyKey   String    @unique(map: "billing_disputes_idempotency_key_key") @map("idempotency_key")
+  payloadHash      String    @map("payload_hash")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  resolvedAt       DateTime? @map("resolved_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, status], map: "billing_disputes_event_id_status_idx")
+  @@index([statementId, createdAt], map: "billing_disputes_statement_id_created_at_idx")
+  @@map("billing_disputes")
+  @@schema("finance_ops")
+}
+
+model OpsAdditionalBilling {
+  id               String    @id
+  eventId          String    @map("event_id")
+  urgentIssueId    String    @map("urgent_issue_id")
+  description      String
+  amount           Int
+  status           String    @default("pending_approval")
+  createdBy        String    @map("created_by")
+  waiverReason     String?   @map("waiver_reason")
+  waivedBy         String?   @map("waived_by")
+  idempotencyKey   String    @unique(map: "additional_billings_idempotency_key_key") @map("idempotency_key")
+  payloadHash      String    @map("payload_hash")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  waivedAt         DateTime? @map("waived_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, status], map: "additional_billings_event_id_status_idx")
+  @@index([urgentIssueId], map: "additional_billings_urgent_issue_id_idx")
+  @@map("additional_billings")
   @@schema("finance_ops")
 }
 
