@@ -24,6 +24,7 @@ import type { PrismCommandContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
+import type { CoordinatorAssignmentListOptions } from '../../contracts/staffing-reader.port';
 
 export type StaffingCoverageRow = {
   role: string;
@@ -72,9 +73,9 @@ export class CoordinatorsService {
 
   async listAssignmentsForCoordinator(
     coordinatorId?: string | null,
-    includeHistoricalOrName: boolean | string | null = false,
+    options: CoordinatorAssignmentListOptions = {},
   ) {
-    const includeHistorical = includeHistoricalOrName === true;
+    const includeHistorical = options.includeHistorical === true;
     return coordinatorId
       ? this.prisma.opsCoordinatorAssignment.findMany({
           where: includeHistorical

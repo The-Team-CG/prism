@@ -264,6 +264,7 @@ export class LiveOperationsService {
         });
       },
       sideEffects: async (request) => {
+        const pmcmEmail = await this.resolveUserEmailByRole('pmcm-admin');
         await Promise.all([
           writeAudit(auditWriter, eventId, actor.name, `Requested task reassignment: ${task?.title ?? taskId}`, {
             actorRole: actor.role,
@@ -274,7 +275,7 @@ export class LiveOperationsService {
             affectedLabel: task?.title ?? taskId,
             metadata: { taskId, toOwnerRole, toOwnerName, reason, autoApproveAt: request.autoApproveAt.toISOString() },
           }),
-          writeNotification(notificationOutboxWriter, eventId, 'PMCM Admin', `Task reassignment requested: ${task?.title ?? taskId}. Approval required.`, 'viber'),
+          ...(pmcmEmail ? [writeNotification(notificationOutboxWriter, eventId, pmcmEmail, `Task reassignment requested: ${task?.title ?? taskId}. Approval required.`, 'viber')] : [writeAudit(auditWriter, eventId, actor.name, 'Task reassignment notification not queued: no approved PMCM email address', { actorRole: actor.role, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_task_reassignment', affectedId: request.id })]),
         ]);
       },
       project: (request) => this.mapTaskReassignment(request),
@@ -302,21 +303,24 @@ export class LiveOperationsService {
     const request = await prisma.opsEventTaskReassignmentRequest.findFirst({ where: { id: requestId, eventId } });
     if (!request) throw new NotFoundException('Task reassignment request not found');
     if (request.status !== 'pending') throw new BadRequestException('Task reassignment request is already decided');
-    const autoApproved = request.autoApproveAt.getTime() <= now.getTime();
-    const status = autoApproved ? 'auto_approved' : input.decision;
+    // autoApproveAt is metadata for a future system sweep. A submitted human
+    // decision must never be rewritten based on elapsed time.
+    const status = input.decision;
     const reason = input.reason?.trim() ?? '';
     if (status === 'rejected' && !reason) throw new BadRequestException('A rejection reason is required');
 
     const decided = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const current = await tx.opsEventTaskReassignmentRequest.findFirst({ where: { id: requestId, eventId } });
-      if (!current || current.status !== 'pending') throw new BadRequestException('Task reassignment request is already decided');
-      if (status === 'auto_approved' || status === 'approved') {
+      const claimed = await tx.opsEventTaskReassignmentRequest.updateMany({
+        where: { id: requestId, eventId, status: 'pending' },
+        data: { status, decidedAt: now, decidedBy: actor.name, decisionReason: reason || null },
+      });
+      if (claimed.count !== 1) throw new BadRequestException('Task reassignment request is already decided');
+      const current = await tx.opsEventTaskReassignmentRequest.findUnique({ where: { id: requestId } });
+      if (!current) throw new NotFoundException('Task reassignment request not found');
+      if (status === 'approved') {
         await tx.opsEventDayTask.update({ where: { id: current.taskId }, data: { assignedRole: current.toOwnerRole, ownerName: current.toOwnerName } });
       }
-      return tx.opsEventTaskReassignmentRequest.update({
-        where: { id: requestId },
-        data: { status, decidedAt: now, decidedBy: actor.name, decisionReason: reason || (autoApproved ? 'No response within two minutes' : null) },
-      });
+      return current;
     });
     await Promise.all([
       writeAudit(auditWriter, eventId, actor.name, `${status === 'rejected' ? 'Rejected' : 'Approved'} task reassignment`, {
@@ -327,9 +331,19 @@ export class LiveOperationsService {
         affectedId: decided.id,
         metadata: { taskId: decided.taskId, status, reason },
       }),
-      writeNotification(notificationOutboxWriter, eventId, request.requestedBy, `Task reassignment ${status.replace('_', ' ')} for ${request.taskId}`, 'viber'),
+      ...(await this.resolveUserEmailByName(request.requestedBy) ? [writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(request.requestedBy))!, `Task reassignment ${status.replace('_', ' ')} for ${request.taskId}`, 'viber')] : [writeAudit(auditWriter, eventId, actor.name, 'Task reassignment notification not queued: requester has no verified email address', { actorRole: actor.role, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_task_reassignment', affectedId: decided.id })]),
     ]);
     return this.mapTaskReassignment(decided);
+  }
+
+  private async resolveUserEmailByRole(role: string) {
+    const user = await this.prisma.opsUser.findFirst({ where: { role, approvalStatus: 'approved' }, orderBy: { createdAt: 'asc' }, select: { email: true } });
+    return user?.email?.trim().toLowerCase().includes('@') ? user.email.trim().toLowerCase() : null;
+  }
+
+  private async resolveUserEmailByName(name: string) {
+    const user = await this.prisma.opsUser.findFirst({ where: { name, approvalStatus: 'approved' }, select: { email: true } });
+    return user?.email?.trim().toLowerCase().includes('@') ? user.email.trim().toLowerCase() : null;
   }
 
   async createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor: LiveOpsActor) {

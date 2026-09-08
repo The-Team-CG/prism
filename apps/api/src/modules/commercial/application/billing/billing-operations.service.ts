@@ -1,5 +1,5 @@
 import { Inject, Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
-import type { OpsBillingStatement, OpsBillingSource, OpsPaymentMilestone, OpsPaymentRecord, Prisma } from '@prisma/client';
+import { Prisma, type OpsAdditionalBilling, type OpsBillingCorrection, type OpsBillingDispute, type OpsBillingStatement, type OpsBillingSource, type OpsPaymentMilestone, type OpsPaymentRecord } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
@@ -49,23 +49,23 @@ function auditMetadata(actor: BillingActor, metadata: Record<string, unknown> = 
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
-function renderBillingPdf(input: { number: string; sourceLabel: string; totalAmount: number }) {
-  const text = `P.R.I.S.M BILLING STATEMENT\\n${input.number}\\nSource: ${input.sourceLabel}\\nTotal: ${input.totalAmount}`;
+export function renderBillingPdf(input: { number: string; sourceLabel: string; totalAmount: number }) {
+  const text = `P.R.I.S.M BILLING STATEMENT\n${input.number}\nSource: ${input.sourceLabel}\nTotal: ${input.totalAmount}`;
   const body = `BT /F1 12 Tf 72 720 Td (${text.replace(/[()\\]/g, '')}) Tj ET`;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
     '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
-    `<< /Length ${body.length} >>\\nstream\\n${body}\\nendstream`,
+    `<< /Length ${Buffer.byteLength(body, 'utf8')} >>\nstream\n${body}\nendstream`,
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
   ];
-  let pdf = '%PDF-1.4\\n';
+  let pdf = '%PDF-1.4\n';
   const offsets = [0];
-  objects.forEach((object, index) => { offsets.push(Buffer.byteLength(pdf, 'utf8')); pdf += `${index + 1} 0 obj\\n${object}\\nendobj\\n`; });
+  objects.forEach((object, index) => { offsets.push(Buffer.byteLength(pdf, 'utf8')); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
   const start = Buffer.byteLength(pdf, 'utf8');
-  pdf += `xref\\n0 ${objects.length + 1}\\n0000000000 65535 f \\n`;
-  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, '0')} 00000 n \\n`; });
-  pdf += `trailer\\n<< /Size ${objects.length + 1} /Root 1 0 R >>\\nstartxref\\n${start}\\n%%EOF`;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`;
   return Buffer.from(pdf, 'utf8');
 }
 
@@ -99,6 +99,56 @@ function assertPaymentWithinBalance(milestone: OpsPaymentMilestone, history: Ops
 
 function assertPositivePayment(amount: number) {
   if (amount <= 0) throw new BadRequestException('Amount received must be greater than zero');
+}
+
+function paymentStatus(amountPaid: number, amount: number) {
+  if (amountPaid === amount) return 'paid';
+  if (amountPaid > 0) return 'partially_paid';
+  return 'pending';
+}
+
+function isIdempotencyKeyViolation(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
+  const target = error.meta?.target;
+  return Array.isArray(target)
+    ? target.some((value) => String(value).toLowerCase().includes('idempotency'))
+    : typeof target === 'string' && target.toLowerCase().includes('idempotency');
+}
+
+function assertIdempotencyPayload<T extends { payloadHash: string | null }>(record: T, payloadHash: string) {
+  if (record.payloadHash && record.payloadHash !== payloadHash) throw new BadRequestException('Idempotency key was reused for different content');
+}
+
+async function createIdempotently<T extends { payloadHash: string | null }>(
+  key: string | undefined,
+  payloadHash: string,
+  find: () => Promise<T | null>,
+  create: () => Promise<T>,
+) {
+  if (key) {
+    const replay = await find();
+    if (replay) {
+      assertIdempotencyPayload(replay, payloadHash);
+      return { value: replay, replayed: true };
+    }
+  }
+  try {
+    return { value: await create(), replayed: false };
+  } catch (error) {
+    if (!key || !isIdempotencyKeyViolation(error)) throw error;
+    const replay = await find();
+    if (!replay) throw error;
+    assertIdempotencyPayload(replay, payloadHash);
+    return { value: replay, replayed: true };
+  }
+}
+
+async function lockPaymentMilestone(tx: Prisma.TransactionClient, milestoneId: string) {
+  if (tx.$queryRaw) {
+    const rows = await tx.$queryRaw<OpsPaymentMilestone[]>`SELECT * FROM "finance_ops"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
+    if (rows.length > 0) return rows[0];
+  }
+  return tx.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
 }
 
 @Injectable()
@@ -235,39 +285,30 @@ export class BillingOperationsService {
 
         assertPositivePayment(input.amountReceived);
 
-        const existingHistory = (await this.prisma.opsPaymentRecord.findMany({
-          where: { milestoneId },
-          orderBy: { paymentDate: 'asc' },
-        })) as OpsPaymentRecord[];
         paymentDate = parseDate(input.paymentDate);
         paymentPayloadHash = createHash('sha256').update(JSON.stringify({ eventId, milestoneId, ...input })).digest('hex');
-        const keyedRecord = input.idempotencyKey && this.prisma.opsPaymentRecord.findUnique
-          ? await this.prisma.opsPaymentRecord.findUnique({ where: { idempotencyKey: input.idempotencyKey } })
-          : null;
-        if (keyedRecord) {
-          if (keyedRecord.payloadHash && keyedRecord.payloadHash !== paymentPayloadHash) {
-            throw new BadRequestException('Payment idempotency key was reused for different content');
-          }
-          duplicateReplay = paymentReplay(milestone, existingHistory);
-          return;
-        }
-        const duplicateRecord = input.referenceNumber?.trim()
-          ? existingHistory.find((record) => isDuplicatePayment(record, input, paymentDate!))
-          : undefined;
-        if (duplicateRecord) {
-          duplicateReplay = paymentReplay(milestone, existingHistory);
-          return;
-        }
-        assertPaymentWithinBalance(milestone, existingHistory, input);
       },
       write: async () => {
-        if (!milestone) throw new NotFoundException('Payment milestone not found');
-        if (duplicateReplay) return duplicateReplay;
         const recordedPaymentDate = paymentDate ?? parseDate(input.paymentDate);
         paymentDate = recordedPaymentDate;
 
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          const lockedMilestone = await lockPaymentMilestone(tx, milestoneId);
+          if (!lockedMilestone || lockedMilestone.eventId !== eventId) throw new NotFoundException('Payment milestone not found');
+          milestone = lockedMilestone;
+          const history = await tx.opsPaymentRecord.findMany({ where: { milestoneId }, orderBy: { paymentDate: 'asc' } });
+          const keyedRecord = input.idempotencyKey ? await tx.opsPaymentRecord.findUnique({ where: { idempotencyKey: input.idempotencyKey } }) : null;
+          if (keyedRecord) {
+            if (keyedRecord.payloadHash && keyedRecord.payloadHash !== paymentPayloadHash) throw new BadRequestException('Payment idempotency key was reused for different content');
+            duplicateReplay = paymentReplay(lockedMilestone, history);
+            return duplicateReplay;
+          }
+          const duplicateRecord = input.referenceNumber?.trim() ? history.find((record) => isDuplicatePayment(record, input, recordedPaymentDate)) : undefined;
+          if (duplicateRecord) {
+            duplicateReplay = paymentReplay(lockedMilestone, history);
+            return duplicateReplay;
+          }
+          assertPaymentWithinBalance(lockedMilestone, history, input);
           await tx.opsPaymentRecord.create({
             data: {
               id: `payrec_${randomUUID()}`,
@@ -282,19 +323,19 @@ export class BillingOperationsService {
             },
           });
 
-          const history = await tx.opsPaymentRecord.findMany({
+          const updatedHistory = await tx.opsPaymentRecord.findMany({
             where: { milestoneId },
             orderBy: { paymentDate: 'asc' },
           });
-          const amountPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
-          const remainingBalance = Math.max(0, milestone!.amount - amountPaid);
-          const nextStatus = remainingBalance === 0 ? 'paid' : amountPaid > 0 ? 'partially_paid' : 'pending';
+          const amountPaid = updatedHistory.reduce((sum, record) => sum + record.amountReceived, 0);
+          const remainingBalance = Math.max(0, lockedMilestone.amount - amountPaid);
+          const nextStatus = paymentStatus(amountPaid, lockedMilestone.amount);
           const payment = await tx.opsPaymentMilestone.update({
             where: { id: milestoneId },
             data: { amountPaid, remainingBalance, status: nextStatus },
           });
 
-          return { payment, history };
+          return { payment, history: updatedHistory };
         });
       },
       sideEffects: async ({ payment }) => {
@@ -330,6 +371,7 @@ export class BillingOperationsService {
     return this.workflowCommandService.execute<OpsBillingSource, ReturnType<BillingOperationsService['mapBillingSource']>>({
       name: 'create_billing_source',
       eventId,
+      sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
         lineItems = this.normalizeBillingLineItems(input.lineItems);
@@ -341,17 +383,14 @@ export class BillingOperationsService {
         paymentTermsOverrideReason = terms.overrideReason;
         paymentMethods = this.normalizeBillingMethods(input.paymentMethods);
       },
-      write: () =>
+      write: (context) =>
         (async () => {
-          if (input.idempotencyKey && this.prisma.opsBillingSource.findUnique) {
-            const replay = await this.prisma.opsBillingSource.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-            if (replay) {
-              if (replay.payloadHash && replay.payloadHash !== payloadHash) throw new BadRequestException('Billing source idempotency key was reused for different content');
-              replayed = true;
-              return replay;
-            }
-          }
-          return this.prisma.opsBillingSource.create({
+          const db = context?.prisma ?? this.prisma;
+          const result = await createIdempotently(
+            input.idempotencyKey,
+            payloadHash,
+            () => db.opsBillingSource.findUnique({ where: { idempotencyKey: input.idempotencyKey! } }),
+            () => db.opsBillingSource.create({
             data: {
               id: `bsrc_${randomUUID()}`,
               eventId,
@@ -368,7 +407,10 @@ export class BillingOperationsService {
               payloadHash,
               idempotencyKey: input.idempotencyKey ?? null,
             },
-          });
+            }),
+          );
+          replayed = result.replayed;
+          return result.value;
         })(),
       sideEffects: async (source) => {
         if (replayed) return;
@@ -462,32 +504,32 @@ export class BillingOperationsService {
           throw new BadRequestException('Billing source must be approved before generating a billing statement');
         }
 
-        if (idempotencyKey && this.prisma.opsBillingStatement.findUnique) {
-          existingStatement = await this.prisma.opsBillingStatement.findUnique({ where: { idempotencyKey } });
-          if (existingStatement) {
-            if (existingStatement.payloadHash && existingStatement.payloadHash !== payloadHash) throw new BadRequestException('Billing statement idempotency key was reused for different content');
-            return;
-          }
-        }
-
-        const billingYear = event.eventDate.getFullYear();
-        const billingCount = await this.prisma.opsBillingStatement.count();
-        billingNumber = `BS-${billingYear}-${String(billingCount + 1).padStart(4, '0')}`;
         lineItems = this.asBillingLineItems(source.lineItems);
         paymentSchedule = this.asBillingSchedule(source.paymentSchedule, source.totalAmount, event.eventDate);
         paymentMethods = this.asBillingMethods(source.paymentMethods);
-        pdfBytes = renderBillingPdf({ number: billingNumber, sourceLabel: source.sourceLabel, totalAmount: source.totalAmount });
-        const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source, pdfBytes, actor);
-        storageState = storage.storageState;
-        storageObjectId = storage.storageObjectId;
-        storageKey = storage.storageKey;
       },
-      write: async () => {
-        if (existingStatement) return existingStatement;
+      write: async (context) => {
         if (!event || !source) throw new NotFoundException('Billing source not found');
 
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          if (idempotencyKey) {
+            existingStatement = await tx.opsBillingStatement.findUnique({ where: { idempotencyKey } });
+            if (existingStatement) {
+              if (existingStatement.payloadHash && existingStatement.payloadHash !== payloadHash) throw new BadRequestException('Billing statement idempotency key was reused for different content');
+              return existingStatement;
+            }
+          }
+          const billingYear = event!.eventDate.getFullYear();
+          await tx.$executeRaw`INSERT INTO "finance_ops"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, 2) ON CONFLICT ("year") DO NOTHING`;
+          const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
+          const nextNumber = sequenceRows[0]?.next_number ?? 1;
+          billingNumber = `BS-${billingYear}-${String(nextNumber).padStart(4, '0')}`;
+          await tx.$executeRaw`UPDATE "finance_ops"."billing_statement_sequences" SET "next_number" = ${nextNumber + 1} WHERE "year" = ${billingYear}`;
+          pdfBytes = renderBillingPdf({ number: billingNumber, sourceLabel: source!.sourceLabel, totalAmount: source!.totalAmount });
+          const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source!, pdfBytes, actor);
+          storageState = storage.storageState;
+          storageObjectId = storage.storageObjectId;
+          storageKey = storage.storageKey;
           const billingDocument = await tx.opsDocument.create({
             data: {
               id: `doc_${randomUUID()}`,
@@ -555,18 +597,18 @@ export class BillingOperationsService {
           affectedType: 'billing_statement',
           affectedId: statement.id,
           affectedLabel: billingNumber,
-          metadata: auditMetadata(actor, { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount }),
+          metadata: auditMetadata(actor, { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount, notificationStatus: inquiry?.email?.trim() ? 'queued' : 'not_queued', notificationReason: inquiry?.email?.trim() ? undefined : 'No verified client email address is configured' }),
         }, context);
-        const recipient = inquiry?.email || inquiry?.clientName || event?.clientName || 'Client';
-        await Promise.all(paymentSchedule.map((item, index) => writeNotification(
-          this.notificationOutboxWriter,
-          eventId,
-          recipient,
-          `${item.label} payment milestone for billing statement ${billingNumber} is due ${item.dueDate ?? 'on the agreed date'}`,
-          'email',
-          { idempotencyKey: `billing-reminder:${statement.id}:${index}` },
-          context,
-        )));
+        const recipient = inquiry?.email?.trim();
+        if (recipient) await Promise.all(paymentSchedule.map((item, index) => writeNotification(
+            this.notificationOutboxWriter,
+            eventId,
+            recipient,
+            `${item.label} payment milestone for billing statement ${billingNumber} is due ${item.dueDate ?? 'on the agreed date'}`,
+            'email',
+            { idempotencyKey: `billing-reminder:${statement.id}:${index}` },
+            context,
+          )));
       },
       project: (statement) => this.mapBillingStatement(statement),
     });
@@ -587,7 +629,7 @@ export class BillingOperationsService {
           data: { status: 'sent', sentAt: new Date() },
         }),
       sideEffects: async (billing) => {
-        const recipient = billing.clientContact || billing.clientName || 'Client';
+        const recipient = billing.clientContact?.trim();
         await Promise.all([
           writeAudit(this.auditWriter, eventId, actor.name, `Sent billing statement ${billing.number}`, {
             actorRole: actor.role,
@@ -597,10 +639,12 @@ export class BillingOperationsService {
             affectedType: 'billing_statement',
             affectedId: billing.id,
             affectedLabel: billing.number,
-            metadata: auditMetadata(actor),
+            metadata: auditMetadata(actor, { notificationStatus: recipient ? 'queued' : 'not_queued', notificationReason: recipient ? undefined : 'No verified client email address is configured' }),
           }),
-          writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
-          writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
+          ...(recipient ? [
+            writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
+            writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
+          ] : []),
         ]);
       },
       project: (billing) => this.mapBillingStatement(billing),
@@ -643,7 +687,7 @@ export class BillingOperationsService {
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
     let statement: OpsBillingStatement | null = null;
     let replayed = false;
-    return this.workflowCommandService.execute<any, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
+    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
       name: 'request_billing_correction', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
@@ -666,8 +710,8 @@ export class BillingOperationsService {
   }
 
   async resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput, actor: BillingActor) {
-    let correction: any = null;
-    return this.workflowCommandService.execute<any, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
+    let correction: OpsBillingCorrection | null = null;
+    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
       name: 'resolve_billing_correction', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
@@ -685,7 +729,7 @@ export class BillingOperationsService {
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
     let statement: OpsBillingStatement | null = null;
     let replayed = false;
-    return this.workflowCommandService.execute<any, ReturnType<BillingOperationsService['mapBillingDispute']>>({
+    return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<BillingOperationsService['mapBillingDispute']>>({
       name: 'create_billing_dispute', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
@@ -713,7 +757,7 @@ export class BillingOperationsService {
   }
 
   async resolveBillingDispute(eventId: string, disputeId: string, input: ResolveBillingDisputeInput, actor: BillingActor) {
-    return this.workflowCommandService.execute<any, ReturnType<BillingOperationsService['mapBillingDispute']>>({
+    return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<BillingOperationsService['mapBillingDispute']>>({
       name: 'resolve_billing_dispute', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
@@ -732,7 +776,7 @@ export class BillingOperationsService {
     let event: Awaited<ReturnType<BillingOperationsService['requireEvent']>> | null = null;
     let issue: { id: string; eventId: string } | null = null;
     let replayed = false;
-    return this.workflowCommandService.execute<any, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
+    return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
       name: 'create_additional_billing', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         event = await this.requireEvent(eventId);
@@ -756,7 +800,7 @@ export class BillingOperationsService {
   }
 
   async waiveAdditionalBilling(eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput, actor: BillingActor) {
-    return this.workflowCommandService.execute<any, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
+    return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
       name: 'waive_additional_billing', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
@@ -770,15 +814,15 @@ export class BillingOperationsService {
     });
   }
 
-  mapBillingCorrection(correction: any) {
+  mapBillingCorrection(correction: OpsBillingCorrection) {
     return { id: correction.id, eventId: correction.eventId, statementId: correction.statementId, reason: correction.reason, correctedTotalAmount: correction.correctedTotalAmount ?? null, status: correction.status, requestedBy: correction.requestedBy, resolvedBy: correction.resolvedBy ?? null, resolutionNotes: correction.resolutionNotes ?? null, createdAt: timestamp(correction.createdAt), resolvedAt: correction.resolvedAt ? timestamp(correction.resolvedAt) : null };
   }
 
-  mapBillingDispute(dispute: any) {
+  mapBillingDispute(dispute: OpsBillingDispute) {
     return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, reason: dispute.reason, status: dispute.status, raisedBy: dispute.raisedBy, resolvedBy: dispute.resolvedBy ?? null, resolutionNotes: dispute.resolutionNotes ?? null, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
   }
 
-  mapAdditionalBilling(billing: any) {
+  mapAdditionalBilling(billing: OpsAdditionalBilling) {
     return { id: billing.id, eventId: billing.eventId, urgentIssueId: billing.urgentIssueId, description: billing.description, amount: billing.amount, status: billing.status, createdBy: billing.createdBy, waiverReason: billing.waiverReason ?? null, waivedBy: billing.waivedBy ?? null, createdAt: timestamp(billing.createdAt), waivedAt: billing.waivedAt ? timestamp(billing.waivedAt) : null };
   }
 

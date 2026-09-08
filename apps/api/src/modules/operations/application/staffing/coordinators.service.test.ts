@@ -318,7 +318,7 @@ describe('CoordinatorsService', () => {
       { ...fake.assignments[0], id: 'coord_asg_replaced', status: 'replaced' },
     );
     const service = createService(fake.prisma as unknown);
-    const assignments = await service.listAssignmentsForCoordinator(coordinator.id, true);
+    const assignments = await service.listAssignmentsForCoordinator(coordinator.id, { includeHistorical: true });
     expect(assignments.map((item) => item.id)).toEqual(
       expect.arrayContaining(['coord_asg_cancelled', 'coord_asg_replaced']),
     );

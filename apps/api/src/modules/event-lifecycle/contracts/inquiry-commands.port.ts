@@ -12,7 +12,7 @@ export interface InquiryCommands {
   markPortalInvitationOpenedByEmail(email: string): Promise<void>;
   uploadConforme(
     inquiryId: string,
-    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number; storageObjectId?: string },
     actor: ResolvedEventOpsActor,
   ): Promise<OpsDocument>;
 }

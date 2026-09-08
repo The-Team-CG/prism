@@ -4,7 +4,7 @@ import { EventLifecycleService, WorkflowCommandService } from '@prism/kernel/eve
 import { EventClosureService } from './event-closure.service';
 
 function harness() {
-  const state = { event: { id: 'event_1', clientName: 'Client', archived: false, status: 'event_day', floorPlanStatus: 'approved', clientPortalStatus: 'unlocked' } };
+  const state = { event: { id: 'event_1', inquiryId: 'inquiry_1', clientName: 'Client', archived: false, status: 'event_day', floorPlanStatus: 'approved', clientPortalStatus: 'unlocked' } };
   const failures = { audit: false, notification: false };
   const gates = { ready: false, missingKeys: ['logistics'], gates: [{ key: 'logistics', passed: false }] };
   const fileMatrix = { closeGates: vi.fn(async () => gates) };
@@ -15,6 +15,7 @@ function harness() {
     update: vi.fn(async ({ data }: { data: Partial<typeof state.event> }) => { Object.assign(draft.event, data); return draft.event; }),
   });
   const foreignDocument = { id: 'doc_other', eventId: 'event_2', title: 'Completion report', status: 'pending' };
+  const inquiries = { findUnique: vi.fn(async () => ({ email: 'client@example.test' })) };
   const documents = {
     update: vi.fn(async ({ where }: { where: { id: string; eventId?: string } }) => {
       if (where.eventId && where.eventId !== foreignDocument.eventId) throw new Error('Not found');
@@ -22,10 +23,10 @@ function harness() {
     }),
   };
   const prisma = {
-    opsEvent: eventModel(state), opsPostEventDocument: documents,
-    $transaction: vi.fn(async <T>(work: (tx: { opsEvent: ReturnType<typeof eventModel>; opsPostEventDocument: typeof documents }) => Promise<T>) => {
+    opsEvent: eventModel(state), opsPostEventDocument: documents, opsInquiry: inquiries,
+    $transaction: vi.fn(async <T>(work: (tx: { opsEvent: ReturnType<typeof eventModel>; opsPostEventDocument: typeof documents; opsInquiry: typeof inquiries }) => Promise<T>) => {
       const draft = structuredClone(state);
-      const result = await work({ opsEvent: eventModel(draft), opsPostEventDocument: documents });
+      const result = await work({ opsEvent: eventModel(draft), opsPostEventDocument: documents, opsInquiry: inquiries });
       state.event = draft.event; return result;
     }),
   };

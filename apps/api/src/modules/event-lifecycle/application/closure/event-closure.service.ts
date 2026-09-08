@@ -118,7 +118,8 @@ export class EventClosureService {
           mode: input.mode ?? existing.mode,
           requiredItems: toPrismaJson(requiredItems), sections: toPrismaJson(sections),
           clientAcknowledgedAt: input.clientAcknowledged ? now : existing.clientAcknowledgedAt,
-          clientAcknowledgedBy: input.clientAcknowledged ? actor.id : existing.clientAcknowledgedBy,
+          acknowledgementRecordedBy: input.clientAcknowledged ? actor.id : existing.acknowledgementRecordedBy,
+          acknowledgementSource: input.clientAcknowledged ? 'pmcm_recorded' : existing.acknowledgementSource,
           clientAcknowledgementNote: input.clientAcknowledgementNote ?? existing.clientAcknowledgementNote,
           status: complete ? 'complete' : 'pending',
           completedAt: complete ? (existing.completedAt ?? now) : null,
@@ -136,15 +137,19 @@ export class EventClosureService {
 
   async runWrapUpReminderSweep(now = new Date()) {
     const events = await this.prisma.opsEvent.findMany({
-      where: { actualEndedAt: { not: null }, archived: false },
-      select: { id: true, clientName: true, actualEndedAt: true },
+      where: {
+        actualEndedAt: { not: null }, archived: false,
+        wrapUpRecords: { some: { status: 'pending', deadlineAt: { gte: now }, OR: [{ twelveHourReminderAt: null }, { twentyFourHourReminderAt: null }] } },
+      },
+      select: { id: true, clientName: true, actualEndedAt: true, inquiry: { select: { email: true } }, wrapUpRecords: { take: 1 } },
+      take: 100,
     });
     const reminders: Array<{ eventId: string; hours: number }> = [];
     for (const event of events) {
       if (!event.actualEndedAt) continue;
       const record = await this.prisma.$transaction(async (tx) => {
-        const current = await tx.opsEventWrapUp.findUnique({ where: { eventId: event.id } }) ??
-          await this.createWrapUpRecord(event.id, event.actualEndedAt!, 'full', tx);
+        const current = await tx.opsEventWrapUp.findUnique({ where: { eventId: event.id } });
+        if (!current) return null;
         if (current.status === 'complete') return current;
         for (const hours of WRAP_UP_REMINDER_HOURS) {
           const due = now.getTime() >= event.actualEndedAt!.getTime() + hours * 60 * 60 * 1000;
@@ -153,7 +158,7 @@ export class EventClosureService {
           const update = hours === 12 ? { twelveHourReminderAt: now } : { twentyFourHourReminderAt: now };
           const claimed = await tx.opsEventWrapUp.updateMany({ where: { eventId: event.id, ...(hours === 12 ? { twelveHourReminderAt: null } : { twentyFourHourReminderAt: null }) }, data: update });
           if (claimed.count !== 1) continue;
-          await writeNotification(this.notificationOutboxWriter, event.id, event.clientName, `Event wrap-up remains open after ${hours} hours. Delivery remains queued until the W11 email/Viber provider is configured.`, 'email', { idempotencyKey: `wrap-up-reminder:${event.id}:${hours}` }, { prisma: tx, correlationId: `wrap-up-reminder:${event.id}:${hours}` });
+          await this.queueWrapUpReminder(event.id, event.inquiry?.email, hours, tx);
           await writeAudit(this.auditWriter, event.id, 'System', `Sent ${hours}-hour wrap-up reminder`, { actorRole: OpsUserRole.System, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_wrap_up', affectedId: current.id, metadata: { hours, dueAt: new Date(event.actualEndedAt!.getTime() + hours * 60 * 60 * 1000).toISOString() } }, { prisma: tx, correlationId: `wrap-up-reminder:${event.id}:${hours}` });
           reminders.push({ eventId: event.id, hours });
         }
@@ -161,7 +166,7 @@ export class EventClosureService {
       }, { isolationLevel: 'Serializable' });
       void record;
     }
-    return { reminders, archivedEvents: 0 };
+    return { reminders };
   }
 
   async archiveEvent(eventId: string, input: ArchiveEventInput = {}) {
@@ -191,7 +196,12 @@ export class EventClosureService {
         severity: overrideReason ? 'warning' : 'info',
         metadata: { overrideReason, missingKeys: closeGates.missingKeys, gates: closeGates.gates },
       }, context);
-      await writeNotification(this.notificationOutboxWriter, eventId, event.clientName, 'Event workspace archived', undefined, {}, context);
+      const clientEmail = (await tx.opsInquiry.findUnique({ where: { id: event.inquiryId }, select: { email: true } }))?.email?.trim();
+      if (clientEmail) {
+        await writeNotification(this.notificationOutboxWriter, eventId, clientEmail, 'Event workspace archived', undefined, {}, context);
+      } else {
+        await writeAudit(this.auditWriter, eventId, actorName, 'Archive notification not queued: client has no verified email address', { actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event', affectedId: eventId, metadata: { reason: 'missing_verified_recipient' } }, context);
+      }
       return event;
     }, { isolationLevel: 'Serializable' });
   }
@@ -336,13 +346,19 @@ export class EventClosureService {
     } });
   }
 
+  private queueWrapUpReminder(eventId: string, email: string | null | undefined, hours: number, tx: Prisma.TransactionClient) {
+    const recipient = email?.trim();
+    return recipient
+      ? writeNotification(this.notificationOutboxWriter, eventId, recipient, `Event wrap-up remains open after ${hours} hours.`, 'email', { idempotencyKey: `wrap-up-reminder:${eventId}:${hours}` }, { prisma: tx, correlationId: `wrap-up-reminder:${eventId}:${hours}` })
+      : writeAudit(this.auditWriter, eventId, 'System', 'Wrap-up reminder not queued: client has no verified email address', { actorRole: OpsUserRole.System, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_wrap_up', affectedId: eventId, metadata: { hours, reason: 'missing_verified_recipient' } }, { prisma: tx, correlationId: `wrap-up-reminder-unroutable:${eventId}:${hours}` });
+  }
+
   private syncWrapUpAtActualEnd(
     prisma: Prisma.TransactionClient,
     eventId: string,
     actualEndedAt: Date,
     isChanged: boolean,
   ) {
-    if (!prisma.opsEventWrapUp) return Promise.resolve();
     return prisma.opsEventWrapUp.upsert({
       where: { eventId },
       create: {

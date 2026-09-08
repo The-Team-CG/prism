@@ -111,7 +111,7 @@ export class InquiryWorkflowService {
 
   async uploadConforme(
     inquiryId: string,
-    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number; storageObjectId?: string },
     actorInput: PrismEventOpsActorContext = {},
     context: InquiryWorkflowContext,
     verifiedActor?: PrismVerifiedEventActor,

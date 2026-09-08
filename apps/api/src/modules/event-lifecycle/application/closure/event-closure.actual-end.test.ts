@@ -5,7 +5,7 @@ import { EventClosureService } from './event-closure.service';
 
 function harness(actualEndedAt: Date | null = null) {
   const event = { id: 'evt_1', actualEndedAt, actualEndedBy: actualEndedAt ? 'old' : null, status: 'event_day', archived: false };
-  const tx = { opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: any) => ({ ...event, ...data })) } };
+  const tx = { opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: any) => ({ ...event, ...data })) }, opsEventWrapUp: { upsert: vi.fn(async ({ create }: any) => create) } };
   const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const auditWriter = { write: vi.fn(async () => undefined) };
   const service = new EventClosureService(prisma as any, {} as any, {} as any, auditWriter as any, {} as any, {} as any, {} as any);
