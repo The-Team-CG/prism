@@ -325,6 +325,59 @@ export type SubmitSupplierQuoteInput = z.infer<typeof submitSupplierQuoteSchema>
 
 /* ── Live ops ─────────────────────────────────────────────────── */
 
+export const createEventScheduleDaySchema = z.object({
+  dayDate: isoDateStringSchema,
+  label: optionalTrimmedStringSchema,
+});
+export type CreateEventScheduleDayInput = z.infer<typeof createEventScheduleDaySchema>;
+
+export const createEventScheduleSegmentSchema = z.object({
+  title: nonEmptyStringSchema,
+  plannedStartAt: z.string().datetime({ offset: true }),
+  plannedEndAt: z.string().datetime({ offset: true }),
+  ownerRole: nonEmptyStringSchema,
+  location: optionalTrimmedStringSchema,
+  sequence: z.number().int().min(0).optional(),
+}).refine((value) => new Date(value.plannedEndAt).getTime() > new Date(value.plannedStartAt).getTime(), {
+  message: "plannedEndAt must be after plannedStartAt",
+  path: ["plannedEndAt"],
+});
+export type CreateEventScheduleSegmentInput = z.infer<typeof createEventScheduleSegmentSchema>;
+
+export const updateEventScheduleSegmentStatusSchema = z.object({
+  action: z.enum(["start", "stop", "skip"]),
+});
+export type UpdateEventScheduleSegmentStatusInput = z.infer<typeof updateEventScheduleSegmentStatusSchema>;
+
+export const createEventOperatorDesignationSchema = z.object({
+  coordinatorId: nonEmptyStringSchema,
+});
+export type CreateEventOperatorDesignationInput = z.infer<typeof createEventOperatorDesignationSchema>;
+
+export const createEventHandoffSchema = z.object({
+  dayId: nonEmptyStringSchema,
+  role: nonEmptyStringSchema,
+  fromAssignmentId: nonEmptyStringSchema,
+  toAssignmentId: nonEmptyStringSchema,
+  outstandingItems: z.array(nonEmptyStringSchema).max(100).default([]),
+  handedOffAt: z.string().datetime({ offset: true }).optional(),
+});
+export type CreateEventHandoffInput = z.infer<typeof createEventHandoffSchema>;
+
+export const createEventEodReportSchema = z.object({
+  dayId: nonEmptyStringSchema,
+  progress: z.array(nonEmptyStringSchema).max(100).default([]),
+  issues: z.array(nonEmptyStringSchema).max(100).default([]),
+  risksForTomorrow: z.array(nonEmptyStringSchema).max(100).default([]),
+  submittedAt: z.string().datetime({ offset: true }).optional(),
+});
+export type CreateEventEodReportInput = z.infer<typeof createEventEodReportSchema>;
+
+export const createEventEodReplySchema = z.object({
+  body: nonEmptyStringSchema,
+});
+export type CreateEventEodReplyInput = z.infer<typeof createEventEodReplySchema>;
+
 export const createEventDayTaskSchema = z.object({
   title: nonEmptyStringSchema,
   assignedRole: optionalTrimmedStringSchema,
