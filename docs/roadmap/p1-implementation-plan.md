@@ -42,6 +42,14 @@ All 24 packages start under assessment; this table is an execution allocation, n
 
 ## Verification and delivery sequence
 
+### W12 — CE and proposal lifecycle delivery (2026-09-08)
+
+Delivered shared Zod contracts for category cost estimates, CE line totals, budget alignment, source-line reuse references, proposal issuance, and the extended briefing journey (confirmed date/time, structured program, mood/styling and styling budget). Added transactional `finance_ops` persistence for estimates, line items and proposal versions. Issuing a proposal requires an unlocked event before event day, assigns a monotonic per-event version number, supersedes the prior version and retains it as immutable history; every mutation writes the existing audit record atomically. Existing P0 client review guards and idempotency remain the review path.
+
+Policy defaults are named in `PROPOSAL_LIFECYCLE_POLICY`: issued versions are immutable; numbering is monotonic per event; revisions supersede while retaining history; revisions are allowed while unlocked and before event day; client accept/request-changes/decline decisions require negative-path reasons. Owner B (Francis), with C/D support, must confirm these defaults before production policy lock. Client decision history remains represented by the existing audited review records; a dedicated decision table and rendered document are residual scope.
+
+Evidence: Prisma validate exit 0 and Prisma generate exit 0. Full API typecheck and database migration acceptance are environment-gated in this isolated worktree because package symlinks resolve the shared baseline types and no PostgreSQL/Docker runtime is available; run the normal types build, API typecheck, focused commercial/event-lifecycle tests, boundaries, and disposable PostgreSQL migration/concurrency suites on the integration branch. Proposal PDF/export is intentionally pending W10 storage provider approval and W43 OAuth export work; no document or approval is fabricated.
+
 1. Correct V01 and establish current workspace package builds and targeted baselines.
 2. Inspect the exact catalog rows and existing code before each slice; record a concrete design and any missing policy/input.
 3. Implement contracts, transactional API behavior and the correct role UI; retain idempotency, event scope and rejected-state coverage.
