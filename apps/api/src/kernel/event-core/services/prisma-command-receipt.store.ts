@@ -11,7 +11,7 @@ export class PrismaCommandReceiptStore implements CommandReceiptStore {
 
   async find(key: CommandReceiptKey, context?: PrismTransactionContext): Promise<CommandReceiptRecord | null> {
     return this.database(context).opsCommandReceipt.findUnique({
-      where: { commandName_idempotencyKey_actorId: key },
+      where: { commandName_idempotencyKey_actorId_eventScope: key },
     });
   }
 
@@ -22,6 +22,7 @@ export class PrismaCommandReceiptStore implements CommandReceiptStore {
         commandName: input.commandName,
         idempotencyKey: input.idempotencyKey,
         actorId: input.actorId,
+        eventScope: input.eventScope,
         actorRole: input.actorRole,
         eventId: input.eventId ?? null,
         correlationId: input.correlationId,
