@@ -8,6 +8,7 @@ import {
   assertInsideWorktrees,
   collectLinkedDirectories,
   planEnvFiles,
+  prepareWorktree,
   removeWorktreeTree,
   upsertEnvLines,
 } from "./prism-worktree.mjs";
@@ -21,14 +22,31 @@ function makeRepo() {
 
 describe("worktree path containment", () => {
   it("accepts a worktree directory and rejects anything outside it", () => {
-    const repo = "C:/repo";
-    assert.equal(
-      assertInsideWorktrees(repo, "C:/repo/.worktrees/alpha"),
-      path.resolve("C:/repo/.worktrees/alpha"),
-    );
-    assert.throws(() => assertInsideWorktrees(repo, "C:/repo/.worktrees"), /Refusing to touch/);
-    assert.throws(() => assertInsideWorktrees(repo, "C:/repo/apps/api"), /Refusing to touch/);
-    assert.throws(() => assertInsideWorktrees(repo, "C:/repo/.worktrees/../../elsewhere"), /Refusing to touch/);
+    const repo = makeRepo();
+    try {
+      fs.mkdirSync(path.join(repo, ".worktrees"), { recursive: true });
+      assert.equal(assertInsideWorktrees(repo, path.join(repo, ".worktrees", "alpha")), path.resolve(repo, ".worktrees", "alpha"));
+      assert.throws(() => assertInsideWorktrees(repo, path.join(repo, ".worktrees")), /Refusing to touch/);
+      assert.throws(() => assertInsideWorktrees(repo, path.join(repo, "apps", "api")), /Refusing to touch/);
+      assert.throws(() => assertInsideWorktrees(repo, path.join(repo, ".worktrees", "..", "elsewhere")), /Refusing to touch/);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a .worktrees root junction and leaves the external canary untouched", () => {
+    const repo = makeRepo();
+    const external = fs.mkdtempSync(path.join(os.tmpdir(), "prism-worktree-external-root-"));
+    const canary = path.join(external, "canary.txt");
+    fs.writeFileSync(canary, "preserve me\n");
+    try {
+      fs.symlinkSync(external, path.join(repo, ".worktrees"), "junction");
+      assert.throws(() => assertInsideWorktrees(repo, path.join(repo, ".worktrees", "alpha")), /symlink|junction|outside/i);
+      assert.equal(fs.readFileSync(canary, "utf8"), "preserve me\n");
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+      fs.rmSync(external, { recursive: true, force: true });
+    }
   });
 
   it("refuses a worktree root that is a junction", () => {
@@ -109,5 +127,32 @@ describe("worktree env preparation", () => {
     ]);
     assert.equal(plan[0].entries.PORT, 4310);
     assert.equal(plan[1].entries.NEXT_PUBLIC_API_URL, "http://localhost:4310");
+  });
+
+  it("seeds examples by default and copies local credentials only with opt-in", () => {
+    const primary = makeRepo();
+    const target = makeRepo();
+    const ports = { api: 4310, client: 3311, supplier: 3312, guest: 3313, event: 3314 };
+    try {
+      fs.mkdirSync(path.join(primary, "apps", "api"), { recursive: true });
+      fs.mkdirSync(path.join(primary, "apps", "client"), { recursive: true });
+      fs.writeFileSync(path.join(primary, "apps", "api", ".env"), "DATABASE_URL=LOCAL_SECRET\n");
+      fs.writeFileSync(path.join(primary, "apps", "api", ".env.example"), "DATABASE_URL=EXAMPLE\n");
+      fs.writeFileSync(path.join(primary, "apps", "client", ".env.example"), "NEXT_PUBLIC_API_URL=EXAMPLE\n");
+      prepareWorktree({ worktreeRoot: target, primaryRoot: primary, ports });
+      assert.match(fs.readFileSync(path.join(target, "apps", "api", ".env"), "utf8"), /DATABASE_URL=EXAMPLE/);
+      assert.doesNotMatch(fs.readFileSync(path.join(target, "apps", "api", ".env"), "utf8"), /LOCAL_SECRET/);
+
+      const optedIn = makeRepo();
+      try {
+        prepareWorktree({ worktreeRoot: optedIn, primaryRoot: primary, ports, copyLocalEnv: true });
+        assert.match(fs.readFileSync(path.join(optedIn, "apps", "api", ".env"), "utf8"), /DATABASE_URL=LOCAL_SECRET/);
+      } finally {
+        fs.rmSync(optedIn, { recursive: true, force: true });
+      }
+    } finally {
+      fs.rmSync(primary, { recursive: true, force: true });
+      fs.rmSync(target, { recursive: true, force: true });
+    }
   });
 });

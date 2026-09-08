@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isOwnedByThisCheckout } from "./port-ownership.cjs";
+import ownership from "./port-ownership.cjs";
+
+const { isOwnedByThisCheckout, leaseForProcessChain, leaseMatchesProcess, ownershipFromLeases } = ownership;
 
 describe("port ownership proof", () => {
   it("prevents the primary checkout from claiming a worktree process", () => {
@@ -32,5 +34,39 @@ describe("port ownership proof", () => {
       isOwnedByThisCheckout({ commandLine: "node C:\\repo\\apps\\api\\main.js" }, "C:\\repo"),
       true,
     );
+  });
+
+  it("uses the durable lease when node_modules resolves into the primary checkout", () => {
+    const lease = { ownerRoot: "c:/repo/.worktrees/alpha", app: "api", pid: 42, startTime: 1234 };
+    const process = { pid: 42, startTime: 1234, executablePath: "c:/repo/node_modules/node.exe" };
+    assert.equal(leaseMatchesProcess(lease, process), true);
+    assert.equal(ownershipFromLeases(process, "C:/repo/.worktrees/alpha", [lease]), "owned");
+    assert.equal(ownershipFromLeases(process, "C:/repo", [lease]), "foreign");
+  });
+
+  it("finds a supervisor lease through a listening descendant ancestry", () => {
+    const lease = { ownerRoot: "c:/repo/.worktrees/alpha", app: "api", pid: 41, startTime: 1111 };
+    const supervisor = { pid: 41, startTime: 1111, parentPid: 10 };
+    const listener = { pid: 99, startTime: 2222, parentPid: 41, executablePath: "c:/repo/node_modules/node.exe" };
+    const match = leaseForProcessChain([listener, supervisor], [lease], "api");
+    assert.equal(match.lease, lease);
+    assert.equal(match.process, supervisor);
+    const directLease = { ownerRoot: "c:/repo/.worktrees/alpha", app: "client", pid: 99, startTime: 2222 };
+    assert.equal(leaseForProcessChain([listener], [directLease], "client").process, listener);
+    assert.equal(leaseForProcessChain([listener, supervisor], [lease, directLease], "supplier"), null);
+  });
+
+  it("classifies ownership using the requested app when lease identities collide", () => {
+    const process = { pid: 77, startTime: 3333 };
+    const clientLease = { ownerRoot: "c:/repo", app: "client", pid: 77, startTime: 3333 };
+    const apiLease = { ownerRoot: "c:/repo/.worktrees/alpha", app: "api", pid: 77, startTime: 3333 };
+    assert.equal(ownershipFromLeases(process, "C:/repo", [clientLease, apiLease], "api"), "foreign");
+    assert.equal(ownershipFromLeases(process, "C:/repo/.worktrees/alpha", [clientLease, apiLease], "api"), "owned");
+  });
+
+  it("rejects stale or reused PID markers", () => {
+    const lease = { ownerRoot: "c:/repo/.worktrees/alpha", pid: 42, startTime: 1234 };
+    assert.equal(ownershipFromLeases({ pid: 42, startTime: 9999 }, "C:/repo/.worktrees/alpha", [lease]), "unknown");
+    assert.equal(ownershipFromLeases({ pid: 43, startTime: 1234 }, "C:/repo/.worktrees/alpha", [lease]), "unknown");
   });
 });

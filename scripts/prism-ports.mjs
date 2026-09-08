@@ -8,6 +8,8 @@
  * time instead of fighting over one port and killing each other's processes.
  */
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -26,9 +28,11 @@ export const PRISM_PORTAL_APPS = Object.freeze(PRISM_APPS.filter((app) => app !=
 const OFFSET_STEP = 10;
 /** 48 slots keeps the highest derived port (4480) well below the ephemeral range. */
 const OFFSET_SLOTS = 48;
+const SLOT_METADATA_FILE = "prism-port-slots.json";
 
 export function normalizeWorktreePath(value) {
-  return String(value ?? "").replace(/\\/g, "/").replace(/\/{2,}/g, "/").replace(/\/$/, "").toLowerCase();
+  const raw = String(value ?? "").trim();
+  return raw ? path.resolve(raw).replace(/\\/g, "/").replace(/\/{2,}/g, "/").replace(/\/$/, "").toLowerCase() : "";
 }
 
 /** FNV-1a over a normalized path, so the same worktree always gets the same slot. */
@@ -53,12 +57,20 @@ export function derivePortOffset({ worktreeRoot, isPrimary }) {
 }
 
 /** Assigns each existing linked worktree a deterministic, collision-free slot. */
-export function assignPortSlots(worktreePaths) {
+export function assignPortSlots(worktreePaths, previousAssignments = {}) {
   const normalizedPaths = [...new Set(worktreePaths.map(normalizeWorktreePath).filter(Boolean))].sort();
   const assignments = {};
   const used = new Set();
 
   for (const worktreePath of normalizedPaths) {
+    const prior = Number(previousAssignments[worktreePath]);
+    if (Number.isInteger(prior) && prior > 0 && prior <= OFFSET_SLOTS && !used.has(prior)) {
+      assignments[worktreePath] = prior;
+      used.add(prior);
+    }
+  }
+  for (const worktreePath of normalizedPaths) {
+    if (assignments[worktreePath]) continue;
     const preferred = (hashWorktreePath(worktreePath) % OFFSET_SLOTS) + 1;
     let slot = preferred;
     for (let attempts = 0; attempts < OFFSET_SLOTS && used.has(slot); attempts += 1) {
@@ -116,6 +128,55 @@ export function listWorktreePaths(cwd = process.cwd()) {
   return [...output.matchAll(/^worktree\s+(.+)$/gm)].map((match) => path.resolve(match[1].trim()));
 }
 
+function sleepBriefly() {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+}
+
+function withMetadataLock(metadataPath, callback) {
+  const lockPath = `${metadataPath}.lock`;
+  fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
+  let handle;
+  for (let attempt = 0; attempt < 200 && !handle; attempt += 1) {
+    try {
+      handle = fs.openSync(lockPath, "wx");
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      try {
+        if (Date.now() - fs.statSync(lockPath).mtimeMs > 30_000) fs.rmSync(lockPath, { force: true });
+      } catch {
+        // Another writer may be replacing the lock.
+      }
+      sleepBriefly();
+    }
+  }
+  if (!handle) throw new Error(`Timed out acquiring port metadata lock ${lockPath}`);
+  try {
+    return callback();
+  } finally {
+    fs.closeSync(handle);
+    fs.rmSync(lockPath, { force: true });
+  }
+}
+
+function reconcilePortSlots(commonDir, linkedPaths) {
+  const metadataPath = path.join(commonDir, SLOT_METADATA_FILE);
+  return withMetadataLock(metadataPath, () => {
+    let previous = {};
+    if (fs.existsSync(metadataPath)) {
+      const parsed = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+      previous = parsed && parsed.slots && typeof parsed.slots === "object" ? parsed.slots : {};
+    }
+    const slots = assignPortSlots(linkedPaths, previous);
+    const next = { version: 1, slots };
+    if (JSON.stringify(next) !== JSON.stringify({ version: 1, slots: previous })) {
+      const temporary = `${metadataPath}.${process.pid}.${crypto.randomBytes(6).toString("hex")}.tmp`;
+      fs.writeFileSync(temporary, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+      fs.renameSync(temporary, metadataPath);
+    }
+    return slots;
+  });
+}
+
 /** Reads the live git layout. Falls back to "primary" when git is unavailable. */
 export function describeCheckout(cwd = process.cwd()) {
   try {
@@ -132,20 +193,16 @@ export function describeCheckout(cwd = process.cwd()) {
 
 export function resolveLivePortSet({ env = process.env, cwd = process.cwd() } = {}) {
   const checkout = describeCheckout(cwd);
-  let worktreeSlot;
-  if (!checkout.isPrimary) {
-    try {
-      const commonDir = gitValue(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd);
-      const primaryRoot = path.dirname(commonDir);
-      const linkedPaths = listWorktreePaths(cwd).filter(
-        (worktreePath) => normalizeWorktreePath(worktreePath) !== normalizeWorktreePath(primaryRoot),
-      );
-      const assignments = assignPortSlots(linkedPaths);
-      worktreeSlot = assignments[normalizeWorktreePath(checkout.worktreeRoot)];
-    } catch {
-      worktreeSlot = undefined;
-    }
+  const commonDir = gitValue(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd);
+  const primaryRoot = path.dirname(commonDir);
+  const worktreePaths = listWorktreePaths(cwd);
+  const linkedPaths = worktreePaths.filter((worktreePath) => normalizeWorktreePath(worktreePath) !== normalizeWorktreePath(primaryRoot));
+  if (!worktreePaths.some((worktreePath) => normalizeWorktreePath(worktreePath) === normalizeWorktreePath(checkout.worktreeRoot))) {
+    throw new Error(`Current checkout is absent from git worktree enumeration: ${checkout.worktreeRoot}`);
   }
+  const assignments = reconcilePortSlots(commonDir, linkedPaths);
+  const worktreeSlot = assignments[normalizeWorktreePath(checkout.worktreeRoot)];
+  if (!checkout.isPrimary && !worktreeSlot) throw new Error(`No persisted port slot for linked worktree ${checkout.worktreeRoot}`);
   return { ...checkout, ports: resolvePortSet({ env, ...checkout, worktreeSlot }) };
 }
 

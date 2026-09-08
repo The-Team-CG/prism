@@ -2,6 +2,8 @@
 
 ## 2026-09-08
 
+- **Updated:** Parallel-worktree runbook and launch guards with persisted Git metadata port slots, lease-backed PID/start identity ownership, reparse-root containment, example-first env seeding, ancestry-aware API cleanup, and linked-worktree Docker rejection.
+
 - **Added:** Parallel-worktree runbook covering checkout-derived dev ports, the port-guard ownership rule, and junction-safe worktree teardown.
 
 - **Updated:** P1 catalog implementation evidence through W15/W26/W51 integration: package-level effort/priority/risk status, partial scope, provider and policy blockers, PostgreSQL/Docker verification limits, and the remaining W29 policy gate are recorded in the catalog review and matrix.

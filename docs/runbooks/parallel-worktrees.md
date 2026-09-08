@@ -1,26 +1,26 @@
 # Parallel worktrees
 
-Two linked worktrees could not run the stack at the same time. Every portal had
-its port written into `apps/<portal>/package.json`, and the port guard identifies
-its target by matching argv substrings such as `next dev --port 3001`. A second
-worktree therefore started on the first worktree's port, matched its markers, and
-killed it.
+Two linked worktrees could not run the stack at the same time. Port assignments
+are now persisted in shared Git metadata, and the port guard uses a durable
+checkout lease with the process PID and creation identity. An unproven process is
+preserved for manual cleanup.
 
 ## Ports follow the checkout
 
 `scripts/prism-ports.mjs` resolves ports from the checkout instead of a literal.
 The primary checkout keeps the canonical ports, so nothing changes for ordinary
-work. A linked worktree derives a stable offset from its own path, in steps of
-ten, so its whole stack moves together and no two surfaces collide.
+work. Linked worktrees receive collision-free offsets in steps of ten. The
+assignment file prunes worktrees that no longer exist and refuses to resolve
+ports when Git enumeration or slot capacity is unavailable.
 
 ```bash
 npm run ports                 # print this checkout's ports, CORS origin, and API URL
 ```
 
-`PRISM_PORT_OFFSET` overrides the derived offset, including back to `0`, and
-`PRISM_<APP>_PORT` pins one surface. The port guard now refuses to stop a process
-whose argv points at a different checkout, so an explicit override cannot make one
-worktree kill another.
+`PRISM_PORT_OFFSET` overrides the assigned offset, including back to `0`, and
+`PRISM_<APP>_PORT` pins one surface. The port guard only stops a process with a
+matching lease and process creation identity; it does not use a global Node
+fallback when evidence is missing.
 
 ## Creating and removing a worktree
 
@@ -30,10 +30,16 @@ npm run worktree:setup                     # prepare the worktree you are standi
 npm run worktree:remove -- <name>          # junction-safe teardown
 ```
 
-Setup seeds `apps/api/.env` and each portal `.env.local` from the primary checkout
-(falling back to the committed examples), then writes that worktree's `PORT`,
-`CORS_ORIGIN`, and `NEXT_PUBLIC_API_URL`. Dependencies are not installed for you;
-run the install yourself in the new worktree.
+Setup seeds `apps/api/.env` and each portal `.env.local` from the committed
+examples, then writes that worktree's `PORT`, `CORS_ORIGIN`, and
+`NEXT_PUBLIC_API_URL`. To intentionally copy the primary checkout's local
+database credentials, pass `--copy-local-env`; setup prints an explicit warning
+when it does so. Dependencies are not installed for you; run the install yourself
+in the new worktree.
+
+Linked worktrees use local Node processes. Docker Compose exposes the canonical
+primary-checkout ports, so `start-prism.ps1 -Docker` fails clearly from a linked
+worktree instead of starting a colliding stack.
 
 ## Why removal is not a recursive delete
 

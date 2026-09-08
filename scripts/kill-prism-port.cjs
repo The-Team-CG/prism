@@ -1,5 +1,5 @@
 const { execFileSync, execSync } = require('node:child_process');
-const { hasWorktreeSegment, isOwnedByThisCheckout } = require('./port-ownership.cjs');
+const { leaseForProcessChain, ownershipFromLeases, readCheckoutLeases } = require('./port-ownership.cjs');
 
 const presets = {
   api: [
@@ -51,6 +51,13 @@ function normalize(value) {
   return String(value || '').toLowerCase();
 }
 
+function parseStartTime(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const parsed = Date.parse(String(value || ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function runPowerShell(command) {
   return execFileSync('powershell', ['-NoProfile', '-Command', command], { encoding: 'utf8' }).trim();
 }
@@ -84,7 +91,7 @@ function getPortPids() {
 function getProcInfo(pid) {
   try {
     const json = runPowerShell(
-      `Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}" | Select-Object ProcessId,Name,CommandLine,ExecutablePath,ParentProcessId | ConvertTo-Json`,
+      `Get-CimInstance Win32_Process -Filter "ProcessId = ${pid}" | Select-Object ProcessId,Name,CommandLine,ExecutablePath,ParentProcessId,@{Name='StartTime';Expression={$_.CreationDate.ToFileTimeUtc()}} | ConvertTo-Json`,
     );
 
     if (!json) return null;
@@ -98,6 +105,7 @@ function getProcInfo(pid) {
       commandLine: normalize(row.CommandLine),
       executablePath: normalize(row.ExecutablePath),
       parentPid: Number(row.ParentProcessId) || 0,
+      startTime: parseStartTime(row.StartTime),
     };
   } catch {
     try {
@@ -115,6 +123,7 @@ function getProcInfo(pid) {
         commandLine: '',
         executablePath: normalize(row.Path),
         parentPid: 0,
+        startTime: parseStartTime(row.StartTime),
       };
     } catch {
       return {
@@ -123,48 +132,24 @@ function getProcInfo(pid) {
         commandLine: '',
         executablePath: '',
         parentPid: 0,
+        startTime: 0,
       };
     }
   }
 }
 
-function isPrismCandidate(procInfo) {
-  if (!procInfo || procInfo.name !== 'node') return false;
-
-  const combined = [procInfo.commandLine, procInfo.executablePath, procInfo.name].join(' ');
-  return markers.some((marker) => combined.includes(normalize(marker)));
-}
-
-function getChildrenMap(processes) {
-  const map = new Map();
-
-  for (const proc of processes) {
-    if (!proc) continue;
-    if (!map.has(proc.pid)) map.set(proc.pid, []);
-
-    if (proc.parentPid > 0 && processes.some((entry) => entry && entry.pid === proc.parentPid)) {
-      if (!map.has(proc.parentPid)) map.set(proc.parentPid, []);
-      map.get(proc.parentPid).push(proc.pid);
-    }
+function collectAncestry(proc, processCache) {
+  const chain = [];
+  const visited = new Set();
+  let current = proc;
+  while (current && current.pid > 0 && !visited.has(current.pid)) {
+    visited.add(current.pid);
+    chain.push(current);
+    if (current.parentPid <= 0) break;
+    if (!processCache.has(current.parentPid)) processCache.set(current.parentPid, getProcInfo(current.parentPid));
+    current = processCache.get(current.parentPid);
   }
-
-  return map;
-}
-
-function collectDescendants(seedPids, childrenMap) {
-  const out = new Set();
-  const queue = [...seedPids];
-
-  while (queue.length) {
-    const current = queue.shift();
-    if (!current || out.has(current)) continue;
-    out.add(current);
-
-    const children = childrenMap.get(current) || [];
-    for (const child of children) queue.push(child);
-  }
-
-  return out;
+  return chain;
 }
 
 function stopPid(pid) {
@@ -204,21 +189,28 @@ for (const proc of blockers) {
   log(describeProcess(proc));
 }
 
-const childrenMap = getChildrenMap(blockers);
-const mayUseLenientFallback = (proc) => !proc.commandLine && !hasWorktreeSegment([proc.commandLine, proc.executablePath].join(' '));
-const foreignPids = new Set(
-  blockers
-    .filter((proc) => !isOwnedByThisCheckout(proc, ownerRoot) && !mayUseLenientFallback(proc))
-    .map((proc) => proc.pid),
-);
-const confirmedRoots = blockers.filter((proc) => isPrismCandidate(proc) && !foreignPids.has(proc.pid));
-const confirmedSet = new Set(confirmedRoots.map((proc) => proc.pid));
-const confirmedWithDescendants = collectDescendants([...confirmedSet], childrenMap);
-
-let toKill = new Set(confirmedWithDescendants);
-const nodeWithoutCommandLine = blockers.filter((proc) => proc.name === 'node' && !proc.commandLine);
-const hasUnverifiedNode = nodeWithoutCommandLine.some((proc) => !confirmedSet.has(proc.pid));
-
+let leases;
+try {
+  leases = readCheckoutLeases(ownerRoot);
+} catch (error) {
+  log(`Unable to read checkout leases; refusing to stop any process: ${error.message}`);
+  process.exit(1);
+}
+const processCache = new Map(blockers.map((proc) => [proc.pid, proc]));
+const ownedLeaseRoots = new Map();
+const foreignPids = new Set();
+for (const blocker of blockers) {
+  const chain = collectAncestry(blocker, processCache);
+  const match = leaseForProcessChain(chain, leases, app);
+  if (!match) continue;
+  if (ownershipFromLeases(match.process, ownerRoot, leases, app) === 'owned') {
+    ownedLeaseRoots.set(match.lease.pid, match.process);
+  } else {
+    for (const proc of chain) foreignPids.add(proc.pid);
+  }
+}
+const confirmedSet = new Set(ownedLeaseRoots.keys());
+const toKill = new Set(confirmedSet);
 if (mode === 'force') {
   if (confirmedSet.size === 0) {
     log(`PORT_GUARD_MODE=force: no confirmed ${app} processes identified.`);
@@ -228,12 +220,7 @@ if (mode === 'force') {
 
   log(`PORT_GUARD_MODE=force: only confirmed ${app} process chain will be stopped.`);
 } else {
-  if (hasUnverifiedNode && confirmedSet.size === 0) {
-    log('Lenient fallback: command-line unavailable for one or more node blockers; clearing node processes on this port.');
-    for (const proc of nodeWithoutCommandLine) {
-      toKill.add(proc.pid);
-    }
-  }
+  log('Lenient mode still requires a live checkout lease with matching process identity; unproven blockers are preserved.');
 }
 
 if (foreignPids.size > 0) {
@@ -255,10 +242,6 @@ if (!killedAny) {
   log('Failed to stop identified blockers.');
   printManualCleanup(blockers);
   process.exit(1);
-}
-
-if (mode === 'lenient' && hasUnverifiedNode && confirmedSet.size === 0) {
-  log('Warning: lenient fallback killed node process(es) without strong app marker due command-line access issues.');
 }
 
 setTimeout(() => process.exit(0), 600);
