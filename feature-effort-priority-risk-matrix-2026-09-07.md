@@ -30,7 +30,7 @@ sources:
 - **Owner:** D coordinates; each work row names its operational owner goal.
 - **Scope:** 137 catalog IDs and 52 tracked packages: **nine P0 packages completed within their bounded scope, 43 packages remaining** (24 P1, 11 P2, eight P3).
 - **Use/change:** Plan remaining implementation using current catalog gaps, satisfied prerequisites and explicit external gates.
-- **Verification gate:** V01 remains open: the fresh boundary scan rejects the supplier ownership database fixture under read-models. This is a branch verification defect, separate from the 43 remaining catalog work packages; see the readiness report before treating the implementation as merge-ready.
+- **Verification gate:** The historical P0 review recorded V01 as open; the current P1 integration boundary scan passes. PostgreSQL/Docker-backed migration and concurrency acceptance remain unavailable and are tracked separately from package implementation.
 - **Catalog status:** 13 implemented, 77 partial, 47 not implemented; 73 have an overlapping current blocker.
 - **Verify with:** The [updated catalog review](feature-catalog-review-2026-09-07.md) and [P0 acceptance evidence](docs/roadmap/p0-correctness-readiness.md).
 
@@ -38,7 +38,7 @@ This refresh assesses implementation commit `02b6896f56b58476dba0bc736cdf9cb1122
 
 ## 2026-09-08 P1 implementation update
 
-The P1 integration branch `codex/p1-implementation-2026-09-08` now includes the W25, W26 and W51 deliveries in addition to the earlier P1 slices. The status below is package-level engineering evidence; **Implemented local slice** means the repository behavior is present and tested, while provider, policy, database and browser gates can still keep the catalog feature **Partial**.
+The P1 integration branch `codex/p1-implementation-2026-09-08` now includes the W15, W25, W26 and W51 deliveries in addition to the earlier P1 slices. The status below is package-level engineering evidence; **Implemented local slice** means the repository behavior is present and tested, while provider, policy, database and browser gates can still keep the catalog feature **Partial**.
 
 | Package | Effort | Priority / risk | Current package status | Remaining gap or blocker |
 | --- | --- | --- | --- | --- |
@@ -47,7 +47,7 @@ The P1 integration branch `codex/p1-implementation-2026-09-08` now includes the 
 | W12 proposal/CE | XL | High / High | Implemented local slice | W10 storage, approved proposal policy and W43 export depth. |
 | W13 onboarding/documents | XL | High / High | Implemented local slice | W10 bytes, W11 invitations and W41 bid onboarding. |
 | W14 billing | XL | High / High | Implemented local slice | Production document storage, billing-policy confirmation and W11 reminders. |
-| W15 supplier application/status | L | Medium / High | In progress | Application/status parity and promotion acceptance are being closed in the remaining Luna slice. |
+| W15 supplier application/status | L | Medium / High | Integrated local slice | Public application status now uses a redacted email-matched lookup; promotion foundations remain tied to W40 assessment and PMCM review. |
 | W16 supplier selection/readiness | XXL | High / High | Implemented local slice | Client-owned supplier tickets, escalation semantics, W10 bytes and W11 delivery. |
 | W17 communication threads | L | High / Medium | Implemented local slice | External delivery remains W11-gated. |
 | W18 staffing | XL | High / High | Implemented local slice | W10/W11 provider work and W45 recommendations. |
