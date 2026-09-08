@@ -118,6 +118,30 @@ export class StorageObjectService {
     return this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
   }
 
+  /** Returns the event file hub metadata after applying the same event and role policy as downloads. */
+  async listEventObjects(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismStoredObject[]> {
+    const event = await this.findEvent(eventId);
+    await this.requireActorEventScope(actor, eventId, 'list event documents');
+    await this.accessPolicy.requireCanReadEvent(actor, event, 'list event documents', {
+      supplierEventIds: this.supplierEventScope(actor, event.id, event.supplierQuoteRequests),
+    });
+    const objects = await this.prisma.opsStoredObject.findMany({
+      where: { eventId, lifecycleState: { in: ['requested', 'stored', 'failed'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return objects
+      .filter((object) => this.canSeeObject(actor, object))
+      .map((object) => this.mapObject(object));
+  }
+
+  private canSeeObject(actor: ResolvedEventOpsActor, object: OpsStoredObject) {
+    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
+    if (object.usage === 'signed_conforme') return actor.role === OpsUserRole.Client;
+    if (object.usage === 'event_deliverable') return actor.role === OpsUserRole.Client || actor.role === OpsUserRole.Coordinator;
+    if (object.usage === 'supplier_document') return actor.role === OpsUserRole.Supplier && object.ownerRecordId === actor.supplierId;
+    return false;
+  }
+
   async deleteObject(input: StorageServiceDeletion): Promise<PrismStoredObject> {
     const prisma = this.database(input.context);
     const object = await prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
