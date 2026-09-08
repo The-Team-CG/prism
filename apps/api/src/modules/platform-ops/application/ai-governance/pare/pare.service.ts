@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { OpsAiApprovalRecord, OpsAiAuditLog } from '@prisma/client';
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { OpsAiApprovalRecord, OpsAiAuditLog, Prisma } from '@prisma/client';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
+import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { assertPareExecutionAllowed, configuredPareMode, type PAREMode } from './pare-execution.policy';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { EventContextAgent } from './agents/event-context.agent';
@@ -19,33 +21,82 @@ import type {
   PAREResult,
   PARERisk,
 } from './pare.types';
+import type { PareApprovalGovernance } from '../../../contracts/ai-governance/pare-approval-governance.port';
 
 type ApprovalRow = {
   id: string;
   aiAuditLogId: string;
+  featureName: string;
   eventId?: string | null;
   status: string;
   approvedBy?: string | null;
   approvedAt?: Date | string | null;
   requestedAt?: Date | string | null;
+  sourceDispatchId?: string | null;
 };
 type AuditRow = {
   id: string;
+  featureName?: string | null;
   eventId?: string | null;
   modelVersion?: string | null;
   sanitizedPayload?: unknown;
   createdAt?: Date | string | null;
 };
 
-function requireMatchingAudit(record: OpsAiApprovalRecord, audit: OpsAiAuditLog | null): OpsAiAuditLog {
-  if (!audit || audit.featureName !== 'PARE' || audit.eventId !== record.eventId) {
+function assertMatchingAuditCore<
+  TRecord extends Pick<ApprovalRow, 'eventId' | 'featureName' | 'sourceDispatchId'>,
+  TAudit extends Pick<AuditRow, 'eventId' | 'featureName' | 'sanitizedPayload'>,
+>(record: TRecord, audit: TAudit | null): asserts audit is TAudit & { eventId: string; featureName: 'PARE' } {
+  if (!audit) throw new BadRequestException('A matching durable PARE audit is required');
+  if (audit.featureName !== 'PARE') throw new BadRequestException('A matching durable PARE audit is required');
+  if (!record.eventId) throw new BadRequestException('A matching durable PARE audit is required');
+  if (!audit.eventId) throw new BadRequestException('A matching durable PARE audit is required');
+  if (audit.eventId !== record.eventId) throw new BadRequestException('A matching durable PARE audit is required');
+  const requestId = auditRequestId(audit);
+  if (!requestId) throw new BadRequestException('A matching durable PARE audit is required');
+  const payloadEventId = auditEventId(audit);
+  if (!payloadEventId) throw new BadRequestException('A matching durable PARE audit is required');
+  if (payloadEventId !== audit.eventId) throw new BadRequestException('A matching durable PARE audit is required');
+}
+
+function requireMatchingAudit<
+  TRecord extends Pick<ApprovalRow, 'eventId' | 'featureName' | 'sourceDispatchId'>,
+  TAudit extends Pick<AuditRow, 'eventId' | 'featureName' | 'sanitizedPayload'>,
+>(record: TRecord, audit: TAudit | null, expectedRequestId?: string, expectedSourceDispatchId?: string): TAudit & { eventId: string; featureName: 'PARE' } {
+  assertMatchingAuditCore(record, audit);
+  const requestId = auditRequestId(audit);
+  if (expectedRequestId !== undefined && requestId !== expectedRequestId) {
+    throw new BadRequestException('A matching durable PARE audit is required');
+  }
+  if (expectedSourceDispatchId !== undefined && record.sourceDispatchId !== expectedSourceDispatchId) {
     throw new BadRequestException('A matching durable PARE audit is required');
   }
   return audit;
 }
 
+function auditPayload(audit: Pick<AuditRow, 'sanitizedPayload'>): Record<string, unknown> {
+  const payload = audit?.sanitizedPayload !== undefined && audit.sanitizedPayload !== null && typeof audit.sanitizedPayload === 'object' && !Array.isArray(audit.sanitizedPayload)
+    ? audit.sanitizedPayload as Record<string, unknown>
+    : {};
+  return payload;
+}
+
+function auditRequestId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
+  const data = auditPayload(audit);
+  return typeof data.requestId === 'string' ? data.requestId : typeof data.triggerId === 'string' ? data.triggerId : '';
+}
+
+function auditEventId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
+  const value = auditPayload(audit).eventId;
+  return typeof value === 'string' ? value : '';
+}
+
+function isAbortSignal(value: unknown): value is AbortSignal {
+  return Boolean(value && typeof value === 'object' && 'aborted' in value && 'addEventListener' in value);
+}
+
 @Injectable()
-export class PAREService {
+export class PAREService implements PareApprovalGovernance {
   private readonly mode: PAREMode;
   private readonly sanitizer: DataSanitizerService;
   private readonly eventContextAgent: EventContextAgent;
@@ -54,7 +105,10 @@ export class PAREService {
   private readonly riskAgent: RiskAgent;
   private readonly messageDrafterAgent: MessageDrafterAgent;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @Inject(AUDIT_WRITER) private readonly auditWriter?: AuditWriter,
+  ) {
     this.mode = configuredPareMode(process.env.PARE_MODE);
     this.sanitizer = new DataSanitizerService();
     this.eventContextAgent = new EventContextAgent(prisma);
@@ -64,26 +118,42 @@ export class PAREService {
     this.messageDrafterAgent = new MessageDrafterAgent(this.mode);
   }
 
-  async handleEmergencyTrigger(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREApprovalRecord> {
+  async handleEmergencyTrigger(
+    triggerId: string,
+    sourceDispatchIdOrPrefetched?: string | NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]>,
+    prefetchedOrSignal?: NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]> | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<PAREApprovalRecord> {
+    const sourceDispatchId = typeof sourceDispatchIdOrPrefetched === 'string' ? sourceDispatchIdOrPrefetched : undefined;
+    const executionSignal = isAbortSignal(prefetchedOrSignal) ? prefetchedOrSignal : signal;
+    const preparedContext = typeof sourceDispatchIdOrPrefetched === 'object'
+      ? sourceDispatchIdOrPrefetched
+      : isAbortSignal(prefetchedOrSignal) ? undefined : prefetchedOrSignal;
+    if (sourceDispatchId) {
+      const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
+      if (existing) return this.mapApprovalRecordWithAudit(existing, triggerId, sourceDispatchId);
+    }
     assertPareExecutionAllowed(this.mode);
+    this.throwIfAborted(executionSignal);
     const triggeredAt = new Date();
 
     // Agent 1 — event context
-    const ctx: PAREContext = await this.eventContextAgent.buildPareEventContext(triggerId, prefetched);
+    const ctx: PAREContext = await this.eventContextAgent.buildPareEventContext(triggerId, preparedContext, Boolean(sourceDispatchId), executionSignal);
 
     // Agent 2 — find replacement candidates
-    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx);
+    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx, executionSignal);
 
     // Agents 3 + 4 — run in parallel (independent of each other)
     const [budgetAnalysis, riskAssessment] = await Promise.all([
-      this.budgetAgent.runPareBudgetAgent(ctx),
-      this.riskAgent.runPareRiskAgent(ctx),
+      this.budgetAgent.runPareBudgetAgent(ctx, executionSignal),
+      this.riskAgent.runPareRiskAgent(ctx, executionSignal),
     ]);
     ctx.budgetAnalysis = budgetAnalysis;
     ctx.riskAssessment = riskAssessment;
 
     // Agent 5 — draft messages
-    ctx.drafts = await this.messageDrafterAgent.runPareMessageDraftAgent(ctx);
+    ctx.drafts = await this.messageDrafterAgent.runPareMessageDraftAgent(ctx, executionSignal);
+    this.throwIfAborted(executionSignal);
 
     const pareResult: PAREResult = {
       requestId: ctx.triggerId,
@@ -103,34 +173,81 @@ export class PAREService {
       pareResult as unknown as Record<string, unknown>,
     );
     const aiAuditLogId = randomUUID();
-    return this.prisma.$transaction(async (tx) => {
-      const audit = await tx.opsAiAuditLog.create({ data: {
-        id: aiAuditLogId,
-        eventId: ctx.eventId,
-        featureName: 'PARE',
-        modelVersion: 'mock',
-        dataCategories: toPrismaJson(dataCategories),
-        sanitizedPayload: toPrismaJson(sanitizedPayload),
-        zdrConfirmed: true,
-        humanApprovalRequired: true,
-        status: 'pending_human_approval',
-        createdAt: triggeredAt,
-      } });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        if (sourceDispatchId) {
+          const existing = await tx.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
+          if (existing) return this.mapApprovalRecordWithTransactionAudit(tx, existing, triggerId, sourceDispatchId);
+        }
+        const audit = await tx.opsAiAuditLog.create({ data: {
+          id: aiAuditLogId,
+          eventId: ctx.eventId,
+          featureName: 'PARE',
+          modelVersion: 'mock',
+          dataCategories: toPrismaJson(dataCategories),
+          sanitizedPayload: toPrismaJson(sanitizedPayload),
+          zdrConfirmed: true,
+          humanApprovalRequired: true,
+          status: 'pending_human_approval',
+          createdAt: triggeredAt,
+        } });
 
-    // Create approval record — PMCM Admin must approve before any action fires
-    const approvalRecordId = randomUUID();
-    const approval = await tx.opsAiApprovalRecord.create({ data: {
-        id: approvalRecordId,
-        aiAuditLogId,
-        eventId: ctx.eventId,
-        featureName: 'PARE',
-        requestedBy: 'PARE Engine',
-        status: 'pending_human_approval',
-        requestedAt: triggeredAt,
-      } });
+        const approval = await tx.opsAiApprovalRecord.create({ data: {
+          id: randomUUID(),
+          aiAuditLogId,
+          eventId: ctx.eventId,
+          featureName: 'PARE',
+          requestedBy: 'PARE Engine',
+          status: 'pending_human_approval',
+          requestedAt: triggeredAt,
+          sourceDispatchId: sourceDispatchId ?? null,
+        } });
 
-    return this.mapApprovalRecord(approval, audit);
+        return this.mapApprovalRecord(approval, audit);
+      });
+    } catch (error) {
+      if (sourceDispatchId) {
+        const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
+        if (existing) return this.mapApprovalRecordWithAudit(existing, triggerId, sourceDispatchId);
+      }
+      throw error;
+    }
+  }
+
+  async recordDispatchActivity(
+    dispatch: { id: string; eventId: string; requestId: string },
+    approval: PAREApprovalRecord,
+  ): Promise<void> {
+    if (!this.auditWriter) return;
+    const existing = await this.prisma.opsAuditLog.findFirst({
+      where: {
+        eventId: dispatch.eventId,
+        actionType: 'pare_triggered',
+        affectedType: 'supplier_quote_request',
+        affectedId: dispatch.requestId,
+      },
+      orderBy: { createdAt: 'desc' },
     });
+    if (existing) return;
+    const candidate = approval.pareResult.budgetAnalysis.selectedCandidate;
+    const label = candidate.supplierName
+      ? `Recommended: ${candidate.supplierName} (${approval.pareResult.mode} mode)`
+      : 'PARE engine completed';
+    await writeAudit(
+      this.auditWriter,
+      dispatch.eventId,
+      'PARE Engine',
+      `PARE triggered for ${approval.pareResult.withdrawnSupplier.name} - ${label}`,
+      {
+        actorRole: OpsUserRole.System,
+        actionType: 'pare_triggered',
+        category: AuditCategory.Suppliers,
+        affectedType: 'supplier_quote_request',
+        affectedId: dispatch.requestId,
+        affectedLabel: approval.pareResult.withdrawnSupplier.name,
+        metadata: { dispatchId: dispatch.id, approvalRecordId: approval.id, mode: approval.pareResult.mode },
+      },
+    );
   }
 
   async getPendingApprovals(eventId?: string): Promise<PAREApprovalRecord[]> {
@@ -163,6 +280,7 @@ export class PAREService {
       if (!record || record.featureName !== 'PARE') throw new NotFoundException('PARE recommendation not found');
       if (record.status !== 'pending_human_approval') throw new BadRequestException('Only pending PARE recommendations can be reviewed');
       const audit = requireMatchingAudit(record, await tx.opsAiAuditLog.findUnique({ where: { id: record.aiAuditLogId } }));
+      await this.assertDispatchMatches(tx, record, audit);
       if (status === 'approved') this.assertMockAudit(audit);
       const data = { status, humanApproved: status === 'approved', approvedBy: reviewedBy, approvedAt: new Date() };
       const claimed = await tx.opsAiApprovalRecord.updateMany({
@@ -184,9 +302,39 @@ export class PAREService {
     assertPareExecutionAllowed(verifiedMock ? 'mock' : 'live');
   }
 
-  private async mapApprovalRecordWithAudit(record: ApprovalRow): Promise<PAREApprovalRecord> {
+  private async mapApprovalRecordWithAudit(record: ApprovalRow, expectedRequestId?: string, expectedSourceDispatchId?: string): Promise<PAREApprovalRecord> {
     const audit = await this.findAuditLog(record.aiAuditLogId);
-    return this.mapApprovalRecord(record, audit);
+    const matchingAudit = requireMatchingAudit(record, audit, expectedRequestId, expectedSourceDispatchId);
+    await this.assertDispatchMatches(this.prisma, record, matchingAudit);
+    return this.mapApprovalRecord(record, matchingAudit);
+  }
+
+  private async mapApprovalRecordWithTransactionAudit(
+    tx: Prisma.TransactionClient,
+    record: ApprovalRow,
+    expectedRequestId?: string,
+    expectedSourceDispatchId?: string,
+  ): Promise<PAREApprovalRecord> {
+    const audit = await tx.opsAiAuditLog.findUnique({ where: { id: record.aiAuditLogId } });
+    const matchingAudit = requireMatchingAudit(record, audit, expectedRequestId, expectedSourceDispatchId);
+    await this.assertDispatchMatches(tx, record, matchingAudit);
+    return this.mapApprovalRecord(record, matchingAudit);
+  }
+
+  private async assertDispatchMatches(
+    prisma: { opsPareDispatch: { findUnique(args: { where: { id: string } }): Promise<{ requestId: string; eventId: string } | null> } },
+    record: ApprovalRow,
+    audit: Pick<AuditRow, 'sanitizedPayload'>,
+  ) {
+    if (!record.sourceDispatchId) return;
+    const dispatch = await prisma.opsPareDispatch.findUnique({ where: { id: record.sourceDispatchId } });
+    if (!dispatch || dispatch.requestId !== auditRequestId(audit) || dispatch.eventId !== record.eventId) {
+      throw new BadRequestException('A matching durable PARE audit is required');
+    }
+  }
+
+  private throwIfAborted(signal?: AbortSignal) {
+    if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('PARE execution aborted');
   }
 
   private async findAuditLog(aiAuditLogId: string): Promise<AuditRow | null> {
