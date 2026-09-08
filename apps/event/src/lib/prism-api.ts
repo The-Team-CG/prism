@@ -768,6 +768,25 @@ export const prismApi = {
       withCoordinatorActor(`/api/events/${eventId}/event-day/task-reassignments/${requestId}`, session),
       { method: "PATCH", body: JSON.stringify(input) },
     ),
+  // EP-11-S03: a coordinator marking their OWN attendance. A sibling of, NOT a
+  // replacement for, updateCoordinatorAttendance above — that one stays on
+  // withPmcmActor because the PMCM live desk binds it directly
+  // (event-dashboard-commands.ts:100). Session first, then eventId, mirroring
+  // createCoordinatorEventDayTask. The server scopes the write to the caller's
+  // own assignment (event-live-ops-command.service.ts:112).
+  updateOwnCoordinatorAttendance: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    assignmentId: string,
+    input: UpdateCoordinatorAttendanceInput,
+  ) =>
+    request<PrismCoordinatorAssignment>(
+      withCoordinatorActor(`/api/events/${eventId}/coordinators/${assignmentId}/status`, session),
+      {
+        method: "PATCH",
+        body: JSON.stringify(input),
+      },
+    ),
   markPayment: (eventId: string, milestoneId: string, status: "pending" | "paid" | "at_risk" = "paid") =>
     request<PrismPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, {
       method: "PATCH",

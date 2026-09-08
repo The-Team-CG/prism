@@ -26,12 +26,14 @@ import {
   COORDINATOR_TIMELINE,
   coordinatorAcknowledgeCopy,
   coordinatorAssignmentDetail,
+  coordinatorAttendanceControlCopy,
   coordinatorGreetingCopy,
   coordinatorIssueActionCopy,
   coordinatorIssueFormCopy,
   coordinatorTaskActionCopy,
   coordinatorTaskFormCopy,
 } from "../../model/coordinator-view-copy";
+import type { CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
 import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import type { PrismCoordinatorAssignment } from "@prism/types";
@@ -500,12 +502,14 @@ export function CoordinatorRoleBadgeCard({
   roleName,
   attendanceStatus,
   onAcknowledge,
+  attendanceForm,
 }: {
   assignment?: { status: string } | null;
   busy: boolean;
   roleName: string;
   attendanceStatus: string;
   onAcknowledge: () => void;
+  attendanceForm: CoordinatorAttendanceFormModel;
 }) {
   return (
     <CCard>
@@ -527,8 +531,92 @@ export function CoordinatorRoleBadgeCard({
         ) : (
           <p className="text-sm text-muted-foreground">No coordinator assignment is available yet.</p>
         )}
+        {/* EP-11-S03 AC1: the coordinator marks their own attendance here. */}
+        <CoordinatorAttendanceControl attendanceForm={attendanceForm} />
       </CCardBody>
     </CCard>
+  );
+}
+
+export type CoordinatorAttendanceFormModel = {
+  status: string;
+  choices: readonly { value: CoordinatorAttendanceChoice; label: string }[];
+  canMark: boolean;
+  hasAssignment: boolean;
+  replaced: boolean;
+  isDisabled: (choice: CoordinatorAttendanceChoice) => boolean;
+  pendingChoice: CoordinatorAttendanceChoice | null;
+  pendingChoiceLabel: string | null;
+  busy: boolean;
+  error: string | null;
+  mark: (choice: CoordinatorAttendanceChoice) => void;
+  confirm: () => void;
+  cancel: () => void;
+};
+
+const ATTENDANCE_CHOICE_BUTTON =
+  "h-11 rounded-md border border-border bg-background text-sm font-bold transition hover:border-primary/40 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-55 data-[active=true]:border-primary/45 data-[active=true]:bg-secondary";
+
+function CoordinatorAttendanceControl({
+  attendanceForm,
+}: {
+  attendanceForm: CoordinatorAttendanceFormModel;
+}) {
+  const copy = coordinatorAttendanceControlCopy({
+    hasAssignment: attendanceForm.hasAssignment,
+    replaced: attendanceForm.replaced,
+    pendingChoiceLabel: attendanceForm.pendingChoiceLabel,
+  });
+
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{copy.heading}</p>
+      {copy.blockedReason ? (
+        <p className="mt-2 text-sm text-muted-foreground">{copy.blockedReason}</p>
+      ) : (
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {attendanceForm.choices.map((choice) => (
+            <button
+              key={choice.value}
+              type="button"
+              disabled={attendanceForm.busy || attendanceForm.isDisabled(choice.value)}
+              data-active={attendanceForm.status === choice.value}
+              onClick={() => attendanceForm.mark(choice.value)}
+              className={ATTENDANCE_CHOICE_BUTTON}
+            >
+              {choice.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {copy.confirmPrompt ? (
+        <div className="mt-3 rounded-md border border-(--prism-danger)/25 bg-(--prism-danger)/8 px-3 py-3">
+          <p className="text-xs font-bold text-(--prism-danger)">{copy.confirmPrompt}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={attendanceForm.busy}
+              onClick={attendanceForm.confirm}
+              className={FORM_SUBMIT}
+            >
+              {copy.confirmLabel}
+            </button>
+            <button
+              type="button"
+              onClick={attendanceForm.cancel}
+              className="h-11 rounded-md border border-border px-3 text-sm font-bold"
+            >
+              {copy.cancelLabel}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {attendanceForm.error ? (
+        <p role="alert" className={`mt-3 ${FORM_ALERT}`}>
+          {attendanceForm.error}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
