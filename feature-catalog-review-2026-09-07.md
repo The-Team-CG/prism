@@ -14,13 +14,13 @@ last_verified: "02b6896f56b58476dba0bc736cdf9cb11222c033"
 
 **As of 8 September 2026, the reviewed catalog contains 137 unique feature IDs across 140 occurrences: 13 implemented, 77 partially implemented and 47 with no implementation found. Of those, 73 have at least one remaining named blocker or prerequisite to full catalog completion.** These are source-code assessments, supported by focused checks; they are not production acceptance or deployment certification.
 
-Historical baseline: `3d01c6c95f6955843539c8c3ba0ef3779941de79` on freshly fetched `origin/staging`; the original report assessed that snapshot. Current update: [P0 implementation commit `02b6896`](https://github.com/The-Team-CG/prism/commit/02b6896f56b58476dba0bc736cdf9cb11222c033), including the current P0 readiness and authority/lifecycle policy documents. Historical evidence links remain immutable and are labelled by their baseline commit; current update evidence is indexed as E25. No product implementation beyond the supplied commit was made in this report.
+Historical baseline: `3d01c6c95f6955843539c8c3ba0ef3779941de79` on freshly fetched `origin/staging`; the original report assessed that snapshot. Current update: [P0 implementation commit `02b6896`](https://github.com/The-Team-CG/prism/commit/02b6896f56b58476dba0bc736cdf9cb11222c033), including the current P0 readiness and authority/lifecycle policy documents. Historical evidence links remain immutable and are labelled by their baseline commit; the dated P1 section records current integration evidence and supersedes the historical implementation scope for progress reporting.
 
 This is a reconciliation of the P0 changes: affected catalog rows and prerequisites were reassessed; unchanged rows carry forward the baseline findings. The assessed implementation is on the draft PR branch, not a claim of delivery to staging or production.
 
 ## 2026-09-08 P1 implementation update
 
-The current P1 integration branch contains the local implementation slices for W10, W12–W14, W16–W25, W27–W28, W30, W40, W50 and the integrated W26/W51 deliveries. W11 remains a provider-gated partial. W15 is the remaining local supplier-application/status slice being completed by Luna. W29 remains blocked by the missing approved privacy, retention and legal-hold policy. These package labels describe implementation evidence, not production readiness.
+The current P1 integration branch contains the local implementation slices for W10, W12–W16, W17–W25, W27–W28, W30, W40, W50 and the integrated W26/W51 deliveries. W11 remains a provider-gated partial. W15 now includes a public email-matched application status journey, while full supplier promotion still depends on W40 assessment and PMCM review. W29 remains blocked by the missing approved privacy, retention and legal-hold policy. These package labels describe implementation evidence, not production readiness.
 
 The most material catalog status changes since the historical assessment are:
 
@@ -30,7 +30,7 @@ The most material catalog status changes since the historical assessment are:
 | Freeze and addenda (FR-77, New-SY3, New-SY4) | Partial with integrated local workflow | W26 provides freeze exceptions, monotonic scanned addenda and deterministic impact propagation; W10/W11/W43 and PostgreSQL acceptance remain gates. |
 | Action centers and shared UX (FR-27 and W51 surfaces) | Partial with integrated deterministic presentation | PMCM/client/supplier/guest actions have persisted-source ordering, explicit unavailable states and accessibility affordances; browser/mobile/screen-reader acceptance is still unavailable. |
 | Billing, documents, storage and delivery | Partial | Durable metadata, contracts and queued intent exist; production object storage and notification providers are not configured. |
-| Supplier application/status (W15) | Partial | Existing conversion/promotion foundations remain; application/status parity is the remaining local implementation slice. |
+| Supplier application/status (W15) | Partial with local status journey | The supplier can check a redacted application state using reference plus submitting email; deeper promotion/profile parity remains coupled to W40 assessment and PMCM review. |
 | Privacy and retention (FR-56, New-SEC2) | Partial / blocked | P0 privacy corrections exist, but full rights fulfillment, retention and legal holds require approved policy and W10 file lifecycle. |
 
 The historical 137-ID counts below remain the auditable catalog denominator. This P1 update intentionally does not convert partial, provider-gated or runtime-unverified rows into **Implemented** merely because a local contract or test exists.
@@ -51,7 +51,7 @@ The strongest implemented areas are inquiry intake, supplier directory/tiering a
 
 ## At a glance
 
-Owner D coordinates the evidence review for B operations, C external portals and A UX. Use this report for catalog status and the linked matrix for remaining work. **V01 is an open verification gate; this branch is not fully verified for merge.**
+Owner D coordinates the evidence review for B operations, C external portals and A UX. Use this report for catalog status and the linked matrix for remaining work. **V01 was an open historical P0 verification gate; the current P1 branch passes static boundaries, while database and browser runtime acceptance remain unavailable.**
 
 | Current review | Count |
 | --- | ---: |
