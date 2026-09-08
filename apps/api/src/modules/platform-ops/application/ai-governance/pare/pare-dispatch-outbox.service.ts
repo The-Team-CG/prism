@@ -4,7 +4,7 @@ import type { OpsPareDispatch } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PareDispatchWriteInput, PareDispatchWriter } from '../../../contracts/ai-governance/pare-dispatch-writer.port';
-import type { PareDispatchExecutor } from './pare-dispatch-worker';
+import type { PareDispatchExecutionRegistry, PareDispatchExecutor } from './pare-dispatch-worker';
 import { processPareDispatchQueue } from './pare-dispatch-worker';
 import { PAREService } from './pare.service';
 
@@ -13,6 +13,7 @@ export class PareDispatchOutboxService implements PareDispatchWriter, OnApplicat
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
   private inFlight?: Promise<void>;
+  private readonly activeExecutions = new Set<Promise<unknown>>();
   private readonly logger = new Logger(PareDispatchOutboxService.name);
 
   constructor(
@@ -40,7 +41,13 @@ export class PareDispatchOutboxService implements PareDispatchWriter, OnApplicat
   }
 
   async processQueued(options: { maxAttempts?: number; maxBatch?: number } = {}) {
-    return processPareDispatchQueue(this.prisma, this.pareService as PareDispatchExecutor, options.maxAttempts, options.maxBatch);
+    const executionRegistry: PareDispatchExecutionRegistry = {
+      add: (execution) => {
+        this.activeExecutions.add(execution);
+        void execution.finally(() => this.activeExecutions.delete(execution)).catch(() => undefined);
+      },
+    };
+    return processPareDispatchQueue(this.prisma, this.pareService as PareDispatchExecutor, options.maxAttempts, options.maxBatch, executionRegistry);
   }
 
   onApplicationBootstrap() {
@@ -52,6 +59,7 @@ export class PareDispatchOutboxService implements PareDispatchWriter, OnApplicat
   async onApplicationShutdown() {
     if (this.timer) clearInterval(this.timer);
     await this.inFlight;
+    await Promise.allSettled([...this.activeExecutions]);
   }
 
   private runScheduled(): Promise<void> {
