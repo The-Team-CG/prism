@@ -79,6 +79,37 @@ export function coordinatorIssueFormCopy(busy: boolean) {
   };
 }
 
+/* ── EP-11-S03: coordinator self-attendance marking ──────────────── */
+
+export function coordinatorAttendanceControlCopy({
+  hasAssignment,
+  replaced,
+  pendingChoiceLabel,
+}: {
+  hasAssignment: boolean;
+  replaced: boolean;
+  pendingChoiceLabel: string | null;
+}) {
+  return {
+    heading: "Mark your attendance",
+    // Structural state only. Deliberately NOT keyed off canMark, which also
+    // goes false while a mark is in flight — that would swap the buttons for a
+    // "no assignment" message mid-request.
+    blockedReason: replaced
+      ? "This assignment was replaced. Attendance is now recorded against your replacement."
+      : hasAssignment
+        ? null
+        : "No active assignment to mark attendance against.",
+    // Absent writes a permanent critical reliability note with no retraction
+    // path, so the coordinator confirms before the request fires.
+    confirmPrompt: pendingChoiceLabel
+      ? `Mark yourself ${pendingChoiceLabel}? This records a permanent reliability note that cannot be undone.`
+      : null,
+    confirmLabel: "Yes, mark me Absent",
+    cancelLabel: "Cancel",
+  };
+}
+
 export const COORDINATOR_NAV_SCROLL: Record<string, string> = {
   "coord-queue": "coordinator-role-queue",
   "coord-issues": "coordinator-live-data",
