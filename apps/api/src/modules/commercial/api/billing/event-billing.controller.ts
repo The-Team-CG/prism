@@ -166,6 +166,7 @@ export class OpsEventBillingController {
       eventId,
     );
     return {
+      id: actor.id,
       name: actor.name,
       role: actor.role,
       email: actor.email,

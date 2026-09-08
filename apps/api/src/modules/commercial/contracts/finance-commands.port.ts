@@ -29,6 +29,7 @@ export type BillingScheduleInput = NonNullable<CreateBillingSourceInput['payment
 export type BillingMethodInput = NonNullable<CreateBillingSourceInput['paymentMethods']>[number];
 
 export type BillingActor = {
+  id?: string;
   name: string;
   role?: string;
   email?: string;

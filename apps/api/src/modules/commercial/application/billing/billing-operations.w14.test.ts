@@ -1,13 +1,15 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import type { CommandReceiptRecord, CommandReceiptStore } from '@prism/kernel/event-core';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { createBillingSourceSchema, createBillingDisputeSchema, requestBillingCorrectionSchema, waiveAdditionalBillingSchema } from '@prism/types';
 import { BillingOperationsService } from './billing-operations.service';
 import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/payment-terms.policy';
 
-const actor = { name: 'Francis', role: OpsUserRole.PmcmAdmin, email: 'francis@pmcm.test' };
+const actor = { id: 'actor_francis', name: 'Francis', role: OpsUserRole.PmcmAdmin, email: 'francis@pmcm.test' };
 
-function createW14Service() {
+function createW14Service(withReceipts = false) {
   const event = { id: 'evt_w14', inquiryId: 'inq_w14', eventName: 'W14 Event', clientName: 'Client', eventDate: new Date('2026-08-01T00:00:00.000Z'), actualEndedAt: new Date('2026-08-02T00:00:00.000Z') };
   const statement = { id: 'stmt_w14', eventId: event.id, number: 'BS-2026-0001', totalAmount: 100000, status: 'issued' };
   const correction = { id: 'corr_w14', eventId: event.id, statementId: statement.id, reason: 'Tax line is incorrect', correctedTotalAmount: 95000, status: 'pending', requestedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
@@ -38,8 +40,34 @@ function createW14Service() {
     },
   };
   const audit = { write: vi.fn() };
-  const service = new BillingOperationsService(prisma, audit as any, { write: vi.fn() } as any, new WorkflowCommandService());
-  return { service, prisma, audit, statement, correction, dispute, additional };
+  const savedReceipts = new Map<string, CommandReceiptRecord>();
+  const receiptStore: CommandReceiptStore = {
+    find: vi.fn(async (key) => savedReceipts.get(`${key.commandName}:${key.idempotencyKey}:${key.actorId}`) ?? null),
+    create: vi.fn(async (input) => {
+      const id = 'receipt_w14';
+      savedReceipts.set(`${input.commandName}:${input.idempotencyKey}:${input.actorId}`, {
+        ...input,
+        id,
+        eventId: input.eventId ?? null,
+        payloadHash: input.payloadHash ?? null,
+        result: null,
+        completedAt: new Date(),
+      });
+      return { id };
+    }),
+    complete: vi.fn(async (id, result) => {
+      const receipt = [...savedReceipts.values()].find((value) => value.id === id);
+      if (receipt) receipt.result = result;
+    }),
+  };
+  const transactionRunner = {
+    run: vi.fn(async (work: (context: PrismTransactionContext) => Promise<unknown>) => work({ prisma, correlationId: 'receipt_w14', actorId: actor.id })),
+  };
+  const workflow = withReceipts
+    ? new WorkflowCommandService(transactionRunner as never, receiptStore)
+    : new WorkflowCommandService();
+  const service = new BillingOperationsService(prisma, audit as any, { write: vi.fn() } as any, workflow);
+  return { service, prisma, audit, statement, correction, dispute, additional, receiptStore, transactionRunner };
 }
 
 describe('W14 billing operations', () => {
@@ -58,6 +86,21 @@ describe('W14 billing operations', () => {
     expect(prisma.opsBillingCorrection.create).toHaveBeenCalledTimes(1);
     await service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, actor);
     await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'reject', resolutionNotes: 'Already approved' }, actor)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('replays a billing command from the central receipt before its table lookup', async () => {
+    const { service, prisma, receiptStore, transactionRunner } = createW14Service(true);
+    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', correctedTotalAmount: 95000, idempotencyKey: 'central-corr-key' });
+
+    const first = await service.requestBillingCorrection('evt_w14', input, actor);
+    const replay = await service.requestBillingCorrection('evt_w14', input, actor);
+
+    expect(replay).toEqual(first);
+    expect(receiptStore.create).toHaveBeenCalledTimes(1);
+    expect(receiptStore.complete).toHaveBeenCalledTimes(1);
+    expect(transactionRunner.run).toHaveBeenCalledTimes(1);
+    expect(prisma.opsBillingCorrection.create).toHaveBeenCalledTimes(1);
+    expect(prisma.opsBillingCorrection.findUnique).toHaveBeenCalledTimes(1);
   });
 
   it('validates dispute amount, lifecycle, and idempotent replay', async () => {

@@ -189,7 +189,17 @@ the important rules: no private cross-context imports, no compatibility import
 from normal contexts or kernel, no Prisma writes from read models, budgeted raw
 read queries, and no tracked source under the old API library roots.
 
-The kernel does not import a business context. `kernel/access-control` emits
+The kernel does not import a business context. `kernel/event-core` owns the
+command-receipt port and Prisma adapter: transactional commands with an
+actor-scoped idempotency key and a stable payload hash opt into one durable
+receipt, which is reserved and completed in the same transaction; retries then
+replay the stored projected result after permission checks. A payload hash is
+required so central replay cannot bypass a context's changed-content guard.
+The receipt is a technical trust record; it does not replace an owning
+context's domain record or its domain-specific invariant checks. Existing
+commands without this explicit hash continue through their domain-specific
+idempotency paths until migrated.
+`kernel/access-control` emits
 forbidden-access evidence through the kernel-owned `AUDIT_WRITER` port; the
 composition root binds that port to the platform-ops `AuditWriterAdapter` in
 `PlatformOpsAuditWriterModule`. Identity authentication, document storage,
@@ -216,7 +226,7 @@ an invariant must hold independently of HTTP and Prisma.
 | Supplier network | `OpsSupplier`, `OpsSupplierCategory`, `OpsSupplierReview`, `OpsSupplierReliabilityNote`, `OpsSupplierCertification`, `OpsSupplierQuoteRequest`, `OpsSupplierQuote` |
 | Coordinator and live ops | `OpsCoordinator`, `OpsCoordinatorAssignment`, `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog`, `OpsCoordinatorReliabilityNote` |
 | Compliance and billing | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` |
-| Trust, privacy, and audit | `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsLoginHistory`, `OpsSecurityAlert` |
+| Trust, privacy, and audit | `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsCommandReceipt`, `OpsLoginHistory`, `OpsSecurityAlert` |
 | Guest operations | `OpsGuestCheckIn`, `OpsGuestFeedback` |
 | AI governance | `OpsAiAuditLog`, `OpsAiApprovalRecord`, `OpsPareDispatch` |
 
