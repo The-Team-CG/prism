@@ -128,6 +128,13 @@ function createParePrisma() {
         return state.approvalRecords[index];
       },
     },
+    opsPareDispatch: {
+      findUnique: async ({ where }: { where: { id: string } }) => where.id === 'different_dispatch' ? null : ({
+          id: where.id,
+          requestId: quoteRequest.id,
+          eventId: event.id,
+        }),
+    },
   };
 
   const transactionalPrisma = Object.assign(prisma, {
@@ -190,6 +197,27 @@ describe('PAREService', () => {
     await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_missing_audit');
     state.auditLogs.length = 0;
     await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_missing_audit'))
+      .rejects.toThrow('matching durable PARE audit');
+  });
+
+  it('rejects a durable audit whose payload belongs to another request', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = new PAREService(prisma as any);
+    await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_mismatched_request');
+    state.auditLogs[0].sanitizedPayload = {
+      ...state.auditLogs[0].sanitizedPayload,
+      requestId: 'another_quote_request',
+    };
+    await expect(service.getPendingApprovals('evt_sample'))
+      .rejects.toThrow('matching durable PARE audit');
+  });
+
+  it('rejects idempotent redelivery when the approval source link is corrupted', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = new PAREService(prisma as any);
+    await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_source_link');
+    state.approvalRecords[0].sourceDispatchId = 'different_dispatch';
+    await expect(service.getPendingApprovals('evt_sample'))
       .rejects.toThrow('matching durable PARE audit');
   });
 
