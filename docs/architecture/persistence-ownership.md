@@ -108,6 +108,7 @@ before implementation.
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
 | `OpsAuditLog`, `OpsNotificationLog`, `OpsSecurityAlert`, `OpsPrivacyRequest` | `trust_ops` / `event_core` as declared in Prisma | `platform-ops`; audit, outbox, security, and privacy governance. Privacy execution may update subject records owned elsewhere only as an explicit erasure workflow. |
+| `OpsCommandReceipt` | `trust_ops` | `kernel/event-core`; technical command deduplication and replay record written atomically with a command that supplies an explicit payload hash. Event-scoped commands include event identity in the receipt uniqueness boundary. |
 | `OpsLoginHistory` | `identity` | `platform-ops` implementation behind `AUTH_AUDIT`; future ownership should be made explicit before identity extraction. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord` | `trust_ops` | `platform-ops`; AI sanitisation, human approval, and governance records. |
 
