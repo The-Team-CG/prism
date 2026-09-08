@@ -17,6 +17,7 @@ export * from './contracts/compliance-commands.port';
 export * from './contracts/compliance-reader.port';
 export * from './contracts/compliance-ops.tokens';
 export * from './application/compliance/compliance-workflow.service';
+export * from './application/change/change-management.service';
 export * from './contracts/document-vault.port';
 export * from './application/files/document-vault.service';
 export * from './api/closure/event-closure.controller';
