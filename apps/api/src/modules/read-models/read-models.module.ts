@@ -62,6 +62,7 @@ import { LIVE_OPS_READ_MODEL } from './contracts/ports/live-ops-read-models.toke
     { provide: BILLING_READ_MODEL, useExisting: EventReadModelsService },
   ],
   exports: [
+    EventReadModelQueries,
     EventReadModelsService,
     PMCM_EVENT_READ_MODEL,
     CLIENT_EVENT_READ_MODEL,
