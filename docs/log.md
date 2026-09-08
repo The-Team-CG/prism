@@ -9,6 +9,19 @@
 - **Hardened:** PARE dispatch cancellation and shutdown tracking now propagate abort signals through the provider calls, restore idempotent `pare_triggered` activity audit records, and validate audit payload request IDs plus source-dispatch ownership before mapping or reviewing approvals. PostgreSQL concurrency and provider cancellation remain unverified without the integration database and live provider.
 
 - **Recorded:** Supplier withdrawal PARE execution now uses a dedicated platform-ops dispatch outbox with same-transaction enqueue, lease-token retries, terminal configuration/missing-source outcomes, and dispatch-keyed approval idempotency. The dispatch retains event ownership while the worker reloads commercial request state by ID.
+- **Recorded:** Read-model collection safety limits across visible events, PMCM
+  dashboards/inboxes/workspaces, billing, client action center, supplier
+  history, live ops, guest check-ins/feedback, and staffing acknowledgements.
+  Stable ID tie-breakers and exact defense-readiness, attendance, feedback, and
+  staffing counts preserve aggregate correctness when row windows are capped.
+  No live PostgreSQL acceptance was available in this checkout.
+
+- **Recorded:** Read-model collection safety limits across visible events, PMCM
+  dashboards/inboxes/workspaces, billing, client action center, supplier
+  history, live ops, guest check-ins/feedback, and staffing acknowledgements.
+  Stable ID tie-breakers and exact defense-readiness, attendance, feedback, and
+  staffing counts preserve aggregate correctness when row windows are capped.
+  No live PostgreSQL acceptance was available in this checkout.
 
 - **Updated:** P1 catalog implementation evidence through W15/W26/W51 integration: package-level effort/priority/risk status, partial scope, provider and policy blockers, PostgreSQL/Docker verification limits, and the remaining W29 policy gate are recorded in the catalog review and matrix.
 

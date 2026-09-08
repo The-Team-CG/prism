@@ -262,6 +262,7 @@ function createService(input: {
   } as unknown as FloorPlanWorkflowService;
   const guestReader = {
     listCheckInsForEvent: vi.fn(async () => guestCheckIns),
+    countCheckInsForEvent: vi.fn(async () => guestCheckIns.length),
     mapGuestCheckIn: vi.fn(mappedGuest),
     guestAccessCode: vi.fn(() => 'EVENT-CODE'),
   } as unknown as GuestReader;

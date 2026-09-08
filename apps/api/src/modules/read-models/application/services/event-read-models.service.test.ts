@@ -6,8 +6,10 @@ import { EventReadModelsService } from './event-read-models.service';
 
 function createGuestReader() {
   return {
+    countCheckInsForEvent: vi.fn(async () => 0),
     listCheckInsForEvent: vi.fn(async () => []),
     listFeedbackForEvent: vi.fn(async () => []),
+    countPendingFeedbackForEvent: vi.fn(async () => 0),
     mapGuestCheckIn: vi.fn((checkIn) => checkIn),
     mapGuestFeedback: vi.fn((feedback) => feedback),
   };
@@ -16,6 +18,8 @@ function createGuestReader() {
 function createStaffingReader() {
   return {
     listAssignmentsForEvent: vi.fn(async () => []),
+    countAssignmentsForEvent: vi.fn(async () => 0),
+    countPendingAssignmentsForEvent: vi.fn(async () => 0),
     listCoordinators: vi.fn(async () => []),
   };
 }
@@ -103,6 +107,7 @@ function createSupplierWorkspaceService() {
     },
   ];
   (prisma as any).opsSupplier = { findMany: vi.fn(async () => supplierRows) };
+  (prisma as any).opsSupplierReview = { groupBy: vi.fn(async () => []) };
   const guestReader = createGuestReader();
   const staffingReader = createStaffingReader();
   const service = new EventReadModelsService(
@@ -269,6 +274,9 @@ function createPmcmReadModelService() {
         },
       ]),
     },
+    opsSupplierReview: {
+      groupBy: vi.fn(async () => []),
+    },
   };
   const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
   const guestReader = createGuestReader();
@@ -300,6 +308,8 @@ describe('EventReadModelsService', () => {
     expect((workspace as any).supplierQuotes).toEqual([{ id: 'quote_visible', eventId: 'evt_visible' }]);
     expect(prisma.opsEvent.findMany).toHaveBeenCalledWith({
       where: { id: { in: ['evt_visible', 'evt_archived'] }, archived: false },
+      orderBy: { id: 'asc' },
+      take: 500,
     });
   });
 
@@ -341,17 +351,33 @@ describe('EventReadModelsService', () => {
         [{ id: 'quote_1', status: 'selected' }],
         [],
         [],
-        [],
-        [{ id: 'pay_1', status: 'pending', remainingBalance: 5000 }],
+         [],
+         [{ id: 'pay_1', status: 'pending', remainingBalance: 5000 }],
+         {
+           briefings: 501,
+           floorPlanDrafts: 501,
+           approvedFloorplan: 1,
+           quoteRequests: 501,
+           selectedSupplierQuotes: 500,
+           eventDayTasks: 501,
+           urgentIssues: 501,
+           billingStatements: 501,
+           paymentMilestones: 501,
+           unpaidPaymentMilestones: 500,
+         },
       ]),
     };
     const guestReader = {
       ...createGuestReader(),
+      countCheckInsForEvent: vi.fn(async () => 1),
       listCheckInsForEvent: vi.fn(async () => [{ id: 'checkin_1' }]),
+      countPendingFeedbackForEvent: vi.fn(async () => 1),
       listFeedbackForEvent: vi.fn(async () => [{ id: 'feedback_1', moderationStatus: 'pending_review' }]),
     };
     const staffingReader = {
       ...createStaffingReader(),
+      countAssignmentsForEvent: vi.fn(async () => 1),
+      countPendingAssignmentsForEvent: vi.fn(async () => 1),
       listAssignmentsForEvent: vi.fn(async () => [{ id: 'asg_1', status: 'pending_acknowledgement' }]),
     };
     const closureReadinessReader = {
@@ -377,8 +403,8 @@ describe('EventReadModelsService', () => {
       summary: expect.objectContaining({
         briefingSubmitted: true,
         officialFloorplanApproved: true,
-        quoteRequests: 1,
-        selectedSuppliers: 1,
+         quoteRequests: 501,
+         selectedSuppliers: 500,
         pendingCoordinatorAcknowledgments: 1,
         guestAttendanceCount: 1,
         pendingFeedbackModeration: 1,
@@ -517,7 +543,8 @@ describe('EventReadModelsService', () => {
     expect(guestReader.listFeedbackForEvent).toHaveBeenCalledWith('evt_visible');
     expect(prisma.opsDocument.findMany).toHaveBeenCalledWith({
       where: { eventId: 'evt_visible' },
-      orderBy: { uploadedAt: 'desc' },
+      orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }],
+      take: 500,
     });
   });
   it('denies non-PMCM actors from the PMCM command inbox', async () => {
@@ -587,8 +614,8 @@ describe('EventReadModelsService', () => {
       expect.objectContaining({ id: 'supcat_technicals', acceptableMin: 120000, acceptableMax: 180000 }),
     ]);
     expect((dashboard as any).suppliers).toEqual([expect.objectContaining({ id: 'sup_sonicline', categoryName: 'Technicals' })]);
-    expect(prisma.opsUser.findMany).toHaveBeenCalledWith({ take: 500, orderBy: { createdAt: 'asc' } });
-    expect(prisma.opsSupplierCategory.findMany).toHaveBeenCalledWith({ where: { active: true }, orderBy: { sortOrder: 'asc' } });
+    expect(prisma.opsUser.findMany).toHaveBeenCalledWith({ take: 500, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
+    expect(prisma.opsSupplierCategory.findMany).toHaveBeenCalledWith({ where: { active: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], take: 500 });
   });
 
   it('uses one bounded query-builder pass for high-volume PMCM dashboard records', async () => {
@@ -694,7 +721,8 @@ describe('EventReadModelsService', () => {
     expect(actionCenter.items.map((item) => item.eventId)).not.toContain('evt_other_client');
     expect(prisma.opsPaymentMilestone.findMany).toHaveBeenCalledWith({
       where: { eventId: { in: ['evt_visible'] } },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 500,
     });
   });
 });
