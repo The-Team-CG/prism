@@ -15,6 +15,14 @@ export const eventAuthRepository = {
     return prismApi.verifyTwoFactor(token, code);
   },
 
+  requestPasswordReset(email: string) {
+    return prismApi.requestPasswordReset(email);
+  },
+
+  consumePasswordReset(input: { token: string; password: string }) {
+    return prismApi.consumePasswordReset(input);
+  },
+
   persistSession(session: EventSession): void {
     saveEventSession(session);
   },

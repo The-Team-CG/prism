@@ -10,14 +10,17 @@ import { EventLifecycleModule } from '../event-lifecycle/event-lifecycle.module'
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
 import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
+import { OpsCoordinatorCapacityController } from './api/staffing/coordinator-capacity.controller';
 import { OpsGuestController } from './api/guest/guest.controller';
 import { OpsRegistrationPlatformController } from './api/guest/registration-platform.controller';
+import { WalkInPolicyController } from './api/guest/walk-in-policy.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tokens';
 import { GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './contracts/guest-ops.tokens';
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
+import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
 
 /**
  * Bounded-context composition root for operations: day-to-day coordinator
@@ -37,18 +40,19 @@ import { RegistrationPlatformService } from './application/guest/registration-pl
  */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, IdentityAccessModule, EventSessionModule, EventLifecycleModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsGuestController, OpsRegistrationPlatformController],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController],
   providers: [
     CoordinatorsService,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
     RegistrationPlatformService,
+    WalkInPolicyService,
     { provide: STAFFING_COMMANDS, useExisting: CoordinatorsService },
     { provide: STAFFING_READER, useExisting: CoordinatorsService },
     { provide: GUEST_COMMANDS, useExisting: GuestWorkflowService },
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
     { provide: REGISTRATION_PLATFORM_READER, useExisting: RegistrationPlatformService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, GuestWorkflowService, RegistrationPlatformService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
+  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
 })
 export class OperationsModule {}

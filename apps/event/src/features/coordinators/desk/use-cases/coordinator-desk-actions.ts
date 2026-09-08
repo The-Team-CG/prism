@@ -1,5 +1,12 @@
 import type { EventSession } from "@/app/lib/session";
-import type { CreateEventDayTaskInput, CreateUrgentIssueInput } from "@prism/types";
+import type {
+  CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  CreateUrgentIssueInput,
+  CoordinatorAssignmentAcknowledgementInput,
+  DecideEventTaskReassignmentInput,
+  WithdrawCoordinatorAssignmentInput,
+} from "@prism/types";
 import { coordinatorsRepository } from "../data/coordinators-repository";
 
 export async function loadCoordinatorRoleView(session: EventSession, eventId: string) {
@@ -9,17 +16,28 @@ export async function loadCoordinatorRoleView(session: EventSession, eventId: st
 export async function acknowledgeCoordinatorAssignment(
   eventId: string,
   assignmentId: string,
+  input: CoordinatorAssignmentAcknowledgementInput = { decision: "acknowledged" },
 ) {
-  return coordinatorsRepository.acknowledge(eventId, assignmentId);
+  return coordinatorsRepository.acknowledge(eventId, assignmentId, input);
 }
 
 export async function acknowledgeAndRefreshRoleView(input: {
   session: EventSession;
   eventId: string;
   assignmentId: string;
+  input?: CoordinatorAssignmentAcknowledgementInput;
 }) {
-  await acknowledgeCoordinatorAssignment(input.eventId, input.assignmentId);
+  await acknowledgeCoordinatorAssignment(input.eventId, input.assignmentId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function withdrawAndRefreshWorkspace(input: {
+  session: EventSession;
+  eventId: string;
+  assignmentId: string;
+  input: WithdrawCoordinatorAssignmentInput;
+}) {
+  await coordinatorsRepository.withdraw(input.session, input.eventId, input.assignmentId, input.input);
 }
 
 export async function createTaskAndRefreshRoleView(input: {
@@ -37,5 +55,25 @@ export async function createUrgentIssueAndRefreshRoleView(input: {
   input: CreateUrgentIssueInput;
 }) {
   await coordinatorsRepository.createUrgentIssue(input.session, input.eventId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function requestTaskReassignmentAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  taskId: string;
+  input: CreateEventTaskReassignmentInput;
+}) {
+  await coordinatorsRepository.requestTaskReassignment(input.session, input.eventId, input.taskId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function decideTaskReassignmentAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  requestId: string;
+  input: DecideEventTaskReassignmentInput;
+}) {
+  await coordinatorsRepository.decideTaskReassignment(input.session, input.eventId, input.requestId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }

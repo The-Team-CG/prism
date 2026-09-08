@@ -1,6 +1,8 @@
 export * from './api/quotes/event-commercial.controller';
 export * from './api/quotes/event-proposal-review.controller';
 export { ProposalClientReviewService } from './application/quotes/proposal-client-review.service';
+export { ProposalLifecycleService, PROPOSAL_LIFECYCLE_POLICY } from './application/quotes/proposal-lifecycle.service';
+export * from './api/quotes/proposal-lifecycle.controller';
 export * from './api/quotes/quote-requests.controller';
 export * from './domain/supplier-quote-request.policy';
 export * from './api/quotes/supplier-quote.dto';

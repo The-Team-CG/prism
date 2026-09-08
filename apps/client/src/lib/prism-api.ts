@@ -486,6 +486,14 @@ export const prismApi = {
         if (user.approvalStatus !== "approved") throw new Error("This account is waiting for admin approval");
         return { ...user, signedInAt: now() };
       })),
+  requestPasswordReset: (email: string) =>
+    USE_REMOTE_API
+      ? request<{ message: string; deliveryAvailable: boolean }>('/api/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) })
+      : Promise.resolve({ message: 'If an account exists for that email, password reset instructions will be sent.', deliveryAvailable: false }),
+  consumePasswordReset: (input: { token: string; password: string }) =>
+    USE_REMOTE_API
+      ? request<{ message: string }>('/api/auth/password-reset/consume', { method: 'POST', body: JSON.stringify(input) })
+      : Promise.resolve({ message: 'Password reset completed. Please sign in again.' }),
   requestApproval: (email: string, consent: PrivacyConsentInput = { privacyConsentAccepted: true, privacyNoticeVersion: "2026-05-01" }) =>
     USE_REMOTE_API
       ? request<PrismApprovalRequest>("/api/auth/approval-requests", {
@@ -856,16 +864,24 @@ export const prismApi = {
             eventId,
             layer: "Must-Fix",
             title: "Supplier contract confirmation",
-            status: "open",
-            note: "Attach final signed supplier quotation before event lock.",
+             status: "open",
+             note: "Attach final signed supplier quotation before event lock.",
+             evaluationStatus: "not_satisfied",
+             evidence: [],
+             definitionStatus: "DERIVED",
+             remediation: "Attach the final signed supplier quotation before event lock.",
           },
           {
             id: `chk_${crypto.randomUUID()}`,
             eventId,
             layer: "Should-Fix",
             title: "Ingress timing alignment",
-            status: "open",
-            note: "Confirm guest arrival window with registration vendor.",
+             status: "open",
+             note: "Confirm guest arrival window with registration vendor.",
+             evaluationStatus: "not_satisfied",
+             evidence: [],
+             definitionStatus: "DERIVED",
+             remediation: "Confirm the guest arrival window with the registration vendor.",
           },
         ];
         state.complianceChecks = [...checks, ...existing];
@@ -981,4 +997,8 @@ export const prismApi = {
       }),
     );
   },
+  communicationThreads: (eventId: string) => eventOpsClient.communication.listThreads(eventId),
+  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string) => eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }),
+  communicationMessages: (threadId: string, cursor?: string, limit?: number) => eventOpsClient.communication.listMessages(threadId, { cursor, limit }),
+  markCommunicationThreadRead: (threadId: string) => eventOpsClient.communication.markThreadRead(threadId),
 };

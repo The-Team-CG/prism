@@ -26,6 +26,7 @@ export interface PrismEventOpsActorContext {
   actorEmail?: string;
   name?: string;
   actorName?: string;
+  sessionVersion?: number;
   clientName?: string;
   supplierId?: string;
   coordinatorId?: string;
@@ -125,6 +126,7 @@ export interface PrismUser {
   lastLoginAt?: string | null;
   lockedUntil?: string | null;
   permanentLockout?: boolean;
+  sessionVersion?: number;
 }
 
 export interface PrismAuthenticatedSession extends PrismUser {
@@ -261,6 +263,10 @@ export interface PrismEvent {
   clientName: string;
   eventName: string;
   eventDate: string;
+  walkInPolicy?: "closed" | "open" | "threshold";
+  walkInThreshold?: number;
+  actualEndedAt?: string | null;
+  actualEndedBy?: string | null;
   status: string;
   clientPortalStatus: "locked" | "unlocked";
   readiness: string;
@@ -272,6 +278,10 @@ export interface PrismEvent {
   proposalRevisionCount?: number;
   proposalReviewedAt?: string | null;
   proposalReviewedBy?: string | null;
+  freezeStatus?: "open" | "frozen" | string;
+  freezeAt?: string | null;
+  freezeDeadlineAt?: string | null;
+  freezeReason?: string;
   activeFloorPlanDraftId?: string;
   floorPlanDrafts?: PrismFloorPlanDraft[];
 }
@@ -533,6 +543,19 @@ export interface PrismSupplierApplication {
   createdAt: string;
 }
 
+export interface PrismSupplierApplicationStatusResult {
+  id: string;
+  companyName: string;
+  status: PrismSupplierApplicationStatus;
+  submittedAt: string;
+  reviewedAt: string | null;
+}
+
+export interface PrismCommunicationParticipant { id: string; actorId: string; actorRole: string; active: boolean; lastReadAt?: string | null; }
+export interface PrismCommunicationParticipantChoice { id: string; name: string; email: string; role: string; }
+export interface PrismCommunicationMessage { id: string; threadId: string; senderId: string; senderRole: string; body: string; createdAt: string; }
+export interface PrismCommunicationThread { id: string; eventId: string; subject: string; status: string; createdBy: string; createdAt: string; updatedAt: string; participants: PrismCommunicationParticipant[]; messages: PrismCommunicationMessage[]; messagesNextCursor?: string | null; unreadCount?: number; }
+
 export interface PrismCoordinatorAssignment {
   id: string;
   eventId: string;
@@ -552,7 +575,22 @@ export interface PrismCoordinatorAssignment {
   conflictEventId?: string | null;
   conflictEventName?: string | null;
   acknowledgedAt?: string | null;
+  acknowledgedBy?: string | null;
+  acknowledgementReason?: string;
+  withdrawalReason?: string;
+  withdrawnAt?: string | null;
+  withdrawnBy?: string | null;
+  acknowledgementHistory?: PrismCoordinatorAssignmentAcknowledgment[];
   createdAt?: string;
+}
+
+export interface PrismCoordinatorAssignmentAcknowledgment {
+  id: string;
+  assignmentId: string;
+  state: "acknowledged" | "declined" | string;
+  reason: string;
+  actor: string;
+  createdAt: string;
 }
 
 export interface PrismCoordinator {
@@ -572,15 +610,56 @@ export interface PrismCoordinatorRoleRequirement {
   required: number;
 }
 
+export interface PrismCoordinatorAvailability {
+  id: string;
+  coordinatorId: string;
+  startsAt: string;
+  endsAt: string;
+  kind: "unavailable" | "blocked" | string;
+  note: string;
+  declaredBy: string;
+  createdAt: string;
+}
+
+export interface PrismCoordinatorCoverage {
+  role: string;
+  required: number;
+  assigned: number;
+  acknowledged: number;
+  requiredSkills: string[];
+  assignedSkills: string[];
+  satisfied: boolean;
+}
+
 export interface PrismGuestCheckIn {
   id: string;
   eventId: string;
+  rosterEntryId?: string | null;
   guestName: string;
   checkInMode: string;
   status: string;
   walkIn: boolean;
   verificationStatus: string;
   checkedInAt: string;
+}
+
+export interface PrismGuestRosterEntry {
+  id: string;
+  eventId: string;
+  sourceKey: string;
+  guestName: string;
+  email?: string | null;
+  phone?: string | null;
+  category?: string | null;
+  table?: string | null;
+  eligibility: string;
+  verificationStatus: "pending" | "verified" | "rejected";
+  source: string;
+  importBatchId?: string | null;
+  checkedInAt?: string | null;
+  withdrawnAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PrismGuestEventPass {
@@ -607,7 +686,24 @@ export interface PrismGuestFeedback {
   privacyNoticeVersion: string;
   marketingConsentAccepted: boolean;
   moderationStatus: string;
+  moderationReason: string | null;
+  moderatedById: string | null;
+  moderatedBy: string | null;
+  moderatedAt: string | null;
+  privacyConsentWithdrawnAt: string | null;
+  marketingConsentWithdrawnAt: string | null;
+  mediaAttachments: PrismGuestFeedbackMedia[];
   submittedAt: string;
+}
+
+export interface PrismGuestFeedbackMedia {
+  id: string;
+  kind: "photo" | "video";
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: "pending_storage";
+  blocker: string;
 }
 
 export type PrismRegistrationPlatformType = "xperto" | "clickpass" | "custom" | "none";
@@ -653,6 +749,27 @@ export interface PrismEventDayTask {
   updatedAt: string;
 }
 
+export type PrismEventTaskReassignmentStatus = "pending" | "approved" | "rejected" | "auto_approved" | string;
+
+export interface PrismEventTaskReassignmentRequest {
+  id: string;
+  eventId: string;
+  taskId: string;
+  requestedBy: string;
+  requestedByRole: string;
+  fromOwnerRole: string;
+  fromOwnerName: string;
+  toOwnerRole: string;
+  toOwnerName: string;
+  reason: string;
+  status: PrismEventTaskReassignmentStatus;
+  requestedAt: string;
+  autoApproveAt: string;
+  decidedAt?: string | null;
+  decidedBy?: string | null;
+  decisionReason?: string | null;
+}
+
 export interface PrismUrgentIssue {
   id: string;
   eventId: string;
@@ -691,6 +808,7 @@ export interface PrismEventDayLog {
 
 export interface PrismLiveOps {
   event: PrismEvent;
+  briefing?: PrismBriefing | null;
   role?: string;
   tasks: PrismEventDayTask[];
   urgentIssues: PrismUrgentIssue[];
@@ -699,6 +817,11 @@ export interface PrismLiveOps {
   guestAttendanceCount: number;
   guestCheckIns: PrismGuestCheckIn[];
   eventDayLogs: PrismEventDayLog[];
+  schedule?: PrismEventSchedule;
+  timer?: PrismLiveOpsTimer;
+  isDesignatedOperator?: boolean;
+  canMarkDelegatedAttendance?: boolean;
+  taskReassignmentRequests?: PrismEventTaskReassignmentRequest[];
 }
 
 export interface PrismEventDayStatusFeedItem {
@@ -720,6 +843,94 @@ export interface PrismEventDayStatusFeed {
   eventDayLogs: PrismEventDayLog[];
   guestAttendanceCount: number;
   guestCheckIns: PrismGuestCheckIn[];
+}
+
+export type PrismScheduleDayStatus = "planned" | "active" | "complete" | string;
+export type PrismScheduleSegmentStatus = "planned" | "active" | "complete" | "skipped" | string;
+
+export interface PrismEventScheduleSegment {
+  id: string;
+  dayId: string;
+  sequence: number;
+  title: string;
+  plannedStartAt: string;
+  plannedEndAt: string;
+  ownerRole: string;
+  location: string;
+  status: PrismScheduleSegmentStatus;
+  actualStartedAt: string | null;
+  actualEndedAt: string | null;
+  startVarianceMinutes: number | null;
+  endVarianceMinutes: number | null;
+}
+
+export interface PrismEventScheduleDay {
+  id: string;
+  eventId: string;
+  dayDate: string;
+  label: string;
+  status: PrismScheduleDayStatus;
+  segments: PrismEventScheduleSegment[];
+}
+
+export interface PrismEventSchedule {
+  eventId: string;
+  authored: boolean;
+  days: PrismEventScheduleDay[];
+  serverTime: string;
+}
+
+export interface PrismEventRunSheet {
+  eventId: string;
+  day: PrismEventScheduleDay;
+  coordinators: PrismCoordinatorAssignment[];
+  supplierCommitments: Array<{ id: string; supplierName: string; category: string; status: string; notes: string }>;
+  openTasks: PrismEventDayTask[];
+  openIssues: PrismUrgentIssue[];
+}
+
+export interface PrismEventHandoff {
+  id: string;
+  eventId: string;
+  dayId: string;
+  role: string;
+  fromAssignmentId: string;
+  toAssignmentId: string;
+  handedOffBy: string;
+  receivedBy: string;
+  handedOffAt: string;
+  outstandingItems: string[];
+}
+
+export interface PrismEventEodReply {
+  id: string;
+  reportId: string;
+  authorId: string;
+  authorRole: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface PrismEventEodReport {
+  id: string;
+  eventId: string;
+  dayId: string;
+  authoredBy: string;
+  authoredByRole: string;
+  progress: string[];
+  issues: string[];
+  risksForTomorrow: string[];
+  submittedAt: string;
+  replies: PrismEventEodReply[];
+}
+
+export interface PrismLiveOpsTimer {
+  status: "no_schedule" | "before_start" | "active" | "between_segments" | "complete";
+  label: string;
+  segmentId?: string;
+  secondsRemaining?: number;
+  secondsElapsed?: number;
+  serverTime: string;
 }
 
 export interface PrismCoordinatorWorkspace {
@@ -769,6 +980,48 @@ export interface PrismComplianceCheck {
   overrideReason?: string | null;
   overrideAt?: string | null;
   overrideBy?: string | null;
+  evaluationStatus: "satisfied" | "not_satisfied" | "not_applicable";
+  evidence: string[];
+  definitionStatus: "DERIVED" | "PROVISIONAL" | string;
+  remediation: string;
+  runId?: string | null;
+}
+
+export interface PrismComplianceRun {
+  id: string;
+  eventId: string;
+  phase: string;
+  trigger: "manual" | "scheduled" | "state_change" | string;
+  status: "running" | "completed" | "failed" | string;
+  startedAt: string;
+  completedAt?: string | null;
+  ruleCount: number;
+  createdAt: string;
+  checks?: PrismComplianceCheck[];
+}
+
+export interface PrismComplianceRisk {
+  id: string;
+  eventId: string;
+  phase: string;
+  ruleId?: string | null;
+  title: string;
+  severity: "low" | "medium" | "high" | "critical" | string;
+  owner: string;
+  mitigation: string;
+  status: "open" | "mitigated" | "accepted" | "closed" | string;
+  source: "rule" | "pmcm" | string;
+  closedAt?: string | null;
+  closedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  history: Array<{
+    id: string;
+    action: string;
+    actor: string;
+    reason: string;
+    createdAt: string;
+  }>;
 }
 
 export interface PrismComplianceRule {
@@ -784,6 +1037,9 @@ export interface PrismComplianceRule {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  definitionStatus?: "DERIVED" | "PROVISIONAL" | string;
+  remediation?: string;
+  phaseApplicability?: string[];
 }
 
 export interface PrismBillingSource {
@@ -800,6 +1056,9 @@ export interface PrismBillingSource {
   approvedAt?: string | null;
   approvedBy?: string | null;
   approvalNotes: string;
+  paymentTermsPolicyState?: "standard" | "repeat_client_override" | "pending_owner_decision" | string;
+  paymentTermsOverrideReason?: string | null;
+  paymentTermsApprovedBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -820,9 +1079,54 @@ export interface PrismBillingStatement {
   documentId?: string | null;
   pdfUrl: string;
   storageKey: string;
+  storageObjectId?: string | null;
+  storageState?: "stored" | "failed" | "pending" | string;
   status: string;
   sentAt?: string | null;
   generatedAt: string;
+}
+
+export interface PrismBillingCorrection {
+  id: string;
+  eventId: string;
+  statementId: string;
+  reason: string;
+  correctedTotalAmount?: number | null;
+  status: string;
+  requestedBy: string;
+  resolvedBy?: string | null;
+  resolutionNotes?: string | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface PrismBillingDispute {
+  id: string;
+  eventId: string;
+  statementId: string;
+  milestoneId?: string | null;
+  amount: number;
+  reason: string;
+  status: string;
+  raisedBy: string;
+  resolvedBy?: string | null;
+  resolutionNotes?: string | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface PrismAdditionalBilling {
+  id: string;
+  eventId: string;
+  urgentIssueId: string;
+  description: string;
+  amount: number;
+  status: string;
+  createdBy: string;
+  waiverReason?: string | null;
+  waivedBy?: string | null;
+  createdAt: string;
+  waivedAt?: string | null;
 }
 
 export interface PrismPaymentRecord {
@@ -871,6 +1175,35 @@ export interface PrismCloseGates {
   matrix?: PrismFileRequirementsMatrix;
 }
 
+export interface PrismWrapUpSection {
+  status: "pending" | "complete" | "blocked";
+  evidence: string;
+  completedAt: string | null;
+}
+
+export interface PrismEventWrapUp {
+  id: string;
+  eventId: string;
+  mode: "full" | "quick";
+  status: "pending" | "complete";
+  activatedAt: string;
+  deadlineAt: string;
+  twelveHourReminderAt: string | null;
+  twentyFourHourReminderAt: string | null;
+  requiredItems: Record<string, boolean>;
+  sections: {
+    logistics: PrismWrapUpSection;
+    issues: PrismWrapUpSection;
+    feedback: PrismWrapUpSection;
+  };
+  clientAcknowledgedAt: string | null;
+  acknowledgementRecordedBy: string | null;
+  acknowledgementSource: 'pmcm_recorded' | 'client';
+  clientAcknowledgementNote: string;
+  completedAt: string | null;
+  completedBy: string | null;
+}
+
 export interface PrismEventInsight {
   id: string;
   eventId: string;
@@ -881,6 +1214,7 @@ export interface PrismEventInsight {
   financialSummary: { billingCount?: number; totalBilled?: number; amountPaid?: number; outstandingAmount?: number };
   documentSummary: { total?: number; submitted?: number; pendingPostEventDocuments?: number };
   feedbackSummary: { feedbackDocuments?: number; supplierReviews?: number; clientFeedbackSubmitted?: boolean };
+  dimensions: Record<string, { status: "evidence" | "pending" | "blocked"; summary: string; evidence: string[] }>;
   privateNotes: string;
   generatedAt: string;
   updatedAt: string;
@@ -1047,6 +1381,9 @@ export interface PrismPmcmDashboardWorkspace {
   billingStatements: PrismBillingStatement[];
   paymentMilestones: PrismPaymentMilestone[];
   paymentRecords: PrismPaymentRecord[];
+  billingCorrections?: PrismBillingCorrection[];
+  billingDisputes?: PrismBillingDispute[];
+  additionalBillings?: PrismAdditionalBilling[];
   postEventDocuments: PrismPostEventDocument[];
   eventInsights: PrismEventInsight[];
   floorPlanDrafts: PrismFloorPlanDraft[];
@@ -1088,6 +1425,9 @@ export interface PrismBillingWorkspace {
   billingStatements: PrismBillingStatement[];
   paymentMilestones: PrismPaymentMilestone[];
   paymentRecords: PrismPaymentRecord[];
+  billingCorrections?: PrismBillingCorrection[];
+  billingDisputes?: PrismBillingDispute[];
+  additionalBillings?: PrismAdditionalBilling[];
 }
 
 export interface PrismSupplierWorkspace {
@@ -1165,11 +1505,17 @@ export interface PrismPmcmEventWorkspace {
   supplierQuoteRequests: PrismSupplierQuoteRequest[];
   supplierQuotes: PrismSupplierQuote[];
   coordinatorAssignments: PrismCoordinatorAssignment[];
+  coordinatorCoverage?: PrismCoordinatorCoverage[];
   complianceChecks: PrismComplianceCheck[];
+  complianceRuns?: PrismComplianceRun[];
+  complianceRisks?: PrismComplianceRisk[];
   billingSources: PrismBillingSource[];
   billingStatements: PrismBillingStatement[];
   paymentMilestones: PrismPaymentMilestone[];
   paymentRecords: PrismPaymentRecord[];
+  billingCorrections?: PrismBillingCorrection[];
+  billingDisputes?: PrismBillingDispute[];
+  additionalBillings?: PrismAdditionalBilling[];
   postEventDocuments: PrismPostEventDocument[];
   eventInsights: PrismEventInsight[];
   floorPlanDrafts: PrismFloorPlanDraft[];
@@ -1209,6 +1555,38 @@ type CreateFloorPlanDraftInput = {
   guests?: PrismProjectLike["guests"];
   suppliers?: PrismProjectLike["suppliers"];
 };
+
+export interface PrismCostEstimateLine { id: string; category: string; description: string; quantity: number; unitAmount: number; totalAmount: number; sourceLineId?: string | null; }
+export interface PrismCostEstimate { id: string; eventId: string; budgetAmount: number; totalAmount: number; alignment: "within_budget" | "over_budget"; status: "draft" | "approved"; lines: PrismCostEstimateLine[]; notes: string; createdAt: string; }
+export interface PrismProposalVersion { id: string; eventId: string; versionNumber: number; title: string; summary: string; costEstimateId: string; totalAmount: number; status: "draft" | "issued" | "superseded"; revisionNote: string; issuedAt?: string | null; }
+
+export type PrismAddendumStatus = "issued";
+export interface PrismAddendum {
+  id: string;
+  eventId: string;
+  versionNumber: number;
+  title: string;
+  summary: string;
+  status: PrismAddendumStatus;
+  documentId: string;
+  documentState: "pending" | "available";
+  signatureMethod: "scanned_document";
+  comparison: { contract: unknown[]; quotes: unknown[] };
+  financialDelta: number;
+  issuedAt: string;
+}
+export interface PrismEventFreezeException {
+  id: string;
+  eventId: string;
+  requestedChange: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  requestedBy: string;
+  decidedBy?: string | null;
+  decisionNote?: string | null;
+  requestedAt: string;
+  decidedAt?: string | null;
+}
 
 type AddSupplierQuoteInput = {
   requestId?: string;

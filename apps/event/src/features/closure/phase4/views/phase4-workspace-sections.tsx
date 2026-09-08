@@ -1,4 +1,5 @@
 import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, Plus, ReceiptText, ShieldCheck, XCircle } from "lucide-react";
+import { useState } from "react";
 
 import type {
   PrismBillingSource,
@@ -175,10 +176,12 @@ function Phase4ComplianceCheckCard({
         <div>
           <p className="font-black">{check.title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{check.note}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Evaluation: {check.evaluationStatus} · {check.definitionStatus}</p>
         </div>
         <span className={cx("rounded-full px-2.5 py-1 text-xs font-black capitalize ring-1", phase4StatusTone(check.status))}>{label(check.status)}</span>
       </div>
       {check.overrideReason && <p className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-800">Override: {check.overrideReason}</p>}
+      {check.evidence.length > 0 && <ul className="mt-3 list-disc pl-5 text-xs text-muted-foreground">{check.evidence.map((item) => <li key={item}>{item}</li>)}</ul>}
       {check.status === "open" && (
         <div className="mt-4 flex flex-wrap gap-2">
           <button disabled={busy} onClick={() => onResolve(check.id)} className="h-8 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Resolve</button>
@@ -295,6 +298,22 @@ function Phase4BillingSourceCard({
       </div>
     </div>
   );
+}
+
+export function ActualEventEndSection({ event, busy, onRecord }: { event: PrismEvent; busy: boolean; onRecord: (input: { actualEndedAt: string; correctionReason?: string }) => Promise<void> }) {
+  const [endedAt, setEndedAt] = useState(event.actualEndedAt ? event.actualEndedAt.slice(0, 16) : "");
+  const [reason, setReason] = useState("");
+  const hasRecorded = Boolean(event.actualEndedAt);
+  async function submit() {
+    if (!endedAt || (hasRecorded && !reason.trim())) return;
+    await onRecord({ actualEndedAt: new Date(endedAt).toISOString(), ...(reason.trim() ? { correctionReason: reason.trim() } : {}) });
+    setReason("");
+  }
+  return <section className="rounded-lg border border-border bg-card p-5">
+    <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-(--prism-amber)">Event end</p><h3 className="mt-1 text-xl font-black">Record actual end</h3></div><span className="text-xs text-muted-foreground">{event.actualEndedAt ? new Date(event.actualEndedAt).toLocaleString() : "Not recorded"}</span></div>
+    <p className="mt-2 text-sm text-muted-foreground">This timestamp opens the seven-day guest feedback window and supports final registration imports.</p>
+    <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-sm font-semibold">Actual ended at<input type="datetime-local" value={endedAt} onChange={(e) => setEndedAt(e.target.value)} className="mt-1 block h-10 rounded-md border border-border bg-white px-3" /></label>{hasRecorded && <label className="text-sm font-semibold">Correction reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is the end changing?" className="mt-1 block h-10 rounded-md border border-border bg-white px-3" /></label>}<button disabled={busy || !endedAt || (hasRecorded && !reason.trim())} onClick={() => void submit()} className="h-10 rounded-md bg-(--prism-ink) px-4 text-sm font-black text-sidebar-foreground disabled:opacity-60">{hasRecorded ? "Correct actual end" : "Record actual end"}</button></div>
+  </section>;
 }
 
 export function Phase4CloseGatesSection({

@@ -28,10 +28,11 @@ export class CoordinatorWorkspaceReadService {
     const coordinator = await this.coordinatorsService.resolveCoordinatorForActor(actor);
     const visibleAssignments = await this.coordinatorsService.listAssignmentsForCoordinator(
       coordinator.id,
+      { includeHistorical: true },
     );
     const eventIds = new Set(visibleAssignments.map((assignment) => assignment.eventId));
     const events = await this.prisma.opsEvent.findMany({
-      where: { archived: false },
+      where: { id: { in: Array.from(eventIds) } },
       include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
       orderBy: { eventDate: 'asc' },
     });

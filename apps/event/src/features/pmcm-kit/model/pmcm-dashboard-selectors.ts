@@ -52,6 +52,7 @@ export function selectEventWorkspaceResources(
     assignments:
       scopedWorkspace?.coordinatorAssignments ??
       (state?.coordinatorAssignments ?? []).filter((item) => item.eventId === selectedEventId),
+    coordinatorCoverage: scopedWorkspace?.coordinatorCoverage ?? [],
     audit: (
       scopedWorkspace?.auditLogs ??
       (state?.auditLogs ?? []).filter((item) => item.eventId === selectedEventId || !item.eventId)

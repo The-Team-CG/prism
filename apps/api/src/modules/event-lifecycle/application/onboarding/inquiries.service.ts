@@ -101,7 +101,7 @@ export class InquiriesService {
     );
   }
 
-  async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput) {
+  async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput, actor?: ResolvedEventOpsActor) {
     let current: OpsInquiry | null = null;
     let data: Prisma.OpsInquiryUpdateInput = {};
 
@@ -141,11 +141,29 @@ export class InquiriesService {
                     status: input.status,
                   };
       },
-      write: () => this.prisma.opsInquiry.update({ where: { id: inquiryId }, data }),
+      write: () => this.prisma.$transaction(async (tx) => {
+        const updated = await tx.opsInquiry.update({ where: { id: inquiryId }, data });
+        if (tx.opsInquiryStatusHistory?.create) {
+          await tx.opsInquiryStatusHistory.create({
+            data: {
+              id: `inq_status_${randomUUID()}`,
+              inquiryId,
+              eventId: (await tx.opsEvent.findFirst({ where: { inquiryId }, select: { id: true } }))?.id ?? null,
+              fromStatus: current?.status ?? null,
+              toStatus: input.status,
+              transition: `inquiry:${current?.status ?? 'unknown'}->${input.status}`,
+              actorId: actor?.id ?? null,
+              actorRole: actor?.role ?? OpsUserRole.System,
+              actorName: actor?.name ?? 'System',
+            },
+          });
+        }
+        return updated;
+      }),
       sideEffects: async (inquiry) => {
         if (input.status === 'accepted') {
           await Promise.all([
-            this.audit(undefined, 'PMCM Admin', `Accepted inquiry for ${inquiry.clientName}; conforme sent`),
+          this.audit(undefined, actor?.name ?? 'PMCM Admin', `Accepted inquiry for ${inquiry.clientName}; conforme sent`),
             this.notify(undefined, inquiry.email, 'Inquiry accepted; signed conforme required'),
             this.notify(undefined, inquiry.clientName, 'Conforme sent by PMCM', 'viber'),
           ]);
@@ -203,7 +221,7 @@ export class InquiriesService {
 
   async uploadConforme(
     inquiryId: string,
-    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number },
+    input: { type?: string; fileName: string; mimeType?: string; sizeBytes?: number; storageObjectId?: string },
     actor: ResolvedEventOpsActor,
   ): Promise<OpsDocument> {
     let inquiry: OpsInquiry | null = null;
@@ -226,6 +244,12 @@ export class InquiriesService {
         }
 
         existingEvent = await this.prisma.opsEvent.findFirst({ where: { inquiryId } });
+        if (input.storageObjectId) {
+          const stored = await this.prisma.opsStoredObject.findUnique({ where: { id: input.storageObjectId } });
+          if (!stored || stored.eventId !== existingEvent?.id || stored.usage !== 'signed_conforme' || stored.lifecycleState !== 'stored') {
+            throw new BadRequestException('Conforme requires a confirmed stored W10 signed-conforme object');
+          }
+        }
       },
       write: async () => {
         if (!inquiry) throw new NotFoundException('Inquiry not found');
@@ -242,7 +266,7 @@ export class InquiriesService {
                 eventName: inquiry!.eventName,
                 eventDate: inquiry!.eventDate,
                 status: 'briefing',
-                clientPortalStatus: 'unlocked',
+                clientPortalStatus: input.storageObjectId ? 'unlocked' : 'locked',
                 readiness: 'Client briefing open',
               },
             }));
@@ -272,7 +296,7 @@ export class InquiriesService {
               eventId: event.id,
               type: input.type ?? 'signed_conforme',
               fileName: input.fileName,
-              status: 'approved',
+              status: input.storageObjectId ? 'approved' : 'pending',
               mimeType: input.mimeType ?? null,
               sizeBytes: input.sizeBytes ?? null,
               uploadedByRole: 'client',
@@ -282,20 +306,22 @@ export class InquiriesService {
           await tx.opsEvent.update({
             where: { id: event.id },
             data: {
-              clientPortalStatus: 'unlocked',
-              readiness: 'Client briefing open',
-              status: 'briefing',
+              clientPortalStatus: input.storageObjectId ? 'unlocked' : 'locked',
+              readiness: input.storageObjectId ? 'Client briefing open' : 'Conforme storage confirmation required',
+              status: input.storageObjectId ? 'briefing' : 'inquiry',
             },
           });
 
           await tx.opsInquiry.update({
             where: { id: inquiry!.id },
             data: {
-              conformeSignedAt: now,
-              portalActivatedAt: now,
-              portalInvitationStatus: 'sent',
-              portalInvitationSentAt: now,
-              portalInvitationExpiresAt: addDays(now, 7),
+              ...(input.storageObjectId ? {
+                conformeSignedAt: now,
+                portalActivatedAt: now,
+                portalInvitationStatus: 'sent',
+                portalInvitationSentAt: now,
+                portalInvitationExpiresAt: addDays(now, 7),
+              } : {}),
             },
           });
 
@@ -304,7 +330,7 @@ export class InquiriesService {
       },
       sideEffects: async ({ document, event }) => {
         const sideEffects: Array<Promise<unknown>> = [
-          this.audit(event.id, actor.name, 'Uploaded signed conforme and unlocked client portal', {
+          this.audit(event.id, actor.name, input.storageObjectId ? 'Confirmed stored signed conforme and unlocked client portal' : 'Recorded conforme metadata pending W10 storage confirmation', {
             actorRole: actor.role,
             actorEmail: actor.email,
             category: AuditCategory.Documents,
@@ -313,7 +339,7 @@ export class InquiriesService {
             affectedId: document.id,
             affectedLabel: document.fileName,
           }),
-          this.notify(event.id, event.clientName, 'Client portal unlocked'),
+          ...(input.storageObjectId ? [this.notify(event.id, event.clientName, 'Client portal unlocked')] : []),
         ];
 
         await Promise.all(sideEffects);

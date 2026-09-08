@@ -4,10 +4,11 @@ import {
   readPrismSession,
   savePrismSession,
   type PrismGuestEventPass,
+  type CreateGuestFeedbackInput,
 } from "@prism/types";
 import { guestJson } from "@/features/guest-shared/guest-http";
 import { guestApiPath } from "../model/guest-dashboard-rules";
-import type { CheckInPayload, FeedbackPayload, GuestSession } from "../model/guest-dashboard-types";
+import type { CheckInPayload, GuestSession } from "../model/guest-dashboard-types";
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.guest;
 
@@ -35,7 +36,7 @@ export const guestDashboardRepository = {
     });
   },
 
-  submitFeedback(session: GuestSession, payload: FeedbackPayload): Promise<unknown> {
+  submitFeedback(session: GuestSession, payload: CreateGuestFeedbackInput): Promise<unknown> {
     return guestJson(guestApiPath(session, "/feedback"), {
       method: "POST",
       body: JSON.stringify(payload),

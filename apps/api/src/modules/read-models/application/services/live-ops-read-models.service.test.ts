@@ -35,6 +35,10 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     clientPortalStatus: 'unlocked',
     readiness: 'ready',
     archived: false,
+    walkInPolicy: 'closed',
+    walkInThreshold: 200,
+    actualEndedAt: null,
+    actualEndedBy: null,
     archivedAt: null,
     archiveOverrideReason: null,
     archiveOverrideBy: null,
@@ -47,6 +51,10 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     proposalRevisionCount: 0,
     proposalReviewedAt: null,
     proposalReviewedBy: null,
+    freezeStatus: 'open',
+    freezeAt: null,
+    freezeDeadlineAt: null,
+    freezeReason: '',
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
     floorPlanDrafts: [],
@@ -129,6 +137,7 @@ function supplierRequestFixture(): OpsSupplierQuoteRequest {
     statusPhotoFileName: 'setup.jpg',
     contractDocumentId: 'doc_1',
     createdAt: CREATED_AT,
+    roundId: null,
   };
 }
 
@@ -167,6 +176,11 @@ function assignmentFixture(role: string): OpsCoordinatorAssignment {
     conflictEventId: null,
     conflictEventName: null,
     acknowledgedAt: CREATED_AT,
+    acknowledgedBy: 'user_1',
+    acknowledgementReason: null,
+    withdrawalReason: null,
+    withdrawnAt: null,
+    withdrawnBy: null,
     createdAt: CREATED_AT,
   };
 }
@@ -184,6 +198,7 @@ function guestFixture(): OpsGuestCheckIn {
     privacyNoticeVersion: '2026-05-01',
     marketingConsentAccepted: false,
     checkedInAt: CREATED_AT,
+    rosterEntryId: null,
   };
 }
 

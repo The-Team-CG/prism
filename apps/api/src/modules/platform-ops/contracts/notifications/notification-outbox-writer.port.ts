@@ -7,7 +7,6 @@ export interface NotificationOutboxWriteInput {
   recipient: string;
   message: string;
   channel?: NotificationOutboxChannel;
-  forceFail?: boolean;
   correlationId?: string;
   idempotencyKey?: string;
 }

@@ -6,8 +6,9 @@ import { EventAccessPolicyService } from './event-access-policy.service';
 
 function createPolicy() {
   const write = vi.fn();
-  const policy = new EventAccessPolicyService({ write } as any);
-  return { policy, write };
+  const recordIntegrityIncident = vi.fn().mockResolvedValue(undefined);
+  const policy = new EventAccessPolicyService({ write, recordIntegrityIncident } as any);
+  return { policy, write, recordIntegrityIncident };
 }
 
 describe('EventAccessPolicyService', () => {
@@ -174,6 +175,21 @@ describe('EventAccessPolicyService', () => {
         actorRole: OpsUserRole.Supplier,
       }),
     );
+  });
+
+  it('persists an integrity incident when forbidden-access audit cannot be written', async () => {
+    const write = vi.fn().mockRejectedValue(new Error('ambiguous tail'));
+    const recordIntegrityIncident = vi.fn().mockResolvedValue(undefined);
+    const policy = new EventAccessPolicyService({ write, recordIntegrityIncident } as any);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, actorName: 'Ana Reyes', actorEmail: 'ana@example.test' });
+
+    await expect(policy.requireCanViewInternalCosts(actor, 'evt_1', 'billing source')).rejects.toThrow('cannot view internal costs');
+    expect(recordIntegrityIncident).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'event-access-policy.forbidden-access',
+      reason: 'ambiguous tail',
+      eventId: 'evt_1',
+      metadata: expect.objectContaining({ resource: 'billing source' }),
+    }));
   });
 
   it('keeps the kernel access policy behind a focused audit writer seam', () => {

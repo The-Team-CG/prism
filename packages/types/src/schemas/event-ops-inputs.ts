@@ -7,6 +7,21 @@ import {
   uploadMetadataSchema,
 } from "./common.js";
 
+export const eventDecisionSchema = z.object({
+  decision: z.enum(["cancelled", "postponed", "date_to_be_confirmed"]),
+  reason: nonEmptyStringSchema,
+  newEventDate: isoDateStringSchema.optional(),
+  cancellationFeeAmount: z.number().int().nonnegative().default(0),
+  depositTreatment: z.enum(["retain", "credit", "waive", "pending_review"]).default("pending_review"),
+  supplierImpact: z.enum(["release_obligations", "preserve_obligations", "pending_review"]).default("pending_review"),
+  idempotencyKey: nonEmptyStringSchema.optional(),
+}).superRefine((value, ctx) => {
+  if (value.decision === "postponed" && !value.newEventDate) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["newEventDate"], message: "A new date is required for postponement" });
+  }
+});
+export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
+
 /**
  * Write DTOs for portal ↔ API mutations.
  * Schemas are the source of truth; types are `z.infer`.
@@ -56,6 +71,7 @@ export const uploadConformeSchema = z.object({
     .regex(/\.pdf$/i, "fileName must have a .pdf extension"),
   mimeType: optionalTrimmedStringSchema,
   sizeBytes: z.number().int().nonnegative().optional(),
+  storageObjectId: optionalTrimmedStringSchema,
 });
 export type UploadConformeInput = z.infer<typeof uploadConformeSchema>;
 
@@ -65,8 +81,15 @@ export const submitBriefingSchema = z.object({
   budgetRange: nonEmptyStringSchema,
   serviceRequirements: z.array(z.string()),
   notes: nonEmptyStringSchema,
+  confirmedDate: isoDateStringSchema.optional(),
+  confirmedStartTime: optionalTrimmedStringSchema,
+  confirmedEndTime: optionalTrimmedStringSchema,
+  program: z.array(z.object({ time: optionalTrimmedStringSchema, activity: nonEmptyStringSchema })).optional().default([]),
+  moodAndStyling: optionalTrimmedStringSchema,
+  stylingBudget: z.number().int().nonnegative().optional(),
 });
-export type SubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
+type ParsedSubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
+export type SubmitBriefingInput = Omit<ParsedSubmitBriefingInput, "program"> & { program?: ParsedSubmitBriefingInput["program"] };
 
 /* ── Guest ────────────────────────────────────────────────────── */
 
@@ -85,9 +108,36 @@ export const reviewEventProposalSchema = z.object({
 });
 export type ReviewEventProposalInput = z.infer<typeof reviewEventProposalSchema>;
 
+export const costEstimateLineSchema = z.object({
+  category: nonEmptyStringSchema,
+  description: nonEmptyStringSchema,
+  quantity: z.number().positive(),
+  unitAmount: z.number().int().nonnegative(),
+  sourceLineId: optionalTrimmedStringSchema,
+});
+export type CostEstimateLineInput = z.infer<typeof costEstimateLineSchema>;
+
+export const createCostEstimateSchema = z.object({
+  budgetAmount: z.number().int().positive(),
+  lines: z.array(costEstimateLineSchema).min(1),
+  notes: z.string().trim().default(''),
+  reuseEstimateId: optionalTrimmedStringSchema,
+});
+export type CreateCostEstimateInput = z.infer<typeof createCostEstimateSchema>;
+
+export const issueProposalVersionSchema = z.object({
+  title: nonEmptyStringSchema,
+  summary: z.string().trim().default(''),
+  costEstimateId: nonEmptyStringSchema,
+  revisionNote: z.string().trim().default(''),
+});
+export type IssueProposalVersionInput = z.infer<typeof issueProposalVersionSchema>;
+
 export const archiveSearchFiltersSchema = z.object({
   venue: optionalTrimmedStringSchema,
   eventType: optionalTrimmedStringSchema,
+  eventName: optionalTrimmedStringSchema,
+  clientName: optionalTrimmedStringSchema,
   month: z
     .string()
     .trim()
@@ -96,8 +146,34 @@ export const archiveSearchFiltersSchema = z.object({
 });
 export type ArchiveSearchFilters = z.infer<typeof archiveSearchFiltersSchema>;
 
+export const wrapUpModeSchema = z.enum(["full", "quick"]);
+export type WrapUpMode = z.infer<typeof wrapUpModeSchema>;
+
+export const wrapUpSectionSchema = z.object({
+  status: z.enum(["pending", "complete", "blocked"]).default("pending"),
+  evidence: z.string().trim().max(4000).default(""),
+  completedAt: z.string().datetime({ offset: true }).nullable().default(null),
+});
+
+export const startEventWrapUpSchema = z.object({ mode: wrapUpModeSchema.default("full") });
+export type StartEventWrapUpInput = z.infer<typeof startEventWrapUpSchema>;
+
+export const updateEventWrapUpSchema = z.object({
+  mode: wrapUpModeSchema.optional(),
+  requiredItems: z.record(z.string(), z.boolean()).optional(),
+  sections: z.object({
+    logistics: wrapUpSectionSchema.optional(),
+    issues: wrapUpSectionSchema.optional(),
+    feedback: wrapUpSectionSchema.optional(),
+  }).optional(),
+  clientAcknowledged: z.boolean().optional(),
+  clientAcknowledgementNote: z.string().trim().max(2000).optional(),
+});
+export type UpdateEventWrapUpInput = z.infer<typeof updateEventWrapUpSchema>;
+
 export const createGuestCheckInSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,
+  rosterEntryId: optionalTrimmedStringSchema,
   checkInMode: z.enum(["name_search", "walk_in"]).or(z.string().trim().min(1)).optional(),
   walkIn: z.boolean().optional(),
   verificationStatus: z.enum(["verified", "flagged"]).or(z.string().trim().min(1)).optional(),
@@ -112,6 +188,24 @@ export const createGuestFeedbackSchema = privacyConsentSchema.extend({
   video: uploadMetadataSchema.optional(),
 });
 export type CreateGuestFeedbackInput = z.infer<typeof createGuestFeedbackSchema>;
+
+export const moderateGuestFeedbackSchema = z.object({
+  action: z.enum(["approve", "reject", "hide"]),
+  reason: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (value.action !== "approve" && !value.reason?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A reason is required for rejected or hidden feedback", path: ["reason"] });
+  }
+});
+export type ModerateGuestFeedbackInput = z.infer<typeof moderateGuestFeedbackSchema>;
+
+export const withdrawGuestFeedbackConsentSchema = z.object({
+  withdrawPrivacyConsent: z.boolean().optional(),
+  withdrawMarketingConsent: z.boolean().optional(),
+}).refine((value) => value.withdrawPrivacyConsent || value.withdrawMarketingConsent, {
+  message: "Select at least one consent to withdraw",
+});
+export type WithdrawGuestFeedbackConsentInput = z.infer<typeof withdrawGuestFeedbackConsentSchema>;
 
 /* ── Registration platform (PMCM) ─────────────────────────────── */
 
@@ -149,12 +243,61 @@ export const importHeadcountSchema = z.object({
 });
 export type ImportHeadcountInput = z.infer<typeof importHeadcountSchema>;
 
+export const recordActualEventEndSchema = z.object({
+  actualEndedAt: z.string().datetime({ offset: true }),
+  correctionReason: optionalTrimmedStringSchema,
+});
+export type RecordActualEventEndInput = z.infer<typeof recordActualEventEndSchema>;
+
+export const importGuestRosterSchema = z.object({
+  source: nonEmptyStringSchema,
+  rows: z.array(z.object({
+    sourceKey: nonEmptyStringSchema,
+    guestName: nonEmptyStringSchema,
+    email: optionalTrimmedStringSchema,
+    phone: optionalTrimmedStringSchema,
+    category: optionalTrimmedStringSchema,
+    table: optionalTrimmedStringSchema,
+    eligibility: z.enum(["eligible", "ineligible"]).optional(),
+  })).min(1).max(1000),
+});
+export type ImportGuestRosterInput = z.infer<typeof importGuestRosterSchema>;
+
+/** Walk-in policy vocabulary: closed rejects all walk-ins; open permits them;
+ * threshold permits them while checked-in attendance is below the threshold. */
+export const walkInPolicySchema = z.enum(["closed", "open", "threshold"]);
+export type WalkInPolicy = z.infer<typeof walkInPolicySchema>;
+
+export const updateWalkInPolicySchema = z.object({
+  policy: walkInPolicySchema,
+  threshold: z.number().int().min(1).optional(),
+}).superRefine((value, ctx) => {
+  if (value.policy === "threshold" && value.threshold === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["threshold"], message: "A threshold is required when walk-ins use threshold policy" });
+  }
+});
+export type UpdateWalkInPolicyInput = z.infer<typeof updateWalkInPolicySchema>;
+
+export const guestRosterSearchSchema = z.object({
+  query: optionalTrimmedStringSchema,
+  namePrefix: optionalTrimmedStringSchema,
+  eligibility: z.enum(["eligible", "ineligible"]).optional(),
+  checkedIn: z.boolean().optional(),
+});
+export type GuestRosterSearchInput = z.infer<typeof guestRosterSearchSchema>;
+
+export const updateGuestVerificationSchema = z.object({
+  status: z.enum(["pending", "verified", "rejected"]),
+});
+export type UpdateGuestVerificationInput = z.infer<typeof updateGuestVerificationSchema>;
+
 /* ── Supplier ─────────────────────────────────────────────────── */
 
 export const reviewSupplierApplicationSchema = z.object({
-  action: z.enum(["request_proposal", "schedule", "decline"]),
+  action: z.enum(["request_proposal", "schedule", "approve", "decline"]),
   declineReason: optionalTrimmedStringSchema,
   notes: optionalTrimmedStringSchema,
+  idempotencyKey: optionalTrimmedStringSchema,
 }).superRefine((value, ctx) => {
   if (value.action === "decline" && !value.declineReason?.trim()) {
     ctx.addIssue({
@@ -184,6 +327,12 @@ export const createSupplierApplicationSchema = z.object({
 });
 export type CreateSupplierApplicationInput = z.infer<typeof createSupplierApplicationSchema>;
 
+export const supplierApplicationStatusQuerySchema = z.object({
+  applicationId: nonEmptyStringSchema,
+  email: z.string().trim().email(),
+});
+export type SupplierApplicationStatusQuery = z.infer<typeof supplierApplicationStatusQuerySchema>;
+
 export const createSupplierReviewSchema = z.object({
   eventId: optionalTrimmedStringSchema,
   rating: z.number().int().min(1).max(5),
@@ -201,10 +350,54 @@ export const createSupplierReviewSchema = z.object({
 });
 export type CreateSupplierReviewInput = z.infer<typeof createSupplierReviewSchema>;
 
+export const createSupplierReliabilityNoteSchema = z.object({
+  eventId: nonEmptyStringSchema,
+  note: nonEmptyStringSchema,
+  idempotencyKey: optionalTrimmedStringSchema,
+});
+export type CreateSupplierReliabilityNoteInput = z.infer<typeof createSupplierReliabilityNoteSchema>;
+
+export const promoteSupplierSchema = z.object({
+  eventId: nonEmptyStringSchema,
+  tier: z.enum(["tier_1", "tier_2"]),
+  reason: nonEmptyStringSchema,
+  idempotencyKey: optionalTrimmedStringSchema,
+});
+export type PromoteSupplierInput = z.infer<typeof promoteSupplierSchema>;
+
+export const createCommunicationThreadSchema = z.object({
+  eventId: nonEmptyStringSchema,
+  subject: nonEmptyStringSchema,
+  participantActorIds: z.array(nonEmptyStringSchema).max(20).optional(),
+}).superRefine((value, ctx) => {
+  const ids = value.participantActorIds ?? [];
+  if (new Set(ids).size !== ids.length) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Duplicate thread participants are not allowed', path: ['participantActorIds'] });
+});
+export type CreateCommunicationThreadInput = z.infer<typeof createCommunicationThreadSchema>;
+
+export const sendCommunicationMessageSchema = z.object({
+  body: nonEmptyStringSchema,
+  idempotencyKey: nonEmptyStringSchema,
+});
+export type SendCommunicationMessageInput = z.infer<typeof sendCommunicationMessageSchema>;
+
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,
 });
 export type ConfirmSupplierReadinessInput = z.infer<typeof confirmSupplierReadinessSchema>;
+
+export const createSupplierScheduleSchema = z.object({
+  requestId: nonEmptyStringSchema,
+  ingressAt: z.string().datetime({ offset: true }),
+  egressAt: z.string().datetime({ offset: true }),
+  location: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (new Date(value.egressAt) <= new Date(value.ingressAt)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['egressAt'], message: 'Egress must be after ingress' });
+  }
+});
+export type CreateSupplierScheduleInput = z.infer<typeof createSupplierScheduleSchema>;
 
 export const uploadContractSchema = uploadMetadataSchema;
 export type UploadContractInput = z.infer<typeof uploadContractSchema>;
@@ -224,7 +417,68 @@ export const submitSupplierQuoteSchema = z.object({
 });
 export type SubmitSupplierQuoteInput = z.infer<typeof submitSupplierQuoteSchema>;
 
+export const supplierAvailabilitySchema = z.object({
+  availableOn: isoDateStringSchema,
+  capacity: z.number().int().min(0).max(1000),
+  blocked: z.boolean().optional(),
+  notes: optionalTrimmedStringSchema,
+});
+export type SupplierAvailabilityInput = z.infer<typeof supplierAvailabilitySchema>;
+
 /* ── Live ops ─────────────────────────────────────────────────── */
+
+export const createEventScheduleDaySchema = z.object({
+  dayDate: isoDateStringSchema,
+  label: optionalTrimmedStringSchema,
+});
+export type CreateEventScheduleDayInput = z.infer<typeof createEventScheduleDaySchema>;
+
+export const createEventScheduleSegmentSchema = z.object({
+  title: nonEmptyStringSchema,
+  plannedStartAt: z.string().datetime({ offset: true }),
+  plannedEndAt: z.string().datetime({ offset: true }),
+  ownerRole: nonEmptyStringSchema,
+  location: optionalTrimmedStringSchema,
+  sequence: z.number().int().min(0).optional(),
+}).refine((value) => new Date(value.plannedEndAt).getTime() > new Date(value.plannedStartAt).getTime(), {
+  message: "plannedEndAt must be after plannedStartAt",
+  path: ["plannedEndAt"],
+});
+export type CreateEventScheduleSegmentInput = z.infer<typeof createEventScheduleSegmentSchema>;
+
+export const updateEventScheduleSegmentStatusSchema = z.object({
+  action: z.enum(["start", "stop", "skip"]),
+});
+export type UpdateEventScheduleSegmentStatusInput = z.infer<typeof updateEventScheduleSegmentStatusSchema>;
+
+export const createEventOperatorDesignationSchema = z.object({
+  coordinatorId: nonEmptyStringSchema,
+});
+export type CreateEventOperatorDesignationInput = z.infer<typeof createEventOperatorDesignationSchema>;
+
+export const createEventHandoffSchema = z.object({
+  dayId: nonEmptyStringSchema,
+  role: nonEmptyStringSchema,
+  fromAssignmentId: nonEmptyStringSchema,
+  toAssignmentId: nonEmptyStringSchema,
+  outstandingItems: z.array(nonEmptyStringSchema).max(100).default([]),
+  handedOffAt: z.string().datetime({ offset: true }).optional(),
+});
+export type CreateEventHandoffInput = z.infer<typeof createEventHandoffSchema>;
+
+export const createEventEodReportSchema = z.object({
+  dayId: nonEmptyStringSchema,
+  progress: z.array(nonEmptyStringSchema).max(100).default([]),
+  issues: z.array(nonEmptyStringSchema).max(100).default([]),
+  risksForTomorrow: z.array(nonEmptyStringSchema).max(100).default([]),
+  submittedAt: z.string().datetime({ offset: true }).optional(),
+});
+export type CreateEventEodReportInput = z.infer<typeof createEventEodReportSchema>;
+
+export const createEventEodReplySchema = z.object({
+  body: nonEmptyStringSchema,
+});
+export type CreateEventEodReplyInput = z.infer<typeof createEventEodReplySchema>;
 
 export const createEventDayTaskSchema = z.object({
   title: nonEmptyStringSchema,
@@ -245,11 +499,72 @@ export const updateEventDayTaskSchema = z.object({
 });
 export type UpdateEventDayTaskInput = z.infer<typeof updateEventDayTaskSchema>;
 
+export const createEventTaskReassignmentSchema = z.object({
+  toOwnerRole: nonEmptyStringSchema,
+  toOwnerName: optionalTrimmedStringSchema,
+  reason: nonEmptyStringSchema,
+});
+export type CreateEventTaskReassignmentInput = z.infer<typeof createEventTaskReassignmentSchema>;
+
+export const decideEventTaskReassignmentSchema = z.object({
+  decision: z.enum(["approved", "rejected"]),
+  reason: optionalTrimmedStringSchema,
+}).superRefine((value, context) => {
+  if (value.decision === "rejected" && !value.reason?.trim()) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["reason"], message: "A rejection reason is required" });
+  }
+});
+export type DecideEventTaskReassignmentInput = z.infer<typeof decideEventTaskReassignmentSchema>;
+
 export const updateCoordinatorAttendanceSchema = z.object({
   status: nonEmptyStringSchema,
   notes: optionalTrimmedStringSchema,
 });
 export type UpdateCoordinatorAttendanceInput = z.infer<typeof updateCoordinatorAttendanceSchema>;
+
+export const createCoordinatorAssignmentSchema = z.object({
+  coordinatorId: optionalTrimmedStringSchema,
+  coordinatorName: optionalTrimmedStringSchema,
+  role: optionalTrimmedStringSchema,
+  overrideConflict: z.boolean().optional(),
+}).refine((value) => Boolean(value.coordinatorId || value.coordinatorName), {
+  message: "Coordinator id or name is required",
+  path: ["coordinatorId"],
+});
+export type CreateCoordinatorAssignmentInput = z.infer<typeof createCoordinatorAssignmentSchema>;
+
+export const coordinatorAssignmentAcknowledgementSchema = z.object({
+  decision: z.enum(["acknowledged", "declined"]),
+  reason: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (value.decision === "declined" && !value.reason?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Decline reason is required", path: ["reason"] });
+  }
+});
+export type CoordinatorAssignmentAcknowledgementInput = z.infer<typeof coordinatorAssignmentAcknowledgementSchema>;
+
+export const withdrawCoordinatorAssignmentSchema = z.object({
+  reason: nonEmptyStringSchema,
+});
+export type WithdrawCoordinatorAssignmentInput = z.infer<typeof withdrawCoordinatorAssignmentSchema>;
+
+export const createCoordinatorAvailabilitySchema = z.object({
+  startsAt: z.string().datetime({ offset: true }),
+  endsAt: z.string().datetime({ offset: true }),
+  kind: z.enum(["unavailable", "blocked"]).default("unavailable"),
+  note: optionalTrimmedStringSchema,
+}).refine((value) => new Date(value.endsAt).getTime() > new Date(value.startsAt).getTime(), {
+  message: "endsAt must be after startsAt",
+  path: ["endsAt"],
+});
+export type CreateCoordinatorAvailabilityInput = z.infer<typeof createCoordinatorAvailabilitySchema>;
+
+export const createCoordinatorCoverageRequirementSchema = z.object({
+  role: nonEmptyStringSchema,
+  required: z.number().int().min(0),
+  requiredSkills: z.array(nonEmptyStringSchema).default([]),
+});
+export type CreateCoordinatorCoverageRequirementInput = z.infer<typeof createCoordinatorCoverageRequirementSchema>;
 
 export const createUrgentIssueSchema = z.object({
   title: nonEmptyStringSchema,
@@ -282,8 +597,15 @@ export type EscalateLiveOpsInput = z.infer<typeof escalateLiveOpsRecordSchema>;
 
 export const replaceCoordinatorAssignmentSchema = z.object({
   replacementCoordinatorId: nonEmptyStringSchema,
-  role: nonEmptyStringSchema,
+  replacementCoordinatorName: optionalTrimmedStringSchema,
+  role: optionalTrimmedStringSchema,
+  replacementRole: optionalTrimmedStringSchema,
   reason: nonEmptyStringSchema,
+  overrideConflict: z.boolean().optional(),
+}).superRefine((value, context) => {
+  if (!value.role && !value.replacementRole) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["role"], message: "A replacement role is required" });
+  }
 });
 export type ReplaceCoordinatorAssignmentInput = z.infer<typeof replaceCoordinatorAssignmentSchema>;
 

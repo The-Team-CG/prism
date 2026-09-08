@@ -15,6 +15,10 @@ export type EventDashboardCommands = Pick<
   | "approveBillingSource"
   | "approveFloorPlanDraft"
   | "archiveEvent"
+  | "recordActualEventEnd"
+  | "getEventWrapUp"
+  | "startEventWrapUp"
+  | "updateEventWrapUp"
   | "assignCoordinator"
   | "createBillingSource"
   | "createComplianceRule"
@@ -23,6 +27,7 @@ export type EventDashboardCommands = Pick<
   | "createSupplier"
   | "createUrgentIssue"
   | "changeSupplierTier"
+  | "promoteSupplier"
   | "declineApprovalRequest"
   | "declineInquiry"
   | "escalateEventDayTask"
@@ -57,6 +62,13 @@ export type EventDashboardCommands = Pick<
   | "upsertRegistrationPlatform"
   | "updateRegistrationPlatform"
   | "importHeadcount"
+  | "searchGuestRoster"
+  | "searchGuestRosterWithFilters"
+  | "importGuestRoster"
+  | "checkInGuestRoster"
+  | "verifyGuestRoster"
+  | "getWalkInPolicy"
+  | "updateWalkInPolicy"
 >;
 
 /** Stable dashboard command adapter; individual features depend on this port. */
@@ -68,6 +80,10 @@ export const eventDashboardCommands = {
   approveBillingSource: prismApi.approveBillingSource,
   approveFloorPlanDraft: prismApi.approveFloorPlanDraft,
   archiveEvent: prismApi.archiveEvent,
+  recordActualEventEnd: prismApi.recordActualEventEnd,
+  getEventWrapUp: prismApi.getEventWrapUp,
+  startEventWrapUp: prismApi.startEventWrapUp,
+  updateEventWrapUp: prismApi.updateEventWrapUp,
   assignCoordinator: prismApi.assignCoordinator,
   createBillingSource: prismApi.createBillingSource,
   createComplianceRule: prismApi.createComplianceRule,
@@ -76,6 +92,7 @@ export const eventDashboardCommands = {
   createSupplier: prismApi.createSupplier,
   createUrgentIssue: prismApi.createUrgentIssue,
   changeSupplierTier: prismApi.changeSupplierTier,
+  promoteSupplier: prismApi.promoteSupplier,
   declineApprovalRequest: prismApi.declineApprovalRequest,
   declineInquiry: prismApi.declineInquiry,
   escalateEventDayTask: prismApi.escalateEventDayTask,
@@ -110,4 +127,11 @@ export const eventDashboardCommands = {
   upsertRegistrationPlatform: prismApi.upsertRegistrationPlatform,
   updateRegistrationPlatform: prismApi.updateRegistrationPlatform,
   importHeadcount: prismApi.importHeadcount,
+  searchGuestRoster: prismApi.searchGuestRoster,
+  searchGuestRosterWithFilters: prismApi.searchGuestRosterWithFilters,
+  importGuestRoster: prismApi.importGuestRoster,
+  checkInGuestRoster: prismApi.checkInGuestRoster,
+  verifyGuestRoster: prismApi.verifyGuestRoster,
+  getWalkInPolicy: prismApi.getWalkInPolicy,
+  updateWalkInPolicy: prismApi.updateWalkInPolicy,
 } satisfies EventDashboardCommands;

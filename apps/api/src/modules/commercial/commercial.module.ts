@@ -33,6 +33,11 @@ import { SupplierNetworkWorkflowService } from './application/suppliers/supplier
 import { SupplierProfileCommandsService } from './application/suppliers/supplier-profile-commands.service';
 import { SuppliersService } from './application/suppliers/suppliers.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
+import { CommunicationController } from './api/suppliers/communication.controller';
+import { CommunicationService } from './application/suppliers/communication.service';
+import { IdentityAccessModule } from '../identity-access/identity-access.module';
+import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
+import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -74,6 +79,7 @@ const supplierCommandsProvider = {
     EventCoreModule,
     EventLifecycleModule,
     EventSessionModule,
+    IdentityAccessModule,
   ],
   controllers: [
     OpsQuoteRequestsController,
@@ -86,6 +92,8 @@ const supplierCommandsProvider = {
     OpsSupplierWorkspaceCommandsController,
     OpsSupplierPareController,
     OpsEventBillingController,
+    CommunicationController,
+    ProposalLifecycleController,
   ],
   providers: [
     CommercialWorkflowService,
@@ -103,6 +111,8 @@ const supplierCommandsProvider = {
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
     { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
     BillingOperationsService,
+    CommunicationService,
+    ProposalLifecycleService,
     { provide: FINANCE_COMMANDS, useExisting: BillingOperationsService },
     { provide: PAYMENT_STATUS_READER, useExisting: BillingOperationsService },
   ],

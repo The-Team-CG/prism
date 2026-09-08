@@ -1,11 +1,12 @@
-import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import type { OpsBillingStatement, OpsBillingSource, OpsPaymentMilestone, OpsPaymentRecord, Prisma } from '@prisma/client';
+import { Inject, Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Prisma, type OpsAdditionalBilling, type OpsBillingCorrection, type OpsBillingDispute, type OpsBillingStatement, type OpsBillingSource, type OpsPaymentMilestone, type OpsPaymentRecord } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
-import { randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { createHash, randomUUID } from 'node:crypto';
+import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, StorageObjectService, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/payment-terms.policy';
 import type {
   ApproveBillingSourceInput,
   BillingActor,
@@ -14,6 +15,12 @@ import type {
   BillingScheduleInput,
   CreateBillingSourceInput,
   RecordPaymentInput,
+  RequestBillingCorrectionInput,
+  ResolveBillingCorrectionInput,
+  CreateBillingDisputeInput,
+  ResolveBillingDisputeInput,
+  CreateAdditionalBillingInput,
+  WaiveAdditionalBillingInput,
 } from '../../contracts/finance-commands.port';
 
 function isoDate(value: Date) {
@@ -42,6 +49,108 @@ function auditMetadata(actor: BillingActor, metadata: Record<string, unknown> = 
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
+export function renderBillingPdf(input: { number: string; sourceLabel: string; totalAmount: number }) {
+  const text = `P.R.I.S.M BILLING STATEMENT\n${input.number}\nSource: ${input.sourceLabel}\nTotal: ${input.totalAmount}`;
+  const body = `BT /F1 12 Tf 72 720 Td (${text.replace(/[()\\]/g, '')}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    `<< /Length ${Buffer.byteLength(body, 'utf8')} >>\nstream\n${body}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => { offsets.push(Buffer.byteLength(pdf, 'utf8')); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
+  const start = Buffer.byteLength(pdf, 'utf8');
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`;
+  return Buffer.from(pdf, 'utf8');
+}
+
+function paymentReplay(milestone: OpsPaymentMilestone, history: OpsPaymentRecord[]) {
+  const amountPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
+  const remainingBalance = Math.max(0, milestone.amount - amountPaid);
+  return {
+    payment: {
+      ...milestone,
+      amountPaid,
+      remainingBalance,
+      status: remainingBalance === 0 ? 'paid' : amountPaid > 0 ? 'partially_paid' : 'pending',
+    },
+    history,
+  };
+}
+
+function isDuplicatePayment(record: OpsPaymentRecord, input: RecordPaymentInput, paymentDate: Date) {
+  return record.referenceNumber === (input.referenceNumber?.trim() ?? '')
+    && record.amountReceived === input.amountReceived
+    && isoDate(record.paymentDate) === isoDate(paymentDate)
+    && record.paymentMethod === input.paymentMethod;
+}
+
+function assertPaymentWithinBalance(milestone: OpsPaymentMilestone, history: OpsPaymentRecord[], input: RecordPaymentInput) {
+  const currentPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
+  if (currentPaid + input.amountReceived > milestone.amount) {
+    throw new BadRequestException('Payment record exceeds remaining milestone balance');
+  }
+}
+
+function assertPositivePayment(amount: number) {
+  if (amount <= 0) throw new BadRequestException('Amount received must be greater than zero');
+}
+
+function paymentStatus(amountPaid: number, amount: number) {
+  if (amountPaid === amount) return 'paid';
+  if (amountPaid > 0) return 'partially_paid';
+  return 'pending';
+}
+
+function isIdempotencyKeyViolation(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') return false;
+  const target = error.meta?.target;
+  return Array.isArray(target)
+    ? target.some((value) => String(value).toLowerCase().includes('idempotency'))
+    : typeof target === 'string' && target.toLowerCase().includes('idempotency');
+}
+
+function assertIdempotencyPayload<T extends { payloadHash: string | null }>(record: T, payloadHash: string) {
+  if (record.payloadHash && record.payloadHash !== payloadHash) throw new BadRequestException('Idempotency key was reused for different content');
+}
+
+async function createIdempotently<T extends { payloadHash: string | null }>(
+  key: string | undefined,
+  payloadHash: string,
+  find: () => Promise<T | null>,
+  create: () => Promise<T>,
+) {
+  if (key) {
+    const replay = await find();
+    if (replay) {
+      assertIdempotencyPayload(replay, payloadHash);
+      return { value: replay, replayed: true };
+    }
+  }
+  try {
+    return { value: await create(), replayed: false };
+  } catch (error) {
+    if (!key || !isIdempotencyKeyViolation(error)) throw error;
+    const replay = await find();
+    if (!replay) throw error;
+    assertIdempotencyPayload(replay, payloadHash);
+    return { value: replay, replayed: true };
+  }
+}
+
+async function lockPaymentMilestone(tx: Prisma.TransactionClient, milestoneId: string) {
+  if (tx.$queryRaw) {
+    const rows = await tx.$queryRaw<OpsPaymentMilestone[]>`SELECT * FROM "finance_ops"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
+    if (rows.length > 0) return rows[0];
+  }
+  return tx.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
+}
+
 @Injectable()
 export class BillingOperationsService {
   constructor(
@@ -49,6 +158,7 @@ export class BillingOperationsService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Optional() private readonly storageObjectService?: StorageObjectService,
   ) {}
 
   async runPaymentRiskSweep() {
@@ -110,11 +220,15 @@ export class BillingOperationsService {
   }
 
   async markPayment(eventId: string, milestoneId: string, status: string, actor: BillingActor = { name: 'PMCM Admin' }) {
+    let milestone: OpsPaymentMilestone | null = null;
     return this.workflowCommandService.execute<OpsPaymentMilestone, ReturnType<BillingOperationsService['mapPaymentMilestone']>>({
       name: 'mark_payment',
       eventId,
       validateState: async () => {
         await this.requireEvent(eventId);
+        milestone = await this.prisma.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
+        if (!milestone || milestone.eventId !== eventId) throw new NotFoundException('Payment milestone not found');
+        status = nextPaymentMilestoneStatus({ current: milestone.status, amountPaid: milestone.amountPaid, amount: milestone.amount, requested: status });
       },
       write: () =>
         this.prisma.opsPaymentMilestone
@@ -152,6 +266,7 @@ export class BillingOperationsService {
   ) {
     let milestone: OpsPaymentMilestone | null = null;
     let paymentDate: Date | null = null;
+    let paymentPayloadHash = '';
     let duplicateReplay: { payment: OpsPaymentMilestone; history: OpsPaymentRecord[] } | null = null;
 
     return this.workflowCommandService.execute<
@@ -168,53 +283,32 @@ export class BillingOperationsService {
           throw new NotFoundException('Payment milestone not found');
         }
 
-        if (input.amountReceived <= 0) {
-          throw new BadRequestException('Amount received must be greater than zero');
-        }
+        assertPositivePayment(input.amountReceived);
 
-        const existingHistory = (await this.prisma.opsPaymentRecord.findMany({
-          where: { milestoneId },
-          orderBy: { paymentDate: 'asc' },
-        })) as OpsPaymentRecord[];
-        const requestedReference = input.referenceNumber?.trim() ?? '';
         paymentDate = parseDate(input.paymentDate);
-        const duplicateRecord = requestedReference
-          ? existingHistory.find(
-              (record) =>
-                record.referenceNumber === requestedReference &&
-                record.amountReceived === input.amountReceived &&
-                isoDate(record.paymentDate) === isoDate(paymentDate!) &&
-                record.paymentMethod === input.paymentMethod,
-            )
-          : null;
-        if (duplicateRecord) {
-          const amountPaid = existingHistory.reduce((sum, record) => sum + record.amountReceived, 0);
-          const remainingBalance = Math.max(0, milestone.amount - amountPaid);
-          duplicateReplay = {
-            payment: {
-              ...milestone,
-              amountPaid,
-              remainingBalance,
-              status: remainingBalance === 0 ? 'paid' : amountPaid > 0 ? 'partially_paid' : 'pending',
-            },
-            history: existingHistory,
-          };
-          return;
-        }
-
-        const currentPaid = existingHistory.reduce((sum, record) => sum + record.amountReceived, 0);
-        if (currentPaid + input.amountReceived > milestone.amount) {
-          throw new BadRequestException('Payment record exceeds remaining milestone balance');
-        }
+        paymentPayloadHash = createHash('sha256').update(JSON.stringify({ eventId, milestoneId, ...input })).digest('hex');
       },
       write: async () => {
-        if (!milestone) throw new NotFoundException('Payment milestone not found');
-        if (duplicateReplay) return duplicateReplay;
         const recordedPaymentDate = paymentDate ?? parseDate(input.paymentDate);
         paymentDate = recordedPaymentDate;
 
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          const lockedMilestone = await lockPaymentMilestone(tx, milestoneId);
+          if (!lockedMilestone || lockedMilestone.eventId !== eventId) throw new NotFoundException('Payment milestone not found');
+          milestone = lockedMilestone;
+          const history = await tx.opsPaymentRecord.findMany({ where: { milestoneId }, orderBy: { paymentDate: 'asc' } });
+          const keyedRecord = input.idempotencyKey ? await tx.opsPaymentRecord.findUnique({ where: { idempotencyKey: input.idempotencyKey } }) : null;
+          if (keyedRecord) {
+            if (keyedRecord.payloadHash && keyedRecord.payloadHash !== paymentPayloadHash) throw new BadRequestException('Payment idempotency key was reused for different content');
+            duplicateReplay = paymentReplay(lockedMilestone, history);
+            return duplicateReplay;
+          }
+          const duplicateRecord = input.referenceNumber?.trim() ? history.find((record) => isDuplicatePayment(record, input, recordedPaymentDate)) : undefined;
+          if (duplicateRecord) {
+            duplicateReplay = paymentReplay(lockedMilestone, history);
+            return duplicateReplay;
+          }
+          assertPaymentWithinBalance(lockedMilestone, history, input);
           await tx.opsPaymentRecord.create({
             data: {
               id: `payrec_${randomUUID()}`,
@@ -224,22 +318,24 @@ export class BillingOperationsService {
               paymentDate: recordedPaymentDate,
               paymentMethod: input.paymentMethod,
               referenceNumber: input.referenceNumber ?? '',
+              idempotencyKey: input.idempotencyKey ?? null,
+              payloadHash: paymentPayloadHash,
             },
           });
 
-          const history = await tx.opsPaymentRecord.findMany({
+          const updatedHistory = await tx.opsPaymentRecord.findMany({
             where: { milestoneId },
             orderBy: { paymentDate: 'asc' },
           });
-          const amountPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
-          const remainingBalance = Math.max(0, milestone!.amount - amountPaid);
-          const nextStatus = remainingBalance === 0 ? 'paid' : amountPaid > 0 ? 'partially_paid' : 'pending';
+          const amountPaid = updatedHistory.reduce((sum, record) => sum + record.amountReceived, 0);
+          const remainingBalance = Math.max(0, lockedMilestone.amount - amountPaid);
+          const nextStatus = paymentStatus(amountPaid, lockedMilestone.amount);
           const payment = await tx.opsPaymentMilestone.update({
             where: { id: milestoneId },
             data: { amountPaid, remainingBalance, status: nextStatus },
           });
 
-          return { payment, history };
+          return { payment, history: updatedHistory };
         });
       },
       sideEffects: async ({ payment }) => {
@@ -267,34 +363,57 @@ export class BillingOperationsService {
     let totalAmount = 0;
     let paymentSchedule: ReturnType<BillingOperationsService['normalizeBillingSchedule']> = [];
     let paymentMethods: ReturnType<BillingOperationsService['normalizeBillingMethods']> = [];
+    let paymentTermsPolicyState = 'standard';
+    let paymentTermsOverrideReason: string | null = null;
+    let replayed = false;
+    const payloadHash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
 
     return this.workflowCommandService.execute<OpsBillingSource, ReturnType<BillingOperationsService['mapBillingSource']>>({
       name: 'create_billing_source',
       eventId,
+      sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
         lineItems = this.normalizeBillingLineItems(input.lineItems);
         totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
         if (totalAmount <= 0) throw new BadRequestException('Billing source total must be greater than zero');
         paymentSchedule = this.normalizeBillingSchedule(input.paymentSchedule, totalAmount);
+        const terms = validatePaymentTerms({ schedule: paymentSchedule, policy: input.paymentTermsPolicy, overrideReason: input.paymentTermsOverrideReason });
+        paymentTermsPolicyState = terms.state;
+        paymentTermsOverrideReason = terms.overrideReason;
         paymentMethods = this.normalizeBillingMethods(input.paymentMethods);
       },
-      write: () =>
-        this.prisma.opsBillingSource.create({
-          data: {
-            id: `bsrc_${randomUUID()}`,
-            eventId,
-            sourceType: input.sourceType?.trim() || 'ce_proposal',
-            sourceLabel: input.sourceLabel.trim(),
-            sourceDocumentId: input.sourceDocumentId ?? null,
-            lineItems: toPrismaJson(lineItems),
-            paymentSchedule: toPrismaJson(paymentSchedule),
-            paymentMethods: toPrismaJson(paymentMethods),
-            totalAmount,
-            status: 'draft',
-          },
-        }),
+      write: (context) =>
+        (async () => {
+          const db = context?.prisma ?? this.prisma;
+          const result = await createIdempotently(
+            input.idempotencyKey,
+            payloadHash,
+            () => db.opsBillingSource.findUnique({ where: { idempotencyKey: input.idempotencyKey! } }),
+            () => db.opsBillingSource.create({
+            data: {
+              id: `bsrc_${randomUUID()}`,
+              eventId,
+              sourceType: input.sourceType?.trim() || 'ce_proposal',
+              sourceLabel: input.sourceLabel.trim(),
+              sourceDocumentId: input.sourceDocumentId ?? null,
+              lineItems: toPrismaJson(lineItems),
+              paymentSchedule: toPrismaJson(paymentSchedule),
+              paymentMethods: toPrismaJson(paymentMethods),
+              totalAmount,
+              status: 'draft',
+              paymentTermsPolicyState,
+              paymentTermsOverrideReason,
+              payloadHash,
+              idempotencyKey: input.idempotencyKey ?? null,
+            },
+            }),
+          );
+          replayed = result.replayed;
+          return result.value;
+        })(),
       sideEffects: async (source) => {
+        if (replayed) return;
         await writeAudit(this.auditWriter, eventId, actor.name, `Created billing source: ${source.sourceLabel}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
@@ -334,6 +453,7 @@ export class BillingOperationsService {
             status: 'approved',
             approvedAt: new Date(),
             approvedBy,
+            paymentTermsApprovedBy: source?.paymentTermsPolicyState === 'repeat_client_override' ? approvedBy : null,
             approvalNotes: input.approvalNotes?.trim() ?? '',
           },
         }),
@@ -353,15 +473,21 @@ export class BillingOperationsService {
     });
   }
 
-  async generateBillingStatement(eventId: string, sourceId?: string, actor: BillingActor = { name: 'PMCM Admin' }) {
+  async generateBillingStatement(eventId: string, sourceId?: string, actor: BillingActor = { name: 'PMCM Admin' }, idempotencyKey?: string) {
     let event: Awaited<ReturnType<BillingOperationsService['requireEvent']>> | null = null;
     let inquiry: Awaited<ReturnType<PrismaService['opsInquiry']['findUnique']>> | null = null;
     let source: OpsBillingSource | null = null;
     let billingNumber = '';
-    let storageKey = '';
     let lineItems: ReturnType<BillingOperationsService['asBillingLineItems']> = [];
     let paymentSchedule: ReturnType<BillingOperationsService['asBillingSchedule']> = [];
     let paymentMethods: ReturnType<BillingOperationsService['asBillingMethods']> = [];
+    let pdfBytes: Uint8Array = new Uint8Array();
+    let storageState = 'pending';
+    let storageObjectId: string | null = null;
+    let storageKey = '';
+    let existingStatement: OpsBillingStatement | null = null;
+    const statementId = `bill_${randomUUID()}`;
+    const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, sourceId: sourceId ?? null })).digest('hex');
 
     return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<BillingOperationsService['mapBillingStatement']>>({
       name: 'generate_billing_statement',
@@ -378,36 +504,50 @@ export class BillingOperationsService {
           throw new BadRequestException('Billing source must be approved before generating a billing statement');
         }
 
-        const billingYear = event.eventDate.getFullYear();
-        const billingCount = await this.prisma.opsBillingStatement.count();
-        billingNumber = `BS-${billingYear}-${String(billingCount + 1).padStart(4, '0')}`;
-        storageKey = `events/${event.id}/billing/${billingNumber}.pdf`;
         lineItems = this.asBillingLineItems(source.lineItems);
         paymentSchedule = this.asBillingSchedule(source.paymentSchedule, source.totalAmount, event.eventDate);
         paymentMethods = this.asBillingMethods(source.paymentMethods);
       },
-      write: async () => {
+      write: async (context) => {
         if (!event || !source) throw new NotFoundException('Billing source not found');
 
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          // Transaction scope: DB reads/writes only. No external IO inside this callback.
+          if (idempotencyKey) {
+            existingStatement = await tx.opsBillingStatement.findUnique({ where: { idempotencyKey } });
+            if (existingStatement) {
+              if (existingStatement.payloadHash && existingStatement.payloadHash !== payloadHash) throw new BadRequestException('Billing statement idempotency key was reused for different content');
+              return existingStatement;
+            }
+          }
+          const billingYear = event!.eventDate.getFullYear();
+          await tx.$executeRaw`INSERT INTO "finance_ops"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, 2) ON CONFLICT ("year") DO NOTHING`;
+          const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
+          const nextNumber = sequenceRows[0]?.next_number ?? 1;
+          billingNumber = `BS-${billingYear}-${String(nextNumber).padStart(4, '0')}`;
+          await tx.$executeRaw`UPDATE "finance_ops"."billing_statement_sequences" SET "next_number" = ${nextNumber + 1} WHERE "year" = ${billingYear}`;
+          pdfBytes = renderBillingPdf({ number: billingNumber, sourceLabel: source!.sourceLabel, totalAmount: source!.totalAmount });
+          const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source!, pdfBytes, actor);
+          storageState = storage.storageState;
+          storageObjectId = storage.storageObjectId;
+          storageKey = storage.storageKey;
           const billingDocument = await tx.opsDocument.create({
             data: {
               id: `doc_${randomUUID()}`,
               eventId: event!.id,
               type: 'billing_statement',
               fileName: `${billingNumber}.pdf`,
-              status: 'generated',
+              status: storageState === 'stored' ? 'stored' : 'pending_storage',
               mimeType: 'application/pdf',
               storageBucket: 'document-vault',
-              storageKey,
+              storageKey: storageKey || null,
+              sizeBytes: pdfBytes.byteLength || null,
               uploadedByRole: 'system',
             },
           });
 
           const statement = await tx.opsBillingStatement.create({
             data: {
-              id: `bill_${randomUUID()}`,
+              id: statementId,
               eventId,
               sourceId: source!.id,
               number: billingNumber,
@@ -420,8 +560,12 @@ export class BillingOperationsService {
               paymentMethods: toPrismaJson(paymentMethods),
               totalAmount: source!.totalAmount,
               documentId: billingDocument.id,
-              pdfUrl: `/documents/${storageKey}`,
+              pdfUrl: '',
               storageKey,
+              storageObjectId,
+              storageState,
+              idempotencyKey: idempotencyKey ?? null,
+              payloadHash,
               status: 'issued',
             },
           });
@@ -443,7 +587,8 @@ export class BillingOperationsService {
           return statement;
         });
       },
-      sideEffects: async (statement) => {
+      sideEffects: async (statement, context) => {
+        if (existingStatement) return;
         await writeAudit(this.auditWriter, eventId, actor.name, `Generated billing statement ${billingNumber}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
@@ -452,8 +597,18 @@ export class BillingOperationsService {
           affectedType: 'billing_statement',
           affectedId: statement.id,
           affectedLabel: billingNumber,
-          metadata: auditMetadata(actor, { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount }),
-        });
+          metadata: auditMetadata(actor, { sourceId: source?.id, sourceLabel: source?.sourceLabel, totalAmount: source?.totalAmount, notificationStatus: inquiry?.email?.trim() ? 'queued' : 'not_queued', notificationReason: inquiry?.email?.trim() ? undefined : 'No verified client email address is configured' }),
+        }, context);
+        const recipient = inquiry?.email?.trim();
+        if (recipient) await Promise.all(paymentSchedule.map((item, index) => writeNotification(
+            this.notificationOutboxWriter,
+            eventId,
+            recipient,
+            `${item.label} payment milestone for billing statement ${billingNumber} is due ${item.dueDate ?? 'on the agreed date'}`,
+            'email',
+            { idempotencyKey: `billing-reminder:${statement.id}:${index}` },
+            context,
+          )));
       },
       project: (statement) => this.mapBillingStatement(statement),
     });
@@ -474,7 +629,7 @@ export class BillingOperationsService {
           data: { status: 'sent', sentAt: new Date() },
         }),
       sideEffects: async (billing) => {
-        const recipient = billing.clientContact || billing.clientName || 'Client';
+        const recipient = billing.clientContact?.trim();
         await Promise.all([
           writeAudit(this.auditWriter, eventId, actor.name, `Sent billing statement ${billing.number}`, {
             actorRole: actor.role,
@@ -484,14 +639,191 @@ export class BillingOperationsService {
             affectedType: 'billing_statement',
             affectedId: billing.id,
             affectedLabel: billing.number,
-            metadata: auditMetadata(actor),
+            metadata: auditMetadata(actor, { notificationStatus: recipient ? 'queued' : 'not_queued', notificationReason: recipient ? undefined : 'No verified client email address is configured' }),
           }),
-          writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
-          writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
+          ...(recipient ? [
+            writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'email'),
+            writeNotification(this.notificationOutboxWriter, eventId, recipient, `Billing statement ${billing.number} sent`, 'viber'),
+          ] : []),
         ]);
       },
       project: (billing) => this.mapBillingStatement(billing),
     });
+  }
+
+  private async prepareBillingStatementStorage(
+    eventId: string,
+    statementId: string,
+    billingNumber: string,
+    source: OpsBillingSource,
+    pdfBytes: Uint8Array,
+    actor: BillingActor,
+  ) {
+    if (!this.storageObjectService) return { storageState: 'pending', storageObjectId: null, storageKey: '' };
+    const storageActorRole = actor.role === OpsUserRole.System ? OpsUserRole.System : OpsUserRole.PmcmAdmin;
+    const stored = await this.storageObjectService.requestUpload({
+      eventId,
+      ownerRecordType: 'billing_statement',
+      ownerRecordId: statementId,
+      logicalTarget: `billing-statement:${source.id}`,
+      usage: 'event_deliverable',
+      fileName: `${billingNumber}.pdf`,
+      contentType: 'application/pdf',
+      declaredByteSize: pdfBytes.byteLength,
+      checksumSha256: createHash('sha256').update(pdfBytes).digest('hex'),
+      actor: { id: actor.name, name: actor.name, role: storageActorRole, email: actor.email ?? '', eventId, explicit: true },
+    });
+    let storageState = stored.object.lifecycleState;
+    let storageKey = stored.object.providerObjectKey ?? '';
+    if (stored.status === 'ready') {
+      const confirmed = await this.storageObjectService.confirmUpload({ objectId: stored.object.id, checksumSha256: stored.object.checksumSha256, byteSize: pdfBytes.byteLength, bytes: pdfBytes, actor: { id: actor.name, name: actor.name, role: storageActorRole, email: actor.email ?? '', eventId, explicit: true } });
+      storageState = confirmed.lifecycleState;
+      storageKey = confirmed.providerObjectKey ?? storageKey;
+    }
+    return { storageState, storageObjectId: stored.object.id, storageKey };
+  }
+
+  async requestBillingCorrection(eventId: string, input: RequestBillingCorrectionInput, actor: BillingActor) {
+    const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
+    let statement: OpsBillingStatement | null = null;
+    let replayed = false;
+    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
+      name: 'request_billing_correction', eventId, sideEffectMode: 'same_tx',
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        statement = await this.prisma.opsBillingStatement.findUnique({ where: { id: input.statementId } });
+        if (!statement || statement.eventId !== eventId) throw new NotFoundException('Billing statement not found');
+      },
+      write: async (context) => {
+        const db = context?.prisma ?? this.prisma;
+        const replay = await db.opsBillingCorrection.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+        if (replay) {
+          if (replay.payloadHash !== payloadHash) throw new BadRequestException('Billing correction idempotency key was reused for different content');
+          replayed = true;
+          return replay;
+        }
+        return db.opsBillingCorrection.create({ data: { id: `corr_${randomUUID()}`, eventId, statementId: statement!.id, reason: input.reason.trim(), correctedTotalAmount: input.correctedTotalAmount ?? null, status: 'pending', requestedBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
+      },
+      sideEffects: async (correction, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Requested billing correction for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_correction', affectedId: correction.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { statementId: statement!.id, reason: input.reason, correctedTotalAmount: input.correctedTotalAmount ?? null }) }, context); },
+      project: (correction) => this.mapBillingCorrection(correction),
+    });
+  }
+
+  async resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput, actor: BillingActor) {
+    let correction: OpsBillingCorrection | null = null;
+    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
+      name: 'resolve_billing_correction', eventId, sideEffectMode: 'same_tx',
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        correction = await this.prisma.opsBillingCorrection.findUnique({ where: { id: correctionId } });
+        if (!correction || correction.eventId !== eventId) throw new NotFoundException('Billing correction not found');
+        if (correction.status !== 'pending') throw new BadRequestException('Billing correction has already been resolved');
+      },
+      write: (context) => (context?.prisma ?? this.prisma).opsBillingCorrection.update({ where: { id: correctionId }, data: { status: input.action === 'approve' ? 'approved' : 'rejected', resolvedBy: actor.name, resolutionNotes: input.resolutionNotes?.trim() ?? null, resolvedAt: new Date() } }),
+      sideEffects: async (resolved, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `${input.action === 'approve' ? 'Approved' : 'Rejected'} billing correction`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: input.action === 'approve' ? AuditActionType.Approve : AuditActionType.Update, affectedType: 'billing_correction', affectedId: resolved.id, affectedLabel: resolved.statementId, metadata: auditMetadata(actor, { resolutionNotes: input.resolutionNotes ?? '' }) }, context); },
+      project: (resolved) => this.mapBillingCorrection(resolved),
+    });
+  }
+
+  async createBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor: BillingActor) {
+    const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
+    let statement: OpsBillingStatement | null = null;
+    let replayed = false;
+    return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<BillingOperationsService['mapBillingDispute']>>({
+      name: 'create_billing_dispute', eventId, sideEffectMode: 'same_tx',
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        statement = await this.prisma.opsBillingStatement.findUnique({ where: { id: input.statementId } });
+        if (!statement || statement.eventId !== eventId) throw new NotFoundException('Billing statement not found');
+        if (input.amount > statement.totalAmount) throw new BadRequestException('Dispute amount cannot exceed the statement total');
+        if (input.milestoneId) {
+          const milestone = await this.prisma.opsPaymentMilestone.findUnique({ where: { id: input.milestoneId } });
+          if (!milestone || milestone.eventId !== eventId) throw new NotFoundException('Payment milestone not found');
+        }
+      },
+      write: async (context) => {
+        const db = context?.prisma ?? this.prisma;
+        const replay = await db.opsBillingDispute.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+        if (replay) {
+          if (replay.payloadHash !== payloadHash) throw new BadRequestException('Billing dispute idempotency key was reused for different content');
+          replayed = true;
+          return replay;
+        }
+        return db.opsBillingDispute.create({ data: { id: `dispute_${randomUUID()}`, eventId, statementId: statement!.id, milestoneId: input.milestoneId ?? null, amount: input.amount, reason: input.reason.trim(), status: 'open', raisedBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
+      },
+      sideEffects: async (dispute, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Opened billing dispute for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_dispute', affectedId: dispute.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { amount: input.amount, reason: input.reason }) }, context); },
+      project: (dispute) => this.mapBillingDispute(dispute),
+    });
+  }
+
+  async resolveBillingDispute(eventId: string, disputeId: string, input: ResolveBillingDisputeInput, actor: BillingActor) {
+    return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<BillingOperationsService['mapBillingDispute']>>({
+      name: 'resolve_billing_dispute', eventId, sideEffectMode: 'same_tx',
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        const dispute = await this.prisma.opsBillingDispute.findUnique({ where: { id: disputeId } });
+        if (!dispute || dispute.eventId !== eventId) throw new NotFoundException('Billing dispute not found');
+        if (dispute.status !== 'open') throw new BadRequestException('Billing dispute has already been resolved');
+      },
+      write: (context) => (context?.prisma ?? this.prisma).opsBillingDispute.update({ where: { id: disputeId }, data: { status: input.action === 'resolve' ? 'resolved' : 'rejected', resolvedBy: actor.name, resolutionNotes: input.resolutionNotes.trim(), resolvedAt: new Date() } }),
+      sideEffects: async (dispute, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `Resolved billing dispute`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Update, affectedType: 'billing_dispute', affectedId: dispute.id, affectedLabel: dispute.statementId, metadata: auditMetadata(actor, { resolution: input.action, resolutionNotes: input.resolutionNotes }) }, context); },
+      project: (dispute) => this.mapBillingDispute(dispute),
+    });
+  }
+
+  async createAdditionalBilling(eventId: string, input: CreateAdditionalBillingInput, actor: BillingActor) {
+    const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
+    let event: Awaited<ReturnType<BillingOperationsService['requireEvent']>> | null = null;
+    let issue: { id: string; eventId: string } | null = null;
+    let replayed = false;
+    return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
+      name: 'create_additional_billing', eventId, sideEffectMode: 'same_tx',
+      validateState: async () => {
+        event = await this.requireEvent(eventId);
+        if (!event.actualEndedAt) throw new BadRequestException('Post-event additional billing requires a recorded event end');
+        issue = await this.prisma.opsUrgentIssue.findUnique({ where: { id: input.urgentIssueId }, select: { id: true, eventId: true } });
+        if (!issue || issue.eventId !== eventId) throw new NotFoundException('Urgent issue not found');
+      },
+      write: async (context) => {
+        const db = context?.prisma ?? this.prisma;
+        const replay = await db.opsAdditionalBilling.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+        if (replay) {
+          if (replay.payloadHash !== payloadHash) throw new BadRequestException('Additional billing idempotency key was reused for different content');
+          replayed = true;
+          return replay;
+        }
+        return db.opsAdditionalBilling.create({ data: { id: `addbill_${randomUUID()}`, eventId, urgentIssueId: issue!.id, description: input.description.trim(), amount: input.amount, status: 'issued', createdBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
+      },
+      sideEffects: async (billing, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Issued post-event additional billing`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'additional_billing', affectedId: billing.id, affectedLabel: input.description, metadata: auditMetadata(actor, { urgentIssueId: issue!.id, amount: input.amount }) }, context); },
+      project: (billing) => this.mapAdditionalBilling(billing),
+    });
+  }
+
+  async waiveAdditionalBilling(eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput, actor: BillingActor) {
+    return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
+      name: 'waive_additional_billing', eventId, sideEffectMode: 'same_tx',
+      validateState: async () => {
+        await this.requireEvent(eventId);
+        const billing = await this.prisma.opsAdditionalBilling.findUnique({ where: { id: additionalBillingId } });
+        if (!billing || billing.eventId !== eventId) throw new NotFoundException('Additional billing not found');
+        if (billing.status !== 'issued') throw new BadRequestException('Only an issued additional bill can be waived');
+      },
+      write: (context) => (context?.prisma ?? this.prisma).opsAdditionalBilling.update({ where: { id: additionalBillingId }, data: { status: 'waived', waiverReason: input.reason.trim(), waivedBy: actor.name, waivedAt: new Date() } }),
+      sideEffects: async (billing, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `Waived post-event additional billing`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Update, affectedType: 'additional_billing', affectedId: billing.id, affectedLabel: billing.description, metadata: auditMetadata(actor, { waiverReason: input.reason }) }, context); },
+      project: (billing) => this.mapAdditionalBilling(billing),
+    });
+  }
+
+  mapBillingCorrection(correction: OpsBillingCorrection) {
+    return { id: correction.id, eventId: correction.eventId, statementId: correction.statementId, reason: correction.reason, correctedTotalAmount: correction.correctedTotalAmount ?? null, status: correction.status, requestedBy: correction.requestedBy, resolvedBy: correction.resolvedBy ?? null, resolutionNotes: correction.resolutionNotes ?? null, createdAt: timestamp(correction.createdAt), resolvedAt: correction.resolvedAt ? timestamp(correction.resolvedAt) : null };
+  }
+
+  mapBillingDispute(dispute: OpsBillingDispute) {
+    return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, reason: dispute.reason, status: dispute.status, raisedBy: dispute.raisedBy, resolvedBy: dispute.resolvedBy ?? null, resolutionNotes: dispute.resolutionNotes ?? null, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
+  }
+
+  mapAdditionalBilling(billing: OpsAdditionalBilling) {
+    return { id: billing.id, eventId: billing.eventId, urgentIssueId: billing.urgentIssueId, description: billing.description, amount: billing.amount, status: billing.status, createdBy: billing.createdBy, waiverReason: billing.waiverReason ?? null, waivedBy: billing.waivedBy ?? null, createdAt: timestamp(billing.createdAt), waivedAt: billing.waivedAt ? timestamp(billing.waivedAt) : null };
   }
 
   mapBillingSource(source: OpsBillingSource) {
@@ -509,6 +841,9 @@ export class BillingOperationsService {
       approvedAt: source.approvedAt ? timestamp(source.approvedAt) : null,
       approvedBy: source.approvedBy ?? null,
       approvalNotes: source.approvalNotes,
+      paymentTermsPolicyState: source.paymentTermsPolicyState,
+      paymentTermsOverrideReason: source.paymentTermsOverrideReason ?? null,
+      paymentTermsApprovedBy: source.paymentTermsApprovedBy ?? null,
       createdAt: timestamp(source.createdAt),
       updatedAt: timestamp(source.updatedAt),
     };
@@ -532,6 +867,8 @@ export class BillingOperationsService {
       documentId: statement.documentId ?? null,
       pdfUrl: statement.pdfUrl,
       storageKey: statement.storageKey,
+      storageObjectId: statement.storageObjectId ?? null,
+      storageState: statement.storageState,
       status: statement.status,
       sentAt: statement.sentAt ? timestamp(statement.sentAt) : null,
       generatedAt: timestamp(statement.generatedAt),

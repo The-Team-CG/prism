@@ -2,8 +2,8 @@ import type { ArchiveSearchFilters, PrismArchivedEventSearchHit } from "@prism/t
 
 export function archiveSearchEmptyCopy(filters: ArchiveSearchFilters, hits: PrismArchivedEventSearchHit[]) {
   if (hits.length > 0) return null;
-  if (filters.venue || filters.eventType || filters.month) {
-    return "No archived events match venue, type, or month.";
+  if (filters.venue || filters.eventType || filters.eventName || filters.clientName || filters.month) {
+    return "No archived events match the selected filters.";
   }
   return "Archived events will appear here after close.";
 }

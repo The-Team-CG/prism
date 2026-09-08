@@ -42,6 +42,7 @@ function createController() {
     completePostEventDocument: vi.fn(async () => document),
     closeGates: vi.fn(async () => ({ ready: true, missingKeys: [] })),
     archiveEvent: vi.fn(async () => event),
+    recordActualEventEnd: vi.fn(async () => event),
     listEventInsights: vi.fn(async () => [insight]),
     generateEventInsights: vi.fn(async () => insight),
     searchArchive: vi.fn(async () => [{ id: 'evt_sample', eventName: 'Sample Gala', venue: 'Ballroom' }]),
@@ -86,6 +87,18 @@ describe('OpsEventClosureController', () => {
 
   it('keeps event closure routes under the events route base', () => {
     expect(controllerPath(OpsEventClosureController)).toBe('events');
+  });
+
+  it('requires a verified session actor for actual-end recording', () => {
+    const guards = Reflect.getMetadata('__guards__', OpsEventClosureController.prototype.recordActualEventEnd);
+    expect(guards).toContain(EventSessionGuard);
+  });
+
+  it('applies PMCM policy before recording actual end', async () => {
+    const { controller, eventClosureService, eventAccessPolicyService } = createController();
+    await controller.recordActualEventEnd('evt_sample', { actualEndedAt: '2026-07-20T18:00:00.000Z' }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' } as any);
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(expect.objectContaining({ role: OpsUserRole.PmcmAdmin }), ["pmcm-admin", "system"], 'actual event end', 'evt_sample');
+    expect(eventClosureService.recordActualEventEnd).toHaveBeenCalled();
   });
 
   it('serves closeout commands through ClosureOps mappers', async () => {

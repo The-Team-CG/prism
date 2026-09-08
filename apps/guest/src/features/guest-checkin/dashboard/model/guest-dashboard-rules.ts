@@ -1,4 +1,11 @@
-import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestSession } from "./guest-dashboard-types";
+import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestNextAction, GuestSession } from "./guest-dashboard-types";
+
+export function guestNextActions(checkedIn: boolean, feedbackSubmitted: boolean): GuestNextAction[] {
+  return [
+    { id: "check-in", label: checkedIn ? "Attendance recorded" : "Complete event check-in", detail: checkedIn ? "Your attendance is recorded for this event." : "Use the check-in panel to record your name or headcount with consent.", status: checkedIn ? "complete" : "pending" },
+    { id: "feedback", label: feedbackSubmitted ? "Feedback sent for moderation" : "Share feedback after the event", detail: feedbackSubmitted ? "PMCM will review your feedback before any reuse." : "Feedback stays within the guest scope and enters PMCM moderation.", status: feedbackSubmitted ? "complete" : "pending" },
+  ];
+}
 
 export const PRIVACY_NOTICE_VERSION = "2026-05-01";
 export const POLL_INTERVAL_MS = 20_000;

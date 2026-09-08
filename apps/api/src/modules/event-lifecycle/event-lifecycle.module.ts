@@ -16,14 +16,20 @@ import { OpsComplianceController } from './api/compliance/compliance-rules.contr
 import { OpsEventComplianceController } from './api/compliance/event-compliance.controller';
 import { COMPLIANCE_COMMANDS, COMPLIANCE_READER } from './contracts/compliance-ops.tokens';
 import { ComplianceWorkflowService } from './application/compliance/compliance-workflow.service';
+import { ComplianceReevaluationScheduler } from './application/compliance/compliance-reevaluation.scheduler';
 import { CLOSURE_COMMANDS, CLOSURE_READINESS_READER } from './contracts/closure-ops.tokens';
 import { EventClosureService } from './application/closure/event-closure.service';
+import { EventWrapUpReminderScheduler } from './application/closure/event-wrap-up-reminder.scheduler';
 import { OpsEventFileRequirementsController } from './api/files/event-file-requirements.controller';
 import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER, SIGNED_UPLOAD_URL_FACTORY } from './contracts/file-ops.tokens';
-import { MetadataOnlySignedUploadUrlFactory } from './contracts/signed-upload-url-factory.port';
 import { DocumentVaultService } from './application/files/document-vault.service';
 import { DOCUMENT_VAULT } from './contracts/document-vault.port';
 import { FileRequirementsMatrixService } from './application/files/file-requirements-matrix.service';
+import { EventDocumentJourneyController } from './api/files/event-document-journey.controller';
+import { EventDecisionController } from './api/decisions/event-decision.controller';
+import { EventDecisionService } from './application/decisions/event-decision.service';
+import { ChangeManagementController } from './api/change/change-management.controller';
+import { ChangeManagementService } from './application/change/change-management.service';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -38,8 +44,8 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
  * (`onboarding`, `compliance`, `closure`, `files`) under one context.
  *
  * Owned tables: OpsBriefing, OpsDocument (inquiry/onboarding document kinds),
- * OpsEvent, OpsInquiry, OpsPostEventDocument, OpsComplianceCheck,
- * OpsComplianceRule, and OpsEventInsight. Transitional onboarding writes
+ * OpsEvent, OpsInquiry, OpsPostEventDocument, OpsEventWrapUp,
+ * OpsComplianceCheck, OpsComplianceRule, and OpsEventInsight. Transitional onboarding writes
  * create the initial OpsBillingSource, OpsBillingStatement, and
  * OpsPaymentMilestone rows; ongoing finance ownership remains in commercial.
  * Read-only: ongoing billing records via commercial and OpsSupplierReview via
@@ -61,6 +67,9 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     OpsComplianceController,
     OpsEventComplianceController,
     OpsEventFileRequirementsController,
+    EventDocumentJourneyController,
+    EventDecisionController,
+    ChangeManagementController,
   ],
   providers: [
     InquiriesService,
@@ -70,18 +79,20 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: INQUIRY_COMMANDS, useExisting: InquiriesService },
     { provide: CLIENT_ONBOARDING_COMMANDS, useExisting: ClientOnboardingWorkflowService },
     ComplianceWorkflowService,
+    ComplianceReevaluationScheduler,
     { provide: COMPLIANCE_COMMANDS, useExisting: ComplianceWorkflowService },
     { provide: COMPLIANCE_READER, useExisting: ComplianceWorkflowService },
     EventClosureService,
+    EventWrapUpReminderScheduler,
     { provide: CLOSURE_COMMANDS, useExisting: EventClosureService },
     { provide: CLOSURE_READINESS_READER, useExisting: EventClosureService },
     DocumentVaultService,
     { provide: DOCUMENT_VAULT, useExisting: DocumentVaultService },
     FileRequirementsMatrixService,
-    MetadataOnlySignedUploadUrlFactory,
     { provide: FILE_REQUIREMENT_READER, useExisting: FileRequirementsMatrixService },
     { provide: FILE_REQUIREMENT_COMMANDS, useValue: metadataOnlyFileCommands },
-    { provide: SIGNED_UPLOAD_URL_FACTORY, useExisting: MetadataOnlySignedUploadUrlFactory },
+    EventDecisionService,
+    ChangeManagementService,
   ],
   exports: [
     InquiriesService,
@@ -101,6 +112,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     SIGNED_UPLOAD_URL_FACTORY,
+    ChangeManagementService,
   ],
 })
 export class EventLifecycleModule {}

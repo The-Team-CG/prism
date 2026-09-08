@@ -2,6 +2,19 @@
 
 ## 2026-09-08
 
+- **Updated:** P1 catalog implementation evidence through W15/W26/W51 integration: package-level effort/priority/risk status, partial scope, provider and policy blockers, PostgreSQL/Docker verification limits, and the remaining W29 policy gate are recorded in the catalog review and matrix.
+
+- **Recorded:** Trust and identity remediation: full hash-reachable audit tails with durable forbidden-access integrity incidents, outbox-backed security alerts, unknown unavailable login metadata, required session-version checks, and durable email/IP password-reset throttling with reset audit events; PostgreSQL acceptance remains unavailable locally.
+
+- **Recorded:** Briefing history retention and transactional state/actor/audit/outbox correction, with full proposal and stored-file journeys still tracked separately.
+
+- **Corrected:** Historical audit ordering follows hash links rather than UUID ordering when timestamps tie; fixture audit rows remain in disposable PostgreSQL to avoid breaking later writers.
+
+- **Recorded:** W30 concurrency-safe audit append evidence, verified export actor attribution and explicit historical-integrity/append-only limits.
+
+- **Verified:** Integration-fixture relocation and partial W11 durable delivery worker, including provider gates and historical sample-delivery evidence limits.
+
+- **Started:** User-authorized P1 implementation across all 24 packages, with Luna implementation agents and Opus-first review/advice. The Opus provider rejected the encrypted task payload; Sol is the active fallback reviewer.
 - **Reconciled:** Full catalog assessment and planning matrix against P0 implementation commit `02b6896`; retained the historical baseline, refreshed feature/finding status, and excluded nine completed P0 packages from the 43 remaining packages.
 - **Corrected:** Fresh verification found V01, a read-model mutation boundary violation in the supplier ownership database fixture. The latest boundary failure supersedes the earlier pass record; this documentation delivery preserves source unchanged.
 - **Recorded:** P0 W01-W09 readiness with original effort/priority/risk estimates, implementation evidence and explicit proposal, logistics, privacy and live-AI blockers. Full catalog baseline counts remain historical.

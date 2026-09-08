@@ -18,16 +18,6 @@ import type { FloorplanReader } from '@prism/contexts/floorplan';
 import type { GuestReader, RegistrationPlatformReader, StaffingReader } from '@prism/contexts/operations';
 import { createPmcmDashboardMappers } from './event-read-model.mappers';
 
-const COORDINATOR_ROLE_REQUIREMENTS = [
-  { role: 'Floor Director', required: 1 },
-  { role: 'Stage Director', required: 1 },
-  { role: 'Registration Staff', required: 2 },
-  { role: 'Ingress and Egress Assistant', required: 1 },
-  { role: 'Event Day System Operator', required: 1 },
-  { role: 'Usher', required: 2 },
-  { role: 'General Coordinator', required: 1 },
-];
-
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
 
 function isoDate(value: Date) {
@@ -115,7 +105,7 @@ export type PmcmReadModelMapperDependencies = EventReadModelMapperDependencies &
 
 export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDependencies) {
   return createPmcmDashboardMappers({
-    coordinatorRoleRequirements: COORDINATOR_ROLE_REQUIREMENTS,
+    coordinatorRoleRequirements: [],
     mapUser,
     mapInquiry,
     mapEvent: (event) => mapEvent(event as EventWithDrafts, dependencies),
@@ -200,6 +190,8 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     clientName: event.clientName,
     eventName: event.eventName,
     eventDate: isoDate(event.eventDate),
+    walkInPolicy: event.walkInPolicy as 'closed' | 'open' | 'threshold',
+    walkInThreshold: event.walkInThreshold,
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
     readiness: event.readiness,

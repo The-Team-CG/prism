@@ -14,6 +14,7 @@ import type {
   CreateSupplierReviewInput,
 } from "@prism/types";
 import { SupplierReviewPromptList } from "@/features/suppliers/reviews";
+import { ComplianceReviewPanel } from "@/features/compliance/review";
 import {
   phase4BillingSourceCard,
   phase4CloseGatesCard,
@@ -28,7 +29,9 @@ import {
   Phase4ClosureBoard,
   Phase4ComplianceSection,
   Phase4InsightsSection,
+  ActualEventEndSection,
 } from "./phase4-workspace-sections";
+import { EventWrapUpView } from "../../wrap-up";
 
 export function Phase4Workspace({
   event,
@@ -52,6 +55,7 @@ export function Phase4Workspace({
   onGenerateBillingStatement,
   onLoadCloseGates,
   onArchive,
+  onRecordActualEventEnd,
   onLoadInsights,
   onGenerateInsights,
   onAddReview,
@@ -88,6 +92,7 @@ export function Phase4Workspace({
   onGenerateBillingStatement: (sourceId: string) => Promise<void>;
   onLoadCloseGates: () => Promise<PrismCloseGates>;
   onArchive: (overrideReason?: string) => Promise<void>;
+  onRecordActualEventEnd: (input: { actualEndedAt: string; correctionReason?: string }) => Promise<void>;
   onLoadInsights: () => Promise<PrismEventInsight[]>;
   onGenerateInsights: () => Promise<void>;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
@@ -166,6 +171,8 @@ export function Phase4Workspace({
   return (
     <div className="space-y-5">
       <Phase4ClosureBoard event={event} closeGates={closeGates} cards={closureCards} />
+      <ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} />
+      <EventWrapUpView eventId={event.id} />
       <Phase4ComplianceSection
         phase={phase}
         ruleTitle={ruleTitle}
@@ -186,6 +193,7 @@ export function Phase4Workspace({
         onResolveCompliance={onResolveCompliance}
         onOverrideCompliance={onOverrideCompliance}
       />
+      <ComplianceReviewPanel eventId={event.id} />
       <section className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <Phase4BillingSection
           billingLabel={billingLabel}

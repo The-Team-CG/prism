@@ -17,6 +17,7 @@ export function ClientHomeView() {
     session,
     state,
     actionCenter,
+    actionCenterLoadFailed,
     actionCenterFromWorkspaceFallback,
     events,
     selectedEvent,
@@ -58,12 +59,13 @@ export function ClientHomeView() {
         />
       ) : null}
 
-      {actionCenter ? (
+      {actionCenter || actionCenterLoadFailed ? (
         <ClientHomeActionCenter
           actionCenter={actionCenter}
           clientActions={clientActions}
           runClientAction={runClientAction}
           fromWorkspaceFallback={actionCenterFromWorkspaceFallback}
+          loadFailed={actionCenterLoadFailed}
         />
       ) : null}
 

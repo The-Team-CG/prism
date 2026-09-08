@@ -3,6 +3,7 @@ import { createEventOpsClient } from "@prism/api-client";
 
 import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/types";
 import type {
+  ArchiveSearchFilters,
   SampleRole,
   PrismApprovalRequest,
   PrismAuditExport,
@@ -14,6 +15,8 @@ import type {
   PrismCloseGates,
   PrismComplianceCheck,
   PrismComplianceRule,
+  PrismComplianceRun,
+  PrismComplianceRisk,
   PrismCoordinator,
   PrismCoordinatorAssignment,
   PrismCoordinatorRoleRequirement,
@@ -26,6 +29,9 @@ import type {
   PrismEventDayStatusFeed,
   PrismEventDayTask,
   PrismEventInsight,
+  PrismEventWrapUp,
+  StartEventWrapUpInput,
+  UpdateEventWrapUpInput,
   PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
   PrismFloorPlanPreference,
@@ -61,11 +67,19 @@ import type {
   PrismAuthenticatedSession,
   PrismRegistrationPlatform,
   CreateRegistrationPlatformInput,
+  ModerateGuestFeedbackInput,
   UpdateRegistrationPlatformInput,
   ImportHeadcountInput,
+  ImportGuestRosterInput,
+  RecordActualEventEndInput,
   CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
+  PrismEventTaskReassignmentRequest,
   EscalateLiveOpsInput,
   ReplaceCoordinatorAssignmentInput,
+  CoordinatorAssignmentAcknowledgementInput,
+  WithdrawCoordinatorAssignmentInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateUrgentIssueInput,
@@ -75,8 +89,29 @@ import type {
   ReviewPrivacyRequestInput,
   ReviewSupplierApplicationInput,
   CreateSupplierReviewInput,
+  CreateSupplierReliabilityNoteInput,
+  PromoteSupplierInput,
   AuditLogFilters,
+  CreateComplianceRiskInput,
+  UpdateWalkInPolicyInput,
+  GuestRosterSearchInput,
+  UpdateGuestVerificationInput,
+  EventDecisionInput,
 } from "@prism/types";
+
+export type PrismEventDecision = {
+  id: string;
+  eventId: string;
+  decision: string;
+  reason: string;
+  actorName: string;
+  decidedAt: string;
+  priorState: unknown;
+  financialImpact: unknown;
+  assignmentImpact: unknown;
+  supplierImpact: string;
+  notificationIntent: string;
+};
 
 export type {
   SampleRole,
@@ -360,6 +395,8 @@ function withPmcmAdminActor(path: string, session: { name: string; email: string
 }
 
 export const prismApi = {
+  listEventDecisions: (eventId: string) => request<PrismEventDecision[]>(withPmcmActor(`/api/events/${eventId}/decisions`)),
+  recordEventDecision: (eventId: string, input: EventDecisionInput) => request<PrismEventDecision>(withPmcmActor(`/api/events/${eventId}/decisions`), { method: "POST", body: JSON.stringify(input) }),
   pmcmState: () =>
     eventOpsClient.pmcmDashboard.detail({
       actorRole: "pmcm-admin",
@@ -394,6 +431,10 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  requestPasswordReset: (email: string) =>
+    request<{ message: string; deliveryAvailable: boolean }>('/api/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) }),
+  consumePasswordReset: (input: { token: string; password: string }) =>
+    request<{ message: string }>('/api/auth/password-reset/consume', { method: 'POST', body: JSON.stringify(input) }),
   approvalRequests: () => request<PrismApprovalRequest[]>("/api/auth/approval-requests"),
   loginHistory: (userId: string) => request<PrismLoginHistory[]>(`/api/auth/users/${userId}/login-history`),
   auditLogs: (filters: AuditLogFilters = {}) => {
@@ -560,6 +601,16 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  addSupplierReliabilityNote: (supplierId: string, input: CreateSupplierReliabilityNoteInput) =>
+    request<PrismSupplier>(withPmcmActor(`/api/suppliers/${supplierId}/reliability-notes`), {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  promoteSupplier: (supplierId: string, input: PromoteSupplierInput) =>
+    request<PrismSupplier>(withPmcmActor(`/api/suppliers/${supplierId}/promote`), {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
   addSupplierCertification: (supplierId: string, input: CreateSupplierCertificationInput) =>
     request<PrismSupplier>(withPmcmActor(`/api/suppliers/${supplierId}/certifications`), {
       method: "POST",
@@ -594,14 +645,24 @@ export const prismApi = {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
+  complianceRuns: (eventId: string) => request<PrismComplianceRun[]>(`/api/events/${eventId}/compliance/runs`),
+  complianceRisks: (eventId: string) => request<PrismComplianceRisk[]>(`/api/events/${eventId}/compliance/risks`),
+  createComplianceRisk: (eventId: string, input: CreateComplianceRiskInput) => request<PrismComplianceRisk>(`/api/events/${eventId}/compliance/risks`, { method: "POST", body: JSON.stringify(input) }),
+  updateComplianceRisk: (eventId: string, riskId: string, input: Partial<CreateComplianceRiskInput>) => request<PrismComplianceRisk>(`/api/events/${eventId}/compliance/risks/${riskId}`, { method: "PATCH", body: JSON.stringify(input) }),
   assignCoordinator: (eventId: string, input: AssignCoordinatorInput) =>
     request<PrismCoordinatorAssignment>(`/api/events/${eventId}/coordinators`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  acknowledgeCoordinator: (eventId: string, assignmentId: string) =>
+  acknowledgeCoordinator: (eventId: string, assignmentId: string, input: CoordinatorAssignmentAcknowledgementInput = { decision: "acknowledged" }) =>
     request<PrismCoordinatorAssignment>(`/api/events/${eventId}/coordinators/${assignmentId}/acknowledge`, {
       method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+  withdrawCoordinator: (session: { name: string; email: string; role: string }, eventId: string, assignmentId: string, input: WithdrawCoordinatorAssignmentInput) =>
+    request<PrismCoordinatorAssignment>(withCoordinatorActor(`/api/events/${eventId}/coordinators/${assignmentId}/withdraw`, session), {
+      method: "PATCH",
+      body: JSON.stringify(input),
     }),
   defenseReadiness: (eventId: string) => request<PrismDefenseReadiness>(withPmcmActor(`/api/events/${eventId}/defense-readiness`)),
   liveOps: (eventId: string) => request<PrismLiveOps>(withPmcmActor(`/api/events/${eventId}/live-ops`)),
@@ -680,6 +741,33 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  listCoordinatorTaskReassignments: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+  ) =>
+    request<PrismEventTaskReassignmentRequest[]>(
+      withCoordinatorActor(`/api/events/${eventId}/event-day/task-reassignments`, session),
+    ),
+  requestCoordinatorTaskReassignment: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    taskId: string,
+    input: CreateEventTaskReassignmentInput,
+  ) =>
+    request<PrismEventTaskReassignmentRequest>(
+      withCoordinatorActor(`/api/events/${eventId}/event-day/tasks/${taskId}/reassignments`, session),
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  decideCoordinatorTaskReassignment: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    requestId: string,
+    input: DecideEventTaskReassignmentInput,
+  ) =>
+    request<PrismEventTaskReassignmentRequest>(
+      withCoordinatorActor(`/api/events/${eventId}/event-day/task-reassignments/${requestId}`, session),
+      { method: "PATCH", body: JSON.stringify(input) },
+    ),
   markPayment: (eventId: string, milestoneId: string, status: "pending" | "paid" | "at_risk" = "paid") =>
     request<PrismPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, {
       method: "PATCH",
@@ -719,9 +807,20 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify({ overrideReason, actorName: "Ms. Mys" }),
     }),
-  searchArchive: (filters: { venue?: string; eventType?: string; month?: string } = {}) =>
+  recordActualEventEnd: (eventId: string, input: RecordActualEventEndInput) =>
+    request<PrismEvent>(withPmcmActor(`/api/events/${eventId}/actual-end`), { method: "POST", body: JSON.stringify(input) }),
+  getEventWrapUp: (eventId: string) => request<PrismEventWrapUp | null>(withPmcmActor(`/api/events/${eventId}/wrap-up`)),
+  startEventWrapUp: (eventId: string, input: StartEventWrapUpInput) => request<PrismEventWrapUp>(withPmcmActor(`/api/events/${eventId}/wrap-up`), { method: "POST", body: JSON.stringify(input) }),
+  updateEventWrapUp: (eventId: string, input: UpdateEventWrapUpInput) => request<PrismEventWrapUp>(withPmcmActor(`/api/events/${eventId}/wrap-up`), { method: "PATCH", body: JSON.stringify(input) }),
+  searchArchive: (filters: ArchiveSearchFilters = {}) =>
     eventOpsClient.events.searchArchive(filters),
   eventInsights: (eventId: string) => request<PrismEventInsight[]>(withPmcmActor(`/api/events/${eventId}/insights`)),
+  communicationThreads: (eventId: string) => eventOpsClient.communication.listThreads(eventId),
+  communicationParticipants: (eventId: string) => eventOpsClient.communication.listParticipants(eventId),
+  createCommunicationThread: (eventId: string, subject: string, participantActorIds: string[]) => eventOpsClient.communication.createThread({ eventId, subject, participantActorIds }),
+  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string) => eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }),
+  communicationMessages: (threadId: string, cursor?: string, limit?: number) => eventOpsClient.communication.listMessages(threadId, { cursor, limit }),
+  markCommunicationThreadRead: (threadId: string) => eventOpsClient.communication.markThreadRead(threadId),
   generateEventInsights: (eventId: string) =>
     request<PrismEventInsight>(`/api/events/${eventId}/insights/generate`, { method: "POST" }),
 
@@ -743,4 +842,14 @@ export const prismApi = {
     eventOpsClient.pmcm.updateRegistrationPlatform(eventId, input),
   importHeadcount: (eventId: string, input: ImportHeadcountInput) =>
     eventOpsClient.pmcm.importHeadcount(eventId, input),
+  searchGuestRoster: (eventId: string, query = "") => eventOpsClient.guest.roster(eventId, query, { role: "pmcm-admin" }),
+  searchGuestRosterWithFilters: (eventId: string, filters: GuestRosterSearchInput) => eventOpsClient.guest.searchRoster(eventId, filters, { role: "pmcm-admin" }),
+  importGuestRoster: (eventId: string, input: ImportGuestRosterInput) => eventOpsClient.guest.importRoster(eventId, input, { role: "pmcm-admin" }),
+  checkInGuestRoster: (eventId: string, rosterEntryId: string) => eventOpsClient.guest.checkInRoster(eventId, rosterEntryId, { role: "coordinator" }),
+  verifyGuestRoster: (eventId: string, rosterEntryId: string, status: UpdateGuestVerificationInput["status"]) => eventOpsClient.guest.verifyRoster(eventId, rosterEntryId, { status }, { role: "pmcm-admin" }),
+  getWalkInPolicy: (eventId: string) => eventOpsClient.guest.walkInPolicy(eventId, { role: "pmcm-admin" }),
+  updateWalkInPolicy: (eventId: string, input: UpdateWalkInPolicyInput) => eventOpsClient.guest.updateWalkInPolicy(eventId, input, { role: "pmcm-admin" }),
+  pendingGuestFeedback: (eventId: string) => eventOpsClient.guest.pendingFeedback(eventId, { role: "pmcm-admin" }),
+  moderateGuestFeedback: (eventId: string, feedbackId: string, input: ModerateGuestFeedbackInput) =>
+    eventOpsClient.guest.moderateFeedback(eventId, feedbackId, input, { role: "pmcm-admin" }),
 };

@@ -15,7 +15,6 @@ export class NotificationOutboxWriterAdapter implements NotificationOutboxWriter
       input.message,
       input.channel ?? NotificationChannel.Email,
       {
-        forceFail: input.forceFail,
         correlationId: input.correlationId,
         idempotencyKey: input.idempotencyKey,
       },

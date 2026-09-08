@@ -9,7 +9,7 @@ owner: "D (Anthony) — platform trust review"
 audience: [product, engineering, design, reviewers]
 scope: "137 catalog IDs, shared remediation work and 28 current ledger families"
 updated: "2026-09-08"
-last_verified: "02b6896f56b58476dba0bc736cdf9cb11222c033"
+last_verified: "3342df8"
 sources:
   - resource: "feature-catalog-review-2026-09-07.md"
     title: "Feature catalog implementation review"
@@ -30,11 +30,44 @@ sources:
 - **Owner:** D coordinates; each work row names its operational owner goal.
 - **Scope:** 137 catalog IDs and 52 tracked packages: **nine P0 packages completed within their bounded scope, 43 packages remaining** (24 P1, 11 P2, eight P3).
 - **Use/change:** Plan remaining implementation using current catalog gaps, satisfied prerequisites and explicit external gates.
-- **Verification gate:** V01 remains open: the fresh boundary scan rejects the supplier ownership database fixture under read-models. This is a branch verification defect, separate from the 43 remaining catalog work packages; see the readiness report before treating the implementation as merge-ready.
+- **Verification gate:** The historical P0 review recorded V01 as open; the current P1 integration boundary scan passes. PostgreSQL/Docker-backed migration and concurrency acceptance remain unavailable and are tracked separately from package implementation.
 - **Catalog status:** 13 implemented, 77 partial, 47 not implemented; 73 have an overlapping current blocker.
 - **Verify with:** The [updated catalog review](feature-catalog-review-2026-09-07.md) and [P0 acceptance evidence](docs/roadmap/p0-correctness-readiness.md).
 
 This refresh assesses implementation commit `02b6896f56b58476dba0bc736cdf9cb11222c033` in [draft PR #40](https://github.com/The-Team-CG/prism/pull/40), relative to baseline staging `3d01c6c`. It is branch implementation evidence, not a claim that staging or production has these changes. W01–W07 and W09 deliver corrections; W08 records accepted policy. Complete proposal, closeout, privacy and AI workflows remain gated by downstream packages.
+
+## 2026-09-08 P1 implementation update
+
+The P1 integration branch `codex/p1-implementation-2026-09-08` now includes the W15, W25, W26 and W51 deliveries in addition to the earlier P1 slices. The status below is package-level engineering evidence; **Implemented local slice** means the repository behavior is present and tested, while provider, policy, database and browser gates can still keep the catalog feature **Partial**.
+
+| Package | Effort | Priority / risk | Current package status | Remaining gap or blocker |
+| --- | --- | --- | --- | --- |
+| W10 storage | XL | High / High | Implemented local slice | Production provider, identity, bucket policy and provider-backed acceptance remain open. |
+| W11 delivery | XL | High / High | Partial | Provider approval, credentials, adapter, receipts and live email/Viber acceptance. |
+| W12 proposal/CE | XL | High / High | Implemented local slice | W10 storage, approved proposal policy and W43 export depth. |
+| W13 onboarding/documents | XL | High / High | Implemented local slice | W10 bytes, W11 invitations and W41 bid onboarding. |
+| W14 billing | XL | High / High | Implemented local slice | Production document storage, billing-policy confirmation and W11 reminders. |
+| W15 supplier application/status | L | Medium / High | Integrated local slice | Public application status now uses a redacted email-matched lookup; promotion foundations remain tied to W40 assessment and PMCM review. |
+| W16 supplier selection/readiness | XXL | High / High | Implemented local slice | Client-owned supplier tickets, escalation semantics, W10 bytes and W11 delivery. |
+| W17 communication threads | L | High / Medium | Implemented local slice | External delivery remains W11-gated. |
+| W18 staffing | XL | High / High | Implemented local slice | W10/W11 provider work and W45 recommendations. |
+| W19 guest masterlist | XL | High / High | Implemented local slice | Raw-file storage (W10) and QR entry (W35). |
+| W20 coordinator/operator tools | XXL | High / High | Implemented local slice | W16 ingress depth, W11 delivery and W27 wrap-up depth. |
+| W21 live operations | XL | High / High | Implemented local slice | W10/W11 and W45/W47 dependent capabilities. |
+| W22 registration coordination | M | Medium / Medium | Implemented local slice | Disposable PostgreSQL and external-platform runtime acceptance. |
+| W23 feedback/moderation | L | High / High | Implemented local slice | W10 media bytes, W35 QR and W49 intelligence. |
+| W24 compliance/risk | XL | High / High | Implemented local slice | Owner confirmation of provisional rule inventory and DB acceptance. |
+| W25 cancellation/postponement | XXL | High / High | Implemented local slice | W14 settlement, W16 supplier acceptance, W10/W11 providers and full rescheduling UI. |
+| W26 freeze/addenda | XL | High / High | Integrated | W10/W11 provider effects, optional W43 e-signature and PostgreSQL migration/concurrency acceptance. |
+| W27 wrap-up/archive/insights | XXL | High / High | Implemented local slice | W10/W11/W14/W40 depth and W49 AI scope remain partial. |
+| W28 authentication/recovery | L | High / High | Implemented local slice | Provider-backed reset delivery; external IdP remains out of scope. |
+| W29 privacy/retention | XXL | High / High | Blocked / not implemented | Approved rights, retention and legal-hold policy plus W10 file lifecycle. |
+| W30 audit/tamper resistance | L | High / High | Implemented local slice | Full mutation coverage, immutable storage/retention integration and DB acceptance. |
+| W40 supplier reviews | L | High / High | Implemented local slice | Deeper assessment policy and promotion acceptance remain partial. |
+| W50 source reconciliation | S | Medium / Low | Documentation slice delivered | Original 37 behavior definitions and acceptance text are still missing. |
+| W51 action center/UX | L | Medium / Medium | Integrated | Browser, mobile, keyboard traversal and screen-reader acceptance require the running stack. |
+
+This update records implementation progress without relabeling provider- or policy-gated behavior as complete. The integration branch currently has green static/unit gates, while PostgreSQL/Docker and browser runtime evidence remain unavailable in this environment.
 
 Completed P0 rows retain their original priority, estimate and fix risk as historical planning/review information. Their effort is **excluded from remaining-work totals**. Downstream estimates are retained without re-estimating the whole program; they already excluded prerequisite effort.
 
@@ -157,7 +190,7 @@ Evidence codes link back to the implementation review: **K** = correctness findi
 | <a id="w29"></a>**W29 — Complete privacy rights and retention operations**<br>DRI D; support B, C | **XXL: >30 days; decompose**<br>Low confidence | **High / High** | [W06 — complete](#w06), [W07 — complete](#w07), [W10](#w10); **Gate:** Approved retention/hold and rights policy | Implement actual subject export/correction/deletion, all consent/notice paths, retention/holds and operator evidence. Estimate excludes external policy approval time. [E19](feature-catalog-review-2026-09-07.md#e19) |
 | <a id="w30"></a>**W30 — Complete audit coverage and tamper resistance**<br>DRI D; support B, C | **L: 8–15 days**<br>Medium confidence | **High / High** | [W02 — complete](#w02), [W04 — complete](#w04), [W06 — complete](#w06), [W07 — complete](#w07) | Cover remaining workflow decisions and audit gaps; enforce integrity/append-only write boundaries and verify denial of unauthorized mutation. Earlier fixes own their local audit changes. [E19](feature-catalog-review-2026-09-07.md#e19) |
 | <a id="w40"></a>**W40 — Complete supplier reviews and reliability notes**<br>DRI B; support C, D | **L: 8–15 days**<br>Medium confidence | **High / High** | [W04 — complete](#w04), [W08 — complete](#w08) | Complete event-scoped private assessment prompts/dimensions, historical notes and eligible review timing; provide the assessment outcome needed by W15 promotion. [E09](feature-catalog-review-2026-09-07.md#e09), [E16](feature-catalog-review-2026-09-07.md#e16) |
-| <a id="w50"></a>**W50 — Reconcile the unlisted behaviors and source IDs**<br>DRI B; support D | **S: 2–3 days**<br>Low confidence | **Medium / Low** | No package dependency; **Gate:** Original behavior acceptance text | Resolve count/ID ambiguities and obtain the 37 behavior definitions. This is inventory/estimation work only; their implementation effort remains unknown. [E23](feature-catalog-review-2026-09-07.md#e23), [E24](feature-catalog-review-2026-09-07.md#e24) |
+| <a id="w50"></a>**W50 — Reconcile the unlisted behaviors and source IDs**<br>DRI B; support D | **S: 2–3 days**<br>Low confidence | **Medium / Low** | No package dependency; **Gate:** Original behavior acceptance text | **Partial — the ID reconciliation is done; the behavior definitions are blocked.** Delivered: the numbering delta is now auditable. The preserved tables hold `FR-1`–`FR-97` with seven unused numbers (`FR-57`, `FR-71`–`FR-74`, `FR-85`, `FR-86`) = 90 numbered IDs, plus 10 `FR-AI-*`, against the manuscript's claimed 127; the 37 `New-*` IDs are reviewer-assigned identifiers for un-numbered described features and are **not** the system behaviors. Blocked: no behavior table, ID scheme or acceptance text exists in the repository or its Git history — `docs/reference/prism-v4/complete-feature-catalog.md` line 54 records only the arithmetic. Unblocked only by supplying the original V4 manuscript behavior section; no engineering work substitutes for it. [Source reconciliation](feature-catalog-review-2026-09-07.md#source-reconciliation), [E23](feature-catalog-review-2026-09-07.md#e23), [E24](feature-catalog-review-2026-09-07.md#e24) |
 | <a id="w51"></a>**W51 — Finish action-center and shared UX acceptance**<br>DRI A; support B, C, D | **L: 8–15 days**<br>Medium confidence | **Medium / Medium** | [W01 — complete](#w01), [W02 — complete](#w02), [W13](#w13), [W14](#w14), [W21](#w21) | Complete actor-specific next actions, deterministic health/handoff presentation and role-shell/mobile/keyboard acceptance on real data. Existing implemented features receive regression checks, not rebuild estimates. [E04](feature-catalog-review-2026-09-07.md#e04), [E13](feature-catalog-review-2026-09-07.md#e13), [E23](feature-catalog-review-2026-09-07.md#e23) |
 
 ### P2 work
