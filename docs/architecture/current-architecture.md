@@ -191,7 +191,7 @@ read queries, and no tracked source under the old API library roots.
 
 The kernel does not import a business context. `kernel/event-core` owns the
 command-receipt port and Prisma adapter: transactional commands with an
-actor-scoped idempotency key and a stable payload hash opt into one durable
+actor- and event-scoped idempotency key and a stable payload hash opt into one durable
 receipt, which is reserved and completed in the same transaction; retries then
 replay the stored projected result after permission checks. A payload hash is
 required so central replay cannot bypass a context's changed-content guard.

@@ -4,6 +4,7 @@ export type CommandReceiptKey = {
   commandName: string;
   idempotencyKey: string;
   actorId: string;
+  eventScope: string;
 };
 
 export type CommandReceiptRecord = CommandReceiptKey & {
