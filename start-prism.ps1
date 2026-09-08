@@ -27,6 +27,23 @@ function Assert-Command {
   }
 }
 
+function Resolve-PrismPorts {
+  $portsScript = Join-Path $root "scripts\prism-ports.mjs"
+  $json = & node.exe $portsScript --json
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($json -join ""))) {
+    throw "Unable to resolve P.R.I.S.M ports with $portsScript."
+  }
+  try {
+    return ($json -join "`n") | ConvertFrom-Json
+  } catch {
+    throw "The P.R.I.S.M port resolver returned invalid JSON: $($_.Exception.Message)"
+  }
+}
+
+Assert-Command -Name "node.exe"
+$portInfo = Resolve-PrismPorts
+$prismPorts = $portInfo.ports
+
 function Ensure-DockerEnvFile {
   $envFile = Join-Path $root ".env.docker"
   $example = Join-Path $root ".env.docker.example"
@@ -141,11 +158,11 @@ function Wait-HttpReady {
 function Show-Urls {
   Write-Host ""
   Write-Host "P.R.I.S.M is running."
-  Write-Host "  Client:   http://localhost:3001/"
-  Write-Host "  Supplier: http://localhost:3002/"
-  Write-Host "  Guest:    http://localhost:3003/"
-  Write-Host "  Event:    http://localhost:3004/"
-  Write-Host "  API:      http://localhost:4000/health"
+  Write-Host "  Client:   http://localhost:$($prismPorts.client)/"
+  Write-Host "  Supplier: http://localhost:$($prismPorts.supplier)/"
+  Write-Host "  Guest:    http://localhost:$($prismPorts.guest)/"
+  Write-Host "  Event:    http://localhost:$($prismPorts.event)/"
+  Write-Host "  API:      http://localhost:$($prismPorts.api)/health"
   Write-Host ""
   Write-Host "Stop local:  .\stop-prism.cmd"
   Write-Host "Stop Docker: .\stop-prism-docker.cmd"
@@ -246,11 +263,11 @@ if ($Docker) {
   }
 
   $targets = @(
-    @{ Name = "api"; Url = "http://localhost:4000/health" },
-    @{ Name = "client"; Url = "http://localhost:3001/" },
-    @{ Name = "supplier"; Url = "http://localhost:3002/" },
-    @{ Name = "guest"; Url = "http://localhost:3003/" },
-    @{ Name = "event"; Url = "http://localhost:3004/" }
+    @{ Name = "api"; Url = "http://localhost:$($prismPorts.api)/health" },
+    @{ Name = "client"; Url = "http://localhost:$($prismPorts.client)/" },
+    @{ Name = "supplier"; Url = "http://localhost:$($prismPorts.supplier)/" },
+    @{ Name = "guest"; Url = "http://localhost:$($prismPorts.guest)/" },
+    @{ Name = "event"; Url = "http://localhost:$($prismPorts.event)/" }
   )
   Wait-HttpReady -Targets $targets -TimeoutSeconds $TimeoutSeconds
   Show-Urls
@@ -293,11 +310,11 @@ $pidFile = Join-Path $logRoot "pids.csv"
 
 $npmScript = if ($Prod) { "start" } else { "dev" }
 $apps = @(
-  [pscustomobject]@{ Name = "api"; Directory = "apps\api"; Port = 4000; Url = "http://localhost:4000/health"; Args = @("run", $npmScript) },
-  [pscustomobject]@{ Name = "client"; Directory = "apps\client"; Port = 3001; Url = "http://localhost:3001/"; Args = @("run", $npmScript) },
-  [pscustomobject]@{ Name = "supplier"; Directory = "apps\supplier"; Port = 3002; Url = "http://localhost:3002/"; Args = @("run", $npmScript) },
-  [pscustomobject]@{ Name = "guest"; Directory = "apps\guest"; Port = 3003; Url = "http://localhost:3003/"; Args = @("run", $npmScript) },
-  [pscustomobject]@{ Name = "event"; Directory = "apps\event"; Port = 3004; Url = "http://localhost:3004/"; Args = @("run", $npmScript) }
+  [pscustomobject]@{ Name = "api"; Directory = "apps\api"; Port = $prismPorts.api; Url = "http://localhost:$($prismPorts.api)/health"; Args = @("run", $npmScript) },
+  [pscustomobject]@{ Name = "client"; Directory = "apps\client"; Port = $prismPorts.client; Url = "http://localhost:$($prismPorts.client)/"; Args = @("run", $npmScript) },
+  [pscustomobject]@{ Name = "supplier"; Directory = "apps\supplier"; Port = $prismPorts.supplier; Url = "http://localhost:$($prismPorts.supplier)/"; Args = @("run", $npmScript) },
+  [pscustomobject]@{ Name = "guest"; Directory = "apps\guest"; Port = $prismPorts.guest; Url = "http://localhost:$($prismPorts.guest)/"; Args = @("run", $npmScript) },
+  [pscustomobject]@{ Name = "event"; Directory = "apps\event"; Port = $prismPorts.event; Url = "http://localhost:$($prismPorts.event)/"; Args = @("run", $npmScript) }
 )
 
 function Invoke-External {
@@ -370,7 +387,6 @@ function Show-LogTail {
   if (Test-Path -LiteralPath $errLog) { Get-Content -LiteralPath $errLog -Tail 40 }
 }
 
-Assert-Command -Name "node.exe"
 Assert-Command -Name "npm.cmd"
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
@@ -383,7 +399,7 @@ foreach ($app in $apps) {
 
 if (-not $NoPortCleanup) {
   Stop-RecordedProcesses
-  Stop-PortListeners -Ports @(3000, 3001, 3002, 3003, 3004, 4000)
+  Stop-PortListeners -Ports @($prismPorts.client, $prismPorts.supplier, $prismPorts.guest, $prismPorts.event, $prismPorts.api)
   Start-Sleep -Seconds 1
 }
 

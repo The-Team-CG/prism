@@ -45,6 +45,14 @@ function main() {
   const scope = isPrimary ? "primary checkout" : `worktree ${path.basename(worktreeRoot)}`;
   console.log(`[dev-portal] ${app} -> port ${port} (${scope})`);
 
+  let nextBin;
+  try {
+    nextBin = resolveNextBin(appDir);
+  } catch {
+    console.error(`[dev-portal] Next.js is not installed for ${appDir}. Run npm install in this checkout, then retry.`);
+    process.exit(1);
+  }
+
   const guard = spawnSync(
     process.execPath,
     [path.join(REPO_ROOT, "scripts", "kill-prism-port.cjs"), "--app", app, "--port", String(port), "--root", worktreeRoot],
@@ -52,12 +60,18 @@ function main() {
   );
   if (guard.status !== 0) process.exit(guard.status ?? 1);
 
-  const child = spawn(process.execPath, [resolveNextBin(appDir), mode, "--port", String(port)], {
+  const child = spawn(process.execPath, [nextBin, mode, "--port", String(port)], {
     cwd: appDir,
     stdio: "inherit",
-    env: { NEXT_PUBLIC_API_URL: apiUrlFor(ports), ...process.env },
+    env: { ...process.env, NEXT_PUBLIC_API_URL: apiUrlFor(ports) },
   });
-  child.on("exit", (code, signal) => process.exit(signal ? 1 : (code ?? 0)));
+  child.on("exit", (code, signal) => {
+    if (signal) {
+      process.kill(process.pid, signal);
+      return;
+    }
+    process.exitCode = code ?? 0;
+  });
 }
 
 main();

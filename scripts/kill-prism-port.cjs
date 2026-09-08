@@ -1,4 +1,5 @@
 const { execFileSync, execSync } = require('node:child_process');
+const { hasWorktreeSegment, isOwnedByThisCheckout } = require('./port-ownership.cjs');
 
 const presets = {
   api: [
@@ -134,17 +135,6 @@ function isPrismCandidate(procInfo) {
   return markers.some((marker) => combined.includes(normalize(marker)));
 }
 
-/**
- * A worktree's processes carry that worktree's path in argv. Never stop one that
- * plainly belongs to a different checkout, even when its app markers match.
- */
-function belongsToAnotherCheckout(procInfo) {
-  const combined = normalize([procInfo.commandLine, procInfo.executablePath].join(' '));
-  if (!combined.includes('.worktrees')) return false;
-  const owner = normalize(ownerRoot).replace(/\\/g, '/');
-  return !combined.replace(/\\/g, '/').includes(owner);
-}
-
 function getChildrenMap(processes) {
   const map = new Map();
 
@@ -215,7 +205,13 @@ for (const proc of blockers) {
 }
 
 const childrenMap = getChildrenMap(blockers);
-const confirmedRoots = blockers.filter(isPrismCandidate);
+const mayUseLenientFallback = (proc) => !proc.commandLine && !hasWorktreeSegment([proc.commandLine, proc.executablePath].join(' '));
+const foreignPids = new Set(
+  blockers
+    .filter((proc) => !isOwnedByThisCheckout(proc, ownerRoot) && !mayUseLenientFallback(proc))
+    .map((proc) => proc.pid),
+);
+const confirmedRoots = blockers.filter((proc) => isPrismCandidate(proc) && !foreignPids.has(proc.pid));
 const confirmedSet = new Set(confirmedRoots.map((proc) => proc.pid));
 const confirmedWithDescendants = collectDescendants([...confirmedSet], childrenMap);
 
@@ -240,7 +236,6 @@ if (mode === 'force') {
   }
 }
 
-const foreignPids = new Set(blockers.filter(belongsToAnotherCheckout).map((proc) => proc.pid));
 if (foreignPids.size > 0) {
   log(`Refusing to stop ${foreignPids.size} process(es) owned by another checkout on port ${port}.`);
 }
