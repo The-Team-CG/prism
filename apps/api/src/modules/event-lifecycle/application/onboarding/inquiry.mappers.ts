@@ -219,6 +219,12 @@ export function mapBriefing(briefing: {
   serviceRequirements: unknown;
   notes: string;
   submittedAt: Date;
+  confirmedDate?: Date | null;
+  confirmedStartTime?: string | null;
+  confirmedEndTime?: string | null;
+  program?: unknown;
+  moodAndStyling?: string;
+  stylingBudget?: number | null;
 }) {
   return {
     eventId: briefing.eventId,
@@ -228,5 +234,11 @@ export function mapBriefing(briefing: {
     serviceRequirements: Array.isArray(briefing.serviceRequirements) ? (briefing.serviceRequirements as string[]) : [],
     notes: briefing.notes,
     submittedAt: briefing.submittedAt.toISOString(),
+    confirmedDate: briefing.confirmedDate?.toISOString() ?? null,
+    confirmedStartTime: briefing.confirmedStartTime ?? null,
+    confirmedEndTime: briefing.confirmedEndTime ?? null,
+    program: Array.isArray(briefing.program) ? briefing.program : [],
+    moodAndStyling: briefing.moodAndStyling ?? '',
+    stylingBudget: briefing.stylingBudget ?? null,
   };
 }

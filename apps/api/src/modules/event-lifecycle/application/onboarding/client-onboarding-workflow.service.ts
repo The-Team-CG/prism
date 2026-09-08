@@ -34,6 +34,10 @@ export class ClientOnboardingWorkflowService {
         id: `brief_${randomUUID()}`, eventId, venue: input.venue,
         guestCount: input.guestCount, budgetRange: input.budgetRange,
         serviceRequirements: toPrismaJson(input.serviceRequirements), notes: input.notes,
+        confirmedDate: input.confirmedDate ? new Date(input.confirmedDate) : null,
+        confirmedStartTime: input.confirmedStartTime ?? null,
+        confirmedEndTime: input.confirmedEndTime ?? null,
+        program: toPrismaJson(input.program), moodAndStyling: input.moodAndStyling ?? '', stylingBudget: input.stylingBudget ?? null,
       } });
       await tx.opsEvent.update({ where: { id: eventId }, data: { readiness: 'Supplier quotes pending', status: 'planning' } });
       const context = { prisma: tx, correlationId: saved.id };
