@@ -331,10 +331,37 @@ model OpsEvent {
   storedObjects               OpsStoredObject[]
   costEstimates               OpsCostEstimate[]
   proposalVersions            OpsProposalVersion[]
+  decisionRecords             OpsEventDecision[]
 
   @@index([inquiryId], map: "events_inquiry_id_idx")
   @@index([status, eventDate], map: "events_status_event_date_idx")
   @@map("events")
+  @@schema("event_core")
+}
+
+model OpsEventDecision {
+  id                 String   @id
+  eventId            String   @map("event_id")
+  decision           String
+  reason             String
+  actorId            String   @map("actor_id")
+  actorRole          String   @map("actor_role")
+  actorName          String   @map("actor_name")
+  actorEmail         String?  @map("actor_email")
+  decidedAt          DateTime @default(now()) @map("decided_at")
+  priorState         Json     @map("prior_state")
+  financialImpact    Json     @default("{}") @map("financial_impact")
+  assignmentImpact   Json     @default("{}") @map("assignment_impact")
+  supplierImpact     String   @map("supplier_impact")
+  notificationIntent String   @default("queued") @map("notification_intent")
+  notificationReason String?  @map("notification_reason")
+  storageIntent      String   @default("pending") @map("storage_intent")
+  idempotencyKey     String?  @unique(map: "event_decisions_idempotency_key_key") @map("idempotency_key")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, decidedAt], map: "event_decisions_event_id_decided_at_idx")
+  @@map("event_decisions")
   @@schema("event_core")
 }
 
