@@ -40,6 +40,14 @@ Use bounded-context APIs, shared Zod contracts and actor-owned portal features. 
 
 All 24 packages start under assessment; this table is an execution allocation, not a claim of completion or a new effort estimate. Every package must finish with a delivered scope, exact acceptance evidence, remaining gap and named blocker/owner action where applicable.
 
+### W51 — action center and shared UX acceptance (2026-09-08)
+
+Delivered scope: retained the existing persisted client action-center, PMCM command-inbox and supplier readiness read models as the only action sources. Client UX now renders an explicit unavailable state when the action-center read model cannot load and does not infer overdue urgency from browser-clock workspace fallback data. Client action presentation and PMCM read-model collection use stable severity, due-date and id tie-breakers; supplier readiness renders an explicit unavailable state instead of silently disappearing. A deterministic regression test proves that changing source order does not change presented action order. Existing guest surfaces remain narrow to access, check-in and feedback.
+
+Acceptance evidence: client focused Vitest exit 0 (1 file, 3 tests); API focused read-model/controller Vitest exit 0 (3 files, 23 tests); boundary check exit 0 (1112 files); cyclomatic check exit 0 (6566 production functions, maximum 10). Client typecheck exit 1 and supplier typecheck exit 1; both are blocked by pre-existing integration-tip contract drift in shared `@prism/types`/`@prism/api-client` (including missing `PrismStoredObject`, proposal, communication and document exports). Event typecheck exit 1 for the same shared-contract drift. Browser, keyboard traversal, mobile layout and screen-reader runtime acceptance could not run because PostgreSQL, Docker and the dev stack are unavailable.
+
+Residual scope and blockers: comprehensive four-portal runtime role-path and responsive/keyboard/screen-reader acceptance remains outstanding. Owner A (Maxine) should run the browser acceptance against a started stack and capture keyboard focus order, visible focus states, semantic landmarks/headings and accessible names at mobile and desktop widths. Owner D (Anthony) should reconcile the shared `@prism/types`/`@prism/api-client` integration drift before portal typechecks; Owner B (Francis) and Owner C (Ethan) should confirm the persisted read-model coverage and role-specific data for operations and supplier/client paths. No live health score or handoff data is fabricated when its source is unavailable.
+
 ## Verification and delivery sequence
 
 ### W12 — CE and proposal lifecycle delivery (2026-09-08)

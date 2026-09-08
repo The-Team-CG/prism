@@ -84,7 +84,19 @@ function DashboardReadinessBoard({
   readinessBoard: PrismSupplierReadinessBoard | null;
   onNavigate: (s: SupplierDashboardSection) => void;
 }) {
-  if (!readinessBoard) return null;
+  if (!readinessBoard) {
+    return (
+      <Card>
+        <CardHeader>
+          <SectionAccent>Readiness board</SectionAccent>
+          <h2 className="mt-1 text-lg font-black text-foreground">Readiness data unavailable</h2>
+          <p className="mt-1 text-sm text-muted-foreground" role="status">
+            Persisted handoff status is still loading or could not be reached. No urgency is inferred from local workspace data.
+          </p>
+        </CardHeader>
+      </Card>
+    );
+  }
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
