@@ -305,6 +305,19 @@ export const confirmSupplierReadinessSchema = z.object({
 });
 export type ConfirmSupplierReadinessInput = z.infer<typeof confirmSupplierReadinessSchema>;
 
+export const createSupplierScheduleSchema = z.object({
+  requestId: nonEmptyStringSchema,
+  ingressAt: z.string().datetime({ offset: true }),
+  egressAt: z.string().datetime({ offset: true }),
+  location: optionalTrimmedStringSchema,
+  notes: optionalTrimmedStringSchema,
+}).superRefine((value, ctx) => {
+  if (new Date(value.egressAt) <= new Date(value.ingressAt)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['egressAt'], message: 'Egress must be after ingress' });
+  }
+});
+export type CreateSupplierScheduleInput = z.infer<typeof createSupplierScheduleSchema>;
+
 export const uploadContractSchema = uploadMetadataSchema;
 export type UploadContractInput = z.infer<typeof uploadContractSchema>;
 
