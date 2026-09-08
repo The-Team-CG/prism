@@ -43,36 +43,52 @@ type AuditRow = {
   createdAt?: Date | string | null;
 };
 
+function assertMatchingAuditCore<
+  TRecord extends Pick<ApprovalRow, 'eventId' | 'featureName' | 'sourceDispatchId'>,
+  TAudit extends Pick<AuditRow, 'eventId' | 'featureName' | 'sanitizedPayload'>,
+>(record: TRecord, audit: TAudit | null): asserts audit is TAudit & { eventId: string; featureName: 'PARE' } {
+  if (!audit) throw new BadRequestException('A matching durable PARE audit is required');
+  if (audit.featureName !== 'PARE') throw new BadRequestException('A matching durable PARE audit is required');
+  if (!record.eventId) throw new BadRequestException('A matching durable PARE audit is required');
+  if (!audit.eventId) throw new BadRequestException('A matching durable PARE audit is required');
+  if (audit.eventId !== record.eventId) throw new BadRequestException('A matching durable PARE audit is required');
+  const requestId = auditRequestId(audit);
+  if (!requestId) throw new BadRequestException('A matching durable PARE audit is required');
+  const payloadEventId = auditEventId(audit);
+  if (!payloadEventId) throw new BadRequestException('A matching durable PARE audit is required');
+  if (payloadEventId !== audit.eventId) throw new BadRequestException('A matching durable PARE audit is required');
+}
+
 function requireMatchingAudit<
   TRecord extends Pick<ApprovalRow, 'eventId' | 'featureName' | 'sourceDispatchId'>,
-  TAudit extends Pick<AuditRow, 'eventId' | 'featureName'>,
->(record: TRecord, audit: (TAudit & Pick<AuditRow, 'sanitizedPayload'>) | null, expectedRequestId?: string, expectedSourceDispatchId?: string): TAudit & Pick<AuditRow, 'sanitizedPayload'> {
-  const payload = audit?.sanitizedPayload !== undefined && audit.sanitizedPayload !== null && typeof audit.sanitizedPayload === 'object' && !Array.isArray(audit.sanitizedPayload)
-    ? audit.sanitizedPayload as Record<string, unknown>
-    : {};
-  const requestId = typeof payload.requestId === 'string' ? payload.requestId : typeof payload.triggerId === 'string' ? payload.triggerId : '';
-  const payloadEventId = typeof payload.eventId === 'string' ? payload.eventId : '';
-  if (
-    !audit ||
-    audit.featureName !== 'PARE' ||
-    !record.eventId ||
-    !audit.eventId ||
-    audit.eventId !== record.eventId ||
-    !requestId ||
-    payloadEventId !== audit.eventId ||
-    (expectedRequestId !== undefined && requestId !== expectedRequestId) ||
-    (expectedSourceDispatchId !== undefined && record.sourceDispatchId !== expectedSourceDispatchId)
-  ) {
+  TAudit extends Pick<AuditRow, 'eventId' | 'featureName' | 'sanitizedPayload'>,
+>(record: TRecord, audit: TAudit | null, expectedRequestId?: string, expectedSourceDispatchId?: string): TAudit & { eventId: string; featureName: 'PARE' } {
+  assertMatchingAuditCore(record, audit);
+  const requestId = auditRequestId(audit);
+  if (expectedRequestId !== undefined && requestId !== expectedRequestId) {
+    throw new BadRequestException('A matching durable PARE audit is required');
+  }
+  if (expectedSourceDispatchId !== undefined && record.sourceDispatchId !== expectedSourceDispatchId) {
     throw new BadRequestException('A matching durable PARE audit is required');
   }
   return audit;
 }
 
+function auditPayload(audit: Pick<AuditRow, 'sanitizedPayload'>): Record<string, unknown> {
+  const payload = audit?.sanitizedPayload !== undefined && audit.sanitizedPayload !== null && typeof audit.sanitizedPayload === 'object' && !Array.isArray(audit.sanitizedPayload)
+    ? audit.sanitizedPayload as Record<string, unknown>
+    : {};
+  return payload;
+}
+
 function auditRequestId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
-  const payload = audit.sanitizedPayload;
-  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return '';
-  const data = payload as Record<string, unknown>;
+  const data = auditPayload(audit);
   return typeof data.requestId === 'string' ? data.requestId : typeof data.triggerId === 'string' ? data.triggerId : '';
+}
+
+function auditEventId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
+  const value = auditPayload(audit).eventId;
+  return typeof value === 'string' ? value : '';
 }
 
 function isAbortSignal(value: unknown): value is AbortSignal {
