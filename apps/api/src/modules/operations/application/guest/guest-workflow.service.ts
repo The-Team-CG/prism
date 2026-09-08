@@ -36,6 +36,10 @@ export type GuestFeedbackModerator = { id?: string; name: string; email?: string
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'video/mp4'] as const;
+const MAX_GUEST_CHECK_INS = 500;
+const MAX_GUEST_FEEDBACK = 500;
+const MAX_GUEST_ROSTER_SEARCH = 500;
+const MAX_GUEST_EVENT_FLOORPLAN_DRAFTS = 100;
 
 @Injectable()
 export class GuestWorkflowService {
@@ -55,33 +59,40 @@ export class GuestWorkflowService {
   }
 
   listCheckInsForEvent(eventId: string) {
-    return this.prisma.opsGuestCheckIn.findMany({ where: { eventId }, orderBy: { checkedInAt: 'desc' } });
+    return this.prisma.opsGuestCheckIn.findMany({ where: { eventId }, orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_CHECK_INS });
   }
 
   listCheckInsForEvents(eventIds: string[]) {
     if (eventIds.length === 0) return Promise.resolve([]);
     return this.prisma.opsGuestCheckIn.findMany({
       where: { eventId: { in: eventIds } },
-      orderBy: { checkedInAt: 'desc' },
+      orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
+      take: MAX_GUEST_CHECK_INS,
     });
   }
 
   listFeedbackForEvent(eventId: string) {
-    return this.prisma.opsGuestFeedback.findMany({ where: { eventId }, orderBy: { submittedAt: 'desc' } });
+    return this.prisma.opsGuestFeedback.findMany({ where: { eventId }, orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_FEEDBACK });
   }
 
   listFeedbackForEvents(eventIds: string[]) {
     if (eventIds.length === 0) return Promise.resolve([]);
     return this.prisma.opsGuestFeedback.findMany({
       where: { eventId: { in: eventIds } },
-      orderBy: { submittedAt: 'desc' },
+      orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+      take: MAX_GUEST_FEEDBACK,
     });
+  }
+
+  countPendingFeedbackForEvent(eventId: string) {
+    return this.prisma.opsGuestFeedback.count({ where: { eventId, moderationStatus: 'pending_review' } });
   }
 
   listPendingFeedbackForEvent(eventId: string) {
     return this.prisma.opsGuestFeedback.findMany({
       where: { eventId, moderationStatus: 'pending_review' },
-      orderBy: { submittedAt: 'asc' },
+      orderBy: [{ submittedAt: 'asc' }, { id: 'asc' }],
+      take: MAX_GUEST_FEEDBACK,
     });
   }
 
@@ -93,7 +104,8 @@ export class GuestWorkflowService {
         privacyConsentAccepted: true,
         ...(purpose === 'marketing' ? { marketingConsentAccepted: true } : {}),
       },
-      orderBy: { submittedAt: 'desc' },
+      orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+      take: MAX_GUEST_FEEDBACK,
     });
   }
 
@@ -261,7 +273,11 @@ export class GuestWorkflowService {
     if (input.eligibility) where.eligibility = input.eligibility;
     if (query) where.normalizedName = { startsWith: query.toLowerCase() };
     if (input.checkedIn !== undefined) where.checkedInAt = input.checkedIn ? { not: null } : null;
-    const rows = await this.prisma.opsGuestRosterEntry.findMany({ where, orderBy: { normalizedName: 'asc' } });
+    const rows = await this.prisma.opsGuestRosterEntry.findMany({
+      where,
+      orderBy: [{ normalizedName: 'asc' }, { id: 'asc' }],
+      take: MAX_GUEST_ROSTER_SEARCH,
+    });
     return rows.map((row) => this.mapGuestRosterEntry(row));
   }
 
@@ -384,8 +400,8 @@ export class GuestWorkflowService {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
     const events = await this.prisma.opsEvent.findMany({
       where: feedbackPath ? {} : { archived: false },
-      include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
-      orderBy: { eventDate: 'asc' },
+      include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS } },
+      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
     });
     const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
     if (!event) throw new NotFoundException('Guest event code was not found');

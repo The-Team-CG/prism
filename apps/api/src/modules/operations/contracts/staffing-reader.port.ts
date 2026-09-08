@@ -15,6 +15,8 @@ export interface StaffingReader {
     options?: CoordinatorAssignmentListOptions,
   ): Promise<OpsCoordinatorAssignment[]>;
   listAssignmentsForEvent(eventId: string): Promise<OpsCoordinatorAssignment[]>;
+  countAssignmentsForEvent(eventId: string): Promise<number>;
+  countPendingAssignmentsForEvent(eventId: string): Promise<number>;
   resolveCoordinatorForActor(actor: StaffingActorLookup): Promise<OpsCoordinator>;
   findAssignmentForEventActor(eventId: string, actor: StaffingActorLookup): Promise<OpsCoordinatorAssignment | null>;
   listAvailability?(coordinatorId: string): Promise<PrismCoordinatorAvailability[]>;

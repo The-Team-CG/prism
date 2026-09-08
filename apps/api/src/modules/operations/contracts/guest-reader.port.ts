@@ -9,6 +9,7 @@ export interface GuestReader {
   listCheckInsForEvents(eventIds: string[]): Promise<OpsGuestCheckIn[]>;
   listFeedbackForEvent(eventId: string): Promise<OpsGuestFeedback[]>;
   listFeedbackForEvents(eventIds: string[]): Promise<OpsGuestFeedback[]>;
+  countPendingFeedbackForEvent(eventId: string): Promise<number>;
   guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>): string;
   mapGuestEvent(event: EventWithDrafts, attendanceCount?: number): unknown;
   mapGuestCheckIn(checkIn: OpsGuestCheckIn): PrismGuestCheckIn;
