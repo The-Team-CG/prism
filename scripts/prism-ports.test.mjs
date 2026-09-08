@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   PRISM_APPS,
   PRISM_BASE_PORTS,
+  assignPortSlots,
   corsOriginFor,
   derivePortOffset,
   isPrimaryCheckout,
@@ -22,6 +23,22 @@ describe("prism port resolution", () => {
     const beta = resolvePortSet({ worktreeRoot: "C:/repo/.worktrees/beta", isPrimary: false });
     const used = new Set([...Object.values(alpha), ...Object.values(beta)]);
     assert.equal(used.size, PRISM_APPS.length * 2);
+  });
+
+  it("resolves the known w6/w20 hash collision with distinct blocks", () => {
+    const paths = ["C:/repo/.worktrees/w6", "C:/repo/.worktrees/w20"];
+    const slots = assignPortSlots(paths);
+    assert.notEqual(slots["c:/repo/.worktrees/w6"], slots["c:/repo/.worktrees/w20"]);
+    const blocks = paths.map((worktreeRoot) =>
+      resolvePortSet({ worktreeRoot, isPrimary: false, worktreeSlot: slots[worktreeRoot.toLowerCase()] }),
+    );
+    assert.equal(new Set(blocks.flatMap((ports) => Object.values(ports))).size, PRISM_APPS.length * 2);
+  });
+
+  it("assigns the same normalized worktree set identically regardless of input order", () => {
+    const first = assignPortSlots(["C:/repo/.worktrees/w20", "C:/repo/.worktrees/w6", "C:/repo/.worktrees/alpha"]);
+    const second = assignPortSlots(["c:\\repo\\.worktrees\\alpha\\", "C:/repo/.worktrees/w6", "C:/repo/.worktrees/w20"]);
+    assert.deepEqual(second, first);
   });
 
   it("treats separator, case, and trailing-slash variants as the same worktree", () => {

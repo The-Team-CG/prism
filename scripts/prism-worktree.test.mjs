@@ -31,6 +31,21 @@ describe("worktree path containment", () => {
     assert.throws(() => assertInsideWorktrees(repo, "C:/repo/.worktrees/../../elsewhere"), /Refusing to touch/);
   });
 
+  it("refuses a worktree root that is a junction", () => {
+    const repo = makeRepo();
+    const external = fs.mkdtempSync(path.join(os.tmpdir(), "prism-worktree-external-"));
+    const worktrees = path.join(repo, ".worktrees");
+    const junction = path.join(worktrees, "alpha");
+    try {
+      fs.mkdirSync(worktrees, { recursive: true });
+      fs.symlinkSync(external, junction, "junction");
+      assert.throws(() => assertInsideWorktrees(repo, junction), /symlink|junction/i);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+      fs.rmSync(external, { recursive: true, force: true });
+    }
+  });
+
   it("refuses to delete a tree outside .worktrees", () => {
     const repo = makeRepo();
     try {
@@ -73,6 +88,12 @@ describe("worktree env preparation", () => {
     assert.match(next, /^DB_SSL=true$/m);
     assert.match(next, /^CORS_ORIGIN=http:\/\/localhost:3311$/m);
     assert.equal(next.match(/^PORT=/gm).length, 1);
+  });
+
+  it("collapses duplicate regex-special keys and preserves replacement dollar signs", () => {
+    const next = upsertEnvLines("A.B=old\nA.B=duplicate\nKEEP=yes\n", { "A.B": "$1-$&" });
+    assert.equal(next, "A.B=$1-$&\nKEEP=yes\n");
+    assert.equal(next.match(/^A\.B=/gm).length, 1);
   });
 
   it("plans the API port plus one API URL per portal", () => {

@@ -27,9 +27,13 @@ const OFFSET_STEP = 10;
 /** 48 slots keeps the highest derived port (4480) well below the ephemeral range. */
 const OFFSET_SLOTS = 48;
 
+export function normalizeWorktreePath(value) {
+  return String(value ?? "").replace(/\\/g, "/").replace(/\/{2,}/g, "/").replace(/\/$/, "").toLowerCase();
+}
+
 /** FNV-1a over a normalized path, so the same worktree always gets the same slot. */
 export function hashWorktreePath(value) {
-  const normalized = String(value ?? "").replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  const normalized = normalizeWorktreePath(value);
   let hash = 0x811c9dc5;
   for (let index = 0; index < normalized.length; index += 1) {
     hash ^= normalized.charCodeAt(index);
@@ -48,14 +52,36 @@ export function derivePortOffset({ worktreeRoot, isPrimary }) {
   return ((hashWorktreePath(worktreeRoot) % OFFSET_SLOTS) + 1) * OFFSET_STEP;
 }
 
+/** Assigns each existing linked worktree a deterministic, collision-free slot. */
+export function assignPortSlots(worktreePaths) {
+  const normalizedPaths = [...new Set(worktreePaths.map(normalizeWorktreePath).filter(Boolean))].sort();
+  const assignments = {};
+  const used = new Set();
+
+  for (const worktreePath of normalizedPaths) {
+    const preferred = (hashWorktreePath(worktreePath) % OFFSET_SLOTS) + 1;
+    let slot = preferred;
+    for (let attempts = 0; attempts < OFFSET_SLOTS && used.has(slot); attempts += 1) {
+      slot = (slot % OFFSET_SLOTS) + 1;
+    }
+    if (used.has(slot)) throw new Error(`No free P.R.I.S.M port slot for ${worktreePath}`);
+    assignments[worktreePath] = slot;
+    used.add(slot);
+  }
+  return assignments;
+}
+
 function readPositiveInteger(value) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-export function resolvePortOffset({ env = {}, worktreeRoot, isPrimary }) {
+export function resolvePortOffset({ env = {}, worktreeRoot, isPrimary, worktreeSlot }) {
   const explicit = Number(env.PRISM_PORT_OFFSET);
   if (Number.isInteger(explicit) && explicit >= 0) return explicit;
+  if (!isPrimary && Number.isInteger(worktreeSlot) && worktreeSlot > 0) {
+    return worktreeSlot * OFFSET_STEP;
+  }
   return derivePortOffset({ worktreeRoot, isPrimary });
 }
 
@@ -85,6 +111,11 @@ function gitValue(args, cwd) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
+export function listWorktreePaths(cwd = process.cwd()) {
+  const output = gitValue(["worktree", "list", "--porcelain"], cwd);
+  return [...output.matchAll(/^worktree\s+(.+)$/gm)].map((match) => path.resolve(match[1].trim()));
+}
+
 /** Reads the live git layout. Falls back to "primary" when git is unavailable. */
 export function describeCheckout(cwd = process.cwd()) {
   try {
@@ -101,11 +132,29 @@ export function describeCheckout(cwd = process.cwd()) {
 
 export function resolveLivePortSet({ env = process.env, cwd = process.cwd() } = {}) {
   const checkout = describeCheckout(cwd);
-  return { ...checkout, ports: resolvePortSet({ env, ...checkout }) };
+  let worktreeSlot;
+  if (!checkout.isPrimary) {
+    try {
+      const commonDir = gitValue(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd);
+      const primaryRoot = path.dirname(commonDir);
+      const linkedPaths = listWorktreePaths(cwd).filter(
+        (worktreePath) => normalizeWorktreePath(worktreePath) !== normalizeWorktreePath(primaryRoot),
+      );
+      const assignments = assignPortSlots(linkedPaths);
+      worktreeSlot = assignments[normalizeWorktreePath(checkout.worktreeRoot)];
+    } catch {
+      worktreeSlot = undefined;
+    }
+  }
+  return { ...checkout, ports: resolvePortSet({ env, ...checkout, worktreeSlot }) };
 }
 
 function main() {
   const { worktreeRoot, isPrimary, ports } = resolveLivePortSet();
+  if (process.argv.includes("--json")) {
+    console.log(JSON.stringify({ worktreeRoot, isPrimary, ports, corsOrigin: corsOriginFor(ports), apiUrl: apiUrlFor(ports) }));
+    return;
+  }
   const label = isPrimary ? "primary checkout" : "linked worktree";
   console.log(`[prism-ports] ${label}: ${worktreeRoot}`);
   for (const app of PRISM_APPS) console.log(`[prism-ports]   ${app.padEnd(9)} ${ports[app]}`);
