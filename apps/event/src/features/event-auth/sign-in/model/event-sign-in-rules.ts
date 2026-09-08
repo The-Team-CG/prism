@@ -1,15 +1,17 @@
+import { portalUrlFor } from "@prism/types";
+
 export type EventPortalRole = "pmcm-admin" | "coordinator" | "client" | "supplier" | string;
 
 export function isEventPortalRole(role: EventPortalRole): boolean {
   return role === "pmcm-admin" || role === "coordinator";
 }
 
-export function eventRoleRejectionMessage(role: EventPortalRole): string {
+export function eventRoleRejectionMessage(role: EventPortalRole, env: Record<string, string | undefined> = process.env): string {
   if (role === "client") {
-    return "Client accounts sign in through the client portal at http://localhost:3001.";
+    return `Client accounts sign in through the client portal at ${portalUrlFor("client", env)}.`;
   }
   if (role === "supplier") {
-    return "Supplier accounts sign in through the supplier portal at http://localhost:3002.";
+    return `Supplier accounts sign in through the supplier portal at ${portalUrlFor("supplier", env)}.`;
   }
   return "Only PMCM admin and coordinator accounts can use the event portal.";
 }

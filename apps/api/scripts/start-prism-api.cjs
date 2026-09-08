@@ -17,7 +17,19 @@ const repoRoot = path.resolve(apiRoot, '..', '..');
 const ownerRoot = readArg('--root', process.env.PRISM_CHECKOUT_ROOT || repoRoot);
 const mode = readArg('--mode', process.argv[2] || 'dev');
 const app = 'api';
-const port = String(process.env.PORT || 4000);
+let portInfo;
+try {
+  const output = execFileSync(process.execPath, [path.join(repoRoot, 'scripts', 'prism-ports.mjs'), '--json'], {
+    cwd: ownerRoot,
+    encoding: 'utf8',
+    env: process.env,
+  });
+  portInfo = JSON.parse(output);
+} catch (error) {
+  console.error(`[api] Unable to resolve the checkout API port: ${error.message}`);
+  process.exit(1);
+}
+const port = String(portInfo.ports.api);
 const guard = spawnSync(process.execPath, [
   path.join(repoRoot, 'scripts', 'kill-prism-port.cjs'),
   '--app', app,
@@ -40,15 +52,14 @@ if (mode === 'dev') {
 const child = spawn(process.execPath, childArgs, {
   cwd: apiRoot,
   stdio: 'inherit',
-  env: { ...process.env, PRISM_CHECKOUT_ROOT: ownerRoot },
+  env: { ...process.env, PORT: port, PRISM_CHECKOUT_ROOT: ownerRoot },
 });
 
-let leaseWritten = false;
+let lease;
 try {
   const identity = readProcessIdentity(child.pid);
   if (!identity.startTime) throw new Error('process start identity was unavailable');
-  writeCheckoutLease({ ownerRoot, app, identity });
-  leaseWritten = true;
+  lease = writeCheckoutLease({ ownerRoot, app, identity });
 } catch (error) {
   console.error(`[api] Refusing to run without a durable checkout lease: ${error.message}`);
   try { child.kill(); } catch {}
@@ -78,7 +89,7 @@ process.on('SIGTERM', signalHandlers.SIGTERM);
 
 child.on('exit', (code, signal) => {
   if (shutdownTimer) clearTimeout(shutdownTimer);
-  if (leaseWritten) removeCheckoutLease({ ownerRoot, app });
+  if (lease) removeCheckoutLease({ ownerRoot, app, lease });
   if (signal) {
     removeSignalHandlers();
     process.kill(process.pid, signal);

@@ -8,6 +8,7 @@ import {
   corsOriginFor,
   derivePortOffset,
   isPrimaryCheckout,
+  parseWorktreeList,
   resolvePort,
   resolvePortSet,
 } from "./prism-ports.mjs";
@@ -84,6 +85,35 @@ describe("prism port resolution", () => {
       isPrimary: false,
     });
     assert.equal(port, 3999);
+  });
+
+  it("uses an explicit API PORT override consistently with the API wrapper", () => {
+    assert.equal(resolvePort("api", {
+      env: { PORT: "4555" },
+      worktreeRoot: "C:/repo/.worktrees/alpha",
+      isPrimary: false,
+    }), 4555);
+    assert.equal(resolvePort("api", {
+      env: { PORT: "4555", PRISM_API_PORT: "4666" },
+      worktreeRoot: "C:/repo/.worktrees/alpha",
+      isPrimary: false,
+    }), 4666);
+  });
+
+  it("filters missing and prunable worktree registrations before slot assignment", () => {
+    const output = [
+      "worktree C:/repo",
+      "HEAD abc",
+      "",
+      "worktree C:/repo/.worktrees/missing",
+      "HEAD def",
+      "",
+      "worktree C:/repo/.worktrees/prunable",
+      "HEAD ghi",
+      "prunable gitdir file points to missing location",
+    ].join("\n");
+    const paths = parseWorktreeList(output, (candidate) => candidate === "C:\\repo");
+    assert.deepEqual(paths, ["C:\\repo"]);
   });
 
   it("lets an explicit offset override the derived one, including back to zero", () => {

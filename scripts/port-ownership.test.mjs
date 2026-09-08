@@ -1,8 +1,20 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 import ownership from "./port-ownership.cjs";
 
-const { isOwnedByThisCheckout, leaseForProcessChain, leaseMatchesProcess, ownershipFromLeases } = ownership;
+const {
+  isOwnedByThisCheckout,
+  leaseForProcessChain,
+  leaseMatchesProcess,
+  ownershipFromLeases,
+  readCheckoutLeases,
+  removeCheckoutLease,
+  writeCheckoutLease,
+} = ownership;
 
 describe("port ownership proof", () => {
   it("prevents the primary checkout from claiming a worktree process", () => {
@@ -68,5 +80,20 @@ describe("port ownership proof", () => {
     const lease = { ownerRoot: "c:/repo/.worktrees/alpha", pid: 42, startTime: 1234 };
     assert.equal(ownershipFromLeases({ pid: 42, startTime: 9999 }, "C:/repo/.worktrees/alpha", [lease]), "unknown");
     assert.equal(ownershipFromLeases({ pid: 43, startTime: 1234 }, "C:/repo/.worktrees/alpha", [lease]), "unknown");
+  });
+
+  it("does not remove a replacement lease written by a newer wrapper", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "prism-lease-race-"));
+    try {
+      execFileSync("git", ["init", "--quiet"], { cwd: root });
+      const first = writeCheckoutLease({ ownerRoot: root, app: "api", identity: { pid: 101, startTime: 1001 } });
+      const replacement = writeCheckoutLease({ ownerRoot: root, app: "api", identity: { pid: 202, startTime: 2002 } });
+      assert.equal(removeCheckoutLease({ ownerRoot: root, app: "api", lease: first }), false);
+      assert.equal(readCheckoutLeases(root)[0].leaseToken, replacement.leaseToken);
+      assert.equal(removeCheckoutLease({ ownerRoot: root, app: "api", lease: replacement }), true);
+      assert.deepEqual(readCheckoutLeases(root), []);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });

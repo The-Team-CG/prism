@@ -127,6 +127,9 @@ describe("worktree env preparation", () => {
     ]);
     assert.equal(plan[0].entries.PORT, 4310);
     assert.equal(plan[1].entries.NEXT_PUBLIC_API_URL, "http://localhost:4310");
+    assert.equal(plan[1].entries.NEXT_PUBLIC_EVENT_PORTAL_URL, "http://localhost:3314");
+    assert.equal(plan[1].entries.NEXT_PUBLIC_SUPPLIER_PORTAL_URL, "http://localhost:3312");
+    assert.equal(plan[1].entries.NEXT_PUBLIC_CLIENT_ORIGIN, "http://localhost:3311");
   });
 
   it("seeds examples by default and copies local credentials only with opt-in", () => {

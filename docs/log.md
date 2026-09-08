@@ -3,6 +3,7 @@
 ## 2026-09-08
 
 - **Updated:** Parallel-worktree runbook and launch guards with persisted Git metadata port slots, lease-backed PID/start identity ownership, reparse-root containment, example-first env seeding, ancestry-aware API cleanup, and linked-worktree Docker rejection.
+- **Updated:** Stop and API launch paths now resolve current-checkout ports, stale worktree registrations are excluded from slot reconciliation, lease cleanup is identity-conditional, and portal links receive derived origins.
 
 - **Added:** Parallel-worktree runbook covering checkout-derived dev ports, the port-guard ownership rule, and junction-safe worktree teardown.
 

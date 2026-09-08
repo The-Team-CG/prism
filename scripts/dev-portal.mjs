@@ -68,12 +68,11 @@ function main() {
     stdio: "inherit",
     env: { ...process.env, NEXT_PUBLIC_API_URL: apiUrlFor(ports), PRISM_CHECKOUT_ROOT: worktreeRoot },
   });
-  let leaseWritten = false;
+  let lease;
   try {
     const identity = readProcessIdentity(child.pid);
     if (!identity.startTime) throw new Error("process start identity was unavailable");
-    writeCheckoutLease({ ownerRoot: worktreeRoot, app, identity });
-    leaseWritten = true;
+    lease = writeCheckoutLease({ ownerRoot: worktreeRoot, app, identity });
   } catch (error) {
     console.error(`[dev-portal] Refusing to run without a durable checkout lease: ${error.message}`);
     try { child.kill(); } catch {}
@@ -101,7 +100,7 @@ function main() {
   process.on("SIGTERM", signalHandlers.SIGTERM);
   child.on("exit", (code, signal) => {
     if (shutdownTimer) clearTimeout(shutdownTimer);
-    if (leaseWritten) removeCheckoutLease({ ownerRoot: worktreeRoot, app });
+    if (lease) removeCheckoutLease({ ownerRoot: worktreeRoot, app, lease });
     if (signal) {
       removeSignalHandlers();
       process.kill(process.pid, signal);

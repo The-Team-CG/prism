@@ -101,7 +101,8 @@ export function resolvePort(app, options = {}) {
   const base = PRISM_BASE_PORTS[app];
   if (base === undefined) throw new Error(`Unknown P.R.I.S.M app: ${app}`);
   const env = options.env ?? {};
-  const override = readPositiveInteger(env[`PRISM_${app.toUpperCase()}_PORT`]);
+  const explicitValue = env[`PRISM_${app.toUpperCase()}_PORT`] ?? (app === "api" ? env.PORT : undefined);
+  const override = readPositiveInteger(explicitValue);
   if (override !== undefined) return override;
   return base + resolvePortOffset({ ...options, env });
 }
@@ -125,7 +126,20 @@ function gitValue(args, cwd) {
 
 export function listWorktreePaths(cwd = process.cwd()) {
   const output = gitValue(["worktree", "list", "--porcelain"], cwd);
-  return [...output.matchAll(/^worktree\s+(.+)$/gm)].map((match) => path.resolve(match[1].trim()));
+  return parseWorktreeList(output);
+}
+
+export function parseWorktreeList(output, exists = (candidate) => fs.existsSync(candidate)) {
+  return String(output)
+    .split(/\r?\n\s*\r?\n/)
+    .map((block) => {
+      if (/^prunable(?:\s.*)?$/m.test(block)) return "";
+      const match = block.match(/^worktree\s+(.+)$/m);
+      if (!match) return "";
+      const candidate = path.resolve(match[1].trim());
+      return exists(candidate) ? candidate : "";
+    })
+    .filter(Boolean);
 }
 
 function sleepBriefly() {
