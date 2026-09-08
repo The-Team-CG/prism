@@ -37,7 +37,7 @@ function createParePrisma() {
     category: category.name,
     accessToken: 'token-selected',
     status: 'selected',
-    assignmentStatus: 'confirmed',
+    assignmentStatus: 'withdrawn',
     confidentialBid: true,
     message: 'Selected technicals supplier.',
     createdAt: new Date('2026-05-01T00:00:00.000Z'),
@@ -119,8 +119,8 @@ function createParePrisma() {
           if (where?.eventId && record.eventId !== where.eventId) return false;
           return true;
         }),
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        state.approvalRecords.find((record) => record.id === where.id) ?? null,
+      findUnique: async ({ where }: { where: { id?: string; sourceDispatchId?: string } }) =>
+        state.approvalRecords.find((record) => (where.id ? record.id === where.id : record.sourceDispatchId === where.sourceDispatchId)) ?? null,
       update: async ({ where, data }: { where: { id: string }; data: any }) => {
         const index = state.approvalRecords.findIndex((record) => record.id === where.id);
         if (index === -1) throw new Error('approval not found');
@@ -172,6 +172,33 @@ describe('PAREService', () => {
       pending[0].pareResult.riskAssessment.factors.some((factor) => factor.includes('No quote on file')),
     ).toBe(true);
     expect(pending[0].pareResult.budgetAnalysis.summary).toContain('has no quote on file');
+  });
+
+  it('returns the same approval and audit when a dispatch is delivered twice', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = new PAREService(prisma as any);
+    const first = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_1');
+    const second = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_1');
+    expect(second.id).toBe(first.id);
+    expect(state.approvalRecords).toHaveLength(1);
+    expect(state.auditLogs).toHaveLength(1);
+  });
+
+  it('rejects idempotent redelivery when its durable audit is missing', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = new PAREService(prisma as any);
+    await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_missing_audit');
+    state.auditLogs.length = 0;
+    await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_missing_audit'))
+      .rejects.toThrow('matching durable PARE audit');
+  });
+
+  it('does not execute a new dispatch after the source is no longer withdrawn', async () => {
+    const { prisma, quoteRequest } = createParePrisma();
+    quoteRequest.assignmentStatus = 'confirmed';
+    const service = new PAREService(prisma as any);
+    await expect(service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_not_withdrawn'))
+      .rejects.toThrow('no longer withdrawn');
   });
 
   it('returns the same hydrated PARE response after approval', async () => {
