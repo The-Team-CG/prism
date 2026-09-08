@@ -27,9 +27,10 @@
     "start:guest": "npm --workspace @prism/guest run start",
     "test:api": "npm --workspace prism-api run test",
     "test:api:coverage": "npm --workspace prism-api run test:coverage",
+    "lint:architecture": "eslint --config eslint.config.mjs \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\"",
     "db:generate": "npm --workspace prism-api run db:generate",
     "smoke:ui": "node scripts/smoke-prism-ui.mjs",
-    "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs scripts/check-cyclomatic-complexity.test.mjs scripts/prism-ports.test.mjs scripts/prism-worktree.test.mjs scripts/port-ownership.test.mjs",
+    "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs scripts/check-cyclomatic-complexity.test.mjs scripts/prism-ports.test.mjs scripts/prism-worktree.test.mjs scripts/port-ownership.test.mjs scripts/eslint-prism-architecture.test.mjs",
     "ports": "node scripts/prism-ports.mjs",
     "worktree:setup": "node scripts/prism-worktree.mjs setup",
     "worktree:setup:copy-local-env": "node scripts/prism-worktree.mjs setup --copy-local-env",
@@ -41,6 +42,9 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "typescript-eslint": "^8.65.0",
     "turbo": "^2.6.1",
     "typescript": "^6.0.3"
   },
