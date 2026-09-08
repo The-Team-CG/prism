@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProposalLifecycleService, PROPOSAL_LIFECYCLE_POLICY } from './proposal-lifecycle.service';
 import { OpsUserRole } from '@prism/kernel/event-core';
 
-const actor = { id: 'pmcm-1', role: OpsUserRole.PmcmAdmin, name: 'PMCM', email: 'pmcm@test' };
+const actor = { id: 'pmcm-1', role: OpsUserRole.PmcmAdmin, name: 'PMCM', email: 'pmcm@test', explicit: true, verified: true };
 function fixture() {
   const event = { id: 'evt-1', archived: false, clientPortalStatus: 'unlocked', eventDate: new Date('2099-01-01') };
   const estimate = { id: 'ce-1', eventId: event.id, budgetAmount: 100000, totalAmount: 90000, status: 'draft', notes: '', createdAt: new Date(), lines: [{ id: 'line-1', category: 'Venue', description: 'Room', quantity: 1, unitAmount: 90000, totalAmount: 90000, sourceLineId: null }] };

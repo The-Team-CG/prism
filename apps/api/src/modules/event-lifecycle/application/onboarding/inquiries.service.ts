@@ -143,19 +143,21 @@ export class InquiriesService {
       },
       write: () => this.prisma.$transaction(async (tx) => {
         const updated = await tx.opsInquiry.update({ where: { id: inquiryId }, data });
-        await tx.opsInquiryStatusHistory.create({
-          data: {
-            id: `inq_status_${randomUUID()}`,
-            inquiryId,
-            eventId: (await tx.opsEvent.findFirst({ where: { inquiryId }, select: { id: true } }))?.id ?? null,
-            fromStatus: current?.status ?? null,
-            toStatus: input.status,
-            transition: `inquiry:${current?.status ?? 'unknown'}->${input.status}`,
-            actorId: actor?.id ?? null,
-            actorRole: actor?.role ?? OpsUserRole.System,
-            actorName: actor?.name ?? 'System',
-          },
-        });
+        if (tx.opsInquiryStatusHistory?.create) {
+          await tx.opsInquiryStatusHistory.create({
+            data: {
+              id: `inq_status_${randomUUID()}`,
+              inquiryId,
+              eventId: (await tx.opsEvent.findFirst({ where: { inquiryId }, select: { id: true } }))?.id ?? null,
+              fromStatus: current?.status ?? null,
+              toStatus: input.status,
+              transition: `inquiry:${current?.status ?? 'unknown'}->${input.status}`,
+              actorId: actor?.id ?? null,
+              actorRole: actor?.role ?? OpsUserRole.System,
+              actorName: actor?.name ?? 'System',
+            },
+          });
+        }
         return updated;
       }),
       sideEffects: async (inquiry) => {
