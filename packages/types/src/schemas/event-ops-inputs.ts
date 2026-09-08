@@ -65,6 +65,12 @@ export const submitBriefingSchema = z.object({
   budgetRange: nonEmptyStringSchema,
   serviceRequirements: z.array(z.string()),
   notes: nonEmptyStringSchema,
+  confirmedDate: isoDateStringSchema.optional(),
+  confirmedStartTime: optionalTrimmedStringSchema,
+  confirmedEndTime: optionalTrimmedStringSchema,
+  program: z.array(z.object({ time: optionalTrimmedStringSchema, activity: nonEmptyStringSchema })).default([]),
+  moodAndStyling: optionalTrimmedStringSchema,
+  stylingBudget: z.number().int().nonnegative().optional(),
 });
 export type SubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
 
@@ -84,6 +90,31 @@ export const reviewEventProposalSchema = z.object({
   }
 });
 export type ReviewEventProposalInput = z.infer<typeof reviewEventProposalSchema>;
+
+export const costEstimateLineSchema = z.object({
+  category: nonEmptyStringSchema,
+  description: nonEmptyStringSchema,
+  quantity: z.number().positive(),
+  unitAmount: z.number().int().nonnegative(),
+  sourceLineId: optionalTrimmedStringSchema,
+});
+export type CostEstimateLineInput = z.infer<typeof costEstimateLineSchema>;
+
+export const createCostEstimateSchema = z.object({
+  budgetAmount: z.number().int().positive(),
+  lines: z.array(costEstimateLineSchema).min(1),
+  notes: z.string().trim().default(''),
+  reuseEstimateId: optionalTrimmedStringSchema,
+});
+export type CreateCostEstimateInput = z.infer<typeof createCostEstimateSchema>;
+
+export const issueProposalVersionSchema = z.object({
+  title: nonEmptyStringSchema,
+  summary: z.string().trim().default(''),
+  costEstimateId: nonEmptyStringSchema,
+  revisionNote: z.string().trim().default(''),
+});
+export type IssueProposalVersionInput = z.infer<typeof issueProposalVersionSchema>;
 
 export const archiveSearchFiltersSchema = z.object({
   venue: optionalTrimmedStringSchema,
