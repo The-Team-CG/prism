@@ -1,14 +1,30 @@
 import { PrismaService } from '@prism/kernel/database';
 import type { PAREContext } from '../pare.types';
+import { PareSourceNotFoundError } from '../pare-source.errors';
+
+function assertWithdrawnSource(
+  request: { assignmentStatus?: string },
+  triggerId: string,
+  required: boolean,
+): void {
+  if (required && request.assignmentStatus !== 'withdrawn') {
+    throw new PareSourceNotFoundError(`PARE: quote request ${triggerId} is no longer withdrawn`);
+  }
+}
 
 export class EventContextAgent {
   constructor(private readonly prisma: PrismaService) {}
 
-  async buildPareEventContext(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREContext> {
+  async buildPareEventContext(
+    triggerId: string,
+    prefetched?: { request: any; event: any },
+    requireWithdrawn = false,
+  ): Promise<PAREContext> {
     let request: any;
     let event: any;
 
     if (prefetched) {
+      assertWithdrawnSource(prefetched.request, triggerId, requireWithdrawn);
       request = prefetched.request;
       event = prefetched.event;
     } else {
@@ -16,7 +32,8 @@ export class EventContextAgent {
         where: { id: triggerId },
         include: { event: true, supplier: true, categoryRef: true },
       });
-      if (!fetched) throw new Error(`PARE: quote request ${triggerId} not found`);
+      if (!fetched) throw new PareSourceNotFoundError(`PARE: quote request ${triggerId} not found`);
+      assertWithdrawnSource(fetched, triggerId, requireWithdrawn);
       request = fetched;
       event = fetched.event;
     }

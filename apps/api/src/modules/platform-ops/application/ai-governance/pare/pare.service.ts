@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { OpsAiApprovalRecord, OpsAiAuditLog } from '@prisma/client';
+import type { OpsAiApprovalRecord, OpsAiAuditLog, Prisma } from '@prisma/client';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { assertPareExecutionAllowed, configuredPareMode, type PAREMode } from './pare-execution.policy';
@@ -19,25 +19,32 @@ import type {
   PAREResult,
   PARERisk,
 } from './pare.types';
+import type { PareApprovalGovernance } from '../../../contracts/ai-governance/pare-approval-governance.port';
 
 type ApprovalRow = {
   id: string;
   aiAuditLogId: string;
+  featureName: string;
   eventId?: string | null;
   status: string;
   approvedBy?: string | null;
   approvedAt?: Date | string | null;
   requestedAt?: Date | string | null;
+  sourceDispatchId?: string | null;
 };
 type AuditRow = {
   id: string;
+  featureName?: string | null;
   eventId?: string | null;
   modelVersion?: string | null;
   sanitizedPayload?: unknown;
   createdAt?: Date | string | null;
 };
 
-function requireMatchingAudit(record: OpsAiApprovalRecord, audit: OpsAiAuditLog | null): OpsAiAuditLog {
+function requireMatchingAudit<
+  TRecord extends Pick<ApprovalRow, 'eventId' | 'featureName'>,
+  TAudit extends Pick<AuditRow, 'eventId' | 'featureName'>,
+>(record: TRecord, audit: TAudit | null): TAudit {
   if (!audit || audit.featureName !== 'PARE' || audit.eventId !== record.eventId) {
     throw new BadRequestException('A matching durable PARE audit is required');
   }
@@ -45,7 +52,7 @@ function requireMatchingAudit(record: OpsAiApprovalRecord, audit: OpsAiAuditLog 
 }
 
 @Injectable()
-export class PAREService {
+export class PAREService implements PareApprovalGovernance {
   private readonly mode: PAREMode;
   private readonly sanitizer: DataSanitizerService;
   private readonly eventContextAgent: EventContextAgent;
@@ -64,12 +71,22 @@ export class PAREService {
     this.messageDrafterAgent = new MessageDrafterAgent(this.mode);
   }
 
-  async handleEmergencyTrigger(triggerId: string, prefetched?: { request: any; event: any }): Promise<PAREApprovalRecord> {
+  async handleEmergencyTrigger(
+    triggerId: string,
+    sourceDispatchIdOrPrefetched?: string | NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]>,
+    prefetched?: NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]>,
+  ): Promise<PAREApprovalRecord> {
+    const sourceDispatchId = typeof sourceDispatchIdOrPrefetched === 'string' ? sourceDispatchIdOrPrefetched : undefined;
+    const preparedContext = typeof sourceDispatchIdOrPrefetched === 'object' ? sourceDispatchIdOrPrefetched : prefetched;
+    if (sourceDispatchId) {
+      const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
+      if (existing) return this.mapApprovalRecordWithAudit(existing);
+    }
     assertPareExecutionAllowed(this.mode);
     const triggeredAt = new Date();
 
     // Agent 1 — event context
-    const ctx: PAREContext = await this.eventContextAgent.buildPareEventContext(triggerId, prefetched);
+    const ctx: PAREContext = await this.eventContextAgent.buildPareEventContext(triggerId, preparedContext, Boolean(sourceDispatchId));
 
     // Agent 2 — find replacement candidates
     ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx);
@@ -103,34 +120,45 @@ export class PAREService {
       pareResult as unknown as Record<string, unknown>,
     );
     const aiAuditLogId = randomUUID();
-    return this.prisma.$transaction(async (tx) => {
-      const audit = await tx.opsAiAuditLog.create({ data: {
-        id: aiAuditLogId,
-        eventId: ctx.eventId,
-        featureName: 'PARE',
-        modelVersion: 'mock',
-        dataCategories: toPrismaJson(dataCategories),
-        sanitizedPayload: toPrismaJson(sanitizedPayload),
-        zdrConfirmed: true,
-        humanApprovalRequired: true,
-        status: 'pending_human_approval',
-        createdAt: triggeredAt,
-      } });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        if (sourceDispatchId) {
+          const existing = await tx.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
+          if (existing) return this.mapApprovalRecordWithTransactionAudit(tx, existing);
+        }
+        const audit = await tx.opsAiAuditLog.create({ data: {
+          id: aiAuditLogId,
+          eventId: ctx.eventId,
+          featureName: 'PARE',
+          modelVersion: 'mock',
+          dataCategories: toPrismaJson(dataCategories),
+          sanitizedPayload: toPrismaJson(sanitizedPayload),
+          zdrConfirmed: true,
+          humanApprovalRequired: true,
+          status: 'pending_human_approval',
+          createdAt: triggeredAt,
+        } });
 
-    // Create approval record — PMCM Admin must approve before any action fires
-    const approvalRecordId = randomUUID();
-    const approval = await tx.opsAiApprovalRecord.create({ data: {
-        id: approvalRecordId,
-        aiAuditLogId,
-        eventId: ctx.eventId,
-        featureName: 'PARE',
-        requestedBy: 'PARE Engine',
-        status: 'pending_human_approval',
-        requestedAt: triggeredAt,
-      } });
+        const approval = await tx.opsAiApprovalRecord.create({ data: {
+          id: randomUUID(),
+          aiAuditLogId,
+          eventId: ctx.eventId,
+          featureName: 'PARE',
+          requestedBy: 'PARE Engine',
+          status: 'pending_human_approval',
+          requestedAt: triggeredAt,
+          sourceDispatchId: sourceDispatchId ?? null,
+        } });
 
-    return this.mapApprovalRecord(approval, audit);
-    });
+        return this.mapApprovalRecord(approval, audit);
+      });
+    } catch (error) {
+      if (sourceDispatchId) {
+        const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
+        if (existing) return this.mapApprovalRecordWithAudit(existing);
+      }
+      throw error;
+    }
   }
 
   async getPendingApprovals(eventId?: string): Promise<PAREApprovalRecord[]> {
@@ -186,6 +214,16 @@ export class PAREService {
 
   private async mapApprovalRecordWithAudit(record: ApprovalRow): Promise<PAREApprovalRecord> {
     const audit = await this.findAuditLog(record.aiAuditLogId);
+    requireMatchingAudit(record, audit);
+    return this.mapApprovalRecord(record, audit);
+  }
+
+  private async mapApprovalRecordWithTransactionAudit(
+    tx: Prisma.TransactionClient,
+    record: ApprovalRow,
+  ): Promise<PAREApprovalRecord> {
+    const audit = await tx.opsAiAuditLog.findUnique({ where: { id: record.aiAuditLogId } });
+    requireMatchingAudit(record, audit);
     return this.mapApprovalRecord(record, audit);
   }
 

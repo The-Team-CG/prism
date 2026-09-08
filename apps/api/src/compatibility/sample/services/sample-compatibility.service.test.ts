@@ -1148,6 +1148,7 @@ function createSampleCompatibilityService(prisma: any) {
     eventAccessPolicyService,
     workflowCommandService,
     pareService,
+    { queue: async () => ({}) },
     documentVaultService,
   );
 

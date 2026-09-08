@@ -10,7 +10,7 @@ import type {
 } from './supplier-directory.port';
 import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput, CreateSupplierScheduleInput } from '@prism/types';
 import type { UploadMetadataInput } from './supplier-document-vault.port';
-import type { SupplierPareApprovalRecord } from './supplier-pare-automation.port';
+import type { PAREApprovalRecord as SupplierPareApprovalRecord } from '@prism/contexts/platform-ops';
 
 export type SupplierReadinessInput = {
   notes?: string;

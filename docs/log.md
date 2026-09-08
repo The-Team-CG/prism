@@ -6,6 +6,7 @@
 - **Updated:** Stop and API launch paths now resolve current-checkout ports, stale worktree registrations are excluded from slot reconciliation, lease cleanup is identity-conditional, and portal links receive derived origins.
 
 - **Added:** Parallel-worktree runbook covering checkout-derived dev ports, the port-guard ownership rule, and junction-safe worktree teardown.
+- **Recorded:** Supplier withdrawal PARE execution now uses a dedicated platform-ops dispatch outbox with same-transaction enqueue, lease-token retries, terminal configuration/missing-source outcomes, and dispatch-keyed approval idempotency. The dispatch retains event ownership while the worker reloads commercial request state by ID.
 
 - **Updated:** P1 catalog implementation evidence through W15/W26/W51 integration: package-level effort/priority/risk status, partial scope, provider and policy blockers, PostgreSQL/Docker verification limits, and the remaining W29 policy gate are recorded in the catalog review and matrix.
 
