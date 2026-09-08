@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Integration reconciliation: restored commercial audit action typing, made structured briefing programs additive with an empty-array default, narrowed proposal version statuses at the API boundary, and aligned proposal lifecycle actor fixtures with verified actor contracts.
 - W13 event document journeys: event-scoped upload requests, confirmations, file-hub metadata listing, and download authorization now consume the W10 storage service and enforce PMCM/client/coordinator/supplier visibility. Unconfigured storage remains an explicit failed state; no document or signed URL is fabricated.
 - W13 completion slice: durable inquiry status history with actor/event attribution, client/supplier/PMCM document hub MVVM surfaces, and conforme activation gated on a confirmed stored W10 object.
 - W16 supplier selection and ingress slice: date-aware supplier availability/capacity records, round-scoped quote requests and PMCM comparison reads, transactional capacity gap warnings, confirmed assignment/readiness guards, and event-scoped supplier ingress/egress commitments. Supplier comparison reads remain PMCM-only; notification delivery and document/photo bytes remain provider-gated.

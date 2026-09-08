@@ -69,11 +69,12 @@ export const submitBriefingSchema = z.object({
   confirmedDate: isoDateStringSchema.optional(),
   confirmedStartTime: optionalTrimmedStringSchema,
   confirmedEndTime: optionalTrimmedStringSchema,
-  program: z.array(z.object({ time: optionalTrimmedStringSchema, activity: nonEmptyStringSchema })).default([]),
+  program: z.array(z.object({ time: optionalTrimmedStringSchema, activity: nonEmptyStringSchema })).optional().default([]),
   moodAndStyling: optionalTrimmedStringSchema,
   stylingBudget: z.number().int().nonnegative().optional(),
 });
-export type SubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
+type ParsedSubmitBriefingInput = z.infer<typeof submitBriefingSchema>;
+export type SubmitBriefingInput = Omit<ParsedSubmitBriefingInput, "program"> & { program?: ParsedSubmitBriefingInput["program"] };
 
 /* ── Guest ────────────────────────────────────────────────────── */
 
