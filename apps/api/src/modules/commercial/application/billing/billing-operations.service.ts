@@ -4,6 +4,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import type { PrismCommandContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, StorageObjectService, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/payment-terms.policy';
@@ -47,6 +48,22 @@ function auditMetadata(actor: BillingActor, metadata: Record<string, unknown> = 
   const next = { ...metadata };
   if (actor.correlationId) next.correlationId = actor.correlationId;
   return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function billingCommandContext(
+  eventId: string,
+  commandName: string,
+  idempotencyKey: string | undefined,
+  actor: BillingActor,
+): PrismCommandContext | undefined {
+  if (!idempotencyKey) return undefined;
+  return {
+    actorId: actor.id ?? actor.name,
+    actorRole: actor.role ?? OpsUserRole.PmcmAdmin,
+    eventId,
+    correlationId: actor.correlationId ?? `${commandName}:${eventId}:${idempotencyKey}`,
+    idempotencyKey,
+  };
 }
 
 export function renderBillingPdf(input: { number: string; sourceLabel: string; totalAmount: number }) {
@@ -371,7 +388,9 @@ export class BillingOperationsService {
     return this.workflowCommandService.execute<OpsBillingSource, ReturnType<BillingOperationsService['mapBillingSource']>>({
       name: 'create_billing_source',
       eventId,
+      context: billingCommandContext(eventId, 'create_billing_source', input.idempotencyKey, actor),
       sideEffectMode: 'same_tx',
+      idempotencyPayloadHash: payloadHash,
       validateState: async () => {
         await this.requireEvent(eventId);
         lineItems = this.normalizeBillingLineItems(input.lineItems);
@@ -689,6 +708,8 @@ export class BillingOperationsService {
     let replayed = false;
     return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
       name: 'request_billing_correction', eventId, sideEffectMode: 'same_tx',
+      context: billingCommandContext(eventId, 'request_billing_correction', input.idempotencyKey, actor),
+      idempotencyPayloadHash: payloadHash,
       validateState: async () => {
         await this.requireEvent(eventId);
         statement = await this.prisma.opsBillingStatement.findUnique({ where: { id: input.statementId } });
@@ -731,6 +752,8 @@ export class BillingOperationsService {
     let replayed = false;
     return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<BillingOperationsService['mapBillingDispute']>>({
       name: 'create_billing_dispute', eventId, sideEffectMode: 'same_tx',
+      context: billingCommandContext(eventId, 'create_billing_dispute', input.idempotencyKey, actor),
+      idempotencyPayloadHash: payloadHash,
       validateState: async () => {
         await this.requireEvent(eventId);
         statement = await this.prisma.opsBillingStatement.findUnique({ where: { id: input.statementId } });
@@ -778,6 +801,8 @@ export class BillingOperationsService {
     let replayed = false;
     return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
       name: 'create_additional_billing', eventId, sideEffectMode: 'same_tx',
+      context: billingCommandContext(eventId, 'create_additional_billing', input.idempotencyKey, actor),
+      idempotencyPayloadHash: payloadHash,
       validateState: async () => {
         event = await this.requireEvent(eventId);
         if (!event.actualEndedAt) throw new BadRequestException('Post-event additional billing requires a recorded event end');
