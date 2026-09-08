@@ -149,6 +149,16 @@ export {
 } from "./session-trust-inputs.js";
 export { supplierWithdrawalSchema, type SupplierWithdrawalInput, createEventFromTemplateSchema, type CreateEventFromTemplateInput, createTemplateSchema, type CreateTemplateInput, updateTemplateSchema, type UpdateTemplateInput, updatePlanSchema, type UpdatePlanInput } from "./session-spatial-inputs.js";
 export {
+  storageUsageSchema,
+  requestStorageUploadSchema,
+  confirmStorageUploadSchema,
+  storageObjectIdSchema,
+  type StorageUsage,
+  type RequestStorageUploadInput,
+  type ConfirmStorageUploadInput,
+  type StorageObjectIdInput,
+} from "./storage.js";
+export {
   addSupplierQuoteSchema,
   createBillingSourceSchema,
   approveBillingSourceSchema,
