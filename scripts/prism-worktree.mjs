@@ -33,6 +33,14 @@ export function assertInsideWorktrees(repoRoot, target) {
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new Error(`Refusing to touch ${resolved}: not inside ${root}`);
   }
+  const repoReal = fs.realpathSync.native(path.resolve(repoRoot));
+  try {
+    if (fs.lstatSync(root).isSymbolicLink()) {
+      throw new Error(`Refusing to touch ${resolved}: .worktrees root is a symlink or junction`);
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
   try {
     const targetStat = fs.lstatSync(resolved);
     if (targetStat.isSymbolicLink()) {
@@ -55,6 +63,14 @@ export function assertInsideWorktrees(repoRoot, target) {
   };
   const rootReal = realPathWithMissingTail(root);
   const targetReal = realPathWithMissingTail(resolved);
+  const normalized = (value) => path.resolve(value).replace(/\\/g, "/").toLowerCase();
+  if (fs.existsSync(root) && normalized(rootReal) !== normalized(root)) {
+    throw new Error(`Refusing to touch ${resolved}: .worktrees root is a reparse point`);
+  }
+  const rootFromRepo = path.relative(repoReal, rootReal);
+  if (!rootFromRepo || rootFromRepo.startsWith("..") || path.isAbsolute(rootFromRepo)) {
+    throw new Error(`Refusing to touch ${resolved}: .worktrees root resolves outside ${repoRoot}`);
+  }
   const realRelative = path.relative(rootReal, targetReal);
   if (!realRelative || realRelative.startsWith("..") || path.isAbsolute(realRelative)) {
     throw new Error(`Refusing to touch ${resolved}: resolved path is outside ${root}`);
@@ -97,22 +113,22 @@ function git(args, cwd) {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim();
 }
 
-function seedFrom(primaryRoot, relativeFile, targetPath) {
+function seedFrom(primaryRoot, relativeFile, targetPath, copyLocalEnv) {
   if (fs.existsSync(targetPath)) return false;
   const source = path.join(primaryRoot, relativeFile);
   const fallback = path.join(primaryRoot, relativeFile.replace(/\.env\.local$/, ".env.example").replace(/\.env$/, ".env.example"));
-  const chosen = fs.existsSync(source) ? source : fallback;
+  const chosen = copyLocalEnv && fs.existsSync(source) ? source : fallback;
   if (!fs.existsSync(chosen)) return false;
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.copyFileSync(chosen, targetPath);
   return chosen;
 }
 
-export function prepareWorktree({ worktreeRoot, primaryRoot, ports }) {
+export function prepareWorktree({ worktreeRoot, primaryRoot, ports, copyLocalEnv = false }) {
   const written = [];
   for (const { file, entries } of planEnvFiles(ports)) {
     const targetPath = path.join(worktreeRoot, file);
-    const seededFrom = seedFrom(primaryRoot, file, targetPath);
+    const seededFrom = seedFrom(primaryRoot, file, targetPath, copyLocalEnv);
     if (seededFrom && file === path.join("apps", "api", ".env") && path.resolve(seededFrom) === path.resolve(primaryRoot, file)) {
       console.log(`[prism-worktree] copied ${seededFrom}; it contains local credentials and must not be committed.`);
     }
@@ -191,19 +207,19 @@ function reportPorts(worktreeRoot, ports) {
   for (const [app, port] of Object.entries(ports)) console.log(`[prism-worktree]   ${app.padEnd(9)} ${port}`);
 }
 
-function runSetup(cwd) {
+function runSetup(cwd, copyLocalEnv = false) {
   const { worktreeRoot, isPrimary, ports } = resolveLivePortSet({ cwd, env: process.env });
   const primaryRoot = isPrimary ? worktreeRoot : git(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd).replace(/[/\\]\.git$/, "");
-  const written = prepareWorktree({ worktreeRoot, primaryRoot, ports });
+  const written = prepareWorktree({ worktreeRoot, primaryRoot, ports, copyLocalEnv });
   reportPorts(worktreeRoot, ports);
   console.log(`[prism-worktree] wrote ${written.length} env file(s); dependencies still need an install in this worktree.`);
 }
 
-function runCreate(name, base) {
+function runCreate(name, base, copyLocalEnv = false) {
   const { worktreeRoot: primaryRoot } = describeCheckout(process.cwd());
   const target = assertInsideWorktrees(primaryRoot, path.join(primaryRoot, WORKTREES_DIRNAME, name));
   git(["worktree", "add", "-b", `codex/${name}`, target, base], primaryRoot);
-  runSetup(target);
+  runSetup(target, copyLocalEnv);
 }
 
 function runRemove(name) {
@@ -221,11 +237,12 @@ function runRemove(name) {
 }
 
 function main(argv) {
-  const [command, name] = argv;
-  if (command === "setup") return runSetup(process.cwd());
-  if (command === "create" && name) return runCreate(name, argv[2] ?? "staging");
+  const copyLocalEnv = argv.includes("--copy-local-env");
+  const [command, name, base] = argv.filter((argument) => argument !== "--copy-local-env");
+  if (command === "setup") return runSetup(process.cwd(), copyLocalEnv);
+  if (command === "create" && name) return runCreate(name, base ?? "staging", copyLocalEnv);
   if (command === "remove" && name) return runRemove(name);
-  console.error("Usage: node scripts/prism-worktree.mjs <setup | create <name> [base] | remove <name>>");
+  console.error("Usage: node scripts/prism-worktree.mjs <setup | create <name> [base] | remove <name>> [--copy-local-env]");
   process.exitCode = 1;
 }
 

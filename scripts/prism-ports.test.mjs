@@ -41,6 +41,24 @@ describe("prism port resolution", () => {
     assert.deepEqual(second, first);
   });
 
+  it("preserves an existing colliding assignment when an earlier path is added", () => {
+    const existing = assignPortSlots(["C:/repo/.worktrees/w20"]);
+    const updated = assignPortSlots(["C:/repo/.worktrees/w6", "C:/repo/.worktrees/w20"], existing);
+    assert.equal(updated["c:/repo/.worktrees/w20"], existing["c:/repo/.worktrees/w20"]);
+    assert.notEqual(updated["c:/repo/.worktrees/w6"], updated["c:/repo/.worktrees/w20"]);
+  });
+
+  it("fails closed when more worktrees exist than available slots", () => {
+    const paths = Array.from({ length: 49 }, (_, index) => `C:/repo/.worktrees/capacity-${index}`);
+    assert.throws(() => assignPortSlots(paths), /No free P\.R\.I\.S\.M port slot/);
+  });
+
+  it("normalizes dot and dotdot path segments before assigning", () => {
+    const normalized = assignPortSlots(["C:/repo/.worktrees/alpha/../beta", "C:/repo/.worktrees/beta"]);
+    assert.equal(Object.keys(normalized).length, 1);
+    assert.ok(normalized["c:/repo/.worktrees/beta"]);
+  });
+
   it("treats separator, case, and trailing-slash variants as the same worktree", () => {
     const canonical = resolvePortSet({ worktreeRoot: "C:/repo/.worktrees/alpha", isPrimary: false });
     const variant = resolvePortSet({ worktreeRoot: "c:\\repo\\.worktrees\\alpha\\", isPrimary: false });

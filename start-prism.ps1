@@ -43,6 +43,9 @@ function Resolve-PrismPorts {
 Assert-Command -Name "node.exe"
 $portInfo = Resolve-PrismPorts
 $prismPorts = $portInfo.ports
+if ($Docker -and -not $portInfo.isPrimary) {
+  throw "Docker mode uses the canonical compose ports and is supported only from the primary checkout. Run start-prism.ps1 without -Docker for linked worktrees."
+}
 
 function Ensure-DockerEnvFile {
   $envFile = Join-Path $root ".env.docker"
@@ -329,39 +332,6 @@ function Invoke-External {
   }
 }
 
-function Stop-PidTree {
-  param([int]$ProcessId)
-  if ($ProcessId -le 0) { return }
-  try { & taskkill.exe /PID $ProcessId /F /T 2>$null | Out-Null } catch {}
-  try { Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue } catch {}
-}
-
-function Stop-RecordedProcesses {
-  if (-not (Test-Path -LiteralPath $pidFile)) { return }
-  Import-Csv -LiteralPath $pidFile | ForEach-Object {
-    $recordedPid = 0
-    if ([int]::TryParse($_.pid, [ref]$recordedPid)) { Stop-PidTree -ProcessId $recordedPid }
-  }
-}
-
-function Get-ListeningPortPids {
-  param([int]$Port)
-  $pattern = "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)"
-  netstat -ano | Select-String -Pattern $pattern | ForEach-Object {
-    if ($_.Line -match $pattern) { [int]$Matches[1] }
-  }
-}
-
-function Stop-PortListeners {
-  param([int[]]$Ports)
-  $targetPids = foreach ($port in $Ports) { Get-ListeningPortPids -Port $port }
-  $targetPids = $targetPids | Sort-Object -Unique
-  foreach ($targetPid in $targetPids) {
-    Write-Host "Clearing port process PID $targetPid"
-    Stop-PidTree -ProcessId $targetPid
-  }
-}
-
 function Ensure-WorkspaceInstall {
   $depsPath = Join-Path $root "node_modules"
   $packageLock = Join-Path $root "package-lock.json"
@@ -398,9 +368,7 @@ foreach ($app in $apps) {
 }
 
 if (-not $NoPortCleanup) {
-  Stop-RecordedProcesses
-  Stop-PortListeners -Ports @($prismPorts.client, $prismPorts.supplier, $prismPorts.guest, $prismPorts.event, $prismPorts.api)
-  Start-Sleep -Seconds 1
+  Write-Host "Port cleanup is delegated to the lease-aware API and portal guards."
 }
 
 Ensure-WorkspaceInstall
