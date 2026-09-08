@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- W25 cancellation/postponement core: shared decision contract, durable actor/reason/timestamp/prior-state records, serializable event state transitions, explicit deposit/fee treatment, coordinator release and supplier obligation impact, retained reschedule history, audited notification/storage intent, and client-visible event status states. External refunds, supplier acceptance, provider delivery and document bytes remain residual W14/W16/W11/W10 scope.
 - Closure and live-ops corrections: explicit reassignment decisions remain authoritative with compare-and-set claiming, wrap-up reminders scan only existing bounded pending records, and PMCM-recorded acknowledgement attribution is distinct from client acknowledgement. Compatibility conforme fixtures now provide confirmed W10 storage objects.
 - Integration reconciliation: restored commercial audit action typing, made structured briefing programs additive with an empty-array default, narrowed proposal version statuses at the API boundary, and aligned proposal lifecycle actor fixtures with verified actor contracts.
 - W13 event document journeys: event-scoped upload requests, confirmations, file-hub metadata listing, and download authorization now consume the W10 storage service and enforce PMCM/client/coordinator/supplier visibility. Unconfigured storage remains an explicit failed state; no document or signed URL is fabricated.
