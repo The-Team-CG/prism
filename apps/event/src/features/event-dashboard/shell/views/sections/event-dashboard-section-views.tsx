@@ -64,6 +64,7 @@ export function EventDashboardTasksSectionView() {
     pendingApprovals,
     selectedEvent,
     defenseReadiness,
+    commandInbox,
     drafts,
     quotes,
     payments,
@@ -78,6 +79,7 @@ export function EventDashboardTasksSectionView() {
             pendingApprovals={pendingApprovals}
             selectedEvent={selectedEvent}
             defenseReadiness={defenseReadiness}
+            commandInbox={commandInbox}
             draftsCount={drafts.length}
             quoteCount={quotes.length}
             paymentCount={payments.length}

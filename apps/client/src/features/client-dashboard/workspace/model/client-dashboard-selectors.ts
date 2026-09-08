@@ -69,7 +69,15 @@ export function selectClientDashboardActions(
   eventId?: string,
 ): ClientDashboardAction[] {
   if (!actionCenter || !eventId) return [];
+  const priorityOrder = { critical: 0, warning: 1, attention: 2, info: 3 } as const;
   return actionCenter.items
     .filter((item) => item.eventId === eventId)
+    .sort((left, right) => {
+      const priority = priorityOrder[left.priority] - priorityOrder[right.priority];
+      if (priority !== 0) return priority;
+      const due = (left.dueAt ?? "").localeCompare(right.dueAt ?? "");
+      if (due !== 0) return due;
+      return left.id.localeCompare(right.id);
+    })
     .map(actionCenterItemToDashboardAction);
 }
