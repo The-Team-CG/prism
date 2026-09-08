@@ -48,9 +48,18 @@ export class ProposalLifecycleService {
       if (previous) await tx.opsProposalVersion.update({ where: { id: previous.id }, data: { status: 'superseded' } });
       const version = await tx.opsProposalVersion.create({ data: { id: `proposal_${randomUUID()}`, eventId, costEstimateId: estimate.id, versionNumber, title: input.title, summary: input.summary, totalAmount: estimate.totalAmount, revisionNote: input.revisionNote, status: 'issued', issuedAt: new Date() } });
       await writeAudit(this.audit, eventId, actor.email ?? actor.name, 'Issued proposal version', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'proposal_version', affectedId: version.id, metadata: { versionNumber, costEstimateId: estimate.id, totalAmount: estimate.totalAmount, policy: PROPOSAL_LIFECYCLE_POLICY } }, { prisma: tx, correlationId: version.id, actorId: actor.id });
-      return version;
+      return this.mapProposalVersion(version);
     }, { isolationLevel: 'Serializable' });
   }
 
   private mapEstimate(value: any): PrismCostEstimate { return { id: value.id, eventId: value.eventId, budgetAmount: value.budgetAmount, totalAmount: value.totalAmount, alignment: value.totalAmount <= value.budgetAmount ? 'within_budget' : 'over_budget', status: value.status, notes: value.notes, createdAt: value.createdAt.toISOString(), lines: value.lines.map((line: any) => ({ id: line.id, category: line.category, description: line.description, quantity: Number(line.quantity), unitAmount: line.unitAmount, totalAmount: line.totalAmount, sourceLineId: line.sourceLineId })) }; }
+
+  private mapProposalVersion(value: { id: string; eventId: string; versionNumber: number; title: string; summary: string; costEstimateId: string; totalAmount: number; status: string; revisionNote: string; issuedAt: Date | null }): PrismProposalVersion {
+    return { ...value, status: parseProposalVersionStatus(value.status), issuedAt: value.issuedAt?.toISOString() ?? null };
+  }
+}
+
+function parseProposalVersionStatus(status: string): PrismProposalVersion['status'] {
+  if (status === 'draft' || status === 'issued' || status === 'superseded') return status;
+  throw new Error(`Unexpected proposal version status: ${status}`);
 }
