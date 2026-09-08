@@ -12,6 +12,7 @@ import {
   resolveExpiredQuoteRequestStatus,
 } from '../../domain/supplier-quote-request.policy';
 import type { AddSupplierQuoteInput } from '../../contracts/commercial-workflow-commands.port';
+import type { SupplierAvailabilityInput } from '@prism/types';
 import { QUOTE_SUPPLIER_RESOLVER } from '../../contracts/commercial-ops.tokens';
 import type { QuoteSupplierResolver } from '../../contracts/quote-supplier-resolver.port';
 
@@ -147,6 +148,9 @@ export class CommercialWorkflowService {
       write: () => {
         if (!event || !category) throw new NotFoundException('Supplier category not found');
         return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const roundModel = (tx as Prisma.TransactionClient & { opsSupplierQuoteRound?: any }).opsSupplierQuoteRound;
+          const latestRound = roundModel ? await roundModel.findFirst({ where: { eventId, categoryId: category!.id }, orderBy: { roundNumber: 'desc' } }) : null;
+          const round = roundModel ? await roundModel.create({ data: { id: `round_${randomUUID()}`, eventId, categoryId: category!.id, roundNumber: (latestRound?.roundNumber ?? 0) + 1 } }) : null;
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           const created: OpsSupplierQuoteRequest[] = [];
           for (const supplier of suppliersToRequest) {
@@ -166,6 +170,7 @@ export class CommercialWorkflowService {
                   ? `${event!.eventName} quote request with client details hidden until selection.`
                   : `${event!.clientName} / ${event!.eventName} quote request.`,
                 status: SupplierQuoteRequestStatus.Open,
+                ...(round ? { roundId: round.id } : {}),
               },
             });
             created.push(request);
@@ -343,6 +348,7 @@ export class CommercialWorkflowService {
         }
 
         const selected = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await this.assertSupplierCapacityAvailable(tx, eventId, quote!);
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
           await tx.opsSupplierQuote.updateMany({
             where: { eventId, category: quote!.category, id: { not: quote!.id } },
@@ -389,6 +395,42 @@ export class CommercialWorkflowService {
       },
       project: (result) => result.quote,
     });
+  }
+
+  async setSupplierAvailability(supplierId: string, input: SupplierAvailabilityInput, actorName = 'PMCM Admin') {
+    const availableOn = new Date(`${input.availableOn}T00:00:00.000Z`);
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const result = await tx.opsSupplierAvailability.upsert({
+        where: { supplierId_availableOn: { supplierId, availableOn } },
+        create: { id: `avail_${randomUUID()}`, supplierId, availableOn, capacity: input.capacity, blocked: Boolean(input.blocked), notes: input.notes ?? '' },
+        update: { capacity: input.capacity, blocked: Boolean(input.blocked), notes: input.notes ?? '' },
+      });
+      await writeAudit(this.auditWriter, undefined, actorName, `Updated supplier availability: ${supplierId}`, {
+        actorRole: 'pmcm-admin', actionType: AuditActionType.Update, category: AuditCategory.Suppliers,
+        affectedType: 'supplier_availability', affectedId: result.id, metadata: { supplierId, availableOn: input.availableOn, capacity: input.capacity, blocked: Boolean(input.blocked) },
+      }, { prisma: tx, actorId: actorName, correlationId: `supplier-availability:${result.id}` });
+      return result;
+    });
+  }
+
+  async getQuoteRoundComparison(eventId: string, roundId: string, actorRole: string) {
+    if (actorRole === 'supplier') throw new BadRequestException('Supplier comparison access is forbidden');
+    const round = await this.prisma.opsSupplierQuoteRound.findFirst({ where: { id: roundId, eventId }, include: { requests: { include: { quotes: true } }, category: true } });
+    if (!round) throw new NotFoundException('Quote round not found');
+    return { id: round.id, eventId: round.eventId, category: round.category.name, roundNumber: round.roundNumber, status: round.status,
+      bids: round.requests.flatMap((request) => request.quotes.map((quote) => ({ id: quote.id, supplierId: quote.supplierId, supplierName: quote.supplierName, amount: quote.amount, inclusions: quote.inclusions, paymentTerms: quote.paymentTerms, notes: quote.notes, outsideAcceptableRange: quote.outsideAcceptableRange, status: quote.status }))) };
+  }
+
+  private async assertSupplierCapacityAvailable(tx: Prisma.TransactionClient, eventId: string, quote: OpsSupplierQuote) {
+    if (!quote.supplierId) return;
+    const eventDate = await tx.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
+    const availabilityModel = (tx as Prisma.TransactionClient & { opsSupplierAvailability?: any }).opsSupplierAvailability;
+    if (!eventDate || !availabilityModel) return;
+    const availability = await availabilityModel.findUnique({ where: { supplierId_availableOn: { supplierId: quote.supplierId, availableOn: eventDate.eventDate } } });
+    if (availability && (availability.blocked || availability.capacity < 1)) throw new BadRequestException('Supplier gap warning: supplier is unavailable for the event date');
+    if (!availability) return;
+    const assignedCount = await tx.opsSupplierQuoteRequest.count({ where: { eventId, supplierId: quote.supplierId, status: SupplierQuoteRequestStatus.Selected, assignmentStatus: { in: ['pending_confirmation', 'confirmed'] } } });
+    if (assignedCount >= availability.capacity) throw new BadRequestException('Supplier gap warning: supplier capacity is already committed for the event date');
   }
 
   private async saveSupplierQuoteByToken(

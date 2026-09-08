@@ -133,6 +133,7 @@ function supplierRequestFixture(): OpsSupplierQuoteRequest {
     statusPhotoFileName: 'setup.jpg',
     contractDocumentId: 'doc_1',
     createdAt: CREATED_AT,
+    roundId: null,
   };
 }
 
