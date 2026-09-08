@@ -103,8 +103,19 @@ export function upsertEnvLines(content, entries) {
 /** Describes the env edits a worktree needs so its stack does not collide. */
 export function planEnvFiles(ports) {
   const plan = [{ file: path.join("apps", "api", ".env"), entries: { PORT: ports.api, CORS_ORIGIN: corsOriginFor(ports) } }];
+  const portalUrls = Object.fromEntries(PRISM_PORTAL_APPS.map((app) => [
+    `NEXT_PUBLIC_${app.toUpperCase()}_PORTAL_URL`,
+    `http://localhost:${ports[app]}`,
+  ]));
   for (const app of PRISM_PORTAL_APPS) {
-    plan.push({ file: path.join("apps", app, ".env.local"), entries: { NEXT_PUBLIC_API_URL: apiUrlFor(ports) } });
+    plan.push({
+      file: path.join("apps", app, ".env.local"),
+      entries: {
+        NEXT_PUBLIC_API_URL: apiUrlFor(ports),
+        NEXT_PUBLIC_CLIENT_ORIGIN: portalUrls.NEXT_PUBLIC_CLIENT_PORTAL_URL,
+        ...portalUrls,
+      },
+    });
   }
   return plan;
 }

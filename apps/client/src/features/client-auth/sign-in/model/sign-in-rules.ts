@@ -1,4 +1,4 @@
-import type { PrismUser } from "@prism/types";
+import { portalUrlFor, type PrismUser } from "@prism/types";
 import type { SignInDraft } from "./sign-in-types";
 import { CLIENT_SAMPLE_USERS, SAMPLE_PASSWORDS } from "./sign-in-types";
 
@@ -10,12 +10,12 @@ export function isClientRole(role: string): boolean {
   return role === "client";
 }
 
-export function portalMessage(role: string): string {
+export function portalMessage(role: string, env: Record<string, string | undefined> = process.env): string {
   if (role === "pmcm-admin" || role === "coordinator") {
-    return "Event team accounts sign in through the event operations portal at http://localhost:3004.";
+    return `Event team accounts sign in through the event operations portal at ${portalUrlFor("event", env)}.`;
   }
   if (role === "supplier") {
-    return "Supplier accounts sign in through the supplier portal at http://localhost:3002.";
+    return `Supplier accounts sign in through the supplier portal at ${portalUrlFor("supplier", env)}.`;
   }
   return "This portal only accepts approved client accounts.";
 }

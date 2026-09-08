@@ -60,18 +60,28 @@ function writeCheckoutLease({ ownerRoot, app, identity }) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const lease = {
     version: LEASE_VERSION,
+    leaseToken: crypto.randomUUID(),
     ownerRoot: normalizeCheckoutRoot(ownerRoot),
     app,
     ...processIdentity(identity),
     writtenAt: Date.now(),
   };
   atomicWrite(filePath, lease);
-  return filePath;
+  return lease;
 }
 
-function removeCheckoutLease({ ownerRoot, app }) {
+function removeCheckoutLease({ ownerRoot, app, lease, identity, leaseToken }) {
+  if (!lease && !identity && !leaseToken) return false;
   try {
-    fs.rmSync(leasePath(ownerRoot, app), { force: true });
+    const filePath = leasePath(ownerRoot, app);
+    const current = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const expected = lease || identity || {};
+    if (current.ownerRoot !== normalizeCheckoutRoot(ownerRoot) || current.app !== app) return false;
+    if (leaseToken && current.leaseToken !== leaseToken) return false;
+    if (expected.leaseToken && current.leaseToken !== expected.leaseToken) return false;
+    if (expected.pid !== undefined && Number(current.pid) !== Number(expected.pid)) return false;
+    if (expected.startTime !== undefined && Number(current.startTime) !== Number(expected.startTime)) return false;
+    fs.rmSync(filePath, { force: true });
   } catch {
     return false;
   }

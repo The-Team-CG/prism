@@ -27,6 +27,15 @@ describe("sign-in-rules", () => {
     expect(portalMessage("guest")).toContain("approved client");
   });
 
+  it("uses checkout-derived portal URLs when provided", () => {
+    const env = {
+      NEXT_PUBLIC_EVENT_PORTAL_URL: "http://localhost:3154",
+      NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "http://localhost:3152",
+    };
+    expect(portalMessage("pmcm-admin", env)).toContain("http://localhost:3154");
+    expect(portalMessage("supplier", env)).toContain("http://localhost:3152");
+  });
+
   it("resolves post-sign-in path safely", () => {
     expect(resolvePostSignInPath("/dashboard/events")).toBe("/dashboard/events");
     expect(resolvePostSignInPath("https://evil.example")).toBe("/dashboard");
