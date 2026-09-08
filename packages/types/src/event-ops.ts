@@ -1432,6 +1432,10 @@ type CreateFloorPlanDraftInput = {
   suppliers?: PrismProjectLike["suppliers"];
 };
 
+export interface PrismCostEstimateLine { id: string; category: string; description: string; quantity: number; unitAmount: number; totalAmount: number; sourceLineId?: string | null; }
+export interface PrismCostEstimate { id: string; eventId: string; budgetAmount: number; totalAmount: number; alignment: "within_budget" | "over_budget"; status: "draft" | "approved"; lines: PrismCostEstimateLine[]; notes: string; createdAt: string; }
+export interface PrismProposalVersion { id: string; eventId: string; versionNumber: number; title: string; summary: string; costEstimateId: string; totalAmount: number; status: "draft" | "issued" | "superseded"; revisionNote: string; issuedAt?: string | null; }
+
 type AddSupplierQuoteInput = {
   requestId?: string;
   supplierId?: string;

@@ -36,6 +36,8 @@ import { BillingOperationsService } from './application/billing/billing-operatio
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
+import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
+import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -91,6 +93,7 @@ const supplierCommandsProvider = {
     OpsSupplierPareController,
     OpsEventBillingController,
     CommunicationController,
+    ProposalLifecycleController,
   ],
   providers: [
     CommercialWorkflowService,
@@ -109,6 +112,7 @@ const supplierCommandsProvider = {
     { provide: SUPPLIER_PARE_AUTOMATION, useFactory: (pareService: PAREService) => pareService, inject: [PAREService] },
     BillingOperationsService,
     CommunicationService,
+    ProposalLifecycleService,
     { provide: FINANCE_COMMANDS, useExisting: BillingOperationsService },
     { provide: PAYMENT_STATUS_READER, useExisting: BillingOperationsService },
   ],
