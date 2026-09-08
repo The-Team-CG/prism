@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node ../../scripts/kill-prism-port.cjs --app client --port 3001 && next dev --port 3001",
+    "dev": "node ../../scripts/dev-portal.mjs --app client --mode dev",
     "prebuild": "node ../../scripts/clean-next-dev.cjs",
     "build": "next build",
-    "start": "node ../../scripts/kill-prism-port.cjs --app client --port 3001 && next start --port 3001",
+    "start": "node ../../scripts/dev-portal.mjs --app client --mode start",
     "typecheck": "node ../../scripts/clean-next-dev.cjs && tsc --noEmit",
     "lint": "next lint",
     "test": "vitest run",

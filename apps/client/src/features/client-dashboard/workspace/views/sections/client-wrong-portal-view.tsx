@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, ShieldCheck } from "lucide-react";
+import { portalUrlFor } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { signOutClientSession } from "../../use-cases/client-dashboard-actions";
 import type { ClientSession } from "../../model/client-dashboard-types";
@@ -33,14 +34,14 @@ export function ClientWrongPortalView({
         <div className="mt-5 flex flex-wrap gap-2">
           {eventTeam ? (
             <Button asChild className="rounded-lg font-bold">
-              <a href="http://localhost:3004">
+              <a href={portalUrlFor("event", process.env)}>
                 Open event portal <ArrowRight className="size-4" />
               </a>
             </Button>
           ) : null}
           {supplier ? (
             <Button asChild className="rounded-lg font-bold">
-              <a href="http://localhost:3002">
+              <a href={portalUrlFor("supplier", process.env)}>
                 Open supplier portal <ArrowRight className="size-4" />
               </a>
             </Button>
