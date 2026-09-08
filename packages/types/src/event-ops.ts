@@ -1019,6 +1019,9 @@ export interface PrismBillingSource {
   approvedAt?: string | null;
   approvedBy?: string | null;
   approvalNotes: string;
+  paymentTermsPolicyState?: "standard" | "repeat_client_override" | "pending_owner_decision" | string;
+  paymentTermsOverrideReason?: string | null;
+  paymentTermsApprovedBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1039,9 +1042,54 @@ export interface PrismBillingStatement {
   documentId?: string | null;
   pdfUrl: string;
   storageKey: string;
+  storageObjectId?: string | null;
+  storageState?: "stored" | "failed" | "pending" | string;
   status: string;
   sentAt?: string | null;
   generatedAt: string;
+}
+
+export interface PrismBillingCorrection {
+  id: string;
+  eventId: string;
+  statementId: string;
+  reason: string;
+  correctedTotalAmount?: number | null;
+  status: string;
+  requestedBy: string;
+  resolvedBy?: string | null;
+  resolutionNotes?: string | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface PrismBillingDispute {
+  id: string;
+  eventId: string;
+  statementId: string;
+  milestoneId?: string | null;
+  amount: number;
+  reason: string;
+  status: string;
+  raisedBy: string;
+  resolvedBy?: string | null;
+  resolutionNotes?: string | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface PrismAdditionalBilling {
+  id: string;
+  eventId: string;
+  urgentIssueId: string;
+  description: string;
+  amount: number;
+  status: string;
+  createdBy: string;
+  waiverReason?: string | null;
+  waivedBy?: string | null;
+  createdAt: string;
+  waivedAt?: string | null;
 }
 
 export interface PrismPaymentRecord {
@@ -1266,6 +1314,9 @@ export interface PrismPmcmDashboardWorkspace {
   billingStatements: PrismBillingStatement[];
   paymentMilestones: PrismPaymentMilestone[];
   paymentRecords: PrismPaymentRecord[];
+  billingCorrections?: PrismBillingCorrection[];
+  billingDisputes?: PrismBillingDispute[];
+  additionalBillings?: PrismAdditionalBilling[];
   postEventDocuments: PrismPostEventDocument[];
   eventInsights: PrismEventInsight[];
   floorPlanDrafts: PrismFloorPlanDraft[];
@@ -1307,6 +1358,9 @@ export interface PrismBillingWorkspace {
   billingStatements: PrismBillingStatement[];
   paymentMilestones: PrismPaymentMilestone[];
   paymentRecords: PrismPaymentRecord[];
+  billingCorrections?: PrismBillingCorrection[];
+  billingDisputes?: PrismBillingDispute[];
+  additionalBillings?: PrismAdditionalBilling[];
 }
 
 export interface PrismSupplierWorkspace {
@@ -1392,6 +1446,9 @@ export interface PrismPmcmEventWorkspace {
   billingStatements: PrismBillingStatement[];
   paymentMilestones: PrismPaymentMilestone[];
   paymentRecords: PrismPaymentRecord[];
+  billingCorrections?: PrismBillingCorrection[];
+  billingDisputes?: PrismBillingDispute[];
+  additionalBillings?: PrismAdditionalBilling[];
   postEventDocuments: PrismPostEventDocument[];
   eventInsights: PrismEventInsight[];
   floorPlanDrafts: PrismFloorPlanDraft[];
