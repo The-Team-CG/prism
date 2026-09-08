@@ -94,6 +94,11 @@ export class OpsGuestController {
     return this.guestWorkflowService.mapGuestEvent(event, attendanceCount);
   }
 
+  @Get('events/:accessCode/watermark')
+  async eventWatermarkByAccessCode(@Param('accessCode') accessCode: string) {
+    return this.guestWorkflowService.getEventWatermarkByAccessCode(accessCode);
+  }
+
   @Post('events/:accessCode/check-ins')
   @HttpCode(HttpStatus.CREATED)
   async checkIn(
