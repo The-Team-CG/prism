@@ -1,4 +1,5 @@
 import type { OpsSupplierApplication, OpsSupplierCategory } from '@prisma/client';
+import type { PrismSupplierApplicationStatusResult } from '@prism/types';
 
 function timestamp(value: Date) {
   return value.toISOString();
@@ -26,5 +27,18 @@ export function mapSupplierApplication(
     declineReason: row.declineReason ?? null,
     reviewedAt: row.reviewedAt ? timestamp(row.reviewedAt) : null,
     createdAt: timestamp(row.createdAt),
+  };
+}
+
+export function mapSupplierApplicationStatus(row: Pick<OpsSupplierApplication, 'id' | 'companyName' | 'status' | 'createdAt' | 'reviewedAt'>): PrismSupplierApplicationStatusResult {
+  if (!['pending', 'under_review', 'proposal_requested', 'meeting_scheduled', 'approved', 'declined'].includes(row.status)) {
+    throw new Error(`Unexpected supplier application status: ${row.status}`);
+  }
+  return {
+    id: row.id,
+    companyName: row.companyName,
+    status: row.status as PrismSupplierApplicationStatusResult['status'],
+    submittedAt: timestamp(row.createdAt),
+    reviewedAt: row.reviewedAt ? timestamp(row.reviewedAt) : null,
   };
 }

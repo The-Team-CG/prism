@@ -2,7 +2,7 @@
 
 import { LogOut, TicketCheck } from "lucide-react";
 import { PrismNoticeBanner } from "@prism/ui";
-import { humanizeToken } from "../model/guest-dashboard-rules";
+import { guestNextActions, humanizeToken } from "../model/guest-dashboard-rules";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
 import {
   GuestCheckInPanel,
@@ -77,6 +77,17 @@ export function GuestDashboardView() {
         <div className="flex flex-col gap-5">
           {vm.error ? <PrismNoticeBanner tone="danger">{vm.error}</PrismNoticeBanner> : null}
           {vm.notice ? <PrismNoticeBanner tone="success">{vm.notice}</PrismNoticeBanner> : null}
+          <section aria-labelledby="guest-action-center-heading" className="rounded-lg border border-border bg-card p-4 shadow-sm">
+            <h2 id="guest-action-center-heading" className="text-base font-black text-foreground">Your next steps</h2>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {guestNextActions(vm.checkedIn, vm.feedbackSubmitted).map((action) => (
+                <div key={action.id} className="border-l border-(--prism-signal) bg-background/60 px-3 py-2.5">
+                  <p className="text-sm font-bold text-foreground">{action.label}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{action.detail}</p>
+                </div>
+              ))}
+            </div>
+          </section>
           <GuestCheckInPanel vm={vm} />
           <GuestEventDetailsPanel
             session={session}

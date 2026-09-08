@@ -1,46 +1,46 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException, Optional, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import type { OpsNotificationLog } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NotificationChannel } from '@prism/kernel/event-core';
 import type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 import type { PrismVerifiedEventActor } from '@prism/types';
+import { NOTIFICATION_DELIVERY, type NotificationDeliveryPort } from '../../contracts/notifications/notification-delivery.port';
+import { processNotificationQueue } from './notification-delivery-worker';
 
 export type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 
-const DEFAULT_MAX_ATTEMPTS = 3;
-const FORCE_FAIL_MARKER = 'FORCE_FAIL';
-
-type NotificationLogDelegateWithCorrelationLookup = {
-  findFirst(args: { where: { correlationId: string } }): Promise<OpsNotificationLog | null>;
-};
-
 @Injectable()
-export class NotificationOutboxService {
-  constructor(private readonly prisma: PrismaService) {}
+export class NotificationOutboxService implements OnApplicationBootstrap, OnApplicationShutdown {
+  private timer?: ReturnType<typeof setInterval>;
+  private running = false;
+  private readonly logger = new Logger(NotificationOutboxService.name);
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @Inject(NOTIFICATION_DELIVERY) private readonly delivery?: NotificationDeliveryPort,
+  ) {}
 
   async queue(
     eventId: string | undefined,
     recipient: string,
     message: string,
     channel: NotificationOutboxChannel = NotificationChannel.Email,
-    options: { forceFail?: boolean; correlationId?: string; idempotencyKey?: string } = {},
+    options: { correlationId?: string; idempotencyKey?: string } = {},
     context?: PrismTransactionContext,
   ) {
     const prisma = context?.prisma ?? this.prisma;
     const correlationId = options.correlationId ?? options.idempotencyKey ?? null;
-
-    if (options.idempotencyKey) {
-      const notificationLog = prisma.opsNotificationLog as unknown as NotificationLogDelegateWithCorrelationLookup;
-      const existing = await notificationLog.findFirst({
-        where: { correlationId: options.idempotencyKey },
-      });
-      if (existing) return existing;
+    const legacy = await this.findLegacyRetry(prisma, options.idempotencyKey);
+    if (legacy) {
+      if (legacy.eventId !== (eventId ?? null) || legacy.recipient !== recipient || legacy.message !== message || legacy.channel !== channel) {
+        throw new ConflictException('Notification idempotency key is bound to different content');
+      }
+      return legacy;
     }
 
-    return prisma.opsNotificationLog.create({
-      data: {
+    const payloadHash = createHash('sha256').update(JSON.stringify([eventId ?? null, recipient, message, channel])).digest('hex');
+    const data = {
         id: `not_${randomUUID()}`,
         eventId,
         channel,
@@ -49,41 +49,44 @@ export class NotificationOutboxService {
         status: 'queued',
         attempts: 0,
         correlationId,
-        failureReason: options.forceFail ? FORCE_FAIL_MARKER : null,
-      },
-    });
+        idempotencyKey: options.idempotencyKey ?? null,
+        payloadHash,
+        failureReason: this.delivery ? null : 'Delivery provider is not configured',
+      };
+    if (!options.idempotencyKey) return prisma.opsNotificationLog.create({ data });
+    // A non-empty no-op update keeps Prisma on PostgreSQL's atomic ON CONFLICT path.
+    const saved = await prisma.opsNotificationLog.upsert({ where: { idempotencyKey: options.idempotencyKey }, create: data, update: { idempotencyKey: options.idempotencyKey } });
+    if (saved.payloadHash !== payloadHash) throw new ConflictException('Notification idempotency key is bound to different content');
+    return saved;
   }
 
   async processQueued(options: { maxAttempts?: number } = {}) {
-    const maxAttempts = Math.max(1, options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS);
-    const queued = await this.prisma.opsNotificationLog.findMany({
-      where: { status: 'queued' },
-      orderBy: { createdAt: 'asc' },
-    });
-    const processed: OpsNotificationLog[] = [];
-    for (const notification of queued) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: queue worker processes at most 100 notifications per run.
-      const nextAttempt = (notification.attempts ?? 0) + 1;
-      const shouldFail = notification.failureReason?.startsWith(FORCE_FAIL_MARKER) ?? false;
-      const permanentlyFailed = shouldFail && nextAttempt >= maxAttempts;
-      const updated = await this.prisma.opsNotificationLog.update({
-        where: { id: notification.id },
-        data: shouldFail
-          ? {
-              status: permanentlyFailed ? 'failed' : 'queued',
-              attempts: nextAttempt,
-              failedAt: new Date(),
-              failureReason: `${FORCE_FAIL_MARKER}: Sample adapter forced failure (${nextAttempt}/${maxAttempts})`,
-            }
-          : {
-              status: 'sent',
-              attempts: nextAttempt,
-              sentAt: new Date(),
-              failureReason: null,
-            },
-      });
-      processed.push(updated);
-    }
-    return processed;
+    return processNotificationQueue(this.prisma, this.delivery, options.maxAttempts);
+  }
+
+  onApplicationBootstrap() {
+    if (!this.delivery) return;
+    this.timer = setInterval(() => { void this.runScheduled(); }, 30_000);
+    this.timer.unref();
+    void this.runScheduled();
+  }
+
+  onApplicationShutdown() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  private async runScheduled() {
+    if (this.running) return;
+    this.running = true;
+    try { await this.processQueued(); }
+    catch { this.logger.warn('Notification queue sweep failed; durable work remains available for retry'); }
+    finally { this.running = false; }
+  }
+
+  private findLegacyRetry(prisma: PrismaService | PrismTransactionContext['prisma'], key?: string) {
+    if (!key) return Promise.resolve(null);
+    // Earlier versions stored idempotency only in correlationId. Preserve those retries.
+    return prisma.opsNotificationLog.findFirst({ where: { correlationId: key, idempotencyKey: null } });
   }
 
   async acknowledge(notificationId: string, actor?: PrismVerifiedEventActor) {
@@ -95,10 +98,15 @@ export class NotificationOutboxService {
     if (this.hasEventScopeMismatch(notification, actor)) {
       throw new ForbiddenException('Notification is outside the actor event scope');
     }
-    return this.prisma.opsNotificationLog.update({
-      where: { id: notificationId },
+    if (notification.status === 'acknowledged') return notification;
+    if (notification.status !== 'sent') throw new ConflictException('Only a provider-accepted notification can be acknowledged');
+    const updated = await this.prisma.opsNotificationLog.updateMany({
+      where: { id: notificationId, status: 'sent' },
       data: { status: 'acknowledged', acknowledgedAt: new Date() },
     });
+    const saved = await this.prisma.opsNotificationLog.findUniqueOrThrow({ where: { id: notificationId } });
+    if (updated.count !== 1 && saved.status !== 'acknowledged') throw new ConflictException('Notification state changed; refresh before acknowledging');
+    return saved;
   }
 
   private isPrivileged(actor?: PrismVerifiedEventActor) {

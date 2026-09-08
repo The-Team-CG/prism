@@ -18,6 +18,7 @@ type SessionTokenPayload = {
   email: string;
   role: PrismEventOpsActorRole;
   organization: string;
+  sessionVersion?: number;
   iat: number;
   exp: number;
 };
@@ -52,7 +53,7 @@ export class AuthSessionService {
 
   issueSession(user: PrismUser, issuedAt = new Date()): PrismAuthenticatedSession {
     const issuedAtSeconds = Math.floor(issuedAt.getTime() / 1000);
-    const ttlSeconds = this.sessionTtlSeconds();
+    const ttlSeconds = this.sessionTtlSeconds(user.role);
     const expiresAtSeconds = issuedAtSeconds + ttlSeconds;
     const expiresAt = new Date(expiresAtSeconds * 1000).toISOString();
 
@@ -64,6 +65,7 @@ export class AuthSessionService {
         email: user.email,
         role: user.role,
         organization: user.organization,
+        sessionVersion: user.sessionVersion ?? 0,
         iat: issuedAtSeconds,
         exp: expiresAtSeconds,
       }),
@@ -84,6 +86,7 @@ export class AuthSessionService {
       actorRole: payload.role,
       email: payload.email,
       actorEmail: payload.email,
+      sessionVersion: payload.sessionVersion ?? 0,
       name: payload.name,
       actorName: payload.name,
       expiresAt,
@@ -188,8 +191,9 @@ export class AuthSessionService {
     throw new Error('PRISM_SESSION_SECRET or JWT_SECRET must be configured with at least 32 characters');
   }
 
-  private sessionTtlSeconds() {
-    const raw = this.configService.get<string>('PRISM_SESSION_TTL_SECONDS');
+  private sessionTtlSeconds(role?: PrismEventOpsActorRole) {
+    const roleKey = role ? `PRISM_SESSION_TTL_SECONDS_${role.replace(/[^a-z0-9]/gi, '_').toUpperCase()}` : undefined;
+    const raw = (roleKey ? this.configService.get<string>(roleKey) : undefined) ?? this.configService.get<string>('PRISM_SESSION_TTL_SECONDS');
     const parsed = raw ? Number(raw) : NaN;
     return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : DEFAULT_SESSION_TTL_SECONDS;
   }

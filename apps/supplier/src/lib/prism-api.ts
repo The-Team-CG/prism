@@ -1,6 +1,7 @@
 export type {
   PrismSupplier,
   PrismSupplierApplication,
+  PrismSupplierApplicationStatusResult,
   PrismSupplierCertification,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -14,15 +15,17 @@ import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/
 import type {
   PrismAuthenticatedSession,
   PrismSupplierApplication,
+  PrismSupplierApplicationStatusResult,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
   CreateSupplierApplicationInput,
+  SupplierApplicationStatusQuery,
   SubmitSupplierQuoteInput,
 } from "@prism/types";
 
-export type { CreateSupplierApplicationInput } from "@prism/types";
+export type { CreateSupplierApplicationInput, SupplierApplicationStatusQuery } from "@prism/types";
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
 
@@ -127,8 +130,18 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  getSupplierApplicationStatus: (input: SupplierApplicationStatusQuery): Promise<PrismSupplierApplicationStatusResult> =>
+    request(`/api/supplier-applications/status?applicationId=${encodeURIComponent(input.applicationId)}&email=${encodeURIComponent(input.email)}`),
   fileRequirements: (eventId: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.events.fileRequirements(eventId, actorFromSession(session)),
   listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>
     request("/api/supplier-applications/categories"),
+  communicationThreads: (eventId: string, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.listThreads(eventId, actorFromSession(session)),
+  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }, actorFromSession(session)),
+  communicationMessages: (threadId: string, cursor: string | undefined, limit: number | undefined, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.listMessages(threadId, { cursor, limit }, actorFromSession(session)),
+  markCommunicationThreadRead: (threadId: string, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.markThreadRead(threadId, actorFromSession(session)),
 };

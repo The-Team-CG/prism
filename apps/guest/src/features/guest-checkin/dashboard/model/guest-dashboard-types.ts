@@ -11,6 +11,13 @@ export type GuestDashboardStatus = "idle" | "loading" | "ready" | "error";
 
 export type GuestBusyAction = "check-in" | "feedback" | null;
 
+export type GuestNextAction = {
+  id: "check-in" | "feedback";
+  label: string;
+  detail: string;
+  status: "pending" | "complete";
+};
+
 export type CheckInPayload = {
   guestName: string;
   checkInMode: CheckInMode;
@@ -30,7 +37,7 @@ export type FeedbackMediaMeta = {
 export type FeedbackPayload = {
   guestName: string;
   rating: number;
-  comment: string;
+  comment?: string;
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
   marketingConsentAccepted: boolean;

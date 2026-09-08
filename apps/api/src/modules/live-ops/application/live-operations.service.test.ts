@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { LiveOperationsService } from './live-operations.service';
 import { mapUrgentIssue } from './live-ops.mappers';
@@ -26,6 +27,7 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
   it('enforces openedBy to verified actor.name and persists affectedArea', async () => {
     let createdRecord: Record<string, unknown> | null = null;
     const mockPrisma = {
+      opsUser: { findFirst: vi.fn(async () => ({ email: 'admin@pmcm.test' })) },
       opsUrgentIssue: {
         create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           createdRecord = { ...data, createdAt: new Date(), updatedAt: new Date() };
@@ -150,6 +152,106 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
 
     expect(updated.affectedArea).toBe('Entire North Wing');
     expect(updated.status).toBe('assigned');
+  });
+
+  it('creates a reassignment request with an approval deadline and queued PMCM notification', async () => {
+    const requestedAt = new Date('2026-09-08T03:00:00.000Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(requestedAt);
+    const task = { id: 'task_1', eventId: 'evt_001', title: 'Open registration', assignedRole: 'Registration Staff', ownerName: 'Alex' };
+    const request = {
+      id: 'reassignment_1', eventId: 'evt_001', taskId: 'task_1', requestedBy: 'Alex', requestedByRole: 'coordinator',
+      fromOwnerRole: 'Registration Staff', fromOwnerName: 'Alex', toOwnerRole: 'Floor Director', toOwnerName: 'Jamie',
+      reason: 'Registration queue is clear', status: 'pending', requestedAt,
+      autoApproveAt: new Date('2026-09-08T03:02:00.000Z'), decidedAt: null, decidedBy: null, decisionReason: null,
+    };
+    const mockPrisma = {
+      opsUser: { findFirst: vi.fn(async () => ({ email: 'admin@pmcm.test' })) },
+      opsEventDayTask: { findUnique: vi.fn(async () => task) },
+      opsEventTaskReassignmentRequest: { create: vi.fn(async () => request) },
+    };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const service = new LiveOperationsService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
+
+    const result = await service.requestTaskReassignment('evt_001', 'task_1', {
+      toOwnerRole: 'Floor Director', toOwnerName: 'Jamie', reason: 'Registration queue is clear',
+    }, { name: 'Alex', role: 'coordinator' });
+
+    expect(result).toMatchObject({ id: 'reassignment_1', status: 'pending', toOwnerRole: 'Floor Director' });
+    expect(mockNotificationOutboxWriter.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_001', recipient: 'admin@pmcm.test' }), undefined);
+    vi.useRealTimers();
+  });
+
+  it('approves a pending reassignment transactionally and updates the task owner', async () => {
+    const request = {
+      id: 'reassignment_1', eventId: 'evt_001', taskId: 'task_1', requestedBy: 'Alex', requestedByRole: 'coordinator',
+      fromOwnerRole: 'Registration Staff', fromOwnerName: 'Alex', toOwnerRole: 'Floor Director', toOwnerName: 'Jamie',
+      reason: 'Registration queue is clear', status: 'pending', requestedAt: new Date('2026-09-08T03:00:00.000Z'),
+      autoApproveAt: new Date('2099-09-08T03:02:00.000Z'), decidedAt: null, decidedBy: null, decisionReason: null,
+    };
+    const updated = { ...request, status: 'approved', decidedAt: new Date(), decidedBy: 'PMCM', decisionReason: 'Approved' };
+    const tx = {
+      opsEventTaskReassignmentRequest: {
+        updateMany: vi.fn(async () => ({ count: 1 })),
+        findUnique: vi.fn(async () => updated),
+      },
+      opsEventDayTask: { update: vi.fn(async () => undefined) },
+    };
+    const mockPrisma = {
+      opsUser: { findFirst: vi.fn(async () => ({ email: 'alex@example.test' })) },
+      opsEventTaskReassignmentRequest: { findFirst: vi.fn(async () => request) },
+      $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const service = new LiveOperationsService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
+
+    const result = await service.decideTaskReassignment('evt_001', 'reassignment_1', { decision: 'approved', reason: 'Approved' }, { name: 'PMCM', role: 'pmcm-admin' });
+
+    expect(tx.opsEventDayTask.update).toHaveBeenCalledWith({ where: { id: 'task_1' }, data: { assignedRole: 'Floor Director', ownerName: 'Jamie' } });
+    expect(result.status).toBe('approved');
+    expect(mockNotificationOutboxWriter.write).toHaveBeenCalledWith(expect.objectContaining({ recipient: 'alex@example.test' }), undefined);
+  });
+
+  it('rejects a reassignment without a decision reason', async () => {
+    const request = {
+      id: 'reassignment_1', eventId: 'evt_001', taskId: 'task_1', requestedBy: 'Alex', requestedByRole: 'coordinator',
+      fromOwnerRole: 'Registration Staff', fromOwnerName: 'Alex', toOwnerRole: 'Floor Director', toOwnerName: 'Jamie',
+      reason: 'Registration queue is clear', status: 'pending', requestedAt: new Date('2026-09-08T03:00:00.000Z'),
+      autoApproveAt: new Date('2099-09-08T03:02:00.000Z'), decidedAt: null, decidedBy: null, decisionReason: null,
+    };
+    const service = new LiveOperationsService(
+      { opsEventTaskReassignmentRequest: { findFirst: vi.fn(async () => request) } } as never,
+      {} as never,
+      mockNotificationOutboxWriter as never,
+      mockWorkflowCommandService as never,
+    );
+
+    await expect(service.decideTaskReassignment('evt_001', 'reassignment_1', { decision: 'rejected' }, { name: 'PMCM', role: 'pmcm-admin' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('keeps a late explicit rejection rejected and leaves task ownership unchanged', async () => {
+    const request = {
+      id: 'reassignment_late', eventId: 'evt_001', taskId: 'task_1', requestedBy: 'Alex', requestedByRole: 'coordinator',
+      fromOwnerRole: 'Registration Staff', fromOwnerName: 'Alex', toOwnerRole: 'Floor Director', toOwnerName: 'Jamie',
+      reason: 'Registration queue is clear', status: 'pending', requestedAt: new Date('2026-09-08T03:00:00.000Z'),
+      autoApproveAt: new Date('2026-09-08T03:02:00.000Z'), decidedAt: null, decidedBy: null, decisionReason: null,
+    };
+    const rejected = { ...request, status: 'rejected', decidedAt: new Date(), decidedBy: 'PMCM', decisionReason: 'Keep current owner' };
+    const tx = {
+      opsEventTaskReassignmentRequest: {
+        updateMany: vi.fn(async () => ({ count: 1 })),
+        findUnique: vi.fn(async () => rejected),
+      },
+      opsEventDayTask: { update: vi.fn(async () => undefined) },
+    };
+    const service = new LiveOperationsService({
+      opsUser: { findFirst: vi.fn(async () => ({ email: 'alex@example.test' })) },
+      opsEventTaskReassignmentRequest: { findFirst: vi.fn(async () => request) },
+      $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    } as never, { write: vi.fn(async () => undefined) } as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
+    const result = await service.decideTaskReassignment('evt_001', request.id, { decision: 'rejected', reason: 'Keep current owner' }, { name: 'PMCM', role: 'pmcm-admin' });
+    expect(result.status).toBe('rejected');
+    expect(tx.opsEventDayTask.update).not.toHaveBeenCalled();
   });
 
   it('uses the verified actor for coordinator attendance attribution', async () => {

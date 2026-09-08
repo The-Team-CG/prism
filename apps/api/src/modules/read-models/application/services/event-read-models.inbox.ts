@@ -96,7 +96,13 @@ export function collectClientActionItems(input: {
     ...collectClientBillingStatementActionItems(input.billingStatements, input.visibleEvents),
     ...collectClientClosureActionItems(input.postEventDocuments, input.visibleEvents),
   ];
-  items.sort((left, right) => priorityRank(left.priority) - priorityRank(right.priority));
+  items.sort((left, right) => {
+    const priority = priorityRank(left.priority) - priorityRank(right.priority);
+    if (priority !== 0) return priority;
+    const due = (left.dueAt ?? '').localeCompare(right.dueAt ?? '');
+    if (due !== 0) return due;
+    return left.id.localeCompare(right.id);
+  });
   return items;
 }
 

@@ -7,6 +7,8 @@ export {
   type UploadContractInput,
   type UpdateSupplierEventStatusInput,
   type CreateEventDayTaskInput,
+  type CreateEventTaskReassignmentInput,
+  type DecideEventTaskReassignmentInput,
   type UpdateEventDayTaskInput,
   type UpdateCoordinatorAttendanceInput,
   type CreateUrgentIssueInput,

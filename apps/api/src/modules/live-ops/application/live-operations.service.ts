@@ -1,5 +1,5 @@
 import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, OpsEventDayTask, OpsUrgentIssue, Prisma } from '@prisma/client';
+import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, OpsEventDayTask, OpsEventTaskReassignmentRequest, OpsUrgentIssue, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { lockCoordinatorAssignmentDay } from '@prism/kernel/shared-kernel';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -7,6 +7,9 @@ import type {
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   EscalateLiveOpsInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
+  PrismEventTaskReassignmentRequest,
   ReplaceCoordinatorAssignmentInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
@@ -39,6 +42,8 @@ export type {
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
   UpdateUrgentIssueInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
 } from '@prism/types';
 
 export type LiveOpsActor = {
@@ -208,6 +213,137 @@ export class LiveOperationsService {
         ]);
       },
     });
+  }
+
+  async requestTaskReassignment(
+    eventId: string,
+    taskId: string,
+    input: CreateEventTaskReassignmentInput,
+    actor: LiveOpsActor,
+  ) {
+    const prisma = this.requirePrisma();
+    const auditWriter = this.requireAuditWriter();
+    const notificationOutboxWriter = this.requireNotificationOutboxWriter();
+    let task: OpsEventDayTask | null = null;
+    let toOwnerRole = '';
+    let toOwnerName = '';
+    let reason = '';
+
+    return this.workflowCommandService.execute<OpsEventTaskReassignmentRequest, PrismEventTaskReassignmentRequest>({
+      name: 'request_event_day_task_reassignment',
+      eventId,
+      validateState: async () => {
+        task = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
+        if (task?.eventId !== eventId) task = null;
+        if (!task) throw new NotFoundException('Event-day task not found');
+        toOwnerRole = input.toOwnerRole.trim();
+        toOwnerName = input.toOwnerName?.trim() ?? '';
+        reason = input.reason.trim();
+        if (!toOwnerRole) throw new BadRequestException('A reassignment role is required');
+        if (!reason) throw new BadRequestException('A reassignment reason is required');
+      },
+      write: () => {
+        if (!task) throw new NotFoundException('Event-day task not found');
+        const now = new Date();
+        return prisma.opsEventTaskReassignmentRequest.create({
+          data: {
+            id: `etr_${randomUUID()}`,
+            eventId,
+            taskId,
+            requestedBy: actor.name,
+            requestedByRole: actor.role,
+            fromOwnerRole: task.assignedRole,
+            fromOwnerName: task.ownerName,
+            toOwnerRole,
+            toOwnerName,
+            reason,
+            status: 'pending',
+            requestedAt: now,
+            autoApproveAt: new Date(now.getTime() + 2 * 60 * 1000),
+          },
+        });
+      },
+      sideEffects: async (request) => {
+        const pmcmEmail = await this.resolveUserEmailByRole('pmcm-admin');
+        await Promise.all([
+          writeAudit(auditWriter, eventId, actor.name, `Requested task reassignment: ${task?.title ?? taskId}`, {
+            actorRole: actor.role,
+            actionType: AuditActionType.Create,
+            category: AuditCategory.Events,
+            affectedType: 'event_task_reassignment',
+            affectedId: request.id,
+            affectedLabel: task?.title ?? taskId,
+            metadata: { taskId, toOwnerRole, toOwnerName, reason, autoApproveAt: request.autoApproveAt.toISOString() },
+          }),
+          ...(pmcmEmail ? [writeNotification(notificationOutboxWriter, eventId, pmcmEmail, `Task reassignment requested: ${task?.title ?? taskId}. Approval required.`, 'viber')] : [writeAudit(auditWriter, eventId, actor.name, 'Task reassignment notification not queued: no approved PMCM email address', { actorRole: actor.role, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_task_reassignment', affectedId: request.id })]),
+        ]);
+      },
+      project: (request) => this.mapTaskReassignment(request),
+    });
+  }
+
+  async listTaskReassignmentRequests(eventId: string) {
+    const requests = await this.requirePrisma().opsEventTaskReassignmentRequest.findMany({
+      where: { eventId },
+      orderBy: { requestedAt: 'desc' },
+    });
+    return requests.map((request) => this.mapTaskReassignment(request));
+  }
+
+  async decideTaskReassignment(
+    eventId: string,
+    requestId: string,
+    input: DecideEventTaskReassignmentInput,
+    actor: LiveOpsActor,
+  ) {
+    const prisma = this.requirePrisma();
+    const auditWriter = this.requireAuditWriter();
+    const notificationOutboxWriter = this.requireNotificationOutboxWriter();
+    const now = new Date();
+    const request = await prisma.opsEventTaskReassignmentRequest.findFirst({ where: { id: requestId, eventId } });
+    if (!request) throw new NotFoundException('Task reassignment request not found');
+    if (request.status !== 'pending') throw new BadRequestException('Task reassignment request is already decided');
+    // autoApproveAt is metadata for a future system sweep. A submitted human
+    // decision must never be rewritten based on elapsed time.
+    const status = input.decision;
+    const reason = input.reason?.trim() ?? '';
+    if (status === 'rejected' && !reason) throw new BadRequestException('A rejection reason is required');
+
+    const decided = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const claimed = await tx.opsEventTaskReassignmentRequest.updateMany({
+        where: { id: requestId, eventId, status: 'pending' },
+        data: { status, decidedAt: now, decidedBy: actor.name, decisionReason: reason || null },
+      });
+      if (claimed.count !== 1) throw new BadRequestException('Task reassignment request is already decided');
+      const current = await tx.opsEventTaskReassignmentRequest.findUnique({ where: { id: requestId } });
+      if (!current) throw new NotFoundException('Task reassignment request not found');
+      if (status === 'approved') {
+        await tx.opsEventDayTask.update({ where: { id: current.taskId }, data: { assignedRole: current.toOwnerRole, ownerName: current.toOwnerName } });
+      }
+      return current;
+    });
+    await Promise.all([
+      writeAudit(auditWriter, eventId, actor.name, `${status === 'rejected' ? 'Rejected' : 'Approved'} task reassignment`, {
+        actorRole: actor.role,
+        actionType: status === 'rejected' ? AuditActionType.Decline : AuditActionType.Update,
+        category: AuditCategory.Events,
+        affectedType: 'event_task_reassignment',
+        affectedId: decided.id,
+        metadata: { taskId: decided.taskId, status, reason },
+      }),
+      ...(await this.resolveUserEmailByName(request.requestedBy) ? [writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(request.requestedBy))!, `Task reassignment ${status.replace('_', ' ')} for ${request.taskId}`, 'viber')] : [writeAudit(auditWriter, eventId, actor.name, 'Task reassignment notification not queued: requester has no verified email address', { actorRole: actor.role, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_task_reassignment', affectedId: decided.id })]),
+    ]);
+    return this.mapTaskReassignment(decided);
+  }
+
+  private async resolveUserEmailByRole(role: string) {
+    const user = await this.prisma.opsUser.findFirst({ where: { role, approvalStatus: 'approved' }, orderBy: { createdAt: 'asc' }, select: { email: true } });
+    return user?.email?.trim().toLowerCase().includes('@') ? user.email.trim().toLowerCase() : null;
+  }
+
+  private async resolveUserEmailByName(name: string) {
+    const user = await this.prisma.opsUser.findFirst({ where: { name, approvalStatus: 'approved' }, select: { email: true } });
+    return user?.email?.trim().toLowerCase().includes('@') ? user.email.trim().toLowerCase() : null;
   }
 
   async createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor: LiveOpsActor) {
@@ -495,6 +631,18 @@ export class LiveOperationsService {
           const assignmentDate = current!.eventDate ?? event!.eventDate;
           if (assignmentDate) {
             await lockCoordinatorAssignmentDay(tx, coordinator!.id, assignmentDate);
+            const availabilityModel = 'opsCoordinatorAvailability' in tx ? tx.opsCoordinatorAvailability : undefined;
+            const unavailable = availabilityModel
+              ? await availabilityModel.findFirst({
+                  where: { coordinatorId: coordinator!.id, startsAt: { lte: assignmentDate }, endsAt: { gt: assignmentDate } },
+                  orderBy: { startsAt: 'asc' },
+                })
+              : null;
+            if (unavailable) {
+              throw new BadRequestException(
+                `${coordinator!.name} is unavailable for ${assignmentDate.toISOString().slice(0, 10)} (${unavailable.kind}).`,
+              );
+            }
             const conflict = await tx.opsCoordinatorAssignment.findFirst({
               where: {
                 coordinatorId: coordinator!.id,
@@ -684,6 +832,44 @@ export class LiveOperationsService {
     if (dueAt.getTime() < now.getTime()) return LiveOpsSlaStatus.Overdue;
     if (dueAt.getTime() - now.getTime() <= DUE_SOON_MS) return LiveOpsSlaStatus.DueSoon;
     return LiveOpsSlaStatus.OnTrack;
+  }
+
+  private mapTaskReassignment(request: {
+    id: string;
+    eventId: string;
+    taskId: string;
+    requestedBy: string;
+    requestedByRole: string;
+    fromOwnerRole: string;
+    fromOwnerName: string;
+    toOwnerRole: string;
+    toOwnerName: string;
+    reason: string;
+    status: string;
+    requestedAt: Date;
+    autoApproveAt: Date;
+    decidedAt: Date | null;
+    decidedBy: string | null;
+    decisionReason: string | null;
+  }) {
+    return {
+      id: request.id,
+      eventId: request.eventId,
+      taskId: request.taskId,
+      requestedBy: request.requestedBy,
+      requestedByRole: request.requestedByRole,
+      fromOwnerRole: request.fromOwnerRole,
+      fromOwnerName: request.fromOwnerName,
+      toOwnerRole: request.toOwnerRole,
+      toOwnerName: request.toOwnerName,
+      reason: request.reason,
+      status: request.status,
+      requestedAt: request.requestedAt.toISOString(),
+      autoApproveAt: request.autoApproveAt.toISOString(),
+      decidedAt: request.decidedAt?.toISOString() ?? null,
+      decidedBy: request.decidedBy ?? null,
+      decisionReason: request.decisionReason ?? null,
+    };
   }
 
   buildStatusFeed(input: {

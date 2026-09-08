@@ -16,6 +16,12 @@ export * from './contracts/notifications/notification-outbox-writer.port';
 export * from './infrastructure/notifications/notification-outbox-writer.adapter';
 export * from './application/notifications/notification-outbox.service';
 
+export * from './contracts/storage/storage.port';
+export * from './application/storage/storage-object.service';
+export * from './application/storage/storage-validation.service';
+export * from './infrastructure/storage/local-filesystem-storage.adapter';
+export * from './api/storage/storage.controller';
+
 export * from './api/ai-governance/ai-governance.controller';
 export * from './api/ai-governance/ai-governance.dto';
 export * from './application/ai-governance/ai-governance.service';

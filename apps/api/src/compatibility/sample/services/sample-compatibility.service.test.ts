@@ -102,6 +102,7 @@ function createPrisma(seedInquiry: any = inquiry()) {
     ] as any[],
     events: [] as any[],
     documents: [] as any[],
+    storedObjects: [] as any[],
     briefings: [] as any[],
     floorPlanDrafts: [] as any[],
     billings: [] as any[],
@@ -659,6 +660,9 @@ function createPrisma(seedInquiry: any = inquiry()) {
         return document;
       },
     },
+    opsStoredObject: {
+      findUnique: async ({ where }: { where: { id: string } }) => state.storedObjects.find((item) => item.id === where.id) ?? null,
+    },
     opsBriefing: {
       findMany: async ({ where }: { where?: { eventId?: string | { in: string[] } } } = {}) => {
         const eventIdFilter = where?.eventId;
@@ -717,6 +721,7 @@ function createPrisma(seedInquiry: any = inquiry()) {
       findUnique: async ({ where }: { where: { id: string } }) =>
         state.floorPlans.find((plan) => plan.id === where.id) ?? null,
     },
+    opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
     opsAuditLog: {
       findFirst: async () => state.auditLogs[state.auditLogs.length - 1] ?? null,
       findMany: async ({ where }: { where?: { eventId?: string; category?: string; actionType?: string } } = {}) =>
@@ -842,6 +847,8 @@ function createPrisma(seedInquiry: any = inquiry()) {
     opsNotificationLog: {
       findUnique: async ({ where }: { where: { id: string } }) =>
         state.notifications.find((item) => item.id === where.id) ?? null,
+      findFirst: async ({ where }: { where?: { correlationId?: string; idempotencyKey?: null } } = {}) =>
+        state.notifications.find((item) => (!where?.correlationId || item.correlationId === where.correlationId) && (where?.idempotencyKey === undefined || item.idempotencyKey === where.idempotencyKey)) ?? null,
       findMany: async ({ where }: { where?: { eventId?: string; status?: string } } = {}) =>
         state.notifications.filter((item) => {
           if (where?.eventId && item.eventId !== where.eventId) return false;
@@ -850,6 +857,13 @@ function createPrisma(seedInquiry: any = inquiry()) {
         }),
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: data.createdAt ?? new Date() };
+        state.notifications.push(row);
+        return row;
+      },
+      upsert: async ({ where, create, update }: { where: { idempotencyKey: string }; create: any; update: any }) => {
+        const existing = state.notifications.find((item) => item.idempotencyKey === where.idempotencyKey);
+        if (existing) return { ...existing, ...update };
+        const row = { ...create, createdAt: create.createdAt ?? new Date() };
         state.notifications.push(row);
         return row;
       },
@@ -1331,11 +1345,14 @@ describe('SampleCompatibilityService', () => {
 
   it('uploads a signed conforme and unlocks event onboarding records', async () => {
     const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
+    fake.state.events.push({ id: 'evt_sample', inquiryId: 'inq_sample', clientName: 'Ana Reyes', eventName: 'Ayala Summit', eventDate: new Date('2026-06-18'), status: 'inquiry', clientPortalStatus: 'locked', archived: false });
+    fake.state.storedObjects.push({ id: 'sto_conforme', eventId: 'evt_sample', usage: 'signed_conforme', lifecycleState: 'stored' });
     const service = createSampleCompatibilityService(fake.prisma as any);
 
     const document = await (service as any).uploadConforme('inq_sample', {
       type: 'signed_conforme',
       fileName: 'signed-conforme.pdf',
+      storageObjectId: 'sto_conforme',
     }, { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     expect(document.status).toBe('approved');
@@ -1348,6 +1365,8 @@ describe('SampleCompatibilityService', () => {
 
   it('enforces PmcmAdmin-only access and records the resolved actor on conforme upload', async () => {
     const fake = createPrisma(inquiry({ status: 'accepted', acceptedAt: new Date(), conformeSentAt: new Date() }));
+    fake.state.events.push({ id: 'evt_sample', inquiryId: 'inq_sample', clientName: 'Ana Reyes', eventName: 'Ayala Summit', eventDate: new Date('2026-06-18'), status: 'inquiry', clientPortalStatus: 'locked', archived: false });
+    fake.state.storedObjects.push({ id: 'sto_conforme', eventId: 'evt_sample', usage: 'signed_conforme', lifecycleState: 'stored' });
     const auditService = new AuditService(fake.prisma as any);
     const auditWriter = new AuditWriterAdapter(auditService);
     const notificationOutboxService = new NotificationOutboxService(fake.prisma as any);
@@ -1374,7 +1393,7 @@ describe('SampleCompatibilityService', () => {
     await expect(
       inquiryWorkflowService.uploadConforme(
         'inq_sample',
-        { type: 'signed_conforme', fileName: 'signed-conforme.pdf' },
+        { type: 'signed_conforme', fileName: 'signed-conforme.pdf', storageObjectId: 'sto_conforme' },
         { actorRole: 'client' },
         context as any,
       ),
@@ -1382,13 +1401,13 @@ describe('SampleCompatibilityService', () => {
 
     await inquiryWorkflowService.uploadConforme(
       'inq_sample',
-      { type: 'signed_conforme', fileName: 'signed-conforme.pdf' },
+      { type: 'signed_conforme', fileName: 'signed-conforme.pdf', storageObjectId: 'sto_conforme' },
       { actorRole: 'pmcm-admin', actorName: 'Ms. Mys', actorEmail: 'mys@pmcm.test' },
       context as any,
     );
 
     const conformeAudit = fake.state.auditLogs.find(
-      (entry: any) => entry.action === 'Uploaded signed conforme and unlocked client portal',
+      (entry: any) => entry.action === 'Confirmed stored signed conforme and unlocked client portal',
     );
     expect(conformeAudit?.actor).toBe('Ms. Mys');
     expect(conformeAudit?.actorEmail).toBe('mys@pmcm.test');
@@ -1569,6 +1588,8 @@ describe('SampleCompatibilityService', () => {
       },
       actor,
     );
+    await expect(service['changeSupplierTier'](created.id, { tier: 'tier_2', reason: 'No assessment yet' }, actor)).rejects.toThrow(/completed event promotion/);
+    fake.state.suppliers.find((supplier) => supplier.id === created.id)!.tier = 'tier_1';
     const tiered = await (service as any).changeSupplierTier(
       created.id,
       { tier: 'tier_2', reason: 'Completed first event with minor ingress delay.' },
@@ -2785,33 +2806,13 @@ describe('SampleCompatibilityService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('moves notifications through queued, sent, retried, failed, and acknowledged states', async () => {
+  it('queues notifications without presenting sample processing as delivery', async () => {
     const fake = createPrisma();
-    const service = createSampleCompatibilityService(fake.prisma as any);
-
-    await (service as any).queueNotification('evt_sample', 'client@example.test', 'Balance due', 'email');
-    await (service as any).queueNotification('evt_sample', 'bad@example.test', 'Will fail', 'email', { forceFail: true });
-
-    expect(fake.state.notifications.map((item) => item.status)).toEqual(['queued', 'queued']);
-
-    const firstPass = await (service as any).processNotificationQueue();
-    expect(firstPass.map((item: any) => item.status)).toEqual(['sent', 'queued']);
-    expect(fake.state.notifications[1].attempts).toBe(1);
-
-    const secondPass = await (service as any).processNotificationQueue();
-    expect(secondPass.map((item: any) => item.status)).toEqual(['queued']);
-    expect(fake.state.notifications[1].attempts).toBe(2);
-
-    const thirdPass = await (service as any).processNotificationQueue();
-    expect(thirdPass.map((item: any) => item.status)).toEqual(['failed']);
-    expect(fake.state.notifications[1].attempts).toBe(3);
-    expect(fake.state.notifications[1].failureReason).toContain('3/3');
-
-    const acknowledged = await (service as any).acknowledgeNotification(fake.state.notifications[0].id);
-    expect(acknowledged.status).toBe('acknowledged');
-    expect(acknowledged.acknowledgedAt).toBeTruthy();
+    const service = createSampleCompatibilityService(fake.prisma as never);
+    await service['queueNotification']('evt_sample', 'client@example.test', 'Balance due', 'email');
+    expect(fake.state.notifications[0]).toMatchObject({ status: 'queued', attempts: 0, failureReason: 'Delivery provider is not configured' });
+    await expect(service['acknowledgeNotification'](fake.state.notifications[0].id)).rejects.toThrow(/provider-accepted/);
   });
-
   it('validates upload metadata and generates safe storage names', async () => {
     const fake = createPrisma();
     const service = createSampleCompatibilityService(fake.prisma as any);
@@ -2906,6 +2907,8 @@ describe('SampleCompatibilityService', () => {
       clientName: 'Ana Reyes',
       eventName: 'Ayala Tech Summit',
       eventDate: new Date('2026-06-18T00:00:00.000Z'),
+      walkInPolicy: 'open',
+      walkInThreshold: 200,
       status: 'event_day',
       clientPortalStatus: 'unlocked',
       readiness: 'Registration open',
@@ -2931,6 +2934,7 @@ describe('SampleCompatibilityService', () => {
       verificationStatus: 'flagged',
       privacyConsentAccepted: true,
     });
+    fake.state.events[0].actualEndedAt = new Date(Date.now() - 1000);
     const feedback = await (service as any).submitGuestFeedbackByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
       rating: 5,
@@ -2964,6 +2968,7 @@ describe('SampleCompatibilityService', () => {
     });
     const service = createSampleCompatibilityService(fake.prisma as any);
 
+    fake.state.events[0].actualEndedAt = new Date(Date.now() - 1000);
     await expect((service as any).createInquiry({
       clientName: 'Mia Cruz',
       email: 'mia@example.test',

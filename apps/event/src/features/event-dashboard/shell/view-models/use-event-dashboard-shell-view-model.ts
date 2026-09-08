@@ -115,13 +115,13 @@ export function useEventDashboardShellViewModel({
   const supplierCategories = state?.supplierCategories ?? [];
   const suppliers = state?.suppliers ?? [];
   const coordinators = state?.coordinators ?? [];
-  const coordinatorRoleRequirements = state?.coordinatorRoleRequirements ?? [];
   const inquiries = state?.inquiries ?? [];
   const unreviewedInquiries = selectUnreviewedInquiryCount(inquiries);
   const complianceRules = state?.complianceRules ?? [];
   const {
     activeDraft,
     assignments,
+    coordinatorCoverage,
     audit,
     billingSources,
     billingStatements,
@@ -136,6 +136,7 @@ export function useEventDashboardShellViewModel({
     quoteRequests,
     quotes,
   } = selectEventWorkspaceResources(state, selectedEvent, selectedEventWorkspace);
+  const coordinatorRoleRequirements = coordinatorCoverage;
   const selectedInquiry = inquiries.find((item) => item.id === selectedEvent?.inquiryId);
   const pendingApprovals = selectPendingApprovals(approvalRequests);
   const clientRecords = useMemo(() => selectClientRecords(events, inquiries), [events, inquiries]);
@@ -297,6 +298,7 @@ export function useEventDashboardShellViewModel({
     complianceRules,
     activeDraft,
     assignments,
+    coordinatorCoverage,
     audit,
     billingSources,
     billingStatements,
@@ -366,6 +368,7 @@ export function useEventDashboardShellViewModel({
     createSupplier: (input: Parameters<typeof commands.createSupplier>[0]) => run("create supplier", () => commands.createSupplier(input)),
     updateSupplierProfile: (supplierId: string, input: Parameters<typeof commands.updateSupplier>[1]) => run("update supplier", () => commands.updateSupplier(supplierId, input)),
     changeSupplierTier: (supplierId: string, tier: Parameters<typeof commands.changeSupplierTier>[1]["tier"], reason: string) => run("supplier tier change", () => commands.changeSupplierTier(supplierId, { tier, reason })),
+    promoteSupplier: (supplierId: string, tier: Parameters<typeof commands.promoteSupplier>[1]["tier"], reason: string) => selectedEvent ? run("supplier promotion", () => commands.promoteSupplier(supplierId, { eventId: selectedEvent.id, tier, reason, idempotencyKey: `promotion-${supplierId}-${selectedEvent.id}` })) : Promise.resolve(),
     addSupplierReview: (supplierId: string, input: Parameters<typeof commands.addSupplierReview>[1]) => session
       ? runWithSuccess("supplier private review", () => commands.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }, session))
       : Promise.resolve(false),
@@ -383,6 +386,7 @@ export function useEventDashboardShellViewModel({
     generateBillingStatement: (sourceId: string) => selectedEvent ? run("generate billing statement", () => commands.generateBillingStatement(selectedEvent.id, sourceId)) : Promise.resolve(),
     loadCloseGates: () => selectedEvent ? commands.closeGates(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     archiveSelectedEvent: (reason?: string) => selectedEvent ? run("archive event", () => commands.archiveEvent(selectedEvent.id, reason)) : Promise.resolve(),
+    recordActualEventEnd: (input: Parameters<typeof commands.recordActualEventEnd>[1]) => selectedEvent ? run("record actual event end", () => commands.recordActualEventEnd(selectedEvent.id, input)) : Promise.resolve(),
     loadEventInsights: () => selectedEvent ? commands.eventInsights(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: string, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
@@ -427,6 +431,12 @@ export function useEventDashboardShellViewModel({
     upsertRegistrationPlatform: (input: Parameters<typeof commands.upsertRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.upsertRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     updateRegistrationPlatform: (input: Parameters<typeof commands.updateRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.updateRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     importHeadcount: (input: Parameters<typeof commands.importHeadcount>[1]) => selectedEvent ? run("import headcount", () => commands.importHeadcount(selectedEvent.id, input)) : Promise.resolve(),
+    searchGuestRoster: (filters = {}) => selectedEvent ? commands.searchGuestRosterWithFilters(selectedEvent.id, filters) : Promise.resolve([]),
+    importGuestRoster: (input: Parameters<typeof commands.importGuestRoster>[1]) => selectedEvent ? commands.importGuestRoster(selectedEvent.id, input) : Promise.resolve([]),
+    checkInGuestRoster: (rosterEntryId: string) => selectedEvent ? run("check in guest", () => commands.checkInGuestRoster(selectedEvent.id, rosterEntryId)) : Promise.resolve(),
+    verifyGuestRoster: (rosterEntryId: string, status: Parameters<typeof commands.verifyGuestRoster>[2]) => selectedEvent ? run("verify guest", () => commands.verifyGuestRoster(selectedEvent.id, rosterEntryId, status)) : Promise.resolve(),
+    getWalkInPolicy: () => selectedEvent ? commands.getWalkInPolicy(selectedEvent.id) : Promise.resolve(null),
+    updateWalkInPolicy: (input: Parameters<typeof commands.updateWalkInPolicy>[1]) => selectedEvent ? run("walk-in policy", () => commands.updateWalkInPolicy(selectedEvent.id, input)) : Promise.resolve(),
     uploadConformeTarget: (inquiry: PrismInquiry) => setConformeUploadTarget(inquiry),
     openConformeUpload: (inquiry: PrismInquiry) => {
       setConformeUploadTarget(inquiry);

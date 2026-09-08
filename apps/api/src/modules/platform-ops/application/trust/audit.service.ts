@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -12,6 +12,9 @@ import {
   OpsUserRole,
 } from '@prism/kernel/event-core';
 import { mapAuditLog } from './audit.mappers';
+import type { PrismVerifiedEventActor } from '@prism/types';
+import { auditTailCandidates, orderLinkedAuditLogs } from './audit-chain-order';
+import { NotificationOutboxService } from '../notifications/notification-outbox.service';
 
 type AuditLogFilters = {
   query?: string;
@@ -45,10 +48,35 @@ export type AuditLogInput = {
   createdAt?: Date;
 };
 
+export type IntegrityIncidentInput = {
+  source: string;
+  reason: string;
+  eventId?: string;
+  actor?: string;
+  metadata?: Record<string, unknown>;
+};
+
 const BULK_EXPORT_ALERT_THRESHOLD = 25;
 const LOGIN_LOCKOUT_THRESHOLD = 5;
 const LOGIN_LOCKOUT_MINUTES = 10;
 const PERMANENT_LOCKOUT_THRESHOLD = 5;
+const AUDIT_READ_PAGE_SIZE = 1000;
+
+type AuditReader = Pick<Prisma.TransactionClient, 'opsAuditLog'>;
+
+async function loadAuditLogs(prisma: AuditReader) {
+  if (typeof prisma.opsAuditLog.findMany !== 'function') return [];
+  const logs: Array<Awaited<ReturnType<AuditReader['opsAuditLog']['findMany']>>[number]> = [];
+  for (let skip = 0; ; skip += AUDIT_READ_PAGE_SIZE) {
+    const page = await prisma.opsAuditLog.findMany({
+      take: AUDIT_READ_PAGE_SIZE,
+      skip,
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+    logs.push(...page);
+    if (page.length < AUDIT_READ_PAGE_SIZE) return logs;
+  }
+}
 
 function timestamp(value: Date) {
   return value.toISOString();
@@ -177,7 +205,10 @@ function lockoutAlertPayload(user: OpsUser, state: LockoutState) {
 
 @Injectable()
 export class AuditService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationOutbox?: NotificationOutboxService,
+  ) {}
 
   async listLoginHistory(userId: string) {
     const entries = await this.prisma.opsLoginHistory.findMany({
@@ -202,25 +233,27 @@ export class AuditService {
     return logs.map((log: OpsAuditLog) => this.mapAuditLog(log));
   }
 
-  async exportAuditLogs(input: AuditLogFilters = {}) {
+  async exportAuditLogs(input: AuditLogFilters = {}, actor?: Pick<PrismVerifiedEventActor, 'id' | 'name' | 'role' | 'email'>) {
     const logs = await this.listAuditLogs({ ...input, limit: input.limit ?? '500' });
 
-    await this.audit(undefined, 'PMCM Admin', `Exported audit log (${logs.length} records)`, {
-      actorRole: OpsUserRole.PmcmAdmin,
+    await this.audit(undefined, actor?.name ?? 'System', `Exported audit log (${logs.length} records)`, {
+      actorRole: actor?.role ?? OpsUserRole.System,
+      actorEmail: actor?.email,
       actionType: AuditActionType.Export,
       category: AuditCategory.Access,
       affectedType: 'audit_logs',
       affectedLabel: `${logs.length} records`,
-      metadata: { filters: input, recordCount: logs.length },
+      metadata: { filters: input, recordCount: logs.length, actorId: actor?.id ?? null },
     });
 
     if (logs.length >= BULK_EXPORT_ALERT_THRESHOLD) {
       await this.createSecurityAlert({
         type: 'bulk_export',
         title: 'Bulk audit export threshold exceeded',
-        description: `PMCM Admin exported ${logs.length} audit records.`,
+        description: `${actor?.name ?? 'System'} exported ${logs.length} audit records.`,
         severity: 'warning',
-        metadata: { filters: input, recordCount: logs.length, threshold: BULK_EXPORT_ALERT_THRESHOLD },
+        triggeredBy: actor?.name ?? 'System',
+        metadata: { filters: input, recordCount: logs.length, threshold: BULK_EXPORT_ALERT_THRESHOLD, actorId: actor?.id ?? null, actorEmail: actor?.email ?? null },
       });
     }
 
@@ -241,14 +274,23 @@ export class AuditService {
   }
 
   async verifyIntegrity() {
-    const logs = await this.prisma.opsAuditLog.findMany({
-      // QUERY_AUDIT_ALLOW_UNBOUNDED: integrity verification must scan the full audit hash chain.
-      orderBy: { createdAt: 'asc' },
-    });
+    const logs = await loadAuditLogs(this.prisma);
     let previousHash: string | null = null;
     let lastVerifiedHash: string | null = null;
-
-    for (const log of logs) {
+    const chain = orderLinkedAuditLogs(logs);
+    const tails = auditTailCandidates(logs);
+    if (chain.firstBrokenLogId) {
+      return {
+        valid: false,
+        checkedCount: logs.length,
+        firstBrokenLogId: chain.firstBrokenLogId,
+        ambiguousTail: tails.length > 1,
+        ambiguousTailLogIds: tails.length > 1 ? tails.map((tail) => tail.id) : [],
+        lastVerifiedHash,
+        checkedAt: new Date().toISOString(),
+      };
+    }
+    for (const log of chain.ordered) {
       const expectedHash = this.hashAuditPayload({
         id: log.id,
         eventId: log.eventId ?? null,
@@ -274,6 +316,8 @@ export class AuditService {
           valid: false,
           checkedCount: logs.length,
           firstBrokenLogId: log.id,
+          ambiguousTail: false,
+          ambiguousTailLogIds: [],
           lastVerifiedHash,
           checkedAt: new Date().toISOString(),
         };
@@ -287,6 +331,8 @@ export class AuditService {
       valid: true,
       checkedCount: logs.length,
       firstBrokenLogId: null,
+      ambiguousTail: false,
+      ambiguousTailLogIds: [],
       lastVerifiedHash,
       checkedAt: new Date().toISOString(),
     };
@@ -298,22 +344,43 @@ export class AuditService {
     action: string,
     options: Omit<AuditLogInput, 'eventId' | 'actor' | 'action'> = {},
     context?: PrismTransactionContext,
-  ) {
-    const prisma = context?.prisma ?? this.prisma;
-    const previous = await prisma.opsAuditLog.findFirst({
-      orderBy: { createdAt: 'desc' },
-      select: { immutableHash: true },
-    });
+  ): Promise<OpsAuditLog> {
+    if (!context) {
+      return this.prisma.$transaction((prisma) => this.audit(eventId, actor, action, options, { prisma, correlationId: randomUUID() }));
+    }
+    const prisma = context.prisma;
+    // A real row update locks appenders and rejects stale serializable snapshots.
+    // An advisory lock alone would not refresh a caller's earlier snapshot.
+    await prisma.opsAuditChainLock.update({ where: { id: 'global' }, data: { revision: { increment: 1 } } });
+    const previous = await this.auditTail(prisma);
 
     return prisma.opsAuditLog.create({
       data: this.buildAuditData({
+        ...options,
         eventId,
         actor,
         action,
         previousHash: previous?.immutableHash || null,
-        ...options,
+        createdAt: new Date(Math.max(Date.now(), (previous?.createdAt.getTime() ?? 0) + 1)),
       }),
     });
+  }
+
+  private async auditTail(prisma: Prisma.TransactionClient) {
+    // The complete chain is read in bounded pages so append integrity does not
+    // issue an unbounded database query.
+    const logs = await loadAuditLogs(prisma);
+    if (logs.length === 0) return null;
+    const chain = orderLinkedAuditLogs(logs);
+    const tails = auditTailCandidates(logs);
+    if (chain.firstBrokenLogId || tails.length !== 1) {
+      throw new ConflictException(
+        tails.length > 1
+          ? 'Audit history has an ambiguous tail; integrity review is required'
+          : `Audit history is not a single hash-linked chain; integrity review is required (${chain.firstBrokenLogId ?? 'unknown'})`,
+      );
+    }
+    return tails[0];
   }
 
   async recordLoginHistory(
@@ -321,6 +388,7 @@ export class AuditService {
     email: string,
     status: string,
     failureReason?: string,
+    metadata: { ipAddress?: string; device?: string } = {},
   ) {
     return this.prisma.opsLoginHistory.create({
       data: {
@@ -331,8 +399,8 @@ export class AuditService {
         email,
         status,
         failureReason: failureReason ?? null,
-        ipAddress: '192.168.1.5',
-        device: 'Local sample browser',
+        ipAddress: metadata.ipAddress ?? 'unknown',
+        device: metadata.device ?? 'unknown',
       },
     });
   }
@@ -410,6 +478,14 @@ export class AuditService {
     eventId?: string;
     metadata?: Record<string, unknown>;
   }) {
+    const recipient = await this.resolveTrustRecipient();
+    const notificationReady = Boolean(recipient && this.notificationOutbox);
+    const metadata = {
+      ...(input.metadata ?? {}),
+      notification: notificationReady
+        ? { status: 'queued', recipient, channels: [NotificationChannel.Email, NotificationChannel.Viber] }
+        : { status: 'not_queued', reason: recipient ? 'Notification outbox is unavailable' : 'No approved PMCM trust recipient address is configured' },
+    };
     const alert = await this.prisma.opsSecurityAlert.create({
       data: {
         id: `seca_${randomUUID()}`,
@@ -419,7 +495,7 @@ export class AuditService {
         description: input.description,
         severity: input.severity ?? 'warning',
         triggeredBy: input.triggeredBy ?? 'System',
-        metadata: toPrismaJson(input.metadata ?? {}),
+        metadata: toPrismaJson(metadata),
       },
     });
 
@@ -434,8 +510,12 @@ export class AuditService {
         severity: input.severity ?? 'warning',
         metadata: input.metadata ?? {},
       }),
-      this.notify(input.eventId, 'Ms. Mys', input.title, NotificationChannel.Email),
-      this.notify(input.eventId, 'Ms. Mys', input.title, NotificationChannel.Viber),
+      ...(notificationReady
+        ? [
+            this.notify(input.eventId, recipient!, input.title, NotificationChannel.Email, `security-alert:${alert.id}:email`),
+            this.notify(input.eventId, recipient!, input.title, NotificationChannel.Viber, `security-alert:${alert.id}:viber`),
+          ]
+        : []),
     ]);
 
     return alert;
@@ -446,17 +526,37 @@ export class AuditService {
     recipient: string,
     message: string,
     channel: 'email' | 'viber' = NotificationChannel.Email,
+    idempotencyKey?: string,
   ) {
-    return this.prisma.opsNotificationLog.create({
+    if (!this.notificationOutbox) {
+      return Promise.reject(new Error('Notification outbox is unavailable'));
+    }
+    return this.notificationOutbox.queue(eventId, recipient, message, channel, { idempotencyKey });
+  }
+
+  async recordIntegrityIncident(input: IntegrityIncidentInput) {
+    return this.prisma.opsSecurityAlert.create({
       data: {
-        id: `not_${randomUUID()}`,
-        eventId,
-        channel,
-        recipient,
-        message,
-        status: 'queued',
+        id: `seca_${randomUUID()}`,
+        eventId: input.eventId,
+        type: 'audit_integrity_incident',
+        title: 'Audit record could not be persisted',
+        description: input.reason,
+        severity: 'critical',
+        triggeredBy: input.actor ?? 'System',
+        metadata: toPrismaJson({ source: input.source, reason: input.reason, ...(input.metadata ?? {}) }),
       },
     });
+  }
+
+  private async resolveTrustRecipient() {
+    const recipient = await this.prisma.opsUser.findFirst({
+      where: { role: OpsUserRole.PmcmAdmin, approvalStatus: 'approved' },
+      orderBy: { createdAt: 'asc' },
+      select: { email: true },
+    });
+    const email = recipient?.email?.trim().toLowerCase();
+    return email && email.includes('@') ? email : null;
   }
 
   private buildAuditData(input: AuditLogInput) {
@@ -475,8 +575,8 @@ export class AuditService {
       affectedId: input.affectedId ?? null,
       affectedLabel: input.affectedLabel ?? null,
       metadata: input.metadata ?? {},
-      ipAddress: input.ipAddress ?? '192.168.1.5',
-      device: input.device ?? 'Local sample browser',
+      ipAddress: input.ipAddress ?? 'unknown',
+      device: input.device ?? 'unknown',
       severity: input.severity ?? 'info',
       previousHash: input.previousHash ?? null,
       createdAt: createdAt.toISOString(),

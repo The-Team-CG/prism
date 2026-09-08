@@ -56,4 +56,12 @@ export const supplierAuthRepository = {
       body: JSON.stringify(payload),
     });
   },
+
+  requestPasswordReset(email: string): Promise<{ message: string; deliveryAvailable: boolean }> {
+    return request('/api/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) });
+  },
+
+  consumePasswordReset(input: { token: string; password: string }): Promise<{ message: string }> {
+    return request('/api/auth/password-reset/consume', { method: 'POST', body: JSON.stringify(input) });
+  },
 };

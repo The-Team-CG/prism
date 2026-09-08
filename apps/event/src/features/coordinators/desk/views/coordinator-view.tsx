@@ -13,6 +13,7 @@ import {
 } from "../model/coordinator-view-copy";
 import {
   CoordinatorBoundaryNotice,
+  CoordinatorAssignmentHistory,
   CoordinatorEventDayActions,
   CoordinatorGreetingBanner,
   CoordinatorRoleBadgeCard,
@@ -100,6 +101,8 @@ export function CoordinatorView({
           attendanceStatus={attendanceStatus}
           sessionName={session.name}
           onAcknowledge={vm.acknowledge}
+          onDecline={vm.decline}
+          onWithdraw={vm.withdraw}
         />
         <CoordinatorBoundaryNotice />
         <CoordinatorStatusSummary
@@ -111,6 +114,7 @@ export function CoordinatorView({
           attendanceStatus={attendanceStatus}
           assignment={assignment}
         />
+        <CoordinatorAssignmentHistory assignments={vm.assignments} />
         <CoordinatorEventDayActions
           assignment={assignment}
           busy={busy}
@@ -138,6 +142,7 @@ export function CoordinatorView({
           registrationRole={registrationRole}
           taskForm={vm.taskForm}
           issueForm={vm.issueForm}
+          reassignment={vm.reassignment}
         />
       </div>
     </PrismDashboardShell>

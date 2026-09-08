@@ -4,14 +4,20 @@ import { FLOORPLAN_READER } from '../../../floorplan/contracts/floorplan.tokens'
 import type { FloorplanReader } from '../../../floorplan/contracts/floorplan-reader.port';
 import { GUEST_READER } from '../../../operations/contracts/guest-ops.tokens';
 import type { GuestReader } from '../../../operations/contracts/guest-reader.port';
-import { mapClosureEvent, mapEventInsight, mapPostEventDocument } from '../../application/closure/closure.mappers';
+import { mapClosureEvent, mapEventInsight, mapEventWrapUp, mapPostEventDocument } from '../../application/closure/closure.mappers';
 import { EventClosureService } from '../../application/closure/event-closure.service';
 import {
   archiveSearchFiltersSchema,
   archiveEventSchema,
+  recordActualEventEndSchema,
   type ArchiveEventInput,
   type ArchiveSearchFilters,
+  type RecordActualEventEndInput,
   type PrismVerifiedEventActor,
+  type StartEventWrapUpInput,
+  type UpdateEventWrapUpInput,
+  startEventWrapUpSchema,
+  updateEventWrapUpSchema,
 } from '@prism/types';
 import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -64,6 +70,37 @@ export class OpsEventClosureController {
     await this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'event archive', eventId);
     const event = await this.eventClosureService.archiveEvent(eventId, { overrideReason: dto.overrideReason, actorName: actor.name, actorRole: actor.role, actorEmail: actor.email, actorId: actor.id });
     return mapClosureEvent(event, { guestReader: this.guestReader, floorplanReader: this.floorplanReader });
+  }
+
+  @Post(':eventId/actual-end')
+  @UseGuards(EventSessionGuard)
+  async recordActualEventEnd(@Param('eventId') eventId: string, @Body(zodBody(recordActualEventEndSchema)) dto: RecordActualEventEndInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, ["pmcm-admin", "system"], 'actual event end', eventId);
+    const event = await this.eventClosureService.recordActualEventEnd(eventId, dto, actor);
+    return mapClosureEvent(event, { guestReader: this.guestReader, floorplanReader: this.floorplanReader });
+  }
+
+  @Get(':eventId/wrap-up')
+  @UseGuards(EventSessionGuard)
+  async getWrapUp(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const record = await this.eventClosureService.getWrapUp(eventId, actor);
+    return record ? mapEventWrapUp(record) : null;
+  }
+
+  @Post(':eventId/wrap-up')
+  @UseGuards(EventSessionGuard)
+  async startWrapUp(@Param('eventId') eventId: string, @Body(zodBody(startEventWrapUpSchema)) dto: StartEventWrapUpInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return mapEventWrapUp(await this.eventClosureService.startWrapUp(eventId, dto, actor));
+  }
+
+  @Patch(':eventId/wrap-up')
+  @UseGuards(EventSessionGuard)
+  async updateWrapUp(@Param('eventId') eventId: string, @Body(zodBody(updateEventWrapUpSchema)) dto: UpdateEventWrapUpInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return mapEventWrapUp(await this.eventClosureService.updateWrapUp(eventId, dto, actor));
   }
 
   @Get(':eventId/insights')

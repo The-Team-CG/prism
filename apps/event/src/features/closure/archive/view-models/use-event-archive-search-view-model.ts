@@ -8,6 +8,8 @@ import { archiveSearchEmptyCopy } from "../model/archive-search-rules";
 export function useEventArchiveSearchViewModel() {
   const [venue, setVenue] = useState("");
   const [eventType, setEventType] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [clientName, setClientName] = useState("");
   const [month, setMonth] = useState("");
   const [hits, setHits] = useState<PrismArchivedEventSearchHit[]>([]);
   const [busy, setBusy] = useState(false);
@@ -30,7 +32,7 @@ export function useEventArchiveSearchViewModel() {
   }, [load]);
 
   function search() {
-    void load({ venue, eventType, month });
+    void load({ venue, eventType, eventName, clientName, month });
   }
 
   return {
@@ -38,12 +40,16 @@ export function useEventArchiveSearchViewModel() {
     setVenue,
     eventType,
     setEventType,
+    eventName,
+    setEventName,
+    clientName,
+    setClientName,
     month,
     setMonth,
     hits,
     busy,
     error,
-    emptyCopy: archiveSearchEmptyCopy({ venue, eventType, month }, hits),
+    emptyCopy: archiveSearchEmptyCopy({ venue, eventType, eventName, clientName, month }, hits),
     search,
   };
 }

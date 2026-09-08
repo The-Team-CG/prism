@@ -13,6 +13,8 @@ export function SupplierDirectory({
   onCreateSupplier,
   onUpdateSupplier,
   onChangeTier,
+  eventId,
+  onPromote,
   onAddReview,
   onAddCertification,
   onOpenEvent,
@@ -41,6 +43,8 @@ export function SupplierDirectory({
     performanceNotes?: string;
   }) => Promise<void>;
   onChangeTier: (supplierId: string, tier: "tier_1" | "tier_2" | "pending_first_event", reason: string) => Promise<void>;
+  eventId?: string;
+  onPromote: (supplierId: string, tier: "tier_1" | "tier_2", reason: string) => Promise<void>;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
   onAddCertification: (supplierId: string, input: {
     fileName: string;
@@ -130,7 +134,8 @@ export function SupplierDirectory({
 
   async function submitTierChange() {
     if (!selectedSupplier || !tierForm.reason.trim()) return;
-    await onChangeTier(selectedSupplier.id, tierForm.tier, tierForm.reason);
+    if (selectedSupplier.tier === "pending_first_event" && tierForm.tier !== "pending_first_event" && eventId) await onPromote(selectedSupplier.id, tierForm.tier, tierForm.reason);
+    else await onChangeTier(selectedSupplier.id, tierForm.tier, tierForm.reason);
     setTierForm((current) => ({ ...current, reason: "" }));
   }
 
