@@ -9,6 +9,7 @@ import {
   coordinatorAssignmentAcknowledgementSchema,
   withdrawCoordinatorAssignmentSchema,
   parseContract,
+  updateCoordinatorAttendanceSchema,
   type PrismCoordinatorRoleView,
   type PrismCoordinatorWorkspace,
 } from "@prism/types";
@@ -19,16 +20,26 @@ import {
   createUrgentIssueAndRefreshRoleView,
   requestTaskReassignmentAndRefreshRoleView,
   loadCoordinatorRoleView,
+  markAttendanceAndRefreshRoleView,
 } from "../use-cases/coordinator-desk-actions";
 import {
+  attendanceChoiceLabel,
+  buildCoordinatorAttendanceInput,
   buildCoordinatorIssueInput,
   buildCoordinatorTaskInput,
+  canMarkOwnAttendance,
+  isAttendanceChoiceDisabled,
   isRegistrationCoordinatorRole,
+  isReplacedAssignment,
   isTaskOutsideOwnQueue,
   pickActiveAssignment,
+  requiresAttendanceConfirmation,
+  resolveOwnAttendanceStatus,
   sameCoordinatorName,
   taskAssignedRoleOptions,
   shouldPreserveRoleViewOnAcknowledgeFailure,
+  COORDINATOR_ATTENDANCE_CHOICES,
+  type CoordinatorAttendanceChoice,
 } from "../model/coordinators-desk-rules";
 
 export type CoordinatorViewStatus = "idle" | "loading" | "success" | "error";
@@ -73,6 +84,11 @@ export function useCoordinatorViewModel({
   const [issueAssignToMe, setIssueAssignToMe] = useState(false);
   const [reassignmentBusy, setReassignmentBusy] = useState(false);
   const [reassignmentError, setReassignmentError] = useState<string | null>(null);
+  // EP-11-S03: per-flow state, same reasoning as the S02 task and issue flows.
+  const [attendanceBusy, setAttendanceBusy] = useState(false);
+  const [attendanceError, setAttendanceError] = useState<string | null>(null);
+  const [pendingAttendanceChoice, setPendingAttendanceChoice] =
+    useState<CoordinatorAttendanceChoice | null>(null);
 
   useEffect(() => {
     if (!event?.id) {
@@ -247,9 +263,68 @@ export function useCoordinatorViewModel({
     }
   }
 
+  async function submitAttendance(choice: CoordinatorAttendanceChoice) {
+    if (!event || !assignment) return;
+    setAttendanceBusy(true);
+    setAttendanceError(null);
+    try {
+      const input = parseContract(
+        updateCoordinatorAttendanceSchema,
+        buildCoordinatorAttendanceInput(choice),
+        "Update coordinator attendance",
+      );
+      const next = await markAttendanceAndRefreshRoleView({
+        session,
+        eventId: event.id,
+        assignmentId: assignment.id,
+        input,
+      });
+      setRoleView(next);
+      // The badge and summary read attendanceStatus off the workspace prop, not
+      // off roleView, so the workspace must refresh too or the visible status
+      // stays stale. acknowledge() does the same.
+      await onRefresh();
+    } catch (err) {
+      // PA-294: do NOT setRoleView(null) here. A failed mark must not blank the
+      // coordinator screen mid-event.
+      setAttendanceError(err instanceof Error ? err.message : "Unable to update your attendance.");
+    } finally {
+      setAttendanceBusy(false);
+    }
+  }
+
+  function markAttendance(choice: CoordinatorAttendanceChoice) {
+    setAttendanceError(null);
+    // Picking any choice clears a pending confirm first, so an unconfirmed
+    // Absent cannot survive into a later pick.
+    setPendingAttendanceChoice(null);
+    if (requiresAttendanceConfirmation(choice)) {
+      setPendingAttendanceChoice(choice);
+      return;
+    }
+    void submitAttendance(choice);
+  }
+
+  function confirmAttendance() {
+    if (!pendingAttendanceChoice) return;
+    const choice = pendingAttendanceChoice;
+    setPendingAttendanceChoice(null);
+    void submitAttendance(choice);
+  }
+
+  function cancelAttendance() {
+    setPendingAttendanceChoice(null);
+  }
+
   function selectSection(section: string) {
     setActiveSection(section);
   }
+
+  // PA-299 lives in the model, with its own test, so the rule cannot drift back
+  // into the acknowledgment vocabulary here.
+  const attendanceStatus = resolveOwnAttendanceStatus(assignment);
+  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy, attendanceBusy });
+  const pendingAttendanceLabel = attendanceChoiceLabel(pendingAttendanceChoice);
 
   return {
     status: roleViewStatus,
@@ -321,6 +396,27 @@ export function useCoordinatorViewModel({
       busy: reassignmentBusy,
       error: reassignmentError,
       request: requestReassignment,
+    },
+    attendanceStatus,
+    attendanceForm: {
+      status: attendanceStatus,
+      choices: COORDINATOR_ATTENDANCE_CHOICES,
+      canMark: attendanceCanMark,
+      hasAssignment: Boolean(assignment),
+      replaced: isReplacedAssignment(assignment),
+      isDisabled: (choice: CoordinatorAttendanceChoice) =>
+        isAttendanceChoiceDisabled({
+          choice,
+          attendanceStatus,
+          canMark: attendanceCanMark,
+        }),
+      pendingChoice: pendingAttendanceChoice,
+      pendingChoiceLabel: pendingAttendanceLabel,
+      busy: attendanceBusy,
+      error: attendanceError,
+      mark: markAttendance,
+      confirm: confirmAttendance,
+      cancel: cancelAttendance,
     },
   };
 }
