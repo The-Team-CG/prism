@@ -224,6 +224,16 @@ export {
   type ArchiveEventInput,
 } from "./session-commercial-inputs.js";
 export {
+  freezeEventSchema,
+  requestFreezeExceptionSchema,
+  decideFreezeExceptionSchema,
+  issueAddendumSchema,
+  type FreezeEventInput,
+  type RequestFreezeExceptionInput,
+  type DecideFreezeExceptionInput,
+  type IssueAddendumInput,
+} from "./session-w26-inputs.js";
+export {
   PrismContractError,
   parseContract,
   contractErrorMessage,
