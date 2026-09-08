@@ -32,6 +32,8 @@ function readArg(flag, fallback) {
 const app = readArg('--app', process.env.PRISM_PORT_APP || 'api');
 const defaultPort = app === 'api' ? 4000 : 0;
 const port = Number(readArg('--port', process.env.PORT || defaultPort));
+/** Checkout that owns this invocation; used to refuse killing another worktree's stack. */
+const ownerRoot = readArg('--root', process.cwd());
 const markers = presets[app];
 if (!markers || !Number.isFinite(port) || port <= 0) {
   console.error('[port-guard] Usage: node scripts/kill-prism-port.cjs --app <api|event|client|supplier|guest> --port <n>');
@@ -132,6 +134,17 @@ function isPrismCandidate(procInfo) {
   return markers.some((marker) => combined.includes(normalize(marker)));
 }
 
+/**
+ * A worktree's processes carry that worktree's path in argv. Never stop one that
+ * plainly belongs to a different checkout, even when its app markers match.
+ */
+function belongsToAnotherCheckout(procInfo) {
+  const combined = normalize([procInfo.commandLine, procInfo.executablePath].join(' '));
+  if (!combined.includes('.worktrees')) return false;
+  const owner = normalize(ownerRoot).replace(/\\/g, '/');
+  return !combined.replace(/\\/g, '/').includes(owner);
+}
+
 function getChildrenMap(processes) {
   const map = new Map();
 
@@ -227,7 +240,12 @@ if (mode === 'force') {
   }
 }
 
-const killList = [...toKill].filter((pid) => pid > 0);
+const foreignPids = new Set(blockers.filter(belongsToAnotherCheckout).map((proc) => proc.pid));
+if (foreignPids.size > 0) {
+  log(`Refusing to stop ${foreignPids.size} process(es) owned by another checkout on port ${port}.`);
+}
+
+const killList = [...toKill].filter((pid) => pid > 0 && !foreignPids.has(pid));
 if (killList.length === 0) {
   printManualCleanup(blockers);
   process.exit(1);
