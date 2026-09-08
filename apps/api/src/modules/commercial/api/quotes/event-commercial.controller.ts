@@ -47,6 +47,13 @@ export class OpsEventCommercialController {
     return this.supplierNetworkWorkflowService!.listSupplierSchedules(eventId, actor);
   }
 
+  @Get(':eventId/quote-rounds/:roundId/comparison')
+  @UseGuards(EventSessionGuard)
+  async compareQuoteRound(@Param('eventId') eventId: string, @Param('roundId') roundId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = await this.requireCommercialActor(verifiedActor, 'supplier quote comparison', eventId);
+    return this.commercialWorkflowService.getQuoteRoundComparison(eventId, roundId, actor.role);
+  }
+
   @Post(':eventId/quote-requests')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)
