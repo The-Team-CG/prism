@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EventDecisionService } from './event-decision.service';
 
-const actor = { id: 'pmcm-1', role: 'pmcm-admin', name: 'PMCM Admin', email: 'pmcm@example.test' } as const;
+const actor = { id: 'pmcm-1', role: 'pmcm-admin', name: 'PMCM Admin', email: 'pmcm@example.test', explicit: true } as const;
 const event = { id: 'evt-1', status: 'planning', eventDate: new Date('2026-11-10T00:00:00.000Z'), eventName: 'Launch', inquiry: { email: 'client@example.test' }, clientName: 'Client', clientPortalStatus: 'unlocked' };
 
 function setup() {
