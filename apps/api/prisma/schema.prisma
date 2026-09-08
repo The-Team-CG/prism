@@ -265,6 +265,8 @@ model OpsEvent {
   briefings                   OpsBriefing[]
   supplierQuoteRequests       OpsSupplierQuoteRequest[]
   supplierQuotes              OpsSupplierQuote[]
+  supplierSchedules           OpsSupplierSchedule[]
+  supplierQuoteRounds         OpsSupplierQuoteRound[]
   supplierReviews             OpsSupplierReview[]
   supplierReliabilityNotes    OpsSupplierReliabilityNote[]
   coordinatorAssignments      OpsCoordinatorAssignment[]
@@ -504,12 +506,56 @@ model OpsSupplierQuoteRequest {
   supplier         OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   categoryRef      OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   contractDocument OpsDocument?         @relation(fields: [contractDocumentId], references: [id], onDelete: SetNull)
+  schedule         OpsSupplierSchedule?
+  round            OpsSupplierQuoteRound? @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  roundId          String? @map("round_id")
+  quotes           OpsSupplierQuote[]
 
   @@index([eventId, status], map: "quote_requests_event_id_status_idx")
   @@index([supplierId], map: "quote_requests_supplier_id_idx")
   @@index([categoryId], map: "quote_requests_category_id_idx")
   @@index([contractDocumentId], map: "quote_requests_contract_document_id_idx")
+  @@index([roundId], map: "quote_requests_round_id_idx")
   @@map("quote_requests")
+  @@schema("supplier_ops")
+}
+
+model OpsSupplierSchedule {
+  id         String   @id
+  eventId    String   @map("event_id")
+  requestId  String   @unique(map: "supplier_schedules_request_id_key") @map("request_id")
+  ingressAt  DateTime @map("ingress_at")
+  egressAt   DateTime @map("egress_at")
+  location   String   @default("")
+  notes      String   @default("")
+  status     String   @default("planned")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  event   OpsEvent               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  request OpsSupplierQuoteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, ingressAt], map: "supplier_schedules_event_id_ingress_at_idx")
+  @@map("supplier_schedules")
+  @@schema("supplier_ops")
+}
+
+model OpsSupplierQuoteRound {
+  id         String   @id
+  eventId    String   @map("event_id")
+  categoryId String   @map("category_id")
+  roundNumber Int     @map("round_number")
+  status     String   @default("open")
+  createdAt  DateTime @default(now()) @map("created_at")
+  closedAt   DateTime? @map("closed_at")
+
+  event    OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  category OpsSupplierCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  requests OpsSupplierQuoteRequest[]
+
+  @@unique([eventId, categoryId, roundNumber], map: "supplier_quote_rounds_event_category_number_key")
+  @@index([eventId, categoryId, status], map: "supplier_quote_rounds_event_category_status_idx")
+  @@map("quote_rounds")
   @@schema("supplier_ops")
 }
 
@@ -537,6 +583,7 @@ model OpsSupplierQuote {
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
 
   event       OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  request     OpsSupplierQuoteRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
   supplier    OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   categoryRef OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
@@ -560,6 +607,7 @@ model OpsSupplierCategory {
   suppliers            OpsSupplier[]
   quoteRequests        OpsSupplierQuoteRequest[]
   quotes               OpsSupplierQuote[]
+  quoteRounds          OpsSupplierQuoteRound[]
   reviewDimensions     OpsSupplierReviewDimension[]
   supplierApplications OpsSupplierApplication[]
 
@@ -591,10 +639,29 @@ model OpsSupplier {
   certifications   OpsSupplierCertification[]
   application      OpsSupplierApplication?
   promotions       OpsSupplierPromotion[]
+  availability     OpsSupplierAvailability[]
 
   @@index([categoryId, tier], map: "suppliers_category_id_tier_idx")
   @@index([bniMember], map: "suppliers_bni_member_idx")
   @@map("suppliers")
+  @@schema("supplier_ops")
+}
+
+model OpsSupplierAvailability {
+  id          String   @id
+  supplierId  String   @map("supplier_id")
+  availableOn DateTime @map("available_on") @db.Date
+  capacity    Int      @default(1)
+  blocked     Boolean  @default(false)
+  notes       String   @default("")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  supplier OpsSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, availableOn], map: "supplier_availability_supplier_date_key")
+  @@index([availableOn, blocked], map: "supplier_availability_date_blocked_idx")
+  @@map("supplier_availability")
   @@schema("supplier_ops")
 }
 
