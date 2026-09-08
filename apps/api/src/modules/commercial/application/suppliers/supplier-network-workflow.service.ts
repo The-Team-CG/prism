@@ -29,7 +29,7 @@ import {
   SUPPLIER_PARE_AUTOMATION,
 } from '../../contracts/supplier-ops.tokens';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
-import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput } from '@prism/types';
+import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput, CreateSupplierScheduleInput } from '@prism/types';
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
   await prisma.$queryRaw`SELECT id FROM "supplier_ops"."quote_requests" WHERE id = ${requestId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized primary-key row lock rechecks assignment state and identity.
@@ -287,10 +287,14 @@ export class SupplierNetworkWorkflowService {
       name: 'confirm_supplier_readiness',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
+        if (request.status !== 'selected' || request.assignmentStatus !== 'confirmed') {
+          throw new BadRequestException('Supplier readiness requires a confirmed assignment');
+        }
       },
-      write: () => {
+      write: (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
-        return this.prisma.opsSupplierQuoteRequest.update({
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        return prisma.opsSupplierQuoteRequest.update({
           where: { id: request.id },
           data: {
             readinessStatus: 'confirmed',
@@ -299,7 +303,7 @@ export class SupplierNetworkWorkflowService {
           },
         });
       },
-      sideEffects: async () => {
+      sideEffects: async (updated, transactionContext) => {
         if (!request) return;
         await writeAudit(this.auditWriter, request.eventId, actor.name, `Confirmed supplier readiness: ${request.supplierName}`, {
           actorRole: actor.role,
@@ -310,7 +314,7 @@ export class SupplierNetworkWorkflowService {
           affectedId: request.id,
           affectedLabel: request.supplierName,
           metadata: { notes: input.notes ?? '' },
-        });
+        }, transactionContext);
       },
     });
   }
@@ -327,6 +331,9 @@ export class SupplierNetworkWorkflowService {
       name: 'update_supplier_event_status',
       validatePermission: async () => {
         request = await this.requireSupplierQuoteRequestForActor(requestId, actor);
+        if (request.status !== 'selected' || request.assignmentStatus !== 'confirmed' || request.readinessStatus !== 'confirmed') {
+          throw new BadRequestException('Supplier event-day status requires confirmed assignment and readiness');
+        }
       },
       validateState: () => {
         const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
@@ -334,9 +341,10 @@ export class SupplierNetworkWorkflowService {
         if (!request) throw new NotFoundException('Supplier quote request not found');
         photo = input.photo ? this.validateUploadMetadata(input.photo, `events/${request.eventId}/supplier-status`) : null;
       },
-      write: () => {
+      write: (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
-        return this.prisma.opsSupplierQuoteRequest.update({
+        const prisma = transactionContext?.prisma ?? this.prisma;
+        return prisma.opsSupplierQuoteRequest.update({
           where: { id: request.id },
           data: {
             eventDayStatus: input.status,
@@ -346,7 +354,7 @@ export class SupplierNetworkWorkflowService {
           },
         });
       },
-      sideEffects: async () => {
+      sideEffects: async (updated, transactionContext) => {
         if (!request) return;
         await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier status update: ${input.status}`, {
           actorRole: actor.role,
@@ -357,7 +365,7 @@ export class SupplierNetworkWorkflowService {
           affectedId: request.id,
           affectedLabel: request.supplierName,
           metadata: { status: input.status, notes: input.notes ?? '', photoFileName: photo?.generatedFileName ?? null },
-        });
+        }, transactionContext);
       },
     });
   }
@@ -472,6 +480,35 @@ export class SupplierNetworkWorkflowService {
         });
       },
     });
+  }
+
+  async createSupplierSchedule(eventId: string, input: CreateSupplierScheduleInput, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'supplier ingress schedule', eventId);
+    const ingressAt = new Date(input.ingressAt);
+    const egressAt = new Date(input.egressAt);
+    if (egressAt <= ingressAt) throw new BadRequestException('Egress must be after ingress');
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const request = await tx.opsSupplierQuoteRequest.findUnique({ where: { id: input.requestId } });
+      if (!request || request.eventId !== eventId || request.status !== 'selected' || request.assignmentStatus !== 'confirmed') {
+        throw new BadRequestException('Only a confirmed supplier assignment can receive a schedule');
+      }
+      const schedule = await tx.opsSupplierSchedule.upsert({
+        where: { requestId: input.requestId },
+        create: { id: `ss_${randomUUID()}`, eventId, requestId: input.requestId, ingressAt, egressAt, location: input.location ?? '', notes: input.notes ?? '' },
+        update: { ingressAt, egressAt, location: input.location ?? '', notes: input.notes ?? '', status: 'planned' },
+      });
+      await writeAudit(this.auditWriter, eventId, actor.name, `Scheduled supplier ingress: ${request.supplierName}`, {
+        actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Create, category: AuditCategory.Suppliers,
+        affectedType: 'supplier_schedule', affectedId: schedule.id, affectedLabel: request.supplierName,
+        metadata: { requestId: request.id, ingressAt: ingressAt.toISOString(), egressAt: egressAt.toISOString() },
+      }, { prisma: tx, actorId: actor.id, correlationId: `supplier-schedule:${schedule.id}` });
+      return schedule;
+    });
+  }
+
+  async listSupplierSchedules(eventId: string, actor: ResolvedEventOpsActor) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'supplier ingress schedule', eventId);
+    return this.prisma.opsSupplierSchedule.findMany({ where: { eventId }, include: { request: true }, orderBy: { ingressAt: 'asc' } });
   }
 
   private requireSupplierAdmin(actor: ResolvedEventOpsActor, resource: string, eventId?: string) {
