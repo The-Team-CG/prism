@@ -25,6 +25,8 @@ export type WorkflowCommandDefinition<TWriteResult, TResult = TWriteResult> = {
   project?: (result: TWriteResult) => TResult;
 };
 
+const GLOBAL_COMMAND_SCOPE = '__global__';
+
 @Injectable()
 export class WorkflowCommandService {
   constructor(
@@ -74,7 +76,7 @@ export class WorkflowCommandService {
           {
             ...receiptKey,
             actorRole: definition.context!.actorRole,
-            eventId: definition.context!.eventId,
+            eventId: definition.eventId ?? definition.context!.eventId,
             correlationId: definition.context!.correlationId,
             payloadHash: definition.idempotencyPayloadHash,
           },
@@ -118,6 +120,7 @@ export class WorkflowCommandService {
       commandName: definition.name,
       idempotencyKey: definition.context.idempotencyKey,
       actorId: definition.context.actorId,
+      eventScope: definition.eventId ?? definition.context.eventId ?? GLOBAL_COMMAND_SCOPE,
     };
   }
 

@@ -91,6 +91,7 @@ describe('WorkflowCommandService', () => {
     const commandContext: PrismCommandContext = {
       actorId: 'pmcm_admin',
       actorRole: 'pmcm_admin',
+      eventId: 'evt_1',
       correlationId: 'cmd_receipt_1',
       idempotencyKey: 'receipt-key-1',
     };
@@ -101,10 +102,10 @@ describe('WorkflowCommandService', () => {
     };
     const saved = new Map<string, CommandReceiptRecord>();
     const store: CommandReceiptStore = {
-      find: vi.fn(async (key) => saved.get(`${key.commandName}:${key.idempotencyKey}:${key.actorId}`) ?? null),
+      find: vi.fn(async (key) => saved.get(`${key.commandName}:${key.idempotencyKey}:${key.actorId}:${key.eventScope}`) ?? null),
       create: vi.fn(async (input) => {
         const id = 'receipt_1';
-        saved.set(`${input.commandName}:${input.idempotencyKey}:${input.actorId}`, {
+        saved.set(`${input.commandName}:${input.idempotencyKey}:${input.actorId}:${input.eventScope}`, {
           ...input,
           id,
           eventId: input.eventId ?? null,
@@ -143,6 +144,51 @@ describe('WorkflowCommandService', () => {
     expect(transactionRunner.run).toHaveBeenCalledTimes(1);
   });
 
+  it('does not replay a receipt from another event with the same command key', async () => {
+    const saved = new Map<string, CommandReceiptRecord>();
+    const store: CommandReceiptStore = {
+      find: vi.fn(async (key) => saved.get(`${key.commandName}:${key.idempotencyKey}:${key.actorId}:${key.eventScope}`) ?? null),
+      create: vi.fn(async (input) => {
+        const id = `receipt_${saved.size + 1}`;
+        saved.set(`${input.commandName}:${input.idempotencyKey}:${input.actorId}:${input.eventScope}`, {
+          ...input,
+          id,
+          eventId: input.eventId ?? null,
+          payloadHash: input.payloadHash ?? null,
+          result: null,
+          completedAt: new Date(),
+        });
+        return { id };
+      }),
+      complete: vi.fn(async (id, result) => {
+        const receipt = [...saved.values()].find((value) => value.id === id)!;
+        receipt.result = result;
+      }),
+    };
+    const transactionRunner = {
+      run: vi.fn(async (work: (context: PrismTransactionContext) => Promise<unknown>) => work({ prisma: { tx: true } as never, correlationId: 'cross-event', actorId: 'pmcm_admin' })),
+    };
+    const service = new WorkflowCommandService(transactionRunner as never, store);
+    const write = vi.fn(async (context?: PrismTransactionContext) => ({ id: context?.correlationId ?? 'missing' }));
+
+    const command = (eventId: string) => ({
+      name: 'accept_inquiry',
+      eventId,
+      context: { actorId: 'pmcm_admin', actorRole: 'pmcm_admin', eventId, correlationId: `cross-event:${eventId}`, idempotencyKey: 'same-key' },
+      sideEffectMode: 'same_tx' as const,
+      idempotencyPayloadHash: 'same-content',
+      write,
+    });
+
+    await expect(service.execute(command('evt_1'))).resolves.toEqual({ id: 'cross-event' });
+    await expect(service.execute(command('evt_2'))).resolves.toEqual({ id: 'cross-event' });
+
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(store.create).toHaveBeenCalledTimes(2);
+    expect(store.complete).toHaveBeenCalledTimes(2);
+    expect(transactionRunner.run).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects replay when the same command key is bound to different content', async () => {
     const commandContext: PrismCommandContext = {
       actorId: 'pmcm_admin',
@@ -155,6 +201,7 @@ describe('WorkflowCommandService', () => {
       commandName: 'accept_inquiry',
       idempotencyKey: commandContext.idempotencyKey!,
       actorId: commandContext.actorId,
+      eventScope: '__global__',
       actorRole: commandContext.actorRole,
       eventId: null,
       correlationId: commandContext.correlationId,

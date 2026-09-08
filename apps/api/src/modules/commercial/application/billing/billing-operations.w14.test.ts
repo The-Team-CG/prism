@@ -42,10 +42,10 @@ function createW14Service(withReceipts = false) {
   const audit = { write: vi.fn() };
   const savedReceipts = new Map<string, CommandReceiptRecord>();
   const receiptStore: CommandReceiptStore = {
-    find: vi.fn(async (key) => savedReceipts.get(`${key.commandName}:${key.idempotencyKey}:${key.actorId}`) ?? null),
+    find: vi.fn(async (key) => savedReceipts.get(`${key.commandName}:${key.idempotencyKey}:${key.actorId}:${key.eventScope}`) ?? null),
     create: vi.fn(async (input) => {
       const id = 'receipt_w14';
-      savedReceipts.set(`${input.commandName}:${input.idempotencyKey}:${input.actorId}`, {
+      savedReceipts.set(`${input.commandName}:${input.idempotencyKey}:${input.actorId}:${input.eventScope}`, {
         ...input,
         id,
         eventId: input.eventId ?? null,
