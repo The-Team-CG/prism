@@ -327,6 +327,12 @@ export const createSupplierApplicationSchema = z.object({
 });
 export type CreateSupplierApplicationInput = z.infer<typeof createSupplierApplicationSchema>;
 
+export const supplierApplicationStatusQuerySchema = z.object({
+  applicationId: nonEmptyStringSchema,
+  email: z.string().trim().email(),
+});
+export type SupplierApplicationStatusQuery = z.infer<typeof supplierApplicationStatusQuerySchema>;
+
 export const createSupplierReviewSchema = z.object({
   eventId: optionalTrimmedStringSchema,
   rating: z.number().int().min(1).max(5),
