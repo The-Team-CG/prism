@@ -1,5 +1,5 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import type { OpsEvent, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import {
@@ -22,12 +22,17 @@ import {
 } from '../../contracts/supplier-directory.port';
 import type { SupplierEventStatusInput, SupplierReadinessInput, VerifySupplierEventStatusInput } from '../../contracts/supplier-commands.port';
 import type { SupplierDocumentVault, UploadMetadataInput, ValidatedUploadMetadata } from '../../contracts/supplier-document-vault.port';
-import type { SupplierPareApprovalRecord, SupplierPareAutomation } from '../../contracts/supplier-pare-automation.port';
 import {
   SUPPLIER_DIRECTORY,
   SUPPLIER_DOCUMENT_VAULT,
-  SUPPLIER_PARE_AUTOMATION,
 } from '../../contracts/supplier-ops.tokens';
+import {
+  PARE_APPROVAL_GOVERNANCE,
+  PARE_DISPATCH_WRITER,
+  type PareApprovalGovernance,
+  type PareDispatchWriter,
+  type PAREApprovalRecord,
+} from '@prism/contexts/platform-ops';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput, CreateSupplierScheduleInput } from '@prism/types';
 
@@ -77,8 +82,6 @@ function requireLockedWithdrawalRequest(
 
 @Injectable()
 export class SupplierNetworkWorkflowService {
-  private readonly logger = new Logger(SupplierNetworkWorkflowService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     @Inject(SUPPLIER_DIRECTORY) private readonly suppliersService: SupplierDirectory,
@@ -86,7 +89,8 @@ export class SupplierNetworkWorkflowService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly workflowCommandService: WorkflowCommandService,
-    @Inject(SUPPLIER_PARE_AUTOMATION) private readonly pareService: SupplierPareAutomation,
+    @Inject(PARE_APPROVAL_GOVERNANCE) private readonly pareGovernance: PareApprovalGovernance,
+    @Inject(PARE_DISPATCH_WRITER) private readonly pareDispatchWriter: PareDispatchWriter,
     @Inject(SUPPLIER_DOCUMENT_VAULT) private readonly documentVaultService: SupplierDocumentVault,
   ) {}
 
@@ -178,8 +182,8 @@ export class SupplierNetworkWorkflowService {
           actionType: AuditActionType.Update,
           category: AuditCategory.Suppliers,
           affectedType: 'supplier_quote_request',
-          affectedId: request.id,
-          affectedLabel: request.supplierName,
+            affectedId: request.id,
+            affectedLabel: request.supplierName,
           metadata: { assignmentStatus: updated.assignmentStatus ?? 'confirmed' },
         }, transactionContext);
       },
@@ -193,8 +197,8 @@ export class SupplierNetworkWorkflowService {
     let expectedSupplierId = '';
 
     const result = await this.workflowCommandService.execute<
-      { request: OpsSupplierQuoteRequest; event: OpsEvent | null },
-      { request: OpsSupplierQuoteRequest; event: OpsEvent | null }
+      { request: OpsSupplierQuoteRequest; sourceUpdatedAt: Date },
+      { request: OpsSupplierQuoteRequest; sourceUpdatedAt: Date }
     >({
       name: 'withdraw_supplier',
       sideEffectMode: 'same_tx',
@@ -236,12 +240,10 @@ export class SupplierNetworkWorkflowService {
           data: { assignmentStatus: 'withdrawn' },
         });
         if (changed.count !== 1) throw new BadRequestException('Supplier assignment changed before withdrawal');
-        const [updated, event] = await Promise.all([
-            prisma.opsSupplierQuoteRequest.findUnique({ where: { id: request.id }, include: { supplier: true } }),
-            prisma.opsEvent.findUnique({ where: { id: request!.eventId } }),
-          ]);
+        const sourceUpdatedAt = new Date();
+        const updated = await prisma.opsSupplierQuoteRequest.findUnique({ where: { id: request.id }, include: { supplier: true } });
         if (!updated) throw new NotFoundException('Supplier quote request not found');
-        return { request: updated, event };
+        return { request: updated, sourceUpdatedAt };
       },
       sideEffects: async (result, transactionContext) => {
         if (!request) return;
@@ -252,26 +254,31 @@ export class SupplierNetworkWorkflowService {
             category: AuditCategory.Suppliers,
             affectedType: 'supplier_quote_request',
             affectedId: request.id,
-            affectedLabel: request.supplierName,
+          affectedLabel: request.supplierName,
+        }, transactionContext);
+        await this.pareDispatchWriter.queue({
+          eventId: request.eventId,
+          requestId: request.id,
+          sourceUpdatedAt: result.sourceUpdatedAt,
+          correlationId: transactionContext?.correlationId ?? `supplier-withdraw:${request.id}`,
         }, transactionContext);
       },
     });
-    if (request && result) void this.triggerPareForWithdrawnSupplier(request, result.request, result.event);
     return result.request;
   }
 
   pareGetPendingApprovals(eventId?: string) {
-    return this.pareService.getPendingApprovals(eventId);
+    return this.pareGovernance.getPendingApprovals(eventId);
   }
 
   async pareApprove(approvalRecordId: string, approvedBy: string) {
-    const result = await this.pareService.approveRecommendation(approvalRecordId, approvedBy);
+    const result = await this.pareGovernance.approveRecommendation(approvalRecordId, approvedBy);
     await this.auditPareDecision(result, approvalRecordId, approvedBy, 'approved');
     return result;
   }
 
   async pareReject(approvalRecordId: string, rejectedBy: string) {
-    const result = await this.pareService.rejectRecommendation(approvalRecordId, rejectedBy);
+    const result = await this.pareGovernance.rejectRecommendation(approvalRecordId, rejectedBy);
     await this.auditPareDecision(result, approvalRecordId, rejectedBy, 'rejected');
     return result;
   }
@@ -544,40 +551,8 @@ export class SupplierNetworkWorkflowService {
     return supplier;
   }
 
-  private async triggerPareForWithdrawnSupplier(
-    originalRequest: OpsSupplierQuoteRequest,
-    updatedRequest: OpsSupplierQuoteRequest,
-    event: OpsEvent | null,
-  ) {
-    const prefetched = event ? { request: updatedRequest, event } : undefined;
-    try {
-      const approval = await this.pareService.handleEmergencyTrigger(originalRequest.id, prefetched);
-      const candidate = approval.pareResult?.budgetAnalysis?.selectedCandidate;
-      const label = candidate?.supplierName
-        ? `Recommended: ${candidate.supplierName} (${approval.pareResult?.mode ?? 'mock'} mode)`
-        : 'PARE engine completed';
-      await writeAudit(this.auditWriter,
-        originalRequest.eventId,
-        'PARE Engine',
-        `PARE triggered for ${originalRequest.supplierName} - ${label}`,
-        {
-          actorRole: OpsUserRole.System,
-          actionType: 'pare_triggered',
-          category: AuditCategory.Suppliers,
-          affectedType: 'supplier_quote_request',
-          affectedId: originalRequest.id,
-          affectedLabel: originalRequest.supplierName,
-          metadata: { approvalRecordId: approval.id, mode: approval.pareResult?.mode },
-        },
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`PARE trigger failed for request ${originalRequest.id}: ${message}`);
-    }
-  }
-
   private async auditPareDecision(
-    result: SupplierPareApprovalRecord,
+    result: PAREApprovalRecord,
     approvalRecordId: string,
     actorName: string,
     decision: 'approved' | 'rejected',

@@ -43,6 +43,7 @@ function createService() {
     eventAccessPolicyService,
     new WorkflowCommandService(),
     {} as any,
+    { queue: vi.fn(async () => ({})) } as any,
     {} as any,
   );
   return { service, prisma, audit, request, suppliers };
