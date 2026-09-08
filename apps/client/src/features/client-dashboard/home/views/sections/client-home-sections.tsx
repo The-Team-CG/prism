@@ -252,7 +252,7 @@ export function ClientHomeEvents({
         <button
           type="button"
           onClick={onViewAll}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-(--prism-signal) hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-(--prism-signal) hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-offset-2"
         >
           View all <ArrowRight className="size-3" />
         </button>
