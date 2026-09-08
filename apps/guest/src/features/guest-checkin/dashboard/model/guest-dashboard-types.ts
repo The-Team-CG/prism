@@ -11,6 +11,13 @@ export type GuestDashboardStatus = "idle" | "loading" | "ready" | "error";
 
 export type GuestBusyAction = "check-in" | "feedback" | null;
 
+export type GuestNextAction = {
+  id: "check-in" | "feedback";
+  label: string;
+  detail: string;
+  status: "pending" | "complete";
+};
+
 export type CheckInPayload = {
   guestName: string;
   checkInMode: CheckInMode;
