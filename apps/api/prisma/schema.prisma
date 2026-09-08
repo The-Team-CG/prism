@@ -1768,6 +1768,27 @@ model OpsPareDispatch {
   @@schema("platform_ops")
 }
 
+model OpsCommandReceipt {
+  id             String   @id
+  commandName    String   @map("command_name")
+  idempotencyKey String   @map("idempotency_key")
+  actorId        String   @map("actor_id")
+  eventScope     String   @map("event_scope")
+  actorRole      String   @map("actor_role")
+  eventId        String?  @map("event_id")
+  correlationId  String   @map("correlation_id")
+  payloadHash    String?  @map("payload_hash")
+  result         Json?
+  completedAt    DateTime @default(now()) @map("completed_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([commandName, idempotencyKey, actorId, eventScope], map: "command_receipts_command_key_actor_scope_key")
+  @@index([eventId, createdAt], map: "command_receipts_event_id_created_at_idx")
+  @@index([actorId, createdAt], map: "command_receipts_actor_id_created_at_idx")
+  @@map("command_receipts")
+  @@schema("trust_ops")
+}
+
 model OpsStoredObject {
   id                 String    @id
   eventId            String    @map("event_id")
