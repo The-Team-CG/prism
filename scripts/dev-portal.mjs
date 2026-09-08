@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+/**
+ * Starts a Next portal on the port this checkout owns.
+ *
+ * The port used to be hard-coded in each portal's package.json, which meant a
+ * linked worktree started on the primary checkout's port and the port guard
+ * killed the primary's dev server. The port now comes from the checkout.
+ */
+import { spawn, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { apiUrlFor, resolveLivePortSet } from "./prism-ports.mjs";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+function readArg(flag, fallback) {
+  const index = process.argv.indexOf(flag);
+  if (index === -1 || !process.argv[index + 1]) return fallback;
+  return process.argv[index + 1];
+}
+
+function resolveNextBin(appDir) {
+  const require = createRequire(path.join(appDir, "package.json"));
+  return require.resolve("next/dist/bin/next");
+}
+
+function main() {
+  const app = readArg("--app");
+  const mode = readArg("--mode", "dev");
+  if (!app) {
+    console.error("[dev-portal] Usage: node scripts/dev-portal.mjs --app <client|supplier|guest|event> [--mode dev|start]");
+    process.exit(1);
+  }
+
+  const appDir = process.cwd();
+  const { ports, worktreeRoot, isPrimary } = resolveLivePortSet({ cwd: appDir });
+  const port = ports[app];
+  if (!port) {
+    console.error(`[dev-portal] Unknown portal: ${app}`);
+    process.exit(1);
+  }
+
+  const scope = isPrimary ? "primary checkout" : `worktree ${path.basename(worktreeRoot)}`;
+  console.log(`[dev-portal] ${app} -> port ${port} (${scope})`);
+
+  const guard = spawnSync(
+    process.execPath,
+    [path.join(REPO_ROOT, "scripts", "kill-prism-port.cjs"), "--app", app, "--port", String(port), "--root", worktreeRoot],
+    { stdio: "inherit" },
+  );
+  if (guard.status !== 0) process.exit(guard.status ?? 1);
+
+  const child = spawn(process.execPath, [resolveNextBin(appDir), mode, "--port", String(port)], {
+    cwd: appDir,
+    stdio: "inherit",
+    env: { NEXT_PUBLIC_API_URL: apiUrlFor(ports), ...process.env },
+  });
+  child.on("exit", (code, signal) => process.exit(signal ? 1 : (code ?? 0)));
+}
+
+main();
