@@ -84,7 +84,19 @@ function DashboardReadinessBoard({
   readinessBoard: PrismSupplierReadinessBoard | null;
   onNavigate: (s: SupplierDashboardSection) => void;
 }) {
-  if (!readinessBoard) return null;
+  if (!readinessBoard) {
+    return (
+      <Card>
+        <CardHeader>
+          <SectionAccent>Readiness board</SectionAccent>
+          <h2 className="mt-1 text-lg font-black text-foreground">Readiness data unavailable</h2>
+          <p className="mt-1 text-sm text-muted-foreground" role="status">
+            Persisted handoff status is still loading or could not be reached. No urgency is inferred from local workspace data.
+          </p>
+        </CardHeader>
+      </Card>
+    );
+  }
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -111,7 +123,7 @@ function DashboardReadinessBoard({
               key={item.id}
               type="button"
               onClick={() => onNavigate(item.quoteStatus === "selected" ? "bookings" : "requests")}
-              className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-(--prism-signal)/30 hover:bg-muted/35"
+              className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-(--prism-signal)/30 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset"
             >
               <span className="min-w-0">
                 <span className="block text-sm font-black text-foreground">{item.eventName ?? "Assigned event"}</span>
