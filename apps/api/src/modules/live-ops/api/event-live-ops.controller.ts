@@ -4,6 +4,8 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import {
   createEventDayTaskSchema,
+  createEventTaskReassignmentSchema,
+  decideEventTaskReassignmentSchema,
   createUrgentIssueSchema,
   escalateLiveOpsRecordSchema,
   replaceCoordinatorAssignmentSchema,
@@ -19,6 +21,8 @@ import {
   createEventEodReportSchema,
   createEventEodReplySchema,
   type CreateEventDayTaskInput,
+  type CreateEventTaskReassignmentInput,
+  type DecideEventTaskReassignmentInput,
   type CreateUrgentIssueInput,
   type EscalateLiveOpsInput,
   type ReplaceCoordinatorAssignmentInput,
@@ -217,6 +221,35 @@ export class EventLiveOpsController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.commandService.updateCoordinatorAttendance(eventId, assignmentId, dto, actor);
+  }
+
+  @Get(':eventId/event-day/task-reassignments')
+  @UseGuards(EventSessionGuard)
+  listTaskReassignmentRequests(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.commandService.listTaskReassignmentRequests(eventId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Post(':eventId/event-day/tasks/:taskId/reassignments')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.CREATED)
+  requestTaskReassignment(
+    @Param('eventId') eventId: string,
+    @Param('taskId') taskId: string,
+    @Body(zodBody(createEventTaskReassignmentSchema)) dto: CreateEventTaskReassignmentInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    return this.commandService.requestTaskReassignment(eventId, taskId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Patch(':eventId/event-day/task-reassignments/:requestId')
+  @UseGuards(EventSessionGuard)
+  decideTaskReassignment(
+    @Param('eventId') eventId: string,
+    @Param('requestId') requestId: string,
+    @Body(zodBody(decideEventTaskReassignmentSchema)) dto: DecideEventTaskReassignmentInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    return this.commandService.decideTaskReassignment(eventId, requestId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Post(':eventId/coordinators/:assignmentId/replace')

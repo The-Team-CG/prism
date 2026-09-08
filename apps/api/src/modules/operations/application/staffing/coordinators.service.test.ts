@@ -311,6 +311,19 @@ describe('CoordinatorsService', () => {
     expect(assignments.map((item) => item.id)).not.toEqual(expect.arrayContaining(['coord_asg_cancelled', 'coord_asg_replaced']));
   });
 
+  it('includes cancelled and replaced assignments when loading assigned event history', async () => {
+    const fake = createPrisma();
+    fake.assignments.push(
+      { ...fake.assignments[0], id: 'coord_asg_cancelled', status: 'cancelled' },
+      { ...fake.assignments[0], id: 'coord_asg_replaced', status: 'replaced' },
+    );
+    const service = createService(fake.prisma as unknown);
+    const assignments = await service.listAssignmentsForCoordinator(coordinator.id, true);
+    expect(assignments.map((item) => item.id)).toEqual(
+      expect.arrayContaining(['coord_asg_cancelled', 'coord_asg_replaced']),
+    );
+  });
+
   it('acknowledges a pending coordinator assignment for a PmcmAdmin actor', async () => {
     const fake = createPrisma();
     const service = createService(fake.prisma as any);

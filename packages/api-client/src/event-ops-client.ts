@@ -1,6 +1,8 @@
 import type {
   ConfirmSupplierReadinessInput,
   CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   ModerateGuestFeedbackInput,
@@ -39,6 +41,7 @@ import type {
   PrismCoordinatorWorkspace,
   PrismLiveOps,
   PrismEventDayTask,
+  PrismEventTaskReassignmentRequest,
   PrismUrgentIssue,
   PrismCoordinatorAssignment,
   PrismSupplierApplication,
@@ -76,6 +79,8 @@ export type EventOpsActorQuery = PrismEventOpsActorContext;
 export type {
   ConfirmSupplierReadinessInput,
   CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  DecideEventTaskReassignmentInput,
   CreateFloorPlanPreferenceInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
@@ -214,6 +219,9 @@ export interface EventOpsClient {
     replyEodReport(eventId: string, reportId: string, input: CreateEventEodReplyInput, actor?: EventOpsActorQuery): Promise<PrismEventEodReport['replies'][number]>;
     createTask(eventId: string, input: CreateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
     updateTask(eventId: string, taskId: string, input: UpdateEventDayTaskInput, actor?: EventOpsActorQuery): Promise<PrismEventDayTask>;
+    listTaskReassignmentRequests(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventTaskReassignmentRequest[]>;
+    requestTaskReassignment(eventId: string, taskId: string, input: CreateEventTaskReassignmentInput, actor?: EventOpsActorQuery): Promise<PrismEventTaskReassignmentRequest>;
+    decideTaskReassignment(eventId: string, requestId: string, input: DecideEventTaskReassignmentInput, actor?: EventOpsActorQuery): Promise<PrismEventTaskReassignmentRequest>;
     updateCoordinatorAttendance(eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
     createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor?: EventOpsActorQuery): Promise<PrismUrgentIssue>;
   };
@@ -422,6 +430,12 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
           actorPath(`/events/${eventId}/event-day/tasks/${taskId}`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
+      listTaskReassignmentRequests: (eventId, actor = {}) =>
+        prismRequest<PrismEventTaskReassignmentRequest[]>(actorPath(`/events/${eventId}/event-day/task-reassignments`, actor), withBase(options)),
+      requestTaskReassignment: (eventId, taskId, input, actor = {}) =>
+        prismRequest<PrismEventTaskReassignmentRequest>(actorPath(`/events/${eventId}/event-day/tasks/${taskId}/reassignments`, actor), withBase(options, { method: "POST", body: input })),
+      decideTaskReassignment: (eventId, requestId, input, actor = {}) =>
+        prismRequest<PrismEventTaskReassignmentRequest>(actorPath(`/events/${eventId}/event-day/task-reassignments/${requestId}`, actor), withBase(options, { method: "PATCH", body: input })),
       updateCoordinatorAttendance: (eventId, assignmentId, input, actor = {}) =>
         prismRequest<PrismCoordinatorAssignment>(
           actorPath(`/events/${eventId}/coordinators/${assignmentId}/status`, actor),

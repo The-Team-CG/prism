@@ -54,6 +54,12 @@ function createService(assignment: unknown) {
     opsEvent: {
       findUnique: vi.fn(async () => ({ id: 'evt_sample_unassigned' })),
     },
+    opsEventOperatorDesignation: {
+      findFirst: vi.fn(async () => null),
+    },
+    opsEventDayTask: {
+      findFirst: vi.fn(async () => null),
+    },
   };
   const eventAccessPolicyService = {
     requireActorRole: vi.fn(async () => undefined),
@@ -194,6 +200,43 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
       'coord_asg_ayala_rhea',
       input,
       actor,
+    );
+  });
+
+  it('allows the designated Event Day System Operator to mark another assignment', async () => {
+    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEventOperatorDesignation.findFirst.mockResolvedValue({
+      id: 'op_designation',
+      eventId: 'evt_sample_ayala',
+      coordinatorId: 'coord_marco',
+      revokedAt: null,
+    } as never);
+    const input = { status: 'present', notes: 'Checked in at command desk' };
+
+    await service.updateCoordinatorAttendance('evt_sample_ayala', 'coord_asg_ayala_rhea', input, coordinatorActor());
+
+    expect(liveOperationsService.updateCoordinatorAttendance).toHaveBeenCalledWith(
+      'evt_sample_ayala',
+      'coord_asg_ayala_rhea',
+      input,
+      expect.objectContaining({ coordinatorId: 'coord_marco' }),
+    );
+  });
+
+  it('rejects supplier verification from a non-ingress coordinator', async () => {
+    const { service, eventAccessPolicyService, staffingReader, prisma } = createService(
+      coordinatorAssignmentRow({ role: 'Floor Director' }),
+    );
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+
+    await expect(
+      service.verifySupplierEventStatus('evt_sample_ayala', 'supplier_req_1', { verificationStatus: 'verified' }, coordinatorActor()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(staffingReader.findAssignmentForEventActor).toHaveBeenCalled();
+    expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+      'supplier setup verification',
+      'evt_sample_ayala',
     );
   });
 });
