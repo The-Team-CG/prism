@@ -63,6 +63,14 @@ export class EventReadModelQueries {
     }));
   }
 
+  scheduleForEvent(eventId: string) {
+    return this.prisma.opsEventScheduleDay.findMany({
+      where: { eventId },
+      include: { segments: { orderBy: { sequence: 'asc' } } },
+      orderBy: { dayDate: 'asc' },
+    });
+  }
+
   // Query budget: one selected event query plus seven event-scoped readiness queries, no per-row Prisma loop.
   defenseReadiness(eventId: string) {
     return Promise.all([
