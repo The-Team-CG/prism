@@ -13,7 +13,9 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "prebuild": "npm run check:types-dist",
     "typecheck": "turbo run typecheck",
+    "pretypecheck": "npm run check:types-dist",
     "dev:api": "npm --workspace prism-api run dev",
     "dev:api:watch": "concurrently -n types,api -c blue,green \"npm --workspace @prism/types run dev\" \"npm run dev:api\"",
     "dev:client": "npm --workspace @prism/client run dev",
@@ -36,6 +38,7 @@
     "worktree:setup:copy-local-env": "node scripts/prism-worktree.mjs setup --copy-local-env",
     "worktree:create": "node scripts/prism-worktree.mjs create",
     "worktree:remove": "node scripts/prism-worktree.mjs remove",
+    "check:types-dist": "node scripts/check-types-dist.mjs",
     "check:boundaries": "node scripts/check-prism-boundaries.mjs",
     "check:complexity": "node scripts/check-cyclomatic-complexity.mjs",
     "postinstall": "npm --workspace @prism/types run build"
