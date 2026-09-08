@@ -20,6 +20,10 @@ last_verified: "2f4c5c62036bd0262c6c8514675b4dd3afb2d660"
 - **Use/change:** Track independent deliveries, integration evidence and concrete blockers; promote the final results into the catalog/readiness reports.
 - **Verify with:** Exact catalog acceptance, shared contracts, affected role paths, forbidden-role/state tests, database transactions where relevant, boundaries and independent review.
 
+## Current integration checkpoint
+
+The integration branch now contains W25, W26 and W51 on top of the earlier P1 slices. After rebuilding `@prism/types` with `tsconfig.build.json` and regenerating Prisma, all six package typechecks pass; the API suite passes **115 files / 577 tests** with **15 PostgreSQL-backed files / 40 tests skipped**; boundaries pass for **1,125 files**; complexity passes for **6,638 production functions** with maximum 10; and `git diff --check` is clean. The skipped database suites require PostgreSQL/Docker, and browser/mobile/keyboard/screen-reader acceptance requires the running portal stack. W15 supplier application/status work is the remaining Luna implementation slice before the final report/PR update; W29 remains policy-gated.
+
 ## Execution design
 
 Work starts from commit `2f4c5c6` on `codex/p1-implementation-2026-09-08`. PR #40 remains separate and unmerged; P1 integration can proceed on its reviewed implementation baseline. Do not overwrite the original dirty checkout or merge without the repository's human review requirement.
