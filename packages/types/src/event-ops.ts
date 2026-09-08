@@ -543,6 +543,14 @@ export interface PrismSupplierApplication {
   createdAt: string;
 }
 
+export interface PrismSupplierApplicationStatusResult {
+  id: string;
+  companyName: string;
+  status: PrismSupplierApplicationStatus;
+  submittedAt: string;
+  reviewedAt: string | null;
+}
+
 export interface PrismCommunicationParticipant { id: string; actorId: string; actorRole: string; active: boolean; lastReadAt?: string | null; }
 export interface PrismCommunicationParticipantChoice { id: string; name: string; email: string; role: string; }
 export interface PrismCommunicationMessage { id: string; threadId: string; senderId: string; senderRole: string; body: string; createdAt: string; }
