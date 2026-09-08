@@ -107,6 +107,25 @@ describe('GuestWorkflowService', () => {
     await expect(service.countCheckInsForEvent('evt_sample')).resolves.toBe(1);
   });
 
+  it('returns a cheap guest watermark that changes when event-visible state changes', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({
+      watermark: '2026-06-01T00:00:00.000Z:1',
+    });
+
+    state.guestCheckIns.push({ ...state.guestCheckIns[0], id: 'gci_new' });
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toEqual({
+      watermark: '2026-06-01T00:00:00.000Z:2',
+    });
+  });
+
+  it('keeps the watermark route subject to the ordinary guest archive policy', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    state.events[0].archived = true;
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).rejects.toThrow('Guest event code was not found');
+  });
+
   it('requires privacy consent before guest check-in and feedback writes', async () => {
     const { service } = createGuestWorkflowFixture();
 

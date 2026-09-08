@@ -20,6 +20,14 @@ export async function refreshGuestEvent(
   return next;
 }
 
+export async function refreshGuestEventIfChanged(
+  session: GuestSession,
+): Promise<GuestSession> {
+  const { watermark } = await guestDashboardRepository.fetchWatermark(session);
+  if (session.watermark === watermark) return session;
+  return refreshGuestEvent(session);
+}
+
 export async function submitGuestCheckIn(input: {
   session: GuestSession;
   checkInMode: CheckInMode;

@@ -24,6 +24,7 @@
   No live PostgreSQL acceptance was available in this checkout.
 - **Added:** Transactional command receipts and actor- and event-scoped idempotency through `WorkflowCommandService` for commands that supply an explicit payload hash, with a durable `trust_ops.command_receipts` table and changed-content replay rejection. Existing domain-specific idempotency records remain the source of their own business invariants until callers migrate safely.
 - **Added:** Root flat ESLint architecture checks for cross-portal imports, private bounded-context paths, local shared-contract redefinitions, and inline Zod usage, with deterministic fixture coverage and canonical schema/adapter exceptions.
+- **Added:** Guest event watermark endpoint and conditional dashboard refresh; the guest portal now polls the event revision and fetches the full pass only when the event or attendance count changes.
 
 - **Updated:** P1 catalog implementation evidence through W15/W26/W51 integration: package-level effort/priority/risk status, partial scope, provider and policy blockers, PostgreSQL/Docker verification limits, and the remaining W29 policy gate are recorded in the catalog review and matrix.
 

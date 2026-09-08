@@ -14,6 +14,7 @@ import type {
   UpdateGuestVerificationInput,
   UploadMetadataInput,
   WithdrawGuestFeedbackConsentInput,
+  PrismGuestEventWatermark,
 } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
@@ -52,6 +53,20 @@ export class GuestWorkflowService {
 
   async getEventByAccessCode(accessCode: string) {
     return this.resolveGuestEventByAccessCode(accessCode);
+  }
+
+  async getEventWatermarkByAccessCode(accessCode: string): Promise<PrismGuestEventWatermark> {
+    const normalizedCode = this.normalizeGuestAccessCode(accessCode);
+    const events = await this.prisma.opsEvent.findMany({
+      where: { archived: false },
+      select: { id: true, eventName: true, updatedAt: true },
+      orderBy: { eventDate: 'asc' },
+    });
+    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
+    if (!event) throw new NotFoundException('Guest event code was not found');
+
+    const attendanceCount = await this.countCheckInsForEvent(event.id);
+    return { watermark: this.guestEventWatermark(event.updatedAt, attendanceCount) };
   }
 
   countCheckInsForEvent(eventId: string) {
@@ -498,7 +513,12 @@ export class GuestWorkflowService {
       activeFloorPlanDraftId: (activeDraft as any)?.id,
       guestAccessCode: this.guestAccessCode(event),
       attendanceCount,
+      watermark: this.guestEventWatermark(event.updatedAt, attendanceCount),
     };
+  }
+
+  private guestEventWatermark(updatedAt: Date, attendanceCount: number): string {
+    return `${updatedAt.toISOString()}:${attendanceCount}`;
   }
 
   mapGuestCheckIn(checkIn: OpsGuestCheckIn) {
