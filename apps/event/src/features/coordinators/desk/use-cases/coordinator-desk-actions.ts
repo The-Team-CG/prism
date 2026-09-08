@@ -1,5 +1,12 @@
 import type { EventSession } from "@/app/lib/session";
-import type { CreateEventDayTaskInput, CreateUrgentIssueInput, CoordinatorAssignmentAcknowledgementInput, WithdrawCoordinatorAssignmentInput } from "@prism/types";
+import type {
+  CreateEventDayTaskInput,
+  CreateEventTaskReassignmentInput,
+  CreateUrgentIssueInput,
+  CoordinatorAssignmentAcknowledgementInput,
+  DecideEventTaskReassignmentInput,
+  WithdrawCoordinatorAssignmentInput,
+} from "@prism/types";
 import { coordinatorsRepository } from "../data/coordinators-repository";
 
 export async function loadCoordinatorRoleView(session: EventSession, eventId: string) {
@@ -48,5 +55,25 @@ export async function createUrgentIssueAndRefreshRoleView(input: {
   input: CreateUrgentIssueInput;
 }) {
   await coordinatorsRepository.createUrgentIssue(input.session, input.eventId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function requestTaskReassignmentAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  taskId: string;
+  input: CreateEventTaskReassignmentInput;
+}) {
+  await coordinatorsRepository.requestTaskReassignment(input.session, input.eventId, input.taskId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function decideTaskReassignmentAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  requestId: string;
+  input: DecideEventTaskReassignmentInput;
+}) {
+  await coordinatorsRepository.decideTaskReassignment(input.session, input.eventId, input.requestId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }

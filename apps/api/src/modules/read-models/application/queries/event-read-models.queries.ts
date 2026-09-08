@@ -46,7 +46,7 @@ export class EventReadModelQueries {
     });
   }
 
-  // Query budget: one selected event query plus four event-day relation queries, no per-row Prisma loop.
+  // Query budget: one selected event query plus five event-day/readiness queries, no per-row Prisma loop.
   liveOpsForEvent(eventId: string) {
     return Promise.all([
       this.eventWithDrafts(eventId),
@@ -54,12 +54,14 @@ export class EventReadModelQueries {
       this.prisma.opsUrgentIssue.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' } }),
       this.prisma.opsEventDayLog.findMany({ where: { eventId }, orderBy: { createdAt: 'desc' }, take: 50 }),
-    ]).then(([event, tasks, urgentIssues, supplierRequests, eventDayLogs]) => ({
+      this.prisma.opsBriefing.findFirst({ where: { eventId }, orderBy: { submittedAt: 'desc' } }),
+    ]).then(([event, tasks, urgentIssues, supplierRequests, eventDayLogs, briefing]) => ({
       event,
       tasks,
       urgentIssues,
       supplierRequests,
       eventDayLogs,
+      briefing,
     }));
   }
 
@@ -68,6 +70,20 @@ export class EventReadModelQueries {
       where: { eventId },
       include: { segments: { orderBy: { sequence: 'asc' } } },
       orderBy: { dayDate: 'asc' },
+    });
+  }
+
+  activeOperatorForCoordinator(eventId: string, coordinatorId: string) {
+    return this.prisma.opsEventOperatorDesignation.findFirst({
+      where: { eventId, coordinatorId, revokedAt: null },
+      select: { id: true },
+    });
+  }
+
+  taskReassignmentRequests(eventId: string) {
+    return this.prisma.opsEventTaskReassignmentRequest.findMany({
+      where: { eventId },
+      orderBy: { requestedAt: 'desc' },
     });
   }
 
