@@ -123,7 +123,7 @@ function DashboardReadinessBoard({
               key={item.id}
               type="button"
               onClick={() => onNavigate(item.quoteStatus === "selected" ? "bookings" : "requests")}
-              className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-(--prism-signal)/30 hover:bg-muted/35"
+              className="flex items-start justify-between gap-4 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-(--prism-signal)/30 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset"
             >
               <span className="min-w-0">
                 <span className="block text-sm font-black text-foreground">{item.eventName ?? "Assigned event"}</span>

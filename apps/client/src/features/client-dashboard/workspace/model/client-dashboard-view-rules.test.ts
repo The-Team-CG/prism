@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deriveClientActionCenterFromWorkspace, selectNextAction } from "./client-dashboard-view-rules";
 import { selectClientDashboardActions } from "./client-dashboard-selectors";
-import type { PrismClientWorkspace } from "@prism/types";
+import type { PrismClientActionItem, PrismClientWorkspace } from "@prism/types";
 
 function workspace(overrides: Partial<PrismClientWorkspace> = {}): PrismClientWorkspace {
   return {
@@ -68,7 +68,7 @@ describe("client action center derivation", () => {
   });
 
   it("keeps action presentation deterministic when source order changes", () => {
-    const items = [
+    const items: PrismClientActionItem[] = [
       { id: "z", eventId: "evt_1", eventName: "Summit", kind: "briefing", priority: "attention", label: "Z", description: "", status: "missing" },
       { id: "a", eventId: "evt_1", eventName: "Summit", kind: "briefing", priority: "attention", label: "A", description: "", status: "missing" },
     ];

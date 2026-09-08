@@ -37,7 +37,7 @@ export function ClientActionGroup({
                 key={action.id}
                 type="button"
                 onClick={() => onAction(action)}
-                className="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-muted/40"
+                className="flex w-full items-start gap-4 px-5 py-4 text-left transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset"
               >
                 <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${toneStyle}`}>
                   <Icon className="size-4" />

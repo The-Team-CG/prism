@@ -246,7 +246,7 @@ function FeedbackMediaPicker({
             <Icon className="size-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
             <span className="shrink-0 text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
-            <button type="button" onClick={onClear} className="shrink-0 text-muted-foreground hover:text-foreground">
+            <button type="button" aria-label={`Remove ${label.toLowerCase()}`} onClick={onClear} className="shrink-0 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal)">
               <X className="size-3.5" />
             </button>
           </div>

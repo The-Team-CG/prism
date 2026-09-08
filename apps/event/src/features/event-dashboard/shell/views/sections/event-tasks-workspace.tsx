@@ -32,7 +32,8 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { Badge } from "@/app/components/ui/badge";
 import { formatShortDate, humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import type { EventSession } from "@/app/lib/session";
-import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmDashboardWorkspace, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
+import type { PrismApprovalRequest, PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDefenseReadiness, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismPmcmCommandInbox, PrismPmcmDashboardWorkspace, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
+import { selectEventActionCenter } from "@/features/command-inbox/list/model/event-action-center";
 import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
 import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";
 import type { EventFileHubItem } from "./event-file-types";
@@ -43,6 +44,7 @@ export function EventTasksWorkspace({
   pendingApprovals,
   selectedEvent,
   defenseReadiness,
+  commandInbox,
   draftsCount,
   quoteCount,
   paymentCount,
@@ -54,6 +56,7 @@ export function EventTasksWorkspace({
   pendingApprovals: PrismApprovalRequest[];
   selectedEvent?: PrismEvent;
   defenseReadiness: PrismDefenseReadiness | null;
+  commandInbox: PrismPmcmCommandInbox | null;
   draftsCount: number;
   quoteCount: number;
   paymentCount: number;
@@ -106,6 +109,7 @@ export function EventTasksWorkspace({
     },
   ];
   const nextActions = defenseReadiness?.nextActions ?? [];
+  const actionCenter = selectEventActionCenter(commandInbox, defenseReadiness);
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -118,7 +122,7 @@ export function EventTasksWorkspace({
         </CardHeader>
         <div className="divide-y divide-border">
           {tasks.map((task) => (
-            <button key={task.id} type="button" onClick={task.action} className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition hover:bg-muted/30">
+            <button key={task.id} type="button" onClick={task.action} className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--prism-signal) focus-visible:ring-inset">
               <span className="min-w-0">
                 <span className="block text-sm font-black text-foreground">{task.label}</span>
                 <span className="mt-1 block text-xs text-muted-foreground">{task.detail}</span>
@@ -142,6 +146,18 @@ export function EventTasksWorkspace({
           )) : (
             <EmptyState icon={CheckCircle2} title="No open blockers" description="The selected event has no current readiness action items." />
           )}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader><h2 className="text-sm font-black text-foreground">PMCM action center</h2></CardHeader>
+        <CardBody className="space-y-2">
+          {actionCenter.length ? actionCenter.slice(0, 6).map((action) => (
+            <div key={action.id} className="border-l border-(--prism-signal) bg-muted/20 px-3 py-2">
+              <p className="text-xs font-black text-foreground">{action.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>
+            </div>
+          )) : <EmptyState icon={CheckCircle2} title="No persisted action items" description="Command and readiness sources have no current PMCM actions." />}
         </CardBody>
       </Card>
     </div>

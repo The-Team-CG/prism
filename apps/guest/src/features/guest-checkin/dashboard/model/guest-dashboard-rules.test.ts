@@ -9,6 +9,7 @@ import {
   isVideoDurationAllowed,
   MAX_FILE_SIZE_BYTES,
   MAX_VIDEO_DURATION_S,
+  guestNextActions,
 } from "./guest-dashboard-rules";
 import type { GuestSession } from "./guest-dashboard-types";
 
@@ -83,5 +84,10 @@ describe("guest-dashboard-rules", () => {
     expect(payload.rating).toBe(4);
     expect(payload.photo?.fileName).toBe("shot.jpg");
     expect(payload.video).toBeUndefined();
+  });
+
+  it("derives the narrow guest action center from session actions", () => {
+    expect(guestNextActions(false, false).map((item) => item.status)).toEqual(["pending", "pending"]);
+    expect(guestNextActions(true, true).map((item) => item.status)).toEqual(["complete", "complete"]);
   });
 });
