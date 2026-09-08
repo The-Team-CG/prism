@@ -20,7 +20,7 @@ import {
   apiUrlFor,
   corsOriginFor,
   describeCheckout,
-  resolvePortSet,
+  resolveLivePortSet,
 } from "./prism-ports.mjs";
 
 export const WORKTREES_DIRNAME = ".worktrees";
@@ -33,18 +33,55 @@ export function assertInsideWorktrees(repoRoot, target) {
   if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new Error(`Refusing to touch ${resolved}: not inside ${root}`);
   }
+  try {
+    const targetStat = fs.lstatSync(resolved);
+    if (targetStat.isSymbolicLink()) {
+      throw new Error(`Refusing to touch ${resolved}: target is a symlink or junction`);
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  const realPathWithMissingTail = (candidate) => {
+    const tail = [];
+    let existing = candidate;
+    while (!fs.existsSync(existing)) {
+      const parent = path.dirname(existing);
+      if (parent === existing) break;
+      tail.unshift(path.basename(existing));
+      existing = parent;
+    }
+    const realExisting = fs.realpathSync.native(existing);
+    return tail.reduce((current, segment) => path.join(current, segment), realExisting);
+  };
+  const rootReal = realPathWithMissingTail(root);
+  const targetReal = realPathWithMissingTail(resolved);
+  const realRelative = path.relative(rootReal, targetReal);
+  if (!realRelative || realRelative.startsWith("..") || path.isAbsolute(realRelative)) {
+    throw new Error(`Refusing to touch ${resolved}: resolved path is outside ${root}`);
+  }
   return resolved;
 }
 
 /** Replaces existing KEY= lines and appends the rest, preserving unrelated content. */
 export function upsertEnvLines(content, entries) {
-  let next = String(content ?? "");
+  let lines = String(content ?? "").replace(/\r\n?/g, "\n").split("\n");
+  while (lines.length > 0 && lines.at(-1) === "") lines.pop();
   for (const [key, value] of Object.entries(entries)) {
     const line = `${key}=${value}`;
-    const pattern = new RegExp(`^${key}=.*$`, "m");
-    next = pattern.test(next) ? next.replace(pattern, line) : `${next.replace(/\s*$/, "")}\n${line}\n`;
+    const pattern = new RegExp(`^${String(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=.*$`);
+    let replaced = false;
+    const nextLines = [];
+    for (const current of lines) {
+      if (!pattern.test(current)) {
+        nextLines.push(current);
+      } else if (!replaced) {
+        nextLines.push(line);
+        replaced = true;
+      }
+    }
+    lines = replaced ? nextLines : [...nextLines, line];
   }
-  return next.startsWith("\n") ? next.slice(1) : next;
+  return `${lines.join("\n").replace(/\n+$/, "")}\n`;
 }
 
 /** Describes the env edits a worktree needs so its stack does not collide. */
@@ -61,20 +98,24 @@ function git(args, cwd) {
 }
 
 function seedFrom(primaryRoot, relativeFile, targetPath) {
-  if (fs.existsSync(targetPath)) return;
+  if (fs.existsSync(targetPath)) return false;
   const source = path.join(primaryRoot, relativeFile);
   const fallback = path.join(primaryRoot, relativeFile.replace(/\.env\.local$/, ".env.example").replace(/\.env$/, ".env.example"));
   const chosen = fs.existsSync(source) ? source : fallback;
-  if (!fs.existsSync(chosen)) return;
+  if (!fs.existsSync(chosen)) return false;
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.copyFileSync(chosen, targetPath);
+  return chosen;
 }
 
 export function prepareWorktree({ worktreeRoot, primaryRoot, ports }) {
   const written = [];
   for (const { file, entries } of planEnvFiles(ports)) {
     const targetPath = path.join(worktreeRoot, file);
-    seedFrom(primaryRoot, file, targetPath);
+    const seededFrom = seedFrom(primaryRoot, file, targetPath);
+    if (seededFrom && file === path.join("apps", "api", ".env") && path.resolve(seededFrom) === path.resolve(primaryRoot, file)) {
+      console.log(`[prism-worktree] copied ${seededFrom}; it contains local credentials and must not be committed.`);
+    }
     const current = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, "utf8") : "";
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
     fs.writeFileSync(targetPath, upsertEnvLines(current, entries));
@@ -86,7 +127,17 @@ export function prepareWorktree({ worktreeRoot, primaryRoot, ports }) {
 /** Junction/symlink directories under root, deepest first so parents unlink cleanly. */
 export function collectLinkedDirectories(root) {
   const found = [];
+  const worktreeReal = fs.realpathSync.native(root);
+  const isInside = (candidate) => {
+    const relative = path.relative(worktreeReal, fs.realpathSync.native(candidate));
+    return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+  };
   const walk = (current) => {
+    try {
+      if (!isInside(current)) return;
+    } catch {
+      return;
+    }
     let entries = [];
     try {
       entries = fs.readdirSync(current, { withFileTypes: true });
@@ -99,7 +150,13 @@ export function collectLinkedDirectories(root) {
         found.push(entryPath);
         continue;
       }
-      if (entry.isDirectory()) walk(entryPath);
+      if (entry.isDirectory()) {
+        try {
+          if (isInside(entryPath)) walk(entryPath);
+        } catch {
+          // A disappearing or inaccessible reparse point is skipped safely.
+        }
+      }
     }
   };
   walk(root);
@@ -135,9 +192,8 @@ function reportPorts(worktreeRoot, ports) {
 }
 
 function runSetup(cwd) {
-  const { worktreeRoot, isPrimary } = describeCheckout(cwd);
+  const { worktreeRoot, isPrimary, ports } = resolveLivePortSet({ cwd, env: process.env });
   const primaryRoot = isPrimary ? worktreeRoot : git(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd).replace(/[/\\]\.git$/, "");
-  const ports = resolvePortSet({ env: process.env, worktreeRoot, isPrimary });
   const written = prepareWorktree({ worktreeRoot, primaryRoot, ports });
   reportPorts(worktreeRoot, ports);
   console.log(`[prism-worktree] wrote ${written.length} env file(s); dependencies still need an install in this worktree.`);

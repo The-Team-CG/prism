@@ -1,6 +1,11 @@
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
+function readArg(flag, fallback) {
+  const index = process.argv.indexOf(flag);
+  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
+}
+
 const result = spawnSync(
   process.execPath,
   [
@@ -8,7 +13,9 @@ const result = spawnSync(
     '--app',
     'api',
     '--port',
-    String(process.env.PORT || 4000),
+    String(readArg('--port', process.env.PORT || 4000)),
+    '--root',
+    readArg('--root', process.cwd()),
   ],
   { stdio: 'inherit' },
 );
