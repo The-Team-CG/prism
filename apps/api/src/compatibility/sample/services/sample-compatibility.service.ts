@@ -2985,6 +2985,11 @@ export class SampleCompatibilityService implements OnModuleInit {
       overrideReason?: string | null;
       overrideAt?: Date | null;
       overrideBy?: string | null;
+      evaluationStatus?: string;
+      evidence?: unknown;
+      definitionStatus?: string;
+      remediation?: string;
+      runId?: string | null;
     };
     return {
       id: check.id,
@@ -3002,6 +3007,11 @@ export class SampleCompatibilityService implements OnModuleInit {
       overrideReason: expanded.overrideReason ?? null,
       overrideAt: expanded.overrideAt ? timestamp(expanded.overrideAt) : null,
       overrideBy: expanded.overrideBy ?? null,
+      evaluationStatus: (expanded.evaluationStatus ?? (check.status === 'open' ? 'not_satisfied' : 'satisfied')) as 'satisfied' | 'not_satisfied' | 'not_applicable',
+      evidence: Array.isArray(expanded.evidence) ? expanded.evidence.filter((item): item is string => typeof item === 'string') : [],
+      definitionStatus: expanded.definitionStatus ?? 'PROVISIONAL',
+      remediation: expanded.remediation ?? check.note,
+      runId: expanded.runId ?? null,
     };
   }
 

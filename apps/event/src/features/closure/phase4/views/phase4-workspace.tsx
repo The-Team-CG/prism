@@ -14,6 +14,7 @@ import type {
   CreateSupplierReviewInput,
 } from "@prism/types";
 import { SupplierReviewPromptList } from "@/features/suppliers/reviews";
+import { ComplianceReviewPanel } from "@/features/compliance/review";
 import {
   phase4BillingSourceCard,
   phase4CloseGatesCard,
@@ -190,6 +191,7 @@ export function Phase4Workspace({
         onResolveCompliance={onResolveCompliance}
         onOverrideCompliance={onOverrideCompliance}
       />
+      <ComplianceReviewPanel eventId={event.id} />
       <section className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <Phase4BillingSection
           billingLabel={billingLabel}
