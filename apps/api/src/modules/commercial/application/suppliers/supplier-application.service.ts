@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
-import type { CreateSupplierApplicationInput, ReviewSupplierApplicationInput } from '@prism/types';
+import type { CreateSupplierApplicationInput, ReviewSupplierApplicationInput, SupplierApplicationStatusQuery } from '@prism/types';
 import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
@@ -9,7 +9,7 @@ import { OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { Inject } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import { mapSupplierApplication } from './supplier-application.mappers';
+import { mapSupplierApplication, mapSupplierApplicationStatus } from './supplier-application.mappers';
 import { applicationStatusForReviewAction } from './supplier-application-status';
 
 function normalizeEmail(value: string) {
@@ -92,6 +92,17 @@ export class SupplierApplicationService {
       id: cat.id,
       name: cat.name,
     }));
+  }
+
+  async getPublicStatus(input: SupplierApplicationStatusQuery) {
+    const row = await this.prisma.opsSupplierApplication.findUnique({
+      where: { id: input.applicationId },
+      select: { id: true, companyName: true, status: true, createdAt: true, reviewedAt: true, normalizedEmail: true, email: true },
+    });
+    if (!row || normalizeEmail(row.normalizedEmail || row.email) !== normalizeEmail(input.email)) {
+      throw new NotFoundException('Supplier application not found');
+    }
+    return mapSupplierApplicationStatus(row);
   }
 
   async listInbox(actor: ResolvedEventOpsActor) {

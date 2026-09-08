@@ -1,12 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   createSupplierApplicationSchema,
   reviewSupplierApplicationSchema,
+  supplierApplicationStatusQuerySchema,
   type CreateSupplierApplicationInput,
   type PrismVerifiedEventActor,
   type ReviewSupplierApplicationInput,
+  type SupplierApplicationStatusQuery,
 } from '@prism/types';
-import { zodBody } from '@prism/kernel/shared';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { SupplierApplicationService } from '../../application/suppliers/supplier-application.service';
@@ -27,6 +29,11 @@ export class OpsSupplierApplicationsController {
   @Get('categories')
   listCategories() {
     return this.supplierApplicationService.listPublicCategories();
+  }
+
+  @Get('status')
+  getStatus(@Query(zodQuery(supplierApplicationStatusQuerySchema)) input: SupplierApplicationStatusQuery) {
+    return this.supplierApplicationService.getPublicStatus(input);
   }
 
   @Get('inbox')

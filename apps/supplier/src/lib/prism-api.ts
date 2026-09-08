@@ -1,6 +1,7 @@
 export type {
   PrismSupplier,
   PrismSupplierApplication,
+  PrismSupplierApplicationStatusResult,
   PrismSupplierCertification,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -14,15 +15,17 @@ import { PRISM_SESSION_STORAGE_KEYS, isPrismAuthenticatedSession } from "@prism/
 import type {
   PrismAuthenticatedSession,
   PrismSupplierApplication,
+  PrismSupplierApplicationStatusResult,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
   CreateSupplierApplicationInput,
+  SupplierApplicationStatusQuery,
   SubmitSupplierQuoteInput,
 } from "@prism/types";
 
-export type { CreateSupplierApplicationInput } from "@prism/types";
+export type { CreateSupplierApplicationInput, SupplierApplicationStatusQuery } from "@prism/types";
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
 
@@ -127,6 +130,8 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  getSupplierApplicationStatus: (input: SupplierApplicationStatusQuery): Promise<PrismSupplierApplicationStatusResult> =>
+    request(`/api/supplier-applications/status?applicationId=${encodeURIComponent(input.applicationId)}&email=${encodeURIComponent(input.email)}`),
   fileRequirements: (eventId: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.events.fileRequirements(eventId, actorFromSession(session)),
   listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>

@@ -42,7 +42,7 @@ export const compactFieldGroupClass =
 
 type UpdateFn = <K extends keyof SupplierApplicationForm>(key: K, value: SupplierApplicationForm[K]) => void;
 
-export function SupplierApplicationSubmitted({ onReset }: { onReset: () => void }) {
+export function SupplierApplicationSubmitted({ applicationId, onReset }: { applicationId: string | null; onReset: () => void }) {
   return (
     <main className="h-dvh bg-background text-foreground">
       <section className="relative h-full min-h-0 overflow-hidden">
@@ -60,8 +60,11 @@ export function SupplierApplicationSubmitted({ onReset }: { onReset: () => void 
                 PMCM will review your application and contact you within 5 business days.
               </p>
               <div className="mx-auto mt-6 max-w-sm rounded-lg border border-primary/10 bg-background p-4 text-sm font-bold text-primary">
-                Reference # {buildSupplierApplicationReference()}
+                Reference # {applicationId ?? buildSupplierApplicationReference()}
               </div>
+              <a href="/status" className="mt-4 inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline">
+                Check application status
+              </a>
               <Button type="button" onClick={onReset} variant="outline" className="mt-7 h-12 rounded-lg px-6 font-black">
                 Submit another application
               </Button>
