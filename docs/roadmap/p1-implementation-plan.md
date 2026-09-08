@@ -7,7 +7,7 @@ authority: informative
 owner: "D (Anthony)"
 scope: "W10-W30, W40, W50 and W51; prerequisite verification correction V01"
 updated: "2026-09-08"
-last_verified: "2f4c5c62036bd0262c6c8514675b4dd3afb2d660"
+last_verified: "3342df8"
 ---
 # P1 catalog implementation
 
