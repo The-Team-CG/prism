@@ -56,6 +56,7 @@ export const uploadConformeSchema = z.object({
     .regex(/\.pdf$/i, "fileName must have a .pdf extension"),
   mimeType: optionalTrimmedStringSchema,
   sizeBytes: z.number().int().nonnegative().optional(),
+  storageObjectId: optionalTrimmedStringSchema,
 });
 export type UploadConformeInput = z.infer<typeof uploadConformeSchema>;
 
