@@ -1090,6 +1090,34 @@ export interface PrismCloseGates {
   matrix?: PrismFileRequirementsMatrix;
 }
 
+export interface PrismWrapUpSection {
+  status: "pending" | "complete" | "blocked";
+  evidence: string;
+  completedAt: string | null;
+}
+
+export interface PrismEventWrapUp {
+  id: string;
+  eventId: string;
+  mode: "full" | "quick";
+  status: "pending" | "complete";
+  activatedAt: string;
+  deadlineAt: string;
+  twelveHourReminderAt: string | null;
+  twentyFourHourReminderAt: string | null;
+  requiredItems: Record<string, boolean>;
+  sections: {
+    logistics: PrismWrapUpSection;
+    issues: PrismWrapUpSection;
+    feedback: PrismWrapUpSection;
+  };
+  clientAcknowledgedAt: string | null;
+  clientAcknowledgedBy: string | null;
+  clientAcknowledgementNote: string;
+  completedAt: string | null;
+  completedBy: string | null;
+}
+
 export interface PrismEventInsight {
   id: string;
   eventId: string;
@@ -1100,6 +1128,7 @@ export interface PrismEventInsight {
   financialSummary: { billingCount?: number; totalBilled?: number; amountPaid?: number; outstandingAmount?: number };
   documentSummary: { total?: number; submitted?: number; pendingPostEventDocuments?: number };
   feedbackSummary: { feedbackDocuments?: number; supplierReviews?: number; clientFeedbackSubmitted?: boolean };
+  dimensions: Record<string, { status: "evidence" | "pending" | "blocked"; summary: string; evidence: string[] }>;
   privateNotes: string;
   generatedAt: string;
   updatedAt: string;

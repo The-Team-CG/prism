@@ -1,4 +1,4 @@
-import type { OpsEvent, OpsEventInsight, OpsFloorPlanDraft, OpsPostEventDocument } from '@prisma/client';
+import type { OpsEvent, OpsEventInsight, OpsFloorPlanDraft, OpsPostEventDocument, OpsEventWrapUp } from '@prisma/client';
 import type { FloorplanReader } from '@prism/contexts/floorplan';
 import type { GuestReader } from '@prism/contexts/operations';
 
@@ -42,6 +42,8 @@ export function mapClosureEvent(event: EventWithDrafts, dependencies: { guestRea
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
     readiness: event.readiness,
+    actualEndedAt: event.actualEndedAt?.toISOString() ?? null,
+    actualEndedBy: event.actualEndedBy,
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,
     floorPlanId: event.floorPlanId,
@@ -57,6 +59,24 @@ export function mapPostEventDocument(document: OpsPostEventDocument) {
     eventId: document.eventId,
     title: document.title,
     status: document.status,
+    ...(document.required !== undefined ? { required: document.required } : {}),
+    ...(document.clientAcknowledgedAt !== undefined ? { clientAcknowledgedAt: document.clientAcknowledgedAt?.toISOString() ?? null } : {}),
+    ...(document.clientAcknowledgedBy !== undefined ? { clientAcknowledgedBy: document.clientAcknowledgedBy } : {}),
+    ...(document.clientAcknowledgementNote !== undefined ? { clientAcknowledgementNote: document.clientAcknowledgementNote } : {}),
+  };
+}
+
+export function mapEventWrapUp(record: OpsEventWrapUp) {
+  return {
+    id: record.id, eventId: record.eventId, mode: record.mode, status: record.status,
+    activatedAt: record.activatedAt.toISOString(), deadlineAt: record.deadlineAt.toISOString(),
+    twelveHourReminderAt: record.twelveHourReminderAt?.toISOString() ?? null,
+    twentyFourHourReminderAt: record.twentyFourHourReminderAt?.toISOString() ?? null,
+    requiredItems: record.requiredItems ?? {}, sections: record.sections ?? {},
+    clientAcknowledgedAt: record.clientAcknowledgedAt?.toISOString() ?? null,
+    clientAcknowledgedBy: record.clientAcknowledgedBy,
+    clientAcknowledgementNote: record.clientAcknowledgementNote,
+    completedAt: record.completedAt?.toISOString() ?? null, completedBy: record.completedBy,
   };
 }
 
@@ -72,6 +92,7 @@ export function mapEventInsight(insight: OpsEventInsight) {
     financialSummary: insight.financialSummary ?? {},
     documentSummary: insight.documentSummary ?? {},
     feedbackSummary: insight.feedbackSummary ?? {},
+    dimensions: (insight as OpsEventInsight & { dimensions?: unknown }).dimensions ?? {},
     privateNotes: insight.privateNotes,
     generatedAt: timestamp(insight.generatedAt),
     updatedAt: expanded.updatedAt ? timestamp(expanded.updatedAt) : timestamp(insight.generatedAt),
