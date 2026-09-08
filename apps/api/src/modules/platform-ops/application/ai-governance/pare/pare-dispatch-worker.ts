@@ -16,18 +16,21 @@ async function executeWithTimeout(
   executor: PareDispatchExecutor,
   requestId: string,
   sourceDispatchId: string,
+  executionRegistry?: PareDispatchExecutionRegistry,
 ): Promise<PAREApprovalRecord> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const controller = new AbortController();
   try {
     return await new Promise<PAREApprovalRecord>((resolve, reject) => {
+      const execution = Promise.resolve().then(() => executor.handleEmergencyTrigger(requestId, sourceDispatchId, controller.signal));
+      executionRegistry?.add(execution);
       timer = setTimeout(() => {
         const error = new Error('PARE execution timed out; retry scheduled');
         error.name = 'PareExecutionTimeoutError';
+        controller.abort(error);
         reject(error);
       }, PARE_EXECUTION_TIMEOUT_MS);
-      void Promise.resolve()
-        .then(() => executor.handleEmergencyTrigger(requestId, sourceDispatchId))
-        .then(resolve, reject);
+      void execution.then(resolve, reject);
     });
   } finally {
     if (timer) clearTimeout(timer);
@@ -35,7 +38,12 @@ async function executeWithTimeout(
 }
 
 export type PareDispatchExecutor = {
-  handleEmergencyTrigger(requestId: string, sourceDispatchId: string): Promise<PAREApprovalRecord>;
+  handleEmergencyTrigger(requestId: string, sourceDispatchId: string, signal?: AbortSignal): Promise<PAREApprovalRecord>;
+  recordDispatchActivity?(dispatch: { id: string; eventId: string; requestId: string }, approval: PAREApprovalRecord): Promise<void>;
+};
+
+export type PareDispatchExecutionRegistry = {
+  add(execution: Promise<unknown>): void;
 };
 
 function available(now: Date, maxAttempts?: number): Prisma.OpsPareDispatchWhereInput {
@@ -86,6 +94,7 @@ export async function processPareDispatchQueue(
   executor: PareDispatchExecutor,
   requestedMaxAttempts?: number,
   requestedMaxBatch?: number,
+  executionRegistry?: PareDispatchExecutionRegistry,
 ) {
   const maxAttempts = Number.isFinite(requestedMaxAttempts) ? Math.min(10, Math.max(1, Math.floor(requestedMaxAttempts!))) : 3;
   const maxBatch = Number.isFinite(requestedMaxBatch) ? Math.min(MAX_BATCH, Math.max(1, Math.floor(requestedMaxBatch!))) : MAX_BATCH;
@@ -117,7 +126,8 @@ export async function processPareDispatchQueue(
 
     let outcome: { approvalRecordId?: string; error?: unknown };
     try {
-      const approval = await executeWithTimeout(executor, row.requestId, row.id);
+      const approval = await executeWithTimeout(executor, row.requestId, row.id, executionRegistry);
+      await executor.recordDispatchActivity?.({ id: row.id, eventId: row.eventId, requestId: row.requestId }, approval);
       outcome = { approvalRecordId: approval.id };
     } catch (error) {
       outcome = { error };

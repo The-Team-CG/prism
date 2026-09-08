@@ -4,7 +4,8 @@ import type { PARECandidate, PAREContext } from '../pare.types';
 export class SupplierFinderAgent {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findPareSupplierCandidates(ctx: PAREContext): Promise<PARECandidate[]> {
+  async findPareSupplierCandidates(ctx: PAREContext, signal?: AbortSignal): Promise<PARECandidate[]> {
+    throwIfAborted(signal);
     const { withdrawnSupplier, eventId } = ctx;
 
     let category: any;
@@ -38,6 +39,7 @@ export class SupplierFinderAgent {
     const seenNames = new Set<string>();
 
     for (const supplier of suppliers) {
+      throwIfAborted(signal);
       // Deduplicate by name (multiple seed runs can create duplicate supplier records)
       if (seenNames.has(supplier.name)) continue;
       seenNames.add(supplier.name);
@@ -110,4 +112,8 @@ export class SupplierFinderAgent {
     else parts.push('no quote on file for this event');
     return parts.join(', ');
   }
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('PARE execution aborted');
 }

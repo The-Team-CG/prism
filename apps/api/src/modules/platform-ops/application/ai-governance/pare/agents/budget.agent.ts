@@ -103,8 +103,9 @@ function executeBudgetTool(
 export class BudgetAgent {
   constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
 
-  async runPareBudgetAgent(ctx: PAREContext): Promise<PAREBudgetAnalysis> {
+  async runPareBudgetAgent(ctx: PAREContext, signal?: AbortSignal): Promise<PAREBudgetAnalysis> {
     assertPareExecutionAllowed(this.mode);
+    throwIfAborted(signal);
     const top = (ctx.candidates ?? [])[0];
     if (!top) {
       return {
@@ -121,12 +122,12 @@ export class BudgetAgent {
     }
 
     if (this.mode === 'live') {
-      return this.runWithClaude(ctx, top);
+      return this.runWithClaude(ctx, top, signal);
     }
     return mockAnalysis(ctx, top);
   }
 
-  private async runWithClaude(ctx: PAREContext, top: PARECandidate): Promise<PAREBudgetAnalysis> {
+  private async runWithClaude(ctx: PAREContext, top: PARECandidate, signal?: AbortSignal): Promise<PAREBudgetAnalysis> {
     // Dynamic import — only loads when live mode is active and SDK is installed
     const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -151,6 +152,7 @@ Call get_event_budget_summary first, then get_quote_details, then submit_budget_
     const messages: any[] = [{ role: 'user', content: userPrompt }];
 
     for (let i = 0; i < 6; i++) {
+      throwIfAborted(signal);
       const isLastChance = i >= 4;
       // Force tool use every turn — on final turn force specifically the submit tool
       const tool_choice = isLastChance
@@ -164,7 +166,7 @@ Call get_event_budget_summary first, then get_quote_details, then submit_budget_
         tools: ALL_TOOLS,
         tool_choice,
         messages,
-      });
+      }, { signal });
 
       messages.push({ role: 'assistant', content: response.content });
 
@@ -195,4 +197,8 @@ Call get_event_budget_summary first, then get_quote_details, then submit_budget_
 
     return mockAnalysis(ctx, top);
   }
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('PARE execution aborted');
 }

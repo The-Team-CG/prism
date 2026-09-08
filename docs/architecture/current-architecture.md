@@ -233,9 +233,10 @@ around the call, and settles success, bounded retry, or terminal failure. A
 dispatch ID is stored on `OpsAiApprovalRecord` so a crash after approval creation
 is safe to redeliver. The dispatch keeps an event FK for event-scoped cleanup but
 does not own a commercial request FK; a missing or no-longer-withdrawn request is
-a terminal worker outcome. Execution is bounded below the lease duration, and
-shutdown waits for the in-flight sweep so an active process cannot hold the
-scheduler indefinitely.
+a terminal worker outcome. Execution is bounded below the lease duration, aborts
+provider calls on timeout, and tracks active executions through shutdown. Approval
+recovery validates the sanitized request ID and dispatch ownership, while the
+worker restores the idempotent `pare_triggered` activity audit.
 
 ## Lifecycle architecture
 

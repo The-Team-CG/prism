@@ -19,7 +19,9 @@ export class EventContextAgent {
     triggerId: string,
     prefetched?: { request: any; event: any },
     requireWithdrawn = false,
+    signal?: AbortSignal,
   ): Promise<PAREContext> {
+    throwIfAborted(signal);
     let request: any;
     let event: any;
 
@@ -52,6 +54,7 @@ export class EventContextAgent {
     } catch { /* DB unavailable — proceed with empty quotes */ }
 
     try {
+      throwIfAborted(signal);
       const briefings = await this.prisma.opsBriefing.findMany({
         where: { eventId: event.id },
         orderBy: { submittedAt: 'desc' },
@@ -72,6 +75,7 @@ export class EventContextAgent {
     } catch { /* DB unavailable — no preferences */ }
 
     const spentBudget = allQuotes.reduce((sum: number, q: any) => sum + (q.amount ?? 0), 0);
+    throwIfAborted(signal);
     const withdrawnQuote = allQuotes.find((q: any) => q.requestId === triggerId);
     const quotedAmount = withdrawnQuote?.amount ?? 0;
 
@@ -95,4 +99,8 @@ export class EventContextAgent {
       clientPreferences,
     };
   }
+}
+
+function throwIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('PARE execution aborted');
 }

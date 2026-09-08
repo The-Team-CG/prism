@@ -70,8 +70,16 @@ function harness(initial: OpsPareDispatch[]) {
 describe('PARE dispatch outbox', () => {
   it('claims and settles a successful dispatch with the approval record id', async () => {
     const { prisma, rows } = harness([row()]);
-    await processPareDispatchQueue(prisma, { handleEmergencyTrigger: vi.fn(async () => ({ id: 'approval_1' } as unknown as PAREApprovalRecord)) });
+    const recordDispatchActivity = vi.fn(async () => undefined);
+    await processPareDispatchQueue(prisma, {
+      handleEmergencyTrigger: vi.fn(async () => ({ id: 'approval_1' } as unknown as PAREApprovalRecord)),
+      recordDispatchActivity,
+    });
     expect(rows[0]).toMatchObject({ status: 'succeeded', attempts: 1, approvalRecordId: 'approval_1', leaseToken: null });
+    expect(recordDispatchActivity).toHaveBeenCalledWith(
+      { id: 'dispatch_1', eventId: 'event_1', requestId: 'request_1' },
+      { id: 'approval_1' },
+    );
   });
 
   it('retries unknown failures and terminally fails at the max attempt', async () => {
@@ -127,11 +135,14 @@ describe('PARE dispatch outbox', () => {
     vi.useFakeTimers();
     try {
       const { prisma, rows } = harness([row()]);
-      const execute = vi.fn(() => new Promise<never>(() => {}));
+      const execute = vi.fn((_requestId: string, _dispatchId: string, signal?: AbortSignal) => new Promise<never>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+      }));
       const pending = processPareDispatchQueue(prisma, { handleEmergencyTrigger: execute }, 2);
       await vi.advanceTimersByTimeAsync(PARE_EXECUTION_TIMEOUT_MS + 1);
       await pending;
       expect(rows[0]).toMatchObject({ status: 'queued', attempts: 1, leaseToken: null });
+      expect(execute).toHaveBeenCalledWith('request_1', 'dispatch_1', expect.any(AbortSignal));
     } finally {
       vi.useRealTimers();
     }
