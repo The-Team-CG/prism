@@ -29,7 +29,11 @@
     "test:api:coverage": "npm --workspace prism-api run test:coverage",
     "db:generate": "npm --workspace prism-api run db:generate",
     "smoke:ui": "node scripts/smoke-prism-ui.mjs",
-    "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs scripts/check-cyclomatic-complexity.test.mjs",
+    "test:boundaries": "node --test scripts/check-prism-boundaries.test.mjs scripts/check-cyclomatic-complexity.test.mjs scripts/prism-ports.test.mjs scripts/prism-worktree.test.mjs",
+    "ports": "node scripts/prism-ports.mjs",
+    "worktree:setup": "node scripts/prism-worktree.mjs setup",
+    "worktree:create": "node scripts/prism-worktree.mjs create",
+    "worktree:remove": "node scripts/prism-worktree.mjs remove",
     "check:boundaries": "node scripts/check-prism-boundaries.mjs",
     "check:complexity": "node scripts/check-cyclomatic-complexity.mjs",
     "postinstall": "npm --workspace @prism/types run build"

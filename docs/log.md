@@ -2,6 +2,8 @@
 
 ## 2026-09-08
 
+- **Added:** Parallel-worktree runbook covering checkout-derived dev ports, the port-guard ownership rule, and junction-safe worktree teardown.
+
 - **Updated:** P1 catalog implementation evidence through W15/W26/W51 integration: package-level effort/priority/risk status, partial scope, provider and policy blockers, PostgreSQL/Docker verification limits, and the remaining W29 policy gate are recorded in the catalog review and matrix.
 
 - **Recorded:** Trust and identity remediation: full hash-reachable audit tails with durable forbidden-access integrity incidents, outbox-backed security alerts, unknown unavailable login metadata, required session-version checks, and durable email/IP password-reset throttling with reset audit events; PostgreSQL acceptance remains unavailable locally.

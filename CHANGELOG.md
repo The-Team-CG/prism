@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Parallel-worktree tooling: `npm run ports` reports the ports a checkout owns, and `worktree:create`, `worktree:setup`, and `worktree:remove` add, prepare, and tear down linked worktrees. Setup writes that worktree's `PORT`, `CORS_ORIGIN`, and `NEXT_PUBLIC_API_URL`; teardown unlinks `node_modules` junctions before deleting so the primary checkout's dependency tree survives.
 - W51 shared UX acceptance slice: client action-center failure states no longer infer urgency from browser-clock workspace fallbacks; persisted client and supplier action/readiness items now use stable severity/date/id ordering, and supplier readiness explicitly reports unavailable data. Added deterministic action presentation regression coverage. Runtime browser and screen-reader acceptance remains unavailable without the local stack.
 - W51 actor action centers: PMCM now composes persisted command-inbox and defense-readiness next actions, guests see only check-in and moderated-feedback next steps, and all added action surfaces include deterministic ordering, explicit unavailable states, visible keyboard focus, and accessible control names. No role receives another actor's private data.
 - W25 cancellation/postponement core: shared decision contract, durable actor/reason/timestamp/prior-state records, serializable event state transitions, explicit deposit/fee treatment, coordinator release and supplier obligation impact, retained reschedule history, audited notification/storage intent, and client-visible event status states. External refunds, supplier acceptance, provider delivery and document bytes remain residual W14/W16/W11/W10 scope.
@@ -51,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - A second sample event (`evt_sample_unassigned`) with no coordinator assignment so unassigned-event checks can run.
 
 ### Changed
+- Portal `dev` and `start` scripts resolve their port from the checkout instead of a hard-coded literal, so a linked worktree no longer starts on the primary checkout's port. The primary checkout keeps ports 3001-3004 and 4000, and the port guard refuses to stop a process whose argv belongs to another checkout.
 - Reconciled the complete catalog review and effort/priority/risk matrix against the P0 implementation, separating completed corrections, satisfied policy prerequisites and remaining catalog gaps.
 - Corrected the P0 verification report with the reproduced supplier-ownership fixture boundary failure (V01); retained it as an open review gate without changing application source.
 - Client floorplan copy now separates official read-only plans from layout preferences. Guest check-in no longer implies camera QR. Event file hub Share/Download/upload stay visibly gated.
