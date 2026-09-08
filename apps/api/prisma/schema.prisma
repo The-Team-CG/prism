@@ -220,6 +220,7 @@ model OpsInquiry {
   createdAt                 DateTime  @default(now()) @map("created_at")
 
   events OpsEvent[]
+  statusHistory OpsInquiryStatusHistory[]
 
   @@index([status, createdAt], map: "inquiries_status_created_at_idx")
   @@index([source, createdAt], map: "inquiries_source_created_at_idx")
@@ -228,6 +229,26 @@ model OpsInquiry {
   @@index([duplicateOfInquiryId], map: "inquiries_duplicate_of_inquiry_id_idx")
   @@index([previousDeclinedInquiryId], map: "inquiries_previous_declined_inquiry_id_idx")
   @@map("inquiries")
+  @@schema("event_core")
+}
+
+model OpsInquiryStatusHistory {
+  id            String   @id
+  inquiryId     String   @map("inquiry_id")
+  eventId       String?  @map("event_id")
+  fromStatus    String?  @map("from_status")
+  toStatus      String   @map("to_status")
+  transition    String
+  actorId       String?  @map("actor_id")
+  actorRole     String?  @map("actor_role")
+  actorName     String?  @map("actor_name")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  inquiry OpsInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  @@index([inquiryId, createdAt], map: "inquiry_status_history_inquiry_id_created_at_idx")
+  @@index([eventId, createdAt], map: "inquiry_status_history_event_id_created_at_idx")
+  @@map("inquiry_status_history")
   @@schema("event_core")
 }
 

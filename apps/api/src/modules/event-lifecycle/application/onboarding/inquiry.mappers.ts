@@ -76,6 +76,7 @@ function inquiryTriageFields(inquiry: OpsInquiry) {
 
 export function mapInquiry(inquiry: OpsInquiry) {
   const reminderDueAt = inquiryReminderDueAt(inquiry);
+  const statusHistory = (inquiry as OpsInquiry & { statusHistory?: Array<{ id: string; fromStatus: string | null; toStatus: string; transition: string; actorId: string | null; actorRole: string | null; actorName: string | null; createdAt: Date }> }).statusHistory;
   return {
     id: inquiry.id,
     clientName: inquiry.clientName,
@@ -105,6 +106,7 @@ export function mapInquiry(inquiry: OpsInquiry) {
     portalInvitationOpenedAt: optionalTimestamp(inquiry.portalInvitationOpenedAt),
     portalInvitationExpiresAt: optionalTimestamp(inquiry.portalInvitationExpiresAt),
     createdAt: timestamp(inquiry.createdAt),
+    statusHistory: statusHistory?.map((item) => ({ ...item, createdAt: timestamp(item.createdAt) })) ?? [],
   };
 }
 

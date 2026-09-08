@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- W13 event document journeys: event-scoped upload requests, confirmations, file-hub metadata listing, and download authorization now consume the W10 storage service and enforce PMCM/client/coordinator/supplier visibility. Unconfigured storage remains an explicit failed state; no document or signed URL is fabricated.
+- W13 completion slice: durable inquiry status history with actor/event attribution, client/supplier/PMCM document hub MVVM surfaces, and conforme activation gated on a confirmed stored W10 object.
 - Compatibility compliance fixtures now populate the persisted evaluation fields required by the shared W24 compliance contract.
 - W21 live operations: persisted multi-day schedule days and ordered segments with planned/actual timestamps and variance, explicit Event Day System Operator designation, transactional audited handoffs with carried outstanding items, structured per-day EOD reports and PMCM replies, derived run-sheet composition, server-clock operational timers, and an explicit no-schedule state. External notification delivery remains queued under W11's provider gate.
 - W10 provider-neutral storage foundation: shared Zod upload/confirm contracts, durable event-scoped `OpsStoredObject` metadata with requested/stored/failed/deleted lifecycle, server-side usage/type/extension/size/checksum validation, scoped authorization, and idempotent logical-target handling. A local filesystem adapter is available only when explicitly configured with `PRISM_STORAGE_PROVIDER=local` and `PRISM_STORAGE_LOCAL_DIRECTORY`; absent configuration records a failed request with an explicit reason and never returns a success URL.
