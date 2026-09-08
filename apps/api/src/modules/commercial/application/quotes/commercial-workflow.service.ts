@@ -399,10 +399,17 @@ export class CommercialWorkflowService {
 
   async setSupplierAvailability(supplierId: string, input: SupplierAvailabilityInput, actorName = 'PMCM Admin') {
     const availableOn = new Date(`${input.availableOn}T00:00:00.000Z`);
-    return this.prisma.opsSupplierAvailability.upsert({
-      where: { supplierId_availableOn: { supplierId, availableOn } },
-      create: { id: `avail_${randomUUID()}`, supplierId, availableOn, capacity: input.capacity, blocked: Boolean(input.blocked), notes: input.notes ?? '' },
-      update: { capacity: input.capacity, blocked: Boolean(input.blocked), notes: input.notes ?? '' },
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const result = await tx.opsSupplierAvailability.upsert({
+        where: { supplierId_availableOn: { supplierId, availableOn } },
+        create: { id: `avail_${randomUUID()}`, supplierId, availableOn, capacity: input.capacity, blocked: Boolean(input.blocked), notes: input.notes ?? '' },
+        update: { capacity: input.capacity, blocked: Boolean(input.blocked), notes: input.notes ?? '' },
+      });
+      await writeAudit(this.auditWriter, undefined, actorName, `Updated supplier availability: ${supplierId}`, {
+        actorRole: 'pmcm-admin', actionType: AuditActionType.Update, category: AuditCategory.Suppliers,
+        affectedType: 'supplier_availability', affectedId: result.id, metadata: { supplierId, availableOn: input.availableOn, capacity: input.capacity, blocked: Boolean(input.blocked) },
+      }, { prisma: tx, actorId: actorName, correlationId: `supplier-availability:${result.id}` });
+      return result;
     });
   }
 
