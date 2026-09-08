@@ -4,9 +4,9 @@
     "description": "p.r.i.s.m backend — NestJS monorepo",
     "private": true,
     "scripts": {
-        "dev": "node scripts/kill-prism-api-port.cjs && nest start api --watch",
+        "dev": "node scripts/start-prism-api.cjs --mode dev",
         "build": "nest build api",
-        "start": "node scripts/kill-prism-api-port.cjs && node dist/apps/api/src/main.js",
+        "start": "node scripts/start-prism-api.cjs --mode start",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",

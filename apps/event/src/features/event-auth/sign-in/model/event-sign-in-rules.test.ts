@@ -19,6 +19,15 @@ describe("event-sign-in-rules", () => {
     expect(eventRoleRejectionMessage("supplier")).toContain("3002");
   });
 
+  it("uses checkout-derived portal URLs when provided", () => {
+    const env = {
+      NEXT_PUBLIC_CLIENT_PORTAL_URL: "http://localhost:3151",
+      NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "http://localhost:3152",
+    };
+    expect(eventRoleRejectionMessage("client", env)).toContain("http://localhost:3151");
+    expect(eventRoleRejectionMessage("supplier", env)).toContain("http://localhost:3152");
+  });
+
   it("resolves safe post-login paths", () => {
     expect(resolveEventPostSignInPath("/dashboard/tasks")).toBe("/dashboard/tasks");
     expect(resolveEventPostSignInPath("https://evil.test")).toBe("/dashboard");

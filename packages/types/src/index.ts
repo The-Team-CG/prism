@@ -1,6 +1,7 @@
 export * from "./event-ops.js";
 export * from "./inquiry-link.js";
 export * from "./lifecycle.js";
+export * from "./portal-urls.js";
 export * from "./session.js";
 export * from "./schemas/index.js";
 export * from "./storage.js";
