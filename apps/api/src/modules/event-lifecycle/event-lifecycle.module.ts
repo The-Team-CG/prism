@@ -21,7 +21,7 @@ import { CLOSURE_COMMANDS, CLOSURE_READINESS_READER } from './contracts/closure-
 import { EventClosureService } from './application/closure/event-closure.service';
 import { EventWrapUpReminderScheduler } from './application/closure/event-wrap-up-reminder.scheduler';
 import { OpsEventFileRequirementsController } from './api/files/event-file-requirements.controller';
-import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER, SIGNED_UPLOAD_URL_FACTORY } from './contracts/file-ops.tokens';
+import { FILE_REQUIREMENT_COMMANDS, FILE_REQUIREMENT_READER } from './contracts/file-ops.tokens';
 import { DocumentVaultService } from './application/files/document-vault.service';
 import { DOCUMENT_VAULT } from './contracts/document-vault.port';
 import { FileRequirementsMatrixService } from './application/files/file-requirements-matrix.service';
@@ -111,7 +111,6 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     FileRequirementsMatrixService,
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
-    SIGNED_UPLOAD_URL_FACTORY,
     ChangeManagementService,
   ],
 })
