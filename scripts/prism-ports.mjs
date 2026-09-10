@@ -195,11 +195,16 @@ function reconcilePortSlots(commonDir, linkedPaths) {
 export function describeCheckout(cwd = process.cwd()) {
   try {
     const worktreeRoot = gitValue(["rev-parse", "--show-toplevel"], cwd);
-    const primary = isPrimaryCheckout({
-      gitDir: path.resolve(worktreeRoot, gitValue(["rev-parse", "--git-dir"], cwd)),
-      gitCommonDir: path.resolve(worktreeRoot, gitValue(["rev-parse", "--git-common-dir"], cwd)),
-    });
-    return { worktreeRoot, isPrimary: primary };
+    // git reports these relative to the *cwd*, not the worktree root, and it can
+    // return one absolute and one relative in the same breath. Resolving them
+    // against the worktree root therefore pointed above the repo whenever the
+    // cwd was a workspace folder (`npm --workspace <app> run dev`), which made
+    // the primary checkout look like a linked worktree. Let git absolutize both.
+    const [gitDir, gitCommonDir] = gitValue(
+      ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"],
+      cwd,
+    ).split(/\r?\n/);
+    return { worktreeRoot, isPrimary: isPrimaryCheckout({ gitDir, gitCommonDir }) };
   } catch {
     return { worktreeRoot: path.resolve(cwd), isPrimary: true };
   }
