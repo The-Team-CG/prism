@@ -1,5 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   PRISM_APPS,
@@ -7,7 +10,9 @@ import {
   assignPortSlots,
   corsOriginFor,
   derivePortOffset,
+  describeCheckout,
   isPrimaryCheckout,
+  normalizeWorktreePath,
   parseWorktreeList,
   resolvePort,
   resolvePortSet,
@@ -145,5 +150,34 @@ describe("prism port resolution", () => {
   it("only offsets linked worktrees", () => {
     assert.equal(derivePortOffset({ worktreeRoot: "C:/repo", isPrimary: true }), 0);
     assert.ok(derivePortOffset({ worktreeRoot: "C:/repo/.worktrees/alpha", isPrimary: false }) > 0);
+  });
+});
+
+describe("checkout discovery", () => {
+  /**
+   * `npm --workspace <app> run dev` runs the dev script from the workspace
+   * folder rather than the repo root. git reports `--git-dir` and
+   * `--git-common-dir` relative to the cwd, so resolving them against the
+   * worktree root used to land above the repo and mislabel the primary
+   * checkout as a linked worktree -- which then failed with
+   * "No persisted port slot for linked worktree".
+   */
+  it("identifies the same checkout from any working directory inside it", () => {
+    const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+    const baseline = describeCheckout(repoRoot);
+    const nestedDirs = ["scripts", "apps/api", "apps/event", "packages/types"]
+      .map((relative) => path.join(repoRoot, relative))
+      .filter((candidate) => fs.existsSync(candidate));
+
+    assert.ok(nestedDirs.length > 0, "expected nested workspace directories to inspect");
+    for (const cwd of nestedDirs) {
+      const nested = describeCheckout(cwd);
+      assert.equal(
+        normalizeWorktreePath(nested.worktreeRoot),
+        normalizeWorktreePath(baseline.worktreeRoot),
+        `worktree root drifted when resolved from ${cwd}`,
+      );
+      assert.equal(nested.isPrimary, baseline.isPrimary, `checkout kind drifted when resolved from ${cwd}`);
+    }
   });
 });
