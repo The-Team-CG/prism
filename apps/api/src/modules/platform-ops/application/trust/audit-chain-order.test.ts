@@ -29,7 +29,21 @@ describe('historical audit ordering', () => {
     const otherRoot = { id: 'other-root', immutableHash: 'other-root-hash', previousHash: null };
     const otherTail = { id: 'other-tail', immutableHash: 'other-tail-hash', previousHash: 'other-root-hash' };
 
-    expect(isIndependentAuditChainSet([root, tail, otherRoot, otherTail])).toBe(true);
-    expect(isIndependentAuditChainSet([root, tail, { id: 'fork', immutableHash: 'fork', previousHash: 'root' }])).toBe(false);
+    const checked: string[] = [];
+    expect(isIndependentAuditChainSet([root, tail, otherRoot, otherTail], (log) => {
+      checked.push(log.id);
+      return true;
+    })).toBe(true);
+    expect(checked).toHaveLength(4);
+    expect(isIndependentAuditChainSet([root, tail, { id: 'fork', immutableHash: 'fork', previousHash: 'root' }], () => true)).toBe(false);
+  });
+
+  it('requires exactly two roots and a valid immutable hash for every row', () => {
+    const otherRoot = { id: 'other-root', immutableHash: 'other-root-hash', previousHash: null };
+    const otherTail = { id: 'other-tail', immutableHash: 'other-tail-hash', previousHash: 'other-root-hash' };
+    const thirdRoot = { id: 'third-root', immutableHash: 'third-root-hash', previousHash: null };
+
+    expect(isIndependentAuditChainSet([root, tail, otherRoot, otherTail], (log) => log.immutableHash !== 'tail')).toBe(false);
+    expect(isIndependentAuditChainSet([root, tail, otherRoot, otherTail, thirdRoot], () => true)).toBe(false);
   });
 });

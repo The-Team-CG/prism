@@ -65,7 +65,7 @@ The current implementations are:
 | Consumer need | Port/token | Adapter/composition |
 | --- | --- | --- |
 | Kernel forbidden-access audit | `kernel/access-control` `AUDIT_WRITER` | `PlatformOpsAuditWriterModule` binds `AuditWriterAdapter` |
-| Identity login and lockout audit | `identity-access` `AUTH_AUDIT` | `AuthAuditAdapter` is the only identity adapter that knows the platform audit implementation; authentication telemetry records a known ambiguous historical tail as an incident without denying credentials, while broken hash links and audit-storage failures remain fail-closed |
+| Identity login and lockout audit | `identity-access` `AUTH_AUDIT` | `AuthAuditAdapter` is the only identity adapter that knows the platform audit implementation; authentication telemetry and lockout/forbidden alert paths record a known, hash-validated two-chain historical tail as an incident without denying normal responses, while broken hash links, audit-storage failures, and incident-write failures remain fail-closed |
 | Lifecycle document storage | `event-lifecycle` `DOCUMENT_VAULT` | metadata-only document adapter is bound in the lifecycle module |
 | Notification outbox writes | `platform-ops` `NOTIFICATION_OUTBOX_WRITER` | notification adapter binds the outbox implementation |
 | Cross-context dashboard reads | `FINANCE_COMMANDS`, `STAFFING_READER`, `FLOORPLAN_READER`, `GUEST_READER` | owning contexts bind readers/commands; `read-models` maps and never writes |
