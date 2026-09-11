@@ -4,12 +4,12 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-11"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "codex/architecture-alignment-fe-be"
+last_verified: "codex/prisma-migration-guardrails"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -20,6 +20,12 @@ sources:
   - id: read-models
     resource: "apps/api/src/modules/read-models/application/queries"
     title: "Role-scoped read-model queries"
+  - id: migration-policy
+    resource: "apps/api/prisma/migration-policy.json"
+    title: "Prisma migration ownership policy"
+  - id: migration-guard
+    resource: "apps/api/scripts/check-prisma-migrations.mjs"
+    title: "Prisma migration guard"
 ---
 # P.R.I.S.M persistence ownership and intentional joins
 
@@ -47,6 +53,43 @@ sources:
 | **Read** | A scoped projection or lookup explicitly allowed by the join register. |
 | **Transitional write** | A known cross-context update retained for a workflow; it must be named, tested, and replaced by a command/event seam before service extraction. |
 | **Read-model join** | Composition of owner-provided records for a role-safe response; it is never a business write authority. |
+
+## Migration ownership
+
+Prism keeps one Prisma migration history under
+`apps/api/prisma/migrations`. It remains a flat, append-only runtime tree because
+Prisma's migration engine owns discovery, checksums, and the `_prisma_migrations`
+ledger. New migration directory names carry the owning context:
+`YYYYMMDDHHmmss_<owner>_<change_slug>`. Existing applied directories are
+immutable and remain grandfathered in the policy.
+
+The static owner buckets map to physical schemas as follows:
+
+| Migration owner | Physical schemas | Boundary note |
+| --- | --- | --- |
+| `event-lifecycle` | `event_core`, `compliance_ops` | Inquiry, event, briefing, compliance, closure, and lifecycle records. |
+| `commercial` | `supplier_ops`, `finance_ops` | Supplier network and finance persistence. |
+| `operations` | `guest_ops`, `staffing_ops` | Guest workflows and coordinator/staffing records. |
+| `live-ops` | `staffing_ops` | Event-day records in the intentionally shared staffing schema. |
+| `floorplan` | `floorplan` | Official plans, drafts, templates, and snapshots. |
+| `identity-access` | `identity` | Authentication, approval, session, and identity records. |
+| `platform-ops` | `platform_ops`, `trust_ops` | Storage metadata, audit, notification, security, and AI governance. |
+
+`staffing_ops` is intentionally shared by `operations` and `live-ops` while
+their table ownership is split in this register. A migration that crosses an
+owner boundary or changes a table-level exception requires an explicit policy
+and ownership review; the schema allowlist is not blanket permission to write
+another context's records. `read-models`, the kernel, and compatibility/sample
+do not own business migrations.
+
+`apps/api/scripts/check-prisma-migrations.mjs` enforces the policy for future
+migrations: direct Prisma directory structure, immutable legacy names, unique
+future versions and calendar timestamps, owner-aware names and headers,
+normalized legacy SQL checksums, schema-qualified SQL and relation references,
+allowed physical schemas, documented table-owner exceptions, inferred change
+kind, and a risk declaration that cannot understate static risk. Unsupported
+procedural/dynamic migration SQL fails closed. It is a static guard and does
+not authorize database repair or deployment.
 
 ## Model ownership
 
