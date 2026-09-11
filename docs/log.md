@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-09-12
+
+- **Decided:** Authentication remains available when the existing audit history has a known, hash-validated two-chain tail; the authentication seam records a critical integrity incident and preserves credential, lockout, session, and authentication-alert behavior, while unavailable audit storage or incident persistence still fails closed. Live audit rows remain untouched pending operator reconciliation.
+
 ## 2026-09-11
 
 - **Added:** Prisma migration ownership policy with normalized legacy SQL checksums, static future-migration guard, and canonical database migration runbook covering Prisma's flat execution history, owner-aware metadata, deployment preflight, and ledger/live-schema drift recovery. Existing applied migration directories remain unchanged.
