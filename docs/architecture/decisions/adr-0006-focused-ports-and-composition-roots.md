@@ -4,7 +4,7 @@ title: "Focused ports and composition-root adapters"
 description: "Invert real cross-context dependencies with focused ports while keeping the current modular monolith as one deployable system."
 tags: [architecture, decision, ddd, modular-monolith, ports, extraction]
 status: accepted
-updated: "2026-09-01"
+updated: "2026-09-12"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, backend-engineers, reviewers]
@@ -65,7 +65,7 @@ The current implementations are:
 | Consumer need | Port/token | Adapter/composition |
 | --- | --- | --- |
 | Kernel forbidden-access audit | `kernel/access-control` `AUDIT_WRITER` | `PlatformOpsAuditWriterModule` binds `AuditWriterAdapter` |
-| Identity login and lockout audit | `identity-access` `AUTH_AUDIT` | `AuthAuditAdapter` is the only identity adapter that knows platform audit implementation |
+| Identity login and lockout audit | `identity-access` `AUTH_AUDIT` | `AuthAuditAdapter` is the only identity adapter that knows the platform audit implementation; authentication telemetry records a known ambiguous historical tail as an incident without denying credentials, while broken hash links and audit-storage failures remain fail-closed |
 | Lifecycle document storage | `event-lifecycle` `DOCUMENT_VAULT` | metadata-only document adapter is bound in the lifecycle module |
 | Notification outbox writes | `platform-ops` `NOTIFICATION_OUTBOX_WRITER` | notification adapter binds the outbox implementation |
 | Cross-context dashboard reads | `FINANCE_COMMANDS`, `STAFFING_READER`, `FLOORPLAN_READER`, `GUEST_READER` | owning contexts bind readers/commands; `read-models` maps and never writes |

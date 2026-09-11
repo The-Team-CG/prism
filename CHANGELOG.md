@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - A second sample event (`evt_sample_unassigned`) with no coordinator assignment so unassigned-event checks can run.
 
 ### Changed
+- Authentication telemetry now treats a known ambiguous historical audit tail as a degraded, incident-recorded condition instead of blocking credential verification or session issuance; broken hash links and unavailable audit storage remain fail-closed.
 - Portal `dev` and `start` scripts resolve their port from the checkout instead of a hard-coded literal, so a linked worktree no longer starts on the primary checkout's port. The primary checkout keeps ports 3001-3004 and 4000, and the port guard refuses to stop a process whose argv belongs to another checkout.
 - Reconciled the complete catalog review and effort/priority/risk matrix against the P0 implementation, separating completed corrections, satisfied policy prerequisites and remaining catalog gaps.
 - Corrected the P0 verification report with the reproduced supplier-ownership fixture boundary failure (V01); retained it as an open review gate without changing application source.

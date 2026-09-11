@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -13,7 +13,7 @@ import {
 } from '@prism/kernel/event-core';
 import { mapAuditLog } from './audit.mappers';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import { auditTailCandidates, orderLinkedAuditLogs } from './audit-chain-order';
+import { auditTailCandidates, isIndependentAuditChainSet, orderLinkedAuditLogs } from './audit-chain-order';
 import { NotificationOutboxService } from '../notifications/notification-outbox.service';
 
 type AuditLogFilters = {
@@ -55,6 +55,14 @@ export type IntegrityIncidentInput = {
   actor?: string;
   metadata?: Record<string, unknown>;
 };
+
+export type AuditIntegrityConflictKind = 'ambiguous_tail' | 'broken_chain';
+
+export class AuditIntegrityConflictException extends ConflictException {
+  constructor(message: string, readonly kind: AuditIntegrityConflictKind) {
+    super(message);
+  }
+}
 
 const BULK_EXPORT_ALERT_THRESHOLD = 25;
 const LOGIN_LOCKOUT_THRESHOLD = 5;
@@ -205,6 +213,8 @@ function lockoutAlertPayload(user: OpsUser, state: LockoutState) {
 
 @Injectable()
 export class AuditService {
+  private readonly logger = new Logger(AuditService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationOutbox?: NotificationOutboxService,
@@ -279,13 +289,14 @@ export class AuditService {
     let lastVerifiedHash: string | null = null;
     const chain = orderLinkedAuditLogs(logs);
     const tails = auditTailCandidates(logs);
+    const ambiguousTail = isIndependentAuditChainSet(logs);
     if (chain.firstBrokenLogId) {
       return {
         valid: false,
         checkedCount: logs.length,
         firstBrokenLogId: chain.firstBrokenLogId,
-        ambiguousTail: tails.length > 1,
-        ambiguousTailLogIds: tails.length > 1 ? tails.map((tail) => tail.id) : [],
+        ambiguousTail,
+        ambiguousTailLogIds: ambiguousTail ? tails.map((tail) => tail.id) : [],
         lastVerifiedHash,
         checkedAt: new Date().toISOString(),
       };
@@ -366,6 +377,37 @@ export class AuditService {
     });
   }
 
+  async recordAuthenticationAudit(input: AuditLogInput) {
+    const { eventId, actor, action, ...options } = input;
+    try {
+      return await this.audit(eventId, actor, action, options);
+    } catch (error) {
+      if (!(error instanceof AuditIntegrityConflictException) || error.kind !== 'ambiguous_tail') throw error;
+
+      const reason = error.message;
+      try {
+        await this.recordIntegrityIncident({
+          source: 'identity-access.authentication',
+          reason,
+          eventId,
+          actor,
+          metadata: {
+            ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
+            ...(input.category !== undefined ? { category: input.category } : {}),
+            ...(input.affectedType !== undefined ? { affectedType: input.affectedType } : {}),
+            ...(input.affectedId !== undefined ? { affectedId: input.affectedId } : {}),
+            ...(input.affectedLabel !== undefined ? { affectedLabel: input.affectedLabel } : {}),
+          },
+        });
+      } catch (incidentError) {
+        const incidentMessage = incidentError instanceof Error ? incidentError.message : String(incidentError);
+        this.logger.error(`Authentication audit integrity incident could not be persisted: ${incidentMessage}`);
+      }
+      this.logger.error(`Authentication audit was skipped until integrity review: ${reason}`);
+      return null;
+    }
+  }
+
   private async auditTail(prisma: Prisma.TransactionClient) {
     // The complete chain is read in bounded pages so append integrity does not
     // issue an unbounded database query.
@@ -373,11 +415,13 @@ export class AuditService {
     if (logs.length === 0) return null;
     const chain = orderLinkedAuditLogs(logs);
     const tails = auditTailCandidates(logs);
+    if (isIndependentAuditChainSet(logs)) {
+      throw new AuditIntegrityConflictException('Audit history has an ambiguous tail; integrity review is required', 'ambiguous_tail');
+    }
     if (chain.firstBrokenLogId || tails.length !== 1) {
-      throw new ConflictException(
-        tails.length > 1
-          ? 'Audit history has an ambiguous tail; integrity review is required'
-          : `Audit history is not a single hash-linked chain; integrity review is required (${chain.firstBrokenLogId ?? 'unknown'})`,
+      throw new AuditIntegrityConflictException(
+        `Audit history is not a single hash-linked chain; integrity review is required (${chain.firstBrokenLogId ?? 'unknown'})`,
+        'broken_chain',
       );
     }
     return tails[0];
@@ -417,7 +461,9 @@ export class AuditService {
     const history = lockoutHistory(state);
     await this.recordLoginHistory(user, user.email, history.status, history.reason);
 
-    await this.audit(undefined, user.name, `Failed login attempt for ${user.email}`, {
+    await this.recordAuthenticationAudit({
+      actor: user.name,
+      action: `Failed login attempt for ${user.email}`,
       actorRole: user.role,
       actorEmail: user.email,
       actionType: AuditActionType.LoginFailed,
@@ -437,7 +483,9 @@ export class AuditService {
   async handleForbiddenAccess(user: OpsUser, email: string, reason: string) {
     await this.recordLoginHistory(user, email, LoginHistoryStatus.Blocked, reason);
 
-    await this.audit(undefined, user.name, `403 forbidden access for ${email}: ${reason}`, {
+    await this.recordAuthenticationAudit({
+      actor: user.name,
+      action: `403 forbidden access for ${email}: ${reason}`,
       actorRole: user.role,
       actorEmail: user.email,
       actionType: AuditActionType.ForbiddenAccess,
