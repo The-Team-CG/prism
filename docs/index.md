@@ -20,7 +20,7 @@ scope, verification, and source/provenance entries.
    decisions, readiness, and redesign evidence.
 4. [Roadmap](roadmap/index.md) — priority, risk, dependencies, and verification
    for the remaining architecture work.
-5. [Runbooks](runbooks/index.md) — local operation, Docker, and demo accounts.
+5. [Runbooks](runbooks/index.md) — local operation, database migrations, Docker, and demo accounts.
 6. [Reference](reference/index.md) — source-preserving V4 catalog material.
 
 ## Metadata at a glance

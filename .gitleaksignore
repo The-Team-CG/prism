@@ -1,0 +1,2 @@
+# This immutable migration identifier is a name, not a credential.
+apps/api/prisma/migration-policy.json:generic-api-key:113
