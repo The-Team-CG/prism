@@ -1,0 +1,264 @@
+{
+  "policyVersion": 1,
+  "legacyMaxVersion": "20260909100000",
+  "ownerAwareNamePattern": "YYYYMMDDHHmmss_<owner>_<change_slug>",
+  "legacyMigrationNames": [
+    "20260425131500_init_mvp_schema",
+    "20260425144500_add_missing_mvp_tables",
+    "20260425163000_portal_split_workflow",
+    "20260426000000_remove_mvp_schema",
+    "20260426183000_add_event_ops_workflow",
+    "20260426194000_add_ops_floor_plan_drafts",
+    "20260426205500_add_floorplan_preference_metadata",
+    "20260428233000_add_supplier_directory",
+    "20260428235500_add_inquiry_intake_onboarding",
+    "20260429003500_add_comprehensive_audit_log",
+    "20260429103000_add_coordinator_pool",
+    "20260430130000_add_supplier_quotes_billing_payments",
+    "20260501090000_add_inquiry_triage_metadata",
+    "20260501120000_phase3_supplier_quote_floorplan_hardening",
+    "20260501143000_phase4_compliance_billing_close_insights",
+    "20260501153000_phase9_privacy_operations_audit_hardening",
+    "20260501170000_phase5_portal_notifications_uploads_ai",
+    "20260501190000_phase6_event_day_operations",
+    "20260501210000_phase7_live_ops_reliability",
+    "20260501230000_phase8_security_privacy_audit",
+    "20260506120000_persist_floorplan_template_metadata",
+    "20260614090000_add_notification_correlation",
+    "20260620090000_split_domain_schemas",
+    "20260620091000_rename_domain_tables",
+    "20260620092000_add_domain_performance_indexes",
+    "20260620093000_normalize_remaining_indexes",
+    "20260709120000_add_inquiry_channel",
+    "20260720120000_add_pmcm_admin_totp",
+    "20260722192311_add_supplier_review_dimensions_and_idempotency",
+    "20260729100000_add_supplier_applications",
+    "20260826120000_add_urgent_issue_affected_area",
+    "20260903100000_add_registration_platforms",
+    "20260904120000_add_event_proposal_review",
+    "20260908000100_p1_end_and_supplier_bindings",
+    "20260908000200_notification_delivery_claims",
+    "20260908000300_communication_threads",
+    "20260908000400_communication_scoped_idempotency_read_state",
+    "20260908000400_guest_roster_entries",
+    "20260908000500_audit_chain_serialization",
+    "20260908000600_guest_walkin_policy",
+    "20260908000700_password_reset_and_session_version",
+    "20260908000800_feedback_moderation_consent_media",
+    "20260908000800_password_reset_rate_limits",
+    "20260908002000_guest_roster_import_provenance",
+    "20260908010000_staffing_availability_coverage_acknowledgement",
+    "20260908020000_compliance_engine",
+    "20260908020000_live_ops_schedule_handoff_eod",
+    "20260908030000_w20_task_reassignment_requests",
+    "20260908110000_storage_objects",
+    "20260908120000_billing_operations",
+    "20260908120000_event_wrap_up",
+    "20260908120000_proposal_lifecycle",
+    "20260908120000_supplier_schedules",
+    "20260908120100_rename_closure_acknowledgement",
+    "20260908121500_billing_statement_sequence",
+    "20260908121600_additional_billing_status",
+    "20260908130000_inquiry_status_history",
+    "20260908130000_supplier_selection_rounds",
+    "20260908143000_w25_event_decisions",
+    "20260908150000_w26_freeze_addenda",
+    "20260908160000_pare_dispatch_outbox",
+    "20260908161000_command_receipts",
+    "20260909100000_command_receipt_event_scope"
+  ],
+  "legacyMigrationChecksums": {
+    "20260425131500_init_mvp_schema": "17f01d41f2d20f499db87170964565a03b6b993de55139f7c556602209cd292f",
+    "20260425144500_add_missing_mvp_tables": "3a2a382be73bd0c71c8d2ed4a504bd88691fa7ebd0d5527106fa2adc11cc755e",
+    "20260425163000_portal_split_workflow": "3018308e5060e504084ec259ae2d696c1f930cc0f6c8b2701f28b2fd6643edf5",
+    "20260426000000_remove_mvp_schema": "e101d914c0ee6014d593e8c1d81667502f2282604a867fadd1865ec7b1f4c05c",
+    "20260426183000_add_event_ops_workflow": "666470b6ee089edb5cdd872ff98d11ac0fa233c841112a915f207d5e63d7b84a",
+    "20260426194000_add_ops_floor_plan_drafts": "ca4a9d88fe441800700d8378a87101e0f05edb260860c1cc8ddc2aa3b001fc7b",
+    "20260426205500_add_floorplan_preference_metadata": "bffd88b45072eaace21879ac95a9a6a795e996e8314d8fb3a8ed70fe4f2a2d26",
+    "20260428233000_add_supplier_directory": "3597319fc7da06d6e7f05cc4aade52a0c1d5a816f6953e2d90f2f1407eef7726",
+    "20260428235500_add_inquiry_intake_onboarding": "f0a44aa0d004e929340dfafb43f1d25ac54b3a3829aad2d84c27eeb01c4bb5ea",
+    "20260429003500_add_comprehensive_audit_log": "6d3aab934af7247614e47770aac7cccb375e54220b63736fdb3f5329537b51ed",
+    "20260429103000_add_coordinator_pool": "1f27cea22df6a88f4587b94a2d8ea4ca25159714b3e623b0e76f02743e4a467a",
+    "20260430130000_add_supplier_quotes_billing_payments": "d2f02005f782602931070254374aaa447cbea2cfd2703f1a6fed0da52c386b6a",
+    "20260501090000_add_inquiry_triage_metadata": "e9b81b221641c0878627ecc04ae6581ad7eb181b2b6625928ae1b5024669c79b",
+    "20260501120000_phase3_supplier_quote_floorplan_hardening": "23fa0f9a1b9af53d05f760014c9d35c43205077f760236e725aee133d4b07509",
+    "20260501143000_phase4_compliance_billing_close_insights": "96f8108cb0def7c84edc5bd9bfe6a01390514e52f8e4e63eff3b1eead13f04eb",
+    "20260501153000_phase9_privacy_operations_audit_hardening": "c0337a575e2217d4f465ab6b0f1ac4f635c55ca54902ba4fed5628cfa82d3ab5",
+    "20260501170000_phase5_portal_notifications_uploads_ai": "300b8ccf63dd25ba9e3cd5c8cb58b9951ab8f73199d4929ad9d43482f5031449",
+    "20260501190000_phase6_event_day_operations": "6ad3594d0470ac8dd5dab3d28ad6cad29705f71c3cfb61ad97b47b0162e919bc",
+    "20260501210000_phase7_live_ops_reliability": "575a7273894804168195a9047946bd4da9a1ca634048fdf74d5bce01d974079b",
+    "20260501230000_phase8_security_privacy_audit": "43874a02c125bf4df77ec47a7909be645f4eb6e6013f640dc79e2c22f250b086",
+    "20260506120000_persist_floorplan_template_metadata": "de6dd557c6203449075eba70f82ec27b20f9c927c51971f6284521670ceeaddb",
+    "20260614090000_add_notification_correlation": "8d9d548ede346288042bb84d48e58d5684988257b68db654b0dadbc2123bface",
+    "20260620090000_split_domain_schemas": "281456a43cf58fa81fafdd471fadb26a2d63233147db5729af615dead443fbef",
+    "20260620091000_rename_domain_tables": "8a4c477339447577ecc5e62d33203e1b6bcd1d75622cca212d4967eb7ec8dddd",
+    "20260620092000_add_domain_performance_indexes": "9f8a3ff1f38449a8e95df8746e1152456d70973bcdd4bd0b9997c6f00697be7c",
+    "20260620093000_normalize_remaining_indexes": "51868d776318c8545a600abf91df517c3d1d1acb644590c4cf6b56f229d78f84",
+    "20260709120000_add_inquiry_channel": "8b10336f569b1a11f00417603c2d69b75de1d1978ac897424e308ea28f429c46",
+    "20260720120000_add_pmcm_admin_totp": "a255ed607c7c72a42acf142ead3acea31dbe5262f0d4dbd2108bbaf221377b2c",
+    "20260722192311_add_supplier_review_dimensions_and_idempotency": "354c30098ba3abac6f025145e872aeffbfe96376c21cba1052948219aecc77d6",
+    "20260729100000_add_supplier_applications": "6aa2c2fc241f947b8e63e361ba48e99ffdd9da0080c1899733e12344a827c7c4",
+    "20260826120000_add_urgent_issue_affected_area": "204aa1edd2dd4e80fb11fbe94b2569d1c7f031cae97d516ca748754d4b0f82b2",
+    "20260903100000_add_registration_platforms": "d8931cbbd0fd57cf22193975169ccc9d9634f54edf6292587facdf3f8e95f4bb",
+    "20260904120000_add_event_proposal_review": "848d42745590c366584e0046a26179ba5880b5b3bfd1efe1e99502f6b35ab3bf",
+    "20260908000100_p1_end_and_supplier_bindings": "d4aa739567e715232a0131119584ab1697117789e6e4f9342d482aafdae653d0",
+    "20260908000200_notification_delivery_claims": "9e1bded10fe066cc38f370a8fa60dd1c4ce066d3285481d8c2f2ddd94430eae2",
+    "20260908000300_communication_threads": "92527b2300536bcbf3f1804a86e69cacd1b5758f6b36d27c633aa0b9f0dab75b",
+    "20260908000400_communication_scoped_idempotency_read_state": "abb3933b5bd3e62ba68539d01ff70d7aeccd6cafb12c0d5d94d4bcb31930b193",
+    "20260908000400_guest_roster_entries": "d9b9667fa913c0da7e4dc6090eaf2a8bfa92bcd3644be37874a27cc1969b023f",
+    "20260908000500_audit_chain_serialization": "fa7eafaa21b92737a16f09d7dfe924b5a8994bb0f251bc716bbccfcd53cc500f",
+    "20260908000600_guest_walkin_policy": "618446222a43083e9f10f6e6bb469ab71742a1899591d64f2a7e453f8bda6a68",
+    "20260908000700_password_reset_and_session_version": "5c66401b0d5dcc98b56889536ad8ed94b78d22a41a87ee053b9bc137bcac1f14",
+    "20260908000800_feedback_moderation_consent_media": "a96b72dcb4458d00c48424a5fc625ac197f4cb273854067c5865f9d405a9550e",
+    "20260908000800_password_reset_rate_limits": "850e1bc8e8c40cb8a60c03c160ec5b6b7231db602ff5d1279489d12065af970a",
+    "20260908002000_guest_roster_import_provenance": "5a906d1ec36fc9536254d96e6495f7a0e402ffc6f82a538c374655c23218867e",
+    "20260908010000_staffing_availability_coverage_acknowledgement": "9387e1df2b0141b72bfb38ae8597402d0619c46a1e6577d51684df69e5dc753b",
+    "20260908020000_compliance_engine": "81a4911acb0e1ded9b3b98764d5f6ea8340ea08a8389f54edbe0b4558f37e740",
+    "20260908020000_live_ops_schedule_handoff_eod": "3811b78ca4dcc258113f470a1e3bb87c8ead1caadf9cf38af4fa9ac6c8df3636",
+    "20260908030000_w20_task_reassignment_requests": "8728c819b0ed2036152347f4f4c2d9d2bacab1568cda0db19ef99cf45ec5a6ca",
+    "20260908110000_storage_objects": "b8ae82f4bcd67c7cdd710ca323f8e4b1b99e7c6927cbff0b63293d0de80bdc38",
+    "20260908120000_billing_operations": "239190363e9f9415dc547552aacbb7ab078b9f8d48b1235f1ccc54c43b2e67a1",
+    "20260908120000_event_wrap_up": "74692bb5620e044db854eb122c331d707e45d420d8adce2017b74e3876774dc4",
+    "20260908120000_proposal_lifecycle": "ceab5b31ee4d077f6d736c3fd2dab6a0b76469fd9aa491b2cc5275bd7d883d0d",
+    "20260908120000_supplier_schedules": "97393361d9918b2a48d15409b02c14cc20301070b715036222decb6040713505",
+    "20260908120100_rename_closure_acknowledgement": "e6f00fd10657a9e424976252c2cb28c74f263efc8567e450b339b68655196245",
+    "20260908121500_billing_statement_sequence": "0b81af852a0477e44a4f1d8009f88ed84dbb976445571af77d78db9de382ff9d",
+    "20260908121600_additional_billing_status": "371240a502ccb7c5fcae4c38d75b2a1341f5c300839c2c8d99b47522856b163e",
+    "20260908130000_inquiry_status_history": "239a6586c2abf5d2118e79e549ef4adec0344b2eadb7777dec20b53799bb66ab",
+    "20260908130000_supplier_selection_rounds": "fbb55a036f1a7bd19882022e4a33c5d9f46f0d206b50fd940dfe60ac5a536dbd",
+    "20260908143000_w25_event_decisions": "08a3ada8da4faa41d07b30a823fca2a4a3d7cba5ac20b4f3a2c89d38be49cf9b",
+    "20260908150000_w26_freeze_addenda": "fa8378ed5371fdb8fa497c422278b51f5b50c1910708249f74cbdb105e47f5d3",
+    "20260908160000_pare_dispatch_outbox": "843cad69c52a885f9b4016cbf7ec74fef57a4f7f8f1c5e2c47830e503e8bee65",
+    "20260908161000_command_receipts": "86e20308027cd486e436a48a13df2b135d960bce163f4c80e3349cd78b54ceb0",
+    "20260909100000_command_receipt_event_scope": "c6f9fcf5144fc577060921839ddc2050004ce78735f974165a8756850bf1966d"
+  },
+  "systemSchemas": [
+    "information_schema",
+    "pg_catalog"
+  ],
+  "forbiddenSchemas": [
+    "public"
+  ],
+  "requireTableOwnerMappingsForSchemas": [
+    "staffing_ops"
+  ],
+  "tableOwners": {
+    "event_core": {
+      "documents": [
+        "event-lifecycle",
+        "commercial"
+      ],
+      "privacy_requests": [
+        "platform-ops"
+      ]
+    },
+    "identity": {
+      "login_history": [
+        "platform-ops"
+      ],
+      "security_alerts": [
+        "platform-ops"
+      ]
+    },
+    "staffing_ops": {
+      "coordinators": [
+        "operations"
+      ],
+      "coordinator_availability": [
+        "operations"
+      ],
+      "event_coverage_requirements": [
+        "operations"
+      ],
+      "coordinator_assignments": [
+        "operations",
+        "live-ops"
+      ],
+      "coordinator_assignment_acknowledgments": [
+        "operations",
+        "live-ops"
+      ],
+      "event_day_tasks": [
+        "live-ops"
+      ],
+      "task_reassignment_requests": [
+        "live-ops"
+      ],
+      "event_schedule_days": [
+        "live-ops"
+      ],
+      "event_schedule_segments": [
+        "live-ops"
+      ],
+      "event_operator_designations": [
+        "live-ops"
+      ],
+      "event_handoffs": [
+        "live-ops"
+      ],
+      "event_eod_reports": [
+        "live-ops"
+      ],
+      "event_eod_replies": [
+        "live-ops"
+      ],
+      "urgent_issues": [
+        "live-ops"
+      ],
+      "event_day_logs": [
+        "live-ops"
+      ],
+      "coordinator_reliability_notes": [
+        "live-ops"
+      ]
+    }
+  },
+  "owners": {
+    "commercial": {
+      "schemas": [
+        "finance_ops",
+        "supplier_ops"
+      ],
+      "note": "Supplier and finance persistence owned by the commercial context."
+    },
+    "event-lifecycle": {
+      "schemas": [
+        "compliance_ops",
+        "event_core"
+      ],
+      "note": "Inquiry, event, briefing, compliance, closure, and lifecycle records."
+    },
+    "floorplan": {
+      "schemas": [
+        "floorplan"
+      ],
+      "note": "Official floorplans, drafts, templates, and published snapshots."
+    },
+    "identity-access": {
+      "schemas": [
+        "identity"
+      ],
+      "note": "Authentication, account approval, session, and identity records."
+    },
+    "live-ops": {
+      "schemas": [
+        "staffing_ops"
+      ],
+      "note": "Event-day tasks, urgent issues, logs, attendance, and handoff records."
+    },
+    "operations": {
+      "schemas": [
+        "guest_ops",
+        "staffing_ops"
+      ],
+      "note": "Guest workflows and staffing records; staffing_ops is intentionally shared with live-ops."
+    },
+    "platform-ops": {
+      "schemas": [
+        "platform_ops",
+        "trust_ops"
+      ],
+      "note": "Storage metadata, audit, notification, security, and AI governance records."
+    }
+  }
+}
