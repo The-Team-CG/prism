@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
@@ -13,8 +13,8 @@ export class EventDecisionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: EventAccessPolicyService,
-    private readonly auditWriter: AuditWriter,
-    private readonly notificationWriter: NotificationOutboxWriter,
+    @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationWriter: NotificationOutboxWriter,
   ) {}
 
   async list(eventId: string, actor: ResolvedEventOpsActor) {

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AccessControlModule } from '@prism/kernel/access-control';
+import { DatabaseModule } from '@prism/kernel/database';
 import { PlatformOpsAuditWriterModule } from './modules/platform-ops/platform-ops-audit-writer.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
 import { EventCoreModule } from '@prism/kernel/event-core';
@@ -27,6 +28,13 @@ import { TransformInterceptor } from './common/transform.interceptor';
     IdentityAccessModule,
     EventLifecycleModule,
     EventSessionModule,
+    // `OpsEventClosureController` below composes event-lifecycle, operations,
+    // and floorplan reads, so it is hosted here rather than in one context.
+    // Nest instantiates its `@UseGuards(EventSessionGuard)` enhancer in *this*
+    // module's context, so the guard's own `PrismaService` dependency has to
+    // resolve here too -- importing `EventSessionModule` alone is not enough
+    // (cf. PA-280, and the same note in `SampleCompatibilityModule`).
+    DatabaseModule,
     CommercialModule,
     FloorplanModule,
     OperationsModule,
