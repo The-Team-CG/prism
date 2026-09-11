@@ -14,6 +14,10 @@ export class AuthAuditAdapter implements AuthAuditPort {
     return this.auditService.audit(eventId, actor, action, options);
   }
 
+  recordAuthenticationAudit(input: AuditWriteInput) {
+    return this.auditService.recordAuthenticationAudit(input);
+  }
+
   recordLoginHistory(user: OpsUser | null, email: string, status: string, failureReason?: string) {
     return this.auditService.recordLoginHistory(user, email, status, failureReason);
   }
