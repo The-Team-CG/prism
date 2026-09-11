@@ -2,7 +2,7 @@
 
 ## 2026-09-12
 
-- **Decided:** Authentication remains available when the existing audit history has a known ambiguous hash-chain tail; the authentication seam records a critical integrity incident and preserves credential, lockout, and session behavior, while unavailable audit storage still fails closed. Live audit rows remain untouched pending operator reconciliation.
+- **Decided:** Authentication remains available when the existing audit history has a known, hash-validated two-chain tail; the authentication seam records a critical integrity incident and preserves credential, lockout, session, and authentication-alert behavior, while unavailable audit storage or incident persistence still fails closed. Live audit rows remain untouched pending operator reconciliation.
 
 ## 2026-09-11
 

@@ -289,7 +289,7 @@ export class AuditService {
     let lastVerifiedHash: string | null = null;
     const chain = orderLinkedAuditLogs(logs);
     const tails = auditTailCandidates(logs);
-    const ambiguousTail = isIndependentAuditChainSet(logs);
+    const ambiguousTail = isIndependentAuditChainSet(logs, (log) => this.hasValidImmutableHash(log));
     if (chain.firstBrokenLogId) {
       return {
         valid: false,
@@ -302,25 +302,7 @@ export class AuditService {
       };
     }
     for (const log of chain.ordered) {
-      const expectedHash = this.hashAuditPayload({
-        id: log.id,
-        eventId: log.eventId ?? null,
-        actor: log.actor,
-        actorRole: log.actorRole,
-        actorEmail: log.actorEmail ?? null,
-        action: log.action,
-        actionType: log.actionType,
-        category: log.category,
-        affectedType: log.affectedType ?? null,
-        affectedId: log.affectedId ?? null,
-        affectedLabel: log.affectedLabel ?? null,
-        metadata: log.metadata ?? {},
-        ipAddress: log.ipAddress,
-        device: log.device,
-        severity: log.severity,
-        previousHash: log.previousHash ?? null,
-        createdAt: log.createdAt.toISOString(),
-      });
+      const expectedHash = this.expectedAuditHash(log);
 
       if (log.previousHash !== previousHash || log.immutableHash !== expectedHash) {
         return {
@@ -402,6 +384,7 @@ export class AuditService {
       } catch (incidentError) {
         const incidentMessage = incidentError instanceof Error ? incidentError.message : String(incidentError);
         this.logger.error(`Authentication audit integrity incident could not be persisted: ${incidentMessage}`);
+        throw incidentError;
       }
       this.logger.error(`Authentication audit was skipped until integrity review: ${reason}`);
       return null;
@@ -415,7 +398,7 @@ export class AuditService {
     if (logs.length === 0) return null;
     const chain = orderLinkedAuditLogs(logs);
     const tails = auditTailCandidates(logs);
-    if (isIndependentAuditChainSet(logs)) {
+    if (isIndependentAuditChainSet(logs, (log) => this.hasValidImmutableHash(log))) {
       throw new AuditIntegrityConflictException('Audit history has an ambiguous tail; integrity review is required', 'ambiguous_tail');
     }
     if (chain.firstBrokenLogId || tails.length !== 1) {
@@ -476,7 +459,7 @@ export class AuditService {
     });
 
     if (state.shouldLock) {
-      await this.createSecurityAlert(lockoutAlertPayload(user, state));
+      await this.createSecurityAlert(lockoutAlertPayload(user, state), { authentication: true });
     }
   }
 
@@ -513,19 +496,22 @@ export class AuditService {
         severity: 'critical',
         triggeredBy: email,
         metadata: { userId: user.id, role: user.role, recentBlockedCount },
-      });
+      }, { authentication: true });
     }
   }
 
-  async createSecurityAlert(input: {
-    type: string;
-    title: string;
-    description: string;
-    severity?: string;
-    triggeredBy?: string;
-    eventId?: string;
-    metadata?: Record<string, unknown>;
-  }) {
+  async createSecurityAlert(
+    input: {
+      type: string;
+      title: string;
+      description: string;
+      severity?: string;
+      triggeredBy?: string;
+      eventId?: string;
+      metadata?: Record<string, unknown>;
+    },
+    options: { authentication?: boolean } = {},
+  ) {
     const recipient = await this.resolveTrustRecipient();
     const notificationReady = Boolean(recipient && this.notificationOutbox);
     const metadata = {
@@ -547,17 +533,19 @@ export class AuditService {
       },
     });
 
+    const auditOptions = {
+      actorRole: OpsUserRole.System,
+      actionType: input.type,
+      category: AuditCategory.Access,
+      affectedType: 'security_alert',
+      affectedId: alert.id,
+      affectedLabel: input.title,
+      severity: input.severity ?? 'warning',
+      metadata: input.metadata ?? {},
+    };
+    const auditWrite = { eventId: input.eventId, actor: 'System', action: input.title, ...auditOptions };
     await Promise.all([
-      this.audit(input.eventId, 'System', input.title, {
-        actorRole: OpsUserRole.System,
-        actionType: input.type,
-        category: AuditCategory.Access,
-        affectedType: 'security_alert',
-        affectedId: alert.id,
-        affectedLabel: input.title,
-        severity: input.severity ?? 'warning',
-        metadata: input.metadata ?? {},
-      }),
+      options.authentication ? this.recordAuthenticationAudit(auditWrite) : this.audit(input.eventId, 'System', input.title, auditOptions),
       ...(notificationReady
         ? [
             this.notify(input.eventId, recipient!, input.title, NotificationChannel.Email, `security-alert:${alert.id}:email`),
@@ -637,6 +625,32 @@ export class AuditService {
       immutableHash,
       createdAt,
     };
+  }
+
+  private expectedAuditHash(log: Pick<OpsAuditLog, 'id' | 'eventId' | 'actor' | 'actorRole' | 'actorEmail' | 'action' | 'actionType' | 'category' | 'affectedType' | 'affectedId' | 'affectedLabel' | 'metadata' | 'ipAddress' | 'device' | 'severity' | 'previousHash' | 'createdAt'>) {
+    return this.hashAuditPayload({
+      id: log.id,
+      eventId: log.eventId ?? null,
+      actor: log.actor,
+      actorRole: log.actorRole,
+      actorEmail: log.actorEmail ?? null,
+      action: log.action,
+      actionType: log.actionType,
+      category: log.category,
+      affectedType: log.affectedType ?? null,
+      affectedId: log.affectedId ?? null,
+      affectedLabel: log.affectedLabel ?? null,
+      metadata: log.metadata ?? {},
+      ipAddress: log.ipAddress,
+      device: log.device,
+      severity: log.severity,
+      previousHash: log.previousHash ?? null,
+      createdAt: log.createdAt.toISOString(),
+    });
+  }
+
+  private hasValidImmutableHash(log: OpsAuditLog) {
+    return log.immutableHash === this.expectedAuditHash(log);
   }
 
   private hashAuditPayload(payload: Record<string, unknown>) {

@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ConflictException } from '@nestjs/common';
 import { AuthOperationsService } from './auth-operations.service';
 
 describe('AuthOperationsService', () => {
@@ -27,7 +26,6 @@ describe('AuthOperationsService', () => {
     const auditService = {
       recordLoginHistory: vi.fn(async () => undefined),
       recordAuthenticationAudit: vi.fn(async () => undefined),
-      write: vi.fn(async () => undefined),
       handleFailedLogin: vi.fn(async () => undefined),
       handleForbiddenAccess: vi.fn(async () => undefined),
     };
@@ -76,7 +74,6 @@ describe('AuthOperationsService', () => {
     const authAudit = {
       recordLoginHistory: vi.fn(async () => undefined),
       recordAuthenticationAudit: vi.fn(async () => undefined),
-      write: vi.fn(async () => { throw new ConflictException('Audit history has an ambiguous tail; integrity review is required'); }),
       handleFailedLogin: vi.fn(async () => undefined),
       handleForbiddenAccess: vi.fn(async () => undefined),
     };
@@ -128,7 +125,6 @@ describe('AuthOperationsService', () => {
       recordAuthenticationAudit: vi.fn(async () => undefined),
       handleFailedLogin: vi.fn(async () => undefined),
       handleForbiddenAccess: vi.fn(async () => undefined),
-      write: vi.fn(async () => undefined),
     };
     const authSessionService = {
       verifyTwoFactorToken: vi.fn(() => ({ userId: user.id, email: user.email, role: 'pmcm-admin', purpose: 'challenge' })),
@@ -152,5 +148,49 @@ describe('AuthOperationsService', () => {
       action: 'Signed in to pmcm-admin portal',
     }));
     expect(authSessionService.issueSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not issue a session when the authentication integrity incident cannot be recorded', async () => {
+    const user = {
+      id: 'usr_client',
+      name: 'Ana Reyes',
+      email: 'ana@example.test',
+      password: 'prism-client',
+      role: 'client',
+      organization: 'Ana Events',
+      approvalStatus: 'approved',
+      permanentLockout: false,
+      lockedUntil: null,
+      failedLoginCount: 0,
+      lastLoginAt: null,
+      twoFactorSecret: null,
+      sessionVersion: 0,
+    };
+    const prisma = {
+      opsUser: {
+        findUnique: vi.fn(async () => user),
+        update: vi.fn(async () => user),
+      },
+    };
+    const authAudit = {
+      recordLoginHistory: vi.fn(async () => undefined),
+      recordAuthenticationAudit: vi.fn(async () => { throw new Error('audit incident unavailable'); }),
+      handleFailedLogin: vi.fn(async () => undefined),
+      handleForbiddenAccess: vi.fn(async () => undefined),
+    };
+    const authSessionService = {
+      issueSession: vi.fn(() => ({ accessToken: 'should-not-be-issued' })),
+      issueTwoFactorToken: vi.fn(),
+    };
+    const service = new AuthOperationsService(
+      prisma as any,
+      authAudit as any,
+      {} as any,
+      authSessionService as any,
+      {} as any,
+    );
+
+    await expect(service.login('ana@example.test', 'prism-client')).rejects.toThrow('audit incident unavailable');
+    expect(authSessionService.issueSession).not.toHaveBeenCalled();
   });
 });
