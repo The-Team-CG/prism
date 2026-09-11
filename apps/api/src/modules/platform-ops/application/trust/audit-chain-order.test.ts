@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { auditTailCandidates, orderLinkedAuditLogs, selectTiedAuditTail } from './audit-chain-order';
+import { auditTailCandidates, isIndependentAuditChainSet, orderLinkedAuditLogs, selectTiedAuditTail } from './audit-chain-order';
 
 describe('historical audit ordering', () => {
   const root = { id: 'z', immutableHash: 'root', previousHash: null };
@@ -24,5 +24,12 @@ describe('historical audit ordering', () => {
   it('reports every leaf when a historical fork needs operator review', () => {
     const fork = { id: 'f', immutableHash: 'fork', previousHash: 'root' };
     expect(auditTailCandidates([root, tail, fork]).map((row) => row.id)).toEqual(['a', 'f']);
+  });
+  it('recognizes separate valid roots without treating a fork as historical drift', () => {
+    const otherRoot = { id: 'other-root', immutableHash: 'other-root-hash', previousHash: null };
+    const otherTail = { id: 'other-tail', immutableHash: 'other-tail-hash', previousHash: 'other-root-hash' };
+
+    expect(isIndependentAuditChainSet([root, tail, otherRoot, otherTail])).toBe(true);
+    expect(isIndependentAuditChainSet([root, tail, { id: 'fork', immutableHash: 'fork', previousHash: 'root' }])).toBe(false);
   });
 });

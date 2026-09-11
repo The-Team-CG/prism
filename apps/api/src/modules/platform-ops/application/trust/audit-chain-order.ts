@@ -33,6 +33,39 @@ export function auditTailCandidates<T extends LinkedAudit>(logs: T[]): T[] {
   });
 }
 
+/** Distinguish separate linked historical chains from a fork or broken graph. */
+export function isIndependentAuditChainSet<T extends LinkedAudit>(logs: T[]) {
+  if (logs.length < 2) return false;
+  const roots = logs.filter((row) => row.previousHash === null);
+  if (roots.length < 2) return false;
+
+  const byHash = new Map<string, T>();
+  const children = new Map<string, T[]>();
+  for (const log of logs) {
+    if (byHash.has(log.immutableHash)) return false;
+    byHash.set(log.immutableHash, log);
+  }
+  for (const log of logs) {
+    if (log.previousHash === null) continue;
+    if (!byHash.has(log.previousHash)) return false;
+    const siblings = children.get(log.previousHash) ?? [];
+    siblings.push(log);
+    if (siblings.length > 1) return false;
+    children.set(log.previousHash, siblings);
+  }
+
+  const visited = new Set<string>();
+  for (const root of roots) {
+    let current: T | undefined = root;
+    while (current) {
+      if (visited.has(current.immutableHash)) return false;
+      visited.add(current.immutableHash);
+      current = children.get(current.immutableHash)?.[0];
+    }
+  }
+  return visited.size === logs.length && auditTailCandidates(logs).length === roots.length;
+}
+
 export function selectTiedAuditTail<T extends LinkedAudit>(logs: T[]): T | undefined {
   const parents = new Set(logs.map((row) => row.previousHash));
   const tails = logs.filter((row) => !parents.has(row.immutableHash));
