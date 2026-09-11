@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Prisma migration guardrails: a machine-readable owner/schema policy with normalized legacy SQL checksums, future owner-aware naming and SQL metadata, static order/ownership/kind/risk checks, fail-closed handling for unsupported procedural SQL, CI wiring, and a database migration deployment/drift-recovery runbook. Existing applied migration directories remain unchanged.
 - Parallel-worktree tooling: `npm run ports` reports the ports a checkout owns, and `worktree:create`, `worktree:setup`, and `worktree:remove` add, prepare, and tear down linked worktrees. Setup writes that worktree's `PORT`, `CORS_ORIGIN`, and `NEXT_PUBLIC_API_URL`; teardown unlinks `node_modules` junctions before deleting so the primary checkout's dependency tree survives.
 - Worktree tooling now proves port ownership, assigns collision-free derived port slots, validates real-path containment, and resolves launcher URLs from the active checkout.
 - Worktree hardening now persists collision-free slots in Git metadata, requires durable process leases, rejects reparse-point roots, defaults env seeding to examples, and blocks Docker mode from linked worktrees.
