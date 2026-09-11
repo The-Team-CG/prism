@@ -47,7 +47,9 @@ export class AuthOperationsService {
 
   private async rejectUnknownLogin(normalizedEmail: string) {
     await this.authAudit.recordLoginHistory(null, normalizedEmail, 'failed', 'Unknown email');
-    await writeAudit(this.authAudit, undefined, 'Unknown user', `Failed login attempt for ${normalizedEmail}`, {
+    await this.authAudit.recordAuthenticationAudit({
+      actor: 'Unknown user',
+      action: `Failed login attempt for ${normalizedEmail}`,
       actorRole: OpsUserRole.Unknown,
       actorEmail: normalizedEmail,
       actionType: AuditActionType.LoginFailed,
@@ -96,7 +98,9 @@ export class AuthOperationsService {
 
     await Promise.all([
       this.authAudit.recordLoginHistory(updated, normalizedEmail, 'success'),
-      writeAudit(this.authAudit, undefined, updated.name, `Signed in to ${updated.role} portal`, {
+      this.authAudit.recordAuthenticationAudit({
+        actor: updated.name,
+        action: `Signed in to ${updated.role} portal`,
         actorRole: updated.role,
         actorEmail: updated.email,
         actionType: AuditActionType.Login,
@@ -166,7 +170,9 @@ export class AuthOperationsService {
     });
     await Promise.all([
       this.authAudit.recordLoginHistory(updated, user.email, 'success'),
-      writeAudit(this.authAudit, undefined, updated.name, `Signed in to ${updated.role} portal`, {
+      this.authAudit.recordAuthenticationAudit({
+        actor: updated.name,
+        action: `Signed in to ${updated.role} portal`,
         actorRole: updated.role,
         actorEmail: updated.email,
         actionType: AuditActionType.Login,

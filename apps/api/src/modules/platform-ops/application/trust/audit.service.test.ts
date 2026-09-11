@@ -53,6 +53,145 @@ describe('AuditService', () => {
     expect(created[0]).toMatchObject({ previousHash: 'hash_tail' });
   });
 
+  it('keeps authentication available while recording an audit-chain integrity incident', async () => {
+    const alerts: unknown[] = [];
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
+      opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
+      opsAuditLog: {
+        findMany: async () => [
+          { id: 'aud_root_a', immutableHash: 'hash_a', previousHash: null, createdAt: new Date('2026-04-29T09:00:00.000Z') },
+          { id: 'aud_root_b', immutableHash: 'hash_b', previousHash: null, createdAt: new Date('2026-04-29T09:01:00.000Z') },
+        ],
+        create: async ({ data }: { data: unknown }) => data,
+      },
+      opsSecurityAlert: {
+        create: async ({ data }: { data: unknown }) => { alerts.push(data); return data; },
+      },
+    };
+    const service = new AuditService(prisma as never);
+
+    await expect(service.recordAuthenticationAudit({
+      actor: 'Ana Reyes',
+      action: 'Signed in to client portal',
+      actorRole: 'client',
+      actorEmail: 'ana@example.test',
+      actionType: 'login',
+      category: 'access',
+      affectedType: 'account',
+      affectedId: 'usr_client',
+    })).resolves.toBeNull();
+
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({
+      type: 'audit_integrity_incident',
+      severity: 'critical',
+      triggeredBy: 'Ana Reyes',
+      metadata: expect.objectContaining({ source: 'identity-access.authentication' }),
+    });
+  });
+
+  it('keeps failed-login lockout handling on its normal path when the audit chain needs review', async () => {
+    const updates: unknown[] = [];
+    const histories: unknown[] = [];
+    const alerts: unknown[] = [];
+    const prisma = {
+      opsUser: {
+        update: async ({ data }: { data: unknown }) => { updates.push(data); return data; },
+      },
+      opsLoginHistory: {
+        create: async ({ data }: { data: unknown }) => { histories.push(data); return data; },
+      },
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
+      opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
+      opsAuditLog: {
+        findMany: async () => [
+          { id: 'aud_root_a', immutableHash: 'hash_a', previousHash: null, createdAt: new Date('2026-04-29T09:00:00.000Z') },
+          { id: 'aud_root_b', immutableHash: 'hash_b', previousHash: null, createdAt: new Date('2026-04-29T09:01:00.000Z') },
+        ],
+        create: async ({ data }: { data: unknown }) => data,
+      },
+      opsSecurityAlert: {
+        create: async ({ data }: { data: unknown }) => { alerts.push(data); return data; },
+      },
+    };
+    const service = new AuditService(prisma as never);
+    const user = {
+      id: 'usr_client',
+      name: 'Ana Reyes',
+      email: 'ana@example.test',
+      role: 'client',
+      failedLoginCount: 0,
+      lockoutCount: 0,
+      permanentLockout: false,
+      lockedUntil: null,
+    };
+
+    await expect(service.handleFailedLogin(user as never)).resolves.toBeUndefined();
+    expect(updates).toHaveLength(1);
+    expect(histories).toHaveLength(1);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({ type: 'audit_integrity_incident' });
+  });
+
+  it('does not hide an unavailable audit database from authentication', async () => {
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback({
+        opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
+        opsAuditLog: { findMany: async () => { throw new Error('audit database unavailable'); } },
+      }),
+    };
+    const service = new AuditService(prisma as never);
+
+    await expect(service.recordAuthenticationAudit({
+      actor: 'Ana Reyes',
+      action: 'Signed in to client portal',
+    })).rejects.toThrow('audit database unavailable');
+  });
+
+  it('keeps authentication fail-closed for a broken hash link', async () => {
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback({
+        opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
+        opsAuditLog: {
+          findMany: async () => [
+            { id: 'aud_root', immutableHash: 'hash_root', previousHash: null, createdAt: new Date('2026-04-29T09:00:00.000Z') },
+            { id: 'aud_tail', immutableHash: 'hash_tail', previousHash: 'hash_root', createdAt: new Date('2026-04-29T09:01:00.000Z') },
+            { id: 'aud_cycle_a', immutableHash: 'hash_cycle_a', previousHash: 'hash_cycle_b', createdAt: new Date('2026-04-29T09:02:00.000Z') },
+            { id: 'aud_cycle_b', immutableHash: 'hash_cycle_b', previousHash: 'hash_cycle_a', createdAt: new Date('2026-04-29T09:03:00.000Z') },
+          ],
+        },
+      }),
+    };
+    const service = new AuditService(prisma as never);
+
+    await expect(service.recordAuthenticationAudit({
+      actor: 'Ana Reyes',
+      action: 'Signed in to client portal',
+    })).rejects.toThrow('Audit history is not a single hash-linked chain');
+  });
+
+  it('keeps authentication fail-closed for a fork with multiple tails', async () => {
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback({
+        opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
+        opsAuditLog: {
+          findMany: async () => [
+            { id: 'aud_root', immutableHash: 'hash_root', previousHash: null, createdAt: new Date('2026-04-29T09:00:00.000Z') },
+            { id: 'aud_tail_a', immutableHash: 'hash_tail_a', previousHash: 'hash_root', createdAt: new Date('2026-04-29T09:01:00.000Z') },
+            { id: 'aud_tail_b', immutableHash: 'hash_tail_b', previousHash: 'hash_root', createdAt: new Date('2026-04-29T09:02:00.000Z') },
+          ],
+        },
+      }),
+    };
+    const service = new AuditService(prisma as never);
+
+    await expect(service.recordAuthenticationAudit({
+      actor: 'Ana Reyes',
+      action: 'Signed in to client portal',
+    })).rejects.toThrow('Audit history is not a single hash-linked chain');
+  });
+
   it('exports logs and creates a security alert when the bulk threshold is reached', async () => {
     const rows = Array.from({ length: 25 }, (_, index) => auditRow({ id: `aud_${index}` }));
     const createdAuditRows: unknown[] = [];
