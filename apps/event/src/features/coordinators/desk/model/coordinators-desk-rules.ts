@@ -273,6 +273,29 @@ export function isAttendanceChoiceDisabled({
 }
 
 /**
+ * REJECT half of the pending-confirm guard. A confirm prompt can outlive the
+ * state it was opened against: a PMCM replacement or a role-view refresh can
+ * retire the assignment while the prompt is still on screen. Hiding the prompt
+ * is a render concern and can lose that race, so the confirm handler re-checks
+ * here at submit time — that is the actual guarantee no request leaves.
+ *
+ * Delegates to canMarkOwnAttendance, which is where isReplacedAssignment and
+ * the missing-assignment check already live, so the two paths cannot drift.
+ */
+export function canConfirmPendingAttendance({
+  assignment,
+  pendingChoice,
+  busy,
+}: {
+  assignment?: AssignmentLifecycle | null;
+  pendingChoice: CoordinatorAttendanceChoice | null;
+  busy: boolean;
+}): boolean {
+  if (!pendingChoice) return false;
+  return canMarkOwnAttendance({ assignment, busy });
+}
+
+/**
  * Absent writes a severity 'critical' reliability note against a permanent
  * profile with no retraction path (live-operations.service.ts:627). Late writes
  * one at 'warning' and is deliberately NOT gated: it is the status a coordinator

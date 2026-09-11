@@ -4,6 +4,7 @@ import {
   buildCoordinatorAttendanceInput,
   buildCoordinatorIssueInput,
   buildCoordinatorTaskInput,
+  canConfirmPendingAttendance,
   canMarkOwnAttendance,
   isAttendanceChoiceDisabled,
   isReplacedAssignment,
@@ -326,6 +327,61 @@ describe("isAttendanceChoiceDisabled", () => {
         }),
       ).toBe(true);
     }
+  });
+});
+
+describe("canConfirmPendingAttendance", () => {
+  const live = { attendanceStatus: "pending", status: "acknowledged" };
+
+  it("allows confirming a pending choice on a live assignment", () => {
+    expect(
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: false }),
+    ).toBe(true);
+  });
+
+  it("refuses once the assignment became replaced while the prompt was open", () => {
+    // The defect: the confirm prompt stays rendered after a PMCM replacement,
+    // the coordinator taps confirm, and a request fires against an assignment
+    // the server will reject. Rejecting at submit time is the guarantee;
+    // hiding the prompt is only a render concern and can lose the race.
+    expect(
+      canConfirmPendingAttendance({
+        assignment: { attendanceStatus: "replaced", status: "replaced" },
+        pendingChoice: "absent",
+        busy: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("refuses once the assignment disappeared entirely", () => {
+    expect(
+      canConfirmPendingAttendance({ assignment: undefined, pendingChoice: "absent", busy: false }),
+    ).toBe(false);
+    expect(
+      canConfirmPendingAttendance({ assignment: null, pendingChoice: "absent", busy: false }),
+    ).toBe(false);
+  });
+
+  it("refuses when nothing is pending, or while a mark is already in flight", () => {
+    expect(
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: null, busy: false }),
+    ).toBe(false);
+    expect(
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: true }),
+    ).toBe(false);
+  });
+
+  it("does NOT treat an absent attendanceStatus as a missing assignment", () => {
+    // Guards the lockout regression: 'absent' is a status a coordinator can
+    // already hold and correct from. Only a replaced or missing assignment
+    // blocks confirming.
+    expect(
+      canConfirmPendingAttendance({
+        assignment: { ...live, attendanceStatus: "absent" },
+        pendingChoice: "present",
+        busy: false,
+      }),
+    ).toBe(true);
   });
 });
 

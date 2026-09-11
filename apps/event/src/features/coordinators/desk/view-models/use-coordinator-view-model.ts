@@ -27,6 +27,7 @@ import {
   buildCoordinatorAttendanceInput,
   buildCoordinatorIssueInput,
   buildCoordinatorTaskInput,
+  canConfirmPendingAttendance,
   canMarkOwnAttendance,
   isAttendanceChoiceDisabled,
   isRegistrationCoordinatorRole,
@@ -118,6 +119,15 @@ export function useCoordinatorViewModel({
       alive = false;
     };
   }, [event?.id, session.email, session.name]);
+
+  // HIDE half: once the assignment can no longer be marked — replaced by PMCM,
+  // or gone from the workspace entirely — drop any open confirm prompt so it
+  // cannot be tapped against stale state. Paired with the submit-time re-check
+  // in confirmAttendance, which is the guarantee; this is the render concern.
+  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: false });
+  useEffect(() => {
+    if (!attendanceAssignmentUsable) setPendingAttendanceChoice(null);
+  }, [attendanceAssignmentUsable]);
 
   async function acknowledge(decision: "acknowledged" | "declined" = "acknowledged", reason?: string) {
     if (!event || !assignment) return;
@@ -306,9 +316,15 @@ export function useCoordinatorViewModel({
   }
 
   function confirmAttendance() {
-    if (!pendingAttendanceChoice) return;
     const choice = pendingAttendanceChoice;
     setPendingAttendanceChoice(null);
+    if (!choice) return;
+    // REJECT half: re-check assignment state at submit time. The prompt may have
+    // outlived the assignment it was opened against (PMCM replacement, role-view
+    // refresh), and hiding it is a render concern that can lose that race.
+    if (!canConfirmPendingAttendance({ assignment, pendingChoice: choice, busy: attendanceBusy })) {
+      return;
+    }
     void submitAttendance(choice);
   }
 
