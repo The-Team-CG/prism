@@ -33,11 +33,14 @@ export function auditTailCandidates<T extends LinkedAudit>(logs: T[]): T[] {
   });
 }
 
-/** Distinguish separate linked historical chains from a fork or broken graph. */
-export function isIndependentAuditChainSet<T extends LinkedAudit>(logs: T[]) {
+/**
+ * Distinguish the approved two-chain historical state from a fork or broken graph.
+ * Hash validation is supplied by the owner of the persisted payload format.
+ */
+export function isIndependentAuditChainSet<T extends LinkedAudit>(logs: T[], isHashValid: (log: T) => boolean) {
   if (logs.length < 2) return false;
   const roots = logs.filter((row) => row.previousHash === null);
-  if (roots.length < 2) return false;
+  if (roots.length !== 2 || logs.some((log) => !isHashValid(log))) return false;
 
   const byHash = new Map<string, T>();
   const children = new Map<string, T[]>();
