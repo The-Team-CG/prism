@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -13,7 +13,7 @@ import {
 } from '@prism/kernel/event-core';
 import { mapAuditLog } from './audit.mappers';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import { auditTailCandidates, orderLinkedAuditLogs } from './audit-chain-order';
+import { auditTailCandidates, isIndependentAuditChainSet, orderLinkedAuditLogs } from './audit-chain-order';
 import { NotificationOutboxService } from '../notifications/notification-outbox.service';
 
 type AuditLogFilters = {
@@ -55,6 +55,14 @@ export type IntegrityIncidentInput = {
   actor?: string;
   metadata?: Record<string, unknown>;
 };
+
+export type AuditIntegrityConflictKind = 'ambiguous_tail' | 'broken_chain';
+
+export class AuditIntegrityConflictException extends ConflictException {
+  constructor(message: string, readonly kind: AuditIntegrityConflictKind) {
+    super(message);
+  }
+}
 
 const BULK_EXPORT_ALERT_THRESHOLD = 25;
 const LOGIN_LOCKOUT_THRESHOLD = 5;
@@ -205,6 +213,8 @@ function lockoutAlertPayload(user: OpsUser, state: LockoutState) {
 
 @Injectable()
 export class AuditService {
+  private readonly logger = new Logger(AuditService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationOutbox?: NotificationOutboxService,
@@ -279,37 +289,20 @@ export class AuditService {
     let lastVerifiedHash: string | null = null;
     const chain = orderLinkedAuditLogs(logs);
     const tails = auditTailCandidates(logs);
+    const ambiguousTail = isIndependentAuditChainSet(logs, (log) => this.hasValidImmutableHash(log));
     if (chain.firstBrokenLogId) {
       return {
         valid: false,
         checkedCount: logs.length,
         firstBrokenLogId: chain.firstBrokenLogId,
-        ambiguousTail: tails.length > 1,
-        ambiguousTailLogIds: tails.length > 1 ? tails.map((tail) => tail.id) : [],
+        ambiguousTail,
+        ambiguousTailLogIds: ambiguousTail ? tails.map((tail) => tail.id) : [],
         lastVerifiedHash,
         checkedAt: new Date().toISOString(),
       };
     }
     for (const log of chain.ordered) {
-      const expectedHash = this.hashAuditPayload({
-        id: log.id,
-        eventId: log.eventId ?? null,
-        actor: log.actor,
-        actorRole: log.actorRole,
-        actorEmail: log.actorEmail ?? null,
-        action: log.action,
-        actionType: log.actionType,
-        category: log.category,
-        affectedType: log.affectedType ?? null,
-        affectedId: log.affectedId ?? null,
-        affectedLabel: log.affectedLabel ?? null,
-        metadata: log.metadata ?? {},
-        ipAddress: log.ipAddress,
-        device: log.device,
-        severity: log.severity,
-        previousHash: log.previousHash ?? null,
-        createdAt: log.createdAt.toISOString(),
-      });
+      const expectedHash = this.expectedAuditHash(log);
 
       if (log.previousHash !== previousHash || log.immutableHash !== expectedHash) {
         return {
@@ -366,6 +359,38 @@ export class AuditService {
     });
   }
 
+  async recordAuthenticationAudit(input: AuditLogInput) {
+    const { eventId, actor, action, ...options } = input;
+    try {
+      return await this.audit(eventId, actor, action, options);
+    } catch (error) {
+      if (!(error instanceof AuditIntegrityConflictException) || error.kind !== 'ambiguous_tail') throw error;
+
+      const reason = error.message;
+      try {
+        await this.recordIntegrityIncident({
+          source: 'identity-access.authentication',
+          reason,
+          eventId,
+          actor,
+          metadata: {
+            ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
+            ...(input.category !== undefined ? { category: input.category } : {}),
+            ...(input.affectedType !== undefined ? { affectedType: input.affectedType } : {}),
+            ...(input.affectedId !== undefined ? { affectedId: input.affectedId } : {}),
+            ...(input.affectedLabel !== undefined ? { affectedLabel: input.affectedLabel } : {}),
+          },
+        });
+      } catch (incidentError) {
+        const incidentMessage = incidentError instanceof Error ? incidentError.message : String(incidentError);
+        this.logger.error(`Authentication audit integrity incident could not be persisted: ${incidentMessage}`);
+        throw incidentError;
+      }
+      this.logger.error(`Authentication audit was skipped until integrity review: ${reason}`);
+      return null;
+    }
+  }
+
   private async auditTail(prisma: Prisma.TransactionClient) {
     // The complete chain is read in bounded pages so append integrity does not
     // issue an unbounded database query.
@@ -373,11 +398,13 @@ export class AuditService {
     if (logs.length === 0) return null;
     const chain = orderLinkedAuditLogs(logs);
     const tails = auditTailCandidates(logs);
+    if (isIndependentAuditChainSet(logs, (log) => this.hasValidImmutableHash(log))) {
+      throw new AuditIntegrityConflictException('Audit history has an ambiguous tail; integrity review is required', 'ambiguous_tail');
+    }
     if (chain.firstBrokenLogId || tails.length !== 1) {
-      throw new ConflictException(
-        tails.length > 1
-          ? 'Audit history has an ambiguous tail; integrity review is required'
-          : `Audit history is not a single hash-linked chain; integrity review is required (${chain.firstBrokenLogId ?? 'unknown'})`,
+      throw new AuditIntegrityConflictException(
+        `Audit history is not a single hash-linked chain; integrity review is required (${chain.firstBrokenLogId ?? 'unknown'})`,
+        'broken_chain',
       );
     }
     return tails[0];
@@ -417,7 +444,9 @@ export class AuditService {
     const history = lockoutHistory(state);
     await this.recordLoginHistory(user, user.email, history.status, history.reason);
 
-    await this.audit(undefined, user.name, `Failed login attempt for ${user.email}`, {
+    await this.recordAuthenticationAudit({
+      actor: user.name,
+      action: `Failed login attempt for ${user.email}`,
       actorRole: user.role,
       actorEmail: user.email,
       actionType: AuditActionType.LoginFailed,
@@ -430,14 +459,16 @@ export class AuditService {
     });
 
     if (state.shouldLock) {
-      await this.createSecurityAlert(lockoutAlertPayload(user, state));
+      await this.createSecurityAlert(lockoutAlertPayload(user, state), { authentication: true });
     }
   }
 
   async handleForbiddenAccess(user: OpsUser, email: string, reason: string) {
     await this.recordLoginHistory(user, email, LoginHistoryStatus.Blocked, reason);
 
-    await this.audit(undefined, user.name, `403 forbidden access for ${email}: ${reason}`, {
+    await this.recordAuthenticationAudit({
+      actor: user.name,
+      action: `403 forbidden access for ${email}: ${reason}`,
       actorRole: user.role,
       actorEmail: user.email,
       actionType: AuditActionType.ForbiddenAccess,
@@ -465,19 +496,22 @@ export class AuditService {
         severity: 'critical',
         triggeredBy: email,
         metadata: { userId: user.id, role: user.role, recentBlockedCount },
-      });
+      }, { authentication: true });
     }
   }
 
-  async createSecurityAlert(input: {
-    type: string;
-    title: string;
-    description: string;
-    severity?: string;
-    triggeredBy?: string;
-    eventId?: string;
-    metadata?: Record<string, unknown>;
-  }) {
+  async createSecurityAlert(
+    input: {
+      type: string;
+      title: string;
+      description: string;
+      severity?: string;
+      triggeredBy?: string;
+      eventId?: string;
+      metadata?: Record<string, unknown>;
+    },
+    options: { authentication?: boolean } = {},
+  ) {
     const recipient = await this.resolveTrustRecipient();
     const notificationReady = Boolean(recipient && this.notificationOutbox);
     const metadata = {
@@ -499,17 +533,19 @@ export class AuditService {
       },
     });
 
+    const auditOptions = {
+      actorRole: OpsUserRole.System,
+      actionType: input.type,
+      category: AuditCategory.Access,
+      affectedType: 'security_alert',
+      affectedId: alert.id,
+      affectedLabel: input.title,
+      severity: input.severity ?? 'warning',
+      metadata: input.metadata ?? {},
+    };
+    const auditWrite = { eventId: input.eventId, actor: 'System', action: input.title, ...auditOptions };
     await Promise.all([
-      this.audit(input.eventId, 'System', input.title, {
-        actorRole: OpsUserRole.System,
-        actionType: input.type,
-        category: AuditCategory.Access,
-        affectedType: 'security_alert',
-        affectedId: alert.id,
-        affectedLabel: input.title,
-        severity: input.severity ?? 'warning',
-        metadata: input.metadata ?? {},
-      }),
+      options.authentication ? this.recordAuthenticationAudit(auditWrite) : this.audit(input.eventId, 'System', input.title, auditOptions),
       ...(notificationReady
         ? [
             this.notify(input.eventId, recipient!, input.title, NotificationChannel.Email, `security-alert:${alert.id}:email`),
@@ -589,6 +625,32 @@ export class AuditService {
       immutableHash,
       createdAt,
     };
+  }
+
+  private expectedAuditHash(log: Pick<OpsAuditLog, 'id' | 'eventId' | 'actor' | 'actorRole' | 'actorEmail' | 'action' | 'actionType' | 'category' | 'affectedType' | 'affectedId' | 'affectedLabel' | 'metadata' | 'ipAddress' | 'device' | 'severity' | 'previousHash' | 'createdAt'>) {
+    return this.hashAuditPayload({
+      id: log.id,
+      eventId: log.eventId ?? null,
+      actor: log.actor,
+      actorRole: log.actorRole,
+      actorEmail: log.actorEmail ?? null,
+      action: log.action,
+      actionType: log.actionType,
+      category: log.category,
+      affectedType: log.affectedType ?? null,
+      affectedId: log.affectedId ?? null,
+      affectedLabel: log.affectedLabel ?? null,
+      metadata: log.metadata ?? {},
+      ipAddress: log.ipAddress,
+      device: log.device,
+      severity: log.severity,
+      previousHash: log.previousHash ?? null,
+      createdAt: log.createdAt.toISOString(),
+    });
+  }
+
+  private hasValidImmutableHash(log: OpsAuditLog) {
+    return log.immutableHash === this.expectedAuditHash(log);
   }
 
   private hashAuditPayload(payload: Record<string, unknown>) {
