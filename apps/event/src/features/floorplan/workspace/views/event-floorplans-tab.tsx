@@ -84,6 +84,12 @@ export function EventFloorplansTab({
                     </p>
                   </div>
                 )}
+                {draft.status === "revision_requested" && draft.revisionComment && (
+                  <div className="mt-3 rounded-lg border border-(--prism-warning)/25 bg-(--prism-warning)/8 p-3 text-xs leading-5 text-foreground">
+                    <p className="font-bold text-(--prism-warning)">Client revision requested</p>
+                    <p className="mt-1 text-muted-foreground">{draft.revisionComment}</p>
+                  </div>
+                )}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button
                     size="sm"

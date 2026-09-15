@@ -1,8 +1,8 @@
 "use client";
 
 import type { Dispatch, FormEvent, SetStateAction } from "react";
-import { ArrowRight, MapPinned, Send } from "lucide-react";
-import type { PrismFloorPlanDraft } from "@prism/types";
+import { ArrowRight, MapPinned, MessageSquareText, Send } from "lucide-react";
+import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -10,6 +10,11 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { FieldGroup, LayoutPreview, formatStatusLabel } from "../../../workspace/shared";
 import type { PreferenceForm } from "../../../workspace/shared";
+import {
+  canRequestFloorPlanRevision,
+  floorPlanReviewHeadline,
+  floorPlanRevisionComment,
+} from "../../../workspace/model/client-floorplan-review-rules";
 
 function templateSubtitle(template: FloorPlanTemplate) {
   return template.description || template.venue || "Saved PMCM floor plan template";
@@ -76,6 +81,74 @@ export function FloorPlanDraftPanel({
         </Button>
       </div>
       <LayoutPreview project={approved || isOfficial ? officialProject : null} />
+    </div>
+  );
+}
+
+export function FloorPlanRevisionCommentCard({
+  draft,
+  event,
+  value,
+  setValue,
+  busy,
+  onSubmit,
+}: {
+  draft?: PrismFloorPlanDraft;
+  event?: PrismEvent;
+  value: string;
+  setValue: (v: string) => void;
+  busy: boolean;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const editable = canRequestFloorPlanRevision(draft, event);
+  const submittedComment = floorPlanRevisionComment(draft);
+  if (draft?.status === "revision_requested" || (draft?.status === "in_review" && !editable && !submittedComment)) {
+    return (
+      <div className="rounded-2xl border border-border bg-card shadow-sm">
+        <header className="border-b border-border px-6 py-4">
+          <p className="text-sm font-bold text-foreground">Floorplan review</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{floorPlanReviewHeadline(draft)}</p>
+        </header>
+        <div className="space-y-3 p-6">
+          {submittedComment ? (
+            <div className="flex gap-3 rounded-xl bg-muted/40 p-4">
+              <MessageSquareText className="size-5 shrink-0 text-(--prism-signal)" />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Your revision comment</p>
+                <p className="mt-1 text-sm text-foreground">{submittedComment}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">PMCM has not submitted a plan for your review yet.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+  if (!editable) return null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <header className="border-b border-border px-6 py-4">
+        <p className="text-sm font-bold text-foreground">Review the official floorplan</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Open the plan above to inspect the submitted layout, then tell PMCM what to change.
+        </p>
+      </header>
+      <form onSubmit={onSubmit} className="space-y-4 p-6">
+        <FieldGroup label="Revision comment">
+          <textarea
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            rows={4}
+            placeholder="Describe the change you want, e.g. move the mingle space next to the bar."
+            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+          />
+        </FieldGroup>
+        <Button disabled={busy} className="w-full rounded-lg font-bold" type="submit">
+          <MessageSquareText className="size-4" /> Send revision comment
+        </Button>
+      </form>
     </div>
   );
 }
