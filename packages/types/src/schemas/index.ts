@@ -77,6 +77,7 @@ export {
   auditLogFiltersSchema,
   createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
+  createFloorPlanRevisionCommentSchema,
   eventDecisionSchema,
   type CreatePrismInquiryInput,
   type UpdateInquiryStatusInput,
@@ -147,6 +148,7 @@ export {
   type AuditLogFilters,
   type CreateFloorPlanDraftInput,
   type CreateFloorPlanPreferenceInput,
+  type CreateFloorPlanRevisionCommentInput,
   type EventDecisionInput,
 } from "./event-ops-inputs.js";
 

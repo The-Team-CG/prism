@@ -2,7 +2,7 @@ import {
   clientDashboardRepository,
   type FloorPlanPreferenceInput,
 } from "../data/client-dashboard-repository";
-import type { CreatePrismInquiryInput, PrismUser } from "@prism/types";
+import type { CreateFloorPlanRevisionCommentInput, CreatePrismInquiryInput, PrismUser } from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
 
 export function readClientSession() {
@@ -44,6 +44,15 @@ export function loadOfficialFloorPlan(
 
 export function loadFloorPlanProject(planId: string, session?: Pick<PrismUser, "name" | "email">) {
   return clientDashboardRepository.loadPlan(planId, session);
+}
+
+export function submitFloorPlanRevisionComment(
+  eventId: string,
+  draftId: string,
+  input: CreateFloorPlanRevisionCommentInput,
+  session?: Pick<PrismUser, "name" | "email">,
+) {
+  return clientDashboardRepository.submitFloorPlanRevisionComment(eventId, draftId, input, session);
 }
 
 export function saveFloorPlanProject(project: Project, session?: Pick<PrismUser, "name" | "email">) {
