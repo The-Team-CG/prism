@@ -14,6 +14,7 @@ const STATUS_MAP: Record<string, StatusTier> = {
   completed: "success",
   acknowledged: "success",
   in_review: "pending",
+  revision_requested: "pending",
   client_submitted: "pending",
   issued: "pending",
   submitted: "pending",

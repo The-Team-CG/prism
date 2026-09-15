@@ -13,11 +13,13 @@ import type {
   CreateCommunicationThreadInput,
   SendCommunicationMessageInput,
   CreateUrgentIssueInput,
-  ArchiveSearchFilters,
+ArchiveSearchFilters,
   ReviewEventProposalInput,
   ReviewSupplierApplicationInput,
+  CreateFloorPlanRevisionCommentInput,
   PrismArchivedEventSearchHit,
   PrismBillingWorkspace,
+  PrismFloorPlanDraft,
   PrismClientActionCenter,
   PrismClientWorkspace,
   PrismEvent,
@@ -87,6 +89,7 @@ export type {
   CreateEventTaskReassignmentInput,
   DecideEventTaskReassignmentInput,
   CreateFloorPlanPreferenceInput,
+  CreateFloorPlanRevisionCommentInput,
   CreateGuestCheckInInput,
   CreateGuestFeedbackInput,
   ModerateGuestFeedbackInput,
@@ -150,6 +153,7 @@ export interface EventOpsClient {
     detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     fileRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismFileRequirementsMatrix>;
     reviewProposal(eventId: string, input: ReviewEventProposalInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    reviewFloorPlanDraft(eventId: string, draftId: string, input: CreateFloorPlanRevisionCommentInput, actor?: EventOpsActorQuery): Promise<PrismFloorPlanDraft>;
     searchArchive(filters?: ArchiveSearchFilters, actor?: EventOpsActorQuery): Promise<PrismArchivedEventSearchHit[]>;
     documents(eventId: string, actor?: EventOpsActorQuery): Promise<PrismStoredObject[]>;
     requestDocumentUpload(input: RequestStorageUploadInput, actor?: EventOpsActorQuery): Promise<unknown>;
@@ -285,6 +289,11 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
       reviewProposal: (eventId, input, actor = {}) =>
         prismRequest<PrismEvent>(
           actorPath(`/events/${eventId}/proposal/review`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      reviewFloorPlanDraft: (eventId, draftId, input, actor = {}) =>
+        prismRequest<PrismFloorPlanDraft>(
+          actorPath(`/events/${eventId}/floorplans/${draftId}/review`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
       searchArchive: (filters = {}, actor = {}) => {

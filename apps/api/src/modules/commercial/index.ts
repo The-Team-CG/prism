@@ -5,6 +5,7 @@ export { ProposalLifecycleService, PROPOSAL_LIFECYCLE_POLICY } from './applicati
 export * from './api/quotes/proposal-lifecycle.controller';
 export * from './api/quotes/quote-requests.controller';
 export * from './domain/supplier-quote-request.policy';
+export { isPrimaryClientContact, nextProposalClientReview, MAX_PROPOSAL_REVISIONS } from './domain/proposal-client-review.policy';
 export * from './api/quotes/supplier-quote.dto';
 export * from './application/quotes/supplier-quote.mappers';
 export * from './contracts/commercial-ops.tokens';

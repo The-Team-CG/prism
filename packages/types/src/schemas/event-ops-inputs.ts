@@ -676,3 +676,9 @@ export const createFloorPlanPreferenceSchema = z.object({
   objects: z.array(z.unknown()).optional(),
 });
 export type CreateFloorPlanPreferenceInput = z.infer<typeof createFloorPlanPreferenceSchema>;
+
+export const createFloorPlanRevisionCommentSchema = z.object({
+  revisionNote: nonEmptyStringSchema,
+  idempotencyKey: optionalTrimmedStringSchema,
+});
+export type CreateFloorPlanRevisionCommentInput = z.infer<typeof createFloorPlanRevisionCommentSchema>;

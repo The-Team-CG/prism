@@ -4,21 +4,26 @@ import { useClientWorkspace } from "../../workspace/shared";
 import {
   FloorPlanCardHeader,
   FloorPlanDraftPanel,
+  FloorPlanRevisionCommentCard,
   FloorPlanTemplates,
   GuidedLayoutNotes,
 } from "./sections/client-floorplan-sections";
 
 export function ClientFloorPlanView() {
   const {
+    selectedEvent,
     officialDraft,
     preferenceDrafts,
     officialProject,
     floorPlanTemplates,
+    revisionComment,
+    setRevisionComment,
     form,
     setForm,
     openFloorplanEditor,
     createEditorDraft,
     submitPreference,
+    submitRevisionComment,
     busy,
   } = useClientWorkspace();
 
@@ -46,6 +51,14 @@ export function ClientFloorPlanView() {
           />
         </div>
       </div>
+      <FloorPlanRevisionCommentCard
+        draft={activeDraft}
+        event={selectedEvent}
+        value={revisionComment}
+        setValue={setRevisionComment}
+        busy={busy === "floorplan-revision"}
+        onSubmit={submitRevisionComment}
+      />
       <GuidedLayoutNotes
         approved={approved}
         form={form}

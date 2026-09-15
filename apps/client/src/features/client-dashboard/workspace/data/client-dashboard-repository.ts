@@ -8,6 +8,8 @@ import {
   type PrismFloorPlanDraft,
   type CreatePrismInquiryInput,
   type CreateFloorPlanPreferenceInput,
+  type PrismFloorPlanPreference,
+  type CreateFloorPlanRevisionCommentInput,
   type PrismUser,
 } from "@prism/types";
 import { prismApi } from "@/lib/prism-api";
@@ -56,6 +58,15 @@ export const clientDashboardRepository = {
     session?: Pick<PrismUser, "name" | "email">,
   ): Promise<Project> {
     return prismApi.loadFloorPlanSnapshot(eventId, draftId, type, session);
+  },
+
+  submitFloorPlanRevisionComment(
+    eventId: string,
+    draftId: string,
+    input: CreateFloorPlanRevisionCommentInput,
+    session?: Pick<PrismUser, "name" | "email">,
+  ): Promise<PrismFloorPlanDraft> {
+    return prismApi.reviewFloorPlanDraft(eventId, draftId, input, session);
   },
 
   loadPlan(planId: string, session?: Pick<PrismUser, "name" | "email">): Promise<Project> {
