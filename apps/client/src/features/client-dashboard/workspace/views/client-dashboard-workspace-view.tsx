@@ -59,7 +59,9 @@ import {
   signOutClientSession,
   submitClientInquiry,
   submitFloorPlanPreference,
+  submitFloorPlanRevisionComment,
 } from "../use-cases/client-dashboard-actions";
+import { buildFloorPlanRevisionPayload } from "../model/client-floorplan-review-rules";
 import { useClientDashboardViewModel } from "../view-models/use-client-dashboard-view-model";
 import type { ClientDashboardRoute, ClientPortalView, DetailTab } from "../model/client-dashboard-types";
 
@@ -121,6 +123,7 @@ export function ClientDashboardWorkspaceView({
   });
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
+  const [revisionComment, setRevisionComment] = useState("");
   const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
   const [eventSearch, setEventSearch] = useState("");
   const [officialProject, setOfficialProject] = useState<Project | null>(null);
@@ -256,6 +259,34 @@ export function ClientDashboardWorkspaceView({
       setNotice("Floor plan draft saved. PMCM can review it, and approval will lock the plan.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit layout preference");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitFloorPlanReview(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    if (!selectedEvent || !officialDraft) return;
+    const note = revisionComment.trim();
+    if (!note) {
+      setError("Write a revision comment before sending it to PMCM.");
+      return;
+    }
+    setBusy("floorplan-revision");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitFloorPlanRevisionComment(
+        selectedEvent.id,
+        officialDraft.id,
+        buildFloorPlanRevisionPayload(note),
+        session ?? undefined,
+      );
+      setRevisionComment("");
+      await refresh();
+      setNotice("Revision comment sent. PMCM will update the official floorplan.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send floorplan revision comment");
     } finally {
       setBusy(null);
     }
@@ -417,6 +448,8 @@ export function ClientDashboardWorkspaceView({
     nextAction,
     form,
     setForm,
+    revisionComment,
+    setRevisionComment,
     requestForm,
     setRequestForm,
     eventSearch,
@@ -429,6 +462,7 @@ export function ClientDashboardWorkspaceView({
     openFloorplanEditor,
     createEditorDraft,
     submitPreference,
+    submitRevisionComment: submitFloorPlanReview,
     submitNewEventRequest,
     signOut,
     eventHeader: renderEventHeader(),

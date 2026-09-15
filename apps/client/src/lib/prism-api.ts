@@ -7,6 +7,8 @@ import {
   isPrismAuthenticatedSession,
   parseContract,
   reviewEventProposalSchema,
+  createFloorPlanRevisionCommentSchema,
+  type CreateFloorPlanRevisionCommentInput,
   type CreatePrismInquiryInput,
   type CreateFloorPlanPreferenceInput,
   type ReviewEventProposalInput,
@@ -993,6 +995,35 @@ export const prismApi = {
         event.proposalReviewedAt = now();
         event.proposalReviewedBy = "Ana Reyes";
         return event;
+      }),
+    );
+  },
+  reviewFloorPlanDraft: (
+    eventId: string,
+    draftId: string,
+    input: CreateFloorPlanRevisionCommentInput,
+    session?: Pick<PrismUser, "name" | "email">,
+  ) => {
+    const parsed = parseContract(createFloorPlanRevisionCommentSchema, input, "Floorplan revision comment");
+    if (USE_REMOTE_API) {
+      return request<PrismFloorPlanDraft>(withClientActor(`/api/events/${eventId}/floorplans/${draftId}/review`, session), {
+        method: "PATCH",
+        body: JSON.stringify(parsed),
+      });
+    }
+    return Promise.resolve(
+      updateMockState((state) => {
+        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
+        const draft = event.floorPlanDrafts?.find((item) => item.id === draftId);
+        if (!draft) throw new Error("Floorplan draft not found");
+        draft.status = "revision_requested";
+        draft.revisionComment = parsed.revisionNote;
+        draft.reviewedAt = now();
+        event.floorPlanStatus = "revision_requested";
+        event.readiness = "Floorplan revision requested by client";
+        addAudit(state, eventId, "Ana Reyes", `Requested floorplan revision: ${draft.name}`);
+        addNotification(state, eventId, "PMCM Admin", `Client requested a floorplan revision: ${draft.name}`);
+        return draft;
       }),
     );
   },
