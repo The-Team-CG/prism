@@ -16,8 +16,8 @@ jobs:
       node_version: "24"
       package_manager: npm
       install_command: npm ci
-      typecheck_command: npm run check:migrations && npm run typecheck
-      test_command: npm run test:migrations && npm run test:api:coverage && npm run test:coverage --workspace=@prism/client && npm run test:coverage --workspace=@prism/event && npm run test:coverage --workspace=@prism/guest && npm run test:coverage --workspace=@prism/supplier
+      typecheck_command: npm run check:migrations && npm run check:invariants && npm run typecheck
+      test_command: npm run test:migrations && npm run test:invariants && npm run test:api:coverage && npm run test:coverage --workspace=@prism/client && npm run test:coverage --workspace=@prism/event && npm run test:coverage --workspace=@prism/guest && npm run test:coverage --workspace=@prism/supplier
       audit_command: node scripts/npm-audit-ci.mjs
       build_command: npm run build
     secrets: inherit

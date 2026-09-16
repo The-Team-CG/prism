@@ -608,6 +608,7 @@ export function auditMigrationSet(migrations, policy) {
   const warnings = [];
   const parsedMigrations = [];
   const seenNames = new Set();
+  const migrationVersions = new Map();
   const futureVersions = new Map();
   const sortedMigrations = [...migrations].sort((left, right) =>
     left.name.localeCompare(right.name),
@@ -637,6 +638,12 @@ export function auditMigrationSet(migrations, policy) {
     }
 
     parsedMigrations.push({ migration, parsed });
+    if (migrationVersions.has(parsed.version)) {
+      migrationVersions.get(parsed.version).push(migration.name);
+    } else {
+      migrationVersions.set(parsed.version, [migration.name]);
+    }
+
     if (parsed.legacy) {
       const expectedChecksum = policy.legacyMigrationChecksums?.[migration.name];
       if (policy.legacyMigrationChecksums && !expectedChecksum) {
@@ -655,9 +662,22 @@ export function auditMigrationSet(migrations, policy) {
     errors.push(...validateOwnerAwareMigration(migration, parsed, policy));
   }
 
-  for (const [version, names] of futureVersions) {
+  const legacyDuplicateVersions = new Set(policy.legacyDuplicateVersions ?? []);
+  for (const version of legacyDuplicateVersions) {
+    if (!/^\d{14}$/.test(version) || !isValidVersion(version)) {
+      errors.push(`${version}: legacy duplicate version policy entry has an invalid timestamp`);
+    } else if (version > policy.legacyMaxVersion) {
+      errors.push(
+        `${version}: legacy duplicate version policy entry is beyond the baseline ${policy.legacyMaxVersion}`,
+      );
+    }
+  }
+
+  for (const [version, names] of migrationVersions) {
     if (names.length > 1) {
-      errors.push(`duplicate future migration version ${version}: ${names.join(', ')}`);
+      if (!legacyDuplicateVersions.has(version)) {
+        errors.push(`duplicate migration version ${version}: ${names.join(', ')}`);
+      }
     }
   }
 

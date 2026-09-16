@@ -35,9 +35,9 @@ sources:
   checksums for the immutable legacy SQL files.
 - **Owner:** D (Anthony), with the owning bounded context responsible for its
   schema change and review evidence.
-- **Verify with:** `npm run check:migrations`, focused migration tests, Prisma
-  validation, migration status, and a live diff when database access is
-  intentionally available.
+- **Verify with:** `npm run check:migrations`, `npm run check:invariants`,
+  focused migration tests, Prisma validation, migration status, and a live
+  diff when database access is intentionally available.
 - **Important boundary:** This runbook does not authorize a reset, baseline,
   `migrate resolve`, or live schema repair.
 
@@ -192,6 +192,33 @@ npm --workspace prism-api run db:diff:live
 means Prisma found a non-empty diff that needs review; exit `1` means the
 comparison failed. A non-empty diff is evidence to investigate, not permission
 to apply the generated SQL automatically.
+
+## Data invariants
+
+Schema changes and data backfills are not the only migration risks. Any
+migration that introduces an invariant enforced by runtime code must add a
+matching declaration to
+[`apps/api/prisma/data-invariants.json`](../../apps/api/prisma/data-invariants.json).
+Each declaration is a read-only violation query: zero rows means the invariant
+holds, while returned rows must expose enough identifiers for an operator to
+investigate the incompatible data. Keep the query schema-qualified and update
+the declaration in the same reviewed change as the migration or backfill.
+
+CI runs only the declaration dry-run and unit tests because it has no database
+credentials. Before deployment, restore a representative database snapshot in
+an isolated approved target and run the live, read-only gate with the direct
+connection configured:
+
+```powershell
+npm --workspace prism-api run db:check:invariants
+```
+
+Review every reported violation, including the migration ledger status, before
+deploying a migration that relies on the invariant. The gate never repairs,
+backfills, or otherwise mutates data; remediation requires a separately
+reviewed migration or operator procedure. Do not point the live command at a
+production database from CI, and do not treat a dry-run pass as evidence that
+the target data is compatible.
 
 ## Drift and failed-migration recovery
 
