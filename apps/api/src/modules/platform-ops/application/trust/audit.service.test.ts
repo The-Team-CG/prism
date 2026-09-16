@@ -290,6 +290,7 @@ describe('AuditService', () => {
   });
 
   it('keeps authentication fail-closed for a broken hash link', async () => {
+    const alerts: Array<Record<string, unknown>> = [];
     const prisma = {
       $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback({
         opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
@@ -302,6 +303,7 @@ describe('AuditService', () => {
           ],
         },
       }),
+      opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
     };
     const service = new AuditService(prisma as never);
 
@@ -309,16 +311,21 @@ describe('AuditService', () => {
       actor: 'Ana Reyes',
       action: 'Signed in to client portal',
     })).rejects.toThrow('Audit history is not a single hash-linked chain');
+    // The severe classification must never also be the silent one.
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({ type: 'audit_integrity_incident', severity: 'critical' });
   });
 
   it('does not classify tampered two-chain history as an ambiguous tail', async () => {
     const rows = independentAuditRows();
     rows[2] = { ...rows[2], immutableHash: 'tampered' };
+    const alerts: Array<Record<string, unknown>> = [];
     const prisma = {
       $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback({
         opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
         opsAuditLog: { findMany: async () => rows },
       }),
+      opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
     };
     const service = new AuditService(prisma as never);
 
@@ -326,9 +333,11 @@ describe('AuditService', () => {
       actor: 'Ana Reyes',
       action: 'Signed in to client portal',
     })).rejects.toThrow('Audit history is not a single hash-linked chain');
+    expect(alerts).toHaveLength(1);
   });
 
   it('keeps authentication fail-closed for a fork with multiple tails', async () => {
+    const alerts: Array<Record<string, unknown>> = [];
     const prisma = {
       $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback({
         opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
@@ -340,6 +349,7 @@ describe('AuditService', () => {
           ],
         },
       }),
+      opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
     };
     const service = new AuditService(prisma as never);
 
@@ -347,6 +357,67 @@ describe('AuditService', () => {
       actor: 'Ana Reyes',
       action: 'Signed in to client portal',
     })).rejects.toThrow('Audit history is not a single hash-linked chain');
+    expect(alerts).toHaveLength(1);
+  });
+
+  it('records the incident and fails closed when an unhashed row forms a second chain root', async () => {
+    // Reproduces the staging outage: a seeder wrote an audit row directly, so it
+    // carried the column default of an empty immutable_hash and a null
+    // previous_hash. Two roots, no duplicate hashes, no orphans - and every
+    // login returned 409 with no incident recorded anywhere.
+    const alerts: Array<Record<string, unknown>> = [];
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback({
+        opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
+        opsAuditLog: {
+          findMany: async () => [
+            { id: 'aud_seed', immutableHash: '', previousHash: null, createdAt: new Date('2026-08-14T00:51:37.807Z') },
+            { id: 'aud_root', immutableHash: 'hash_root', previousHash: null, createdAt: new Date('2026-08-14T00:52:02.348Z') },
+            { id: 'aud_tail', immutableHash: 'hash_tail', previousHash: 'hash_root', createdAt: new Date('2026-09-10T03:07:16.109Z') },
+          ],
+        },
+      }),
+      opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
+    };
+    const service = new AuditService(prisma as never);
+
+    await expect(service.recordAuthenticationAudit({
+      actor: 'Ms. Mys',
+      action: 'Signed in to pmcm-admin portal',
+    })).rejects.toThrow('Audit history is not a single hash-linked chain');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].metadata).toMatchObject({ integrityKind: 'broken_chain', breakReason: 'multiple_roots' });
+  });
+
+  it('lets an operator opt into degraded authentication without editing audit rows', async () => {
+    const alerts: Array<Record<string, unknown>> = [];
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback({
+        opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
+        opsAuditLog: {
+          findMany: async () => [
+            { id: 'aud_seed', immutableHash: '', previousHash: null, createdAt: new Date('2026-08-14T00:51:37.807Z') },
+            { id: 'aud_root', immutableHash: 'hash_root', previousHash: null, createdAt: new Date('2026-08-14T00:52:02.348Z') },
+          ],
+        },
+      }),
+      opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
+    };
+    const service = new AuditService(prisma as never);
+    const previousPosture = process.env.AUTH_AUDIT_INTEGRITY_POSTURE;
+    process.env.AUTH_AUDIT_INTEGRITY_POSTURE = 'degraded';
+    try {
+      await expect(service.recordAuthenticationAudit({
+        actor: 'Ms. Mys',
+        action: 'Signed in to pmcm-admin portal',
+      })).resolves.toBeNull();
+    } finally {
+      if (previousPosture === undefined) delete process.env.AUTH_AUDIT_INTEGRITY_POSTURE;
+      else process.env.AUTH_AUDIT_INTEGRITY_POSTURE = previousPosture;
+    }
+    // Degraded mode still records the critical incident; it never hides it.
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({ type: 'audit_integrity_incident', severity: 'critical' });
   });
 
   it('exports logs and creates a security alert when the bulk threshold is reached', async () => {

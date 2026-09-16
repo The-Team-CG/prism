@@ -1693,7 +1693,7 @@ model OpsAuditLog {
   ipAddress     String   @default("system") @map("ip_address")
   device        String   @default("P.R.I.S.M")
   severity      String   @default("info")
-  immutableHash String   @default("") @map("immutable_hash")
+  immutableHash String   @map("immutable_hash")
   previousHash  String?  @map("previous_hash")
   createdAt     DateTime @default(now()) @map("created_at")
 

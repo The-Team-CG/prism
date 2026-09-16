@@ -1,11 +1,23 @@
 type LinkedAudit = { id: string; immutableHash: string; previousHash: string | null };
 
+/**
+ * Why a chain walk stopped. An extra root is not a broken link, and reporting
+ * both as "broken" sent a real incident investigation down the wrong path.
+ */
+export type AuditChainBreakReason = 'multiple_roots' | 'fork' | 'duplicate_hash' | 'disconnected';
+
 /** Hash links, not UUID order, preserve valid historical same-millisecond appends. */
-export function orderLinkedAuditLogs<T extends LinkedAudit>(logs: T[]): { ordered: T[]; firstBrokenLogId: string | null } {
+export function orderLinkedAuditLogs<T extends LinkedAudit>(
+  logs: T[],
+): { ordered: T[]; firstBrokenLogId: string | null; breakReason: AuditChainBreakReason | null } {
   const children = new Map<string | null, T>();
   const hashes = new Set<string>();
   for (const log of logs) {
-    if (children.has(log.previousHash) || hashes.has(log.immutableHash)) return { ordered: [], firstBrokenLogId: log.id };
+    if (hashes.has(log.immutableHash)) return { ordered: [], firstBrokenLogId: log.id, breakReason: 'duplicate_hash' };
+    if (children.has(log.previousHash)) {
+      // A null previousHash collision means a second chain root, not a severed link.
+      return { ordered: [], firstBrokenLogId: log.id, breakReason: log.previousHash === null ? 'multiple_roots' : 'fork' };
+    }
     children.set(log.previousHash, log);
     hashes.add(log.immutableHash);
   }
@@ -17,9 +29,13 @@ export function orderLinkedAuditLogs<T extends LinkedAudit>(logs: T[]): { ordere
   }
   if (ordered.length !== logs.length || next) {
     const orderedIds = new Set(ordered.map((row) => row.id));
-    return { ordered, firstBrokenLogId: logs.find((row) => !orderedIds.has(row.id))?.id ?? logs[0]?.id ?? null };
+    return {
+      ordered,
+      firstBrokenLogId: logs.find((row) => !orderedIds.has(row.id))?.id ?? logs[0]?.id ?? null,
+      breakReason: 'disconnected',
+    };
   }
-  return { ordered, firstBrokenLogId: null };
+  return { ordered, firstBrokenLogId: null, breakReason: null };
 }
 
 /** Return every leaf in the complete hash graph. A valid chain has one leaf. */

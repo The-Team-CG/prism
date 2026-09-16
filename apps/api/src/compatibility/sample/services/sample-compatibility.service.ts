@@ -2639,16 +2639,12 @@ export class SampleCompatibilityService implements OnModuleInit {
         ],
       });
 
-      await tx.opsAuditLog.create({
-        data: {
-          id: 'aud_seed',
-          eventId: 'evt_sample_ayala',
-          actor: 'PMCM Admin',
-          action: 'Created sample event workspace',
-          createdAt,
-        },
-      });
     });
+
+    // The audit trail is a hash chain, so it has exactly one writer. Seeding a
+    // row directly used to insert an unhashed, unlinked record that became a
+    // second chain root and failed every later authenticated append closed.
+    await this.auditService.audit('evt_sample_ayala', 'PMCM Admin', 'Created sample event workspace');
 
     await this.ensureCoordinatorPoolSeeded();
     await this.ensureUnassignedScopingEventSeeded();
