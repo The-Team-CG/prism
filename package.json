@@ -29,6 +29,8 @@
     "start:guest": "npm --workspace @prism/guest run start",
     "check:migrations": "npm --workspace prism-api run db:check:migrations",
     "test:migrations": "node --test apps/api/scripts/check-prisma-migrations.test.mjs",
+    "check:invariants": "npm --workspace prism-api run db:check:invariants:dry-run",
+    "test:invariants": "node --test apps/api/scripts/check-data-invariants.test.mjs",
     "test:api": "npm --workspace prism-api run test",
     "test:api:coverage": "npm --workspace prism-api run test:coverage",
     "lint:architecture": "eslint --config eslint.config.mjs \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\"",

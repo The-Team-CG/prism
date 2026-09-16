@@ -24,6 +24,8 @@
         "db:verify:offline": "npm run prisma:validate && prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script",
         "db:verify": "npm run db:doctor && npm run prisma:validate && prisma migrate status && npm run db:verify:offline",
         "db:check:migrations": "node scripts/check-prisma-migrations.mjs",
+        "db:check:invariants": "node --env-file=.env scripts/check-data-invariants.mjs",
+        "db:check:invariants:dry-run": "node scripts/check-data-invariants.mjs --dry-run",
         "db:diff:live": "prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code",
         "db:audit:schemas": "node --env-file=.env scripts/db-schema-audit.mjs",
         "db:audit:naming": "node --env-file=.env scripts/db-naming-audit.mjs",
