@@ -1,5 +1,11 @@
 # Documentation bundle update log
 
+## 2026-09-17
+
+- **Decided:** Audit-chain integrity remains fail-closed on the authentication path by default, but the posture is now explicit rather than emergent. `AUTH_AUDIT_INTEGRITY_POSTURE=degraded` is the operator escape hatch for restoring access during an integrity review, and every classification records a critical incident first, so fail-closed is never the silent branch.
+- **Recorded:** The audit table has exactly one writer. Direct `opsAuditLog` creates outside `AuditService` are the defect class that produced the sign-in outage, and `immutable_hash` no longer carries a column default that makes an unhashed row representable.
+- **Added:** Data-invariant declarations and a read-only verification gate, plus runbook guidance that any migration introducing a runtime-enforced invariant must add a matching declaration and be checked against a restored snapshot before deploy.
+
 ## 2026-09-12
 
 - **Decided:** Authentication remains available when the existing audit history has a known, hash-validated two-chain tail; the authentication seam records a critical integrity incident and preserves credential, lockout, session, and authentication-alert behavior, while unavailable audit storage or incident persistence still fails closed. Live audit rows remain untouched pending operator reconciliation.

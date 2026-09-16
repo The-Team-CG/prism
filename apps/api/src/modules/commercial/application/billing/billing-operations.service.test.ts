@@ -59,6 +59,64 @@ function createPaymentService() {
   return { service, prisma, audit, history };
 }
 
+function createBillingStatementService(priorNumbers: string[]) {
+  const event = {
+    id: 'evt_billing_sequence',
+    inquiryId: 'inq_billing_sequence',
+    eventName: 'Sequence Test Event',
+    clientName: 'Sequence Client',
+    eventDate: new Date('2026-08-01T00:00:00.000Z'),
+  };
+  const source = {
+    id: 'bsrc_billing_sequence',
+    eventId: event.id,
+    sourceLabel: 'Approved source',
+    status: 'approved',
+    totalAmount: 100000,
+    lineItems: [],
+    paymentSchedule: [{ label: 'Full payment', percentage: 100 }],
+    paymentMethods: [],
+    createdAt: new Date('2026-07-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+  };
+  const statements = priorNumbers.map((number, index) => ({ id: `stmt_${index}`, number }));
+  const sequenceRows: Array<{ next_number: number }> = [];
+  const queryRaw = vi.fn(async () => {
+    if (sequenceRows.length === 0) {
+      const maxSequence = statements.reduce((max, statement) => Math.max(max, Number(statement.number.slice(-4))), 0);
+      return [{ next_number: maxSequence + 1 }];
+    }
+    return sequenceRows;
+  });
+  const executeRaw = vi.fn(async () => {
+    if (sequenceRows.length === 0) {
+      const maxSequence = statements.reduce((max, statement) => Math.max(max, Number(statement.number.slice(-4))), 0);
+      sequenceRows.push({ next_number: maxSequence + 1 });
+    } else {
+      sequenceRows[0].next_number += 1;
+    }
+    return 1;
+  });
+  const prisma: any = {
+    opsEvent: { findUnique: vi.fn(async () => event) },
+    opsInquiry: { findUnique: vi.fn(async () => ({ clientName: event.clientName, email: '' })) },
+    opsBillingSource: { findUnique: vi.fn(async () => source) },
+    opsBillingStatement: {
+      findUnique: vi.fn(async () => null),
+      create: vi.fn(async ({ data }: { data: Record<string, any> }) => ({ ...data, generatedAt: new Date('2026-08-01T01:00:00.000Z') })),
+    },
+    opsDocument: { create: vi.fn(async ({ data }: { data: Record<string, any> }) => ({ ...data })) },
+    opsPaymentMilestone: { createMany: vi.fn(async () => ({ count: 1 })) },
+    $queryRaw: queryRaw,
+    $executeRaw: executeRaw,
+    $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
+  };
+  const audit = { write: vi.fn() };
+  const notifications = { write: vi.fn() };
+  const service = new BillingOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
+  return { service, prisma, statements };
+}
+
 describe('BillingOperationsService', () => {
   it('renders a structurally parseable PDF with real newline bytes and matching xref offsets', () => {
     const pdf = renderBillingPdf({ number: 'BS-2026-0001', sourceLabel: 'Approved proposal', totalAmount: 100000 });
@@ -110,6 +168,26 @@ describe('BillingOperationsService', () => {
     }));
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ actor: 'Maxine' }), undefined);
   });
+
+  it.each([
+    { name: 'no prior statements for the year', priorNumbers: [], expectedNumber: 'BS-2026-0001' },
+    { name: 'exactly one prior statement', priorNumbers: ['BS-2026-0001'], expectedNumber: 'BS-2026-0002' },
+    { name: 'several prior statements with a gap', priorNumbers: ['BS-2026-0001', 'BS-2026-0003'], expectedNumber: 'BS-2026-0004' },
+  ])('allocates the next number with $name', async ({ priorNumbers, expectedNumber }) => {
+    const { service, prisma } = createBillingStatementService(priorNumbers);
+
+    const result = await service.generateBillingStatement(
+      'evt_billing_sequence',
+      'bsrc_billing_sequence',
+      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+    );
+
+    expect(result.number).toBe(expectedNumber);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
+  });
+
   it('records and audits a payment when the reference number is new', async () => {
     const { service, prisma, audit, history } = createPaymentService();
 
