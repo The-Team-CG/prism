@@ -12,6 +12,8 @@ function createGuestWorkflowFixture() {
         eventName: 'Ayala Tech Summit',
         clientName: 'Ana Reyes',
         eventDate: new Date('2026-06-18T00:00:00.000Z'),
+        // Load-bearing: the seven-day window boundary test asserts against this
+        // exact instant. Tests that write feedback must pin the clock.
         actualEndedAt: new Date('2026-09-07T12:00:00.000Z'),
         actualEndedBy: 'user_pmcm',
         status: 'event_day',
@@ -146,6 +148,8 @@ describe('GuestWorkflowService', () => {
   });
 
   it('records guest check-ins and moderated feedback through command methods', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
     const { service, auditWriter } = createGuestWorkflowFixture();
 
     const checkIn = await service.checkInByAccessCode('AYALA-TECH-MPLE', {
@@ -163,6 +167,7 @@ describe('GuestWorkflowService', () => {
     expect(checkIn).toMatchObject({ eventId: 'evt_sample', guestName: 'Sofia Lim', status: 'checked_in' });
     expect(feedback).toMatchObject({ eventId: 'evt_sample', guestName: 'Sofia Lim', moderationStatus: 'pending_review' });
     expect(auditWriter.write).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 
   it.each([
@@ -224,6 +229,8 @@ describe('GuestWorkflowService', () => {
   });
 
   it('maps guest event, check-in, and feedback payloads without PMCM-only fields', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
     const { service, state } = createGuestWorkflowFixture();
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', {
       guestName: 'Sofia Lim',
@@ -252,6 +259,7 @@ describe('GuestWorkflowService', () => {
     expect(guestEventJson).not.toContain('budgetRange');
     expect(guestEventJson).not.toContain('serviceRequirements');
     expect(guestEventJson).not.toContain('privateNotes');
+    vi.useRealTimers();
   });
 
   it('enforces the actual-end anchored seven-day window with distinct reasons', async () => {
