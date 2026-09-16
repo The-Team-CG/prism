@@ -1,2 +1,7 @@
-# This immutable migration identifier is a name, not a credential.
-apps/api/prisma/migration-policy.json:generic-api-key:113
+# SHA-256 checksum of an immutable migration's SQL, keyed by a migration name
+# that happens to contain "password_reset". It is a content hash, not a credential.
+#
+# Gitleaks fingerprints pin a line number, so this entry breaks whenever anything
+# above it in migration-policy.json moves. If the central Gitleaks workflow gains
+# config support, replace this with a path/rule allowlist.
+apps/api/prisma/migration-policy.json:generic-api-key:120
