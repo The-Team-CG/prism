@@ -14,6 +14,7 @@ import {
 const policy = {
   legacyMaxVersion: '20260909100000',
   legacyMigrationNames: ['20260908000400_legacy_change'],
+  legacyDuplicateVersions: [],
   systemSchemas: ['information_schema', 'pg_catalog'],
   forbiddenSchemas: ['public'],
   owners: {
@@ -86,6 +87,7 @@ describe('Prisma migration policy', () => {
           '20260908000400_legacy_change',
           '20260908000400_legacy_change_two',
         ],
+        legacyDuplicateVersions: ['20260908000400'],
       },
     );
 
@@ -158,7 +160,7 @@ describe('Prisma migration policy', () => {
     assert.match(result.error, /invalid calendar timestamp/);
   });
 
-  it('rejects duplicate future timestamp versions while allowing legacy collisions', () => {
+  it('rejects a new duplicate timestamp version and names every colliding folder', () => {
     const result = auditMigrationSet(
       [
         ownerAwareMigration({ slug: 'first' }),
@@ -167,7 +169,22 @@ describe('Prisma migration policy', () => {
       futurePolicy,
     );
 
-    assert.match(result.errors.join('\n'), /duplicate future migration version/);
+    const errors = result.errors.join('\n');
+    assert.match(errors, /duplicate migration version/);
+    assert.match(errors, /20260911123000_commercial_first/);
+    assert.match(errors, /20260911123000_commercial_second/);
+  });
+
+  it('passes unique migration timestamp versions', () => {
+    const result = auditMigrationSet(
+      [
+        ownerAwareMigration({ slug: 'first' }),
+        ownerAwareMigration({ version: '20260911123001', slug: 'second' }),
+      ],
+      futurePolicy,
+    );
+
+    assert.deepEqual(result.errors, []);
   });
 
   it('rejects a migration that reaches outside its owner schemas', () => {
