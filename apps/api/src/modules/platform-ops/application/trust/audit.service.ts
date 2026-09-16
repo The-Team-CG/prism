@@ -13,6 +13,7 @@ import {
 } from '@prism/kernel/event-core';
 import { mapAuditLog } from './audit.mappers';
 import type { PrismVerifiedEventActor } from '@prism/types';
+import type { AuditChainBreakReason } from './audit-chain-order';
 import { auditTailCandidates, isIndependentAuditChainSet, orderLinkedAuditLogs } from './audit-chain-order';
 import { NotificationOutboxService } from '../notifications/notification-outbox.service';
 
@@ -59,9 +60,28 @@ export type IntegrityIncidentInput = {
 export type AuditIntegrityConflictKind = 'ambiguous_tail' | 'broken_chain';
 
 export class AuditIntegrityConflictException extends ConflictException {
-  constructor(message: string, readonly kind: AuditIntegrityConflictKind) {
+  constructor(
+    message: string,
+    readonly kind: AuditIntegrityConflictKind,
+    readonly breakReason: AuditChainBreakReason | null = null,
+  ) {
     super(message);
   }
+}
+
+export type AuthAuditIntegrityPosture = 'fail_closed' | 'degraded';
+
+/**
+ * Whether an unverifiable audit chain blocks authentication.
+ *
+ * Fail-closed is the default and the right posture for tamper evidence, but it
+ * is also a platform-wide denial of service that a single bad row can trigger,
+ * and it locks out the very operators who need to investigate. The escape hatch
+ * is deliberate, opt-in, and always recorded as a critical incident, so
+ * restoring access never requires editing the audit trail.
+ */
+export function resolveAuthAuditIntegrityPosture(): AuthAuditIntegrityPosture {
+  return process.env.AUTH_AUDIT_INTEGRITY_POSTURE === 'degraded' ? 'degraded' : 'fail_closed';
 }
 
 const BULK_EXPORT_ALERT_THRESHOLD = 25;
@@ -295,6 +315,7 @@ export class AuditService {
         valid: false,
         checkedCount: logs.length,
         firstBrokenLogId: chain.firstBrokenLogId,
+        breakReason: chain.breakReason,
         ambiguousTail,
         ambiguousTailLogIds: ambiguousTail ? tails.map((tail) => tail.id) : [],
         lastVerifiedHash,
@@ -309,6 +330,7 @@ export class AuditService {
           valid: false,
           checkedCount: logs.length,
           firstBrokenLogId: log.id,
+          breakReason: null,
           ambiguousTail: false,
           ambiguousTailLogIds: [],
           lastVerifiedHash,
@@ -324,6 +346,7 @@ export class AuditService {
       valid: true,
       checkedCount: logs.length,
       firstBrokenLogId: null,
+      breakReason: null,
       ambiguousTail: false,
       ambiguousTailLogIds: [],
       lastVerifiedHash,
@@ -364,9 +387,14 @@ export class AuditService {
     try {
       return await this.audit(eventId, actor, action, options);
     } catch (error) {
-      if (!(error instanceof AuditIntegrityConflictException) || error.kind !== 'ambiguous_tail') throw error;
+      if (!(error instanceof AuditIntegrityConflictException)) throw error;
 
       const reason = error.message;
+      // Every integrity classification is recorded before any decision about the
+      // request. The severe classification used to be the silent one: a broken
+      // chain rethrew before an incident existed, so the worst state left the
+      // least evidence. Security alerts are not chain-linked, so this write
+      // stays available exactly when the chain does not.
       try {
         await this.recordIntegrityIncident({
           source: 'identity-access.authentication',
@@ -374,6 +402,8 @@ export class AuditService {
           eventId,
           actor,
           metadata: {
+            integrityKind: error.kind,
+            ...(error.breakReason ? { breakReason: error.breakReason } : {}),
             ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
             ...(input.category !== undefined ? { category: input.category } : {}),
             ...(input.affectedType !== undefined ? { affectedType: input.affectedType } : {}),
@@ -386,6 +416,15 @@ export class AuditService {
         this.logger.error(`Authentication audit integrity incident could not be persisted: ${incidentMessage}`);
         throw incidentError;
       }
+
+      // A known two-root tail still degrades. An unverifiable chain blocks
+      // authentication unless an operator has deliberately opted into degraded
+      // mode to investigate.
+      if (error.kind !== 'ambiguous_tail' && resolveAuthAuditIntegrityPosture() === 'fail_closed') {
+        this.logger.error(`Authentication blocked by audit integrity failure: ${reason}`);
+        throw error;
+      }
+
       this.logger.error(`Authentication audit was skipped until integrity review: ${reason}`);
       return null;
     }
@@ -405,6 +444,7 @@ export class AuditService {
       throw new AuditIntegrityConflictException(
         `Audit history is not a single hash-linked chain; integrity review is required (${chain.firstBrokenLogId ?? 'unknown'})`,
         'broken_chain',
+        chain.breakReason,
       );
     }
     return tails[0];
