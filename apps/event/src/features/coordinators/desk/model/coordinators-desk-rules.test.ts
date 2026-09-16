@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { parseContract, updateCoordinatorAttendanceSchema } from "@prism/types";
 import {
+  buildCoordinatorAttendanceInput,
   buildCoordinatorIssueInput,
   buildCoordinatorTaskInput,
+  canConfirmPendingAttendance,
+  canMarkOwnAttendance,
+  isAttendanceChoiceDisabled,
+  isReplacedAssignment,
   isTaskOutsideOwnQueue,
+  requiresAttendanceConfirmation,
+  resolveOwnAttendanceStatus,
+  attendanceChoiceLabel,
   taskAssignedRoleOptions,
   isRegistrationCoordinatorRole,
   isCoordinatorAssignmentActive,
@@ -10,6 +19,7 @@ import {
   sameCoordinatorName,
   shouldPreserveRoleViewOnAcknowledgeFailure,
   suggestAvailableSameRoleCoordinators,
+  COORDINATOR_ATTENDANCE_CHOICES,
 } from "./coordinators-desk-rules";
 
 describe("coordinators-desk-rules", () => {
@@ -182,5 +192,230 @@ describe("taskAssignedRoleOptions", () => {
     expect(options[0]).toBe("Drone Marshal");
     expect(options.filter((r) => r === "Drone Marshal")).toHaveLength(1);
     expect(options).toHaveLength(8);
+  });
+});
+
+/* ── EP-11-S03: coordinator self-attendance marking ──────────────── */
+
+describe("COORDINATOR_ATTENDANCE_CHOICES", () => {
+  it("offers exactly present, late and absent, in that order", () => {
+    expect(COORDINATOR_ATTENDANCE_CHOICES.map((choice) => choice.value)).toEqual([
+      "present",
+      "late",
+      "absent",
+    ]);
+  });
+
+  it("never offers pending or replaced", () => {
+    // pending is a schema default nobody chooses; replaced is written by the
+    // PMCM replacement flow (live-operations.service.ts:505-517).
+    const values: string[] = COORDINATOR_ATTENDANCE_CHOICES.map((choice) => choice.value);
+    expect(values).not.toContain("pending");
+    expect(values).not.toContain("replaced");
+  });
+
+  it("labels late as Late Arrival", () => {
+    expect(COORDINATOR_ATTENDANCE_CHOICES.find((choice) => choice.value === "late")?.label).toBe(
+      "Late Arrival",
+    );
+  });
+});
+
+describe("resolveOwnAttendanceStatus", () => {
+  it("reads the attendance vocabulary, falling back to pending", () => {
+    expect(resolveOwnAttendanceStatus({ attendanceStatus: "late" })).toBe("late");
+    expect(resolveOwnAttendanceStatus({})).toBe("pending");
+    expect(resolveOwnAttendanceStatus(undefined)).toBe("pending");
+    expect(resolveOwnAttendanceStatus(null)).toBe("pending");
+  });
+
+  it("PA-299: never falls back to the acknowledgment vocabulary", () => {
+    // status carries pending_acknowledgement / acknowledged. Neither is an
+    // attendance value, and neither may reach a control comparing against
+    // present / late / absent.
+    expect(
+      resolveOwnAttendanceStatus({ status: "pending_acknowledgement" } as { attendanceStatus?: string }),
+    ).toBe("pending");
+    expect(
+      resolveOwnAttendanceStatus({ status: "acknowledged" } as { attendanceStatus?: string }),
+    ).toBe("pending");
+  });
+});
+
+describe("attendanceChoiceLabel", () => {
+  it("labels an offered choice and returns null for none", () => {
+    expect(attendanceChoiceLabel("absent")).toBe("Absent");
+    expect(attendanceChoiceLabel("late")).toBe("Late Arrival");
+    expect(attendanceChoiceLabel(null)).toBeNull();
+  });
+});
+
+describe("isReplacedAssignment", () => {
+  it("is true when either vocabulary marks the row replaced", () => {
+    // replaceCoordinatorAssignment writes status AND attendanceStatus in one
+    // transaction, so both are populated in practice.
+    expect(isReplacedAssignment({ attendanceStatus: "replaced", status: "replaced" })).toBe(true);
+    expect(isReplacedAssignment({ status: "replaced" })).toBe(true);
+    expect(isReplacedAssignment({ attendanceStatus: "replaced" })).toBe(true);
+  });
+
+  it("is false for a live assignment and for no assignment", () => {
+    expect(isReplacedAssignment({ attendanceStatus: "present", status: "acknowledged" })).toBe(false);
+    expect(isReplacedAssignment(undefined)).toBe(false);
+    expect(isReplacedAssignment(null)).toBe(false);
+  });
+});
+
+describe("canMarkOwnAttendance", () => {
+  const live = { attendanceStatus: "pending", status: "acknowledged" };
+
+  it("allows marking on a live assignment", () => {
+    expect(canMarkOwnAttendance({ assignment: live, busy: false })).toBe(true);
+  });
+
+  it("blocks with no assignment, a replaced assignment, or while busy", () => {
+    expect(canMarkOwnAttendance({ assignment: undefined, busy: false })).toBe(false);
+    expect(canMarkOwnAttendance({ assignment: { status: "replaced" }, busy: false })).toBe(false);
+    expect(canMarkOwnAttendance({ assignment: live, busy: true })).toBe(false);
+  });
+
+  it("blocks while the attendance flow itself is in flight", () => {
+    // Both in-flight flags are folded in here rather than OR-ed at the call
+    // site, so the rule is tested rather than living in the view-model.
+    expect(canMarkOwnAttendance({ assignment: live, busy: false, attendanceBusy: true })).toBe(false);
+    expect(canMarkOwnAttendance({ assignment: live, busy: false, attendanceBusy: false })).toBe(true);
+  });
+
+  it("does NOT lock out a coordinator who already marked absent", () => {
+    // The reliability note is irreversible; attendanceStatus is not — the
+    // update overwrites it. A permanent lockout is not in AC1.
+    expect(
+      canMarkOwnAttendance({ assignment: { ...live, attendanceStatus: "absent" }, busy: false }),
+    ).toBe(true);
+  });
+});
+
+describe("isAttendanceChoiceDisabled", () => {
+  it("disables only the status already set", () => {
+    expect(
+      isAttendanceChoiceDisabled({ choice: "present", attendanceStatus: "present", canMark: true }),
+    ).toBe(true);
+    expect(
+      isAttendanceChoiceDisabled({ choice: "late", attendanceStatus: "present", canMark: true }),
+    ).toBe(false);
+  });
+
+  it("leaves the other two enabled when the current status is absent", () => {
+    expect(
+      isAttendanceChoiceDisabled({ choice: "present", attendanceStatus: "absent", canMark: true }),
+    ).toBe(false);
+    expect(
+      isAttendanceChoiceDisabled({ choice: "late", attendanceStatus: "absent", canMark: true }),
+    ).toBe(false);
+    expect(
+      isAttendanceChoiceDisabled({ choice: "absent", attendanceStatus: "absent", canMark: true }),
+    ).toBe(true);
+  });
+
+  it("disables every choice when marking is not allowed", () => {
+    for (const choice of COORDINATOR_ATTENDANCE_CHOICES) {
+      expect(
+        isAttendanceChoiceDisabled({
+          choice: choice.value,
+          attendanceStatus: "pending",
+          canMark: false,
+        }),
+      ).toBe(true);
+    }
+  });
+});
+
+describe("canConfirmPendingAttendance", () => {
+  const live = { attendanceStatus: "pending", status: "acknowledged" };
+
+  it("allows confirming a pending choice on a live assignment", () => {
+    expect(
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: false }),
+    ).toBe(true);
+  });
+
+  it("refuses once the assignment became replaced while the prompt was open", () => {
+    // The defect: the confirm prompt stays rendered after a PMCM replacement,
+    // the coordinator taps confirm, and a request fires against an assignment
+    // the server will reject. Rejecting at submit time is the guarantee;
+    // hiding the prompt is only a render concern and can lose the race.
+    expect(
+      canConfirmPendingAttendance({
+        assignment: { attendanceStatus: "replaced", status: "replaced" },
+        pendingChoice: "absent",
+        busy: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("refuses once the assignment disappeared entirely", () => {
+    expect(
+      canConfirmPendingAttendance({ assignment: undefined, pendingChoice: "absent", busy: false }),
+    ).toBe(false);
+    expect(
+      canConfirmPendingAttendance({ assignment: null, pendingChoice: "absent", busy: false }),
+    ).toBe(false);
+  });
+
+  it("refuses when nothing is pending, or while a mark is already in flight", () => {
+    expect(
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: null, busy: false }),
+    ).toBe(false);
+    expect(
+      canConfirmPendingAttendance({ assignment: live, pendingChoice: "absent", busy: true }),
+    ).toBe(false);
+  });
+
+  it("does NOT treat an absent attendanceStatus as a missing assignment", () => {
+    // Guards the lockout regression: 'absent' is a status a coordinator can
+    // already hold and correct from. Only a replaced or missing assignment
+    // blocks confirming.
+    expect(
+      canConfirmPendingAttendance({
+        assignment: { ...live, attendanceStatus: "absent" },
+        pendingChoice: "present",
+        busy: false,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("requiresAttendanceConfirmation", () => {
+  it("confirms absent only", () => {
+    // Absent writes a severity 'critical' reliability note with no retraction
+    // path (live-operations.service.ts:627). Late writes 'warning', and is the
+    // status a coordinator taps while already behind schedule.
+    expect(requiresAttendanceConfirmation("absent")).toBe(true);
+    expect(requiresAttendanceConfirmation("late")).toBe(false);
+    expect(requiresAttendanceConfirmation("present")).toBe(false);
+  });
+});
+
+describe("buildCoordinatorAttendanceInput", () => {
+  it("sends the chosen status with empty notes", () => {
+    // notes flows verbatim into permanent reliability-note text
+    // (live-operations.service.ts:626). Whether a coordinator may write their
+    // own reason is a pending product decision, so nothing is sent.
+    expect(buildCoordinatorAttendanceInput("late")).toEqual({ status: "late", notes: "" });
+  });
+
+  it("passes parseContract for every offered choice", () => {
+    // The schema types status as nonEmptyStringSchema, not an enum, so it will
+    // NOT reject an invalid status. COORDINATOR_ATTENDANCE_CHOICES is the only
+    // constraint; this asserts every value it offers is at least accepted.
+    for (const choice of COORDINATOR_ATTENDANCE_CHOICES) {
+      expect(() =>
+        parseContract(
+          updateCoordinatorAttendanceSchema,
+          buildCoordinatorAttendanceInput(choice.value),
+          "Update coordinator attendance",
+        ),
+      ).not.toThrow();
+    }
   });
 });

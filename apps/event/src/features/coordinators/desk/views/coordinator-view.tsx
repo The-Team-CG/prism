@@ -38,6 +38,10 @@ export function CoordinatorView({
     activeDraft,
     activeSection,
     assignment,
+    // PA-299: sourced from the view-model, which reads the attendance
+    // vocabulary or the "pending" default. It must never fall back to
+    // assignment.status, which is the acknowledgment vocabulary.
+    attendanceStatus,
     busy,
     event,
     registrationRole,
@@ -48,7 +52,6 @@ export function CoordinatorView({
   } = vm;
 
   const roleName = assignment?.role ?? label(session.role);
-  const attendanceStatus = assignment?.attendanceStatus ?? assignment?.status ?? "pending";
 
   function scrollTo(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -133,6 +136,7 @@ export function CoordinatorView({
             roleName={roleName}
             attendanceStatus={attendanceStatus}
             onAcknowledge={vm.acknowledge}
+            attendanceForm={vm.attendanceForm}
           />
         </div>
         <CoordinatorRoleData

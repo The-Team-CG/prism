@@ -5,6 +5,7 @@ import type {
   CreateUrgentIssueInput,
   CoordinatorAssignmentAcknowledgementInput,
   DecideEventTaskReassignmentInput,
+  UpdateCoordinatorAttendanceInput,
   WithdrawCoordinatorAssignmentInput,
 } from "@prism/types";
 import { coordinatorsRepository } from "../data/coordinators-repository";
@@ -75,5 +76,21 @@ export async function decideTaskReassignmentAndRefreshRoleView(input: {
   input: DecideEventTaskReassignmentInput;
 }) {
   await coordinatorsRepository.decideTaskReassignment(input.session, input.eventId, input.requestId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+// EP-11-S03: mirrors createTaskAndRefreshRoleView, plus assignmentId.
+export async function markAttendanceAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  assignmentId: string;
+  input: UpdateCoordinatorAttendanceInput;
+}) {
+  await coordinatorsRepository.updateOwnAttendance(
+    input.session,
+    input.eventId,
+    input.assignmentId,
+    input.input,
+  );
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
