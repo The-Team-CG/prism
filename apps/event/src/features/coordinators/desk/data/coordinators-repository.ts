@@ -6,6 +6,7 @@ import type {
   CreateUrgentIssueInput,
   CoordinatorAssignmentAcknowledgementInput,
   DecideEventTaskReassignmentInput,
+  UpdateCoordinatorAttendanceInput,
   WithdrawCoordinatorAssignmentInput,
 } from "@prism/types";
 
@@ -43,5 +44,13 @@ export const coordinatorsRepository = {
     input: DecideEventTaskReassignmentInput,
   ) {
     return prismApi.decideCoordinatorTaskReassignment(session, eventId, requestId, input);
+  },
+  updateOwnAttendance(
+    session: EventSession,
+    eventId: string,
+    assignmentId: string,
+    input: UpdateCoordinatorAttendanceInput,
+  ) {
+    return prismApi.updateOwnCoordinatorAttendance(session, eventId, assignmentId, input);
   },
 };
