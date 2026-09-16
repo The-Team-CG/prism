@@ -1,6 +1,13 @@
 {
   "policyVersion": 1,
   "legacyMaxVersion": "20260909100000",
+  "legacyDuplicateVersions": [
+    "20260908000400",
+    "20260908000800",
+    "20260908020000",
+    "20260908120000",
+    "20260908130000"
+  ],
   "ownerAwareNamePattern": "YYYYMMDDHHmmss_<owner>_<change_slug>",
   "legacyMigrationNames": [
     "20260425131500_init_mvp_schema",
