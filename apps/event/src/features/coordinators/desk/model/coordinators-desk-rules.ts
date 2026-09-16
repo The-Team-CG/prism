@@ -1,4 +1,8 @@
-import type { CreateEventDayTaskInput, CreateUrgentIssueInput } from "@prism/types";
+import type {
+  CreateEventDayTaskInput,
+  CreateUrgentIssueInput,
+  UpdateCoordinatorAttendanceInput,
+} from "@prism/types";
 import { asIsoDateTime } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
 
 export function sameCoordinatorName(a: string, b: string): boolean {
@@ -182,4 +186,134 @@ export function suggestAvailableSameRoleCoordinators(input: {
     .filter((coordinator) => (coordinator.roleTags ?? []).includes(input.role))
     .filter((coordinator) => !busyIds.has(coordinator.id))
     .map((coordinator) => ({ id: coordinator.id, name: coordinator.name }));
+}
+
+/* ── EP-11-S03: coordinator self-attendance marking ──────────────── */
+
+/**
+ * The three statuses a coordinator may set for themselves, and the ONLY
+ * constraint on the wire value: updateCoordinatorAttendanceSchema types `status`
+ * as nonEmptyStringSchema, not an enum, so parseContract will NOT reject an
+ * invalid status. CoordinatorAttendanceStatus also defines `pending`, a schema
+ * default nobody chooses, and `replaced`, written by the PMCM replacement flow
+ * (live-operations.service.ts:505-517). Neither is offered here.
+ */
+export const COORDINATOR_ATTENDANCE_CHOICES = [
+  { value: "present", label: "Present" },
+  { value: "late", label: "Late Arrival" },
+  { value: "absent", label: "Absent" },
+] as const;
+
+export type CoordinatorAttendanceChoice = (typeof COORDINATOR_ATTENDANCE_CHOICES)[number]["value"];
+
+type AssignmentLifecycle = { attendanceStatus?: string; status?: string };
+
+/**
+ * PA-299: the coordinator's own attendance comes from the attendance vocabulary
+ * or the "pending" default, and never from assignment.status, which is the
+ * acknowledgment vocabulary (pending_acknowledgement / acknowledged). Mixing the
+ * two put an ack value in front of a control comparing against present / late /
+ * absent.
+ */
+export function resolveOwnAttendanceStatus(
+  assignment?: { attendanceStatus?: string } | null,
+): string {
+  return assignment?.attendanceStatus ?? "pending";
+}
+
+/** Display label for a pending confirm, or null when nothing is pending. */
+export function attendanceChoiceLabel(choice: CoordinatorAttendanceChoice | null): string | null {
+  return COORDINATOR_ATTENDANCE_CHOICES.find((item) => item.value === choice)?.label ?? null;
+}
+
+/**
+ * pickActiveAssignment falls back to assignments[0], so a replaced assignment
+ * can still reach the view and must not be offered attendance buttons. Both
+ * fields are checked because replaceCoordinatorAssignment writes both in one
+ * transaction. This is a lifecycle question, not an attendance one — `replaced`
+ * is a legitimate member of the assignment-status vocabulary — so it is not the
+ * PA-299 mistake of reading an attendance value out of the ack vocabulary.
+ */
+export function isReplacedAssignment(assignment?: AssignmentLifecycle | null): boolean {
+  if (!assignment) return false;
+  return assignment.attendanceStatus === "replaced" || assignment.status === "replaced";
+}
+
+/**
+ * Deliberately has NO `attendanceStatus === "absent"` condition. The reliability
+ * note Absent writes is irreversible, but attendanceStatus is not: the update
+ * overwrites it, so a coordinator who marked Absent can still correct
+ * themselves. A permanent lockout is not in AC1 and would be a defect.
+ */
+export function canMarkOwnAttendance({
+  assignment,
+  busy,
+  attendanceBusy = false,
+}: {
+  assignment?: AssignmentLifecycle | null;
+  busy: boolean;
+  attendanceBusy?: boolean;
+}): boolean {
+  if (!assignment || busy || attendanceBusy) return false;
+  return !isReplacedAssignment(assignment);
+}
+
+/** Disables the status already set (a no-op), and everything when marking is off. */
+export function isAttendanceChoiceDisabled({
+  choice,
+  attendanceStatus,
+  canMark,
+}: {
+  choice: CoordinatorAttendanceChoice;
+  attendanceStatus: string;
+  canMark: boolean;
+}): boolean {
+  if (!canMark) return true;
+  return choice === attendanceStatus;
+}
+
+/**
+ * REJECT half of the pending-confirm guard. A confirm prompt can outlive the
+ * state it was opened against: a PMCM replacement or a role-view refresh can
+ * retire the assignment while the prompt is still on screen. Hiding the prompt
+ * is a render concern and can lose that race, so the confirm handler re-checks
+ * here at submit time — that is the actual guarantee no request leaves.
+ *
+ * Delegates to canMarkOwnAttendance, which is where isReplacedAssignment and
+ * the missing-assignment check already live, so the two paths cannot drift.
+ */
+export function canConfirmPendingAttendance({
+  assignment,
+  pendingChoice,
+  busy,
+}: {
+  assignment?: AssignmentLifecycle | null;
+  pendingChoice: CoordinatorAttendanceChoice | null;
+  busy: boolean;
+}): boolean {
+  if (!pendingChoice) return false;
+  return canMarkOwnAttendance({ assignment, busy });
+}
+
+/**
+ * Absent writes a severity 'critical' reliability note against a permanent
+ * profile with no retraction path (live-operations.service.ts:627). Late writes
+ * one at 'warning' and is deliberately NOT gated: it is the status a coordinator
+ * taps while already behind schedule, where the friction costs more than a
+ * warning-level note protects.
+ */
+export function requiresAttendanceConfirmation(choice: CoordinatorAttendanceChoice): boolean {
+  return choice === "absent";
+}
+
+/**
+ * notes is sent empty on purpose. It flows verbatim into the permanent
+ * reliability-note text (live-operations.service.ts:626) and is irreversible;
+ * whether a coordinator may write their own reason is a product decision pending
+ * with Ms. Mys. Deliberate deferral, not an oversight.
+ */
+export function buildCoordinatorAttendanceInput(
+  choice: CoordinatorAttendanceChoice,
+): UpdateCoordinatorAttendanceInput {
+  return { status: choice, notes: "" };
 }
