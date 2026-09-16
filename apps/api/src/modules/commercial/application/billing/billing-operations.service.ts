@@ -539,7 +539,13 @@ export class BillingOperationsService {
             }
           }
           const billingYear = event!.eventDate.getFullYear();
-          await tx.$executeRaw`INSERT INTO "finance_ops"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, 2) ON CONFLICT ("year") DO NOTHING`;
+          const startingNumberRows = await tx.$queryRaw<Array<{ next_number: number }>>`
+            SELECT COALESCE(MAX(substring("number" FROM '^BS-[0-9]{4}-([0-9]{4})$')::integer), 0) + 1 AS "next_number"
+            FROM "finance_ops"."billing_statements"
+            WHERE "number" ~ ('^BS-' || ${billingYear}::text || '-[0-9]{4}$')
+          `;
+          const startingNumber = startingNumberRows[0]?.next_number ?? 1;
+          await tx.$executeRaw`INSERT INTO "finance_ops"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, ${startingNumber}) ON CONFLICT ("year") DO NOTHING`;
           const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
           const nextNumber = sequenceRows[0]?.next_number ?? 1;
           billingNumber = `BS-${billingYear}-${String(nextNumber).padStart(4, '0')}`;
