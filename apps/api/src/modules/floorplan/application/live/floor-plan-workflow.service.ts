@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsEvent, OpsFloorPlanDraft, Prisma } from '@prisma/client';
 import type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
+import { readEventAccessScope, readEventConformeState } from '@prism/contexts/read-models/event-scope';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
 
@@ -41,6 +41,7 @@ export class FloorPlanWorkflowService {
       eventId,
       validateState: async () => {
         event = await this.requireEvent(eventId);
+        await this.requireSignedConforme(eventId);
       },
       write: async () => {
         if (!event) throw new NotFoundException('Event not found');
@@ -167,8 +168,12 @@ export class FloorPlanWorkflowService {
           await tx.opsEvent.update({
             where: { id: eventId },
             data: {
-              floorPlanStatus: 'client_submitted',
-              readiness: 'Client layout preference received',
+              // A client preference is a request for changes, not a demotion of the official plan.
+              // The route admits OpsUserRole.Client, so without this guard a preference filed after
+              // approval would knock an approved event out of approved state. PMCM still learns of
+              // the request through the writeNotification below.
+              floorPlanStatus: event!.floorPlanStatus === 'approved' ? 'approved' : 'client_submitted',
+              readiness: event!.floorPlanStatus === 'approved' ? event!.readiness : 'Client layout preference received',
             },
           });
 
@@ -324,6 +329,18 @@ export class FloorPlanWorkflowService {
     const event = await readEventAccessScope(this.prisma, eventId);
     if (!event) throw new NotFoundException('Event not found');
     return event;
+  }
+
+  /**
+   * EP-05-S01 AC1. An official floor plan is downstream of a signed conforme, so refuse to open a
+   * draft until event-lifecycle records one. Fails closed: OpsEvent.inquiry is a required relation,
+   * so a missing conforme fact means unsigned, never "assume signed".
+   */
+  private async requireSignedConforme(eventId: string) {
+    const conforme = await readEventConformeState(this.prisma, eventId);
+    if (!conforme?.conformeSignedAt) {
+      throw new BadRequestException('Official floor plan requires a signed conforme');
+    }
   }
 
   private async requireFloorPlanDraft(eventId: string, draftId: string) {
