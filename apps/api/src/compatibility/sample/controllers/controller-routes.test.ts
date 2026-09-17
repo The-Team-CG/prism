@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it } from 'vitest';
 import { SampleResetGuard } from '../guards/sample-reset.guard';
+import { SampleStateGuard } from '../guards/sample-state.guard';
 import { SAMPLE_COMPATIBILITY_CONTROLLERS } from './index';
 
 function controllerPath(controller: Function): string {
@@ -21,11 +22,13 @@ describe('sample-compatibility controller routes', () => {
     expect(resetGuards).toContain(SampleResetGuard);
   });
 
-  it('leaves sample state readable without a guard', () => {
-    // /sample/state is intentionally unauthenticated; assert that the reset guard
-    // was not applied to the whole controller by mistake.
+  it('requires a verified session before sample state is read', () => {
+    // Previously unguarded on the reasoning that it is disabled in production,
+    // which left it open on staging while returning supplier quote accessTokens.
     const stateGuards = Reflect.getMetadata('__guards__', SAMPLE_COMPATIBILITY_CONTROLLERS[0].prototype.state);
-    expect(stateGuards).toBeUndefined();
+    expect(stateGuards).toContain(SampleStateGuard);
+    // Each route still carries its own guard rather than one blanket class guard,
+    // because reset and state have different bypass rules.
     expect(Reflect.getMetadata('__guards__', SAMPLE_COMPATIBILITY_CONTROLLERS[0])).toBeUndefined();
   });
 });

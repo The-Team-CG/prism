@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuditService, AuditWriterAdapter } from '@prism/contexts/platform-ops';
 import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
@@ -17,6 +17,11 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
   const inquiryIds: string[] = [];
   const id = () => `w23_feedback_${randomUUID()}`;
 
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+  });
+
   beforeAll(async () => {
     const url = new URL(databaseUrl!);
     if (url.hostname !== '127.0.0.1' || url.port !== '55437' || url.pathname !== '/prism_p0') {
@@ -30,6 +35,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     if (prisma) await prisma.opsInquiry.deleteMany({ where: { id: { in: inquiryIds } } });
     inquiryIds.length = 0;
   });

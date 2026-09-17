@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { buildInsightDimensions, EventClosureService } from './event-closure.service';
 
@@ -25,6 +25,15 @@ function harness(actualEndedAt: Date | null = new Date('2026-09-07T00:00:00.000Z
 }
 
 describe('EventClosureService wrap-up', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T00:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('starts exactly once from actualEndedAt and keeps a 24-hour deadline', async () => {
     const { service, records } = harness();
     const first = await service.startWrapUp('evt_1', { mode: 'full' }, actor);

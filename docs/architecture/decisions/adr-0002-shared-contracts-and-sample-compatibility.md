@@ -63,6 +63,8 @@ that compatibility surface is intentionally broader than a role feature API.
   scoped context APIs and contracts instead.
 - Keep session and sample storage keys in `@prism/types`; apps must not add
   literal `prism:*` keys.
+- Require a verified PmcmAdmin/System session for `GET /api/sample/state`. A
+  compatibility aggregate is an operator tool, not a public surface.
 
 After changing `@prism/types`, rebuild the package before API or portal
 typechecks so generated `dist/` output cannot hide contract drift.
@@ -75,6 +77,11 @@ typechecks so generated `dist/` output cannot hide contract drift.
   untrusted boundaries.
 - Using `/api/sample/state` as the normal product API was rejected because it
   exposes broad aggregate state and bypasses role-owned read models.
+- Leaving `/api/sample/state` unauthenticated and relying on the
+  `NODE_ENV=production` disable was rejected. That reasoning only protects
+  production: staging is shared and internet-reachable, and the aggregate returns
+  every supplier quote request's `accessToken`, which is the entire
+  authorization for `/quote-requests/:token` including its write routes.
 - Browser-only mock authentication and new app-local storage keys were rejected
   because they conceal API/session failures and weaken cross-app consistency.
 
