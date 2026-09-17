@@ -32,6 +32,8 @@
     "check:invariants": "npm --workspace prism-api run db:check:invariants:dry-run",
     "test:invariants": "node --test apps/api/scripts/check-data-invariants.test.mjs",
     "test:api": "npm --workspace prism-api run test",
+    "check:test-clocks": "npm --workspace prism-api run check:test-clocks",
+    "test:test-clocks": "node --test apps/api/scripts/check-test-clock-pinning.test.mjs",
     "test:api:coverage": "npm --workspace prism-api run test:coverage",
     "lint:architecture": "eslint --config eslint.config.mjs \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\"",
     "db:generate": "npm --workspace prism-api run db:generate",

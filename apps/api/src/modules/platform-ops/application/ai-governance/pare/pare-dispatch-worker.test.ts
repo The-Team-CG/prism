@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OpsPareDispatch, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/kernel/database';
 import type { PAREApprovalRecord } from './pare.types';
@@ -68,6 +68,15 @@ function harness(initial: OpsPareDispatch[]) {
 }
 
 describe('PARE dispatch outbox', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('claims and settles a successful dispatch with the approval record id', async () => {
     const { prisma, rows } = harness([row()]);
     const recordDispatchActivity = vi.fn(async () => undefined);
@@ -132,19 +141,14 @@ describe('PARE dispatch outbox', () => {
   });
 
   it('releases a timed-out execution for a later retry', async () => {
-    vi.useFakeTimers();
-    try {
-      const { prisma, rows } = harness([row()]);
-      const execute = vi.fn((_requestId: string, _dispatchId: string, signal?: AbortSignal) => new Promise<never>((_resolve, reject) => {
-        signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
-      }));
-      const pending = processPareDispatchQueue(prisma, { handleEmergencyTrigger: execute }, 2);
-      await vi.advanceTimersByTimeAsync(PARE_EXECUTION_TIMEOUT_MS + 1);
-      await pending;
-      expect(rows[0]).toMatchObject({ status: 'queued', attempts: 1, leaseToken: null });
-      expect(execute).toHaveBeenCalledWith('request_1', 'dispatch_1', expect.any(AbortSignal));
-    } finally {
-      vi.useRealTimers();
-    }
+    const { prisma, rows } = harness([row()]);
+    const execute = vi.fn((_requestId: string, _dispatchId: string, signal?: AbortSignal) => new Promise<never>((_resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+    }));
+    const pending = processPareDispatchQueue(prisma, { handleEmergencyTrigger: execute }, 2);
+    await vi.advanceTimersByTimeAsync(PARE_EXECUTION_TIMEOUT_MS + 1);
+    await pending;
+    expect(rows[0]).toMatchObject({ status: 'queued', attempts: 1, leaseToken: null });
+    expect(execute).toHaveBeenCalledWith('request_1', 'dispatch_1', expect.any(AbortSignal));
   });
 });

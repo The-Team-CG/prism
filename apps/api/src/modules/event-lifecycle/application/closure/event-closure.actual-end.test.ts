@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventClosureService } from './event-closure.service';
 
@@ -14,6 +14,15 @@ function harness(actualEndedAt: Date | null = null) {
 const actor = { id: 'user_pmcm', name: 'Maxine', email: 'mys@test', role: OpsUserRole.PmcmAdmin } as any;
 
 describe('EventClosureService actual end', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T00:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('records a past actual end and audits the verified actor', async () => {
     const { service, tx, auditWriter } = harness();
     await service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-07T12:00:00.000Z' }, actor);

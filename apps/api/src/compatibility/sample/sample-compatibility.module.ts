@@ -13,6 +13,7 @@ import { LiveOpsModule } from '../../modules/live-ops/live-ops.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { SAMPLE_COMPATIBILITY_CONTROLLERS } from './controllers';
 import { SampleResetGuard } from './guards/sample-reset.guard';
+import { SampleStateGuard } from './guards/sample-state.guard';
 import { SampleCompatibilityService } from './services/sample-compatibility.service';
 import { SampleStateService } from './services/sample-state.service';
 
@@ -26,7 +27,8 @@ import { SampleStateService } from './services/sample-state.service';
   imports: [
     DatabaseModule,
     EventCoreModule,
-    // Depended on directly by SampleResetGuard. Previously reached only
+    // Depended on directly by SampleResetGuard and SampleStateGuard. Previously
+    // reached only
     // transitively via IdentityAccessModule's re-export; naming it here keeps the
     // guard working if that re-export is ever tightened (cf. PA-280).
     EventSessionModule,
@@ -41,6 +43,6 @@ import { SampleStateService } from './services/sample-state.service';
     ReadModelsModule,
   ],
   controllers: SAMPLE_COMPATIBILITY_CONTROLLERS,
-  providers: [SampleStateService, SampleCompatibilityService, SampleResetGuard],
+  providers: [SampleStateService, SampleCompatibilityService, SampleResetGuard, SampleStateGuard],
 })
 export class SampleCompatibilityModule {}
