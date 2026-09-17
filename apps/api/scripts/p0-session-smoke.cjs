@@ -42,7 +42,7 @@ const publicExceptions = new Map([
   ['GET /api/quote-requests/:token', 'unique expiring quote capability'],
   ['POST /api/quote-requests/:token/quote', 'unique expiring quote capability'],
   ['PATCH /api/quote-requests/:token/quote', 'unique expiring quote capability and revision policy'],
-  ['GET /api/sample/state', 'disabled in production'],
+  ['GET /api/sample/state', 'separate SampleStateGuard; PmcmAdmin/System session unless an explicit local-dev opt-in is set'],
   ['POST /api/sample/reset', 'separate SampleResetGuard; never invoked by this smoke test'],
 ]);
 
@@ -142,7 +142,7 @@ async function main() {
     await check('GET', '/api/publish/p0_missing?actorRole=pmcm-admin', clientToken, 403, 'client denied raw published layout');
     await check('GET', '/api/health', null, 200, 'public health remains available');
     await check('GET', '/api/quote-requests/p0_missing', null, 404, 'invalid quote capability denied');
-    await check('GET', '/api/sample/state', null, 403, 'sample state stays disabled in production');
+    await check('GET', '/api/sample/state', null, 401, 'sample state requires a session before the production disable even applies');
     const failures = results.filter((result) => !result.passed);
     const report = { checkedAt: new Date().toISOString(), guardedRouteCount: routes.length, checkCount: results.length, failures, unexpectedPublicRoutes, publicRoutes, routes, results };
     if (process.env.P0_SMOKE_REPORT) writeFileSync(process.env.P0_SMOKE_REPORT, JSON.stringify(report, null, 2));
