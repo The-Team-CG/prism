@@ -9,6 +9,7 @@
         "start": "node scripts/start-prism-api.cjs --mode start",
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "test": "vitest run",
+        "check:test-clocks": "node scripts/check-test-clock-pinning.mjs",
         "test:coverage": "vitest run --coverage",
         "test:sample-compatibility": "vitest run src/compatibility/sample",
         "prisma:validate": "prisma validate",
