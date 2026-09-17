@@ -1,5 +1,11 @@
 # Documentation bundle update log
 
+## 2026-09-17 (2)
+
+- **Decided:** `GET /api/sample/state` requires a verified PmcmAdmin/System session. ADR-0002 previously rejected it as a product API but said nothing about authentication, so the unguarded state read was undocumented rather than deliberate. The ADR now records both the decision and why the `NODE_ENV=production` disable was insufficient on shared staging.
+- **Added:** Deployment secrets runbook. Deploy has never succeeded; it fails at `check-deploy-secrets` on a missing Render hook URL, so nothing has been auto-deploying.
+- **Recorded:** Test fixtures that compare a hardcoded date against a live clock are a scheduled outage. The rule is to pin the clock, never to move the date forward.
+
 ## 2026-09-17
 
 - **Decided:** Audit-chain integrity remains fail-closed on the authentication path by default, but the posture is now explicit rather than emergent. `AUTH_AUDIT_INTEGRITY_POSTURE=degraded` is the operator escape hatch for restoring access during an integrity review, and every classification records a critical incident first, so fail-closed is never the silent branch.
