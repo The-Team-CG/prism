@@ -1,24 +1,27 @@
-import { NestFactory } from '@nestjs/core';
 import { describe, expect, it } from 'vitest';
+import { ApplicationConfig } from '@nestjs/core/application-config';
+import { NestContainer } from '@nestjs/core/injector/container';
+import { MetadataScanner } from '@nestjs/core/metadata-scanner';
+import { NoopGraphInspector } from '@nestjs/core/inspector/noop-graph-inspector';
+import { DependenciesScanner } from '@nestjs/core/scanner';
 import { AppModule } from './app.module';
 
 /**
  * Guards the boot path itself. Nest DI metadata is invisible to `tsc`, so a
  * module that exports a token nothing provides typechecks cleanly and then
- * dies during module scanning with `UnknownExportException` -- the process
- * exits before port 4000 ever opens. Preview mode builds the entire module
- * graph without instantiating providers, so this needs no database, no
- * environment, and stays fast.
+ * dies during module scanning with `UnknownExportException`. Scan the module
+ * graph directly instead of using Nest's preview bootstrap: preview still
+ * starts provider dependency resolution and can leave an internal barrier
+ * promise pending for this graph's forward references.
  */
 describe('AppModule', () => {
-  it('resolves the whole module graph without instantiating providers', async () => {
-    const app = await NestFactory.create(AppModule, {
-      preview: true,
-      abortOnError: false,
-      logger: false,
-    });
+  it('scans the whole module graph without instantiating providers', async () => {
+    const applicationConfig = new ApplicationConfig();
+    const container = new NestContainer(applicationConfig, { abortOnError: false });
+    const scanner = new DependenciesScanner(container, new MetadataScanner(), NoopGraphInspector, applicationConfig);
 
-    expect(app).toBeDefined();
-    await app.close();
+    await scanner.scan(AppModule);
+
+    expect([...container.getModules().values()].some(({ metatype }) => metatype === AppModule)).toBe(true);
   });
 });
