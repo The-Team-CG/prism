@@ -1,5 +1,11 @@
 # Documentation bundle update log
 
+## 2026-09-18
+
+- **Hardened:** Test-clock coverage now includes API compatibility/kernel and integration-test roots, with per-test analysis and explicit suite setup recognition. The API environment example documents the Prisma pooler override and the sample-state guard's session/role boundary.
+- **Hardened:** Test-clock analysis now recognizes nested `it.each` callbacks and helper-returned fixtures, inherits parent-suite `beforeEach`/`beforeAll` pins, and covers `reminderDueAt`-style fixtures without letting sibling suites suppress findings.
+- **Recorded:** The production complexity gate is now enforced in CI, and the database doctor follows the same explicit Prisma URL precedence as `prisma.config.ts`.
+
 ## 2026-09-17 (2)
 
 - **Decided:** `GET /api/sample/state` requires a verified PmcmAdmin/System session. ADR-0002 previously rejected it as a product API but said nothing about authentication, so the unguarded state read was undocumented rather than deliberate. The ADR now records both the decision and why the `NODE_ENV=production` disable was insufficient on shared staging.

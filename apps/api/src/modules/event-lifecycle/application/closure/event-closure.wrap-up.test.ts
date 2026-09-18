@@ -24,16 +24,16 @@ function harness(actualEndedAt: Date | null = new Date('2026-09-07T00:00:00.000Z
   return { service, prisma, tx, records, policy, notifications };
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-08T00:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('EventClosureService wrap-up', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-08T00:00:00.000Z'));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('starts exactly once from actualEndedAt and keeps a 24-hour deadline', async () => {
     const { service, records } = harness();
     const first = await service.startWrapUp('evt_1', { mode: 'full' }, actor);
