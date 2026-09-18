@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   analyzeTestClockSource,
+  collectTestBlocks,
   findUnpinnedClockFixtures,
   loadTestClockAllowlist,
 } from './check-test-clock-pinning.mjs';
@@ -40,6 +41,22 @@ describe('test clock pinning heuristic', () => {
 
   it('does not require pinning for fixture-only dates', () => {
     assert.equal(analyzeTestClockSource("const createdAt = new Date('2026-09-08'); expect(createdAt).toBeInstanceOf(Date);").requiresPinning, false);
+  });
+
+  it('recognizes nested each callbacks as test blocks', () => {
+    const blocks = collectTestBlocks(
+      "it.each(['case'])('handles %s', () => { const due = new Date('2026-09-08'); expect(Date.now()).toBeGreaterThan(due.getTime()); });",
+      'nested-each.test.ts',
+    );
+    assert.equal(blocks.length, 1);
+    assert.match(blocks[0], /Date\.now/);
+  });
+
+  it('treats reminderDueAt as a clock-sensitive surface', () => {
+    assert.equal(
+      analyzeTestClockSource("const reminderDueAt = new Date('2026-09-08'); expect(reminderDueAt <= new Date()).toBe(true);").requiresPinning,
+      true,
+    );
   });
 
   it('reports an unpinned file and accepts a reasoned allowlist entry', () => {
@@ -125,6 +142,39 @@ describe('test clock pinning heuristic', () => {
     try {
       assert.deepEqual(findUnpinnedClockFixtures({ sourceRoot: root, allowlistPath }), [{
         file: 'shared-fixture.test.ts',
+        reason: 'dated fixture references a clock-sensitive surface without vi.useFakeTimers() and vi.setSystemTime()',
+      }]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not let a nested suite pin mask a sibling suite', () => {
+    const root = fixtureRoot({
+      'scoped-suites.test.ts': `
+        describe('pinned suite', () => {
+          beforeEach(() => {
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date('2026-09-08'));
+          });
+          it('is pinned', () => {
+            const due = new Date('2026-09-08');
+            expect(Date.now()).toBeGreaterThanOrEqual(due.getTime());
+          });
+        });
+        describe('unpinned suite', () => {
+          it('is not pinned', () => {
+            const due = new Date('2026-09-08');
+            expect(Date.now()).toBeGreaterThan(due.getTime());
+          });
+        });
+      `,
+    });
+    const allowlistPath = join(root, 'allowlist.json');
+    writeFileSync(allowlistPath, JSON.stringify({ files: {} }));
+    try {
+      assert.deepEqual(findUnpinnedClockFixtures({ sourceRoot: root, allowlistPath }), [{
+        file: 'scoped-suites.test.ts',
         reason: 'dated fixture references a clock-sensitive surface without vi.useFakeTimers() and vi.setSystemTime()',
       }]);
     } finally {

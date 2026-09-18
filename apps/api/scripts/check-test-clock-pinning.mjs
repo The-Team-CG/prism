@@ -14,7 +14,7 @@ const DEFAULT_ALLOWLIST_PATH = join(dirname(fileURLToPath(import.meta.url)), 'te
 // not every use of Date. A dated literal plus one of these markers means the
 // test must pin the clock, or document why its date is inert in the allowlist.
 const DATE_LITERAL_PATTERN = /new\s+Date\s*\(\s*['"]20\d{2}-/;
-const CLOCK_SURFACE_PATTERN = /(?:Date\.now|deadlineAt|slaDueAt|nextAttemptAt|leaseExpiresAt|actualEndedAt|actualStartedAt|plannedStartAt|plannedEndAt|feedback.?window|followUpInterval|(?:last)?(?:Conforme)?ReminderAt|ReminderSweep|freezeAt|retryAt|backoffUntil)/i;
+const CLOCK_SURFACE_PATTERN = /(?:Date\.now|deadlineAt|slaDueAt|nextAttemptAt|leaseExpiresAt|actualEndedAt|actualStartedAt|plannedStartAt|plannedEndAt|feedback.?window|followUpInterval|reminderDueAt|(?:last)?(?:Conforme)?ReminderAt|ReminderSweep|freezeAt|retryAt|backoffUntil)/i;
 const FAKE_TIMER_PATTERN = /vi\.useFakeTimers\s*\(/;
 const SYSTEM_TIME_PATTERN = /vi\.setSystemTime\s*\(/;
 
@@ -32,13 +32,19 @@ function relativePath(root, path) {
   return relative(root, path).replaceAll('\\', '/');
 }
 
+function isRootedIn(expression, names) {
+  if (ts.isIdentifier(expression)) return names.includes(expression.text);
+  if (ts.isPropertyAccessExpression(expression)) return isRootedIn(expression.expression, names);
+  if (ts.isCallExpression(expression)) return isRootedIn(expression.expression, names);
+  return false;
+}
+
 function isTestCall(expression) {
-  if (ts.isIdentifier(expression)) return expression.text === 'it' || expression.text === 'test';
-  return (
-    ts.isPropertyAccessExpression(expression) &&
-    ts.isIdentifier(expression.expression) &&
-    (expression.expression.text === 'it' || expression.expression.text === 'test')
-  );
+  return isRootedIn(expression, ['it', 'test']);
+}
+
+function isSuiteCall(expression) {
+  return isRootedIn(expression, ['describe', 'suite']);
 }
 
 function isTestCallback(node) {
@@ -49,58 +55,75 @@ function isLifecycleCall(expression) {
   return ts.isIdentifier(expression) && (expression.text === 'beforeEach' || expression.text === 'beforeAll');
 }
 
-function collectTestBlockSpans(source, fileName) {
+function findCallback(argumentsList) {
+  return [...argumentsList].reverse().find(isTestCallback);
+}
+
+function collectTestClockNodes(source, fileName) {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const blocks = [];
+  const lifecycleCalls = [];
 
-  function visit(node) {
-    if (ts.isCallExpression(node) && isTestCall(node.expression)) {
-      const callback = [...node.arguments].reverse().find(isTestCallback);
-      if (callback) {
-        blocks.push({
-          source: source.slice(node.getStart(sourceFile), node.getEnd()),
-          start: node.getStart(sourceFile),
-          end: node.getEnd(),
-        });
-      }
+  function visit(node, suiteScopes, callback) {
+    callback(node, suiteScopes);
+    const suiteCallback = ts.isCallExpression(node) && findCallback(node.arguments);
+    if (ts.isCallExpression(node) && isSuiteCall(node.expression) && suiteCallback) {
+      const scope = { start: suiteCallback.getStart(sourceFile), end: suiteCallback.getEnd() };
+      ts.forEachChild(node, (child) => visit(child, child === suiteCallback ? [...suiteScopes, scope] : suiteScopes, callback));
+      return;
     }
-    ts.forEachChild(node, visit);
+    ts.forEachChild(node, (child) => visit(child, suiteScopes, callback));
   }
 
-  visit(sourceFile);
-  return blocks;
+  visit(sourceFile, [], (node, suiteScopes) => {
+    if (!ts.isCallExpression(node)) return;
+    const callback = findCallback(node.arguments);
+    if (!callback) return;
+    if (isTestCall(node.expression)) {
+      blocks.push({
+        source: source.slice(node.getStart(sourceFile), node.getEnd()),
+        start: node.getStart(sourceFile),
+        end: node.getEnd(),
+        suiteScopes,
+      });
+    }
+    if (isLifecycleCall(node.expression)) {
+      lifecycleCalls.push({
+        source: source.slice(node.getStart(sourceFile), node.getEnd()),
+        start: node.getStart(sourceFile),
+        end: node.getEnd(),
+        suiteScopes,
+      });
+    }
+  });
+
+  const blockedRanges = [...blocks, ...lifecycleCalls];
+  const sharedNodes = [];
+  visit(sourceFile, [], (node, suiteScopes) => {
+    if (!ts.isVariableStatement(node) && !ts.isExpressionStatement(node)) return;
+    const start = node.getStart(sourceFile);
+    const end = node.getEnd();
+    if (blockedRanges.some((range) => start < range.end && range.start < end)) return;
+    sharedNodes.push({ source: source.slice(start, end), suiteScopes });
+  });
+
+  return { blocks, lifecycleCalls, sharedNodes };
 }
 
 export function collectTestBlocks(source, fileName) {
-  return collectTestBlockSpans(source, fileName).map((block) => block.source);
+  return collectTestClockNodes(source, fileName).blocks.map((block) => block.source);
 }
 
-function maskRanges(source, ranges) {
-  const characters = source.split('');
-  for (const { start, end } of ranges) {
-    for (let index = start; index < end; index += 1) characters[index] = ' ';
-  }
-  return characters.join('');
+function hasPinnedSuiteSetup(lifecycleCalls, suiteScopes) {
+  return lifecycleCalls.some(({ source, suiteScopes: hookScopes }) => {
+    const hookScope = hookScopes.at(-1);
+    const appliesToScope = !hookScope || suiteScopes.some((scope) => scope.start === hookScope.start && scope.end === hookScope.end);
+    return appliesToScope && analyzeTestClockSource(source).pinned;
+  });
 }
 
-function hasPinnedSuiteSetup(source, fileName) {
-  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  let pinned = false;
-
-  function visit(node) {
-    if (pinned) return;
-    if (ts.isCallExpression(node) && isLifecycleCall(node.expression)) {
-      const callback = [...node.arguments].reverse().find(isTestCallback);
-      if (callback) {
-        const analysis = analyzeTestClockSource(source.slice(node.getStart(sourceFile), node.getEnd()));
-        pinned = analysis.hasFakeTimers && analysis.hasSystemTime;
-      }
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  return pinned;
+function scopeKey(suiteScopes) {
+  return suiteScopes.map((scope) => `${scope.start}:${scope.end}`).join('|');
 }
 
 export function loadTestClockAllowlist(path = DEFAULT_ALLOWLIST_PATH) {
@@ -149,14 +172,28 @@ export function findUnpinnedClockFixtures({ sourceRoot, sourceRoots, allowlistPa
       const legacyRelativeFile = rootRelativeFile.startsWith('modules/')
         ? rootRelativeFile.slice('modules/'.length)
         : rootRelativeFile;
-      const testBlocks = collectTestBlockSpans(source, path);
-      const suitePinned = hasPinnedSuiteSetup(source, path);
-      const sharedAnalysis = analyzeTestClockSource(maskRanges(source, testBlocks));
+      const { blocks: testBlocks, lifecycleCalls, sharedNodes } = collectTestClockNodes(source, path);
+      const sharedByScope = new Map();
+      for (const node of sharedNodes) {
+        const key = scopeKey(node.suiteScopes);
+        const current = sharedByScope.get(key) ?? { source: [], suiteScopes: node.suiteScopes };
+        current.source.push(node.source);
+        sharedByScope.set(key, current);
+      }
+      const hasUnpinnedSharedFixture = [...sharedByScope.values()].some(({ source: sharedSource, suiteScopes }) => {
+        const analysis = analyzeTestClockSource(sharedSource.join('\n'));
+        return analysis.requiresPinning && !analysis.pinned && !hasPinnedSuiteSetup(lifecycleCalls, suiteScopes);
+      });
+      const hasUnpinnedLifecycleFixture = lifecycleCalls.some(({ source: lifecycleSource }) => {
+        const analysis = analyzeTestClockSource(lifecycleSource);
+        return analysis.requiresPinning && !analysis.pinned;
+      });
       const hasUnpinnedFixture =
-        (sharedAnalysis.requiresPinning && !sharedAnalysis.pinned && !suitePinned) ||
-        testBlocks.some(({ source: block }) => {
+        hasUnpinnedSharedFixture ||
+        hasUnpinnedLifecycleFixture ||
+        testBlocks.some(({ source: block, suiteScopes }) => {
           const analysis = analyzeTestClockSource(block);
-          return analysis.requiresPinning && !analysis.pinned && !suitePinned;
+          return analysis.requiresPinning && !analysis.pinned && !hasPinnedSuiteSetup(lifecycleCalls, suiteScopes);
         });
 
       if (!hasUnpinnedFixture || allowlist[relativeFile] || allowlist[rootRelativeFile] || allowlist[legacyRelativeFile]) return [];

@@ -1182,16 +1182,16 @@ function createSampleCompatibilityService(prisma: any) {
     inquiryWorkflowService,
   );
 }
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('SampleCompatibilityService', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('does not block API startup when non-production sample seeding cannot reach the database', async () => {
     const previousNodeEnv = process.env.NODE_ENV;
     const previousReminderFlag = process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB;

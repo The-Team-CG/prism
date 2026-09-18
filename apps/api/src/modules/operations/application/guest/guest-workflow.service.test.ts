@@ -98,16 +98,16 @@ function createGuestWorkflowFixture() {
   return { service, state, prisma, auditWriter };
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('GuestWorkflowService', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('resolves a guest event and returns attendance counts by access code', async () => {
     const { service } = createGuestWorkflowFixture();
 
