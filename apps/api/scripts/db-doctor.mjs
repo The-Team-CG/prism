@@ -110,6 +110,12 @@ const pool = new Pool({
       : {
           rejectUnauthorized: false,
         },
+  // PA-307. Kept in step with src/kernel/database/prisma.service.ts so the doctor
+  // stays representative of runtime. connectionTimeoutMillis is strictly an
+  // improvement here: today this script has no timeout and can hang indefinitely.
+  max: 10,
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 60_000,
 });
 
 try {
