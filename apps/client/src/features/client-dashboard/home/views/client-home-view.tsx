@@ -78,6 +78,10 @@ export function ClientHomeView() {
           setSelectedEventId(eventId);
           router.push(dashboardHref("overview", eventId));
         }}
+        onOpenFloorplan={(eventId) => {
+          setSelectedEventId(eventId);
+          router.push(dashboardHref("floorplan", eventId));
+        }}
       />
 
       <ClientHomeUpdates notifications={notifications} />

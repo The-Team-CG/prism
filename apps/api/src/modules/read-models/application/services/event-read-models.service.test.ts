@@ -485,6 +485,9 @@ describe('EventReadModelsService', () => {
       eventId: 'evt_visible',
     });
     expect(actionCenter.items.some((item) => item.id === 'briefing:evt_visible')).toBe(true);
+    const floorplanItems = actionCenter.items.filter((item) => item.kind === 'floorplan');
+    expect(floorplanItems.length).toBeGreaterThan(0);
+    expect(floorplanItems.every((item) => item.href?.includes('/floor-plan'))).toBe(true);
   });
 
   it('omits internal billing sources for client actors while still serving statements and milestones', async () => {

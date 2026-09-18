@@ -41,6 +41,7 @@ export {
   selectSelectedClientEvent,
 } from "./model/client-dashboard-selectors";
 export {
+  clientFloorplanDashboardActionLabel,
   eventProgressDots,
   formatStatusLabel,
   greetingByTime,

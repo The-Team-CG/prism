@@ -36,6 +36,12 @@ export function formatStatusLabel(status?: string) {
   return status ? status.replaceAll("_", " ") : "Pending";
 }
 
+export function clientFloorplanDashboardActionLabel(status?: PrismEvent["floorPlanStatus"]) {
+  if (status === "not_started") return "Set layout preferences";
+  if (status === "in_review" || status === "approved") return "View official floorplan";
+  return "Open floor plan";
+}
+
 export const EVENT_MONTHS = [
   "Jan",
   "Feb",
@@ -183,7 +189,7 @@ export function deriveClientActionCenterFromWorkspace(
         status: event.floorPlanStatus,
         eventId: event.id,
         eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floorplan`,
+        href: `/dashboard/events/${event.id}/floor-plan`,
       });
     } else if (event.floorPlanStatus === "not_started") {
       items.push({
@@ -195,7 +201,7 @@ export function deriveClientActionCenterFromWorkspace(
         status: event.floorPlanStatus,
         eventId: event.id,
         eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floorplan`,
+        href: `/dashboard/events/${event.id}/floor-plan`,
       });
     }
 

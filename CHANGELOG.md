@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Root build and typecheck now fail early when the gitignored `@prism/types` output is missing or older than its source, with a direct rebuild command in the error.
 
 ### Fixed
+- Floorplan preview recovery now serves legacy official drafts that predate persisted snapshots, seeds snapshots for new compatibility data, and keeps client editor failures inside the dashboard error state instead of surfacing an unhandled runtime rejection.
 - Dependency audit gate: move the four Next.js portals to the patched 16.3 line, update NestJS 11, and override vulnerable transitive `js-yaml`, `multer`, and `sharp` resolutions so CI can evaluate pull-request code instead of stopping on known high/critical advisories.
 - Audit integrity helpers now stay below the production complexity cap, and CI enforces the root complexity gate instead of only testing its parser. Prisma database doctor selection now follows the explicit `PRISMA_DATABASE_URL` override used by Prisma config, and the pooler opt-in plus sample-state guard boundaries are documented in the API environment example.
 - Compatibility and integration test fixtures are now covered by the test-clock scan; suite scope is respected so sibling suites cannot mask one another, and the sample compatibility suite pins its shared clock so dated reminder, guest-window, and SLA fixtures cannot expire with the calendar.
@@ -109,6 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Removed `.github/CODEOWNERS`; GitHub Free cannot enforce it on this private repository.
 
 ### Fixed
+  - Client dashboard floorplan reachability: action-center links now use the canonical `/floor-plan` route, event cards expose direct state-aware layout actions, and both preference submission paths validate through the shared `@prism/types` contract.
 - Moved the cross-context supplier ownership database fixture into the API integration-test directory and registered test discovery, preserving the production read-model mutation boundary (V01).
 - Removed fabricated approved billing at signed-conforme intake and reconciled client partial-payment totals.
 - Made proposal decisions, staffing conflicts, supplier transitions/review retries, archive effects and supported privacy redaction enforce identity, lifecycle and transactional integrity.

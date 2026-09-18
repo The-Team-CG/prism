@@ -141,7 +141,7 @@ function clientEventActionItems(event: EventRef, briefingEventIds: Set<string>):
       status: event.floorPlanStatus,
       eventId: event.id,
       eventName: event.eventName,
-      href: `/dashboard/events/${event.id}/floorplan`,
+      href: `/dashboard/events/${event.id}/floor-plan`,
     });
   } else if (event.floorPlanStatus === 'not_started') {
     items.push({
@@ -153,7 +153,7 @@ function clientEventActionItems(event: EventRef, briefingEventIds: Set<string>):
       status: event.floorPlanStatus,
       eventId: event.id,
       eventName: event.eventName,
-      href: `/dashboard/events/${event.id}/floorplan`,
+      href: `/dashboard/events/${event.id}/floor-plan`,
     });
   }
 
@@ -247,7 +247,7 @@ function clientFloorplanDraftActionItem(draft: OpsFloorPlanDraft, events: EventR
     status: draft.status,
     eventId: event.id,
     eventName: event.eventName,
-    href: `/dashboard/events/${event.id}/floorplan`,
+    href: `/dashboard/events/${event.id}/floor-plan`,
   };
 }
 
