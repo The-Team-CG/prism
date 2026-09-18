@@ -15,6 +15,7 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { ClientActionGroup } from "../../../shared/client-action-group";
 import {
+  clientFloorplanDashboardActionLabel,
   EventSummaryCard,
   eventProgressDots,
   greetingByTime,
@@ -221,12 +222,14 @@ export function ClientHomeEvents({
   onViewAll,
   onRequest,
   onOpen,
+  onOpenFloorplan,
 }: {
   events: PrismEvent[];
   state: PrismClientWorkspace;
   onViewAll: () => void;
   onRequest: () => void;
   onOpen: (eventId: string) => void;
+  onOpenFloorplan: (eventId: string) => void;
 }) {
   if (events.length === 0) {
     return (
@@ -267,6 +270,8 @@ export function ClientHomeEvents({
             briefing={state.briefings.find((b) => b.eventId === ev.id)}
             documentCount={state.documents.filter((document) => document.eventId === ev.id).length}
             onOpen={() => onOpen(ev.id)}
+            onOpenFloorplan={() => onOpenFloorplan(ev.id)}
+            floorplanActionLabel={clientFloorplanDashboardActionLabel(ev.floorPlanStatus)}
           />
         ))}
       </div>
