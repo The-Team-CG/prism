@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
@@ -97,6 +97,15 @@ function createGuestWorkflowFixture() {
 
   return { service, state, prisma, auditWriter };
 }
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('GuestWorkflowService', () => {
   it('resolves a guest event and returns attendance counts by access code', async () => {

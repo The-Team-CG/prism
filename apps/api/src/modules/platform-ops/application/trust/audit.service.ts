@@ -231,6 +231,23 @@ function lockoutAlertPayload(user: OpsUser, state: LockoutState) {
   };
 }
 
+function authenticationIntegrityMetadata(input: AuditLogInput, error: AuditIntegrityConflictException) {
+  const metadata: Record<string, unknown> = { integrityKind: error.kind };
+  if (error.breakReason) metadata.breakReason = error.breakReason;
+
+  const optionalEntries: Array<[string, unknown]> = [
+    ['actionType', input.actionType],
+    ['category', input.category],
+    ['affectedType', input.affectedType],
+    ['affectedId', input.affectedId],
+    ['affectedLabel', input.affectedLabel],
+  ];
+  for (const [key, value] of optionalEntries) {
+    if (value !== undefined) metadata[key] = value;
+  }
+  return metadata;
+}
+
 @Injectable()
 export class AuditService {
   private readonly logger = new Logger(AuditService.name);
@@ -389,33 +406,7 @@ export class AuditService {
     } catch (error) {
       if (!(error instanceof AuditIntegrityConflictException)) throw error;
 
-      const reason = error.message;
-      // Every integrity classification is recorded before any decision about the
-      // request. The severe classification used to be the silent one: a broken
-      // chain rethrew before an incident existed, so the worst state left the
-      // least evidence. Security alerts are not chain-linked, so this write
-      // stays available exactly when the chain does not.
-      try {
-        await this.recordIntegrityIncident({
-          source: 'identity-access.authentication',
-          reason,
-          eventId,
-          actor,
-          metadata: {
-            integrityKind: error.kind,
-            ...(error.breakReason ? { breakReason: error.breakReason } : {}),
-            ...(input.actionType !== undefined ? { actionType: input.actionType } : {}),
-            ...(input.category !== undefined ? { category: input.category } : {}),
-            ...(input.affectedType !== undefined ? { affectedType: input.affectedType } : {}),
-            ...(input.affectedId !== undefined ? { affectedId: input.affectedId } : {}),
-            ...(input.affectedLabel !== undefined ? { affectedLabel: input.affectedLabel } : {}),
-          },
-        });
-      } catch (incidentError) {
-        const incidentMessage = incidentError instanceof Error ? incidentError.message : String(incidentError);
-        this.logger.error(`Authentication audit integrity incident could not be persisted: ${incidentMessage}`);
-        throw incidentError;
-      }
+      const reason = await this.recordAuthenticationIntegrityIncident(input, error);
 
       // A known two-root tail still degrades. An unverifiable chain blocks
       // authentication unless an operator has deliberately opted into degraded
@@ -428,6 +419,27 @@ export class AuditService {
       this.logger.error(`Authentication audit was skipped until integrity review: ${reason}`);
       return null;
     }
+  }
+
+  private async recordAuthenticationIntegrityIncident(input: AuditLogInput, error: AuditIntegrityConflictException) {
+    const reason = error.message;
+    // Every integrity classification is recorded before any decision about the
+    // request. Security alerts are not chain-linked, so this write stays
+    // available exactly when the audit chain does not.
+    try {
+      await this.recordIntegrityIncident({
+        source: 'identity-access.authentication',
+        reason,
+        eventId: input.eventId,
+        actor: input.actor,
+        metadata: authenticationIntegrityMetadata(input, error),
+      });
+    } catch (incidentError) {
+      const incidentMessage = incidentError instanceof Error ? incidentError.message : String(incidentError);
+      this.logger.error(`Authentication audit integrity incident could not be persisted: ${incidentMessage}`);
+      throw incidentError;
+    }
+    return reason;
   }
 
   private async auditTail(prisma: Prisma.TransactionClient) {

@@ -10,9 +10,11 @@ if (mode !== 'prisma' && mode !== 'runtime') {
   process.exit(1);
 }
 
+// Keep this order aligned with prisma.config.ts: the explicit Prisma override
+// must be the URL db:doctor validates before Prisma CLI uses it.
 const prismaCandidates = [
-  ['DIRECT_URL', process.env.DIRECT_URL],
   ['PRISMA_DATABASE_URL', process.env.PRISMA_DATABASE_URL],
+  ['DIRECT_URL', process.env.DIRECT_URL],
   ['SUPABASE_DB_URL', process.env.SUPABASE_DB_URL],
   ['DATABASE_URL', process.env.DATABASE_URL],
 ];

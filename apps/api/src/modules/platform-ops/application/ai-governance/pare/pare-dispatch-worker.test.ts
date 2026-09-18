@@ -67,16 +67,16 @@ function harness(initial: OpsPareDispatch[]) {
   return { prisma, rows };
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('PARE dispatch outbox', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('claims and settles a successful dispatch with the approval record id', async () => {
     const { prisma, rows } = harness([row()]);
     const recordDispatchActivity = vi.fn(async () => undefined);

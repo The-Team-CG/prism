@@ -16,10 +16,11 @@ export const ANONYMOUS_SAMPLE_STATE_ENV = 'PRISM_ALLOW_ANONYMOUS_SAMPLE_STATE';
  * authorization for GET/POST/PATCH /quote-requests/:token - so an anonymous
  * read yielded working credentials for submitting and revising supplier quotes.
  *
- * The posture is now default-deny: a verified PmcmAdmin/System session, which
- * is who this aggregate was always for. PMCM already sees these tokens through
- * the authenticated commercial surfaces that issue them, so nothing legitimate
- * is lost.
+ * The posture is now default-deny: a verified event session is required here.
+ * The controller separately applies the PmcmAdmin/System role policy after the
+ * session has been verified. PMCM already sees these tokens through the
+ * authenticated commercial surfaces that issue them, so nothing legitimate is
+ * lost.
  *
  * The local-development escape hatch requires ALL of:
  *   1. NODE_ENV !== 'production'
