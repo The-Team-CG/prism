@@ -16,6 +16,25 @@ export async function readEventAccessScope(prisma: Prisma.TransactionClient, eve
   });
 }
 
+/**
+ * Cross-context read. Owner: event-lifecycle (OpsInquiry.conformeSignedAt, written by
+ * InquiriesService.uploadConforme). Reason: floorplan must not open an official draft before the
+ * client signs the conforme (EP-05-S01 AC1). Allowed fields: conformeSignedAt only. Transition
+ * intent: collapses into an event-lifecycle contract if conforme state becomes a published
+ * capability; floorplan owns the rule, this returns a fact only.
+ *
+ * Deliberately separate from readEventAccessScope rather than widening it: that seam carries only
+ * trusted ownership facts and has a second consumer (file-requirements-matrix.service.ts).
+ */
+export async function readEventConformeState(prisma: Prisma.TransactionClient, eventId: string) {
+  const event = await prisma.opsEvent.findUnique({
+    where: { id: eventId },
+    select: { inquiry: { select: { conformeSignedAt: true } } },
+  });
+  if (!event) return null;
+  return { conformeSignedAt: event.inquiry?.conformeSignedAt ?? null };
+}
+
 type ScopedEvent = NonNullable<Awaited<ReturnType<typeof readEventAccessScope>>>;
 
 function sameId(left: string | null | undefined, right: string | null | undefined) {
