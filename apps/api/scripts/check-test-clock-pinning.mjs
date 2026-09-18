@@ -100,7 +100,7 @@ function collectTestClockNodes(source, fileName) {
   const blockedRanges = [...blocks, ...lifecycleCalls];
   const sharedNodes = [];
   visit(sourceFile, [], (node, suiteScopes) => {
-    if (!ts.isVariableStatement(node) && !ts.isExpressionStatement(node)) return;
+    if (!ts.isVariableStatement(node) && !ts.isExpressionStatement(node) && !ts.isFunctionDeclaration(node) && !ts.isReturnStatement(node)) return;
     const start = node.getStart(sourceFile);
     const end = node.getEnd();
     if (blockedRanges.some((range) => start < range.end && range.start < end)) return;
@@ -184,9 +184,9 @@ export function findUnpinnedClockFixtures({ sourceRoot, sourceRoots, allowlistPa
         const analysis = analyzeTestClockSource(sharedSource.join('\n'));
         return analysis.requiresPinning && !analysis.pinned && !hasPinnedSuiteSetup(lifecycleCalls, suiteScopes);
       });
-      const hasUnpinnedLifecycleFixture = lifecycleCalls.some(({ source: lifecycleSource }) => {
+      const hasUnpinnedLifecycleFixture = lifecycleCalls.some(({ source: lifecycleSource, suiteScopes }) => {
         const analysis = analyzeTestClockSource(lifecycleSource);
-        return analysis.requiresPinning && !analysis.pinned;
+        return analysis.requiresPinning && !analysis.pinned && !hasPinnedSuiteSetup(lifecycleCalls, suiteScopes);
       });
       const hasUnpinnedFixture =
         hasUnpinnedSharedFixture ||

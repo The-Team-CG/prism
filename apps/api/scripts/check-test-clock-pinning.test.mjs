@@ -149,6 +149,30 @@ describe('test clock pinning heuristic', () => {
     }
   });
 
+  it('checks dated fixtures returned from helper functions', () => {
+    const root = fixtureRoot({
+      'helper-fixture.test.ts': `
+        function createFixture() {
+          return { deadlineAt: new Date('2026-09-08') };
+        }
+        it('uses the helper fixture', () => {
+          const fixture = createFixture();
+          expect(Date.now()).toBeGreaterThan(fixture.deadlineAt.getTime());
+        });
+      `,
+    });
+    const allowlistPath = join(root, 'allowlist.json');
+    writeFileSync(allowlistPath, JSON.stringify({ files: {} }));
+    try {
+      assert.deepEqual(findUnpinnedClockFixtures({ sourceRoot: root, allowlistPath }), [{
+        file: 'helper-fixture.test.ts',
+        reason: 'dated fixture references a clock-sensitive surface without vi.useFakeTimers() and vi.setSystemTime()',
+      }]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('does not let a nested suite pin mask a sibling suite', () => {
     const root = fixtureRoot({
       'scoped-suites.test.ts': `
@@ -177,6 +201,35 @@ describe('test clock pinning heuristic', () => {
         file: 'scoped-suites.test.ts',
         reason: 'dated fixture references a clock-sensitive surface without vi.useFakeTimers() and vi.setSystemTime()',
       }]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('inherits a parent-suite pin for nested lifecycle setup', () => {
+    const root = fixtureRoot({
+      'inherited-suite-pin.test.ts': `
+        describe('outer suite', () => {
+          beforeEach(() => {
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date('2026-09-08'));
+          });
+          describe('inner suite', () => {
+            beforeEach(() => {
+              const due = new Date('2026-09-08');
+              expect(Date.now()).toBeGreaterThan(due.getTime());
+            });
+            it('uses the inherited pin', () => {
+              expect(Date.now()).toBeGreaterThan(0);
+            });
+          });
+        });
+      `,
+    });
+    const allowlistPath = join(root, 'allowlist.json');
+    writeFileSync(allowlistPath, JSON.stringify({ files: {} }));
+    try {
+      assert.deepEqual(findUnpinnedClockFixtures({ sourceRoot: root, allowlistPath }), []);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

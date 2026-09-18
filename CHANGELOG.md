@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Test-clock pinning guard: `check-test-clock-pinning.mjs` scans API source and integration tests, checks each test block or scope-aware suite setup (including nested `it.each` callbacks), and fails when a test compares a hardcoded date against a live clock without `vi.useFakeTimers`, with a reviewed allowlist carrying a written reason per file. Wired into CI.
+- Test-clock pinning guard: `check-test-clock-pinning.mjs` scans API source and integration tests, checks each test block or scope-aware suite setup (including nested `it.each` callbacks, helper-returned fixtures, and inherited parent-suite pins), and fails when a test compares a hardcoded date against a live clock without `vi.useFakeTimers`, with a reviewed allowlist carrying a written reason per file. Wired into CI.
 - Data-invariant verification gate: `apps/api/prisma/data-invariants.json` declares read-only violation queries for audit-chain rootedness, hashing, orphans and forks, billing sequence coverage, and migration-ledger completeness. `check-data-invariants.mjs` runs them with a SELECT-only guard, `--dry-run`, and `--json`; CI runs the dry-run and unit tests, and live mode is intended for a restored snapshot before deploy.
 - Deployment secrets runbook covering every repository secret and variable the deploy path requires, after discovering that Deploy has never succeeded.
 - Duplicate migration timestamp detection in the Prisma migration guard. Prisma orders migrations lexicographically, so colliding 14-digit versions let the change slug decide apply order; the five historical collisions are grandfathered by policy and any new one fails.
