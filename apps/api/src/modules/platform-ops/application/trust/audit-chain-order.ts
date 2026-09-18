@@ -49,6 +49,41 @@ export function auditTailCandidates<T extends LinkedAudit>(logs: T[]): T[] {
   });
 }
 
+type AuditChainGraph<T extends LinkedAudit> = {
+  roots: T[];
+  children: Map<string, T[]>;
+};
+
+function buildAuditChainGraph<T extends LinkedAudit>(logs: T[], roots: T[]): AuditChainGraph<T> | null {
+  const byHash = new Map<string, T>();
+  for (const log of logs) {
+    if (byHash.has(log.immutableHash)) return null;
+    byHash.set(log.immutableHash, log);
+  }
+
+  const children = new Map<string, T[]>();
+  for (const log of logs) {
+    if (log.previousHash === null) continue;
+    if (!byHash.has(log.previousHash)) return null;
+    const siblings = children.get(log.previousHash) ?? [];
+    siblings.push(log);
+    if (siblings.length > 1) return null;
+    children.set(log.previousHash, siblings);
+  }
+
+  return { roots, children };
+}
+
+function visitAuditChain<T extends LinkedAudit>(root: T, children: Map<string, T[]>, visited: Set<string>) {
+  let current: T | undefined = root;
+  while (current) {
+    if (visited.has(current.immutableHash)) return false;
+    visited.add(current.immutableHash);
+    current = children.get(current.immutableHash)?.[0];
+  }
+  return true;
+}
+
 /**
  * Distinguish the approved two-chain historical state from a fork or broken graph.
  * Hash validation is supplied by the owner of the persisted payload format.
@@ -58,29 +93,12 @@ export function isIndependentAuditChainSet<T extends LinkedAudit>(logs: T[], isH
   const roots = logs.filter((row) => row.previousHash === null);
   if (roots.length !== 2 || logs.some((log) => !isHashValid(log))) return false;
 
-  const byHash = new Map<string, T>();
-  const children = new Map<string, T[]>();
-  for (const log of logs) {
-    if (byHash.has(log.immutableHash)) return false;
-    byHash.set(log.immutableHash, log);
-  }
-  for (const log of logs) {
-    if (log.previousHash === null) continue;
-    if (!byHash.has(log.previousHash)) return false;
-    const siblings = children.get(log.previousHash) ?? [];
-    siblings.push(log);
-    if (siblings.length > 1) return false;
-    children.set(log.previousHash, siblings);
-  }
+  const graph = buildAuditChainGraph(logs, roots);
+  if (!graph) return false;
 
   const visited = new Set<string>();
-  for (const root of roots) {
-    let current: T | undefined = root;
-    while (current) {
-      if (visited.has(current.immutableHash)) return false;
-      visited.add(current.immutableHash);
-      current = children.get(current.immutableHash)?.[0];
-    }
+  for (const root of graph.roots) {
+    if (!visitAuditChain(root, graph.children, visited)) return false;
   }
   return visited.size === logs.length && auditTailCandidates(logs).length === roots.length;
 }
