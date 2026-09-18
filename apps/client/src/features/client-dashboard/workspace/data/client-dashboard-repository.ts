@@ -7,21 +7,14 @@ import {
   type PrismClientWorkspace,
   type PrismFloorPlanDraft,
   type CreatePrismInquiryInput,
-  type PrismFloorPlanPreference,
+  type CreateFloorPlanPreferenceInput,
   type PrismUser,
 } from "@prism/types";
 import { prismApi } from "@/lib/prism-api";
 import type { Project } from "@/features/floorplan/editor";
 import type { ClientSession } from "../model/client-dashboard-types";
 
-export type FloorPlanPreferenceInput = {
-  name: string;
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  objects?: Project["objects"];
-} & PrismFloorPlanPreference;
+export type FloorPlanPreferenceInput = CreateFloorPlanPreferenceInput;
 
 export const clientDashboardRepository = {
   readSession(): ClientSession | null {

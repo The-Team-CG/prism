@@ -27,6 +27,7 @@ import {
   selectNextAction,
   type ClientDashboardAction,
 } from "../model/client-dashboard-view-rules";
+import { buildFloorPlanPreferencePayload } from "../model/client-floorplan-preference-rules";
 import {
   CLIENT_SIDEBAR_ITEMS,
   DETAIL_TAB_TO_ROUTE,
@@ -195,16 +196,20 @@ export function ClientDashboardWorkspaceView({
 
   async function openFloorplanEditor(draft: PrismFloorPlanDraft, readOnly = false) {
     if (!selectedEvent) return;
-    const locked = readOnly || draft.status === "approved";
-    const project = locked && draftIsOfficial(draft)
-      ? await loadOfficialFloorPlan(
-          selectedEvent.id,
-          draft.id,
-          draft.status === "approved" ? "approved" : "submitted",
-          session ?? undefined,
-        )
-      : await loadFloorPlanProject(draft.floorPlanId, session ?? undefined);
-    setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
+    try {
+      const locked = readOnly || draft.status === "approved";
+      const project = locked && draftIsOfficial(draft)
+        ? await loadOfficialFloorPlan(
+            selectedEvent.id,
+            draft.id,
+            draft.status === "approved" ? "approved" : "submitted",
+            session ?? undefined,
+          )
+        : await loadFloorPlanProject(draft.floorPlanId, session ?? undefined);
+      setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to open floorplan");
+    }
   }
 
   async function createEditorDraft(template: FloorPlanTemplate) {
@@ -216,20 +221,14 @@ export function ClientDashboardWorkspaceView({
       const objects = cloneTemplateObjects(template);
       const draft = await submitFloorPlanPreference(
         selectedEvent.id,
-        {
+        buildFloorPlanPreferencePayload(form, {
           name: `${template.name} preference draft`,
           venue: template.venue || selectedEvent.eventName,
-          seatingStyle: form.seatingStyle,
-          stagePreference: form.stagePreference,
-          flowNotes: form.flowNotes,
-          guestCount: form.guestCount,
-          constraints: form.constraints.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
-          notes: form.notes,
           width: template.widthM,
           height: template.heightM,
           gridSize: 1,
           objects,
-        },
+        }),
         session ?? undefined,
       );
       await refresh();
@@ -250,16 +249,7 @@ export function ClientDashboardWorkspaceView({
     try {
       await submitFloorPlanPreference(
         selectedEvent.id,
-        {
-          name: form.name,
-          venue: selectedEvent.eventName,
-          seatingStyle: form.seatingStyle,
-          stagePreference: form.stagePreference,
-          flowNotes: form.flowNotes,
-          guestCount: form.guestCount,
-          constraints: form.constraints.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
-          notes: form.notes,
-        },
+        buildFloorPlanPreferencePayload(form, { venue: selectedEvent.eventName }),
         session ?? undefined,
       );
       await refresh();
