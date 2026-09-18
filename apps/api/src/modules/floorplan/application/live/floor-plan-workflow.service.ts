@@ -290,8 +290,20 @@ export class FloorPlanWorkflowService {
       approvedSnapshot?: unknown;
     };
     const snapshot = type === 'submitted' ? expanded.submittedSnapshot : expanded.approvedSnapshot;
-    if (!snapshot) throw new NotFoundException('Floorplan snapshot not found');
-    return snapshot;
+    if (snapshot) return snapshot;
+
+    // Compatibility recovery for drafts created before persisted snapshots were added. Only
+    // official lifecycle states may use the current plan as a legacy snapshot; preference and
+    // work-in-progress drafts must continue to return not found rather than exposing their plan
+    // through this official-snapshot endpoint. New submissions/approvals always persist a
+    // snapshot, so this branch disappears as legacy rows are rewritten by normal workflow moves.
+    const canRecoverSubmitted = type === 'submitted' && (draft.status === 'in_review' || draft.status === 'approved');
+    const canRecoverApproved = type === 'approved' && draft.status === 'approved';
+    if (canRecoverSubmitted || canRecoverApproved) {
+      return this.floorPlanSnapshot(draft.floorPlanId);
+    }
+
+    throw new NotFoundException('Floorplan snapshot not found');
   }
 
   mapFloorPlanDraft(draft: OpsFloorPlanDraft) {

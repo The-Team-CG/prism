@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { deriveClientActionCenterFromWorkspace, selectNextAction } from "./client-dashboard-view-rules";
+import {
+  clientFloorplanDashboardActionLabel,
+  deriveClientActionCenterFromWorkspace,
+  selectNextAction,
+} from "./client-dashboard-view-rules";
 import { selectClientDashboardActions } from "./client-dashboard-selectors";
 import type { PrismClientActionItem, PrismClientWorkspace } from "@prism/types";
 
@@ -57,6 +61,14 @@ describe("client action center derivation", () => {
     expect(center.items[0]?.priority).toBe("critical");
     expect(center.items.some((item) => item.kind === "briefing")).toBe(true);
     expect(center.counts.critical).toBe(1);
+    expect(center.items.find((item) => item.kind === "floorplan")?.href).toBe("/dashboard/events/evt_1/floor-plan");
+  });
+
+  it("labels direct event-card floorplan actions by state", () => {
+    expect(clientFloorplanDashboardActionLabel("not_started")).toBe("Set layout preferences");
+    expect(clientFloorplanDashboardActionLabel("in_review")).toBe("View official floorplan");
+    expect(clientFloorplanDashboardActionLabel("approved")).toBe("View official floorplan");
+    expect(clientFloorplanDashboardActionLabel(undefined)).toBe("Open floor plan");
   });
 
   it("selects overdue warning actions before routine next actions", () => {

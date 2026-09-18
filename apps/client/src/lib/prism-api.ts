@@ -8,6 +8,7 @@ import {
   parseContract,
   reviewEventProposalSchema,
   type CreatePrismInquiryInput,
+  type CreateFloorPlanPreferenceInput,
   type ReviewEventProposalInput,
 } from "@prism/types";
 
@@ -27,7 +28,6 @@ import type {
   PrismEvent,
   PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
-  PrismFloorPlanPreference,
   PrismFloorPlanSnapshot,
   PrismInquiry,
   PrismNotificationLog,
@@ -55,7 +55,6 @@ export type {
   PrismEvent,
   PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
-  PrismFloorPlanPreference,
   PrismFloorPlanSnapshot,
   PrismInquiry,
   PrismNotificationLog,
@@ -371,7 +370,7 @@ function localClientActionCenter(session: Pick<PrismUser, "name" | "email">): Pr
         status: event.floorPlanStatus,
         eventId: event.id,
         eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floorplan`,
+        href: `/dashboard/events/${event.id}/floor-plan`,
       });
     } else if (event.floorPlanStatus === "not_started") {
       items.push({
@@ -383,7 +382,7 @@ function localClientActionCenter(session: Pick<PrismUser, "name" | "email">): Pr
         status: event.floorPlanStatus,
         eventId: event.id,
         eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floorplan`,
+        href: `/dashboard/events/${event.id}/floor-plan`,
       });
     }
 
@@ -664,7 +663,7 @@ export const prismApi = {
         }),
   createFloorPlanPreference: (
     eventId: string,
-    input: { name: string; venue?: string; width?: number; height?: number; gridSize?: number; objects?: Project["objects"] } & PrismFloorPlanPreference,
+    input: CreateFloorPlanPreferenceInput,
     session?: Pick<PrismUser, "name" | "email">,
   ) =>
     USE_REMOTE_API

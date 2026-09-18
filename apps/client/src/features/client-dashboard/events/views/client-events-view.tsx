@@ -5,10 +5,10 @@ import type { PrismEvent } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { cn } from "@/app/components/ui/utils";
-import { EventSummaryCard } from "../../workspace/shared";
-import { eventProgressDots } from "../../workspace/shared";
+import { EventSummaryCard, eventProgressDots } from "../../workspace/shared";
 import {
   CLIENT_PORTAL_VIEW_META,
+  clientFloorplanDashboardActionLabel,
   dashboardHref,
 } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
@@ -140,6 +140,11 @@ export function ClientEventsView() {
                     setSelectedEventId(ev.id);
                     router.push(dashboardHref("overview", ev.id));
                   }}
+                  onOpenFloorplan={() => {
+                    setSelectedEventId(ev.id);
+                    router.push(dashboardHref("floorplan", ev.id));
+                  }}
+                  floorplanActionLabel={clientFloorplanDashboardActionLabel(ev.floorPlanStatus)}
                 />
               );
             })}
