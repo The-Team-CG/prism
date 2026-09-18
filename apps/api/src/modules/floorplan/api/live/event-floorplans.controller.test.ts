@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { createFloorPlanDraftSchema, createFloorPlanPreferenceSchema } from '@prism/types';
@@ -19,13 +20,20 @@ function createController() {
     getFloorPlanSnapshot: vi.fn(async () => ({ objects: [] })),
     requireEvent: vi.fn(async () => ({ id: 'evt_sample', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked' })),
   };
+  const recordForbiddenAccess = vi.fn(async (_actor: any, _resource: string, _eventId?: string) => undefined);
   const eventAccessPolicyService = {
     resolveActor: vi.fn((input: any = {}, verified?: any) => ({ role: verified?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin, name: verified?.actorName ?? input.actorName ?? 'Maxine' })),
     requireCanMutateOfficialFloorplan: vi.fn(async () => undefined),
-    requireActorRole: vi.fn(async () => undefined),
+    // Mirrors the real EventAccessPolicyService.requireActorRole: denies AND audits. The stub used
+    // to resolve unconditionally, which would let a role-gate regression pass unnoticed.
+    requireActorRole: vi.fn(async (actor: any, allowedRoles: any[], resource: string, eventId?: string) => {
+      if (allowedRoles.includes(actor.role)) return;
+      await recordForbiddenAccess(actor, resource, eventId);
+      throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
+    }),
     canReadEvent: vi.fn(() => true),
     requireCanReadEvent: vi.fn(async () => undefined),
-    recordForbiddenAccess: vi.fn(async () => undefined),
+    recordForbiddenAccess,
   };
   const controller = new OpsEventFloorplansController(
     floorPlanWorkflowService as any,
@@ -102,5 +110,82 @@ describe('OpsEventFloorplansController', () => {
       { name: 'Ana Reyes', role: OpsUserRole.Client },
     );
     expect(floorPlanWorkflowService.getFloorPlanSnapshot).toHaveBeenCalledWith('evt_sample', 'fpd_pref', 'submitted');
+  });
+
+  describe('official floorplan submitted snapshot access (EP-05-S01 AC5)', () => {
+    function actorOfRole(role: (typeof OpsUserRole)[keyof typeof OpsUserRole], name: string) {
+      return {
+        id: `actor_${role}`,
+        actorId: `actor_${role}`,
+        role,
+        actorRole: role,
+        email: `${name.toLowerCase()}@example.test`,
+        actorEmail: `${name.toLowerCase()}@example.test`,
+        name,
+        actorName: name,
+        expiresAt: '2026-07-03T12:00:00.000Z',
+      } as any;
+    }
+
+    it('rejects a supplier asking for the pre-approval submitted snapshot, and audits it', async () => {
+      const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
+
+      await expect(
+        controller.getFloorPlanSnapshot('evt_sample', 'fpd_x', { type: 'submitted' }, actorOfRole(OpsUserRole.Supplier, 'Sonia')),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
+        expect.objectContaining({ role: OpsUserRole.Supplier }),
+        'official floorplan submitted snapshot',
+        'evt_sample',
+      );
+      expect(floorPlanWorkflowService.getFloorPlanSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('rejects a coordinator asking for the pre-approval submitted snapshot, and audits it', async () => {
+      const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
+
+      await expect(
+        controller.getFloorPlanSnapshot('evt_sample', 'fpd_x', { type: 'submitted' }, actorOfRole(OpsUserRole.Coordinator, 'Cara')),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
+        expect.objectContaining({ role: OpsUserRole.Coordinator }),
+        'official floorplan submitted snapshot',
+        'evt_sample',
+      );
+      expect(floorPlanWorkflowService.getFloorPlanSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('still serves the submitted snapshot to PMCM', async () => {
+      const { controller, floorPlanWorkflowService } = createController();
+
+      await expect(
+        controller.getFloorPlanSnapshot('evt_sample', 'fpd_x', { type: 'submitted' }, actorOfRole(OpsUserRole.PmcmAdmin, 'Maxine')),
+      ).resolves.toEqual({ objects: [] });
+
+      expect(floorPlanWorkflowService.getFloorPlanSnapshot).toHaveBeenCalledWith('evt_sample', 'fpd_x', 'submitted');
+    });
+
+    it('still serves the submitted snapshot to the client, who is invited to review it', async () => {
+      const { controller, floorPlanWorkflowService } = createController();
+
+      await expect(
+        controller.getFloorPlanSnapshot('evt_sample', 'fpd_x', { type: 'submitted' }, actorOfRole(OpsUserRole.Client, 'Ana')),
+      ).resolves.toEqual({ objects: [] });
+
+      expect(floorPlanWorkflowService.getFloorPlanSnapshot).toHaveBeenCalledWith('evt_sample', 'fpd_x', 'submitted');
+    });
+
+    it('leaves approved-snapshot reads untouched for a non-PMCM, non-client actor', async () => {
+      const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
+
+      await expect(
+        controller.getFloorPlanSnapshot('evt_sample', 'fpd_x', { type: 'approved' }, actorOfRole(OpsUserRole.Supplier, 'Sonia')),
+      ).resolves.toEqual({ objects: [] });
+
+      expect(floorPlanWorkflowService.getFloorPlanSnapshot).toHaveBeenCalledWith('evt_sample', 'fpd_x', 'approved');
+      expect(eventAccessPolicyService.recordForbiddenAccess).not.toHaveBeenCalled();
+    });
   });
 });

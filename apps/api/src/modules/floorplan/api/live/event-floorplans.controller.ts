@@ -110,6 +110,20 @@ export class OpsEventFloorplansController {
     const event = await this.requireEvent(eventId);
     const scoped = scopeActorToEvent(actor, event);
     await this.eventAccessPolicyService.requireCanReadEvent(scoped.actor, event, 'official floorplan snapshot', scoped.scope);
+    // The submitted snapshot is the internal pre-approval layout. PMCM owns it and the client is
+    // invited to review it (submitFloorPlanDraft notifies them), so both may read it; suppliers,
+    // coordinators and guests may not. Denied rather than silently downgraded to 'approved': every
+    // other boundary here denies and audits, and a downgrade would 404 into the client's own
+    // catch() as a blank preview. Runs after requireCanReadEvent so an actor who cannot read the
+    // event at all is refused on that ground, not mislabelled as a snapshot-type violation.
+    if (type === 'submitted') {
+      await this.eventAccessPolicyService.requireActorRole(
+        scoped.actor,
+        [OpsUserRole.Client, OpsUserRole.PmcmAdmin, OpsUserRole.System],
+        'official floorplan submitted snapshot',
+        eventId,
+      );
+    }
     return this.floorPlanWorkflowService.getFloorPlanSnapshot(eventId, draftId, type);
   }
 

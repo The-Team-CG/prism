@@ -8,6 +8,9 @@ function createService() {
       {
         id: 'evt_sample',
         inquiryId: 'inq_sample',
+        // Bare new Date() on purpose: the conforme gate checks null vs non-null, so the value is
+        // inert, and a dated literal here would be a future check:test-clocks liability.
+        inquiry: { conformeSignedAt: new Date() },
         clientName: 'Ana Reyes',
         eventName: 'Ayala Summit',
         floorPlanStatus: 'not_started',
@@ -78,7 +81,7 @@ function createService() {
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
   );
-  return { service, state, auditWriter, notificationOutboxWriter };
+  return { service, state, prisma, auditWriter, notificationOutboxWriter };
 }
 
 describe('FloorPlanWorkflowService', () => {
@@ -108,6 +111,41 @@ describe('FloorPlanWorkflowService', () => {
         affectedType: 'floor_plan_draft',
       }),
       undefined,
+    );
+  });
+
+  it('rejects an official floorplan draft when the conforme is unsigned', async () => {
+    const { service, state } = createService();
+    state.events[0].inquiry = { conformeSignedAt: null };
+
+    await expect(
+      service.createFloorPlanDraft(
+        'evt_sample',
+        { name: 'Official Layout', sourceType: 'blank' },
+        { name: 'PMCM Admin', role: 'pmcm-admin' },
+      ),
+    ).rejects.toThrow('Official floor plan requires a signed conforme');
+
+    expect(state.floorPlans).toHaveLength(0);
+    expect(state.floorPlanDrafts).toHaveLength(0);
+    expect(state.events[0]).toMatchObject({ floorPlanStatus: 'not_started', readiness: 'Planning' });
+  });
+
+  it('reads conforme state through its own focused query, not the access-scope include', async () => {
+    const { service, prisma } = createService();
+
+    await service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'Official Layout', sourceType: 'blank' },
+      { name: 'PMCM Admin', role: 'pmcm-admin' },
+    );
+
+    // Proves the gate actually issued its own conforme read rather than being bypassed.
+    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'evt_sample' },
+        select: expect.objectContaining({ inquiry: { select: { conformeSignedAt: true } } }),
+      }),
     );
   });
 
@@ -141,6 +179,41 @@ describe('FloorPlanWorkflowService', () => {
       }),
       undefined,
     );
+  });
+
+  it('does not let a client layout preference downgrade an already-approved floorplan', async () => {
+    const { service, state, notificationOutboxWriter } = createService();
+    state.events[0].clientPortalStatus = 'unlocked';
+    state.events[0].floorPlanStatus = 'approved';
+    state.events[0].readiness = 'Floorplan approved';
+
+    const draft = await service.createFloorPlanPreference(
+      'evt_sample',
+      {
+        name: 'Post-approval Preference',
+        seatingStyle: 'banquet',
+        stagePreference: 'center',
+        flowNotes: 'Please widen the aisle.',
+        guestCount: 180,
+        constraints: [],
+      },
+      { name: 'Ana Reyes', role: 'client' },
+    );
+
+    // The preference itself is still recorded...
+    expect(draft.status).toBe('client_submitted');
+    expect(draft.createdByRole).toBe('client');
+    // ...and PMCM is still told the client wants changes.
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'evt_sample',
+        recipient: 'PMCM Admin',
+        message: 'Client submitted a layout preference: Post-approval Preference',
+      }),
+      undefined,
+    );
+    // ...but the approved event is not knocked out of approved state.
+    expect(state.events[0]).toMatchObject({ floorPlanStatus: 'approved', readiness: 'Floorplan approved' });
   });
 
   it('returns submitted and approved snapshots without mutating stored canvas state', async () => {
