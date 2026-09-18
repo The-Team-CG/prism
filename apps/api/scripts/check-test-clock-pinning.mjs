@@ -1,16 +1,20 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, resolve } from 'node:path';
+import ts from 'typescript';
 
 const SCRIPT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DEFAULT_SOURCE_ROOT = join(SCRIPT_ROOT, 'src', 'modules');
+export const DEFAULT_SOURCE_ROOTS = [
+  { path: join(SCRIPT_ROOT, 'src'), prefix: 'src' },
+  { path: join(SCRIPT_ROOT, 'test'), prefix: 'test' },
+];
 const DEFAULT_ALLOWLIST_PATH = join(dirname(fileURLToPath(import.meta.url)), 'test-clock-allowlist.json');
 
 // This intentionally small heuristic catches tests for deadline-like surfaces,
 // not every use of Date. A dated literal plus one of these markers means the
 // test must pin the clock, or document why its date is inert in the allowlist.
 const DATE_LITERAL_PATTERN = /new\s+Date\s*\(\s*['"]20\d{2}-/;
-const CLOCK_SURFACE_PATTERN = /(?:Date\.now|deadlineAt|slaDueAt|nextAttemptAt|leaseExpiresAt|actualEndedAt|actualStartedAt|plannedStartAt|plannedEndAt|feedback.?window|reminder|freeze|escalat|retry|backoff)/i;
+const CLOCK_SURFACE_PATTERN = /(?:Date\.now|deadlineAt|slaDueAt|nextAttemptAt|leaseExpiresAt|actualEndedAt|actualStartedAt|plannedStartAt|plannedEndAt|feedback.?window|followUpInterval|(?:last)?(?:Conforme)?ReminderAt|ReminderSweep|freezeAt|retryAt|backoffUntil)/i;
 const FAKE_TIMER_PATTERN = /vi\.useFakeTimers\s*\(/;
 const SYSTEM_TIME_PATTERN = /vi\.setSystemTime\s*\(/;
 
@@ -26,6 +30,77 @@ function collectTestFiles(root) {
 
 function relativePath(root, path) {
   return relative(root, path).replaceAll('\\', '/');
+}
+
+function isTestCall(expression) {
+  if (ts.isIdentifier(expression)) return expression.text === 'it' || expression.text === 'test';
+  return (
+    ts.isPropertyAccessExpression(expression) &&
+    ts.isIdentifier(expression.expression) &&
+    (expression.expression.text === 'it' || expression.expression.text === 'test')
+  );
+}
+
+function isTestCallback(node) {
+  return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+}
+
+function isLifecycleCall(expression) {
+  return ts.isIdentifier(expression) && (expression.text === 'beforeEach' || expression.text === 'beforeAll');
+}
+
+function collectTestBlockSpans(source, fileName) {
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const blocks = [];
+
+  function visit(node) {
+    if (ts.isCallExpression(node) && isTestCall(node.expression)) {
+      const callback = [...node.arguments].reverse().find(isTestCallback);
+      if (callback) {
+        blocks.push({
+          source: source.slice(node.getStart(sourceFile), node.getEnd()),
+          start: node.getStart(sourceFile),
+          end: node.getEnd(),
+        });
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return blocks;
+}
+
+export function collectTestBlocks(source, fileName) {
+  return collectTestBlockSpans(source, fileName).map((block) => block.source);
+}
+
+function maskRanges(source, ranges) {
+  const characters = source.split('');
+  for (const { start, end } of ranges) {
+    for (let index = start; index < end; index += 1) characters[index] = ' ';
+  }
+  return characters.join('');
+}
+
+function hasPinnedSuiteSetup(source, fileName) {
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let pinned = false;
+
+  function visit(node) {
+    if (pinned) return;
+    if (ts.isCallExpression(node) && isLifecycleCall(node.expression)) {
+      const callback = [...node.arguments].reverse().find(isTestCallback);
+      if (callback) {
+        const analysis = analyzeTestClockSource(source.slice(node.getStart(sourceFile), node.getEnd()));
+        pinned = analysis.hasFakeTimers && analysis.hasSystemTime;
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return pinned;
 }
 
 export function loadTestClockAllowlist(path = DEFAULT_ALLOWLIST_PATH) {
@@ -57,14 +132,37 @@ export function analyzeTestClockSource(source) {
   };
 }
 
-export function findUnpinnedClockFixtures({ sourceRoot = DEFAULT_SOURCE_ROOT, allowlistPath = DEFAULT_ALLOWLIST_PATH } = {}) {
+export function findUnpinnedClockFixtures({ sourceRoot, sourceRoots, allowlistPath = DEFAULT_ALLOWLIST_PATH } = {}) {
   const allowlist = loadTestClockAllowlist(allowlistPath);
-  return collectTestFiles(sourceRoot).flatMap((path) => {
-    const relativeFile = relativePath(sourceRoot, path);
-    const analysis = analyzeTestClockSource(readFileSync(path, 'utf8'));
-    if (!analysis.requiresPinning || analysis.pinned || allowlist[relativeFile]) return [];
-    return [{ file: relativeFile, reason: 'dated fixture references a clock-sensitive surface without vi.useFakeTimers() and vi.setSystemTime()' }];
-  });
+  const roots = sourceRoot
+    ? [{ path: sourceRoot, prefix: '' }]
+    : (sourceRoots ?? DEFAULT_SOURCE_ROOTS).map((root) => (typeof root === 'string' ? { path: root, prefix: '' } : root));
+  const reason = 'dated fixture references a clock-sensitive surface without vi.useFakeTimers() and vi.setSystemTime()';
+
+  return roots.flatMap(({ path: root, prefix }) =>
+    collectTestFiles(root).flatMap((path) => {
+      const source = readFileSync(path, 'utf8');
+      const rootRelativeFile = relativePath(root, path);
+      const relativeFile = prefix ? `${prefix}/${rootRelativeFile}` : rootRelativeFile;
+      // Existing module allowlist entries were relative to src/modules; keep
+      // them valid while reporting the new API-root-relative path.
+      const legacyRelativeFile = rootRelativeFile.startsWith('modules/')
+        ? rootRelativeFile.slice('modules/'.length)
+        : rootRelativeFile;
+      const testBlocks = collectTestBlockSpans(source, path);
+      const suitePinned = hasPinnedSuiteSetup(source, path);
+      const sharedAnalysis = analyzeTestClockSource(maskRanges(source, testBlocks));
+      const hasUnpinnedFixture =
+        (sharedAnalysis.requiresPinning && !sharedAnalysis.pinned && !suitePinned) ||
+        testBlocks.some(({ source: block }) => {
+          const analysis = analyzeTestClockSource(block);
+          return analysis.requiresPinning && !analysis.pinned && !suitePinned;
+        });
+
+      if (!hasUnpinnedFixture || allowlist[relativeFile] || allowlist[rootRelativeFile] || allowlist[legacyRelativeFile]) return [];
+      return [{ file: relativeFile, reason }];
+    }),
+  );
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

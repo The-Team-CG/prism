@@ -61,6 +61,77 @@ describe('test clock pinning heuristic', () => {
     }
   });
 
+  it('scans source and integration-test roots, not only bounded modules', () => {
+    const root = fixtureRoot({
+      'src/compatibility/sample.test.ts': "const due = new Date('2026-09-08'); expect(Date.now()).toBeGreaterThan(due.getTime());",
+      'test/integration/clock.test.ts': "const due = new Date('2026-09-08'); expect(Date.now()).toBeGreaterThan(due.getTime());",
+    });
+    const allowlistPath = join(root, 'allowlist.json');
+    writeFileSync(allowlistPath, JSON.stringify({ files: {} }));
+    try {
+      assert.deepEqual(
+        findUnpinnedClockFixtures({
+          sourceRoots: [
+            { path: join(root, 'src'), prefix: 'src' },
+            { path: join(root, 'test'), prefix: 'test' },
+          ],
+          allowlistPath,
+        }).map((violation) => violation.file),
+        ['src/compatibility/sample.test.ts', 'test/integration/clock.test.ts'],
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not let one pinned test mask another test in the same file', () => {
+    const root = fixtureRoot({
+      'mixed.test.ts': `
+        it('pinned fixture', () => {
+          vi.useFakeTimers();
+          vi.setSystemTime(new Date('2026-09-08'));
+          const due = new Date('2026-09-08');
+          expect(Date.now()).toBeGreaterThanOrEqual(due.getTime());
+        });
+        it('unpinned fixture', () => {
+          const due = new Date('2026-09-08');
+          expect(Date.now()).toBeGreaterThan(due.getTime());
+        });
+      `,
+    });
+    const allowlistPath = join(root, 'allowlist.json');
+    writeFileSync(allowlistPath, JSON.stringify({ files: {} }));
+    try {
+      assert.deepEqual(findUnpinnedClockFixtures({ sourceRoot: root, allowlistPath }), [{
+        file: 'mixed.test.ts',
+        reason: 'dated fixture references a clock-sensitive surface without vi.useFakeTimers() and vi.setSystemTime()',
+      }]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('requires a suite pin when a shared clock-sensitive fixture is outside test blocks', () => {
+    const root = fixtureRoot({
+      'shared-fixture.test.ts': `
+        const fixture = { deadlineAt: new Date('2026-09-08') };
+        it('uses the shared fixture', () => {
+          expect(Date.now()).toBeGreaterThan(fixture.deadlineAt.getTime());
+        });
+      `,
+    });
+    const allowlistPath = join(root, 'allowlist.json');
+    writeFileSync(allowlistPath, JSON.stringify({ files: {} }));
+    try {
+      assert.deepEqual(findUnpinnedClockFixtures({ sourceRoot: root, allowlistPath }), [{
+        file: 'shared-fixture.test.ts',
+        reason: 'dated fixture references a clock-sensitive surface without vi.useFakeTimers() and vi.setSystemTime()',
+      }]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('passes against the checked-in module tests', () => {
     const result = spawnSync(process.execPath, [SCRIPT_PATH], { cwd: API_ROOT, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
