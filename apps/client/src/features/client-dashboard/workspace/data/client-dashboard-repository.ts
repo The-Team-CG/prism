@@ -8,7 +8,6 @@ import {
   type PrismFloorPlanDraft,
   type CreatePrismInquiryInput,
   type CreateFloorPlanPreferenceInput,
-  type PrismFloorPlanPreference,
   type CreateFloorPlanRevisionCommentInput,
   type PrismUser,
 } from "@prism/types";

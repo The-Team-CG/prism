@@ -1013,15 +1013,24 @@ export const prismApi = {
     }
     return Promise.resolve(
       updateMockState((state) => {
-        const event = state.events.find((item) => item.id === eventId) ?? firstEvent(state);
-        const draft = event.floorPlanDrafts?.find((item) => item.id === draftId);
+        const actor = session ?? { name: "Ana Reyes", email: "ana@ayala.test" };
+        const event = state.events.find((item) => item.id === eventId);
+        if (!event) throw new Error("Event not found");
+        const inquiry = state.inquiries.find((item) => item.id === event.inquiryId);
+        if (!inquiry || inquiry.email.trim().toLowerCase() !== actor.email.trim().toLowerCase()) {
+          throw new Error("Only the primary client contact can send floorplan revision comments");
+        }
+        if (event.clientPortalStatus !== "unlocked") throw new Error("Client floorplan review is locked");
+        if (event.archived) throw new Error("Archived events cannot receive floorplan revision comments");
+        const draft = state.floorPlanDrafts.find((item) => item.id === draftId && item.eventId === eventId);
         if (!draft) throw new Error("Floorplan draft not found");
+        if (draft.status !== "in_review") throw new Error("Only a floorplan in review can receive revision comments");
         draft.status = "revision_requested";
         draft.revisionComment = parsed.revisionNote;
         draft.reviewedAt = now();
         event.floorPlanStatus = "revision_requested";
         event.readiness = "Floorplan revision requested by client";
-        addAudit(state, eventId, "Ana Reyes", `Requested floorplan revision: ${draft.name}`);
+        addAudit(state, eventId, actor.name, `Requested floorplan revision: ${draft.name}`);
         addNotification(state, eventId, "PMCM Admin", `Client requested a floorplan revision: ${draft.name}`);
         return draft;
       }),
