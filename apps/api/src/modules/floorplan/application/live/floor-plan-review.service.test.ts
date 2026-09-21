@@ -131,8 +131,14 @@ describe('FloorPlanReviewService', () => {
         eventId: 'evt_sample',
         recipient: 'PMCM Admin',
         message: 'Client requested a floorplan revision: Official Layout',
+        correlationId: 'floorplan-review:evt_sample:fpd_review:first',
+        idempotencyKey: 'floorplan-review:evt_sample:fpd_review:first',
       }),
-      undefined,
+      expect.objectContaining({
+        prisma: expect.anything(),
+        correlationId: 'floorplan-review:evt_sample:fpd_review:first',
+        actorId: clientActor.id,
+      }),
     );
   });
 

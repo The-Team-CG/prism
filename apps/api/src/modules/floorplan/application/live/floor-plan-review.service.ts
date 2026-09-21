@@ -96,6 +96,9 @@ export class FloorPlanReviewService {
         eventId,
         'PMCM Admin',
         `Client requested a floorplan revision: ${draft.name}`,
+        undefined,
+        { correlationId: reviewKey, idempotencyKey: reviewKey },
+        { prisma: tx, correlationId: reviewKey, actorId: actor.id },
       );
 
       return this.floorPlanWorkflowService.mapFloorPlanDraft(saved);

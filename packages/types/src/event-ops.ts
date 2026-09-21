@@ -240,7 +240,7 @@ export interface PrismFloorPlanDraft {
   eventId: string;
   floorPlanId: string;
   name: string;
-  status: "client_submitted" | "pmcm_draft" | "in_review" | "approved" | string;
+  status: "client_submitted" | "pmcm_draft" | "in_review" | "revision_requested" | "approved" | string;
   isActive: boolean;
   sourceType: "client_preference" | "blank" | "template" | string;
   createdByRole?: SampleRole | string;
