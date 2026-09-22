@@ -1,6 +1,32 @@
 import process from 'node:process';
 import { Pool } from 'pg';
 
+/**
+ * PA-309. Mirrors describeDatabaseError in src/kernel/database/prisma-error.ts.
+ * Deliberately duplicated: that helper compiles to CommonJS under
+ * "module": "commonjs", this is a native ESM .mjs, and bridging that split is the
+ * module-system problem PA-308 is deferred on. Keep the two in step.
+ */
+function describeDatabaseError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (typeof error !== 'object' || error === null) return message;
+
+  const parts = [message];
+  if (typeof error.code === 'string' && error.code.length > 0) parts.push(`(code=${error.code})`);
+  if (error.meta !== undefined && error.meta !== null) {
+    let rendered;
+    try {
+      rendered = JSON.stringify(error.meta) ?? String(error.meta);
+    } catch {
+      rendered = String(error.meta);
+    }
+    parts.push(`meta=${rendered}`);
+  }
+
+  return parts.join(' ');
+}
+
 const args = process.argv.slice(2);
 const modeArg = args.find((arg) => arg.startsWith('--mode='));
 const mode = modeArg ? modeArg.slice('--mode='.length) : 'prisma';
@@ -84,6 +110,14 @@ const pool = new Pool({
       : {
           rejectUnauthorized: false,
         },
+  // PA-307, values agreed with Anthony. Kept in step with
+  // src/kernel/database/prisma.service.ts so the doctor stays representative of
+  // runtime. max: 5 halves pg's default ceiling of 10. connectionTimeoutMillis is
+  // strictly an improvement here: today this script has no timeout at all and can
+  // hang indefinitely.
+  max: 5,
+  idleTimeoutMillis: 10_000,
+  connectionTimeoutMillis: 30_000,
 });
 
 try {
@@ -112,11 +146,11 @@ try {
       console.log('_prisma_migrations: not found (fresh DB or migrations not yet deployed)');
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = describeDatabaseError(error);
     console.warn(`DB metadata check skipped: ${message}`);
   }
 } catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = describeDatabaseError(error);
 
   console.error(`Prisma DB check failed using ${source}.`);
   console.error(`Target: ${redactedTarget}`);
