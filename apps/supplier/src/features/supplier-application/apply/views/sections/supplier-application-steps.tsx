@@ -26,7 +26,6 @@ import {
 } from "@/app/components/ui/select";
 import { Textarea } from "@/app/components/ui/textarea";
 import { APPLICATION_PRICE_RANGES, APPLICATION_WIZARD_STEPS, type SupplierApplicationForm } from "../../model/supplier-application-types";
-import { buildSupplierApplicationReference } from "../../model/supplier-application-rules";
 
 const wizardSteps = APPLICATION_WIZARD_STEPS;
 const priceRanges = APPLICATION_PRICE_RANGES;
@@ -42,7 +41,7 @@ export const compactFieldGroupClass =
 
 type UpdateFn = <K extends keyof SupplierApplicationForm>(key: K, value: SupplierApplicationForm[K]) => void;
 
-export function SupplierApplicationSubmitted({ applicationId, onReset }: { applicationId: string | null; onReset: () => void }) {
+export function SupplierApplicationSubmitted({ applicationId, onReset }: { applicationId: string; onReset: () => void }) {
   return (
     <main className="h-dvh bg-background text-foreground">
       <section className="relative h-full min-h-0 overflow-hidden">
@@ -60,7 +59,7 @@ export function SupplierApplicationSubmitted({ applicationId, onReset }: { appli
                 PMCM will review your application and contact you within 5 business days.
               </p>
               <div className="mx-auto mt-6 max-w-sm rounded-lg border border-primary/10 bg-background p-4 text-sm font-bold text-primary">
-                Reference # {applicationId ?? buildSupplierApplicationReference()}
+                Reference # {applicationId}
               </div>
               <a href="/status" className="mt-4 inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline">
                 Check application status
