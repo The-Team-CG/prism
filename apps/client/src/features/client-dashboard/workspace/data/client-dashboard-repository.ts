@@ -7,21 +7,15 @@ import {
   type PrismClientWorkspace,
   type PrismFloorPlanDraft,
   type CreatePrismInquiryInput,
-  type PrismFloorPlanPreference,
+  type CreateFloorPlanPreferenceInput,
+  type CreateFloorPlanRevisionCommentInput,
   type PrismUser,
 } from "@prism/types";
 import { prismApi } from "@/lib/prism-api";
 import type { Project } from "@/features/floorplan/editor";
 import type { ClientSession } from "../model/client-dashboard-types";
 
-export type FloorPlanPreferenceInput = {
-  name: string;
-  venue?: string;
-  width?: number;
-  height?: number;
-  gridSize?: number;
-  objects?: Project["objects"];
-} & PrismFloorPlanPreference;
+export type FloorPlanPreferenceInput = CreateFloorPlanPreferenceInput;
 
 export const clientDashboardRepository = {
   readSession(): ClientSession | null {
@@ -63,6 +57,15 @@ export const clientDashboardRepository = {
     session?: Pick<PrismUser, "name" | "email">,
   ): Promise<Project> {
     return prismApi.loadFloorPlanSnapshot(eventId, draftId, type, session);
+  },
+
+  submitFloorPlanRevisionComment(
+    eventId: string,
+    draftId: string,
+    input: CreateFloorPlanRevisionCommentInput,
+    session?: Pick<PrismUser, "name" | "email">,
+  ): Promise<PrismFloorPlanDraft> {
+    return prismApi.reviewFloorPlanDraft(eventId, draftId, input, session);
   },
 
   loadPlan(planId: string, session?: Pick<PrismUser, "name" | "email">): Promise<Project> {

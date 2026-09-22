@@ -27,6 +27,7 @@ import {
   selectNextAction,
   type ClientDashboardAction,
 } from "../model/client-dashboard-view-rules";
+import { buildFloorPlanPreferencePayload } from "../model/client-floorplan-preference-rules";
 import {
   CLIENT_SIDEBAR_ITEMS,
   DETAIL_TAB_TO_ROUTE,
@@ -58,7 +59,9 @@ import {
   signOutClientSession,
   submitClientInquiry,
   submitFloorPlanPreference,
+  submitFloorPlanRevisionComment,
 } from "../use-cases/client-dashboard-actions";
+import { buildFloorPlanRevisionPayload } from "../model/client-floorplan-review-rules";
 import { useClientDashboardViewModel } from "../view-models/use-client-dashboard-view-model";
 import type { ClientDashboardRoute, ClientPortalView, DetailTab } from "../model/client-dashboard-types";
 
@@ -120,6 +123,7 @@ export function ClientDashboardWorkspaceView({
   });
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
+  const [revisionComment, setRevisionComment] = useState("");
   const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
   const [eventSearch, setEventSearch] = useState("");
   const [officialProject, setOfficialProject] = useState<Project | null>(null);
@@ -195,16 +199,20 @@ export function ClientDashboardWorkspaceView({
 
   async function openFloorplanEditor(draft: PrismFloorPlanDraft, readOnly = false) {
     if (!selectedEvent) return;
-    const locked = readOnly || draft.status === "approved";
-    const project = locked && draftIsOfficial(draft)
-      ? await loadOfficialFloorPlan(
-          selectedEvent.id,
-          draft.id,
-          draft.status === "approved" ? "approved" : "submitted",
-          session ?? undefined,
-        )
-      : await loadFloorPlanProject(draft.floorPlanId, session ?? undefined);
-    setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
+    try {
+      const locked = readOnly || draft.status === "approved";
+      const project = locked && draftIsOfficial(draft)
+        ? await loadOfficialFloorPlan(
+            selectedEvent.id,
+            draft.id,
+            draft.status === "approved" ? "approved" : "submitted",
+            session ?? undefined,
+          )
+        : await loadFloorPlanProject(draft.floorPlanId, session ?? undefined);
+      setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to open floorplan");
+    }
   }
 
   async function createEditorDraft(template: FloorPlanTemplate) {
@@ -216,20 +224,14 @@ export function ClientDashboardWorkspaceView({
       const objects = cloneTemplateObjects(template);
       const draft = await submitFloorPlanPreference(
         selectedEvent.id,
-        {
+        buildFloorPlanPreferencePayload(form, {
           name: `${template.name} preference draft`,
           venue: template.venue || selectedEvent.eventName,
-          seatingStyle: form.seatingStyle,
-          stagePreference: form.stagePreference,
-          flowNotes: form.flowNotes,
-          guestCount: form.guestCount,
-          constraints: form.constraints.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
-          notes: form.notes,
           width: template.widthM,
           height: template.heightM,
           gridSize: 1,
           objects,
-        },
+        }),
         session ?? undefined,
       );
       await refresh();
@@ -250,22 +252,41 @@ export function ClientDashboardWorkspaceView({
     try {
       await submitFloorPlanPreference(
         selectedEvent.id,
-        {
-          name: form.name,
-          venue: selectedEvent.eventName,
-          seatingStyle: form.seatingStyle,
-          stagePreference: form.stagePreference,
-          flowNotes: form.flowNotes,
-          guestCount: form.guestCount,
-          constraints: form.constraints.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
-          notes: form.notes,
-        },
+        buildFloorPlanPreferencePayload(form, { venue: selectedEvent.eventName }),
         session ?? undefined,
       );
       await refresh();
       setNotice("Floor plan draft saved. PMCM can review it, and approval will lock the plan.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit layout preference");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitFloorPlanReview(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    if (!selectedEvent || !officialDraft) return;
+    const note = revisionComment.trim();
+    if (!note) {
+      setError("Write a revision comment before sending it to PMCM.");
+      return;
+    }
+    setBusy("floorplan-revision");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitFloorPlanRevisionComment(
+        selectedEvent.id,
+        officialDraft.id,
+        buildFloorPlanRevisionPayload(note),
+        session ?? undefined,
+      );
+      setRevisionComment("");
+      await refresh();
+      setNotice("Revision comment sent. PMCM will update the official floorplan.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send floorplan revision comment");
     } finally {
       setBusy(null);
     }
@@ -427,6 +448,8 @@ export function ClientDashboardWorkspaceView({
     nextAction,
     form,
     setForm,
+    revisionComment,
+    setRevisionComment,
     requestForm,
     setRequestForm,
     eventSearch,
@@ -439,6 +462,7 @@ export function ClientDashboardWorkspaceView({
     openFloorplanEditor,
     createEditorDraft,
     submitPreference,
+    submitRevisionComment: submitFloorPlanReview,
     submitNewEventRequest,
     signOut,
     eventHeader: renderEventHeader(),

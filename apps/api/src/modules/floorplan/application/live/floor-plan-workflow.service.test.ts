@@ -240,4 +240,61 @@ describe('FloorPlanWorkflowService', () => {
     expect((approved as any).objects[0].x).toBe(20);
     expect(state.floorPlanDrafts[0].approvedSnapshot.objects[0].x).toBe(20);
   });
+
+  it('recovers legacy official drafts that predate persisted snapshots', async () => {
+    const { service, state } = createService();
+    state.floorPlans.push({
+      id: 'plan_legacy',
+      name: 'Legacy Layout',
+      venue: 'Legacy Venue',
+      width: 1200,
+      height: 800,
+      gridSize: 20,
+      pax: 180,
+      objects: [{ id: 'stage', kind: 'stage', x: 10 }],
+      guests: [],
+      suppliers: [],
+      seats: [],
+      seatCategories: [],
+      updatedAt: new Date(),
+    });
+    state.floorPlanDrafts.push({
+      id: 'fpd_legacy',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_legacy',
+      name: 'Legacy Layout',
+      status: 'approved',
+      isActive: true,
+      sourceType: 'template',
+      createdByRole: 'pmcm-admin',
+      submittedSnapshot: null,
+      approvedSnapshot: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(service.getFloorPlanSnapshot('evt_sample', 'fpd_legacy', 'approved')).resolves.toMatchObject({
+      id: 'plan_legacy',
+      venue: 'Legacy Venue',
+      objects: [{ id: 'stage', kind: 'stage', x: 10 }],
+    });
+  });
+
+  it('does not recover non-official drafts through the official snapshot endpoint', async () => {
+    const { service, state } = createService();
+    state.floorPlans.push({ id: 'plan_draft', name: 'Draft', objects: [] });
+    state.floorPlanDrafts.push({
+      id: 'fpd_draft',
+      eventId: 'evt_sample',
+      floorPlanId: 'plan_draft',
+      name: 'Draft',
+      status: 'pmcm_draft',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(service.getFloorPlanSnapshot('evt_sample', 'fpd_draft', 'approved')).rejects.toThrow(
+      'Floorplan snapshot not found',
+    );
+  });
 });

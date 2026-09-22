@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Data-invariant verification gate: `apps/api/prisma/data-invariants.json` declares read-only violation queries for audit-chain rootedness, hashing, orphans and forks, billing sequence coverage, and migration-ledger completeness. `check-data-invariants.mjs` runs them with a SELECT-only guard, `--dry-run`, and `--json`; CI runs the dry-run and unit tests, and live mode is intended for a restored snapshot before deploy.
 - Deployment secrets runbook covering every repository secret and variable the deploy path requires, after discovering that Deploy has never succeeded.
 - Duplicate migration timestamp detection in the Prisma migration guard. Prisma orders migrations lexicographically, so colliding 14-digit versions let the change slug decide apply order; the five historical collisions are grandfathered by policy and any new one fails.
+- EP-05-S03 client floorplan revision comments: shared `createFloorPlanRevisionComment` contract, primary-client-contact-gated `PATCH /api/events/:eventId/floorplans/:draftId/review` with round-scoped idempotency replay, revision-comment submission surface in the client dashboard with revision_requested presentation, and PMCM-side revision comment display with submit/re-approve actions. No migration required.
 - Prisma migration guardrails: a machine-readable owner/schema policy with normalized legacy SQL checksums, future owner-aware naming and SQL metadata, static order/ownership/kind/risk checks, fail-closed handling for unsupported procedural SQL, CI wiring, and a database migration deployment/drift-recovery runbook. Existing applied migration directories remain unchanged.
 - Parallel-worktree tooling: `npm run ports` reports the ports a checkout owns, and `worktree:create`, `worktree:setup`, and `worktree:remove` add, prepare, and tear down linked worktrees. Setup writes that worktree's `PORT`, `CORS_ORIGIN`, and `NEXT_PUBLIC_API_URL`; teardown unlinks `node_modules` junctions before deleting so the primary checkout's dependency tree survives.
 - Worktree tooling now proves port ownership, assigns collision-free derived port slots, validates real-path containment, and resolves launcher URLs from the active checkout.
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Root build and typecheck now fail early when the gitignored `@prism/types` output is missing or older than its source, with a direct rebuild command in the error.
 
 ### Fixed
+- Floorplan preview recovery now serves legacy official drafts that predate persisted snapshots, seeds snapshots for new compatibility data, and keeps client editor failures inside the dashboard error state instead of surfacing an unhandled runtime rejection.
 - Dependency audit gate: move the four Next.js portals to the patched 16.3 line, update NestJS 11, and override vulnerable transitive `js-yaml`, `multer`, and `sharp` resolutions so CI can evaluate pull-request code instead of stopping on known high/critical advisories.
 - Audit integrity helpers now stay below the production complexity cap, and CI enforces the root complexity gate instead of only testing its parser. Prisma database doctor selection now follows the explicit `PRISMA_DATABASE_URL` override used by Prisma config, and the pooler opt-in plus sample-state guard boundaries are documented in the API environment example.
 - Compatibility and integration test fixtures are now covered by the test-clock scan; suite scope is respected so sibling suites cannot mask one another, and the sample compatibility suite pins its shared clock so dated reminder, guest-window, and SLA fixtures cannot expire with the calendar.
@@ -109,6 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Removed `.github/CODEOWNERS`; GitHub Free cannot enforce it on this private repository.
 
 ### Fixed
+  - Client dashboard floorplan reachability: action-center links now use the canonical `/floor-plan` route, event cards expose direct state-aware layout actions, and both preference submission paths validate through the shared `@prism/types` contract.
 - Moved the cross-context supplier ownership database fixture into the API integration-test directory and registered test discovery, preserving the production read-model mutation boundary (V01).
 - Removed fabricated approved billing at signed-conforme intake and reconciled client partial-payment totals.
 - Made proposal decisions, staffing conflicts, supplier transitions/review retries, archive effects and supported privacy redaction enforce identity, lifecycle and transactional integrity.

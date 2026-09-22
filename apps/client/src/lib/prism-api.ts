@@ -7,7 +7,10 @@ import {
   isPrismAuthenticatedSession,
   parseContract,
   reviewEventProposalSchema,
+  createFloorPlanRevisionCommentSchema,
+  type CreateFloorPlanRevisionCommentInput,
   type CreatePrismInquiryInput,
+  type CreateFloorPlanPreferenceInput,
   type ReviewEventProposalInput,
 } from "@prism/types";
 
@@ -27,7 +30,6 @@ import type {
   PrismEvent,
   PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
-  PrismFloorPlanPreference,
   PrismFloorPlanSnapshot,
   PrismInquiry,
   PrismNotificationLog,
@@ -55,7 +57,6 @@ export type {
   PrismEvent,
   PrismFileRequirementsMatrix,
   PrismFloorPlanDraft,
-  PrismFloorPlanPreference,
   PrismFloorPlanSnapshot,
   PrismInquiry,
   PrismNotificationLog,
@@ -371,7 +372,7 @@ function localClientActionCenter(session: Pick<PrismUser, "name" | "email">): Pr
         status: event.floorPlanStatus,
         eventId: event.id,
         eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floorplan`,
+        href: `/dashboard/events/${event.id}/floor-plan`,
       });
     } else if (event.floorPlanStatus === "not_started") {
       items.push({
@@ -383,7 +384,7 @@ function localClientActionCenter(session: Pick<PrismUser, "name" | "email">): Pr
         status: event.floorPlanStatus,
         eventId: event.id,
         eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floorplan`,
+        href: `/dashboard/events/${event.id}/floor-plan`,
       });
     }
 
@@ -664,7 +665,7 @@ export const prismApi = {
         }),
   createFloorPlanPreference: (
     eventId: string,
-    input: { name: string; venue?: string; width?: number; height?: number; gridSize?: number; objects?: Project["objects"] } & PrismFloorPlanPreference,
+    input: CreateFloorPlanPreferenceInput,
     session?: Pick<PrismUser, "name" | "email">,
   ) =>
     USE_REMOTE_API
@@ -994,6 +995,44 @@ export const prismApi = {
         event.proposalReviewedAt = now();
         event.proposalReviewedBy = "Ana Reyes";
         return event;
+      }),
+    );
+  },
+  reviewFloorPlanDraft: (
+    eventId: string,
+    draftId: string,
+    input: CreateFloorPlanRevisionCommentInput,
+    session?: Pick<PrismUser, "name" | "email">,
+  ) => {
+    const parsed = parseContract(createFloorPlanRevisionCommentSchema, input, "Floorplan revision comment");
+    if (USE_REMOTE_API) {
+      return request<PrismFloorPlanDraft>(withClientActor(`/api/events/${eventId}/floorplans/${draftId}/review`, session), {
+        method: "PATCH",
+        body: JSON.stringify(parsed),
+      });
+    }
+    return Promise.resolve(
+      updateMockState((state) => {
+        const actor = session ?? { name: "Ana Reyes", email: "ana@ayala.test" };
+        const event = state.events.find((item) => item.id === eventId);
+        if (!event) throw new Error("Event not found");
+        const inquiry = state.inquiries.find((item) => item.id === event.inquiryId);
+        if (!inquiry || inquiry.email.trim().toLowerCase() !== actor.email.trim().toLowerCase()) {
+          throw new Error("Only the primary client contact can send floorplan revision comments");
+        }
+        if (event.clientPortalStatus !== "unlocked") throw new Error("Client floorplan review is locked");
+        if (event.archived) throw new Error("Archived events cannot receive floorplan revision comments");
+        const draft = state.floorPlanDrafts.find((item) => item.id === draftId && item.eventId === eventId);
+        if (!draft) throw new Error("Floorplan draft not found");
+        if (draft.status !== "in_review") throw new Error("Only a floorplan in review can receive revision comments");
+        draft.status = "revision_requested";
+        draft.revisionComment = parsed.revisionNote;
+        draft.reviewedAt = now();
+        event.floorPlanStatus = "revision_requested";
+        event.readiness = "Floorplan revision requested by client";
+        addAudit(state, eventId, actor.name, `Requested floorplan revision: ${draft.name}`);
+        addNotification(state, eventId, "PMCM Admin", `Client requested a floorplan revision: ${draft.name}`);
+        return draft;
       }),
     );
   },

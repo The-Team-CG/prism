@@ -12,7 +12,7 @@ import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/
 import type { DetailTab } from "./client-dashboard-types";
 
 export function draftIsOfficial(draft: PrismFloorPlanDraft) {
-  return draft.status === "in_review" || draft.status === "approved";
+  return draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested";
 }
 
 export function objectBox(object: VenueObject, project: Project) {
@@ -34,6 +34,12 @@ export function objectBox(object: VenueObject, project: Project) {
 
 export function formatStatusLabel(status?: string) {
   return status ? status.replaceAll("_", " ") : "Pending";
+}
+
+export function clientFloorplanDashboardActionLabel(status?: PrismEvent["floorPlanStatus"]) {
+  if (status === "not_started") return "Set layout preferences";
+  if (status === "in_review" || status === "approved") return "View official floorplan";
+  return "Open floor plan";
 }
 
 export const EVENT_MONTHS = [
@@ -183,7 +189,7 @@ export function deriveClientActionCenterFromWorkspace(
         status: event.floorPlanStatus,
         eventId: event.id,
         eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floorplan`,
+        href: `/dashboard/events/${event.id}/floor-plan`,
       });
     } else if (event.floorPlanStatus === "not_started") {
       items.push({
@@ -195,7 +201,7 @@ export function deriveClientActionCenterFromWorkspace(
         status: event.floorPlanStatus,
         eventId: event.id,
         eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floorplan`,
+        href: `/dashboard/events/${event.id}/floor-plan`,
       });
     }
 
