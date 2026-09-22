@@ -26,7 +26,7 @@ import type {
   OpsSupplierQuoteRequest,
   OpsUser,
 } from '@prisma/client';
-import { PrismaService, toPrismaJson } from '@prism/kernel/database';
+import { describeDatabaseError, PrismaService, toPrismaJson } from '@prism/kernel/database';
 import {
   CommercialWorkflowService,
   mapQuoteRequestTokenDetail,
@@ -652,7 +652,7 @@ export class SampleCompatibilityService implements OnModuleInit {
   async onModuleInit() {
     if (process.env.NODE_ENV !== 'production') {
       void this.ensureSeeded().catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = describeDatabaseError(error);
         this.logger.warn(
           `Startup sample seed skipped; API will keep running, but data endpoints need the configured database. Reason: ${message}`,
         );
