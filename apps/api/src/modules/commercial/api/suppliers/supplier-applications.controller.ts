@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
   createSupplierApplicationSchema,
   reviewSupplierApplicationSchema,
@@ -32,6 +32,7 @@ export class OpsSupplierApplicationsController {
   }
 
   @Get('status')
+  @Header('Cache-Control', 'private, no-store')
   getStatus(@Query(zodQuery(supplierApplicationStatusQuerySchema)) input: SupplierApplicationStatusQuery) {
     return this.supplierApplicationService.getPublicStatus(input);
   }

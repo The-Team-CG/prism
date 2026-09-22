@@ -130,8 +130,11 @@ export const prismApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  getSupplierApplicationStatus: (input: SupplierApplicationStatusQuery): Promise<PrismSupplierApplicationStatusResult> =>
-    request(`/api/supplier-applications/status?applicationId=${encodeURIComponent(input.applicationId)}&email=${encodeURIComponent(input.email)}`),
+  getSupplierApplicationStatus: (
+    input: SupplierApplicationStatusQuery,
+    signal?: AbortSignal,
+  ): Promise<PrismSupplierApplicationStatusResult> =>
+    eventOpsClient.supplierApplications.getStatus(input, { signal }),
   fileRequirements: (eventId: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.events.fileRequirements(eventId, actorFromSession(session)),
   listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>
