@@ -42,14 +42,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         process.env.DB_SSL === 'false'
           ? false
           : { rejectUnauthorized: false },
-      // PA-307. max and idleTimeoutMillis restate pg's current defaults: explicit
-      // so a version bump cannot change them silently. connectionTimeoutMillis is
-      // the real change - pg has no default, so a checkout against an unreachable
-      // database waits forever. 60s is above the slowest observed successful
+      // PA-307, values agreed with Anthony.
+      // max: 5 halves pg's default ceiling of 10 (pg-pool/index.js:89). This is a
+      // real behavioural change, not a restatement.
+      // idleTimeoutMillis restates the installed default (pg-pool/index.js:98-100);
+      // explicit so a version bump cannot change it silently.
+      // connectionTimeoutMillis is the other real change - pg arms no timer when it
+      // is unset (pg-pool/index.js:206), so a checkout against an unreachable
+      // database waits forever. 30s sits above the slowest observed successful
       // connect (18.7s), so it bounds the wait without cutting off a slow success.
-      max: 10,
+      max: 5,
       idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 60_000,
+      connectionTimeoutMillis: 30_000,
     });
 
     const adapter = new PrismaPg(pool);
