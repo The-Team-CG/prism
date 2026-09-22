@@ -17,6 +17,7 @@ export {
   type UploadConformeInput,
   type CreateFloorPlanPreferenceInput,
   type CreateSupplierApplicationInput,
+  type SupplierApplicationStatusQuery,
   type EventOpsActorQuery,
   type EventOpsClient,
   type EventOpsClientOptions,

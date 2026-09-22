@@ -12,6 +12,11 @@ describe('OpsSupplierApplicationsController', () => {
     expect(controllerPath(OpsSupplierApplicationsController)).toBe('supplier-applications');
   });
 
+  it('marks public status responses as private and non-cacheable', () => {
+    const headers = Reflect.getMetadata('__headers__', OpsSupplierApplicationsController.prototype.getStatus);
+    expect(headers).toContainEqual({ name: 'Cache-Control', value: 'private, no-store' });
+  });
+
   it.each([
     ['listInbox', OpsSupplierApplicationsController.prototype.listInbox],
     ['review', OpsSupplierApplicationsController.prototype.review],

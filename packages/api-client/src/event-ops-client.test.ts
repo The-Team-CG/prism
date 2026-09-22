@@ -118,6 +118,38 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("loads a redacted public supplier application status without caching", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          data: {
+            id: "sap_1",
+            companyName: "Northstar",
+            status: "pending",
+            submittedAt: "2026-09-01T00:00:00.000Z",
+            reviewedAt: null,
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.supplierApplications.getStatus({
+      applicationId: "sap_1",
+      email: "ava+status@northstar.test",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4000/api/supplier-applications/status?applicationId=sap_1&email=ava%2Bstatus%40northstar.test",
+      {
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  });
+
   it("loads event file requirements as a scoped read model", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1", items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

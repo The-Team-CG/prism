@@ -9,6 +9,8 @@ import { OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { Inject } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { portalUrlFor } from '@prism/types';
 import { mapSupplierApplication, mapSupplierApplicationStatus } from './supplier-application.mappers';
 import { applicationStatusForReviewAction } from './supplier-application-status';
 
@@ -24,6 +26,14 @@ function conversionHash(applicationId: string, input: ReviewSupplierApplicationI
   return createHash('sha256').update(JSON.stringify({ applicationId, action: input.action, notes: input.notes?.trim() ?? '' })).digest('hex');
 }
 
+function supplierApplicationStatusInstructions() {
+  const origin = portalUrlFor('supplier', process.env).replace(/\/$/, '');
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(origin)) {
+    return 'Visit the Supplier Portal and open the Check application status page.';
+  }
+  return `Check your application at ${origin}/status.`;
+}
+
 type SupplierApplicationWithCategory = Prisma.OpsSupplierApplicationGetPayload<{ include: { category: true } }>;
 
 @Injectable()
@@ -32,6 +42,7 @@ export class SupplierApplicationService {
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
   ) {}
 
   async createSupplierApplication(input: CreateSupplierApplicationInput) {
@@ -56,27 +67,40 @@ export class SupplierApplicationService {
       );
     }
 
-    const row = await this.prisma.opsSupplierApplication.create({
-      data: {
-        id: `sap_${randomUUID()}`,
-        companyName: input.companyName,
-        contactName: input.contactName,
-        email: input.email.trim(),
-        normalizedEmail,
-        phone: input.phone ?? '',
-        categoryId: input.categoryId ?? null,
-        pastEvents: input.pastEvents ?? '',
-        serviceInclusions: input.serviceInclusions ?? '',
-        certifications: input.certifications ?? '',
-        priceRange: input.priceRange ?? '',
-        bniMember: Boolean(input.bniMember),
-        portfolioUrl: input.portfolioUrl ?? '',
-        additionalNotes: input.additionalNotes ?? '',
-        privacyConsentAccepted: true,
-        privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
-        status: 'pending',
-      },
-      include: { category: true, convertedSupplier: true },
+    const row = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const created = await tx.opsSupplierApplication.create({
+        data: {
+          id: `sap_${randomUUID()}`,
+          companyName: input.companyName,
+          contactName: input.contactName,
+          email: input.email.trim(),
+          normalizedEmail,
+          phone: input.phone ?? '',
+          categoryId: input.categoryId ?? null,
+          pastEvents: input.pastEvents ?? '',
+          serviceInclusions: input.serviceInclusions ?? '',
+          certifications: input.certifications ?? '',
+          priceRange: input.priceRange ?? '',
+          bniMember: Boolean(input.bniMember),
+          portfolioUrl: input.portfolioUrl ?? '',
+          additionalNotes: input.additionalNotes ?? '',
+          privacyConsentAccepted: true,
+          privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
+          status: 'pending',
+        },
+        include: { category: true, convertedSupplier: true },
+      });
+      const notificationKey = `supplier-application:${created.id}:submitted:v1`;
+      await writeNotification(
+        this.notificationOutboxWriter,
+        undefined,
+        created.email,
+        `P.R.I.S.M received your supplier application ${created.id}. ${supplierApplicationStatusInstructions()}`,
+        'email',
+        { correlationId: notificationKey, idempotencyKey: notificationKey },
+        { prisma: tx, correlationId: notificationKey },
+      );
+      return created;
     });
 
     return mapSupplierApplication(row);

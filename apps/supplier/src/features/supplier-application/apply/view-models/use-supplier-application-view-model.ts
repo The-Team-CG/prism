@@ -64,7 +64,10 @@ export function useSupplierApplicationViewModel() {
     setError(null);
     try {
       const application = await submitSupplierApplication(form);
-      setApplicationId(application.id);
+      if (!application.id?.trim()) {
+        throw new Error("Application submitted but no reference was returned. Please contact PMCM.");
+      }
+      setApplicationId(application.id.trim());
       setStatus("submitted");
       setForm(INITIAL_SUPPLIER_APPLICATION_FORM);
       setCurrentStep(0);

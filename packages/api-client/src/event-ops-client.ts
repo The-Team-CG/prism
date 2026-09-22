@@ -10,6 +10,7 @@ import type {
   CreatePrismInquiryInput,
   CreateRegistrationPlatformInput,
   CreateSupplierApplicationInput,
+  SupplierApplicationStatusQuery,
   CreateCommunicationThreadInput,
   SendCommunicationMessageInput,
   CreateUrgentIssueInput,
@@ -47,6 +48,7 @@ ArchiveSearchFilters,
   PrismUrgentIssue,
   PrismCoordinatorAssignment,
   PrismSupplierApplication,
+  PrismSupplierApplicationStatusResult,
   ImportHeadcountInput,
   ImportGuestRosterInput,
   GuestRosterSearchInput,
@@ -95,6 +97,7 @@ export type {
   ModerateGuestFeedbackInput,
   WithdrawGuestFeedbackConsentInput,
   CreateSupplierApplicationInput,
+  SupplierApplicationStatusQuery,
   CreatePrismInquiryInput,
   CreateRegistrationPlatformInput,
   CreateUrgentIssueInput,
@@ -245,6 +248,10 @@ export interface EventOpsClient {
   };
   supplierApplications: {
     create(input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication>;
+    getStatus(
+      input: SupplierApplicationStatusQuery,
+      init?: Pick<PrismRequestInit, "signal">,
+    ): Promise<PrismSupplierApplicationStatusResult>;
     listCategories(): Promise<{ id: string; name: string }[]>;
     listInbox(actor?: EventOpsActorQuery): Promise<PrismSupplierApplication[]>;
     review(
@@ -484,6 +491,11 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
         prismRequest<PrismSupplierApplication>(
           "/supplier-applications",
           withBase(options, { method: "POST", body: input }),
+        ),
+      getStatus: (input, init = {}) =>
+        prismRequest<PrismSupplierApplicationStatusResult>(
+          `/supplier-applications/status?${toQueryString(input)}`,
+          withBase(options, { ...init, cache: "no-store" }),
         ),
       listCategories: () =>
         prismRequest<{ id: string; name: string }[]>(
