@@ -29,14 +29,7 @@ export class FloorPlanReviewService {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'floorplan revision comment', eventId);
 
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const event = await tx.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
-      if (!event) throw new NotFoundException('Event not found');
-      if (!isPrimaryClientContact(actor.email, event.inquiry.email)) {
-        throw new ForbiddenException('Only the primary client contact can send floorplan revision comments');
-      }
-
-      const draft = await tx.opsFloorPlanDraft.findFirst({ where: { id: draftId, eventId } });
-      if (!draft) throw new NotFoundException('Floorplan draft not found');
+      const { event, draft } = await this.loadReviewContext(tx, eventId, draftId, actor);
       const round = draft.submittedSnapshotAt ? draft.submittedSnapshotAt.getTime().toString() : 'first';
       const reviewKey = input.idempotencyKey?.trim() || `floorplan-review:${eventId}:${draftId}:${round}`;
 
@@ -103,6 +96,23 @@ export class FloorPlanReviewService {
 
       return this.floorPlanWorkflowService.mapFloorPlanDraft(saved);
     });
+  }
+
+  private async loadReviewContext(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    draftId: string,
+    actor: ResolvedEventOpsActor,
+  ) {
+    const event = await tx.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (!isPrimaryClientContact(actor.email, event.inquiry.email)) {
+      throw new ForbiddenException('Only the primary client contact can send floorplan revision comments');
+    }
+
+    const draft = await tx.opsFloorPlanDraft.findFirst({ where: { id: draftId, eventId } });
+    if (!draft) throw new NotFoundException('Floorplan draft not found');
+    return { event, draft };
   }
 
   private async replayIfPresent(
