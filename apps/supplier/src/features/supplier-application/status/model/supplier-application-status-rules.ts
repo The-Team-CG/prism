@@ -1,8 +1,18 @@
-import { PrismApiError } from "@prism/api-client";
-import { PrismContractError, type PrismSupplierApplicationStatusResult } from "@prism/types";
+import type { PrismSupplierApplicationStatusResult } from "@prism/types";
 
 export type SupplierApplicationStatus = PrismSupplierApplicationStatusResult["status"];
 export type SupplierApplicationStatusFailure = "invalid_input" | "not_found" | "unavailable";
+
+export class SupplierApplicationStatusLookupFailureError extends Error {
+  constructor(readonly failure: SupplierApplicationStatusFailure) {
+    super(failure);
+    this.name = "SupplierApplicationStatusLookupFailureError";
+  }
+}
+
+export function supplierApplicationStatusFailureForError(error: unknown): SupplierApplicationStatusFailure {
+  return error instanceof SupplierApplicationStatusLookupFailureError ? error.failure : "unavailable";
+}
 
 export const SUPPLIER_APPLICATION_STATUS_LABELS: Record<SupplierApplicationStatus, string> = {
   pending: "Under Review",
@@ -31,12 +41,6 @@ export function supplierApplicationStatusDescription(status: SupplierApplication
   return "PMCM is reviewing your application. We will show the latest status here.";
 }
 
-export function mapSupplierApplicationStatusFailure(error: unknown): SupplierApplicationStatusFailure {
-  if (error instanceof PrismContractError) return "invalid_input";
-  if (error instanceof PrismApiError && error.status === 404) return "not_found";
-  return "unavailable";
-}
-
 export function supplierApplicationStatusFailureMessage(failure: SupplierApplicationStatusFailure): string {
   if (failure === "invalid_input") {
     return "Enter the application reference and submitting email used on your application.";
@@ -49,4 +53,11 @@ export function supplierApplicationStatusFailureMessage(failure: SupplierApplica
 
 export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+export function supplierApplicationStatusRefreshDelay(consecutiveFailures: number): number {
+  const baseDelay = 30_000;
+  const maximumDelay = 5 * 60_000;
+  const exponent = Math.max(0, Math.min(4, Math.floor(consecutiveFailures)));
+  return Math.min(maximumDelay, baseDelay * 2 ** exponent);
 }

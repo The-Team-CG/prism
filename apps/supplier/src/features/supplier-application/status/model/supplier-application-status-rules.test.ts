@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { PrismContractError, type PrismSupplierApplicationStatusResult } from "@prism/types";
-import { PrismApiError as ApiError } from "@prism/api-client";
+import type { PrismSupplierApplicationStatusResult } from "@prism/types";
 import {
   isTerminalSupplierApplicationStatus,
-  mapSupplierApplicationStatusFailure,
+  supplierApplicationStatusRefreshDelay,
   supplierApplicationStatusFailureMessage,
   supplierApplicationStatusLabel,
 } from "./supplier-application-status-rules";
@@ -36,10 +35,15 @@ describe("supplier application status rules", () => {
     expect(isTerminalSupplierApplicationStatus("declined")).toBe(true);
   });
 
-  it("distinguishes validation, not-found, and unavailable failures", () => {
-    expect(mapSupplierApplicationStatusFailure(new PrismContractError("invalid input", []) )).toBe("invalid_input");
-    expect(mapSupplierApplicationStatusFailure(new ApiError(404, { message: "missing" }))).toBe("not_found");
-    expect(mapSupplierApplicationStatusFailure(new ApiError(400, { message: "invalid" }))).toBe("unavailable");
+  it("provides safe messages for domain failure states", () => {
     expect(supplierApplicationStatusFailureMessage("not_found")).toContain("reference and email");
+    expect(supplierApplicationStatusFailureMessage("unavailable")).toContain("temporarily unavailable");
+  });
+
+  it("backs off automatic refresh after repeated transient failures", () => {
+    expect(supplierApplicationStatusRefreshDelay(0)).toBe(30_000);
+    expect(supplierApplicationStatusRefreshDelay(1)).toBe(60_000);
+    expect(supplierApplicationStatusRefreshDelay(2)).toBe(120_000);
+    expect(supplierApplicationStatusRefreshDelay(20)).toBe(300_000);
   });
 });

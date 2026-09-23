@@ -6,13 +6,27 @@ import { getSupplierApplicationStatus } from "../use-cases/get-supplier-applicat
 import {
   isAbortError,
   isTerminalSupplierApplicationStatus,
-  mapSupplierApplicationStatusFailure,
+  supplierApplicationStatusFailureForError,
+  supplierApplicationStatusRefreshDelay,
   type SupplierApplicationStatusFailure,
 } from "../model/supplier-application-status-rules";
 
-const STATUS_REFRESH_INTERVAL_MS = 5_000;
+const EVENT_REFRESH_COOLDOWN_MS = 15_000;
 
 type StatusLookupPhase = "idle" | "checking" | "refreshing";
+
+function recordStatusCheckFailure(
+  error: unknown,
+  mode: "lookup" | "refresh",
+  setFailure: (failure: SupplierApplicationStatusFailure) => void,
+  setResult: (result: PrismSupplierApplicationStatusResult | null) => void,
+  consecutiveRefreshFailures: { current: number },
+) {
+  const nextFailure = supplierApplicationStatusFailureForError(error);
+  setFailure(nextFailure);
+  if (mode === "refresh" && nextFailure === "unavailable") consecutiveRefreshFailures.current += 1;
+  if (nextFailure === "not_found" || nextFailure === "invalid_input") setResult(null);
+}
 
 function hasOnlineConnection(): boolean {
   return typeof navigator === "undefined" || navigator.onLine;
@@ -33,6 +47,8 @@ export function useSupplierApplicationStatusViewModel() {
   const requestSequence = useRef(0);
   const activeController = useRef<AbortController | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const consecutiveRefreshFailures = useRef(0);
+  const lastEventRefreshAt = useRef(0);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimer.current === null) return;
@@ -66,6 +82,7 @@ export function useSupplierApplicationStatusViewModel() {
       activeController.current = controller;
       setPhase(mode === "refresh" ? "refreshing" : "checking");
       if (mode === "lookup") {
+        consecutiveRefreshFailures.current = 0;
         setResult(null);
         setFailure(null);
         setLastCheckedAt(null);
@@ -77,11 +94,11 @@ export function useSupplierApplicationStatusViewModel() {
         setResult(nextResult);
         setFailure(null);
         setLastCheckedAt(new Date());
+        consecutiveRefreshFailures.current = 0;
       } catch (error) {
-        if (sequence !== requestSequence.current || isAbortError(error)) return;
-        const nextFailure = mapSupplierApplicationStatusFailure(error);
-        setFailure(nextFailure);
-        if (nextFailure === "not_found" || nextFailure === "invalid_input") setResult(null);
+        if (sequence !== requestSequence.current) return;
+        if (isAbortError(error)) return;
+        recordStatusCheckFailure(error, mode, setFailure, setResult, consecutiveRefreshFailures);
       } finally {
         if (sequence !== requestSequence.current) return;
         activeController.current = null;
@@ -102,7 +119,7 @@ export function useSupplierApplicationStatusViewModel() {
         void runStatusCheck(query, "refresh").finally(() => {
           if (!disposed) scheduleRefresh();
         });
-      }, STATUS_REFRESH_INTERVAL_MS);
+      }, supplierApplicationStatusRefreshDelay(consecutiveRefreshFailures.current));
     };
 
     const refreshWhenAvailable = () => {
@@ -110,6 +127,10 @@ export function useSupplierApplicationStatusViewModel() {
         clearRefreshTimer();
         return;
       }
+      if (activeController.current) return;
+      const now = Date.now();
+      if (now - lastEventRefreshAt.current < EVENT_REFRESH_COOLDOWN_MS) return;
+      lastEventRefreshAt.current = now;
       void runStatusCheck(query, "refresh").finally(() => {
         if (!disposed) scheduleRefresh();
       });
@@ -120,14 +141,17 @@ export function useSupplierApplicationStatusViewModel() {
       else clearRefreshTimer();
     };
     const handleOnline = () => refreshWhenAvailable();
+    const handleFocus = () => refreshWhenAvailable();
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("online", handleOnline);
+    window.addEventListener("focus", handleFocus);
     scheduleRefresh();
     return () => {
       disposed = true;
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("focus", handleFocus);
       clearRefreshTimer();
     };
   }, [clearRefreshTimer, failure, query, result, runStatusCheck]);
