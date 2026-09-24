@@ -59,6 +59,9 @@ sources:
   A (Maxine) owns the draft review surface.
 - **Scope:** Phases 0 to 7 below. Production live AI on real data is out of
   scope until D records the provider approval described in Phase 7.
+- **Approval:** D (Anthony) approved this plan on 2026-09-24. That approval
+  covers the plan and its phases only; provider approval for live AI on real
+  data is still recorded separately in Phase 7.
 - **Use/change:** Update when a phase closes, a Phase 0 check changes a
   decision, or a provider or model route is added or removed.
 - **Verify with:** Each phase's exit check, the provider conformance suite,
