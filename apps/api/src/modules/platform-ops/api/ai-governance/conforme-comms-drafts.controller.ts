@@ -22,7 +22,7 @@ export class ConformeCommsDraftsController {
     response.status(HttpStatus.OK);
     response.set({
       'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
+      'Cache-Control': 'no-store, no-cache, no-transform',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });

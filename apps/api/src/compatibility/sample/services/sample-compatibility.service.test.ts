@@ -223,6 +223,11 @@ function createPrisma(seedInquiry: any = inquiry()) {
     opsInquiry: {
       findUnique: async ({ where }: { where?: { id?: string } } = {}) =>
         where?.id ? state.inquiries.find((item) => item.id === where.id) ?? null : state.inquiry,
+      findUniqueOrThrow: async ({ where }: { where: { id: string } }) => {
+        const found = state.inquiries.find((item) => item.id === where.id);
+        if (!found) throw new Error('not found');
+        return found;
+      },
       findMany: async ({ where }: { where?: any } = {}) =>
         state.inquiries.filter((item) => {
           if (where?.status && item.status !== where.status) return false;

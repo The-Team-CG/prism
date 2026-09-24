@@ -118,6 +118,24 @@ describe('AI gateway core', () => {
     expect(audit.sanitizedPayload).toEqual(SYNTHETIC_PARE_CONTEXT_FIXTURE);
   });
 
+  it('drafts a generic conforme reminder from inquiry identity only', async () => {
+    const { prisma } = fakePrisma();
+    const adapter = new MockAiProviderAdapter();
+    const run = vi.spyOn(adapter, 'run');
+    const service = gateway(prisma, runtime(), adapter);
+
+    const result = await service.run('comms.draft', { inquiryId: 'ai-fixture-inquiry-v1' });
+
+    expect(result.outcome).toBe('completed');
+    if (result.outcome !== 'completed') throw new Error('Expected a completed mock draft');
+    expect(result.output.subject).toBe('Reminder: Please review your conforme');
+    expect(result.output.body).toContain('Please review and sign it when convenient');
+    expect(run.mock.calls[0][0].systemPrompt).toContain('Do not invent names');
+    expect(run.mock.calls[0][0].messages).toEqual([
+      { role: 'user', content: '{"inquiryId":"ai-fixture-inquiry-v1"}' },
+    ]);
+  });
+
   it('blocks unverified real PARE input before calling Anthropic and records attempted data classes', async () => {
     const { prisma, audits } = fakePrisma();
     const adapter = new CountingAnthropicAdapter();
