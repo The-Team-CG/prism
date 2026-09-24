@@ -47,6 +47,12 @@ function mockOutput(request: AiProviderRequest): Record<string, unknown> {
       clientReassurance: 'Please review the proposed client update.',
     };
   }
+  if (request.systemPrompt.includes('comms.draft')) {
+    return {
+      subject: 'Reminder: Please review your conforme',
+      body: 'We are following up on the conforme sent for your event. Please review and sign it when convenient. If you have questions or need another copy, contact your PMCM coordinator. Thank you.',
+    };
+  }
   return {
     subject: 'Draft response for review',
     body: 'This deterministic draft must be reviewed before it is sent.',
