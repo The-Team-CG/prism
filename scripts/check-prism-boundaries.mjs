@@ -24,6 +24,10 @@ const legacyBackendPattern = /^apps\/api\/libs\/(?:contexts|modules|core)\//;
 const prismaMutationPattern =
   /(?:\b(?:this\.)?prisma(?:\.[A-Za-z_$][\w$]*)*|\btx(?:\.[A-Za-z_$][\w$]*)*)\.(?:createMany|create|updateMany|update|upsert|deleteMany|delete|\$executeRawUnsafe|\$executeRaw)\s*\(/;
 const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
+const aiProviderSdkImportPattern =
+  /\b(?:from\s*|import\s*(?:\(\s*)?|require\s*\(\s*)["'](?:@anthropic-ai\/sdk(?:\/[^"']*)?|@openrouter\/[^"']+|openai(?:\/[^"']*)?|@google\/generative-ai(?:\/[^"']*)?|@google-cloud\/vertexai(?:\/[^"']*)?|@aws-sdk\/client-bedrock-runtime(?:\/[^"']*)?|@ai-sdk\/[^"']+|ai(?:\/[^"']*)?)["']/;
+const aiProviderImportExceptionPattern =
+  /^(?:apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\/|apps\/api\/src\/modules\/platform-ops\/application\/ai-governance\/pare\/agents\/(?:budget|risk|message-drafter)\.agent\.ts$)/;
 
 function contextOf(normalized) {
   return normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1] ?? null;
@@ -48,6 +52,12 @@ function hasPrivateCrossContextImport(normalized, source) {
 }
 
 export const boundaryRules = [
+  {
+    name: "provider SDK imports must stay in AI gateway infrastructure",
+    filePattern: /^(?:apps|packages)\//,
+    allowedFilePattern: aiProviderImportExceptionPattern,
+    importPattern: aiProviderSdkImportPattern,
+  },
   {
     name: "client app must not import event app internals",
     filePattern: /^apps\/client\//,
