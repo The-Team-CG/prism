@@ -33,3 +33,4 @@ export * from './contracts/ai-governance/pare-dispatch-writer.port';
 export * from './contracts/ai-governance/pare-approval-governance.port';
 export * from './contracts/ai-governance/pare-ops.tokens';
 export * from './contracts/ai-governance/ai-gateway.port';
+export * from './application/ai-governance/gateway/ai-gateway.service';

@@ -248,8 +248,13 @@ environment can only choose among approved profiles.
 
 ### Streaming
 
-- `AiGateway.stream(useCase, input, signal)` yields text deltas and ends with
-  the validated final result.
+- `AiGateway.stream(useCase, input, signal)` opens with audited request metadata.
+  It consumes provider deltas internally, but does not expose unvalidated
+  provider text. After the complete response, tool results, output schema, and
+  PII checks pass, it emits the validated serialized output in bounded text
+  deltas and ends with the validated final result. The review UI can show a
+  generating/cancel state from the metadata event; content appears only after
+  validation.
 - The API streams from a POST endpoint in server-sent events format.
   `@prism/api-client` reads it with `fetch`, so request bodies and session
   headers work; `EventSource` is not used because it cannot send them.
@@ -375,7 +380,9 @@ PR 2 is the sole schema/migration owner during parallel development.
 4. Extend `OpsAiAuditLog` with nullable route, prompt, ZDR-basis, usage,
    latency, response-model/endpoint, and outcome evidence. Define how existing
    `featureName` and `modelVersion` map to stable use case and requested model.
-   Preserve old rows without retroactively claiming provider ZDR.
+   New gateway rows mirror `useCaseId` to legacy `featureName` and
+   `requestedModel` to legacy `modelVersion`. Preserve old rows without
+   retroactively claiming provider ZDR.
 5. Write one correlated audit outcome per run, including blocked, incomplete,
    aborted, and failed runs; persist sanitized payload only. The mock adapter
    follows the same validation and audit path.

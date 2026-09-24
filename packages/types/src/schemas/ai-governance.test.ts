@@ -167,6 +167,14 @@ describe("AI governance contracts", () => {
     };
 
     expect(aiAuditEvidenceSchema.safeParse(evidence).success).toBe(true);
+    expect(
+      aiAuditEvidenceSchema.safeParse({
+        ...evidence,
+        dataClasses: ['internal', 'personal'],
+        syntheticProvenance: undefined,
+        outcome: 'blocked',
+      }).success,
+    ).toBe(true);
     expect(aiAuditEvidenceSchema.safeParse({ ...evidence, payload: pareInput }).success).toBe(false);
     expect(aiAuditEvidenceSchema.safeParse({ ...evidence, syntheticProvenance: undefined }).success).toBe(false);
     expect(aiAuditEvidenceSchema.safeParse({ ...evidence, provider: "openrouter" }).success).toBe(false);

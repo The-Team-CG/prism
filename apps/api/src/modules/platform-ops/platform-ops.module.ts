@@ -14,6 +14,16 @@ import { AuditService } from './application/trust/audit.service';
 import { PrivacyOperationsService } from './application/trust/privacy-operations.service';
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
+import { AiGatewayService } from './application/ai-governance/gateway/ai-gateway.service';
+import {
+  AI_GATEWAY_RUNTIME_CONFIG,
+  AI_PROVIDER_ADAPTERS,
+  AI_SYNTHETIC_PROVENANCE_VERIFIER,
+  resolveAiGatewayRuntimeConfig,
+} from './application/ai-governance/gateway/ai-gateway.config';
+import { SyntheticFixtureRegistry } from './application/ai-governance/gateway/synthetic-fixture-registry';
+import { AI_GATEWAY } from './contracts/ai-governance/ai-gateway.port';
+import { MockAiProviderAdapter } from './infrastructure/ai-governance/mock-ai-provider.adapter';
 import { PAREService } from './application/ai-governance/pare/pare.service';
 import { PareDispatchOutboxService } from './application/ai-governance/pare/pare-dispatch-outbox.service';
 import { PARE_APPROVAL_GOVERNANCE, PARE_DISPATCH_WRITER } from './contracts/ai-governance/pare-ops.tokens';
@@ -72,6 +82,20 @@ const storageAdapterProvider = {
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
     AiGovernanceService,
+    MockAiProviderAdapter,
+    {
+      provide: AI_GATEWAY_RUNTIME_CONFIG,
+      inject: [ConfigService],
+      useFactory: resolveAiGatewayRuntimeConfig,
+    },
+    {
+      provide: AI_PROVIDER_ADAPTERS,
+      inject: [MockAiProviderAdapter],
+      useFactory: (mockAdapter: MockAiProviderAdapter) => [mockAdapter],
+    },
+    { provide: AI_SYNTHETIC_PROVENANCE_VERIFIER, useClass: SyntheticFixtureRegistry },
+    AiGatewayService,
+    { provide: AI_GATEWAY, useExisting: AiGatewayService },
     PAREService,
     PareDispatchOutboxService,
     { provide: PARE_APPROVAL_GOVERNANCE, useExisting: PAREService },
@@ -89,6 +113,8 @@ const storageAdapterProvider = {
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
     AiGovernanceService,
+    AiGatewayService,
+    AI_GATEWAY,
     PAREService,
     PareDispatchOutboxService,
     PARE_APPROVAL_GOVERNANCE,
