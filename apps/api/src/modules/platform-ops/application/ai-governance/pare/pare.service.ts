@@ -4,7 +4,9 @@ import { BadRequestException, ConflictException, Inject, Injectable, NotFoundExc
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
-import { assertPareExecutionAllowed, configuredPareMode, type PAREMode } from './pare-execution.policy';
+import { aiAuditEvidenceSchema, type AiAuditEvidence, type AiUseCaseId } from '@prism/types';
+import { AI_GATEWAY, type AiGateway } from '../../../contracts/ai-governance/ai-gateway.port';
+import { assertPareExecutionAllowed, configuredPareMode, PareConfigurationError, type PAREMode } from './pare-execution.policy';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { EventContextAgent } from './agents/event-context.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';
@@ -108,14 +110,15 @@ export class PAREService implements PareApprovalGovernance {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() @Inject(AUDIT_WRITER) private readonly auditWriter?: AuditWriter,
+    @Optional() @Inject(AI_GATEWAY) private readonly aiGateway?: AiGateway,
   ) {
     this.mode = configuredPareMode(process.env.PARE_MODE);
     this.sanitizer = new DataSanitizerService();
     this.eventContextAgent = new EventContextAgent(prisma);
     this.supplierFinderAgent = new SupplierFinderAgent(prisma);
-    this.budgetAgent = new BudgetAgent(this.mode);
-    this.riskAgent = new RiskAgent(this.mode);
-    this.messageDrafterAgent = new MessageDrafterAgent(this.mode);
+    this.budgetAgent = new BudgetAgent(this.mode, this.aiGateway);
+    this.riskAgent = new RiskAgent(this.mode, this.aiGateway);
+    this.messageDrafterAgent = new MessageDrafterAgent(this.mode, this.aiGateway);
   }
 
   async handleEmergencyTrigger(
@@ -134,6 +137,9 @@ export class PAREService implements PareApprovalGovernance {
       if (existing) return this.mapApprovalRecordWithAudit(existing, triggerId, sourceDispatchId);
     }
     assertPareExecutionAllowed(this.mode);
+    if (this.mode === 'live' && !this.aiGateway) {
+      throw new PareConfigurationError('PARE AI gateway is not registered; live PARE is disabled');
+    }
     this.throwIfAborted(executionSignal);
     const triggeredAt = new Date();
 
@@ -143,17 +149,35 @@ export class PAREService implements PareApprovalGovernance {
     // Agent 2 — find replacement candidates
     ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx, executionSignal);
 
+    this.throwIfAborted(executionSignal);
+    const gatewayCancellation = new AbortController();
+    const gatewaySignal = AbortSignal.any(executionSignal
+      ? [executionSignal, gatewayCancellation.signal]
+      : [gatewayCancellation.signal]);
+
     // Agents 3 + 4 — run in parallel (independent of each other)
-    const [budgetAnalysis, riskAssessment] = await Promise.all([
-      this.budgetAgent.runPareBudgetAgent(ctx, executionSignal),
-      this.riskAgent.runPareRiskAgent(ctx, executionSignal),
-    ]);
+    const [budgetRun, riskRun] = await Promise.all([
+      this.budgetAgent.runPareBudgetAgent(ctx, gatewaySignal),
+      this.riskAgent.runPareRiskAgent(ctx, gatewaySignal),
+    ]).catch((error: unknown) => {
+      gatewayCancellation.abort(error);
+      throw error;
+    });
+    const budgetAnalysis = budgetRun.output;
+    const riskAssessment = riskRun.output;
     ctx.budgetAnalysis = budgetAnalysis;
     ctx.riskAssessment = riskAssessment;
 
     // Agent 5 — draft messages
-    ctx.drafts = await this.messageDrafterAgent.runPareMessageDraftAgent(ctx, executionSignal);
+    const draftRun = await this.messageDrafterAgent.runPareMessageDraftAgent(ctx, gatewaySignal);
+    ctx.drafts = draftRun.output;
     this.throwIfAborted(executionSignal);
+
+    const runEvidence = [budgetRun.evidence, riskRun.evidence, draftRun.evidence]
+      .filter((evidence): evidence is AiAuditEvidence => evidence !== null);
+    if (this.mode === 'live' && runEvidence.length !== 3) {
+      throw new PareConfigurationError('PARE live run is missing gateway evidence');
+    }
 
     const pareResult: PAREResult = {
       requestId: ctx.triggerId,
@@ -165,6 +189,7 @@ export class PAREService implements PareApprovalGovernance {
       riskAssessment,
       drafts: ctx.drafts,
       mode: this.mode,
+      runEvidence,
       triggeredAt: triggeredAt.toISOString(),
     };
 
@@ -183,10 +208,10 @@ export class PAREService implements PareApprovalGovernance {
           id: aiAuditLogId,
           eventId: ctx.eventId,
           featureName: 'PARE',
-          modelVersion: 'mock',
+          modelVersion: this.mode === 'mock' ? 'mock' : 'ai-gateway',
           dataCategories: toPrismaJson(dataCategories),
           sanitizedPayload: toPrismaJson(sanitizedPayload),
-          zdrConfirmed: true,
+          zdrConfirmed: this.mode === 'mock' || runEvidence.every((evidence) => evidence.zdrBasis === 'provider-enforced'),
           humanApprovalRequired: true,
           status: 'pending_human_approval',
           createdAt: triggeredAt,
@@ -266,7 +291,6 @@ export class PAREService implements PareApprovalGovernance {
   }
 
   async approveRecommendation(approvalRecordId: string, approvedBy: string): Promise<PAREApprovalRecord> {
-    assertPareExecutionAllowed(this.mode);
     return this.reviewRecommendation(approvalRecordId, approvedBy, 'approved');
   }
 
@@ -281,7 +305,7 @@ export class PAREService implements PareApprovalGovernance {
       if (record.status !== 'pending_human_approval') throw new BadRequestException('Only pending PARE recommendations can be reviewed');
       const audit = requireMatchingAudit(record, await tx.opsAiAuditLog.findUnique({ where: { id: record.aiAuditLogId } }));
       await this.assertDispatchMatches(tx, record, audit);
-      if (status === 'approved') this.assertMockAudit(audit);
+      if (status === 'approved') this.assertApprovableAudit(audit);
       const data = { status, humanApproved: status === 'approved', approvedBy: reviewedBy, approvedAt: new Date() };
       const claimed = await tx.opsAiApprovalRecord.updateMany({
         where: { id, status: 'pending_human_approval' }, data,
@@ -296,10 +320,60 @@ export class PAREService implements PareApprovalGovernance {
     });
   }
 
-  private assertMockAudit(audit: OpsAiAuditLog) {
+  private assertApprovableAudit(audit: OpsAiAuditLog) {
     const payload = this.asRecord(audit.sanitizedPayload);
-    const verifiedMock = audit.modelVersion === 'mock' && payload.mode === 'mock' && audit.zdrConfirmed;
-    assertPareExecutionAllowed(verifiedMock ? 'mock' : 'live');
+    const runEvidence = aiAuditEvidenceSchema.array().safeParse(payload.runEvidence);
+    if (payload.mode === 'mock') {
+      const noGatewayEvidence = payload.runEvidence === undefined ||
+        (Array.isArray(payload.runEvidence) && payload.runEvidence.length === 0);
+      const validMock = audit.modelVersion === 'mock' && audit.zdrConfirmed &&
+        noGatewayEvidence;
+      if (!validMock) throw new BadRequestException('A matching durable PARE audit is required');
+      return;
+    }
+    if (
+      payload.mode !== 'live' ||
+      audit.modelVersion !== 'ai-gateway' ||
+      audit.zdrConfirmed ||
+      !runEvidence.success ||
+      runEvidence.data.length !== 3
+    ) {
+      throw new BadRequestException('A matching durable PARE audit is required');
+    }
+
+    const expectedUseCases = new Set<AiUseCaseId>([
+      'pare.budget',
+      'pare.risk',
+      'pare.message-drafts',
+    ]);
+    const seenUseCases = new Set<AiUseCaseId>();
+    let provenanceIdentity: string | undefined;
+    for (const evidence of runEvidence.data) {
+      if (
+        !expectedUseCases.has(evidence.useCaseId) ||
+        seenUseCases.has(evidence.useCaseId) ||
+        evidence.outcome !== 'completed' ||
+        evidence.correlationId !== auditRequestId(audit) ||
+        evidence.profileId !== 'test-anthropic' ||
+        evidence.provider !== 'anthropic' ||
+        evidence.zdrBasis !== 'none' ||
+        evidence.dataClasses.length !== 1 ||
+        evidence.dataClasses[0] !== 'synthetic' ||
+        !evidence.syntheticProvenance
+      ) {
+        throw new BadRequestException('A matching durable PARE audit is required');
+      }
+      const provenance = evidence.syntheticProvenance;
+      const identity = JSON.stringify([provenance.source, provenance.sourceId, provenance.verifier]);
+      if (provenanceIdentity !== undefined && provenanceIdentity !== identity) {
+        throw new BadRequestException('A matching durable PARE audit is required');
+      }
+      provenanceIdentity = identity;
+      seenUseCases.add(evidence.useCaseId);
+    }
+    if (seenUseCases.size !== expectedUseCases.size) {
+      throw new BadRequestException('A matching durable PARE audit is required');
+    }
   }
 
   private async mapApprovalRecordWithAudit(record: ApprovalRow, expectedRequestId?: string, expectedSourceDispatchId?: string): Promise<PAREApprovalRecord> {
@@ -358,6 +432,7 @@ export class PAREService implements PareApprovalGovernance {
 
   private mapPareResult(payload: unknown, record: ApprovalRow, audit: AuditRow | null): PAREResult {
     const data = this.asRecord(payload);
+    const runEvidence = aiAuditEvidenceSchema.array().safeParse(data.runEvidence);
     const withdrawnSupplier = this.asRecord(data.withdrawnSupplier);
     const fallbackCandidate = this.fallbackCandidate('No candidate found', 'No PARE candidate payload was stored.');
     const fallbackBudget = this.fallbackBudgetAnalysis(fallbackCandidate);
@@ -386,7 +461,8 @@ export class PAREService implements PareApprovalGovernance {
       budgetAnalysis: this.asBudgetAnalysis(data.budgetAnalysis, fallbackBudget),
       riskAssessment: this.asRiskAssessment(data.riskAssessment, fallbackRisk),
       drafts: this.asDrafts(data.drafts, fallbackDrafts),
-      mode: data.mode === 'live' || audit?.modelVersion === 'claude-sonnet-4-6' ? 'live' : 'mock',
+      mode: data.mode === 'mock' ? 'mock' : 'live',
+      runEvidence: runEvidence.success ? runEvidence.data : [],
       triggeredAt: this.asString(data.triggeredAt) || this.toIso(record.requestedAt ?? audit?.createdAt ?? new Date()),
     };
   }

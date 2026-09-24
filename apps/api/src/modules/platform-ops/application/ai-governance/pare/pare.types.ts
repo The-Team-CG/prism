@@ -1,4 +1,5 @@
 import type {
+  AiAuditEvidence,
   AiPareBudgetAnalysis,
   AiPareCandidate,
   AiPareContext,
@@ -39,6 +40,7 @@ export type PAREResult = {
   riskAssessment: PARERisk;
   drafts: PAREDrafts;
   mode: 'mock' | 'live';
+  runEvidence: AiAuditEvidence[];
   triggeredAt: string;
 };
 

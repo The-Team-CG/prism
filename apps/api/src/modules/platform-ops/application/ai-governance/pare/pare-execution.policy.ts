@@ -16,11 +16,9 @@ export function configuredPareMode(value: string | undefined): PAREMode {
   throw new Error('PARE_MODE must be mock or live');
 }
 
-/** Live execution has no approved provider/sanitizer/audit capability yet. */
+/** Validate the compatibility mode; route and data gates belong to AiGateway. */
 export function assertPareExecutionAllowed(mode: string): void {
-  if (mode !== 'mock') {
-    throw new PareConfigurationError(
-      'Live PARE is disabled until provider retention, sanitization and durable approval controls are verified. Use mock mode.',
-    );
+  if (mode !== 'mock' && mode !== 'live') {
+    throw new PareConfigurationError('PARE mode is unsupported. Use mock or live mode.');
   }
 }
