@@ -301,16 +301,20 @@ secret-bearing fixture.
   `tools`, `tool_choice`, and `structured_outputs`; 20 were in the ZDR catalog.
   Fireworks (`tag: fireworks`) is one such candidate. This metadata does not
   verify live forced-tool behavior, structured-output behavior, or streaming.
-- **Anthropic synthetic probe:** a forced-tool request to the planned
-  `claude-sonnet-4-6` route returned HTTP 401 (`API key invalid`). No model
-  response or usage was returned, and no credential value was recorded.
+- **Anthropic synthetic probe:** after the local key was updated, the planned
+  `claude-sonnet-4-6` route returned the forced `emit_draft` tool call with
+  schema-valid arguments (`stop_reason: tool_use`; 704 input and 108 output
+  tokens). An initial authenticated attempt hit its 128-token output cap; the
+  512-token retry passed. No credential or generated draft text was recorded.
 - **OpenRouter synthetic probe:** no `OPENROUTER_API_KEY` is configured in the
   inspected local API/root environment files, so the live request was not run.
 - **Account controls:** account-level ZDR, data-collection, logging, and cache
   settings remain unverified. The public ZDR catalog is not account evidence.
-- **Decision:** direct adapters remain the baseline; GLM 5.3 Flash and the
-  Fireworks tag remain candidates only. PR 0 stays open, so PR 1 and the
-  downstream parallel worktrees have not started.
+- **Decision:** direct adapters remain the baseline. Anthropic's synthetic
+  forced-tool path is verified; GLM 5.3 Flash and the Fireworks tag remain
+  candidates only. PR 0 stays open pending OpenRouter runtime and account
+  privacy evidence, so PR 1 and the downstream parallel worktrees have not
+  started.
 
 **Exit:** A reviewed route matrix, supported library decision, and selected
 model/endpoint candidates are recorded here. Missing credentials or account
