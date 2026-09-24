@@ -47,6 +47,15 @@ sources:
   - id: openrouter-glm-5-3-flash
     resource: "https://openrouter.ai/z-ai/glm-5.3-flash"
     title: "OpenRouter z-ai/glm-5.3-flash model listing"
+  - id: openrouter-model-endpoints
+    resource: "https://openrouter.ai/api/v1/models/z-ai/glm-5.3-flash/endpoints"
+    title: "OpenRouter public GLM endpoint metadata"
+  - id: openrouter-zdr-endpoints
+    resource: "https://openrouter.ai/api/v1/endpoints/zdr"
+    title: "OpenRouter public ZDR endpoint catalog"
+  - id: openrouter-privacy-controls
+    resource: "https://openrouter.ai/docs/guides/get-started/sovereign-ai"
+    title: "OpenRouter account-level ZDR and data-collection controls"
   - id: worktree-runbook
     resource: "docs/runbooks/parallel-worktrees.md"
     title: "Parallel worktree setup and port isolation"
@@ -282,6 +291,26 @@ secret-bearing fixture.
    usage, and failure semantics without keys or raw prompts.
 4. If GLM 5.3 Flash cannot satisfy the PARE tool contract over a ZDR route,
    select another verified ZDR model for `strong` before implementation.
+
+#### Verification record (2026-09-24; incomplete)
+
+- **Runtime:** the API remains CommonJS, so direct provider adapters are the
+  selected implementation baseline; no AI SDK ESM bridge was introduced.
+- **OpenRouter public metadata:** the GLM endpoint API returned 31 endpoints;
+  26 also appeared in the public ZDR catalog. Of those, 22 advertised
+  `tools`, `tool_choice`, and `structured_outputs`; 20 were in the ZDR catalog.
+  Fireworks (`tag: fireworks`) is one such candidate. This metadata does not
+  verify live forced-tool behavior, structured-output behavior, or streaming.
+- **Anthropic synthetic probe:** a forced-tool request to the planned
+  `claude-sonnet-4-6` route returned HTTP 401 (`API key invalid`). No model
+  response or usage was returned, and no credential value was recorded.
+- **OpenRouter synthetic probe:** no `OPENROUTER_API_KEY` is configured in the
+  inspected local API/root environment files, so the live request was not run.
+- **Account controls:** account-level ZDR, data-collection, logging, and cache
+  settings remain unverified. The public ZDR catalog is not account evidence.
+- **Decision:** direct adapters remain the baseline; GLM 5.3 Flash and the
+  Fireworks tag remain candidates only. PR 0 stays open, so PR 1 and the
+  downstream parallel worktrees have not started.
 
 **Exit:** A reviewed route matrix, supported library decision, and selected
 model/endpoint candidates are recorded here. Missing credentials or account
