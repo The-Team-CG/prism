@@ -8,7 +8,7 @@ updated: "2026-09-24"
 authority: informative
 owner: "D (Anthony)"
 audience: [engineers, agents, reviewers]
-scope: "AI gateway contracts and core, Anthropic and OpenRouter adapters, PARE migration, FR-AI-09 streaming communication drafts, model evaluation, and a synthetic-data staging pilot"
+scope: "AI gateway contracts and core, Anthropic synthetic-data adapter, PARE migration, FR-AI-09 streaming communication drafts, model evaluation, and a synthetic-data staging pilot; OpenRouter deferred pending model access and account privacy evidence"
 last_verified: "a95ab19; PARE, AI audit schema, conforme reminder sweep, API module format, and worktree runbook"
 sources:
   - id: pare-agents
@@ -140,15 +140,15 @@ Verified at `a95ab19`:
 
 | Topic | Decision |
 | --- | --- |
-| Library | Keep the `AiGateway` port independent of transport. The current CommonJS build and Vercel's published AI SDK 7 ESM requirement make `require(esm)` an unsupported default. PR 0 records the implementation choice: direct adapters using the existing `@anthropic-ai/sdk` and an OpenRouter HTTP client are the baseline; an isolated, supported ESM bridge is acceptable only if built API, Vitest, and Docker checks prove it. |
+| Library | Keep the `AiGateway` port independent of transport. The current CommonJS build and Vercel's published AI SDK 7 ESM requirement make `require(esm)` an unsupported default. Use the existing `@anthropic-ai/sdk` for the synthetic test route. A future OpenRouter adapter should use direct HTTP unless an isolated, supported ESM bridge passes built API, Vitest, and Docker checks. |
 | Placement | The `AiGateway` port lives in `platform-ops` contracts and is exported from `modules/platform-ops/index.ts`. Adapters live in `platform-ops/infrastructure/ai-governance`. Other contexts depend only on the port and supply their own tool handlers. |
 | Configuration | The use-case registry and the route profiles are code, reviewed in PRs. Environment variables select a profile, hold keys, and list which use cases may go live. Everything is validated with Zod at startup. Invalid AI configuration fails startup only when a live use case is enabled; otherwise AI stays in mock and health reports it. |
-| Production route | OpenRouter `z-ai/glm-5.3-flash` is the first candidate, with ZDR required, provider endpoints pinned to verified ZDR slugs, and data collection denied. PR 0 may replace it if the route cannot meet tool and ZDR requirements. |
+| Production route | Deferred. No production provider profile is defined or enabled. OpenRouter `z-ai/glm-5.3-flash` remains public-metadata research only; do not configure an empty model or key. Revisit after model access and account privacy controls are available and verified. |
 | Test route | Anthropic direct `claude-sonnet-4-6` on existing credits. It has no ZDR, so it accepts synthetic data only and is refused in production. |
 | Failures | Fail closed. Retry the same route within limits. Never fail over to another provider or profile. Never substitute mock output in live mode. |
 | Streaming | The port has `stream` from PR 1. FR-AI-09 uses it in PR 5. The input types leave room for multi-turn chat (FR-AI-05 POA, FR-AI-07 copilot), which is built later. |
 | New use case | FR-AI-09 client communication drafts, starting with the unsigned-conforme trigger. |
-| Done for this plan | PRs 0 to 7 merged; both selected routes pass the conformance suite; a staging pilot on synthetic data succeeds; production live AI stays off until D separately approves the real-data route. |
+| Done for this plan | PRs 0 to 7 merged; mock and Anthropic synthetic-only routes pass their conformance checks; a synthetic staging pilot succeeds; OpenRouter remains deferred; production live AI stays off until a ZDR route is verified and D separately approves real-data use. |
 
 ## Architecture
 
@@ -162,10 +162,10 @@ flowchart LR
   SAN --> ZDR[ZDR and synthetic-data check]
   ZDR --> ROUTE[Route profile resolves provider and model]
   ROUTE --> A1[Anthropic adapter]
-  ROUTE --> A2[OpenRouter adapter]
+  ROUTE -. deferred .-> A2[Future OpenRouter adapter]
   ROUTE --> A3[Mock adapter]
   A1 --> VAL[Zod output validation]
-  A2 --> VAL
+  A2 -. deferred .-> VAL
   A3 --> VAL
   VAL --> AUD[AI audit record]
   AUD --> OUT[Draft or recommendation<br/>PMCM approval required]
@@ -194,16 +194,18 @@ Each use case is one registry entry:
 | --- | --- | --- | --- |
 | `mock` | Default, CI, and tests | Deterministic adapter; output labeled `mock` | Any |
 | `test-anthropic` | Local and staging model testing | Both tiers to `anthropic:claude-sonnet-4-6` | Synthetic only; refused when `NODE_ENV=production` |
-| `prod-openrouter-zdr` | Staging pilot, then production after approval | Both tiers to `openrouter:z-ai/glm-5.3-flash` at first; `strong` can move to another ZDR model without code changes | Sanitized real data, only after D's approval |
+
+No production route profile exists in this implementation. OpenRouter stays
+unconfigured until a follow-on review verifies an available model, provider
+endpoint, and account privacy controls. Real-data and production AI remain off.
 
 Environment variables:
 
 | Variable | Meaning |
 | --- | --- |
-| `AI_ROUTE_PROFILE` | `mock` (default), `test-anthropic`, or `prod-openrouter-zdr`. |
+| `AI_ROUTE_PROFILE` | `mock` (default) or `test-anthropic`. |
 | `AI_LIVE_USE_CASES` | Comma-separated use-case IDs allowed to call a provider. Empty by default. |
 | `ANTHROPIC_API_KEY` | Anthropic key for `test-anthropic`. |
-| `OPENROUTER_API_KEY` | OpenRouter key for `prod-openrouter-zdr`. |
 | `PARE_MODE` | Kept as a guarded compatibility alias in PR 4. PR 7 records the configuration cutover and removal condition; it cannot alone authorize a live call. |
 
 Profiles are code, so adding a provider or model is a reviewed PR. The
@@ -219,9 +221,10 @@ environment can only choose among approved profiles.
 3. A `none` route accepts only inputs the server can verify as synthetic
    (seeded sample events or test fixtures; the proof is defined in PR 1),
    and is refused when `NODE_ENV=production`.
-4. OpenRouter requests always send
+4. Any future OpenRouter route must send
    `provider: { zdr: true, data_collection: "deny", only: [<verified ZDR slugs>] }`.
-   The OpenRouter account also enables its ZDR-only setting as a second guard.
+   Its account-level ZDR and data-collection settings must be verified before
+   that route is configured. No OpenRouter route is active in this plan phase.
 5. Every call writes one audit record: use case, prompt version, profile,
    provider, requested model, model reported by the response, endpoint if
    reported, ZDR basis, data categories, token usage, latency, outcome, and
@@ -257,14 +260,14 @@ environment can only choose among approved profiles.
 
 | PR | Title | Development start | Merge gate |
 | --- | --- | --- | --- |
-| 0 | Verify runtime and provider routes | Now, alone | Evidence and a go/no-go decision recorded; no real-data call. |
-| 1 | Freeze contracts and worktree interfaces | After PR 0 | Shared schemas, port, adapter contract, and stream protocol pass tests. |
+| 0 | Verify runtime and provider routes | Now, alone | Anthropic synthetic route verified; OpenRouter explicitly deferred; no real-data call. |
+| 1 | Freeze contracts and worktree interfaces | After reviewed PR 0 | Shared schemas, port, adapter contract, and stream protocol pass tests. |
 | 2 | Gateway core and audit migration | After PR 1 | First of the parallel branches to merge. |
-| 3 | Provider adapters and conformance | After PR 1, in parallel with PR 2 | Rebase on merged PR 2; conformance passes before merge. |
+| 3 | Anthropic adapter and conformance | After PR 1, in parallel with PR 2 | Rebase on merged PR 2; mock and Anthropic conformance pass. OpenRouter is a follow-on. |
 | 4 | PARE migration | After PR 1, in parallel with PRs 2 and 3 | Rebase on merged PRs 2 and 3; dispatch and approval regressions pass. |
 | 5 | FR-AI-09 unsigned-conforme drafts | After PR 1, in parallel with PRs 2 to 4 | Rebase on merged PRs 2 and 3; merge after PR 4 to serialize shared module wiring. |
-| 6 | Synthetic evaluation and staging pilot | Fixture design may start after PR 1 | Runs after PRs 2 to 5 merge; measured result and tier choice recorded. |
-| 7 | Governance promotion and closeout | After PR 6 | Durable ADR/product documentation replaces this working plan; live production stays gated. |
+| 6 | Synthetic evaluation and staging pilot | Fixture design may start after PR 1 | Runs after PRs 2 to 5 merge using mock and Anthropic synthetic-only routes; measured result recorded. |
+| 7 | Governance promotion and closeout | After PR 6 | Durable ADR/product documentation records OpenRouter deferral; live production stays gated. |
 
 PRs 2 to 5 are **parallel development**, not independent release units.
 PRs 3 to 5 may be draft PRs while PR 2 is in flight. Each becomes mergeable
@@ -282,17 +285,18 @@ secret-bearing fixture.
    an isolated ESM bridge is proven by the compiled API, Vitest, and Docker
    checks. Do not make a successful Node 24 `require(esm)` experiment the
    sole support criterion.
-2. Inspect candidate OpenRouter endpoints for ZDR, tools, forced
-   `tool_choice`, structured output, and streaming. Verify exact provider
-   slugs and the account's ZDR, data-collection, logging, and caching settings.
+2. Inspect public OpenRouter endpoint metadata for ZDR, tools, forced
+   `tool_choice`, structured output, and streaming. Record provider tags as
+   candidates only; the account's ZDR, data-collection, logging, and caching
+   settings need authenticated verification before a future route is added.
 3. With synthetic fixtures only, run one forced-tool request through
-   Anthropic direct and one through OpenRouter pinned to a candidate ZDR
-   endpoint. Record response model, endpoint when available, tool behavior,
-   usage, and failure semantics without keys or raw prompts.
-4. If GLM 5.3 Flash cannot satisfy the PARE tool contract over a ZDR route,
-   select another verified ZDR model for `strong` before implementation.
+   Anthropic direct. Record response model, tool behavior, usage, and failure
+   semantics without keys or raw prompts.
+4. Record OpenRouter as deferred because model access and account privacy
+   evidence are unavailable. Do not define an empty model/profile or enable
+   production/real-data use. Reopen route verification in a follow-on change.
 
-#### Verification record (2026-09-24; incomplete)
+#### Verification record (2026-09-24)
 
 - **Runtime:** the API remains CommonJS, so direct provider adapters are the
   selected implementation baseline; no AI SDK ESM bridge was introduced.
@@ -306,20 +310,23 @@ secret-bearing fixture.
   schema-valid arguments (`stop_reason: tool_use`; 704 input and 108 output
   tokens). An initial authenticated attempt hit its 128-token output cap; the
   512-token retry passed. No credential or generated draft text was recorded.
-- **OpenRouter synthetic probe:** no `OPENROUTER_API_KEY` is configured in the
-  inspected local API/root environment files, so the live request was not run.
+- **OpenRouter:** public metadata shows candidate endpoint capabilities, but
+  model access and a key are unavailable for a live probe. Provider selection
+  remains unconfigured by decision.
 - **Account controls:** account-level ZDR, data-collection, logging, and cache
   settings remain unverified. The public ZDR catalog is not account evidence.
-- **Decision:** direct adapters remain the baseline. Anthropic's synthetic
-  forced-tool path is verified; GLM 5.3 Flash and the Fireworks tag remain
-  candidates only. PR 0 stays open pending OpenRouter runtime and account
-  privacy evidence, so PR 1 and the downstream parallel worktrees have not
-  started.
+- **Decision:** direct adapters remain the baseline. The Anthropic
+  `claude-sonnet-4-6` synthetic forced-tool path is verified. OpenRouter and
+  its Fireworks tag are deferred until model access and account privacy
+  controls can be verified. The user approved proceeding with the
+  Anthropic-only implementation on 2026-09-24. No production route exists;
+  real-data AI stays disabled.
 
-**Exit:** A reviewed route matrix, supported library decision, and selected
-model/endpoint candidates are recorded here. Missing credentials or account
-evidence means PR 0 remains open; it is not inferred from a model listing.
-This technical go/no-go is separate from D's real-data provider approval.
+**Exit:** The reviewed route decision records Anthropic as synthetic-only and
+OpenRouter as deferred. Missing OpenRouter credentials/account evidence blocks
+that provider and any production route; it does not block mock/Anthropic
+synthetic implementation. This technical go/no-go is separate from D's
+real-data provider approval.
 
 ### PR 1 — Freeze contracts and worktree interfaces
 
@@ -377,28 +384,30 @@ API typecheck/tests, `prisma:validate`, `db:verify:offline`,
 `check:migrations`, `test:migrations`, and `check:invariants` pass. Migration
 deployment is separately verified against an approved target.
 
-### PR 3 — Provider adapters and conformance
+### PR 3 — Anthropic adapter and conformance
 
 **Owner:** D. **Files:** `platform-ops/infrastructure/ai-governance` provider
 adapters and their fixtures. Avoid `schema.prisma`, `packages/types`, and
 `platform-ops.module.ts` until rebasing on merged PR 2.
 
-1. Implement Anthropic direct and OpenRouter adapters behind the PR 1
-   interface using the transport chosen in PR 0. Support tool calls, forced
-   tool choice, bounded loops, `run`, `stream`, abort propagation, usage,
-   response-model, and endpoint extraction.
-2. Send OpenRouter `provider.zdr: true`,
-   `provider.data_collection: "deny"`, and the PR 0 verified `only` slugs
-   on every call. Permit no model/profile fallback; any endpoint fallback
-   stays inside the pinned ZDR list.
-3. Run the same recorded conformance fixtures through both adapters:
+1. Implement the Anthropic direct adapter behind the PR 1 interface using the
+   transport verified in PR 0. Support tool calls, forced tool choice, bounded
+   loops, `run`, `stream`, abort propagation, usage, and response-model
+   extraction.
+2. Keep OpenRouter outside the active provider registry and configuration.
+   A follow-on PR must verify an available model, exact endpoint tags, account
+   privacy settings, tool/structured-output behavior, and streaming before
+   adding its adapter or profile.
+3. Run the same recorded conformance fixtures through the mock and Anthropic
+   adapters:
    valid and invalid output, malformed tools, step exhaustion, 429/5xx,
    nonretryable 4xx, stream abort, and provider option serialization.
 
 **Exit:** Mocked HTTP assertions prove base URL, key isolation, requested
-model, provider options, retry limits, and cancellation. The provider
+model, retry limits, and cancellation. The mock and Anthropic provider
 conformance suite, API typecheck/build, and boundary checks pass. Opt-in live
-checks use synthetic data only and are not required in CI.
+checks use synthetic data only and are not required in CI. OpenRouter remains
+deferred and cannot be enabled by environment configuration.
 
 ### PR 4 — Migrate PARE
 
@@ -458,14 +467,16 @@ allowlist change.
 1. Freeze scenarios and pass thresholds before scoring: PARE replacement,
    budget/risk/tool paths, malformed provider responses, and unsigned-conforme
    drafts. Policy, schema, audit, and no-autonomous-send checks must all pass.
-2. Run both selected routes on the same fixture set. Record tool-loop
+2. Run mock and Anthropic on the same fixture set. Record tool-loop
    completion, schema pass rate, PMCM edit frequency, p50/p95 latency, token
    usage, and cost per run; record failures as failures.
-3. Pilot the chosen ZDR route in staging with synthetic events only. Revisit
-   the `strong` model if the candidate does not meet the preset quality bar.
+3. Pilot the Anthropic test route in staging with synthetic events only. Do
+   not use it for real event data; defer a ZDR route pilot until OpenRouter or
+   another provider passes a separate route review.
 
-**Exit:** An inspectable results table and route choice are recorded; the
-staging pilot passes without real event data or autonomous sending.
+**Exit:** An inspectable results table is recorded; the synthetic staging
+pilot passes without real event data or autonomous sending. The production
+route remains absent and gated.
 
 ### PR 7 — Governance promotion and closeout
 
@@ -473,8 +484,8 @@ staging pilot passes without real event data or autonomous sending.
 an ADR, `feature-ledger.md`, `readiness-foundation.md`,
 `actual-system.md`, privacy/runbook material, and release notes.
 
-1. Promote the supported library, route-profile, ZDR, approval, audit, and
-   failure decisions into durable documents. Replace provider-specific
+1. Promote the supported library, Anthropic test-profile, OpenRouter deferral,
+   ZDR, approval, audit, and failure decisions into durable documents. Replace provider-specific
    FR-AI-ZDR assumptions in current governance; preserve the V4 catalog as
    historical reference.
 2. Record the provider, model, endpoint slugs, ZDR basis, data classes,
@@ -523,13 +534,13 @@ green checks from an earlier base are insufficient.
 
 | Risk or question | Handling |
 | --- | --- |
-| GLM 5.3 Flash may not complete PARE tool loops reliably. | PR 6 measures it; `strong` can move to another verified ZDR model through a reviewed profile change. |
-| GLM ZDR endpoints may lack tool support. | PR 0 selects an eligible model before parallel provider work begins. |
+| OpenRouter model access and account privacy controls are unavailable. | Defer its adapter and profile. Reopen route verification when access is available; mock remains default and Anthropic remains synthetic-only. |
+| Anthropic has no ZDR. | Synthetic-only provenance is enforced and live use is refused in production; real-data use requires a separately approved ZDR route. |
 | AI SDK v7 is ESM-only and the API is CommonJS. | Direct adapters are the baseline; PR 0 may select an isolated supported ESM bridge only after built API, Vitest, and Docker evidence. |
-| OpenRouter and the model host become data processors. | ZDR per request plus the account setting; list both processors and their hosting location in privacy documentation during PR 7. |
+| A future OpenRouter route adds processors and a model host. | Verify per-request ZDR, account settings, data collection, logging, and caching before configuring the provider; record both processors and locations in privacy documentation. |
 | Test route has no ZDR. | Synthetic-only rule enforced in code and refused in production. |
 | Free text or tool results may contain PII despite safe field names. | PR 2 uses allowlisted minimization and adversarial outbound-payload fixtures; unknown real-data fields fail closed. |
 | The reminder sweep and AI approval can enqueue duplicate follow-ups. | PR 5 uses one server-owned reminder-window claim/idempotency rule, including race tests. |
 | Parallel branches can drift on the shared gateway contract or module wiring. | PR 1 freezes contracts, PR 2 owns initial wiring, and draft PRs 3 to 5 rebase and rerun checks before ordered merges. |
 | SDK and provider API changes. | Pin adapter dependencies; only infrastructure imports provider packages; the conformance suite catches behavior changes. |
-| Cost growth as use cases are added. | Daily token budgets per use case, usage recorded in audit, and OpenRouter credit alerts. |
+| Cost growth as use cases are added. | Daily token budgets per use case, usage recorded in audit, and provider-specific credit alerts when a production route is approved. |
