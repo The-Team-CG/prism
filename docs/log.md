@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-09-25
+
+- **Recorded:** PR 6 freezes synthetic PARE and unsigned-conforme scenarios, local pass criteria, and a results table. Final single-run Anthropic smoke completed all four fixed use cases with registered PARE tool loops; exploratory failures remain visible. Full PARE provenance chaining, synthetic staging pilot, 20-run metrics, and PMCM review remain pending. OpenRouter and all real-data/production AI stay disabled.
+
 ## 2026-09-24
 
 - **Added:** Interchangeable AI provider gateway plan. Every AI use case will call one `platform-ops` gateway; Anthropic Sonnet is a synthetic-data test route and OpenRouter `z-ai/glm-5.3-flash` is a production candidate pending ZDR/tool verification. The plan records PARE coupling, fail-closed rules, streaming FR-AI-09 drafts, and the separate Owner D approval required before live AI touches real data.

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import type {
   AiProviderAdapter,
   AiProviderMessage,
@@ -124,11 +125,20 @@ function toAnthropicRequest(
   }
 
   const tools = request.tools.map(toAnthropicTool);
+  if (request.outputSchema && request.outputSchema.type !== 'object') {
+    throw new ProviderAdapterError('invalid_output', 'The provider output schema must be an object', false);
+  }
+  const outputFormat = request.outputSchema
+    ? jsonSchemaOutputFormat(request.outputSchema as Record<string, unknown> & { type: 'object' }).schema
+    : undefined;
   return {
     model: request.model,
     max_tokens: request.maxOutputTokens,
     system: request.systemPrompt,
     messages: request.messages.map((message) => toAnthropicMessage(message, toolNames)),
+    ...(outputFormat
+      ? { output_config: { format: { type: 'json_schema' as const, schema: outputFormat } } }
+      : {}),
     ...(tools.length > 0
       ? { tools, tool_choice: toAnthropicToolChoice(request.toolChoice) }
       : {}),

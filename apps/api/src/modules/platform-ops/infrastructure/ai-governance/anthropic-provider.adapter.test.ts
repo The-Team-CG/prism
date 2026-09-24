@@ -145,6 +145,18 @@ describe('AnthropicProviderAdapter', () => {
       model: AI_PROVIDER_CONFORMANCE_REQUEST.model,
       max_tokens: AI_PROVIDER_CONFORMANCE_REQUEST.maxOutputTokens,
       system: AI_PROVIDER_CONFORMANCE_REQUEST.systemPrompt,
+      output_config: { format: {
+        type: 'json_schema',
+        schema: {
+          type: 'object',
+          properties: {
+            subject: { type: 'string', description: '{minLength: 1}' },
+            body: { type: 'string', description: '{minLength: 1}' },
+          },
+          required: ['subject', 'body'],
+          additionalProperties: false,
+        },
+      } },
       tool_choice: { type: 'tool', name: 'emit_draft' },
       tools: [
         {

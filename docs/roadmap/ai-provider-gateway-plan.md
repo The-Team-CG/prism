@@ -4,12 +4,12 @@ title: "Interchangeable AI provider gateway"
 description: "Deliver a governed, provider-interchangeable AI gateway through reviewable PRs and isolated worktrees."
 tags: [ai, ai-governance, pare, platform-ops, zdr, openrouter, anthropic]
 status: active
-updated: "2026-09-24"
+updated: "2026-09-25"
 authority: informative
 owner: "D (Anthony)"
 audience: [engineers, agents, reviewers]
 scope: "AI gateway contracts and core, Anthropic synthetic-data adapter, PARE migration, FR-AI-09 streaming communication drafts, model evaluation, and a synthetic-data staging pilot; OpenRouter deferred pending model access and account privacy evidence"
-last_verified: "a95ab19; PARE, AI audit schema, conforme reminder sweep, API module format, and worktree runbook"
+last_verified: "2026-09-25; PR 6 local synthetic smoke and API typecheck, test, build, and boundary checks; staging pending"
 sources:
   - id: pare-agents
     resource: "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents"
@@ -471,8 +471,9 @@ pass. API and event portal typechecks pass; the PMCM path is manually checked.
 ### PR 6 — Synthetic evaluation and staging pilot
 
 **Owners:** D and B, with A reviewing draft usability. **Files:** fixed
-synthetic evaluation fixtures and this plan's results table; no production
-allowlist change.
+synthetic evaluation fixtures, gateway/adapter output validation, PARE prompt
+and timeout limits, and this plan's results table; no production allowlist
+change.
 
 1. Freeze scenarios and pass thresholds before scoring: PARE replacement,
    budget/risk/tool paths, malformed provider responses, and unsigned-conforme
@@ -481,8 +482,59 @@ allowlist change.
    completion, schema pass rate, PMCM edit frequency, p50/p95 latency, token
    usage, and cost per run; record failures as failures.
 3. Pilot the Anthropic test route in staging with synthetic events only. Do
-   not use it for real event data; defer a ZDR route pilot until OpenRouter or
-   another provider passes a separate route review.
+    not use it for real event data; defer a ZDR route pilot until OpenRouter or
+    another provider passes a separate route review.
+
+**Frozen evaluation matrix (2026-09-25, before PARE provider scoring):**
+
+| Scenario | Fixed input | Required result |
+| --- | --- | --- |
+| PARE budget | `ai-pare-evaluation-v1` candidate context | Valid budget analysis for Supplier Y; any tool output must match the registered fixture. |
+| PARE risk | Same candidate context as budget, as in the parallel PARE stage | Valid risk assessment; any tool output must match the registered fixture. |
+| PARE messages | Same source with fixed budget and risk results | Two valid drafts for PMCM review; no delivery. |
+| Unsigned conforme | `ai-comms-inquiry-v1` inquiry ID only | Valid generic subject/body with no invented event, recipient, or deadline; no delivery. |
+| Negative paths | Malformed provider output, altered tool result, unregistered input | Fail closed with an audited failure or block before output or sending. |
+
+The local gate requires all four fixed scenarios to pass the registered output
+schemas on mock and Anthropic, all negative paths to fail closed, matching
+synthetic provenance on every Anthropic call and tool result, and zero
+notification sends. At least one Anthropic PARE call must complete a registered
+tool loop. Count a failed call as a failed scenario. PMCM must review every
+draft for factual claims and record edits before an acceptance decision. The
+staging gate requires 20 runs per route/use case before reporting p50/p95
+latency, schema pass rate, mean token usage, and per-run cost; report PMCM edit
+frequency only after at least 20 human reviews. A local single-run smoke result
+does not satisfy the staging or human-review gate.
+
+**Local synthetic smoke result (2026-09-25):** The fixed mock baseline passed
+all four output contracts. One final opt-in Anthropic run per scenario also
+passed the local schema/provenance gate; every PARE run completed one registered
+tool loop. These calls used the server-owned fixtures and a fake audit/budget
+store, with no notification outbox or real event data. The table is one sample
+per use case, so it is not a reliability rate or a p50/p95 estimate.
+
+| Use case | Anthropic outcome | Provider calls / tool loops | Latency | Input / output tokens | Estimated direct cost |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `pare.budget` | Completed; Supplier Y, feasible, ₱500 delta | 2 / 1 | 10,347 ms | 3,536 / 364 | US$0.016068 |
+| `pare.risk` | Completed; schema valid | 2 / 1 | 12,905 ms | 2,970 / 453 | US$0.015705 |
+| `pare.message-drafts` | Completed; schema valid | 2 / 1 | 18,631 ms | 2,751 / 780 | US$0.019953 |
+| `comms.draft` | Completed; conforme subject/body validated | 1 / 0 | 4,688 ms | 350 / 169 | US$0.003585 |
+
+Cost is an estimate from reported tokens at the [Claude Sonnet 4.6 direct
+standard rate](https://platform.claude.com/docs/en/models/sonnet-4-6/overview)
+of US$3/million input and US$15/million output tokens; it is not a billing
+receipt. Earlier exploratory provider calls failed with `invalid_output`,
+`invalid_tool_call`, `provider_rejected`, or `timeout`. They revealed a fenced
+JSON response, a phone detector false positive on serialized synthetic dates,
+unsupported raw JSON Schema constraints, and tool-loop latency. Those failures
+are not erased by the final passing smoke. The gateway continued to fail closed.
+
+The full PARE orchestration has not been run on Anthropic: its later stage
+inputs contain generated outputs and do not yet match the exact registered
+fixtures. A server-owned provenance chain for that path, a staging deployment
+with synthetic events, 20-run latency/reliability samples, PMCM factual/edit
+review, and D/B/A sign-off remain pending. No real-data or production route is
+enabled, and OpenRouter remains deferred.
 
 **Exit:** An inspectable results table is recorded; the synthetic staging
 pilot passes without real event data or autonomous sending. The production
