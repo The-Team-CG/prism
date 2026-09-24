@@ -150,3 +150,70 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
 
   return responseBody as T;
 }
+
+export async function* prismSse<T>(
+  path: string,
+  init: PrismRequestInit,
+  parseEvent: (value: unknown) => T,
+): AsyncIterable<T> {
+  const { authToken, baseUrl, body, headers, ...requestInit } = init;
+  const response = await fetch(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, {
+    ...requestInit,
+    headers: {
+      Accept: 'text/event-stream',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(headers ?? {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+  if (!response.ok) throw new PrismApiError(response.status, await parseResponseBody(response));
+  if (!response.headers.get('content-type')?.includes('text/event-stream')) {
+    throw new Error('P.R.I.S.M API did not return an event stream');
+  }
+  if (!response.body) throw new Error('P.R.I.S.M API returned an empty event stream');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let dataLines: string[] = [];
+  let complete = false;
+
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) {
+        complete = true;
+        buffer += decoder.decode();
+        if (buffer) {
+          const line = buffer.endsWith('\r') ? buffer.slice(0, -1) : buffer;
+          if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
+        }
+        if (dataLines.length) yield parseEvent(JSON.parse(dataLines.join('\n')) as unknown);
+        return;
+      }
+
+      buffer += decoder.decode(next.value, { stream: true });
+      let lineEnd = buffer.indexOf('\n');
+      while (lineEnd !== -1) {
+        let line = buffer.slice(0, lineEnd);
+        buffer = buffer.slice(lineEnd + 1);
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+        if (line === '') {
+          if (dataLines.length) {
+            const payload = dataLines.join('\n');
+            dataLines = [];
+            yield parseEvent(JSON.parse(payload) as unknown);
+          }
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).replace(/^ /, ''));
+        }
+        lineEnd = buffer.indexOf('\n');
+      }
+    }
+  } finally {
+    if (!complete) await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}

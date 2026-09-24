@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@prism/kernel/database';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { AccessControlModule } from '@prism/kernel/access-control';
+import { ConformeReminderWindowModule } from '@prism/contexts/event-lifecycle/conforme-reminder-window';
 import { OpsAuditController, OpsPrivacyController } from './api/trust/audit-privacy.controller';
 import { OpsNotificationsController } from './api/notifications/notifications.controller';
 import { OpsAiGovernanceController } from './api/ai-governance/ai-governance.controller';
@@ -35,6 +36,8 @@ import { StorageValidationService } from './application/storage/storage-validati
 import { STORAGE_ADAPTER } from './contracts/storage/storage.port';
 import { LocalFileSystemStorageAdapter } from './infrastructure/storage/local-filesystem-storage.adapter';
 import { StorageController } from './api/storage/storage.controller';
+import { ConformeCommsDraftsController } from './api/ai-governance/conforme-comms-drafts.controller';
+import { ConformeCommsDraftService } from './application/ai-governance/conforme-comms-draft.service';
 
 const auditWriterProvider = {
   provide: AUDIT_WRITER,
@@ -92,8 +95,8 @@ export function createAiProviderAdapters(
  * workflow rather than a shared ownership claim.
  */
 @Module({
-  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule],
-  controllers: [OpsAuditController, OpsPrivacyController, OpsNotificationsController, OpsAiGovernanceController, StorageController],
+  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule],
+  controllers: [OpsAuditController, OpsPrivacyController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController],
   providers: [
     AuditService,
     PrivacyOperationsService,
@@ -103,6 +106,7 @@ export function createAiProviderAdapters(
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
     AiGovernanceService,
+    ConformeCommsDraftService,
     MockAiProviderAdapter,
     {
       provide: AI_GATEWAY_RUNTIME_CONFIG,
@@ -134,6 +138,7 @@ export function createAiProviderAdapters(
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
     AiGovernanceService,
+    ConformeCommsDraftService,
     AiGatewayService,
     AI_GATEWAY,
     PAREService,

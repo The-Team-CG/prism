@@ -1,4 +1,7 @@
 import type {
+  AiGatewayStreamEvent,
+  CommsDraftRequest,
+  CommsDraftResult,
   ConfirmSupplierReadinessInput,
   CreateEventDayTaskInput,
   CreateEventTaskReassignmentInput,
@@ -77,7 +80,21 @@ ArchiveSearchFilters,
   RequestStorageUploadInput,
   ConfirmStorageUploadInput,
 } from "@prism/types";
-import { prismRequest, toQueryString, type PrismRequestInit } from "./http";
+import { aiAuditEvidenceSchema, aiGatewayStreamEventSchema, commsDraftResultSchema } from "@prism/types";
+import { prismRequest, prismSse, toQueryString, type PrismRequestInit } from "./http";
+
+function parseCommsDraftStreamEvent(value: unknown): AiGatewayStreamEvent<CommsDraftResult> {
+  const event = aiGatewayStreamEventSchema.parse(value);
+  if (event.type !== 'complete') return event;
+  return {
+    ...event,
+    result: {
+      ...event.result,
+      output: commsDraftResultSchema.parse(event.result.output),
+      evidence: aiAuditEvidenceSchema.parse(event.result.evidence),
+    },
+  };
+}
 
 export type EventOpsActorQuery = PrismEventOpsActorContext;
 
@@ -150,6 +167,13 @@ export interface EventOpsClient {
   inquiries: {
     list(actor?: EventOpsActorQuery): Promise<PrismInquiry[]>;
     create(input: CreatePrismInquiryInput): Promise<PrismInquiry>;
+  };
+  conformeDrafts: {
+    getForInquiry(inquiryId: string): Promise<unknown>;
+    stream(input: CommsDraftRequest, signal?: AbortSignal): AsyncIterable<AiGatewayStreamEvent<CommsDraftResult>>;
+    saveManual(inquiryId: string, draft: CommsDraftResult): Promise<unknown>;
+    approve(draftId: string, draft: CommsDraftResult): Promise<unknown>;
+    cancel(draftId: string): Promise<unknown>;
   };
   events: {
     list(actor?: EventOpsActorQuery): Promise<PrismEvent[]>;
@@ -283,6 +307,26 @@ export function createEventOpsClient(options: EventOpsClientOptions = {}): Event
     inquiries: {
       list: (actor = {}) => prismRequest<PrismInquiry[]>(actorPath("/inquiries", actor), withBase(options)),
       create: (input) => prismRequest<PrismInquiry>("/inquiries", withBase(options, { method: "POST", body: input })),
+    },
+    conformeDrafts: {
+      getForInquiry: (inquiryId) => prismRequest<unknown>(`/comms-drafts/${encodeURIComponent(inquiryId)}`, withBase(options)),
+      stream: (input, signal) => prismSse(
+        '/comms-drafts/stream',
+        withBase(options, { method: 'POST', body: input, signal }),
+        parseCommsDraftStreamEvent,
+      ),
+      saveManual: (inquiryId, draft) => prismRequest<unknown>(
+        `/comms-drafts/${encodeURIComponent(inquiryId)}/manual`,
+        withBase(options, { method: 'POST', body: draft }),
+      ),
+      approve: (draftId, draft) => prismRequest<unknown>(
+        `/comms-drafts/${encodeURIComponent(draftId)}/approve`,
+        withBase(options, { method: 'POST', body: draft }),
+      ),
+      cancel: (draftId) => prismRequest<unknown>(
+        `/comms-drafts/${encodeURIComponent(draftId)}/cancel`,
+        withBase(options, { method: 'POST' }),
+      ),
     },
     events: {
       list: (actor = {}) => prismRequest<PrismEvent[]>(actorPath("/events", actor), withBase(options)),

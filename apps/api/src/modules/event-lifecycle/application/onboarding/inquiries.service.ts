@@ -1,4 +1,4 @@
-import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismEventOpsActorContext } from '@prism/types';
@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { claimConformeReminderWindow } from './conforme-reminder-window';
 
 export type CreateInquiryInput = {
   clientName: string;
@@ -198,7 +199,11 @@ export class InquiriesService {
 
       const dueAt = addDays(reminderBase, inquiry.followUpIntervalDays);
       if (dueAt <= now) {
-        await this.sendConformeReminderForInquiry(inquiry.id, 'System');
+        try {
+          await this.sendConformeReminderForInquiry(inquiry.id, 'System');
+        } catch (error) {
+          if (!(error instanceof ConflictException)) throw error;
+        }
       }
     }
   }
@@ -430,6 +435,7 @@ export class InquiriesService {
 
   private async sendConformeReminderForInquiry(inquiryId: string, actor: 'PMCM Admin' | 'System') {
     let inquiry: OpsInquiry | null = null;
+    let expectedLastReminderAt: Date | null = null;
     const now = new Date();
 
     return this.workflowCommandService.execute<OpsInquiry>({
@@ -443,18 +449,43 @@ export class InquiriesService {
         if (inquiry.conformeSignedAt) {
           throw new BadRequestException('Conforme has already been signed');
         }
+        if (!inquiry.conformeSentAt) {
+          throw new BadRequestException('Conforme must be sent before a follow-up reminder');
+        }
+        expectedLastReminderAt = inquiry.lastConformeReminderAt;
+        if (actor === 'System') {
+          const reminderBase = expectedLastReminderAt ?? inquiry.conformeSentAt;
+          if (addDays(reminderBase, inquiry.followUpIntervalDays) > now) {
+            throw new ConflictException('The conforme reminder window is not due');
+          }
+        }
       },
-      write: () =>
-        this.prisma.opsInquiry.update({
-          where: { id: inquiryId },
-          data: { lastConformeReminderAt: now },
-        }),
+      write: async () => {
+        if (!inquiry?.conformeSentAt) throw new NotFoundException('Inquiry not found');
+        const claimed = await this.prisma.$transaction((tx) => claimConformeReminderWindow(
+          tx,
+          this.notificationOutboxWriter,
+          {
+            inquiryId,
+            conformeSentAt: inquiry!.conformeSentAt!,
+            expectedLastReminderAt,
+            now,
+            messages: [
+              { recipient: inquiry!.email, message: 'Reminder: signed conforme is still outstanding', channel: 'email' },
+              { recipient: inquiry!.clientName, message: 'Reminder: signed conforme is still outstanding', channel: 'viber' },
+            ],
+          },
+        ));
+        return claimed.inquiry;
+      },
       sideEffects: async (updated) => {
-        await Promise.all([
-          this.notify(undefined, updated.email, 'Reminder: signed conforme is still outstanding'),
-          this.notify(undefined, updated.clientName, 'Reminder: signed conforme is still outstanding', 'viber'),
-          this.audit(undefined, actor, `Sent conforme follow-up reminder to ${updated.clientName}`),
-        ]);
+        await this.audit(undefined, actor, `Queued conforme follow-up reminder for ${updated.clientName}`, {
+          actionType: AuditActionType.Create,
+          category: AuditCategory.Events,
+          affectedType: 'inquiry',
+          affectedId: inquiryId,
+          metadata: { reminderWindowAt: expectedLastReminderAt?.toISOString() ?? inquiry?.conformeSentAt?.toISOString() },
+        });
       },
     });
   }
