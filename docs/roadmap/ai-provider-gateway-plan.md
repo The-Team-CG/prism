@@ -536,6 +536,12 @@ with synthetic events, 20-run latency/reliability samples, PMCM factual/edit
 review, and D/B/A sign-off remain pending. No real-data or production route is
 enabled, and OpenRouter remains deferred.
 
+The last attempted staging [Deploy run](https://github.com/The-Team-CG/prism/actions/runs/35974000138)
+failed at `check-deploy-secrets` because
+`RENDER_PRISM_API_STAGING_DEPLOY_HOOK_URL` was required; newer Deploy runs were
+skipped. The synthetic staging pilot cannot run through the repository's
+deployment path until that gate passes and the stacked PRs reach `staging`.
+
 **Exit:** An inspectable results table is recorded; the synthetic staging
 pilot passes without real event data or autonomous sending. The production
 route remains absent and gated.
