@@ -1,7 +1,7 @@
 ---
 type: "Execution Plan"
 title: "Interchangeable AI provider gateway"
-description: "Route every P.R.I.S.M AI use case through one governed gateway so providers and models can be swapped by configuration."
+description: "Deliver a governed, provider-interchangeable AI gateway through reviewable PRs and isolated worktrees."
 tags: [ai, ai-governance, pare, platform-ops, zdr, openrouter, anthropic]
 status: active
 updated: "2026-09-24"
@@ -9,7 +9,7 @@ authority: informative
 owner: "D (Anthony)"
 audience: [engineers, agents, reviewers]
 scope: "AI gateway contracts and core, Anthropic and OpenRouter adapters, PARE migration, FR-AI-09 streaming communication drafts, model evaluation, and a synthetic-data staging pilot"
-last_verified: "0cbb9838; PARE agents, execution policy, AI audit schema, API module format"
+last_verified: "a95ab19; PARE, AI audit schema, conforme reminder sweep, API module format, and worktree runbook"
 sources:
   - id: pare-agents
     resource: "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents"
@@ -20,6 +20,12 @@ sources:
   - id: pare-service
     resource: "apps/api/src/modules/platform-ops/application/ai-governance/pare/pare.service.ts"
     title: "PARE orchestration, audit write, and result mapping"
+  - id: pare-sanitizer
+    resource: "apps/api/src/modules/platform-ops/application/ai-governance/pare/data-sanitizer.service.ts"
+    title: "Current field-name-based PARE sanitizer"
+  - id: conforme-reminders
+    resource: "apps/api/src/modules/event-lifecycle/application/onboarding/inquiries.service.ts"
+    title: "Current automatic unsigned-conforme reminder sweep"
   - id: ai-audit-schema
     resource: "apps/api/prisma/schema.prisma"
     title: "OpsAiAuditLog model (trust_ops.ai_audit_logs)"
@@ -34,13 +40,19 @@ sources:
     title: "FL-001, FL-005, FL-007, FL-008, FL-014, FL-015 AI gates"
   - id: ai-sdk-7
     resource: "https://vercel.com/changelog/ai-sdk-7"
-    title: "Vercel AI SDK 7 release notes (ESM-only, Node 22+)"
+    title: "Vercel AI SDK 7 release notes (ESM-only; CommonJS require unsupported)"
   - id: openrouter-provider-routing
-    resource: "https://openrouter.ai/docs/features/provider-routing"
+    resource: "https://openrouter.ai/docs/guides/routing/provider-selection"
     title: "OpenRouter provider routing, including zdr and data_collection"
   - id: openrouter-glm-5-3-flash
     resource: "https://openrouter.ai/z-ai/glm-5.3-flash"
     title: "OpenRouter z-ai/glm-5.3-flash model listing"
+  - id: worktree-runbook
+    resource: "docs/runbooks/parallel-worktrees.md"
+    title: "Parallel worktree setup and port isolation"
+  - id: migration-runbook
+    resource: "docs/runbooks/database-migrations.md"
+    title: "Prisma migration ownership and verification"
 ---
 # Interchangeable AI provider gateway
 
@@ -52,19 +64,20 @@ sources:
   can be swapped without changing feature code.
 - **Authority:** Informative execution plan. The feature ledger, readiness
   foundation, and FR-AI-ZDR governance remain authoritative for product
-  behavior. Durable decisions are promoted into an ADR in Phase 7, after which
+  behavior. Durable decisions are promoted into an ADR in PR 7, after which
   this plan is removed.
 - **Owner:** D (Anthony) owns the gateway, the governance gate, and provider
   approval. B (Francis) co-owns the PARE and communication-draft workflows.
   A (Maxine) owns the draft review surface.
-- **Scope:** Phases 0 to 7 below. Production live AI on real data is out of
-  scope until D records the provider approval described in Phase 7.
-- **Approval:** D (Anthony) approved this plan on 2026-09-24. That approval
-  covers the plan and its phases only; provider approval for live AI on real
-  data is still recorded separately in Phase 7.
-- **Use/change:** Update when a phase closes, a Phase 0 check changes a
-  decision, or a provider or model route is added or removed.
-- **Verify with:** Each phase's exit check, the provider conformance suite,
+- **Scope:** PRs 0 to 7 below, with PRs 2 to 5 developed in parallel after
+  verification and contract freeze. Production live AI on real data is out of
+  scope until D records a separate provider approval.
+- **Approval:** D (Anthony) approved the original phase plan on 2026-09-24.
+  This PR breakdown refines execution; PR 0's route decision and approval
+  for live AI on real data are recorded separately.
+- **Use/change:** Update when a PR closes, PR 0 changes a decision, or a
+  provider or model route is added or removed.
+- **Verify with:** Each PR's exit check, the provider conformance suite,
   `npm run check:boundaries`, API tests, and proof that blocked paths make no
   network call.
 
@@ -86,7 +99,7 @@ Interchangeable means four things:
 
 ## Current state
 
-Verified at `0cbb9838`:
+Verified at `a95ab19`:
 
 - Only PARE calls a model. `budget.agent.ts`, `risk.agent.ts`, and
   `message-drafter.agent.ts` each create
@@ -102,6 +115,12 @@ Verified at `0cbb9838`:
   result. In live mode that would present deterministic output as model output.
 - `OpsAiAuditLog` has no columns for provider, route, prompt version, token
   usage, latency, or the basis of the ZDR claim.
+- The current PARE sanitizer recognizes selected PII field names; free text
+  and tool results need their own outbound-data tests before real-data use.
+- PARE approval checks currently accept only mock audit evidence. The
+  migration must preserve PMCM review while accepting verified live evidence.
+- The unsigned-conforme reminder sweep already sends deterministic messages;
+  FR-AI-09 must claim or deduplicate its reminder window with that workflow.
 - The API compiles to CommonJS (`module: commonjs`, `moduleResolution: node`).
   The root `package.json` requires Node `>=24`.
 - The V4 catalog's FR-AI-ZDR entry assumes a ZDR agreement with Anthropic.
@@ -112,15 +131,15 @@ Verified at `0cbb9838`:
 
 | Topic | Decision |
 | --- | --- |
-| Library | Vercel AI SDK v7 (`ai`, `@ai-sdk/anthropic`, `@openrouter/ai-sdk-provider`), pinned to exact versions, subject to the Phase 0 loading check. Fallback: keep the same port and implement it with `@anthropic-ai/sdk` (already a dependency) plus an OpenAI-compatible client for OpenRouter. Feature code is identical either way. |
+| Library | Keep the `AiGateway` port independent of transport. The current CommonJS build and Vercel's published AI SDK 7 ESM requirement make `require(esm)` an unsupported default. PR 0 records the implementation choice: direct adapters using the existing `@anthropic-ai/sdk` and an OpenRouter HTTP client are the baseline; an isolated, supported ESM bridge is acceptable only if built API, Vitest, and Docker checks prove it. |
 | Placement | The `AiGateway` port lives in `platform-ops` contracts and is exported from `modules/platform-ops/index.ts`. Adapters live in `platform-ops/infrastructure/ai-governance`. Other contexts depend only on the port and supply their own tool handlers. |
 | Configuration | The use-case registry and the route profiles are code, reviewed in PRs. Environment variables select a profile, hold keys, and list which use cases may go live. Everything is validated with Zod at startup. Invalid AI configuration fails startup only when a live use case is enabled; otherwise AI stays in mock and health reports it. |
-| Production route | OpenRouter `z-ai/glm-5.3-flash` with ZDR required, provider endpoints pinned to verified ZDR slugs, and data collection denied. |
+| Production route | OpenRouter `z-ai/glm-5.3-flash` is the first candidate, with ZDR required, provider endpoints pinned to verified ZDR slugs, and data collection denied. PR 0 may replace it if the route cannot meet tool and ZDR requirements. |
 | Test route | Anthropic direct `claude-sonnet-4-6` on existing credits. It has no ZDR, so it accepts synthetic data only and is refused in production. |
 | Failures | Fail closed. Retry the same route within limits. Never fail over to another provider or profile. Never substitute mock output in live mode. |
-| Streaming | The port has `stream` from Phase 1. FR-AI-09 uses it in Phase 5. The input types leave room for multi-turn chat (FR-AI-05 POA, FR-AI-07 copilot), which is built later. |
+| Streaming | The port has `stream` from PR 1. FR-AI-09 uses it in PR 5. The input types leave room for multi-turn chat (FR-AI-05 POA, FR-AI-07 copilot), which is built later. |
 | New use case | FR-AI-09 client communication drafts, starting with the unsigned-conforme trigger. |
-| Done for this plan | Code complete; both routes pass the conformance suite; a staging pilot on synthetic data succeeds; production live AI stays off until D approves. |
+| Done for this plan | PRs 0 to 7 merged; both selected routes pass the conformance suite; a staging pilot on synthetic data succeeds; production live AI stays off until D separately approves the real-data route. |
 
 ## Architecture
 
@@ -176,7 +195,7 @@ Environment variables:
 | `AI_LIVE_USE_CASES` | Comma-separated use-case IDs allowed to call a provider. Empty by default. |
 | `ANTHROPIC_API_KEY` | Anthropic key for `test-anthropic`. |
 | `OPENROUTER_API_KEY` | OpenRouter key for `prod-openrouter-zdr`. |
-| `PARE_MODE` | Kept as an alias during Phase 4 (`live` enables the `pare.*` use cases), then removed. |
+| `PARE_MODE` | Kept as a guarded compatibility alias in PR 4. PR 7 records the configuration cutover and removal condition; it cannot alone authorize a live call. |
 
 Profiles are code, so adding a provider or model is a reviewed PR. The
 environment can only choose among approved profiles.
@@ -189,7 +208,7 @@ environment can only choose among approved profiles.
    case with `requiresZdr` can send real data only over a
    `provider-enforced` route.
 3. A `none` route accepts only inputs the server can verify as synthetic
-   (seeded sample events or test fixtures; the marker is defined in Phase 1),
+   (seeded sample events or test fixtures; the proof is defined in PR 1),
    and is refused when `NODE_ENV=production`.
 4. OpenRouter requests always send
    `provider: { zdr: true, data_collection: "deny", only: [<verified ZDR slugs>] }`.
@@ -225,27 +244,259 @@ environment can only choose among approved profiles.
 - The audit record is written on completion, abort, or error. Aborted streams
   are recorded as `aborted` with the tokens used so far.
 
-## Phases
+## PR dependency and parallel schedule
 
-| Phase | Work | Exit check |
-| --- | --- | --- |
-| 0. Go/no-go checks | (a) Load AI SDK v7 from the compiled CommonJS API on Node 24 through `require(esm)`, in Vitest, and in the Docker image. (b) List `z-ai/glm-5.3-flash` endpoints and record which support ZDR, tools, `tool_choice`, and structured output. (c) Send one synthetic forced-tool request per route: Anthropic Sonnet, and OpenRouter GLM pinned to ZDR endpoints. (d) Confirm the OpenRouter account ZDR setting and data terms. | Library decision recorded here. ZDR endpoint slugs recorded. If GLM has no ZDR endpoint with tool support, choose another ZDR model for `strong` before Phase 4. |
-| 1. Contracts | Add `@prism/types` schemas for use-case IDs, route and profile config, the audit record, run and stream results, FR-AI-09 input and output, and PARE agent outputs (moved from `pare.types.ts`). Add the `AiGateway` port to `platform-ops` contracts. Define the synthetic-data marker. Add a boundary rule that allows `ai`, `@ai-sdk/*`, `@openrouter/*`, and `@anthropic-ai/sdk` only under `platform-ops/infrastructure/ai-governance`. | `@prism/types` build and tests pass. `check:boundaries` and `test:boundaries` pass, including a fixture that proves a forbidden provider import fails. |
-| 2. Gateway core | Registry, profile resolution, per-use-case live gate (replaces `assertPareExecutionAllowed` and keeps its fail-before-network property), sanitizer, ZDR and synthetic checks, limits, retry and timeout, output validation, audit writer, and mock and fake adapters. | Tests show that a blocked use case, real data on a non-ZDR route, a non-ZDR route in production, a missing key, invalid output, an exhausted loop, and an abort each fail without a network call where required and write the expected audit outcome. |
-| 3. Provider adapters | Anthropic and OpenRouter adapters with tool loops, OpenRouter provider options, usage and response-model extraction, and streaming. | Adapter tests against mocked HTTP verify base URL, key, model, and provider options per route. The conformance suite runs the same recorded fixtures through every adapter. |
-| 4. PARE migration | Turn the three agents into use-case definitions and tool handlers and delete their copied loops. Replace the `PARE_MODE` gate with `AI_LIVE_USE_CASES`, keeping the alias for this phase. Derive live or mock from the stored run. Add a Prisma migration with nullable `provider`, `route_profile`, `prompt_version`, `response_model`, `zdr_basis`, `input_tokens`, `output_tokens`, `latency_ms`, and `outcome` columns on `trust_ops.ai_audit_logs`, following the migration ownership policy. | Existing PARE and dispatch tests pass. `prisma:validate`, `db:verify:offline`, and the migration guard pass. No provider SDK import exists outside the adapters. |
-| 5. FR-AI-09 drafts | Add a PMCM "Generate draft" action for the unsigned-conforme trigger in `apps/event`, with a streaming review panel built as a feature slice. Place the draft workflow with notifications in `platform-ops` (FL-014), reading trigger state through `read-models`; confirm placement in Phase 1. Approved drafts enter the existing notification outbox as PMCM-authored messages; production delivery stays gated as today. Other catalog triggers and automatic scheduling come later. | Forbidden-role tests, no send without approval, mid-stream abort, and audit completeness pass. Event portal typecheck passes. Manual PMCM role path checked. |
-| 6. Evaluation and pilot | Run a fixed synthetic scenario set for PARE and drafts on both routes. Measure tool-loop completion, schema pass rate, how often PMCM edits are needed, p50 and p95 latency, and cost per run. Then pilot `prod-openrouter-zdr` on staging with synthetic events only. | Results table added to this plan. Model chosen per tier. PARE stays on `strong` and may move to another ZDR model if Flash falls short. |
-| 7. Governance promotion | Write an ADR for the AI gateway and provider interchangeability. Update FL-015, the readiness foundation, and the actual-system record with provider-neutral ZDR language that names the approved OpenRouter route and endpoints. Record D's approval: provider, model, endpoints, ZDR basis, data classes, and a Philippine Data Privacy Act check of the new data path. Promote durable content and remove this plan. | D's approval recorded. Production `AI_LIVE_USE_CASES` stays empty until then. |
+| PR | Title | Development start | Merge gate |
+| --- | --- | --- | --- |
+| 0 | Verify runtime and provider routes | Now, alone | Evidence and a go/no-go decision recorded; no real-data call. |
+| 1 | Freeze contracts and worktree interfaces | After PR 0 | Shared schemas, port, adapter contract, and stream protocol pass tests. |
+| 2 | Gateway core and audit migration | After PR 1 | First of the parallel branches to merge. |
+| 3 | Provider adapters and conformance | After PR 1, in parallel with PR 2 | Rebase on merged PR 2; conformance passes before merge. |
+| 4 | PARE migration | After PR 1, in parallel with PRs 2 and 3 | Rebase on merged PRs 2 and 3; dispatch and approval regressions pass. |
+| 5 | FR-AI-09 unsigned-conforme drafts | After PR 1, in parallel with PRs 2 to 4 | Rebase on merged PRs 2 and 3; merge after PR 4 to serialize shared module wiring. |
+| 6 | Synthetic evaluation and staging pilot | Fixture design may start after PR 1 | Runs after PRs 2 to 5 merge; measured result and tier choice recorded. |
+| 7 | Governance promotion and closeout | After PR 6 | Durable ADR/product documentation replaces this working plan; live production stays gated. |
+
+PRs 2 to 5 are **parallel development**, not independent release units.
+PRs 3 to 5 may be draft PRs while PR 2 is in flight. Each becomes mergeable
+only after rebasing on the merged dependencies and passing its full exit checks.
+No branch enables a live production use case by default.
+
+### PR 0 — Verify runtime and provider routes
+
+**Owner:** D, with B validating the PARE forced-tool scenario. **Files:** this
+plan and, if useful, opt-in synthetic probe scripts; no production module or
+secret-bearing fixture.
+
+1. Record the library choice. Vercel documents AI SDK 7 as ESM-only and says
+   CommonJS `require()` is unsupported. Use the direct-adapter baseline unless
+   an isolated ESM bridge is proven by the compiled API, Vitest, and Docker
+   checks. Do not make a successful Node 24 `require(esm)` experiment the
+   sole support criterion.
+2. Inspect candidate OpenRouter endpoints for ZDR, tools, forced
+   `tool_choice`, structured output, and streaming. Verify exact provider
+   slugs and the account's ZDR, data-collection, logging, and caching settings.
+3. With synthetic fixtures only, run one forced-tool request through
+   Anthropic direct and one through OpenRouter pinned to a candidate ZDR
+   endpoint. Record response model, endpoint when available, tool behavior,
+   usage, and failure semantics without keys or raw prompts.
+4. If GLM 5.3 Flash cannot satisfy the PARE tool contract over a ZDR route,
+   select another verified ZDR model for `strong` before implementation.
+
+**Exit:** A reviewed route matrix, supported library decision, and selected
+model/endpoint candidates are recorded here. Missing credentials or account
+evidence means PR 0 remains open; it is not inferred from a model listing.
+This technical go/no-go is separate from D's real-data provider approval.
+
+### PR 1 — Freeze contracts and worktree interfaces
+
+**Owner:** D. **Files:** `packages/types`, `platform-ops/contracts/ai-governance`,
+the public `platform-ops/index.ts`, and the boundary checker/tests. This PR
+owns shared shapes so parallel branches do not invent local DTOs.
+
+1. Add Zod schemas and inferred types for stable use-case IDs, inputs and
+   outputs, route/profile configuration, run results, stream events, audit
+   evidence, PARE model outputs, and the first `comms.draft` request/result.
+2. Define `AiGateway.run` and `stream`, provider-adapter and tool-handler
+   interfaces, a typed error/outcome vocabulary, prompt versioning, and the
+   POST/SSE event contract. Fix the response on abort and incomplete loops.
+3. Define server-verifiable synthetic provenance from seeded IDs or fixtures.
+   A caller-supplied `synthetic: true` flag is never sufficient.
+4. Freeze the ownership seam: `platform-ops` owns draft orchestration and
+   gateway policy; `event-lifecycle` owns inquiry/reminder state and any
+   reminder-window claim; `read-models` supplies scoped reads.
+5. Enforce provider-package imports only under
+   `platform-ops/infrastructure/ai-governance`, with a failing fixture.
+
+**Exit:** `@prism/types` build/test/typecheck, API typecheck,
+`check:boundaries`, and `test:boundaries` pass. Publish the PR 1 merge commit
+as the common base for PRs 2 to 5; changing a frozen contract requires an
+explicit coordinated update to all affected branches.
+
+### PR 2 — Gateway core and audit migration
+
+**Owner:** D. **Files:** `platform-ops/application/ai-governance/gateway`,
+mock/fake infrastructure, `platform-ops.module.ts`, health/config wiring,
+`apps/api/prisma/schema.prisma`, and one owner-tagged `platform-ops` migration.
+PR 2 is the sole schema/migration owner during parallel development.
+
+1. Resolve the reviewed profile at startup. Keep `mock` as default and
+   `AI_LIVE_USE_CASES` empty. Invalid live configuration fails before network
+   effects; mock-only startup reports its state in health.
+2. Centralize allowlisted input minimization, free-text and tool-result PII
+   checks, data-class recording, server-verified synthetic/ZDR policy, timeout,
+   same-route retry, output validation, and abort handling. Unknown or
+   unsanitizable real-data fields fail closed.
+3. Enforce daily token budgets with a concurrency-safe reservation and usage
+   reconciliation, plus per-run step and output-token limits.
+4. Extend `OpsAiAuditLog` with nullable route, prompt, ZDR-basis, usage,
+   latency, response-model/endpoint, and outcome evidence. Define how existing
+   `featureName` and `modelVersion` map to stable use case and requested model.
+   Preserve old rows without retroactively claiming provider ZDR.
+5. Write one correlated audit outcome per run, including blocked, incomplete,
+   aborted, and failed runs; persist sanitized payload only. The mock adapter
+   follows the same validation and audit path.
+
+**Exit:** Negative tests prove blocked routes, non-ZDR real data, non-ZDR in
+production, missing keys, invalid output, exhausted steps, and aborts do not
+reach a provider when prohibited and produce the correct audit outcome.
+API typecheck/tests, `prisma:validate`, `db:verify:offline`,
+`check:migrations`, `test:migrations`, and `check:invariants` pass. Migration
+deployment is separately verified against an approved target.
+
+### PR 3 — Provider adapters and conformance
+
+**Owner:** D. **Files:** `platform-ops/infrastructure/ai-governance` provider
+adapters and their fixtures. Avoid `schema.prisma`, `packages/types`, and
+`platform-ops.module.ts` until rebasing on merged PR 2.
+
+1. Implement Anthropic direct and OpenRouter adapters behind the PR 1
+   interface using the transport chosen in PR 0. Support tool calls, forced
+   tool choice, bounded loops, `run`, `stream`, abort propagation, usage,
+   response-model, and endpoint extraction.
+2. Send OpenRouter `provider.zdr: true`,
+   `provider.data_collection: "deny"`, and the PR 0 verified `only` slugs
+   on every call. Permit no model/profile fallback; any endpoint fallback
+   stays inside the pinned ZDR list.
+3. Run the same recorded conformance fixtures through both adapters:
+   valid and invalid output, malformed tools, step exhaustion, 429/5xx,
+   nonretryable 4xx, stream abort, and provider option serialization.
+
+**Exit:** Mocked HTTP assertions prove base URL, key isolation, requested
+model, provider options, retry limits, and cancellation. The provider
+conformance suite, API typecheck/build, and boundary checks pass. Opt-in live
+checks use synthetic data only and are not required in CI.
+
+### PR 4 — Migrate PARE
+
+**Owners:** B for workflow, D for the governance seam. **Files:** the PARE
+application/agents and their tests. Leave central gateway/module wiring for
+the rebase and integration pass.
+
+1. Preserve deterministic event-context and supplier-candidate work. Convert
+   budget, risk, and message-drafter agents into registry use cases with
+   context-owned tool handlers; remove their copied Anthropic loops.
+2. Replace model-name inference with stored gateway run evidence. Live failure
+   and step exhaustion remain failures, never mock results.
+3. Preserve dispatch lease, abort, retry, idempotency, request ownership, and
+   the existing PMCM approval action. Update the mock-only audit assertion so
+   verified live results can be approved by PMCM without accepting blocked,
+   mismatched, or unaudited output.
+4. Treat `PARE_MODE` as a temporary compatibility alias only when the route,
+   key, use-case allowlist, and real-data approval gates also pass. Reject
+   conflicting old/new configuration.
+
+**Exit:** PARE, safety, dispatch, approval, and forbidden-role tests pass;
+no provider import remains in PARE. API typecheck and boundary checks pass
+after rebase. The approval action still never sends messages automatically.
+
+### PR 5 — FR-AI-09 unsigned-conforme draft
+
+**Owners:** B for the communication rule, A for the PMCM review view, D for
+the gate. **Files:** `platform-ops` communication-draft workflow/API,
+focused `event-lifecycle` reminder seam, `@prism/api-client` transport, and
+`apps/event/src/features` review slice. No client-portal surface is added.
+
+1. Offer a PMCM-initiated draft for an accepted inquiry whose conforme
+   remains unsigned five days after `conformeSentAt`. The inquiry may not yet
+   have an event ID. Recheck scope, status, and eligibility on generate and
+   approve; never trust browser-provided recipient or authority.
+2. Resolve the existing deterministic reminder collision. Show recent
+   `lastConformeReminderAt` evidence and use one server-owned claim or
+   idempotency rule per reminder window so a scheduled standard reminder and
+   approved AI draft cannot both enqueue the same follow-up.
+3. Stream from a guarded POST/SSE endpoint through `@prism/api-client`.
+   The review view follows `page → View → ViewModel → use-case → data`,
+   supports cancel/retry/manual writing, and displays an unavailable state.
+4. Store the validated draft and PMCM decision. Only an approved, still
+   eligible draft enters the notification outbox as a PMCM-authored message.
+   Provider delivery remains under the existing notification gate.
+
+**Exit:** Forbidden-role, stale-state, duplicate-window, repeated approval,
+no-send-before-approval, abort, stream audit, and outbox idempotency tests
+pass. API and event portal typechecks pass; the PMCM path is manually checked.
+
+### PR 6 — Synthetic evaluation and staging pilot
+
+**Owners:** D and B, with A reviewing draft usability. **Files:** fixed
+synthetic evaluation fixtures and this plan's results table; no production
+allowlist change.
+
+1. Freeze scenarios and pass thresholds before scoring: PARE replacement,
+   budget/risk/tool paths, malformed provider responses, and unsigned-conforme
+   drafts. Policy, schema, audit, and no-autonomous-send checks must all pass.
+2. Run both selected routes on the same fixture set. Record tool-loop
+   completion, schema pass rate, PMCM edit frequency, p50/p95 latency, token
+   usage, and cost per run; record failures as failures.
+3. Pilot the chosen ZDR route in staging with synthetic events only. Revisit
+   the `strong` model if the candidate does not meet the preset quality bar.
+
+**Exit:** An inspectable results table and route choice are recorded; the
+staging pilot passes without real event data or autonomous sending.
+
+### PR 7 — Governance promotion and closeout
+
+**Owner:** D, with B and A reviewing affected product/UX decisions. **Files:**
+an ADR, `feature-ledger.md`, `readiness-foundation.md`,
+`actual-system.md`, privacy/runbook material, and release notes.
+
+1. Promote the supported library, route-profile, ZDR, approval, audit, and
+   failure decisions into durable documents. Replace provider-specific
+   FR-AI-ZDR assumptions in current governance; preserve the V4 catalog as
+   historical reference.
+2. Record the provider, model, endpoint slugs, ZDR basis, data classes,
+   processor locations, and Philippine Data Privacy Act review outcome.
+   Record D's real-data approval if granted; otherwise record it as pending.
+   Record the `PARE_MODE` cutover and its reviewed removal condition.
+3. Keep production `AI_LIVE_USE_CASES` empty until the separate approval
+   and deployment change. Remove this working plan after its durable
+   decisions and evidence are promoted; Git history retains it.
+
+**Exit:** Documentation links/frontmatter, `docs/log.md`, `CHANGELOG.md`,
+`git diff --check`, and second-owner PR review are complete. A later
+production activation is a separate, explicitly approved change.
+
+## Parallel worktree protocol
+
+After PR 0 is reviewed, finish and merge PR 1 as the short shared-contract
+serialization point. Create four linked worktrees from its merge commit:
+
+```powershell
+npm run worktree:create -- ai-gateway-core <pr-1-merge-commit>
+npm run worktree:create -- ai-gateway-providers <pr-1-merge-commit>
+npm run worktree:create -- ai-gateway-pare <pr-1-merge-commit>
+npm run worktree:create -- ai-gateway-comms <pr-1-merge-commit>
+```
+
+Each checkout uses its own `codex/` feature branch, runs
+`npm run worktree:setup` and installs dependencies locally, then checks
+`npm run ports` before starting a stack. Follow
+[the parallel-worktree runbook](../runbooks/parallel-worktrees.md): linked
+worktrees use local Node, not Docker Compose; setup seeds example environment
+files unless credential copying is deliberately requested. Keep integration
+databases isolated and do not run PR 2's migration concurrently against a
+shared database. Remove linked worktrees with `npm run worktree:remove`,
+not recursive filesystem deletion.
+
+PR 1 owns shared Zod/API shapes and boundary rules. PR 2 alone owns Prisma
+and initial `platform-ops.module.ts` wiring. PRs 3 to 5 avoid central module,
+index, schema, and package-contract edits during parallel coding. After PR 2
+merges, rebase and integrate PR 3, then rebase PR 4 and PR 5. Merge PR 4
+before PR 5 so central wiring has one reviewer-visible change at a time.
+Every rebased PR runs its full exit checks and gets a second-owner review;
+green checks from an earlier base are insufficient.
 
 ## Risks and open questions
 
 | Risk or question | Handling |
 | --- | --- |
-| GLM 5.3 Flash may not complete PARE tool loops reliably. | Phase 6 measures it; `strong` can move to another ZDR model through configuration. |
-| GLM ZDR endpoints may lack tool support. | Phase 0 go/no-go before any migration work depends on it. |
-| AI SDK v7 is ESM-only and the API is CommonJS. | Phase 0 tests Node 24 `require(esm)`; otherwise use the fallback adapters behind the same port. |
-| OpenRouter and the model host become data processors. | ZDR per request plus the account setting; list both processors and their hosting location in privacy documentation during Phase 7. |
+| GLM 5.3 Flash may not complete PARE tool loops reliably. | PR 6 measures it; `strong` can move to another verified ZDR model through a reviewed profile change. |
+| GLM ZDR endpoints may lack tool support. | PR 0 selects an eligible model before parallel provider work begins. |
+| AI SDK v7 is ESM-only and the API is CommonJS. | Direct adapters are the baseline; PR 0 may select an isolated supported ESM bridge only after built API, Vitest, and Docker evidence. |
+| OpenRouter and the model host become data processors. | ZDR per request plus the account setting; list both processors and their hosting location in privacy documentation during PR 7. |
 | Test route has no ZDR. | Synthetic-only rule enforced in code and refused in production. |
-| SDK and provider API changes. | Exact version pins; only adapters import provider packages; the conformance suite catches behavior changes. |
+| Free text or tool results may contain PII despite safe field names. | PR 2 uses allowlisted minimization and adversarial outbound-payload fixtures; unknown real-data fields fail closed. |
+| The reminder sweep and AI approval can enqueue duplicate follow-ups. | PR 5 uses one server-owned reminder-window claim/idempotency rule, including race tests. |
+| Parallel branches can drift on the shared gateway contract or module wiring. | PR 1 freezes contracts, PR 2 owns initial wiring, and draft PRs 3 to 5 rebase and rerun checks before ordered merges. |
+| SDK and provider API changes. | Pin adapter dependencies; only infrastructure imports provider packages; the conformance suite catches behavior changes. |
 | Cost growth as use cases are added. | Daily token budgets per use case, usage recorded in audit, and OpenRouter credit alerts. |
