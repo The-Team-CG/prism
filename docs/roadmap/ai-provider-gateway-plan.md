@@ -345,8 +345,11 @@ owns shared shapes so parallel branches do not invent local DTOs.
 4. Freeze the ownership seam: `platform-ops` owns draft orchestration and
    gateway policy; `event-lifecycle` owns inquiry/reminder state and any
    reminder-window claim; `read-models` supplies scoped reads.
-5. Enforce provider-package imports only under
-   `platform-ops/infrastructure/ai-governance`, with a failing fixture.
+5. Enforce static, dynamic, and `require` provider SDK imports only under
+   `platform-ops/infrastructure/ai-governance`. Temporarily grandfather only
+   the existing PARE budget, risk, and message-drafter agents through PR 4;
+   no other source file is exempt. Test-only `vi.mock` declarations do not
+   grant runtime import access.
 
 **Exit:** `@prism/types` build/test/typecheck, API typecheck,
 `check:boundaries`, and `test:boundaries` pass. Publish the PR 1 merge commit

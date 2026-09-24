@@ -237,6 +237,7 @@ export {
   type DecideFreezeExceptionInput,
   type IssueAddendumInput,
 } from "./session-w26-inputs.js";
+export * from "./ai-governance.js";
 export {
   PrismContractError,
   parseContract,
