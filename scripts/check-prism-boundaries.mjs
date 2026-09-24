@@ -27,7 +27,7 @@ const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
 const aiProviderSdkImportPattern =
   /\b(?:from\s*|import\s*(?:\(\s*)?|require\s*\(\s*)["'](?:@anthropic-ai\/sdk(?:\/[^"']*)?|@openrouter\/[^"']+|openai(?:\/[^"']*)?|@google\/generative-ai(?:\/[^"']*)?|@google-cloud\/vertexai(?:\/[^"']*)?|@aws-sdk\/client-bedrock-runtime(?:\/[^"']*)?|@ai-sdk\/[^"']+|ai(?:\/[^"']*)?)["']/;
 const aiProviderImportExceptionPattern =
-  /^(?:apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\/|apps\/api\/src\/modules\/platform-ops\/application\/ai-governance\/pare\/agents\/(?:budget|risk|message-drafter)\.agent\.ts$)/;
+  /^apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\//;
 
 function contextOf(normalized) {
   return normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1] ?? null;
