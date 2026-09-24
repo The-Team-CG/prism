@@ -24,6 +24,12 @@ export const AI_PROVIDER_CONFORMANCE_REQUEST: AiProviderRequest = {
     },
   ],
   toolChoice: { type: 'tool', name: 'emit_draft' },
+  outputSchema: {
+    type: 'object',
+    properties: { subject: { type: 'string', minLength: 1 }, body: { type: 'string', minLength: 1 } },
+    required: ['subject', 'body'],
+    additionalProperties: false,
+  },
   maxOutputTokens: 256,
 };
 
