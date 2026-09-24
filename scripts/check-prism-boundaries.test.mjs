@@ -112,6 +112,18 @@ describe("findBoundaryViolations", () => {
     }
   });
 
+  it("allows the focused conforme reminder claim seam only", () => {
+    const path = "apps/api/src/modules/platform-ops/application/ai-governance/conforme-comms-draft.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { CONFORME_REMINDER_WINDOW_CLAIMER } from "@prism/contexts/event-lifecycle/conforme-reminder-window";',
+    }), []);
+    for (const imported of ["@prism/contexts/event-lifecycle/application/onboarding/inquiries.service", "@prism/contexts/event-lifecycle/conforme-reminder-window/private"]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: `import { InquiryService } from "${imported}";` }), [
+        `${path}: backend code must use public context and kernel entrypoints`,
+      ]);
+    }
+  });
+
   it("confines provider SDK imports to gateway infrastructure after the PARE migration", () => {
     const allowedAdapter = "apps/api/src/modules/platform-ops/infrastructure/ai-governance/anthropic.adapter.ts";
     const migratedAgent = "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents/budget.agent.ts";

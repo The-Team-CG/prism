@@ -35,8 +35,12 @@ function contextOf(normalized) {
 
 function hasPrivateModuleImport(source) {
   const nestedImports = source.matchAll(/from\s+["'](@prism\/(?:contexts|kernel)\/[^/"']+\/[^"']+)["']/g);
-  const publicReadSeams = new Set(['@prism/contexts/read-models/closeout', '@prism/contexts/read-models/event-scope']);
-  return [...nestedImports].some((match) => !publicReadSeams.has(match[1]));
+  const publicSubpathSeams = new Set([
+    '@prism/contexts/read-models/closeout',
+    '@prism/contexts/read-models/event-scope',
+    '@prism/contexts/event-lifecycle/conforme-reminder-window',
+  ]);
+  return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
 }
 
 function hasPrivateCrossContextImport(normalized, source) {
