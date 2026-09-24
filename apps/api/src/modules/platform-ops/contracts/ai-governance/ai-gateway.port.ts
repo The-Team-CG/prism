@@ -102,6 +102,7 @@ export type AiProviderRequest = {
   messages: AiProviderMessage[];
   tools: AiProviderToolSpec[];
   toolChoice: AiProviderToolChoice;
+  outputSchema?: Record<string, unknown>;
   maxOutputTokens: number;
 };
 
