@@ -3,6 +3,7 @@
 ## 2026-09-25
 
 - **Recorded:** PR 6 freezes synthetic PARE and unsigned-conforme scenarios, local pass criteria, and a results table. Final single-run Anthropic smoke completed all four fixed use cases with registered PARE tool loops; exploratory failures remain visible. Full PARE provenance chaining, synthetic staging pilot, 20-run metrics, and PMCM review remain pending. OpenRouter and all real-data/production AI stay disabled.
+- **Verified:** The latest attempted staging Deploy run failed at the required Render API deploy hook secret, and newer Deploy runs were skipped. PR 6 records this external staging pilot gate.
 
 ## 2026-09-24
 
