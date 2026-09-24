@@ -5,6 +5,7 @@
 - **Added:** Interchangeable AI provider gateway plan. Every AI use case will call one `platform-ops` gateway; Anthropic Sonnet is a synthetic-data test route and OpenRouter `z-ai/glm-5.3-flash` is a production candidate pending ZDR/tool verification. The plan records PARE coupling, fail-closed rules, streaming FR-AI-09 drafts, and the separate Owner D approval required before live AI touches real data.
 - **Expanded:** PR 0–7 now have owners, file scopes, dependencies, and exit checks. After provider verification and contract freeze, four worktrees can develop the core, adapters, PARE migration, and communication draft in parallel; merges remain ordered. The audit migration moves into the gateway-core PR, and the plan covers free-text sanitization and the existing automatic conforme reminder collision.
 - **Recorded:** PR 0 verifies Anthropic Sonnet 4.6 forced-tool output with synthetic data. Public OpenRouter metadata shows candidate ZDR/tool/schema endpoints, including Fireworks, but model access and account privacy evidence are unavailable. The user approved deferring OpenRouter; mock remains default and production/real-data AI stay disabled. PR 0 is complete for this approved scope.
+- **Frozen:** PR 1 defines shared Zod/inferred AI use-case, routing, audit, and streaming contracts plus gateway/provider/tool ports. Provider SDK imports are confined to gateway infrastructure, with only the three existing PARE agents grandfathered until their PR 4 migration.
 
 ## 2026-09-18
 

@@ -111,4 +111,29 @@ describe("findBoundaryViolations", () => {
       ]);
     }
   });
+
+  it("confines provider SDK imports to gateway infrastructure and exact PARE migration exceptions", () => {
+    const allowedAdapter = "apps/api/src/modules/platform-ops/infrastructure/ai-governance/anthropic.adapter.ts";
+    const legacyAgent = "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents/budget.agent.ts";
+    const blockedPortal = "apps/event/src/features/pare/data/provider.ts";
+    const blockedBackend = "apps/api/src/modules/commercial/application/provider.ts";
+    const blockedSharedTypes = "packages/types/src/provider.ts";
+    const mockOnlyTest = "apps/api/src/modules/platform-ops/application/ai-governance/pare/pare-safety.test.ts";
+
+    assert.deepEqual(
+      findBoundaryViolations({
+        [allowedAdapter]: 'import Anthropic from "@anthropic-ai/sdk";',
+        [legacyAgent]: 'const sdk = await import("@anthropic-ai/sdk");',
+        [mockOnlyTest]: 'vi.mock("@anthropic-ai/sdk");',
+        [blockedPortal]: 'const sdk = await import("openai");',
+        [blockedBackend]: 'const sdk = require("@openrouter/sdk");',
+        [blockedSharedTypes]: 'import type { Anthropic } from "@anthropic-ai/sdk";',
+      }),
+      [
+        `${blockedPortal}: provider SDK imports must stay in AI gateway infrastructure`,
+        `${blockedBackend}: provider SDK imports must stay in AI gateway infrastructure`,
+        `${blockedSharedTypes}: provider SDK imports must stay in AI gateway infrastructure`,
+      ],
+    );
+  });
 });
