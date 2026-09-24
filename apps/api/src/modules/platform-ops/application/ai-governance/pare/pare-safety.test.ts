@@ -1,5 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  aiAuditEvidenceSchema,
+  type AiAuditEvidence,
+  type AiGatewayRunFailure,
+  type AiGatewayRunResult,
+  type AiUseCaseId,
+  type AiUseCaseInput,
+  type AiUseCaseOutput,
+} from '@prism/types';
 import type { PrismaService } from '@prism/kernel/database';
+import type { AiGateway, AiGatewayCallOptions } from '../../../contracts/ai-governance/ai-gateway.port';
 import { BudgetAgent } from './agents/budget.agent';
 import { EventContextAgent } from './agents/event-context.agent';
 import { MessageDrafterAgent } from './agents/message-drafter.agent';
@@ -7,14 +17,11 @@ import { RiskAgent } from './agents/risk.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';
 import { PAREService } from './pare.service';
 import type { PAREContext } from './pare.types';
-
-const sdk = vi.hoisted(() => ({ construct: vi.fn(), create: vi.fn() }));
-vi.mock('@anthropic-ai/sdk', () => ({
-  default: class {
-    messages = { create: sdk.create };
-    constructor() { sdk.construct(); }
-  },
-}));
+import {
+  createPareBudgetToolHandlers,
+  createPareMessageDraftToolHandlers,
+  createPareRiskToolHandlers,
+} from './pare-ai-use-cases';
 
 const context: PAREContext = {
   triggerId: 'request_1', eventId: 'event_1', eventName: 'Private event',
@@ -25,7 +32,106 @@ const context: PAREContext = {
 };
 
 type StoredRow = { id: string; [key: string]: unknown };
-function harness() {
+type GatewayCall = {
+  useCaseId: AiUseCaseId;
+  input: AiUseCaseInput<AiUseCaseId>;
+  options?: AiGatewayCallOptions;
+};
+type FakeGatewayOptions = {
+  failure?: Pick<AiGatewayRunFailure, 'outcome' | 'error'>;
+  outputOverride?: unknown;
+  onRun?: (signal?: AbortSignal) => void;
+};
+
+function evidenceFor(
+  useCaseId: AiUseCaseId,
+  correlationId: string,
+  outcome: AiAuditEvidence['outcome'] = 'completed',
+): AiAuditEvidence {
+  return aiAuditEvidenceSchema.parse({
+    requestId: `ai_${useCaseId}`,
+    correlationId,
+    useCaseId,
+    promptVersion: `${useCaseId}-v1`,
+    profileId: 'test-anthropic',
+    provider: 'anthropic',
+    requestedModel: 'claude-sonnet-4-6',
+    responseModel: 'claude-sonnet-4-6',
+    zdrBasis: 'none',
+    dataClasses: ['synthetic'],
+    usage: { inputTokens: 10, outputTokens: 12 },
+    latencyMs: 20,
+    outcome,
+    approvalState: 'pending',
+    syntheticProvenance: {
+      source: 'test-fixture',
+      sourceId: 'pare-fixture-event-1',
+      verifiedAt: '2026-09-24T00:00:00.000Z',
+      verifier: 'test-fixture-registry',
+    },
+  });
+}
+
+function fakeGateway(options: FakeGatewayOptions = {}) {
+  const calls: GatewayCall[] = [];
+  const outputs = {
+    'pare.budget': {
+      feasible: true,
+      selectedCandidate: context.candidates![0],
+      costDelta: 0,
+      costDeltaLabel: 'same cost as withdrawn supplier',
+      summary: 'Replacement is within budget.',
+    },
+    'pare.risk': {
+      level: 'LOW' as const,
+      factors: ['Adequate timeline'],
+      recommendation: 'Proceed with PMCM review.',
+    },
+    'pare.message-drafts': {
+      supplierNotification: 'Supplier draft for PMCM review.',
+      clientReassurance: 'Client draft for PMCM review.',
+    },
+    'comms.draft': { subject: 'Draft', body: 'Draft body' },
+  };
+
+  const run = async <K extends AiUseCaseId>(
+    useCaseId: K,
+    input: AiUseCaseInput<K>,
+    callOptions?: AiGatewayCallOptions,
+  ): Promise<AiGatewayRunResult<AiUseCaseOutput<K>>> => {
+    calls.push({ useCaseId, input: structuredClone(input), options: callOptions });
+    options.onRun?.(callOptions?.signal);
+    const evidence = evidenceFor(
+      useCaseId,
+      callOptions?.correlationId ?? 'missing-correlation',
+      options.failure?.outcome ?? 'completed',
+    );
+    if (options.failure) {
+      return {
+        outcome: options.failure.outcome,
+        error: options.failure.error,
+        evidence,
+      };
+    }
+    const output = options.outputOverride ?? outputs[useCaseId];
+    return {
+      outcome: 'completed',
+      output: output as AiUseCaseOutput<K>,
+      evidence,
+    };
+  };
+
+  const gateway: AiGateway = {
+    run,
+    async *stream<K extends AiUseCaseId>() {
+      // PARE currently uses run; the empty fake stream keeps the port complete.
+      return;
+    },
+  };
+  return { gateway, calls };
+}
+
+function harness(gateway?: AiGateway) {
   const state = { audits: [] as StoredRow[], approvals: [] as StoredRow[] };
   const failures = { auditCreate: false, auditUpdate: false, approvalCreate: false };
   function model(rows: StoredRow[], kind: 'audit' | 'approval') {
@@ -60,40 +166,152 @@ function harness() {
       return result;
     }),
   };
-  return { service: new PAREService(prisma as unknown as PrismaService), prisma, state, failures };
+  return {
+    service: new PAREService(prisma as unknown as PrismaService, undefined, gateway),
+    prisma,
+    state,
+    failures,
+  };
 }
 
 beforeEach(() => {
   vi.stubEnv('PARE_MODE', 'mock');
-  sdk.create.mockRejectedValue(new Error('External SDK must not be called'));
   vi.spyOn(EventContextAgent.prototype, 'buildPareEventContext').mockResolvedValue(structuredClone(context));
   vi.spyOn(SupplierFinderAgent.prototype, 'findPareSupplierCandidates').mockResolvedValue(context.candidates ?? []);
 });
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); sdk.construct.mockClear(); sdk.create.mockClear(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
-describe('PARE governance boundary', () => {
-  it('denies live mode before reading context or entering a provider adapter', async () => {
-    vi.stubEnv('PARE_MODE', 'live');
-    const { service } = harness();
-    await expect(service.handleEmergencyTrigger('request_1')).rejects.toThrow(/PARE.*disabled/i);
-    expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
-    expect(sdk.construct).not.toHaveBeenCalled();
+describe('PARE gateway boundary', () => {
+  it('uses strict canonical schemas for read-only context tools', () => {
+    const tools = [
+      ...createPareBudgetToolHandlers(context),
+      ...createPareRiskToolHandlers(context),
+      ...createPareMessageDraftToolHandlers(context),
+    ];
+    const quoteTool = tools.find(tool => tool.name === 'get_quote_details');
+    const eventSummaryTool = tools.find(tool => tool.name === 'get_event_and_replacement_summary');
+
+    expect(tools.every(tool => !tool.name.startsWith('submit_'))).toBe(true);
+    expect(tools.find(tool => tool.name === 'get_event_budget_summary')?.inputSchema.safeParse({}).success).toBe(true);
+    expect(tools.find(tool => tool.name === 'get_event_budget_summary')?.inputSchema.safeParse({ extra: true }).success).toBe(false);
+    expect(quoteTool?.inputSchema.safeParse({ supplierName: 'Replacement' }).success).toBe(true);
+    expect(quoteTool?.inputSchema.safeParse({ supplierName: '' }).success).toBe(false);
+    expect(eventSummaryTool?.inputSchema.safeParse({}).success).toBe(true);
   });
 
-  it.each(['budget', 'risk', 'drafts'] as const)('denies direct live %s adapter calls before constructing the SDK', async kind => {
+  it('keeps mock as the default and keeps deterministic work local', async () => {
+    const { service, state } = harness();
+    const pending = await service.handleEmergencyTrigger('request_1');
+    expect(pending.pareResult).toMatchObject({ mode: 'mock', runEvidence: [] });
+    expect(state.audits[0]).toMatchObject({ modelVersion: 'mock', zdrConfirmed: true });
+  });
+
+  it('keeps the no-candidate budget result deterministic in mock mode and blocks it in live mode', async () => {
+    const noCandidates = { ...context, candidates: [] };
+    const mockResult = await new BudgetAgent('mock').runPareBudgetAgent(noCandidates);
+    expect(mockResult.output.selectedCandidate.supplierName).toBe('No candidate found');
+    expect(mockResult.evidence).toBeNull();
+
+    const { gateway, calls } = fakeGateway();
+    await expect(new BudgetAgent('live', gateway).runPareBudgetAgent(noCandidates))
+      .rejects.toMatchObject({ name: 'PareAiGatewayError', code: 'invalid_input', retryable: false });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('fails live mode before reading event data when the gateway is not registered', async () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const { service } = harness();
+    await expect(service.handleEmergencyTrigger('request_1')).rejects.toThrow(/gateway.*disabled/i);
+    expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
+  });
+
+  it.each(['budget', 'risk', 'drafts'] as const)('fails direct live %s calls without a gateway', async kind => {
     const call = {
       budget: () => new BudgetAgent('live').runPareBudgetAgent(context),
       risk: () => new RiskAgent('live').runPareRiskAgent(context),
       drafts: () => new MessageDrafterAgent('live').runPareMessageDraftAgent(context),
     }[kind];
-    await expect(call()).rejects.toThrow(/PARE.*disabled/i);
-    expect(sdk.construct).not.toHaveBeenCalled();
-    expect(sdk.create).not.toHaveBeenCalled();
+    await expect(call()).rejects.toThrow(/gateway.*disabled/i);
   });
 
-  it('rejects an unknown configured mode', () => {
-    vi.stubEnv('PARE_MODE', 'production');
-    expect(harness).toThrow(/PARE_MODE/);
+  it('routes all live PARE steps through the fake gateway with context-owned tools', async () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const { gateway, calls } = fakeGateway();
+    const { service, state } = harness(gateway);
+    const pending = await service.handleEmergencyTrigger('request_1');
+
+    expect(pending.pareResult).toMatchObject({
+      mode: 'live',
+      runEvidence: expect.arrayContaining([
+        expect.objectContaining({ useCaseId: 'pare.budget', profileId: 'test-anthropic' }),
+        expect.objectContaining({ useCaseId: 'pare.risk', profileId: 'test-anthropic' }),
+        expect.objectContaining({ useCaseId: 'pare.message-drafts', profileId: 'test-anthropic' }),
+      ]),
+    });
+    expect(calls).toHaveLength(3);
+    expect(calls.map(call => call.useCaseId).sort()).toEqual([
+      'pare.budget', 'pare.message-drafts', 'pare.risk',
+    ]);
+    expect(calls.every(call => call.options?.signal && !call.options.signal.aborted)).toBe(true);
+    expect(calls.find(call => call.useCaseId === 'pare.budget')?.input).toEqual(context);
+    expect(calls.find(call => call.useCaseId === 'pare.risk')?.input).toEqual(context);
+    expect(calls.find(call => call.useCaseId === 'pare.message-drafts')?.input).toMatchObject({
+      budgetAnalysis: { summary: 'Replacement is within budget.' },
+      riskAssessment: { level: 'LOW' },
+    });
+    expect(calls.flatMap(call => call.options?.tools?.map(tool => tool.name) ?? [])).toEqual(expect.arrayContaining([
+      'get_event_budget_summary',
+      'get_quote_details',
+      'get_supplier_history',
+      'get_event_timeline',
+      'get_client_preferences',
+      'get_event_and_replacement_summary',
+    ]));
+    expect(state.audits[0]).toMatchObject({ modelVersion: 'ai-gateway', zdrConfirmed: false });
+  });
+
+  it('relays caller aborts to active gateway calls and writes no PARE approval', async () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const controller = new AbortController();
+    const observedSignals: AbortSignal[] = [];
+    const { gateway } = fakeGateway({
+      onRun: (signal) => {
+        if (signal) observedSignals.push(signal);
+        if (observedSignals.length === 1) controller.abort(new Error('caller cancelled'));
+      },
+    });
+    const { service, state } = harness(gateway);
+
+    await expect(service.handleEmergencyTrigger('request_1', undefined, controller.signal))
+      .rejects.toThrow('caller cancelled');
+    expect(observedSignals).toHaveLength(1);
+    expect(observedSignals[0].aborted).toBe(true);
+    expect(state.approvals).toHaveLength(0);
+    expect(state.audits).toHaveLength(0);
+  });
+
+  it('treats gateway step exhaustion and invalid output as failures without mock fallback', async () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const exhausted = fakeGateway({
+      failure: {
+        outcome: 'incomplete',
+        error: { code: 'step_limit', message: 'exhausted', retryable: false },
+      },
+    });
+    const first = harness(exhausted.gateway);
+    await expect(first.service.handleEmergencyTrigger('request_1')).rejects.toMatchObject({
+      name: 'PareAiGatewayError', outcome: 'incomplete', retryable: false,
+    });
+    expect(first.state.approvals).toHaveLength(0);
+    expect(first.state.audits).toHaveLength(0);
+
+    const invalid = fakeGateway({ outputOverride: { feasible: true } });
+    const second = harness(invalid.gateway);
+    await expect(second.service.handleEmergencyTrigger('request_1')).rejects.toMatchObject({
+      name: 'PareAiGatewayError', code: 'invalid_output', retryable: false,
+    });
+    expect(second.state.approvals).toHaveLength(0);
+    expect(second.state.audits).toHaveLength(0);
   });
 
   it.each(['auditCreate', 'approvalCreate'] as const)('does not return an approvable result after %s fails', async failure => {
@@ -104,15 +322,38 @@ describe('PARE governance boundary', () => {
     expect(state.audits).toHaveLength(0);
   });
 
-  it('keeps mock mode usable with an atomic, durable approval and audit', async () => {
-    const { service, state } = harness();
+  it('allows PMCM to approve a fully verified synthetic gateway result without sending messages', async () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const { gateway, calls } = fakeGateway();
+    const { service, state } = harness(gateway);
     const pending = await service.handleEmergencyTrigger('request_1');
     const approved = await service.approveRecommendation(pending.id, 'Verified PMCM');
-    expect(approved).toMatchObject({ status: 'approved', reviewedBy: 'Verified PMCM', pareResult: { mode: 'mock' } });
+    expect(approved).toMatchObject({
+      status: 'approved', reviewedBy: 'Verified PMCM',
+      pareResult: { mode: 'live', runEvidence: expect.arrayContaining([expect.objectContaining({ outcome: 'completed' })]) },
+    });
     expect(state.approvals[0]).toMatchObject({ status: 'approved', humanApproved: true });
     expect(state.audits[0]).toMatchObject({ status: 'approved', humanApproved: true });
-    expect(sdk.construct).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(3);
   });
+
+  it.each(['blocked', 'mismatched', 'unaudited'] as const)(
+    'rejects %s live evidence at PMCM approval', async corruption => {
+      vi.stubEnv('PARE_MODE', 'live');
+      const { gateway } = fakeGateway();
+      const { service, state } = harness(gateway);
+      const pending = await service.handleEmergencyTrigger('request_1');
+      const auditPayload = state.audits[0].sanitizedPayload as Record<string, unknown>;
+      const evidence = auditPayload.runEvidence as Record<string, unknown>[];
+      if (corruption === 'blocked') evidence[0].outcome = 'blocked';
+      if (corruption === 'mismatched') evidence[0].correlationId = 'another-request';
+      if (corruption === 'unaudited') auditPayload.runEvidence = [];
+
+      await expect(service.approveRecommendation(pending.id, 'Verified PMCM'))
+        .rejects.toThrow(/matching durable PARE audit/);
+      expect(state.approvals[0].status).toBe('pending_human_approval');
+    },
+  );
 
   it('rolls back approval when the audit update fails', async () => {
     const { service, state, failures } = harness();
@@ -123,12 +364,16 @@ describe('PARE governance boundary', () => {
     expect(state.audits[0]).toMatchObject({ status: 'pending_human_approval' });
   });
 
-  it('cannot approve a historical live recommendation through mock mode', async () => {
+  it('does not approve a historical live recommendation without gateway evidence', async () => {
     const { service, state } = harness();
     const pending = await service.handleEmergencyTrigger('request_1');
-    state.audits[0].modelVersion = 'claude-sonnet-4-6';
+    state.audits[0].modelVersion = 'ai-gateway';
     state.audits[0].zdrConfirmed = false;
-    await expect(service.approveRecommendation(pending.id, 'Verified PMCM')).rejects.toThrow(/PARE.*disabled/i);
+    const payload = state.audits[0].sanitizedPayload as Record<string, unknown>;
+    payload.mode = 'live';
+    payload.runEvidence = [];
+    await expect(service.approveRecommendation(pending.id, 'Verified PMCM'))
+      .rejects.toThrow(/matching durable PARE audit/);
     expect(state.approvals[0].status).toBe('pending_human_approval');
   });
 
