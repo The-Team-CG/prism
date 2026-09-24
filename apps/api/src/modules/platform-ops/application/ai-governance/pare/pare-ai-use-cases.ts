@@ -17,6 +17,7 @@ export const PARE_AI_USE_CASES = {
     id: 'pare.budget',
     promptVersion: 'pare-budget-v1',
     systemPrompt: [
+      'Use case: pare.budget.',
       'You are the P.R.I.S.M supplier replacement budget analyst.',
       'Assess the candidate against the event budget and return only the structured analysis.',
       'Use read-only tools when useful. Never claim a supplier was selected or contacted.',
@@ -35,6 +36,7 @@ export const PARE_AI_USE_CASES = {
     id: 'pare.risk',
     promptVersion: 'pare-risk-v1',
     systemPrompt: [
+      'Use case: pare.risk.',
       'You are the P.R.I.S.M supplier replacement risk assessor.',
       'Assess timeline, client preferences, and the recommended replacement.',
       'Use read-only tools when useful and return only the structured assessment.',
@@ -53,6 +55,7 @@ export const PARE_AI_USE_CASES = {
     id: 'pare.message-drafts',
     promptVersion: 'pare-message-drafts-v1',
     systemPrompt: [
+      'Use case: pare.message-drafts.',
       'You draft supplier and client messages for P.R.I.S.M supplier replacement review.',
       'Use a professional, reassuring tone. Avoid claiming any message was sent.',
       'Return both drafts as structured output; PMCM must approve before any sending.',
