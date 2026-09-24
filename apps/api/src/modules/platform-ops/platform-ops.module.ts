@@ -24,6 +24,9 @@ import {
 import { SyntheticFixtureRegistry } from './application/ai-governance/gateway/synthetic-fixture-registry';
 import { AI_GATEWAY } from './contracts/ai-governance/ai-gateway.port';
 import { MockAiProviderAdapter } from './infrastructure/ai-governance/mock-ai-provider.adapter';
+import { AnthropicProviderAdapter, createAnthropicProviderClient } from './infrastructure/ai-governance/anthropic-provider.adapter';
+import type { AiProviderAdapter } from './contracts/ai-governance/ai-gateway.port';
+import type { AiGatewayRuntimeConfig } from './application/ai-governance/gateway/ai-gateway.config';
 import { PAREService } from './application/ai-governance/pare/pare.service';
 import { PareDispatchOutboxService } from './application/ai-governance/pare/pare-dispatch-outbox.service';
 import { PARE_APPROVAL_GOVERNANCE, PARE_DISPATCH_WRITER } from './contracts/ai-governance/pare-ops.tokens';
@@ -55,6 +58,24 @@ const storageAdapterProvider = {
     return new LocalFileSystemStorageAdapter(directory);
   },
 };
+
+export function createAiProviderAdapters(
+  mockAdapter: MockAiProviderAdapter,
+  runtime: AiGatewayRuntimeConfig,
+  config: Pick<ConfigService, 'get'>,
+): AiProviderAdapter[] {
+  const adapters: AiProviderAdapter[] = [mockAdapter];
+  if (runtime.profileId !== 'test-anthropic' || runtime.liveUseCases.size === 0) {
+    return adapters;
+  }
+
+  const apiKey = config.get<string>('ANTHROPIC_API_KEY')?.trim();
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY is required when AI live use cases are enabled');
+  }
+  adapters.push(new AnthropicProviderAdapter(createAnthropicProviderClient({ apiKey })));
+  return adapters;
+}
 
 /**
  * Platform-ops bounded-context composition root. It owns the trust,
@@ -90,8 +111,8 @@ const storageAdapterProvider = {
     },
     {
       provide: AI_PROVIDER_ADAPTERS,
-      inject: [MockAiProviderAdapter],
-      useFactory: (mockAdapter: MockAiProviderAdapter) => [mockAdapter],
+      inject: [MockAiProviderAdapter, AI_GATEWAY_RUNTIME_CONFIG, ConfigService],
+      useFactory: createAiProviderAdapters,
     },
     { provide: AI_SYNTHETIC_PROVENANCE_VERIFIER, useClass: SyntheticFixtureRegistry },
     AiGatewayService,

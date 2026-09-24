@@ -50,7 +50,6 @@ export const AI_ROUTE_PROFILES: Record<'mock' | 'test-anthropic', AiRouteProfile
 export function resolveAiGatewayRuntimeConfig(config: Pick<ConfigService, 'get'>): AiGatewayRuntimeConfig {
   const rawProfile = config.get<string>('AI_ROUTE_PROFILE')?.trim() || 'mock';
   const rawLiveUseCases = config.get<string>('AI_LIVE_USE_CASES')?.trim() || '';
-  const apiKeyConfigured = Boolean(config.get<string>('ANTHROPIC_API_KEY')?.trim());
   const isProduction = config.get<string>('NODE_ENV') === 'production';
 
   const liveUseCases = new Set<AiUseCaseId>();
@@ -71,9 +70,6 @@ export function resolveAiGatewayRuntimeConfig(config: Pick<ConfigService, 'get'>
 
   if (profileId === 'test-anthropic') {
     if (isProduction) throw new Error('AI_ROUTE_PROFILE=test-anthropic is disabled in production');
-    if (liveUseCases.size > 0 && !apiKeyConfigured) {
-      throw new Error('ANTHROPIC_API_KEY is required when AI live use cases are enabled');
-    }
   } else if (liveUseCases.size > 0) {
     throw new Error('AI_LIVE_USE_CASES requires AI_ROUTE_PROFILE=test-anthropic');
   }
