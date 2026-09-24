@@ -103,6 +103,8 @@ describe('AI gateway core', () => {
     expect(result.outcome).toBe('completed');
     expect(result.outcome === 'completed' && result.output.selectedCandidate.supplierName).toBe('Supplier X');
     expect(run).toHaveBeenCalledOnce();
+    expect(run.mock.calls[0][0].systemPrompt).toContain('supplier replacement budget analyst');
+    expect(run.mock.calls[0][0].maxOutputTokens).toBe(1024);
     expect(tx.$queryRaw).toHaveBeenCalledOnce();
     expect(tx.$executeRaw).toHaveBeenCalledOnce();
     expect(audits.size).toBe(1);
@@ -331,7 +333,7 @@ describe('AI gateway core', () => {
 
     expect(result.outcome).toBe('failed');
     expect(result.outcome === 'failed' && result.error.code).toBe('provider_rejected');
-    expect([...audits.values()][0].outputTokens).toBe(901);
+    expect([...audits.values()][0].outputTokens).toBe(1025);
   });
 
   it('retries only on the selected adapter and reconciles each physical attempt', async () => {
@@ -396,7 +398,7 @@ describe('AI gateway core', () => {
     });
 
     expect(result.outcome).toBe('incomplete');
-    expect(execute).toHaveBeenCalledTimes(3);
+    expect(execute).toHaveBeenCalledTimes(7);
   });
 
   it('rejects duplicate provider tool-call IDs before invoking handlers', async () => {
