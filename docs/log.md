@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-09-24
+
+- **Added:** Interchangeable AI provider gateway plan. Every AI use case will call one `platform-ops` gateway, and route profiles choose the provider and model: Anthropic Sonnet for synthetic-data testing, OpenRouter `z-ai/glm-5.3-flash` with enforced ZDR for production. The plan records the current PARE coupling (three copied Anthropic loops, model-name live detection, mock fallback in live mode), fail-closed failure rules, streaming for FR-AI-09 drafts, and the Owner D approval required before live AI touches real data. FR-AI-ZDR still names an Anthropic agreement; Phase 7 replaces that wording.
+
 ## 2026-09-18
 
 - **Hardened:** Test-clock coverage now includes API compatibility/kernel and integration-test roots, with per-test analysis and explicit suite setup recognition. The API environment example documents the Prisma pooler override and the sample-state guard's session/role boundary.
