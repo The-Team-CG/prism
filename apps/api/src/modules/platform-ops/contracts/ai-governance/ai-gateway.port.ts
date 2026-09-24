@@ -1,4 +1,3 @@
-import type { ZodType } from 'zod';
 import type {
   AiDataClass,
   AiDeliveryMode,
@@ -15,10 +14,18 @@ import type {
 
 export const AI_GATEWAY = Symbol('AI_GATEWAY');
 
+/** Structural seam: concrete schemas still come from shared @prism/types. */
+export interface AiGatewaySchema<T> {
+  safeParse(input: unknown):
+    | { success: true; data: T }
+    | { success: false; error?: unknown };
+  toJSONSchema(): unknown;
+}
+
 export type AiToolHandler<TInput = unknown> = {
   name: string;
   description: string;
-  inputSchema: ZodType<TInput>;
+  inputSchema: AiGatewaySchema<TInput>;
   execute(input: TInput, signal?: AbortSignal): Promise<string>;
 };
 
@@ -46,8 +53,8 @@ export type AiUseCaseDefinition<K extends AiUseCaseId> = {
   id: K;
   promptVersion: string;
   systemPrompt: string;
-  inputSchema: ZodType<AiUseCaseContractMap[K]['input']>;
-  outputSchema: ZodType<AiUseCaseContractMap[K]['output']>;
+  inputSchema: AiGatewaySchema<AiUseCaseContractMap[K]['input']>;
+  outputSchema: AiGatewaySchema<AiUseCaseContractMap[K]['output']>;
   modelTier: AiModelTier;
   dataClasses: readonly AiDataClass[];
   requiresZdr: boolean;

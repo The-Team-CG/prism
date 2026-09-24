@@ -317,14 +317,18 @@ export const aiAuditEvidenceSchema = z
           message: "Anthropic test profile cannot claim ZDR",
         });
       }
-      if (evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic") {
+      const blockedBeforeProvider = evidence.outcome === "blocked";
+      if (
+        !blockedBeforeProvider &&
+        (evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")
+      ) {
         ctx.addIssue({
           code: "custom",
           path: ["dataClasses"],
           message: "Anthropic test profile audit evidence must be synthetic-only",
         });
       }
-      if (!evidence.syntheticProvenance) {
+      if (!blockedBeforeProvider && !evidence.syntheticProvenance) {
         ctx.addIssue({
           code: "custom",
           path: ["syntheticProvenance"],

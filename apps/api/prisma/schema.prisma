@@ -1976,12 +1976,46 @@ model OpsAiAuditLog {
   status                String   @default("blocked")
   createdAt             DateTime @default(now()) @map("created_at")
 
+  // Gateway evidence is nullable to preserve pre-gateway audit history.
+  requestId             String?  @unique(map: "ai_audit_logs_request_id_key") @map("request_id")
+  correlationId         String?  @map("correlation_id")
+  useCaseId             String?  @map("use_case_id")
+  promptVersion         String?  @map("prompt_version")
+  profileId             String?  @map("profile_id")
+  provider              String?
+  requestedModel        String?  @map("requested_model")
+  responseModel         String?  @map("response_model")
+  endpointTag           String?  @map("endpoint_tag")
+  zdrBasis              String?  @map("zdr_basis")
+  inputTokens           Int?     @map("input_tokens")
+  outputTokens          Int?     @map("output_tokens")
+  latencyMs             Int?     @map("latency_ms")
+  outcome               String?
+  approvalState         String?  @map("approval_state")
+  syntheticProvenance   Json?    @map("synthetic_provenance")
+  failureCode           String?  @map("failure_code")
+  budgetDate            DateTime? @db.Date @map("budget_date")
+  reservedTokens        Int      @default(0) @map("reserved_tokens")
+
   event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId], map: "ai_audit_logs_event_id_idx")
   @@index([featureName, createdAt], map: "ai_audit_logs_feature_name_created_at_idx")
   @@index([status, createdAt], map: "ai_audit_logs_status_created_at_idx")
   @@map("ai_audit_logs")
+  @@schema("trust_ops")
+}
+
+model OpsAiDailyTokenUsage {
+  id             String   @id
+  useCaseId      String   @map("use_case_id")
+  usageDate      DateTime @db.Date @map("usage_date")
+  reservedTokens Int      @default(0) @map("reserved_tokens")
+  consumedTokens Int      @default(0) @map("consumed_tokens")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([useCaseId, usageDate], map: "ai_daily_token_usage_use_case_date_key")
+  @@map("ai_daily_token_usage")
   @@schema("trust_ops")
 }
 
