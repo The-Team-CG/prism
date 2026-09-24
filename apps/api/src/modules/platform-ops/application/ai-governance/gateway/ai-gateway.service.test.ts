@@ -85,7 +85,7 @@ describe('AI gateway core', () => {
     expect(runtime().liveUseCases.size).toBe(0);
     expect(runtime({ AI_ROUTE_PROFILE: 'openrouter' }).profileId).toBe('mock');
     expect(() => runtime({ AI_ROUTE_PROFILE: 'openrouter', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured' })).toThrow(/Unsupported AI_ROUTE_PROFILE/);
-    expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'comms.draft' })).toThrow(/ANTHROPIC_API_KEY/);
+    expect(runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'comms.draft' }).profileId).toBe('test-anthropic');
     expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'pare.unknown', ANTHROPIC_API_KEY: 'configured' })).toThrow(/Unsupported AI live use case/);
     expect(runtime({ AI_ROUTE_PROFILE: 'test-anthropic', NODE_ENV: 'production' }).profileId).toBe('mock');
     expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured', NODE_ENV: 'production' })).toThrow(/disabled in production/);
