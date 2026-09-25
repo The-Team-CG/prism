@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Refactored Anthropic provider error normalization into focused abort and HTTP classification helpers; transport and additional HTTP status fixtures keep the gateway's retry behavior covered.
+
 ### Added
 - Interchangeable AI provider gateway plan (`docs/roadmap/ai-provider-gateway-plan.md`): PR 0–7 scopes, exit checks, merge gates, and four parallel worktrees after verification and contract freeze. PR 0 verifies Anthropic Sonnet 4.6 forced-tool output on synthetic data. Public OpenRouter metadata records 20 GLM 5.3 Flash endpoint records advertising ZDR, tools, forced tool choice, and structured outputs; Fireworks is a candidate tag. The user approved deferring OpenRouter until model access and account privacy evidence are available. Mock remains default; real-data and production AI stay disabled. PR 0 is complete for this approved scope. Documentation only; no runtime change.
 - PR 1 AI gateway contract foundation: shared Zod schemas and inferred types for use-case inputs/outputs, mock and synthetic-only Anthropic profiles, typed gateway/provider/tool ports, metadata-only audit evidence, and use-case-specific POST/SSE contracts. PARE agent aliases now use the shared inferred model types. Provider SDK imports are boundary-checked; only the three existing PARE agents are temporarily grandfathered until PR 4. No provider runtime or production route is enabled.
