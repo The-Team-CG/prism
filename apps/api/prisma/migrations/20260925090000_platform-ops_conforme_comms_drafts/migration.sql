@@ -56,7 +56,10 @@ SET "sanitized_payload" = jsonb_build_object(
       'source', CASE WHEN "trust_ops"."ai_audit_logs"."sanitized_payload"->>'source' IN ('ai', 'manual')
         THEN "trust_ops"."ai_audit_logs"."sanitized_payload"->>'source' ELSE 'unknown' END,
       'draftRecordId', COALESCE((
-        SELECT "trust_ops"."ai_approval_records"."id" FROM "trust_ops"."ai_approval_records"
+        SELECT "trust_ops"."conforme_comms_drafts"."id"
+        FROM "trust_ops"."conforme_comms_drafts"
+        JOIN "trust_ops"."ai_approval_records"
+          ON "trust_ops"."ai_approval_records"."id" = "trust_ops"."conforme_comms_drafts"."id"
         WHERE "trust_ops"."ai_approval_records"."ai_audit_log_id" = "trust_ops"."ai_audit_logs"."id"
           AND "trust_ops"."ai_approval_records"."feature_name" = 'FR-AI-09'
         ORDER BY "trust_ops"."ai_approval_records"."requested_at" DESC LIMIT 1

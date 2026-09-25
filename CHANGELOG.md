@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Root build and typecheck now fail early when the gitignored `@prism/types` output is missing or older than its source, with a direct rebuild command in the error.
 
 ### Fixed
+- Conforme audit migration metadata now points only to draft rows that were successfully backfilled.
 - Live PARE now validates its gateway route at startup: it requires the non-production synthetic Anthropic profile and all three PARE use cases enabled. Approval evidence checks and dispatch persistence were split into focused functions so PR 4 stays within the enforced complexity limit.
 - Keep Anthropic API key reads and missing-key validation in the provider factory after merging the gateway core refactor, preserving the adapter's opt-in key isolation.
 - PR 2 AI gateway complexity gate: separate input minimization, route policy, provider/tool steps, budget retry, audit lifecycle, and evidence validation into focused functions. Preserve mock-default and synthetic-only Anthropic behavior while restoring the required `check:complexity` pass (owner D: platform trust).
