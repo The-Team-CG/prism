@@ -77,13 +77,9 @@ function assertProfileCompatible(
   profileId: AiGatewayRuntimeConfig['profileId'],
   liveUseCases: ReadonlySet<AiUseCaseId>,
   isProduction: boolean,
-  apiKeyConfigured: boolean,
 ): void {
   if (profileId === 'test-anthropic') {
     if (isProduction) throw new Error('AI_ROUTE_PROFILE=test-anthropic is disabled in production');
-    if (liveUseCases.size > 0 && !apiKeyConfigured) {
-      throw new Error('ANTHROPIC_API_KEY is required when AI live use cases are enabled');
-    }
   } else if (liveUseCases.size > 0) {
     throw new Error('AI_LIVE_USE_CASES requires AI_ROUTE_PROFILE=test-anthropic');
   }
@@ -92,11 +88,10 @@ function assertProfileCompatible(
 export function resolveAiGatewayRuntimeConfig(config: Pick<ConfigService, 'get'>): AiGatewayRuntimeConfig {
   const rawProfile = config.get<string>('AI_ROUTE_PROFILE')?.trim() || 'mock';
   const rawLiveUseCases = config.get<string>('AI_LIVE_USE_CASES')?.trim() || '';
-  const apiKeyConfigured = Boolean(config.get<string>('ANTHROPIC_API_KEY')?.trim());
   const isProduction = config.get<string>('NODE_ENV') === 'production';
   const liveUseCases = parseLiveUseCases(rawLiveUseCases);
   const profileId = resolveProfileId(rawProfile, liveUseCases, isProduction);
-  assertProfileCompatible(profileId, liveUseCases, isProduction, apiKeyConfigured);
+  assertProfileCompatible(profileId, liveUseCases, isProduction);
   const profile = aiRouteProfileSchema.parse(AI_ROUTE_PROFILES[profileId]);
   return { profile, profileId, liveUseCases, isProduction };
 }
