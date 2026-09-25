@@ -104,9 +104,7 @@ export class AnthropicProviderAdapter implements AiProviderAdapter {
   }
 }
 
-function toAnthropicRequest(
-  request: AiProviderRequest,
-): Anthropic.Messages.MessageCreateParamsNonStreaming {
+function validateRegisteredTools(request: AiProviderRequest): ReadonlySet<string> {
   const toolNames = new Set<string>();
   for (const tool of request.tools) {
     if (toolNames.has(tool.name) || !isAnthropicInputSchema(tool.inputSchema)) {
@@ -123,6 +121,13 @@ function toAnthropicRequest(
       throw invalidToolCallError('The forced tool choice does not match a registered tool');
     }
   }
+  return toolNames;
+}
+
+function toAnthropicRequest(
+  request: AiProviderRequest,
+): Anthropic.Messages.MessageCreateParamsNonStreaming {
+  const toolNames = validateRegisteredTools(request);
 
   const tools = request.tools.map(toAnthropicTool);
   if (request.outputSchema && request.outputSchema.type !== 'object') {
