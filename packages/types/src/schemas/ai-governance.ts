@@ -212,6 +212,22 @@ export const commsDraftResultSchema = z
   .strict();
 export type CommsDraftResult = z.infer<typeof commsDraftResultSchema>;
 
+export const conformeDraftReviewSchema = z.object({
+  draftId: nonEmptyStringSchema,
+  inquiryId: nonEmptyStringSchema,
+  draft: commsDraftResultSchema,
+  status: nonEmptyStringSchema,
+  source: z.enum(["ai", "manual"]),
+  requestedAt: nonEmptyStringSchema,
+  reviewedBy: z.string().nullable(),
+  reviewedAt: z.string().nullable(),
+  lastConformeReminderAt: z.string().nullable(),
+  reminderWindowBaseAt: nonEmptyStringSchema,
+  requestId: nonEmptyStringSchema,
+  modelVersion: nonEmptyStringSchema,
+}).strict();
+export type ConformeDraftReviewRecord = z.infer<typeof conformeDraftReviewSchema>;
+
 export type AiUseCaseContractMap = {
   "pare.budget": { input: AiPareContext; output: AiPareBudgetAnalysis };
   "pare.risk": { input: AiPareContext; output: AiPareRisk };

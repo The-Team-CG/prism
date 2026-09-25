@@ -151,11 +151,37 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
   return responseBody as T;
 }
 
-export async function* prismSse<T>(
-  path: string,
-  init: PrismRequestInit,
-  parseEvent: (value: unknown) => T,
-): AsyncIterable<T> {
+type SseBuffer = { text: string; dataLines: string[] };
+
+function readSseLine(state: SseBuffer, rawLine: string, payloads: string[]) {
+  const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+  if (line === '') {
+    if (state.dataLines.length) payloads.push(state.dataLines.join('\n'));
+    state.dataLines = [];
+    return;
+  }
+  if (line.startsWith('data:')) state.dataLines.push(line.slice(5).replace(/^ /, ''));
+}
+
+function readSseChunk(state: SseBuffer, text: string, final = false): string[] {
+  state.text += text;
+  const payloads: string[] = [];
+  let lineEnd = state.text.indexOf('\n');
+  while (lineEnd !== -1) {
+    readSseLine(state, state.text.slice(0, lineEnd), payloads);
+    state.text = state.text.slice(lineEnd + 1);
+    lineEnd = state.text.indexOf('\n');
+  }
+  if (final) {
+    if (state.text) readSseLine(state, state.text, payloads);
+    if (state.dataLines.length) payloads.push(state.dataLines.join('\n'));
+    state.text = '';
+    state.dataLines = [];
+  }
+  return payloads;
+}
+
+async function openSseBody(path: string, init: PrismRequestInit): Promise<ReadableStream<Uint8Array>> {
   const { authToken, baseUrl, body, headers, ...requestInit } = init;
   const response = await fetch(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, {
     ...requestInit,
@@ -173,11 +199,17 @@ export async function* prismSse<T>(
     throw new Error('P.R.I.S.M API did not return an event stream');
   }
   if (!response.body) throw new Error('P.R.I.S.M API returned an empty event stream');
+  return response.body;
+}
 
-  const reader = response.body.getReader();
+export async function* prismSse<T>(
+  path: string,
+  init: PrismRequestInit,
+  parseEvent: (value: unknown) => T,
+): AsyncIterable<T> {
+  const reader = (await openSseBody(path, init)).getReader();
   const decoder = new TextDecoder();
-  let buffer = '';
-  let dataLines: string[] = [];
+  const sseBuffer: SseBuffer = { text: '', dataLines: [] };
   let complete = false;
 
   try {
@@ -185,31 +217,14 @@ export async function* prismSse<T>(
       const next = await reader.read();
       if (next.done) {
         complete = true;
-        buffer += decoder.decode();
-        if (buffer) {
-          const line = buffer.endsWith('\r') ? buffer.slice(0, -1) : buffer;
-          if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
+        for (const payload of readSseChunk(sseBuffer, decoder.decode(), true)) {
+          yield parseEvent(JSON.parse(payload) as unknown);
         }
-        if (dataLines.length) yield parseEvent(JSON.parse(dataLines.join('\n')) as unknown);
         return;
       }
 
-      buffer += decoder.decode(next.value, { stream: true });
-      let lineEnd = buffer.indexOf('\n');
-      while (lineEnd !== -1) {
-        let line = buffer.slice(0, lineEnd);
-        buffer = buffer.slice(lineEnd + 1);
-        if (line.endsWith('\r')) line = line.slice(0, -1);
-        if (line === '') {
-          if (dataLines.length) {
-            const payload = dataLines.join('\n');
-            dataLines = [];
-            yield parseEvent(JSON.parse(payload) as unknown);
-          }
-        } else if (line.startsWith('data:')) {
-          dataLines.push(line.slice(5).replace(/^ /, ''));
-        }
-        lineEnd = buffer.indexOf('\n');
+      for (const payload of readSseChunk(sseBuffer, decoder.decode(next.value, { stream: true }))) {
+        yield parseEvent(JSON.parse(payload) as unknown);
       }
     }
   } finally {
