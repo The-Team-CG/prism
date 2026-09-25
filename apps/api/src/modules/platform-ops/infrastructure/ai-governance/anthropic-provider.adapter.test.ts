@@ -262,9 +262,12 @@ describe('AnthropicProviderAdapter', () => {
   });
 
   it.each([
+    { status: 408, code: 'provider_unavailable', retryable: true },
     { status: 429, code: 'provider_unavailable', retryable: true },
+    { status: 500, code: 'provider_unavailable', retryable: true },
     { status: 503, code: 'provider_unavailable', retryable: true },
     { status: 400, code: 'provider_rejected', retryable: false },
+    { status: 401, code: 'provider_rejected', retryable: false },
   ] as const)(
     'normalizes HTTP $status with a single SDK attempt',
     async ({ status, code, retryable }) => {
@@ -289,6 +292,18 @@ describe('AnthropicProviderAdapter', () => {
       expect(transport.requests).toHaveLength(1);
     },
   );
+
+  it('normalizes transport failures as retryable unavailability', async () => {
+    const adapter = makeAdapter(async () => {
+      throw new TypeError('Synthetic connection failure');
+    });
+
+    await expect(adapter.run(AI_PROVIDER_CONFORMANCE_REQUEST)).rejects.toMatchObject({
+      name: 'ProviderAdapterError',
+      code: 'provider_unavailable',
+      retryable: true,
+    });
+  });
 
   it('streams text deltas and a final response with usage and model metadata', async () => {
     const events = [
