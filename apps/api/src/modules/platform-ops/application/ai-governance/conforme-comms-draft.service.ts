@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { OpsAiApprovalRecord, OpsAiAuditLog } from '@prisma/client';
+import type { OpsAiApprovalRecord, OpsAiAuditLog, OpsConformeCommsDraft } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
@@ -31,21 +31,22 @@ import {
   type PrismVerifiedEventActor,
 } from '@prism/types';
 import { randomUUID } from 'node:crypto';
+import { SYNTHETIC_COMMS_REQUEST_FIXTURE } from './gateway/synthetic-fixture-registry';
 
 const DRAFT_FEATURE = 'FR-AI-09';
 type DraftPayload = {
   requestId: string;
   inquiryId: string;
   reminderWindowBaseAt: string;
-  decisionReminderAt?: string;
   source: 'ai' | 'manual';
   draft: CommsDraftResult;
-  evidence?: AiAuditEvidence;
 };
 type DraftApproval = Pick<OpsAiApprovalRecord,
   'id' | 'aiAuditLogId' | 'featureName' | 'status' | 'requestedAt' | 'approvedBy' | 'approvedAt' | 'sourceDispatchId'>;
 type DraftAudit = Pick<OpsAiAuditLog,
-  'id' | 'featureName' | 'modelVersion' | 'sanitizedPayload' | 'status' | 'humanApproved' | 'createdAt'>;
+  'id' | 'featureName' | 'modelVersion' | 'status' | 'humanApproved' | 'createdAt'>;
+type SavedDraft = Pick<OpsConformeCommsDraft,
+  'id' | 'inquiryId' | 'reminderWindowBaseAt' | 'decisionReminderAt' | 'requestId' | 'source' | 'subject' | 'body'>;
 type EligibleInquiry = EligibleConformeReminderInquiry;
 
 @Injectable()
@@ -70,12 +71,24 @@ export class ConformeCommsDraftService {
       orderBy: { requestedAt: 'desc' },
       take: 20,
     });
-    for (const approval of approvals) {
-      const audit = await this.prisma.opsAiAuditLog.findUnique({ where: { id: approval.aiAuditLogId } });
-      const payload = this.readPayload(audit, inquiryId);
-      if (payload) return this.toReviewRecord(approval, audit!, payload, inquiry.lastConformeReminderAt);
-    }
-    return null;
+    if (!approvals.length) return null;
+    const [audits, drafts] = await Promise.all([
+      this.prisma.opsAiAuditLog.findMany({ where: { id: { in: approvals.map((approval) => approval.aiAuditLogId) } } }),
+      this.prisma.opsConformeCommsDraft.findMany({
+        where: { id: { in: approvals.map((approval) => approval.id) }, inquiryId },
+      }),
+    ]);
+    const auditsById = new Map(audits.map((audit) => [audit.id, audit]));
+    const draftsById = new Map(drafts.map((draft) => [draft.id, draft]));
+    const reviews = approvals.map((approval) => {
+      const audit = auditsById.get(approval.aiAuditLogId);
+      const draft = draftsById.get(approval.id) ?? null;
+      if (audit?.featureName === DRAFT_FEATURE && this.isUsableDraft(draft) && draft.inquiryId === inquiryId) {
+        return this.toReviewRecord(approval, audit, draft, inquiry.lastConformeReminderAt);
+      }
+      return null;
+    });
+    return reviews.find((review) => review !== null) ?? null;
   }
 
   async prepareStream(
@@ -89,7 +102,7 @@ export class ConformeCommsDraftService {
     const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
     if (existing) throw new ConflictException('A draft already exists for this reminder window');
 
-    return this.streamAndPersist(input, inquiry, actor, signal);
+    return this.streamAndPersist(inquiry, actor, signal);
   }
 
   async saveManual(
@@ -116,7 +129,7 @@ export class ConformeCommsDraftService {
       createdAt: now,
       evidence: undefined,
     });
-    return this.toReviewRecord(saved.approval, saved.audit, payload, inquiry.lastConformeReminderAt);
+    return this.toReviewRecord(saved.approval, saved.audit, saved.draft, inquiry.lastConformeReminderAt);
   }
 
   async approve(draftId: string, draftInput: CommsDraftResult, verifiedActor: PrismVerifiedEventActor) {
@@ -128,12 +141,10 @@ export class ConformeCommsDraftService {
       throw new ConflictException('Only a pending conforme draft can be approved');
     }
     const audit = await this.prisma.opsAiAuditLog.findUnique({ where: { id: approval.aiAuditLogId } });
-    const payload = this.readPayload(audit, undefined);
-    if (!payload || !approval.sourceDispatchId || this.draftKeyForPayload(payload) !== approval.sourceDispatchId) {
-      throw new BadRequestException('A matching saved conforme draft is required');
-    }
-    const inquiry = await this.requireEligibleInquiry(payload.inquiryId);
-    if (payload.reminderWindowBaseAt !== inquiry.reminderWindowBaseAt) {
+    const { draft } = this.requireMatchingDraft(approval, audit,
+      await this.prisma.opsConformeCommsDraft.findUnique({ where: { id: draftId } }));
+    const inquiry = await this.requireEligibleInquiry(draft.inquiryId);
+    if (draft.reminderWindowBaseAt !== inquiry.reminderWindowBaseAt) {
       throw new ConflictException('The reminder window changed; refresh and create a new draft');
     }
 
@@ -143,17 +154,14 @@ export class ConformeCommsDraftService {
       if (currentApproval.status !== 'pending_human_approval') {
         throw new ConflictException('Only a pending conforme draft can be approved');
       }
-      const currentAudit = await tx.opsAiAuditLog.findUnique({ where: { id: currentApproval.aiAuditLogId } });
-      const currentPayload = this.readPayload(currentAudit, payload.inquiryId);
-      if (!currentPayload || !currentApproval.sourceDispatchId || this.draftKeyForPayload(currentPayload) !== currentApproval.sourceDispatchId) {
-        throw new BadRequestException('A matching saved conforme draft is required');
-      }
-      if (currentPayload.reminderWindowBaseAt !== inquiry.reminderWindowBaseAt) {
+      const currentAuditRow = await tx.opsAiAuditLog.findUnique({ where: { id: currentApproval.aiAuditLogId } });
+      const { draft: currentDraft, audit: currentAudit } = this.requireMatchingDraft(currentApproval, currentAuditRow,
+        await tx.opsConformeCommsDraft.findUnique({ where: { id: draftId } }));
+      if (currentDraft.inquiryId !== inquiry.inquiryId || currentDraft.reminderWindowBaseAt !== inquiry.reminderWindowBaseAt) {
         throw new ConflictException('The reminder window changed; refresh and create a new draft');
       }
 
       const now = new Date();
-      const updatedPayload: DraftPayload = { ...currentPayload, draft: editedDraft, decisionReminderAt: now.toISOString() };
       const claimedApproval = await tx.opsAiApprovalRecord.updateMany({
         where: { id: draftId, status: 'pending_human_approval' },
         data: {
@@ -165,14 +173,18 @@ export class ConformeCommsDraftService {
       });
       if (claimedApproval.count !== 1) throw new ConflictException('Conforme draft was already reviewed');
       const updatedAudit = await tx.opsAiAuditLog.updateMany({
-        where: { id: currentAudit!.id, status: 'pending_human_approval' },
+        where: { id: currentAudit.id, status: 'pending_human_approval' },
         data: {
-          sanitizedPayload: toPrismaJson(updatedPayload),
+          dataCategories: toPrismaJson(['personal']),
           status: 'approved',
           humanApproved: true,
         },
       });
       if (updatedAudit.count !== 1) throw new ConflictException('Conforme draft audit is no longer pending');
+      const savedDraft = await tx.opsConformeCommsDraft.update({
+        where: { id: draftId },
+        data: { subject: editedDraft.subject, body: editedDraft.body, decisionReminderAt: now.toISOString() },
+      });
 
       const reminderMessage = `${editedDraft.subject}\n\n${editedDraft.body}`;
       const claimedWindow = await this.conformeReminderWindowClaimer.claim({
@@ -192,8 +204,8 @@ export class ConformeCommsDraftService {
         notificationContext,
       );
       const savedApproval = await tx.opsAiApprovalRecord.findUniqueOrThrow({ where: { id: draftId } });
-      const savedAudit = await tx.opsAiAuditLog.findUniqueOrThrow({ where: { id: currentAudit!.id } });
-      return this.toReviewRecord(savedApproval, savedAudit, updatedPayload, claimedWindow.lastConformeReminderAt);
+      const savedAudit = await tx.opsAiAuditLog.findUniqueOrThrow({ where: { id: currentAudit.id } });
+      return this.toReviewRecord(savedApproval, savedAudit, savedDraft, claimedWindow.lastConformeReminderAt);
     });
   }
 
@@ -205,11 +217,9 @@ export class ConformeCommsDraftService {
       if (approval.status !== 'pending_human_approval') {
         throw new ConflictException('Only a pending conforme draft can be cancelled');
       }
-      const audit = await tx.opsAiAuditLog.findUnique({ where: { id: approval.aiAuditLogId } });
-      const payload = this.readPayload(audit, undefined);
-      if (!payload || !approval.sourceDispatchId || this.draftKeyForPayload(payload) !== approval.sourceDispatchId) {
-        throw new BadRequestException('A matching saved conforme draft is required');
-      }
+      const auditRow = await tx.opsAiAuditLog.findUnique({ where: { id: approval.aiAuditLogId } });
+      const { draft, audit } = this.requireMatchingDraft(approval, auditRow,
+        await tx.opsConformeCommsDraft.findUnique({ where: { id: draftId } }));
       const now = new Date();
       const claimed = await tx.opsAiApprovalRecord.updateMany({
         where: { id: draftId, status: 'pending_human_approval' },
@@ -217,24 +227,23 @@ export class ConformeCommsDraftService {
       });
       if (claimed.count !== 1) throw new ConflictException('Conforme draft was already reviewed');
       const audited = await tx.opsAiAuditLog.updateMany({
-        where: { id: audit!.id, status: 'pending_human_approval' },
+        where: { id: audit.id, status: 'pending_human_approval' },
         data: { status: 'rejected', humanApproved: false },
       });
       if (audited.count !== 1) throw new ConflictException('Conforme draft audit is no longer pending');
       const savedApproval = await tx.opsAiApprovalRecord.findUniqueOrThrow({ where: { id: draftId } });
-      const savedAudit = await tx.opsAiAuditLog.findUniqueOrThrow({ where: { id: audit!.id } });
-      return this.toReviewRecord(savedApproval, savedAudit, payload, null);
+      const savedAudit = await tx.opsAiAuditLog.findUniqueOrThrow({ where: { id: audit.id } });
+      return this.toReviewRecord(savedApproval, savedAudit, draft, null);
     });
   }
 
   private async *streamAndPersist(
-    input: CommsDraftRequest,
     inquiry: EligibleInquiry,
     actor: ResolvedEventOpsActor,
     signal?: AbortSignal,
   ): AsyncIterable<AiGatewayStreamEvent<CommsDraftResult>> {
-    const stream = this.aiGateway.stream('comms.draft', input, {
-      correlationId: this.draftKey(inquiry),
+    // Inquiry identity stays inside PRISM; the provider sees a registered generic fixture.
+    const stream = this.aiGateway.stream('comms.draft', SYNTHETIC_COMMS_REQUEST_FIXTURE, {
       signal,
     });
     for await (const event of stream) {
@@ -253,7 +262,6 @@ export class ConformeCommsDraftService {
           reminderWindowBaseAt: inquiry.reminderWindowBaseAt,
           source: 'ai',
           draft,
-          evidence,
         };
         const saved = await this.persistPendingDraft({
           sourceDispatchId: this.draftKey(inquiry),
@@ -262,7 +270,7 @@ export class ConformeCommsDraftService {
           createdAt: new Date(),
           evidence,
         });
-        yield { ...event, result: { ...event.result, output: this.readPayload(saved.audit, inquiry.inquiryId)!.draft } };
+        yield { ...event, result: { ...event.result, output: { subject: saved.draft.subject, body: saved.draft.body } } };
       } else {
         yield event;
       }
@@ -287,8 +295,8 @@ export class ConformeCommsDraftService {
             id: auditId,
             featureName: DRAFT_FEATURE,
             modelVersion: input.evidence?.responseModel ?? input.evidence?.requestedModel ?? 'manual',
-            dataCategories: toPrismaJson(input.evidence?.dataClasses ?? []),
-            sanitizedPayload: toPrismaJson(input.payload),
+            dataCategories: toPrismaJson(input.evidence?.dataClasses ?? ['personal']),
+            sanitizedPayload: toPrismaJson({ source: input.payload.source, draftRecordId: approvalId }),
             zdrConfirmed: input.evidence?.zdrBasis === 'provider-enforced',
             humanApprovalRequired: true,
             status: 'pending_human_approval',
@@ -307,7 +315,19 @@ export class ConformeCommsDraftService {
             sourceDispatchId: input.sourceDispatchId,
           },
         });
-        return { approval, audit };
+        const draft = await tx.opsConformeCommsDraft.create({
+          data: {
+            id: approvalId,
+            inquiryId: input.payload.inquiryId,
+            reminderWindowBaseAt: input.payload.reminderWindowBaseAt,
+            requestId: input.payload.requestId,
+            source: input.payload.source,
+            subject: input.payload.draft.subject,
+            body: input.payload.draft.body,
+            createdAt: input.createdAt,
+          },
+        });
+        return { approval, audit, draft };
       });
     } catch (error) {
       if (this.isUniqueConstraintError(error)) {
@@ -331,35 +351,47 @@ export class ConformeCommsDraftService {
     return `conforme-follow-up:${inquiry.inquiryId}:${Date.parse(inquiry.reminderWindowBaseAt)}:draft`;
   }
 
-  private draftKeyForPayload(payload: DraftPayload) {
-    return `conforme-follow-up:${payload.inquiryId}:${Date.parse(payload.reminderWindowBaseAt)}:draft`;
+  private draftKeyForRecord(draft: SavedDraft) {
+    return `conforme-follow-up:${draft.inquiryId}:${Date.parse(draft.reminderWindowBaseAt)}:draft`;
   }
 
-  private readPayload(audit: DraftAudit | null, expectedInquiryId?: string): DraftPayload | null {
-    if (!audit || audit.featureName !== DRAFT_FEATURE) return null;
-    const payload = parseDraftPayload(audit.sanitizedPayload);
-    if (!payload || (expectedInquiryId && payload.inquiryId !== expectedInquiryId)) return null;
-    return payload;
+  private isUsableDraft(draft: SavedDraft | null): draft is SavedDraft {
+    return Boolean(draft && isCanonicalUtc(draft.reminderWindowBaseAt) &&
+      (!draft.decisionReminderAt || isCanonicalUtc(draft.decisionReminderAt)) &&
+      (draft.source === 'ai' || draft.source === 'manual') &&
+      draft.requestId.trim() && draft.inquiryId.trim() &&
+      commsDraftResultSchema.safeParse({ subject: draft.subject, body: draft.body }).success);
+  }
+
+  private requireMatchingDraft(approval: DraftApproval, audit: DraftAudit | null, draft: SavedDraft | null): {
+    audit: DraftAudit;
+    draft: SavedDraft;
+  } {
+    if (audit?.featureName !== DRAFT_FEATURE || !this.isUsableDraft(draft) || !approval.sourceDispatchId ||
+      this.draftKeyForRecord(draft) !== approval.sourceDispatchId) {
+      throw new BadRequestException('A matching saved conforme draft is required');
+    }
+    return { audit, draft };
   }
 
   private toReviewRecord(
     approval: DraftApproval,
     audit: DraftAudit,
-    payload: DraftPayload,
+    draft: SavedDraft,
     lastConformeReminderAt: string | null,
   ) {
     return {
       draftId: approval.id,
-      inquiryId: payload.inquiryId,
-      draft: payload.draft,
+      inquiryId: draft.inquiryId,
+      draft: { subject: draft.subject, body: draft.body },
       status: approval.status,
-      source: payload.source,
+      source: draft.source,
       requestedAt: approval.requestedAt.toISOString(),
       reviewedBy: approval.approvedBy,
       reviewedAt: approval.approvedAt?.toISOString() ?? null,
-      lastConformeReminderAt: payload.decisionReminderAt ?? lastConformeReminderAt,
-      reminderWindowBaseAt: payload.reminderWindowBaseAt,
-      requestId: payload.requestId,
+      lastConformeReminderAt: draft.decisionReminderAt ?? lastConformeReminderAt,
+      reminderWindowBaseAt: draft.reminderWindowBaseAt,
+      requestId: draft.requestId,
       modelVersion: audit.modelVersion,
     };
   }
@@ -369,45 +401,7 @@ export class ConformeCommsDraftService {
   }
 }
 
-function parseDraftPayload(value: unknown): DraftPayload | null {
-  if (!isRecord(value)) return null;
-  const allowedKeys = new Set(['requestId', 'inquiryId', 'reminderWindowBaseAt', 'decisionReminderAt', 'source', 'draft', 'evidence']);
-  if (Object.keys(value).some((key) => !allowedKeys.has(key))) return null;
-  if (typeof value.requestId !== 'string' || !value.requestId.trim()) return null;
-  if (typeof value.inquiryId !== 'string' || !value.inquiryId.trim()) return null;
-  if (typeof value.reminderWindowBaseAt !== 'string' || !isUtcDateTime(value.reminderWindowBaseAt)) return null;
-  if (value.decisionReminderAt !== undefined && (typeof value.decisionReminderAt !== 'string' || !isUtcDateTime(value.decisionReminderAt))) return null;
-  if (value.source !== 'ai' && value.source !== 'manual') return null;
-
-  const draft = commsDraftResultSchema.safeParse(value.draft);
-  if (!draft.success) return null;
-
-  let evidence: AiAuditEvidence | undefined;
-  if (value.evidence !== undefined) {
-    const parsedEvidence = aiAuditEvidenceSchema.safeParse(value.evidence);
-    if (!parsedEvidence.success) return null;
-    evidence = parsedEvidence.data;
-  }
-
-  return {
-    requestId: value.requestId.trim(),
-    inquiryId: value.inquiryId.trim(),
-    reminderWindowBaseAt: value.reminderWindowBaseAt,
-    ...(typeof value.decisionReminderAt === 'string' ? { decisionReminderAt: value.decisionReminderAt } : {}),
-    source: value.source,
-    draft: draft.data,
-    ...(evidence ? { evidence } : {}),
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isUtcDateTime(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(value)) return false;
+function isCanonicalUtc(value: string): boolean {
   const parsed = new Date(value);
-  if (!Number.isFinite(parsed.getTime())) return false;
-  const normalized = value.replace(/\.(\d{1,3})\d*Z$/, (_, fraction: string) => `.${fraction.padEnd(3, '0')}Z`);
-  return parsed.toISOString() === (normalized.includes('.') ? normalized : normalized.replace(/Z$/, '.000Z'));
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
 }

@@ -1,7 +1,11 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import type { AiAuditEvidence, AiGatewayStreamEvent, CommsDraftResult, PrismVerifiedEventActor } from '@prism/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConformeCommsDraftService } from './conforme-comms-draft.service';
+import { resolveAiGatewayRuntimeConfig } from './gateway/ai-gateway.config';
+import { AiGatewayService } from './gateway/ai-gateway.service';
+import { SYNTHETIC_COMMS_REQUEST_FIXTURE, SyntheticFixtureRegistry } from './gateway/synthetic-fixture-registry';
+import { MockAiProviderAdapter } from '../../infrastructure/ai-governance/mock-ai-provider.adapter';
 
 const NOW = new Date('2026-09-24T12:00:00.000Z');
 const SENT_AT = new Date(NOW.getTime() - 6 * 24 * 60 * 60 * 1000);
@@ -75,9 +79,12 @@ function createHarness(options: { status?: string; sentAt?: Date | null; signedA
     },
     audits: new Map<string, any>(),
     approvals: new Map<string, any>(),
+    drafts: new Map<string, any>(),
     notifications: [] as any[],
   };
   const tx = {
+    $queryRaw: vi.fn(async () => [{ id: 'budget-row' }]),
+    $executeRaw: vi.fn(async () => 1),
     opsInquiry: {
       findUnique: vi.fn(async ({ where }: any) => where.id === state.inquiry.id ? state.inquiry : null),
       findUniqueOrThrow: vi.fn(async ({ where }: any) => {
@@ -98,7 +105,14 @@ function createHarness(options: { status?: string; sentAt?: Date | null; signedA
     },
     opsAiAuditLog: {
       create: vi.fn(async ({ data }: any) => { state.audits.set(data.id, { ...data }); return state.audits.get(data.id); }),
+      update: vi.fn(async ({ where, data }: any) => {
+        const row = state.audits.get(where.id);
+        if (!row) throw new Error('missing audit');
+        Object.assign(row, data);
+        return row;
+      }),
       findUnique: vi.fn(async ({ where }: any) => state.audits.get(where.id) ?? null),
+      findMany: vi.fn(async ({ where }: any) => [...state.audits.values()].filter((row) => where.id.in.includes(row.id))),
       findUniqueOrThrow: vi.fn(async ({ where }: any) => {
         const row = state.audits.get(where.id);
         if (!row) throw new Error('missing audit');
@@ -131,6 +145,18 @@ function createHarness(options: { status?: string; sentAt?: Date | null; signedA
         return { count: 1 };
       }),
     },
+    opsConformeCommsDraft: {
+      create: vi.fn(async ({ data }: any) => { state.drafts.set(data.id, { ...data }); return state.drafts.get(data.id); }),
+      findUnique: vi.fn(async ({ where }: any) => state.drafts.get(where.id) ?? null),
+      findMany: vi.fn(async ({ where }: any) => [...state.drafts.values()].filter((row) =>
+        where.id.in.includes(row.id) && row.inquiryId === where.inquiryId)),
+      update: vi.fn(async ({ where, data }: any) => {
+        const row = state.drafts.get(where.id);
+        if (!row) throw new Error('missing draft');
+        Object.assign(row, data);
+        return row;
+      }),
+    },
     opsNotificationLog: {
       upsert: vi.fn(async ({ create }: any) => {
         const existing = state.notifications.find((row) => row.idempotencyKey === create.idempotencyKey);
@@ -148,6 +174,8 @@ function createHarness(options: { status?: string; sentAt?: Date | null; signedA
     for (const entry of snapshot.audits) state.audits.set(entry[0], entry[1]);
     state.approvals.clear();
     for (const entry of snapshot.approvals) state.approvals.set(entry[0], entry[1]);
+    state.drafts.clear();
+    for (const entry of snapshot.drafts) state.drafts.set(entry[0], entry[1]);
     state.notifications.splice(0, state.notifications.length, ...snapshot.notifications);
   };
   const prisma = {
@@ -163,7 +191,7 @@ function createHarness(options: { status?: string; sentAt?: Date | null; signedA
     }),
   };
   const gateway = {
-    stream: vi.fn(() => (async function* () { yield* STREAM_EVENTS; })()),
+    stream: vi.fn((_useCaseId: string, _request: unknown) => (async function* () { yield* STREAM_EVENTS; })()),
   };
   const policy = {
     resolveActor: vi.fn((_input, actor) => ({ id: actor.actorId, role: actor.actorRole, name: actor.actorName, verified: true })),
@@ -231,21 +259,55 @@ async function consume(stream: AsyncIterable<AiGatewayStreamEvent<CommsDraftResu
 }
 
 describe('ConformeCommsDraftService', () => {
-  it('streams with inquiry identity only, persists a pending validated draft, and queues nothing', async () => {
+  it('streams a server-owned synthetic request, stores review text separately, and queues nothing', async () => {
     const { service, state, gateway } = createHarness();
     const stream = await service.prepareStream({ inquiryId: 'inq_1' }, verifiedActor(), new AbortController().signal);
     const events = await consume(stream);
 
-    expect(gateway.stream).toHaveBeenCalledWith('comms.draft', { inquiryId: 'inq_1' }, expect.any(Object));
+    expect(gateway.stream).toHaveBeenCalledWith('comms.draft', SYNTHETIC_COMMS_REQUEST_FIXTURE, expect.any(Object));
+    expect(JSON.stringify(gateway.stream.mock.calls[0])).not.toContain('inq_1');
     expect(events[events.length - 1]?.type).toBe('complete');
     expect(state.approvals.size).toBe(1);
     expect([...state.approvals.values()][0].status).toBe('pending_human_approval');
-    expect([...state.audits.values()][0].sanitizedPayload).toMatchObject({
-      inquiryId: 'inq_1',
-      reminderWindowBaseAt: SENT_AT.toISOString(),
-      source: 'ai',
-      evidence: { requestId: EVIDENCE.requestId, useCaseId: 'comms.draft', profileId: 'mock' },
+    expect([...state.audits.values()][0].sanitizedPayload).toEqual({
+      source: 'ai', draftRecordId: [...state.approvals.values()][0].id,
     });
+    expect([...state.drafts.values()][0]).toMatchObject({
+      inquiryId: 'inq_1', subject: ORIGINAL_DRAFT.subject, body: ORIGINAL_DRAFT.body,
+    });
+    expect(JSON.stringify([...state.audits.values()])).not.toContain(ORIGINAL_DRAFT.body);
+    expect(JSON.stringify([...state.audits.values()])).not.toContain('inq_1');
+    expect(state.notifications).toHaveLength(0);
+  });
+
+  it('completes a real mock gateway stream for an eligible inquiry without sending its identity', async () => {
+    const { state, prisma, policy, notificationOutboxWriter, reminderWindowClaimer } = createHarness();
+    const registry = new SyntheticFixtureRegistry();
+    const runtime = resolveAiGatewayRuntimeConfig({ get: () => undefined } as never);
+    const gateway = new AiGatewayService(prisma as never, runtime, [new MockAiProviderAdapter()], registry);
+    gateway.onModuleInit();
+    const service = new ConformeCommsDraftService(
+      prisma as never, gateway, notificationOutboxWriter as never, policy as never, reminderWindowClaimer as never,
+    );
+
+    const events = await consume(await service.prepareStream({ inquiryId: 'inq_1' }, verifiedActor()));
+    expect(events[events.length - 1]?.type).toBe('complete');
+    expect(await registry.verify({ inquiryId: 'inq_1' })).toBeNull();
+    expect([...state.drafts.values()][0].inquiryId).toBe('inq_1');
+    const gatewayAudit = [...state.audits.values()].find((row) => row.featureName === 'comms.draft');
+    expect(gatewayAudit?.dataCategories).toEqual(['synthetic']);
+    expect(gatewayAudit?.sanitizedPayload).toEqual(SYNTHETIC_COMMS_REQUEST_FIXTURE);
+    expect(JSON.stringify(gatewayAudit)).not.toContain('inq_1');
+  });
+
+  it('does not expose or approve a malformed migrated draft snapshot', async () => {
+    const { service, state } = createHarness();
+    const saved = await service.saveManual('inq_1', ORIGINAL_DRAFT, verifiedActor());
+    state.drafts.get(saved.draftId).reminderWindowBaseAt = '2026-02-30T12:00:00.000Z';
+
+    expect(await service.loadForInquiry('inq_1', verifiedActor())).toBeNull();
+    await expect(service.approve(saved.draftId, ORIGINAL_DRAFT, verifiedActor()))
+      .rejects.toBeInstanceOf(BadRequestException);
     expect(state.notifications).toHaveLength(0);
   });
 
@@ -322,6 +384,8 @@ describe('ConformeCommsDraftService', () => {
     });
     expect(state.notifications[0].idempotencyKey).toContain(approval.sourceDispatchId.split(':draft')[0]);
     expect(approval.approvedBy).toBe('Verified PMCM');
+    expect([...state.drafts.values()][0]).toMatchObject({ subject: edited.subject, body: edited.body });
+    expect(JSON.stringify([...state.audits.values()])).not.toContain(edited.body);
 
     await expect(service.approve(approval.id, edited, verifiedActor())).rejects.toBeInstanceOf(ConflictException);
     expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(1);
@@ -337,9 +401,24 @@ describe('ConformeCommsDraftService', () => {
     expect(manual.source).toBe('manual');
     expect(manual.status).toBe('pending_human_approval');
     expect(state.notifications).toHaveLength(0);
+    expect([...state.audits.values()][0].dataCategories).toEqual(['personal']);
+    expect(JSON.stringify([...state.audits.values()])).not.toContain(manual.draft.body);
 
     await service.approve(manual.draftId, manual.draft, verifiedActor());
     expect(state.notifications).toHaveLength(1);
+  });
+
+  it('rolls back edited text, approval, and reminder claim when the outbox write fails', async () => {
+    const { service, state, notificationOutboxWriter } = createHarness();
+    const saved = await service.saveManual('inq_1', ORIGINAL_DRAFT, verifiedActor());
+    notificationOutboxWriter.write.mockRejectedValueOnce(new Error('outbox unavailable'));
+
+    await expect(service.approve(saved.draftId, { subject: 'Edited', body: 'Edited body' }, verifiedActor()))
+      .rejects.toThrow('outbox unavailable');
+    expect(state.drafts.get(saved.draftId)).toMatchObject(ORIGINAL_DRAFT);
+    expect(state.approvals.get(saved.draftId).status).toBe('pending_human_approval');
+    expect(state.inquiry.lastConformeReminderAt).toBeNull();
+    expect(state.notifications).toHaveLength(0);
   });
 
   it('cancels a draft without enqueuing a message', async () => {
