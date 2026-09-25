@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { type APIError } from '@anthropic-ai/sdk';
 import type {
   AiProviderAdapter,
   AiProviderMessage,
@@ -255,11 +255,7 @@ function normalizeStopReason(
 }
 
 function normalizeProviderError(error: unknown, signal?: AbortSignal): ProviderAdapterError {
-  if (
-    signal?.aborted ||
-    error instanceof Anthropic.APIUserAbortError ||
-    (error instanceof Error && error.name === 'AbortError')
-  ) {
+  if (isAbortedProviderError(error, signal)) {
     return abortedError();
   }
 
@@ -273,17 +269,7 @@ function normalizeProviderError(error: unknown, signal?: AbortSignal): ProviderA
   }
 
   if (error instanceof Anthropic.APIError) {
-    const status = error.status;
-    const retryable = status === 408 || status === 429 || (status !== undefined && status >= 500);
-    return new ProviderAdapterError(
-      retryable ? 'provider_unavailable' : 'provider_rejected',
-      retryable ? 'Anthropic is temporarily unavailable' : 'Anthropic rejected the request',
-      retryable,
-      {
-        ...(status === undefined ? {} : { status }),
-        ...(error.requestID ? { requestId: error.requestID } : {}),
-      },
-    );
+    return normalizeApiError(error);
   }
 
   if (error instanceof ProviderAdapterError) {
@@ -294,6 +280,26 @@ function normalizeProviderError(error: unknown, signal?: AbortSignal): ProviderA
     'internal',
     'The Anthropic adapter could not complete the request',
     false,
+  );
+}
+
+function isAbortedProviderError(error: unknown, signal?: AbortSignal): boolean {
+  return signal?.aborted === true ||
+    error instanceof Anthropic.APIUserAbortError ||
+    (error instanceof Error && error.name === 'AbortError');
+}
+
+function normalizeApiError(error: APIError): ProviderAdapterError {
+  const status = error.status;
+  const retryable = status === 408 || status === 429 || (status !== undefined && status >= 500);
+  return new ProviderAdapterError(
+    retryable ? 'provider_unavailable' : 'provider_rejected',
+    retryable ? 'Anthropic is temporarily unavailable' : 'Anthropic rejected the request',
+    retryable,
+    {
+      ...(status === undefined ? {} : { status }),
+      ...(error.requestID ? { requestId: error.requestID } : {}),
+    },
   );
 }
 
