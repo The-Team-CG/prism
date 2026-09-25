@@ -11,6 +11,118 @@ function displayTimestamp(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? 'Reminder date unavailable' : date.toLocaleString();
 }
 
+type DraftModel = ReturnType<typeof useConformeDraftReviewViewModel>;
+
+function DraftStatus({ model, currentWindowDraft }: { model: DraftModel; currentWindowDraft: boolean }) {
+  if (model.status === 'loading') return <p role="status" className="text-sm text-muted-foreground">Loading draft status…</p>;
+  if (model.status === 'streaming') {
+    return (
+      <div className="flex items-center gap-3" role="status" aria-live="polite">
+        <span className="text-sm text-muted-foreground">Generating draft · {model.streamedCharacters} characters received</span>
+        <Button type="button" variant="secondary" onClick={model.cancelGeneration}>Cancel</Button>
+      </div>
+    );
+  }
+  if (model.status === 'approved') {
+    return currentWindowDraft
+      ? <span className="text-sm font-medium text-emerald-700">Approved and queued for delivery</span>
+      : <span className="text-sm text-muted-foreground">Previous reminder draft was approved</span>;
+  }
+  if (model.status === 'cancelled') {
+    return <span className="text-sm text-muted-foreground">{currentWindowDraft ? 'Draft cancelled' : 'Previous reminder draft was cancelled'}</span>;
+  }
+  return null;
+}
+
+function DraftEditor({ model }: { model: DraftModel }) {
+  if (model.status !== 'pending' && model.status !== 'editing') return null;
+  return (
+    <div className="mt-4 grid gap-3">
+      <label className="grid gap-1 text-sm font-medium">
+        Subject
+        <input
+          value={model.subject}
+          onChange={(event) => model.setSubject(event.target.value)}
+          className="min-h-10 rounded-md border border-input bg-background px-3 py-2 font-normal"
+          maxLength={180}
+        />
+      </label>
+      <label className="grid gap-1 text-sm font-medium">
+        Message
+        <textarea
+          value={model.body}
+          onChange={(event) => model.setBody(event.target.value)}
+          className="min-h-36 resize-y rounded-md border border-input bg-background px-3 py-2 font-normal"
+          maxLength={8000}
+        />
+      </label>
+    </div>
+  );
+}
+
+function canStartDraft(model: DraftModel, eligible: boolean, currentWindowDraft: boolean, stalePendingDraft: boolean) {
+  return eligible && !stalePendingDraft &&
+    (model.status === 'idle' || model.status === 'unavailable' || Boolean(model.draft && !currentWindowDraft));
+}
+
+function DraftStartActions({ model, eligible, currentWindowDraft, stalePendingDraft, availableAt }: {
+  model: DraftModel;
+  eligible: boolean;
+  currentWindowDraft: boolean;
+  stalePendingDraft: boolean;
+  availableAt: string;
+}) {
+  const canStart = canStartDraft(model, eligible, currentWindowDraft, stalePendingDraft);
+  return (
+    <>
+      {canStart && (
+        <>
+          <Button type="button" onClick={model.generate}>
+            {model.status === 'unavailable' ? 'Retry AI draft' : 'Generate AI draft'}
+          </Button>
+          <Button type="button" variant="secondary" onClick={model.startManualWriting}>Write manually</Button>
+        </>
+      )}
+      {!eligible && model.status !== 'loading' && model.status !== 'pending' && (
+        <p className="self-center text-sm text-muted-foreground">Draft review opens {availableAt}.</p>
+      )}
+    </>
+  );
+}
+
+function DraftReviewActions({ model, currentWindowDraft, stalePendingDraft }: {
+  model: DraftModel;
+  currentWindowDraft: boolean;
+  stalePendingDraft: boolean;
+}) {
+  return (
+    <>
+      {model.status === 'editing' && (
+        <>
+          <Button type="button" onClick={model.saveManual}>Save manual draft</Button>
+          <Button type="button" variant="secondary" onClick={model.cancelManualWriting}>Cancel writing</Button>
+        </>
+      )}
+      {model.status === 'pending' && currentWindowDraft && (
+        <>
+          <Button type="button" onClick={model.approve}>Approve and queue for delivery</Button>
+          <Button type="button" variant="secondary" onClick={model.cancelDraft}>Cancel draft</Button>
+        </>
+      )}
+      {stalePendingDraft && (
+        <>
+          <p className="self-center text-sm text-muted-foreground">This pending draft belongs to an earlier reminder window and cannot be approved.</p>
+          <Button type="button" variant="secondary" onClick={model.cancelDraft}>Cancel previous draft</Button>
+        </>
+      )}
+      {model.status === 'unavailable' && model.draft && currentWindowDraft && (
+        <Button type="button" variant="secondary" onClick={model.startManualWriting}>Write manually</Button>
+      )}
+      {model.status === 'saving' && <p role="status" className="self-center text-sm text-muted-foreground">Saving…</p>}
+    </>
+  );
+}
+
 function ConformeDraftCard({ inquiry }: { inquiry: PrismInquiry }) {
   const model = useConformeDraftReviewViewModel(inquiry);
   const eligible = canOfferConformeDraft(inquiry);
@@ -20,8 +132,6 @@ function ConformeDraftCard({ inquiry }: { inquiry: PrismInquiry }) {
   const availableAt = reminderWindowBaseAt
     ? new Date(Date.parse(reminderWindowBaseAt) + CONFORME_DRAFT_DELAY_MS).toLocaleString()
     : 'after the conforme is sent';
-  const editable = model.status === 'pending' || model.status === 'editing';
-
   return (
     <article className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -33,25 +143,7 @@ function ConformeDraftCard({ inquiry }: { inquiry: PrismInquiry }) {
             Last reminder: {displayTimestamp(model.draft?.lastConformeReminderAt ?? inquiry.lastConformeReminderAt)}
           </p>
         </div>
-        {model.status === 'loading' && <p role="status" className="text-sm text-muted-foreground">Loading draft status…</p>}
-        {model.status === 'streaming' && (
-          <div className="flex items-center gap-3" role="status" aria-live="polite">
-            <span className="text-sm text-muted-foreground">Generating draft · {model.streamedCharacters} characters received</span>
-            <Button type="button" variant="secondary" onClick={model.cancelGeneration}>Cancel</Button>
-          </div>
-        )}
-        {model.status === 'approved' && currentWindowDraft && (
-          <span className="text-sm font-medium text-emerald-700">Approved and queued for delivery</span>
-        )}
-        {model.status === 'approved' && !currentWindowDraft && (
-          <span className="text-sm text-muted-foreground">Previous reminder draft was approved</span>
-        )}
-        {model.status === 'cancelled' && currentWindowDraft && (
-          <span className="text-sm text-muted-foreground">Draft cancelled</span>
-        )}
-        {model.status === 'cancelled' && !currentWindowDraft && (
-          <span className="text-sm text-muted-foreground">Previous reminder draft was cancelled</span>
-        )}
+        <DraftStatus model={model} currentWindowDraft={currentWindowDraft} />
       </div>
 
       {model.draft && (
@@ -60,65 +152,19 @@ function ConformeDraftCard({ inquiry }: { inquiry: PrismInquiry }) {
         </p>
       )}
 
-      {editable && (
-        <div className="mt-4 grid gap-3">
-          <label className="grid gap-1 text-sm font-medium">
-            Subject
-            <input
-              value={model.subject}
-              onChange={(event) => model.setSubject(event.target.value)}
-              className="min-h-10 rounded-md border border-input bg-background px-3 py-2 font-normal"
-              maxLength={180}
-            />
-          </label>
-          <label className="grid gap-1 text-sm font-medium">
-            Message
-            <textarea
-              value={model.body}
-              onChange={(event) => model.setBody(event.target.value)}
-              className="min-h-36 resize-y rounded-md border border-input bg-background px-3 py-2 font-normal"
-              maxLength={8000}
-            />
-          </label>
-        </div>
-      )}
+      <DraftEditor model={model} />
 
       {model.errorMessage && <p role="alert" className="mt-3 text-sm text-destructive">{model.errorMessage}</p>}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {eligible && !stalePendingDraft && (model.status === 'idle' || model.status === 'unavailable' || (model.draft && !currentWindowDraft)) && (
-          <>
-            <Button type="button" onClick={model.generate}>
-              {model.status === 'unavailable' ? 'Retry AI draft' : 'Generate AI draft'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={model.startManualWriting}>Write manually</Button>
-          </>
-        )}
-        {!eligible && model.status !== 'loading' && model.status !== 'pending' && (
-          <p className="self-center text-sm text-muted-foreground">Draft review opens {availableAt}.</p>
-        )}
-        {model.status === 'editing' && (
-          <>
-            <Button type="button" onClick={model.saveManual}>Save manual draft</Button>
-            <Button type="button" variant="secondary" onClick={model.cancelManualWriting}>Cancel writing</Button>
-          </>
-        )}
-        {model.status === 'pending' && currentWindowDraft && (
-          <>
-            <Button type="button" onClick={model.approve}>Approve and queue for delivery</Button>
-            <Button type="button" variant="secondary" onClick={model.cancelDraft}>Cancel draft</Button>
-          </>
-        )}
-        {stalePendingDraft && (
-          <>
-            <p className="self-center text-sm text-muted-foreground">This pending draft belongs to an earlier reminder window and cannot be approved.</p>
-            <Button type="button" variant="secondary" onClick={model.cancelDraft}>Cancel previous draft</Button>
-          </>
-        )}
-        {model.status === 'unavailable' && model.draft && currentWindowDraft && (
-          <Button type="button" variant="secondary" onClick={model.startManualWriting}>Write manually</Button>
-        )}
-        {model.status === 'saving' && <p role="status" className="self-center text-sm text-muted-foreground">Saving…</p>}
+        <DraftStartActions
+          model={model}
+          eligible={eligible}
+          currentWindowDraft={currentWindowDraft}
+          stalePendingDraft={stalePendingDraft}
+          availableAt={availableAt}
+        />
+        <DraftReviewActions model={model} currentWindowDraft={currentWindowDraft} stalePendingDraft={stalePendingDraft} />
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
         A message enters the notification outbox only after PMCM approval. Delivery follows the existing notification gate.
