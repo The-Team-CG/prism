@@ -17,6 +17,7 @@ import { RiskAgent } from './agents/risk.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';
 import { PAREService } from './pare.service';
 import type { PAREContext } from './pare.types';
+import { AI_ROUTE_PROFILES } from '../gateway/ai-gateway.config';
 import {
   createPareBudgetToolHandlers,
   createPareMessageDraftToolHandlers,
@@ -222,6 +223,32 @@ describe('PARE gateway boundary', () => {
     vi.stubEnv('PARE_MODE', 'live');
     const { service } = harness();
     await expect(service.handleEmergencyTrigger('request_1')).rejects.toThrow(/gateway.*disabled/i);
+    expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
+  });
+
+  it('rejects live PARE at startup when the gateway still uses the mock route', () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const { prisma } = harness();
+    const { gateway } = fakeGateway();
+    expect(() => new PAREService(prisma as unknown as PrismaService, undefined, gateway, {
+      profile: AI_ROUTE_PROFILES.mock,
+      profileId: 'mock',
+      liveUseCases: new Set(),
+      isProduction: false,
+    })).toThrow(/live PARE requires.*test-anthropic/i);
+    expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
+  });
+
+  it('rejects live PARE at startup when a PARE gateway use case is not enabled', () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const { prisma } = harness();
+    const { gateway } = fakeGateway();
+    expect(() => new PAREService(prisma as unknown as PrismaService, undefined, gateway, {
+      profile: AI_ROUTE_PROFILES['test-anthropic'],
+      profileId: 'test-anthropic',
+      liveUseCases: new Set<AiUseCaseId>(['pare.budget', 'pare.risk']),
+      isProduction: false,
+    })).toThrow(/all three PARE use cases/i);
     expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
   });
 
