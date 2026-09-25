@@ -2033,11 +2033,31 @@ model OpsAiApprovalRecord {
   sourceDispatchId String? @unique(map: "ai_approval_records_source_dispatch_id_key") @map("source_dispatch_id")
 
   event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  conformeCommsDraft OpsConformeCommsDraft?
 
   @@index([aiAuditLogId], map: "ai_approval_records_ai_audit_log_id_idx")
   @@index([eventId], map: "ai_approval_records_event_id_idx")
   @@index([status, requestedAt], map: "ai_approval_records_status_requested_at_idx")
   @@map("ai_approval_records")
+  @@schema("trust_ops")
+}
+
+// PMCM-only review text lives outside the sanitized AI audit log.
+model OpsConformeCommsDraft {
+  id                   String   @id
+  inquiryId            String   @map("inquiry_id")
+  reminderWindowBaseAt String   @map("reminder_window_base_at")
+  decisionReminderAt   String?  @map("decision_reminder_at")
+  requestId            String   @map("request_id")
+  source               String
+  subject              String
+  body                 String
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  approval OpsAiApprovalRecord @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([inquiryId, createdAt], map: "conforme_comms_drafts_inquiry_id_created_at_idx")
+  @@map("conforme_comms_drafts")
   @@schema("trust_ops")
 }
 

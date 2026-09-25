@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AiAuditEvidence, AiGatewayStreamEvent, CommsDraftResult } from '@prism/types';
 import { createEventOpsClient } from './index';
+import { prismSse } from './http';
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('conforme draft streaming client', () => {
   it('posts only the inquiry identity with session auth and parses the typed stream', async () => {
@@ -58,5 +62,26 @@ describe('conforme draft streaming client', () => {
         Authorization: 'Bearer session-token',
       },
     }));
+  });
+
+  it('decodes split CRLF data lines and a final event without a blank line', async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode('data: {"subject":\r\n'));
+        controller.enqueue(encoder.encode('data: "Follow-up"}'));
+        controller.close();
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    })));
+
+    const received: unknown[] = [];
+    for await (const value of prismSse('/stream', { baseUrl: 'http://localhost:4000/api' }, (value) => value)) {
+      received.push(value);
+    }
+    expect(received).toEqual([{ subject: 'Follow-up' }]);
   });
 });
