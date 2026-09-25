@@ -6,6 +6,7 @@ import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access
 import { AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { aiAuditEvidenceSchema, type AiAuditEvidence, type AiUseCaseId } from '@prism/types';
 import { AI_GATEWAY, type AiGateway } from '../../../contracts/ai-governance/ai-gateway.port';
+import { AI_GATEWAY_RUNTIME_CONFIG, type AiGatewayRuntimeConfig } from '../gateway/ai-gateway.config';
 import { assertPareExecutionAllowed, configuredPareMode, PareConfigurationError, type PAREMode } from './pare-execution.policy';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { EventContextAgent } from './agents/event-context.agent';
@@ -13,6 +14,7 @@ import { SupplierFinderAgent } from './agents/supplier-finder.agent';
 import { BudgetAgent } from './agents/budget.agent';
 import { RiskAgent } from './agents/risk.agent';
 import { MessageDrafterAgent } from './agents/message-drafter.agent';
+import { isSyntheticAnthropicEvidence } from './pare-ai-gateway';
 import type {
   PAREApprovalRecord,
   PAREApprovalStatus,
@@ -97,6 +99,87 @@ function isAbortSignal(value: unknown): value is AbortSignal {
   return Boolean(value && typeof value === 'object' && 'aborted' in value && 'addEventListener' in value);
 }
 
+type PreparedPareContext = NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]>;
+
+function resolveTriggerArgs(
+  sourceDispatchIdOrPrefetched?: string | PreparedPareContext,
+  prefetchedOrSignal?: PreparedPareContext | AbortSignal,
+  signal?: AbortSignal,
+): { sourceDispatchId?: string; executionSignal?: AbortSignal; preparedContext?: PreparedPareContext } {
+  const sourceDispatchId = typeof sourceDispatchIdOrPrefetched === 'string' ? sourceDispatchIdOrPrefetched : undefined;
+  const executionSignal = isAbortSignal(prefetchedOrSignal) ? prefetchedOrSignal : signal;
+  const preparedContext = typeof sourceDispatchIdOrPrefetched === 'object'
+    ? sourceDispatchIdOrPrefetched
+    : isAbortSignal(prefetchedOrSignal) ? undefined : prefetchedOrSignal;
+  return { sourceDispatchId, executionSignal, preparedContext };
+}
+
+function assertLivePareRoute(runtime: AiGatewayRuntimeConfig): void {
+  if (runtime.profileId !== 'test-anthropic' || runtime.isProduction) {
+    throw new PareConfigurationError('Live PARE requires the non-production test-anthropic route');
+  }
+  const requiredUseCases: AiUseCaseId[] = ['pare.budget', 'pare.risk', 'pare.message-drafts'];
+  if (!requiredUseCases.every((id) => runtime.liveUseCases.has(id))) {
+    throw new PareConfigurationError('Live PARE requires all three PARE use cases in AI_LIVE_USE_CASES');
+  }
+}
+
+function assertMockApprovalAudit(audit: OpsAiAuditLog, payload: Record<string, unknown>): void {
+  const noGatewayEvidence = payload.runEvidence === undefined ||
+    (Array.isArray(payload.runEvidence) && payload.runEvidence.length === 0);
+  if (audit.modelVersion !== 'mock' || !audit.zdrConfirmed || !noGatewayEvidence) {
+    throw new BadRequestException('A matching durable PARE audit is required');
+  }
+}
+
+function requireLiveRunEvidence(audit: OpsAiAuditLog, payload: Record<string, unknown>): AiAuditEvidence[] {
+  const parsed = aiAuditEvidenceSchema.array().safeParse(payload.runEvidence);
+  if (
+    payload.mode !== 'live' ||
+    audit.modelVersion !== 'ai-gateway' ||
+    audit.zdrConfirmed ||
+    !parsed.success ||
+    parsed.data.length !== 3
+  ) {
+    throw new BadRequestException('A matching durable PARE audit is required');
+  }
+  return parsed.data;
+}
+
+function isExpectedLiveEvidence(
+  evidence: AiAuditEvidence,
+  requestId: string,
+  expected: ReadonlySet<AiUseCaseId>,
+  seen: ReadonlySet<AiUseCaseId>,
+): evidence is AiAuditEvidence & { syntheticProvenance: NonNullable<AiAuditEvidence['syntheticProvenance']> } {
+  return expected.has(evidence.useCaseId) &&
+    !seen.has(evidence.useCaseId) &&
+    evidence.outcome === 'completed' &&
+    evidence.correlationId === requestId &&
+    isSyntheticAnthropicEvidence(evidence);
+}
+
+function assertLiveEvidenceSet(evidenceSet: AiAuditEvidence[], requestId: string): void {
+  const expected = new Set<AiUseCaseId>(['pare.budget', 'pare.risk', 'pare.message-drafts']);
+  const seen = new Set<AiUseCaseId>();
+  let provenanceIdentity: string | undefined;
+  for (const evidence of evidenceSet) {
+    if (!isExpectedLiveEvidence(evidence, requestId, expected, seen)) {
+      throw new BadRequestException('A matching durable PARE audit is required');
+    }
+    const provenance = evidence.syntheticProvenance;
+    const identity = JSON.stringify([provenance.source, provenance.sourceId, provenance.verifier]);
+    if (provenanceIdentity !== undefined && provenanceIdentity !== identity) {
+      throw new BadRequestException('A matching durable PARE audit is required');
+    }
+    provenanceIdentity = identity;
+    seen.add(evidence.useCaseId);
+  }
+  if (seen.size !== expected.size) {
+    throw new BadRequestException('A matching durable PARE audit is required');
+  }
+}
+
 @Injectable()
 export class PAREService implements PareApprovalGovernance {
   private readonly mode: PAREMode;
@@ -111,8 +194,10 @@ export class PAREService implements PareApprovalGovernance {
     private readonly prisma: PrismaService,
     @Optional() @Inject(AUDIT_WRITER) private readonly auditWriter?: AuditWriter,
     @Optional() @Inject(AI_GATEWAY) private readonly aiGateway?: AiGateway,
+    @Optional() @Inject(AI_GATEWAY_RUNTIME_CONFIG) private readonly aiRuntime?: AiGatewayRuntimeConfig,
   ) {
     this.mode = configuredPareMode(process.env.PARE_MODE);
+    if (this.mode === 'live' && this.aiRuntime) assertLivePareRoute(this.aiRuntime);
     this.sanitizer = new DataSanitizerService();
     this.eventContextAgent = new EventContextAgent(prisma);
     this.supplierFinderAgent = new SupplierFinderAgent(prisma);
@@ -123,15 +208,13 @@ export class PAREService implements PareApprovalGovernance {
 
   async handleEmergencyTrigger(
     triggerId: string,
-    sourceDispatchIdOrPrefetched?: string | NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]>,
-    prefetchedOrSignal?: NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]> | AbortSignal,
+    sourceDispatchIdOrPrefetched?: string | PreparedPareContext,
+    prefetchedOrSignal?: PreparedPareContext | AbortSignal,
     signal?: AbortSignal,
   ): Promise<PAREApprovalRecord> {
-    const sourceDispatchId = typeof sourceDispatchIdOrPrefetched === 'string' ? sourceDispatchIdOrPrefetched : undefined;
-    const executionSignal = isAbortSignal(prefetchedOrSignal) ? prefetchedOrSignal : signal;
-    const preparedContext = typeof sourceDispatchIdOrPrefetched === 'object'
-      ? sourceDispatchIdOrPrefetched
-      : isAbortSignal(prefetchedOrSignal) ? undefined : prefetchedOrSignal;
+    const { sourceDispatchId, executionSignal, preparedContext } = resolveTriggerArgs(
+      sourceDispatchIdOrPrefetched, prefetchedOrSignal, signal,
+    );
     if (sourceDispatchId) {
       const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
       if (existing) return this.mapApprovalRecordWithAudit(existing, triggerId, sourceDispatchId);
@@ -193,6 +276,16 @@ export class PAREService implements PareApprovalGovernance {
       triggeredAt: triggeredAt.toISOString(),
     };
 
+    return this.persistRecommendation(ctx, pareResult, triggeredAt, sourceDispatchId);
+  }
+
+  private async persistRecommendation(
+    ctx: PAREContext,
+    pareResult: PAREResult,
+    triggeredAt: Date,
+    sourceDispatchId?: string,
+  ): Promise<PAREApprovalRecord> {
+    const runEvidence = pareResult.runEvidence;
     // Log to OpsAiAuditLog (ZDR sanitized)
     const { data: sanitizedPayload, dataCategories } = this.sanitizer.sanitize(
       pareResult as unknown as Record<string, unknown>,
@@ -202,7 +295,7 @@ export class PAREService implements PareApprovalGovernance {
       return await this.prisma.$transaction(async (tx) => {
         if (sourceDispatchId) {
           const existing = await tx.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
-          if (existing) return this.mapApprovalRecordWithTransactionAudit(tx, existing, triggerId, sourceDispatchId);
+          if (existing) return this.mapApprovalRecordWithTransactionAudit(tx, existing, ctx.triggerId, sourceDispatchId);
         }
         const audit = await tx.opsAiAuditLog.create({ data: {
           id: aiAuditLogId,
@@ -233,7 +326,7 @@ export class PAREService implements PareApprovalGovernance {
     } catch (error) {
       if (sourceDispatchId) {
         const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
-        if (existing) return this.mapApprovalRecordWithAudit(existing, triggerId, sourceDispatchId);
+        if (existing) return this.mapApprovalRecordWithAudit(existing, ctx.triggerId, sourceDispatchId);
       }
       throw error;
     }
@@ -322,58 +415,11 @@ export class PAREService implements PareApprovalGovernance {
 
   private assertApprovableAudit(audit: OpsAiAuditLog) {
     const payload = this.asRecord(audit.sanitizedPayload);
-    const runEvidence = aiAuditEvidenceSchema.array().safeParse(payload.runEvidence);
     if (payload.mode === 'mock') {
-      const noGatewayEvidence = payload.runEvidence === undefined ||
-        (Array.isArray(payload.runEvidence) && payload.runEvidence.length === 0);
-      const validMock = audit.modelVersion === 'mock' && audit.zdrConfirmed &&
-        noGatewayEvidence;
-      if (!validMock) throw new BadRequestException('A matching durable PARE audit is required');
+      assertMockApprovalAudit(audit, payload);
       return;
     }
-    if (
-      payload.mode !== 'live' ||
-      audit.modelVersion !== 'ai-gateway' ||
-      audit.zdrConfirmed ||
-      !runEvidence.success ||
-      runEvidence.data.length !== 3
-    ) {
-      throw new BadRequestException('A matching durable PARE audit is required');
-    }
-
-    const expectedUseCases = new Set<AiUseCaseId>([
-      'pare.budget',
-      'pare.risk',
-      'pare.message-drafts',
-    ]);
-    const seenUseCases = new Set<AiUseCaseId>();
-    let provenanceIdentity: string | undefined;
-    for (const evidence of runEvidence.data) {
-      if (
-        !expectedUseCases.has(evidence.useCaseId) ||
-        seenUseCases.has(evidence.useCaseId) ||
-        evidence.outcome !== 'completed' ||
-        evidence.correlationId !== auditRequestId(audit) ||
-        evidence.profileId !== 'test-anthropic' ||
-        evidence.provider !== 'anthropic' ||
-        evidence.zdrBasis !== 'none' ||
-        evidence.dataClasses.length !== 1 ||
-        evidence.dataClasses[0] !== 'synthetic' ||
-        !evidence.syntheticProvenance
-      ) {
-        throw new BadRequestException('A matching durable PARE audit is required');
-      }
-      const provenance = evidence.syntheticProvenance;
-      const identity = JSON.stringify([provenance.source, provenance.sourceId, provenance.verifier]);
-      if (provenanceIdentity !== undefined && provenanceIdentity !== identity) {
-        throw new BadRequestException('A matching durable PARE audit is required');
-      }
-      provenanceIdentity = identity;
-      seenUseCases.add(evidence.useCaseId);
-    }
-    if (seenUseCases.size !== expectedUseCases.size) {
-      throw new BadRequestException('A matching durable PARE audit is required');
-    }
+    assertLiveEvidenceSet(requireLiveRunEvidence(audit, payload), auditRequestId(audit));
   }
 
   private async mapApprovalRecordWithAudit(record: ApprovalRow, expectedRequestId?: string, expectedSourceDispatchId?: string): Promise<PAREApprovalRecord> {

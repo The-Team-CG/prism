@@ -212,6 +212,22 @@ export const commsDraftResultSchema = z
   .strict();
 export type CommsDraftResult = z.infer<typeof commsDraftResultSchema>;
 
+export const conformeDraftReviewSchema = z.object({
+  draftId: nonEmptyStringSchema,
+  inquiryId: nonEmptyStringSchema,
+  draft: commsDraftResultSchema,
+  status: nonEmptyStringSchema,
+  source: z.enum(["ai", "manual"]),
+  requestedAt: nonEmptyStringSchema,
+  reviewedBy: z.string().nullable(),
+  reviewedAt: z.string().nullable(),
+  lastConformeReminderAt: z.string().nullable(),
+  reminderWindowBaseAt: nonEmptyStringSchema,
+  requestId: nonEmptyStringSchema,
+  modelVersion: nonEmptyStringSchema,
+}).strict();
+export type ConformeDraftReviewRecord = z.infer<typeof conformeDraftReviewSchema>;
+
 export type AiUseCaseContractMap = {
   "pare.budget": { input: AiPareContext; output: AiPareBudgetAnalysis };
   "pare.risk": { input: AiPareContext; output: AiPareRisk };
@@ -274,7 +290,7 @@ export const aiApprovalStateSchema = z.enum([
 ]);
 export type AiApprovalState = z.infer<typeof aiApprovalStateSchema>;
 
-export const aiAuditEvidenceSchema = z
+const aiAuditEvidenceBaseSchema = z
   .object({
     requestId: nonEmptyStringSchema,
     correlationId: nonEmptyStringSchema.optional(),
@@ -293,7 +309,44 @@ export const aiAuditEvidenceSchema = z
     approvalState: aiApprovalStateSchema,
     syntheticProvenance: aiSyntheticProvenanceSchema.optional(),
   })
-  .strict()
+  .strict();
+
+function validateAnthropicAuditEvidence(
+  evidence: z.infer<typeof aiAuditEvidenceBaseSchema>,
+  ctx: z.RefinementCtx,
+): void {
+  if (evidence.provider !== "anthropic") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["provider"],
+      message: "Anthropic test profile audit evidence must identify Anthropic",
+    });
+  }
+  if (evidence.zdrBasis !== "none") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["zdrBasis"],
+      message: "Anthropic test profile cannot claim ZDR",
+    });
+  }
+  const blockedBeforeProvider = evidence.outcome === "blocked";
+  if (!blockedBeforeProvider && (evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["dataClasses"],
+      message: "Anthropic test profile audit evidence must be synthetic-only",
+    });
+  }
+  if (!blockedBeforeProvider && !evidence.syntheticProvenance) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["syntheticProvenance"],
+      message: "Anthropic test profile audit evidence requires verified provenance",
+    });
+  }
+}
+
+export const aiAuditEvidenceSchema = aiAuditEvidenceBaseSchema
   .superRefine((evidence, ctx) => {
     if (evidence.profileId === "mock" && evidence.provider !== "mock") {
       ctx.addIssue({
@@ -303,38 +356,7 @@ export const aiAuditEvidenceSchema = z
       });
     }
     if (evidence.profileId === "test-anthropic") {
-      if (evidence.provider !== "anthropic") {
-        ctx.addIssue({
-          code: "custom",
-          path: ["provider"],
-          message: "Anthropic test profile audit evidence must identify Anthropic",
-        });
-      }
-      if (evidence.zdrBasis !== "none") {
-        ctx.addIssue({
-          code: "custom",
-          path: ["zdrBasis"],
-          message: "Anthropic test profile cannot claim ZDR",
-        });
-      }
-      const blockedBeforeProvider = evidence.outcome === "blocked";
-      if (
-        !blockedBeforeProvider &&
-        (evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")
-      ) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["dataClasses"],
-          message: "Anthropic test profile audit evidence must be synthetic-only",
-        });
-      }
-      if (!blockedBeforeProvider && !evidence.syntheticProvenance) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["syntheticProvenance"],
-          message: "Anthropic test profile audit evidence requires verified provenance",
-        });
-      }
+      validateAnthropicAuditEvidence(evidence, ctx);
     }
   });
 export type AiAuditEvidence = z.infer<typeof aiAuditEvidenceSchema>;

@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { commsDraftResultSchema, type CommsDraftResult, type PrismInquiry } from '@prism/types';
-import type { ConformeDraftReviewRecord } from '../model/conforme-draft-review';
+import { commsDraftResultSchema, type CommsDraftResult, type ConformeDraftReviewRecord, type PrismInquiry } from '@prism/types';
 import {
   approveConformeDraft,
   cancelConformeDraft,

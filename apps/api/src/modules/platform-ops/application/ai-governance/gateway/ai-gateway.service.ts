@@ -10,6 +10,7 @@ import {
   type AiGatewayRunResult,
   type AiGatewayStreamEvent,
   type AiProviderId,
+  type AiRoute,
   type AiRunOutcome,
   type AiSyntheticProvenance,
   type AiUseCaseContractMap,
@@ -45,6 +46,34 @@ type GatewayFault = {
   message: string;
   retryable: boolean;
   providerUsage?: AiProviderResponse['usage'];
+};
+
+type GatewayRunState = {
+  requestId: string;
+  correlationId?: string;
+  useCaseId: AiUseCaseId;
+  definition: AiUseCaseDefinition<AiUseCaseId>;
+  route: AiRoute;
+  startedAt: number;
+  controller: AbortController;
+  timeoutExpired: boolean;
+  parsedInput?: unknown;
+  sanitizedPayload: unknown;
+  provenance: AiSyntheticProvenance | null;
+  dataClasses: AiDataClass[];
+  auditCreated: boolean;
+  accumulatedInputTokens: number;
+  accumulatedOutputTokens: number;
+  responseModel?: string;
+  endpointTag?: string;
+  budgetDate?: Date;
+  onAuditCreated?: () => void;
+};
+
+type PreparedToolCall = {
+  call: AiProviderResponse['toolCalls'][number];
+  handler: AiToolHandler;
+  input: unknown;
 };
 
 class AiGatewayFault extends Error {
@@ -142,6 +171,10 @@ function minimizeValue(
     );
   }
   if (typeof value !== 'string') return value;
+  return minimizeStringValue(key, value, synthetic, parentKey);
+}
+
+function minimizeStringValue(key: string, value: string, synthetic: boolean, parentKey: string): string {
   if (synthetic) return redactString(value);
   if (/^(?:client|supplier|guest|contact).*name$/i.test(key) || key.toLowerCase() === 'name') {
     const nameContext = `${parentKey}.${key}`.toLowerCase();
@@ -290,64 +323,80 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     suppliedRequestId = randomUUID(),
     onAuditCreated?: () => void,
   ): Promise<AiGatewayRunResult<AiUseCaseContractMap[K]['output']>> {
-    const requestId = suppliedRequestId;
-    const correlationId = options?.correlationId && /^[A-Za-z0-9._:-]{1,128}$/.test(options.correlationId)
-      ? options.correlationId
-      : undefined;
     const definition = AI_USE_CASE_REGISTRY[useCaseId] as AiUseCaseDefinition<AiUseCaseId>;
-    const route = this.runtime.profile.routesByTier[definition.modelTier];
-    const startedAt = performance.now();
     const controller = new AbortController();
-    let timeoutExpired = false;
+    const state: GatewayRunState = {
+      requestId: suppliedRequestId,
+      correlationId: options?.correlationId && /^[A-Za-z0-9._:-]{1,128}$/.test(options.correlationId)
+        ? options.correlationId
+        : undefined,
+      useCaseId,
+      definition,
+      route: this.runtime.profile.routesByTier[definition.modelTier],
+      startedAt: performance.now(),
+      controller,
+      timeoutExpired: false,
+      sanitizedPayload: {},
+      provenance: null,
+      dataClasses: useCaseDataClasses(definition, false),
+      auditCreated: false,
+      accumulatedInputTokens: 0,
+      accumulatedOutputTokens: 0,
+      onAuditCreated,
+    };
     const timeout = setTimeout(() => {
-      timeoutExpired = true;
+      state.timeoutExpired = true;
       controller.abort();
     }, definition.limits.timeoutMs);
     const abortFromCaller = () => controller.abort();
     options?.signal?.addEventListener('abort', abortFromCaller, { once: true });
     if (options?.signal?.aborted) controller.abort();
 
-    let parsedInput: unknown;
-    let sanitizedPayload: unknown = {};
-    let provenance: AiSyntheticProvenance | null = null;
-    let dataClasses = useCaseDataClasses(definition, false);
-    let auditCreated = false;
-    let accumulatedInputTokens = 0;
-    let accumulatedOutputTokens = 0;
-    let responseModel: string | undefined;
-    let endpointTag: string | undefined;
-    let budgetDate: Date | undefined;
+    try {
+      await this.prepareInput(state, input);
+      this.enforceRoute(state);
+      return await this.runSteps(state, options, useProviderStream) as AiGatewayRunResult<AiUseCaseContractMap[K]['output']>;
+    } catch (error) {
+      return await this.finishFailure(state, error, options?.signal);
+    } finally {
+      clearTimeout(timeout);
+      options?.signal?.removeEventListener('abort', abortFromCaller);
+    }
+  }
 
-    const createAudit = async () => {
-      await this.prisma.opsAiAuditLog.create({
-        data: {
-          id: `aia_${requestId}`,
-          requestId,
-          correlationId: correlationId ?? null,
-          useCaseId,
-          promptVersion: definition.promptVersion,
-          profileId: this.runtime.profileId,
-          provider: route.provider,
-          requestedModel: route.model,
-          eventId: !provenance && typeof (parsedInput as { eventId?: unknown } | undefined)?.eventId === 'string'
-            ? (parsedInput as { eventId: string }).eventId
-            : null,
-          featureName: useCaseId,
-          modelVersion: route.model,
-          dataCategories: toPrismaJson(dataClasses),
-          sanitizedPayload: toPrismaJson(sanitizedPayload as Record<string, unknown>),
-          zdrConfirmed: route.zdrBasis === 'provider-enforced',
-          humanApprovalRequired: true,
-          humanApproved: false,
-          status: 'running',
-          reservedTokens: 0,
-        },
-      });
-      auditCreated = true;
-      onAuditCreated?.();
-    };
+  private async createAudit(state: GatewayRunState): Promise<void> {
+    const { requestId, correlationId, useCaseId, definition, route } = state;
+    await this.prisma.opsAiAuditLog.create({
+      data: {
+        id: `aia_${requestId}`,
+        requestId,
+        correlationId: correlationId ?? null,
+        useCaseId,
+        promptVersion: definition.promptVersion,
+        profileId: this.runtime.profileId,
+        provider: route.provider,
+        requestedModel: route.model,
+        eventId: !state.provenance && typeof (state.parsedInput as { eventId?: unknown } | undefined)?.eventId === 'string'
+          ? (state.parsedInput as { eventId: string }).eventId
+          : null,
+        featureName: useCaseId,
+        modelVersion: route.model,
+        dataCategories: toPrismaJson(state.dataClasses),
+        sanitizedPayload: toPrismaJson(state.sanitizedPayload as Record<string, unknown>),
+        zdrConfirmed: route.zdrBasis === 'provider-enforced',
+        humanApprovalRequired: true,
+        humanApproved: false,
+        status: 'running',
+        reservedTokens: 0,
+      },
+    });
+    state.auditCreated = true;
+    state.onAuditCreated?.();
+  }
 
-    const evidence = (outcome: AiRunOutcome): AiAuditEvidence => aiAuditEvidenceSchema.parse({
+  private evidence(state: GatewayRunState, outcome: AiRunOutcome): AiAuditEvidence {
+    const { requestId, correlationId, useCaseId, definition, route } = state;
+    return aiAuditEvidenceSchema.parse({
       requestId,
       ...(correlationId ? { correlationId } : {}),
       useCaseId,
@@ -355,263 +404,305 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       profileId: this.runtime.profileId,
       provider: route.provider,
       requestedModel: route.model,
-      ...(responseModel ? { responseModel } : {}),
-      ...(endpointTag ? { endpointTag } : {}),
+      ...(state.responseModel ? { responseModel: state.responseModel } : {}),
+      ...(state.endpointTag ? { endpointTag: state.endpointTag } : {}),
       zdrBasis: route.zdrBasis,
-      dataClasses,
-      ...((accumulatedInputTokens || accumulatedOutputTokens)
-        ? { usage: { inputTokens: accumulatedInputTokens, outputTokens: accumulatedOutputTokens } }
+      dataClasses: state.dataClasses,
+      ...((state.accumulatedInputTokens || state.accumulatedOutputTokens)
+        ? { usage: { inputTokens: state.accumulatedInputTokens, outputTokens: state.accumulatedOutputTokens } }
         : {}),
-      latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
+      latencyMs: Math.max(0, Math.round(performance.now() - state.startedAt)),
       outcome,
       approvalState: 'pending' satisfies AiApprovalState,
-      ...(provenance ? { syntheticProvenance: provenance } : {}),
+      ...(state.provenance ? { syntheticProvenance: state.provenance } : {}),
     });
+  }
 
-    const finishAudit = async (outcome: AiRunOutcome, failureCode?: AiFailureCode) => {
-      if (!auditCreated) await createAudit();
-      await this.prisma.opsAiAuditLog.update({
-        where: { id: `aia_${requestId}` },
-        data: {
-          status: outcome,
-          outcome,
-          dataCategories: toPrismaJson(dataClasses),
-          sanitizedPayload: toPrismaJson(sanitizedPayload as Record<string, unknown>),
-          syntheticProvenance: provenance ? toPrismaJson(provenance) : Prisma.DbNull,
-          zdrBasis: route.zdrBasis,
-          inputTokens: accumulatedInputTokens || null,
-          outputTokens: accumulatedOutputTokens || null,
-          latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
-          ...(responseModel ? { responseModel } : {}),
-          ...(endpointTag ? { endpointTag } : {}),
-          ...(budgetDate ? { budgetDate } : {}),
-          reservedTokens: 0,
-          approvalState: 'pending',
-          ...(failureCode ? { failureCode } : {}),
-        },
-      });
-    };
+  private async finishAudit(state: GatewayRunState, outcome: AiRunOutcome, failureCode?: AiFailureCode): Promise<void> {
+    if (!state.auditCreated) await this.createAudit(state);
+    await this.prisma.opsAiAuditLog.update({
+      where: { id: `aia_${state.requestId}` },
+      data: {
+        status: outcome,
+        outcome,
+        dataCategories: toPrismaJson(state.dataClasses),
+        sanitizedPayload: toPrismaJson(state.sanitizedPayload as Record<string, unknown>),
+        syntheticProvenance: state.provenance ? toPrismaJson(state.provenance) : Prisma.DbNull,
+        zdrBasis: state.route.zdrBasis,
+        inputTokens: state.accumulatedInputTokens || null,
+        outputTokens: state.accumulatedOutputTokens || null,
+        latencyMs: Math.max(0, Math.round(performance.now() - state.startedAt)),
+        ...(state.responseModel ? { responseModel: state.responseModel } : {}),
+        ...(state.endpointTag ? { endpointTag: state.endpointTag } : {}),
+        ...(state.budgetDate ? { budgetDate: state.budgetDate } : {}),
+        reservedTokens: 0,
+        approvalState: 'pending',
+        ...(failureCode ? { failureCode } : {}),
+      },
+    });
+  }
 
-    try {
-      const inputResult = definition.inputSchema.safeParse(input);
-      if (!inputResult.success) {
-        await createAudit();
-        fail('blocked', 'invalid_input', 'Input did not match the registered use-case contract');
-      }
-
-      parsedInput = inputResult.data;
-      try {
-        provenance = await this.syntheticVerifier.verify(parsedInput);
-      } catch {
-        provenance = null;
-      }
-      dataClasses = useCaseDataClasses(definition, Boolean(provenance));
-      const minimized = minimizeValue('input', parsedInput, Boolean(provenance));
-      const minimizedResult = definition.inputSchema.safeParse(minimized);
-      if (!minimizedResult.success || !minimized || typeof minimized !== 'object') {
-        await createAudit();
-        fail('blocked', 'invalid_input', 'Input could not be safely minimized');
-      }
-      sanitizedPayload = minimizedResult.data;
-      if (Buffer.byteLength(canonicalJson(sanitizedPayload)) > MAX_INPUT_BYTES) {
-        sanitizedPayload = {};
-        await createAudit();
-        fail('blocked', 'invalid_input', 'Minimized input exceeded the gateway size limit');
-      }
-      await createAudit();
-
-      if (this.runtime.profileId === 'test-anthropic') {
-        if (!this.runtime.liveUseCases.has(useCaseId)) {
-          fail('blocked', 'use_case_disabled', 'This use case is not enabled for live provider calls');
-        }
-        if (this.runtime.isProduction) {
-          fail('blocked', 'configuration_invalid', 'The Anthropic test profile is disabled in production');
-        }
-        if (!provenance || dataClasses.length !== 1 || dataClasses[0] !== 'synthetic') {
-          fail('blocked', 'synthetic_provenance_required', 'The Anthropic test route requires an exact server-registered synthetic fixture');
-        }
-      }
-
-      const allowedClasses = new Set(route.allowedDataClasses);
-      if (dataClasses.some((dataClass) => !allowedClasses.has(dataClass))) {
-        fail(
-          'blocked',
-          route.zdrBasis === 'none' ? 'synthetic_provenance_required' : 'zdr_required',
-          'The selected route does not allow this data classification',
-        );
-      }
-      if (definition.requiresZdr && route.zdrBasis !== 'provider-enforced' && !provenance) {
-        fail('blocked', 'zdr_required', 'Real-data use cases require a provider-enforced ZDR route');
-      }
-      if (containsPii(sanitizedPayload)) {
-        fail('blocked', 'synthetic_provenance_required', 'Minimized input still contains a high-risk personal-data pattern');
-      }
-
-      const adapter = this.adaptersByProvider.get(route.provider);
-      if (!adapter) fail('unavailable', 'provider_unavailable', 'The selected provider adapter is not registered', true);
-
-      const toolHandlers = options?.tools ?? definition.tools ?? [];
-      const toolsByName = this.validateToolHandlers(toolHandlers);
-      let messages: AiProviderMessage[] = [{ role: 'user', content: canonicalJson(sanitizedPayload) }];
-      let totalSteps = 0;
-
-      while (totalSteps < definition.limits.maxSteps) {
-        if (controller.signal.aborted) {
-          if (options?.signal?.aborted) fail('aborted', 'aborted', 'The AI run was aborted');
-          fail('unavailable', 'timeout', 'The AI run exceeded its configured timeout', true);
-        }
-        const remainingOutput = definition.limits.maxOutputTokens - accumulatedOutputTokens;
-        if (remainingOutput <= 0) fail('incomplete', 'step_limit', 'The run exhausted its output-token allowance');
-
-        const request: AiProviderRequest = {
-          model: route.model,
-          systemPrompt: definition.systemPrompt,
-          messages,
-          tools: [...toolsByName.values()].map((handler) => ({
-            name: handler.name,
-            description: handler.description,
-            inputSchema: handler.inputSchema.toJSONSchema() as Record<string, unknown>,
-          })),
-          toolChoice: 'auto',
-          outputSchema: definition.outputSchema.toJSONSchema() as Record<string, unknown>,
-          maxOutputTokens: remainingOutput,
-        };
-        budgetDate = currentUtcDate();
-        totalSteps += 1;
-        const response = await this.callProviderWithRetry(
-          adapter,
-          request,
-          controller.signal,
-          useProviderStream,
-          requestId,
-          useCaseId,
-          budgetDate,
-          definition.limits.dailyTokenBudget,
-        );
-        accumulatedInputTokens += response.usage.inputTokens;
-        accumulatedOutputTokens += response.usage.outputTokens;
-        responseModel = response.responseModel;
-        endpointTag = response.endpointTag;
-
-        if (response.stopReason === 'max_tokens') {
-          fail('incomplete', 'step_limit', 'The provider stopped at the output-token limit');
-        }
-
-        if (response.toolCalls.length > 0) {
-          if (totalSteps >= definition.limits.maxSteps) {
-            fail('incomplete', 'step_limit', 'The tool loop exhausted its configured step limit');
-          }
-          const preparedCalls: {
-            call: AiProviderResponse['toolCalls'][number];
-            handler: AiToolHandler;
-            input: unknown;
-          }[] = [];
-          const toolCallIds = new Set<string>();
-          for (const call of response.toolCalls) {
-            if (
-              !call ||
-              typeof call.id !== 'string' ||
-              !/^[A-Za-z0-9_.:-]{1,128}$/.test(call.id) ||
-              toolCallIds.has(call.id) ||
-              typeof call.name !== 'string' ||
-              !/^[a-z][a-z0-9_]{0,63}$/.test(call.name)
-            ) {
-              fail('failed', 'invalid_tool_call', 'The provider returned an invalid or duplicate tool call');
-            }
-            toolCallIds.add(call.id);
-            const handler = toolsByName.get(call.name);
-            if (!handler) fail('failed', 'invalid_tool_call', 'The provider requested an unregistered tool');
-            const toolInput = handler.inputSchema.safeParse(call.input);
-            if (!toolInput.success) fail('failed', 'invalid_tool_call', 'The provider returned invalid tool input');
-            if (containsPii(toolInput.data)) {
-              fail('blocked', 'invalid_tool_call', 'The provider returned tool input with a high-risk personal-data pattern');
-            }
-            preparedCalls.push({ call, handler, input: toolInput.data });
-          }
-
-          const toolResults: { toolCallId: string; content: string; isError?: boolean }[] = [];
-          for (const { call, handler, input: toolInput } of preparedCalls) {
-            const content = await handler.execute(toolInput, controller.signal);
-            if (
-              typeof content !== 'string' ||
-              Buffer.byteLength(content) > MAX_TOOL_RESULT_BYTES ||
-              containsPii(content)
-            ) {
-              fail('blocked', 'invalid_tool_call', 'Tool output exceeded safety checks');
-            }
-            let providerContent = content;
-            if (route.zdrBasis === 'none' && route.provider !== 'mock') {
-              let parsedToolResult: unknown;
-              try {
-                parsedToolResult = JSON.parse(content);
-              } catch {
-                fail('blocked', 'synthetic_provenance_required', 'The tool result was not a registered synthetic fixture');
-              }
-              const toolProvenance = await this.syntheticVerifier.verify(parsedToolResult);
-              if (!toolProvenance) {
-                fail('blocked', 'synthetic_provenance_required', 'The tool result was not a registered synthetic fixture');
-              }
-              providerContent = canonicalJson(parsedToolResult);
-            }
-            toolResults.push({ toolCallId: call.id, content: providerContent });
-          }
-          messages = [
-            ...messages,
-            { role: 'assistant', content: response.text, toolCalls: response.toolCalls },
-            { role: 'tool', toolResults },
-          ];
-          continue;
-        }
-
-        let rawOutput: unknown;
-        try {
-          rawOutput = JSON.parse(providerJsonText(response.text));
-        } catch {
-          fail('failed', 'invalid_output', 'The AI provider returned output that was not valid JSON');
-        }
-        if (containsPii(rawOutput)) fail('failed', 'invalid_output', 'The AI provider returned a high-risk personal-data pattern');
-        const outputResult = definition.outputSchema.safeParse(rawOutput);
-        if (!outputResult.success) fail('failed', 'invalid_output', 'The AI provider output did not match the registered response contract');
-
-        const result = {
-          outcome: 'completed' as const,
-          output: outputResult.data,
-          evidence: evidence('completed'),
-        };
-        await finishAudit('completed');
-        return result;
-      }
-
-      fail('incomplete', 'step_limit', 'The tool loop exhausted its configured step limit');
-    } catch (error) {
-      if (!auditCreated) {
-        // If audit persistence itself failed, stop before any provider call.
-        if (!(error instanceof AiGatewayFault)) throw error;
-        await createAudit();
-      }
-      if (error instanceof AiGatewayFault && error.fault.providerUsage) {
-        accumulatedInputTokens += error.fault.providerUsage.inputTokens;
-        accumulatedOutputTokens += error.fault.providerUsage.outputTokens;
-      }
-      const fault = error instanceof AiGatewayFault
-        ? error.fault
-        : options?.signal?.aborted
-          ? { outcome: 'aborted' as const, code: 'aborted' as const, message: 'The AI run was aborted', retryable: false }
-          : timeoutExpired
-            ? { outcome: 'unavailable' as const, code: 'timeout' as const, message: 'The AI run exceeded its configured timeout', retryable: true }
-            : { outcome: 'failed' as const, code: 'internal' as const, message: 'The AI run failed unexpectedly', retryable: false };
-      await finishAudit(fault.outcome, fault.code);
-      const failure: AiGatewayRunFailure = {
-        outcome: fault.outcome,
-        error: { code: fault.code, message: fault.message, retryable: fault.retryable },
-        evidence: evidence(fault.outcome),
-      };
-      return failure;
-    } finally {
-      clearTimeout(timeout);
-      options?.signal?.removeEventListener('abort', abortFromCaller);
+  private async prepareInput(state: GatewayRunState, input: unknown): Promise<void> {
+    const inputResult = state.definition.inputSchema.safeParse(input);
+    if (!inputResult.success) {
+      await this.createAudit(state);
+      fail('blocked', 'invalid_input', 'Input did not match the registered use-case contract');
     }
-    return fail('failed', 'internal', 'The AI gateway ended without a result');
+    state.parsedInput = inputResult.data;
+    try {
+      state.provenance = await this.syntheticVerifier.verify(state.parsedInput);
+    } catch {
+      state.provenance = null;
+    }
+    state.dataClasses = useCaseDataClasses(state.definition, Boolean(state.provenance));
+    const minimized = minimizeValue('input', state.parsedInput, Boolean(state.provenance));
+    const minimizedResult = state.definition.inputSchema.safeParse(minimized);
+    if (!minimizedResult.success || !minimized || typeof minimized !== 'object') {
+      await this.createAudit(state);
+      fail('blocked', 'invalid_input', 'Input could not be safely minimized');
+    }
+    state.sanitizedPayload = minimizedResult.data;
+    if (Buffer.byteLength(canonicalJson(state.sanitizedPayload)) > MAX_INPUT_BYTES) {
+      state.sanitizedPayload = {};
+      await this.createAudit(state);
+      fail('blocked', 'invalid_input', 'Minimized input exceeded the gateway size limit');
+    }
+    await this.createAudit(state);
+  }
+
+  private enforceRoute(state: GatewayRunState): void {
+    this.enforceAnthropicTestRoute(state);
+    const { route, provenance, dataClasses, definition, sanitizedPayload } = state;
+    const allowedClasses = new Set(route.allowedDataClasses);
+    if (dataClasses.some((dataClass) => !allowedClasses.has(dataClass))) {
+      fail(
+        'blocked',
+        route.zdrBasis === 'none' ? 'synthetic_provenance_required' : 'zdr_required',
+        'The selected route does not allow this data classification',
+      );
+    }
+    if (definition.requiresZdr && route.zdrBasis !== 'provider-enforced' && !provenance) {
+      fail('blocked', 'zdr_required', 'Real-data use cases require a provider-enforced ZDR route');
+    }
+    if (containsPii(sanitizedPayload)) {
+      fail('blocked', 'synthetic_provenance_required', 'Minimized input still contains a high-risk personal-data pattern');
+    }
+  }
+
+  private enforceAnthropicTestRoute(state: GatewayRunState): void {
+    if (this.runtime.profileId === 'test-anthropic') {
+      if (!this.runtime.liveUseCases.has(state.useCaseId)) {
+        fail('blocked', 'use_case_disabled', 'This use case is not enabled for live provider calls');
+      }
+      if (this.runtime.isProduction) {
+        fail('blocked', 'configuration_invalid', 'The Anthropic test profile is disabled in production');
+      }
+      if (!state.provenance || state.dataClasses.length !== 1 || state.dataClasses[0] !== 'synthetic') {
+        fail('blocked', 'synthetic_provenance_required', 'The Anthropic test route requires an exact server-registered synthetic fixture');
+      }
+    }
+  }
+
+  private async runSteps(
+    state: GatewayRunState,
+    options: AiGatewayCallOptions | undefined,
+    useProviderStream: boolean,
+  ): Promise<AiGatewayRunResult<unknown>> {
+    const adapter = this.adaptersByProvider.get(state.route.provider);
+    if (!adapter) fail('unavailable', 'provider_unavailable', 'The selected provider adapter is not registered', true);
+    const toolsByName = this.validateToolHandlers(options?.tools ?? state.definition.tools ?? []);
+    let messages: AiProviderMessage[] = [{ role: 'user', content: canonicalJson(state.sanitizedPayload) }];
+    let totalSteps = 0;
+    while (totalSteps < state.definition.limits.maxSteps) {
+      this.assertStepAvailable(state, options?.signal);
+      const remainingOutput = state.definition.limits.maxOutputTokens - state.accumulatedOutputTokens;
+      if (remainingOutput <= 0) fail('incomplete', 'step_limit', 'The run exhausted its output-token allowance');
+      const request = this.buildProviderRequest(state, messages, toolsByName, remainingOutput);
+      state.budgetDate = currentUtcDate();
+      totalSteps += 1;
+      const response = await this.callProviderWithRetry(
+        adapter,
+        request,
+        state.controller.signal,
+        useProviderStream,
+        state.requestId,
+        state.useCaseId,
+        state.budgetDate,
+        state.definition.limits.dailyTokenBudget,
+      );
+      state.accumulatedInputTokens += response.usage.inputTokens;
+      state.accumulatedOutputTokens += response.usage.outputTokens;
+      state.responseModel = response.responseModel;
+      state.endpointTag = response.endpointTag;
+      if (response.stopReason === 'max_tokens') {
+        fail('incomplete', 'step_limit', 'The provider stopped at the output-token limit');
+      }
+      if (response.toolCalls.length > 0) {
+        if (totalSteps >= state.definition.limits.maxSteps) {
+          fail('incomplete', 'step_limit', 'The tool loop exhausted its configured step limit');
+        }
+        messages = await this.appendToolMessages(state, messages, response, toolsByName);
+        continue;
+      }
+      const output = this.parseOutput(state.definition, response.text);
+      const result = { outcome: 'completed' as const, output, evidence: this.evidence(state, 'completed') };
+      await this.finishAudit(state, 'completed');
+      return result;
+    }
+    return fail('incomplete', 'step_limit', 'The tool loop exhausted its configured step limit');
+  }
+
+  private assertStepAvailable(state: GatewayRunState, callerSignal?: AbortSignal): void {
+    if (!state.controller.signal.aborted) return;
+    if (callerSignal?.aborted) fail('aborted', 'aborted', 'The AI run was aborted');
+    fail('unavailable', 'timeout', 'The AI run exceeded its configured timeout', true);
+  }
+
+  private buildProviderRequest(
+    state: GatewayRunState,
+    messages: AiProviderMessage[],
+    toolsByName: ReadonlyMap<string, AiToolHandler>,
+    remainingOutput: number,
+  ): AiProviderRequest {
+    return {
+      model: state.route.model,
+      systemPrompt: state.definition.systemPrompt,
+      messages,
+      tools: [...toolsByName.values()].map((handler) => ({
+        name: handler.name,
+        description: handler.description,
+        inputSchema: handler.inputSchema.toJSONSchema() as Record<string, unknown>,
+      })),
+      toolChoice: 'auto',
+      outputSchema: state.definition.outputSchema.toJSONSchema() as Record<string, unknown>,
+      maxOutputTokens: remainingOutput,
+    };
+  }
+
+  private async appendToolMessages(
+    state: GatewayRunState,
+    messages: AiProviderMessage[],
+    response: AiProviderResponse,
+    toolsByName: ReadonlyMap<string, AiToolHandler>,
+  ): Promise<AiProviderMessage[]> {
+    const preparedCalls = this.prepareToolCalls(response.toolCalls, toolsByName);
+    const toolResults = await this.executeToolCalls(state, preparedCalls);
+    return [
+      ...messages,
+      { role: 'assistant', content: response.text, toolCalls: response.toolCalls },
+      { role: 'tool', toolResults },
+    ];
+  }
+
+  private prepareToolCalls(
+    calls: AiProviderResponse['toolCalls'],
+    toolsByName: ReadonlyMap<string, AiToolHandler>,
+  ): PreparedToolCall[] {
+    const preparedCalls: PreparedToolCall[] = [];
+    const toolCallIds = new Set<string>();
+    for (const call of calls) {
+      if (!this.isValidToolCall(call, toolCallIds)) {
+        fail('failed', 'invalid_tool_call', 'The provider returned an invalid or duplicate tool call');
+      }
+      toolCallIds.add(call.id);
+      const handler = toolsByName.get(call.name);
+      if (!handler) fail('failed', 'invalid_tool_call', 'The provider requested an unregistered tool');
+      const toolInput = handler.inputSchema.safeParse(call.input);
+      if (!toolInput.success) fail('failed', 'invalid_tool_call', 'The provider returned invalid tool input');
+      if (containsPii(toolInput.data)) {
+        fail('blocked', 'invalid_tool_call', 'The provider returned tool input with a high-risk personal-data pattern');
+      }
+      preparedCalls.push({ call, handler, input: toolInput.data });
+    }
+    return preparedCalls;
+  }
+
+  private isValidToolCall(call: AiProviderResponse['toolCalls'][number], seen: ReadonlySet<string>): boolean {
+    return Boolean(
+      call &&
+      typeof call.id === 'string' &&
+      /^[A-Za-z0-9_.:-]{1,128}$/.test(call.id) &&
+      !seen.has(call.id) &&
+      typeof call.name === 'string' &&
+      /^[a-z][a-z0-9_]{0,63}$/.test(call.name)
+    );
+  }
+
+  private async executeToolCalls(
+    state: GatewayRunState,
+    calls: PreparedToolCall[],
+  ): Promise<{ toolCallId: string; content: string; isError?: boolean }[]> {
+    const results: { toolCallId: string; content: string; isError?: boolean }[] = [];
+    for (const { call, handler, input } of calls) {
+      const content = await handler.execute(input, state.controller.signal);
+      if (typeof content !== 'string' || Buffer.byteLength(content) > MAX_TOOL_RESULT_BYTES || containsPii(content)) {
+        fail('blocked', 'invalid_tool_call', 'Tool output exceeded safety checks');
+      }
+      results.push({ toolCallId: call.id, content: await this.verifyToolResult(state.route, content) });
+    }
+    return results;
+  }
+
+  private async verifyToolResult(route: AiRoute, content: string): Promise<string> {
+    if (route.zdrBasis !== 'none' || route.provider === 'mock') return content;
+    let parsedToolResult: unknown;
+    try {
+      parsedToolResult = JSON.parse(content);
+    } catch {
+      return fail('blocked', 'synthetic_provenance_required', 'The tool result was not a registered synthetic fixture');
+    }
+    const toolProvenance = await this.syntheticVerifier.verify(parsedToolResult);
+    if (!toolProvenance) {
+      fail('blocked', 'synthetic_provenance_required', 'The tool result was not a registered synthetic fixture');
+    }
+    return canonicalJson(parsedToolResult);
+  }
+
+  private parseOutput(definition: AiUseCaseDefinition<AiUseCaseId>, text: string): unknown {
+    let rawOutput: unknown;
+    try {
+      rawOutput = JSON.parse(providerJsonText(text));
+    } catch {
+      return fail('failed', 'invalid_output', 'The AI provider returned output that was not valid JSON');
+    }
+    if (containsPii(rawOutput)) fail('failed', 'invalid_output', 'The AI provider returned a high-risk personal-data pattern');
+    const outputResult = definition.outputSchema.safeParse(rawOutput);
+    if (!outputResult.success) fail('failed', 'invalid_output', 'The AI provider output did not match the registered response contract');
+    return outputResult.data;
+  }
+
+  private async finishFailure(
+    state: GatewayRunState,
+    error: unknown,
+    callerSignal?: AbortSignal,
+  ): Promise<AiGatewayRunFailure> {
+    if (!state.auditCreated) {
+      // If audit persistence itself failed, stop before any provider call.
+      if (!(error instanceof AiGatewayFault)) throw error;
+      await this.createAudit(state);
+    }
+    if (error instanceof AiGatewayFault && error.fault.providerUsage) {
+      state.accumulatedInputTokens += error.fault.providerUsage.inputTokens;
+      state.accumulatedOutputTokens += error.fault.providerUsage.outputTokens;
+    }
+    const fault = this.resolveFault(state, error, callerSignal);
+    await this.finishAudit(state, fault.outcome, fault.code);
+    return {
+      outcome: fault.outcome,
+      error: { code: fault.code, message: fault.message, retryable: fault.retryable },
+      evidence: this.evidence(state, fault.outcome),
+    };
+  }
+
+  private resolveFault(state: GatewayRunState, error: unknown, callerSignal?: AbortSignal): GatewayFault {
+    if (error instanceof AiGatewayFault) return error.fault;
+    if (callerSignal?.aborted) {
+      return { outcome: 'aborted', code: 'aborted', message: 'The AI run was aborted', retryable: false };
+    }
+    if (state.timeoutExpired) {
+      return { outcome: 'unavailable', code: 'timeout', message: 'The AI run exceeded its configured timeout', retryable: true };
+    }
+    return { outcome: 'failed', code: 'internal', message: 'The AI run failed unexpectedly', retryable: false };
   }
 
   private validateToolHandlers(handlers: readonly AiToolHandler[]): Map<string, AiToolHandler> {
@@ -654,75 +745,89 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
         throw abortError();
       }
       try {
-        let response: AiProviderResponse;
-        if (!useStream) {
-          response = await adapter.run(request, signal);
-        } else {
-          let finalResponse: AiProviderResponse | undefined;
-          for await (const event of adapter.stream(request, signal)) {
-            if (event.type === 'final') {
-              if (finalResponse) throw new Error('Provider stream emitted more than one final response');
-              finalResponse = event.response;
-            }
-          }
-          if (!finalResponse) throw new Error('Provider stream ended without a final response');
-          response = finalResponse;
-        }
+        const response = await this.invokeProvider(adapter, request, signal, useStream);
         this.validateProviderResponse(response);
-        const { inputTokens, outputTokens } = response.usage;
-        const actual = inputTokens + outputTokens;
-        if (
-          !Number.isSafeInteger(inputTokens) ||
-          !Number.isSafeInteger(outputTokens) ||
-          inputTokens < 0 ||
-          outputTokens < 0
-        ) {
-          throw new Error('The provider returned usage outside the reserved token bound');
-        }
-        if (actual > reservation || outputTokens > request.maxOutputTokens) {
-          failForProviderUsage(response.usage);
-        }
+        this.assertUsageWithinReservation(response.usage, reservation, request.maxOutputTokens);
         await this.reconcileReservation(requestId, useCaseId, usageDate, reservation, response.usage);
         return response;
       } catch (error) {
         lastError = error;
         await this.consumeUnknownReservation(requestId, useCaseId, usageDate, reservation);
-        if (error instanceof AiGatewayFault) throw error;
-        if (signal.aborted) throw error;
-        const status = providerStatus(error);
-        const retryable = providerRetryable(error) || status === 429 || (status !== undefined && status >= 500);
-        if (!retryable) fail('failed', 'provider_rejected', 'The AI provider rejected the request');
-        if (attempt === MAX_RETRY_ATTEMPTS - 1) {
-          fail('unavailable', 'provider_unavailable', 'The AI provider is temporarily unavailable', true);
-        }
+        this.assertRetryable(error, signal, attempt);
         await sleepWithSignal(200 * (attempt + 1), signal);
       }
     }
     throw lastError;
   }
 
+  private async invokeProvider(
+    adapter: AiProviderAdapter,
+    request: AiProviderRequest,
+    signal: AbortSignal,
+    useStream: boolean,
+  ): Promise<AiProviderResponse> {
+    if (!useStream) return adapter.run(request, signal);
+    let finalResponse: AiProviderResponse | undefined;
+    for await (const event of adapter.stream(request, signal)) {
+      if (event.type === 'final') {
+        if (finalResponse) throw new Error('Provider stream emitted more than one final response');
+        finalResponse = event.response;
+      }
+    }
+    if (!finalResponse) throw new Error('Provider stream ended without a final response');
+    return finalResponse;
+  }
+
+  private assertUsageWithinReservation(
+    usage: AiProviderResponse['usage'],
+    reservation: number,
+    maxOutputTokens: number,
+  ): void {
+    if (usage.inputTokens + usage.outputTokens > reservation || usage.outputTokens > maxOutputTokens) {
+      failForProviderUsage(usage);
+    }
+  }
+
+  private assertRetryable(error: unknown, signal: AbortSignal, attempt: number): void {
+    if (error instanceof AiGatewayFault) throw error;
+    if (signal.aborted) throw error;
+    const status = providerStatus(error);
+    const retryable = providerRetryable(error) || status === 429 || (status !== undefined && status >= 500);
+    if (!retryable) fail('failed', 'provider_rejected', 'The AI provider rejected the request');
+    if (attempt === MAX_RETRY_ATTEMPTS - 1) {
+      fail('unavailable', 'provider_unavailable', 'The AI provider is temporarily unavailable', true);
+    }
+  }
+
   private validateProviderResponse(response: AiProviderResponse): void {
-    if (
-      !response ||
+    if (this.hasMalformedProviderPayload(response) || this.hasMalformedProviderUsage(response)) {
+      fail('failed', 'provider_rejected', 'The AI provider returned a malformed response');
+    }
+    if (this.hasInvalidProviderMetadata(response)) {
+      fail('failed', 'provider_rejected', 'The AI provider returned invalid response metadata');
+    }
+  }
+
+  private hasMalformedProviderPayload(response: AiProviderResponse): boolean {
+    return !response ||
       typeof response.text !== 'string' ||
       Buffer.byteLength(response.text) > 65_536 ||
       !Array.isArray(response.toolCalls) ||
       response.toolCalls.length > 64 ||
-      !response.usage ||
+      !['end_turn', 'max_tokens', 'tool_use'].includes(response.stopReason);
+  }
+
+  private hasMalformedProviderUsage(response: AiProviderResponse): boolean {
+    return !response.usage ||
       !Number.isSafeInteger(response.usage.inputTokens) ||
       !Number.isSafeInteger(response.usage.outputTokens) ||
       response.usage.inputTokens < 0 ||
-      response.usage.outputTokens < 0 ||
-      !['end_turn', 'max_tokens', 'tool_use'].includes(response.stopReason)
-    ) {
-      fail('failed', 'provider_rejected', 'The AI provider returned a malformed response');
-    }
-    if (
-      (response.responseModel !== undefined && !/^[A-Za-z0-9._:/-]{1,128}$/.test(response.responseModel)) ||
-      (response.endpointTag !== undefined && !/^[A-Za-z0-9._:/-]{1,128}$/.test(response.endpointTag))
-    ) {
-      fail('failed', 'provider_rejected', 'The AI provider returned invalid response metadata');
-    }
+      response.usage.outputTokens < 0;
+  }
+
+  private hasInvalidProviderMetadata(response: AiProviderResponse): boolean {
+    return (response.responseModel !== undefined && !/^[A-Za-z0-9._:/-]{1,128}$/.test(response.responseModel)) ||
+      (response.endpointTag !== undefined && !/^[A-Za-z0-9._:/-]{1,128}$/.test(response.endpointTag));
   }
 
   private async reserveBudget(
