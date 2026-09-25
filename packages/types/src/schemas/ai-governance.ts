@@ -274,7 +274,7 @@ export const aiApprovalStateSchema = z.enum([
 ]);
 export type AiApprovalState = z.infer<typeof aiApprovalStateSchema>;
 
-export const aiAuditEvidenceSchema = z
+const aiAuditEvidenceBaseSchema = z
   .object({
     requestId: nonEmptyStringSchema,
     correlationId: nonEmptyStringSchema.optional(),
@@ -293,7 +293,44 @@ export const aiAuditEvidenceSchema = z
     approvalState: aiApprovalStateSchema,
     syntheticProvenance: aiSyntheticProvenanceSchema.optional(),
   })
-  .strict()
+  .strict();
+
+function validateAnthropicAuditEvidence(
+  evidence: z.infer<typeof aiAuditEvidenceBaseSchema>,
+  ctx: z.RefinementCtx,
+): void {
+  if (evidence.provider !== "anthropic") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["provider"],
+      message: "Anthropic test profile audit evidence must identify Anthropic",
+    });
+  }
+  if (evidence.zdrBasis !== "none") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["zdrBasis"],
+      message: "Anthropic test profile cannot claim ZDR",
+    });
+  }
+  const blockedBeforeProvider = evidence.outcome === "blocked";
+  if (!blockedBeforeProvider && (evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["dataClasses"],
+      message: "Anthropic test profile audit evidence must be synthetic-only",
+    });
+  }
+  if (!blockedBeforeProvider && !evidence.syntheticProvenance) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["syntheticProvenance"],
+      message: "Anthropic test profile audit evidence requires verified provenance",
+    });
+  }
+}
+
+export const aiAuditEvidenceSchema = aiAuditEvidenceBaseSchema
   .superRefine((evidence, ctx) => {
     if (evidence.profileId === "mock" && evidence.provider !== "mock") {
       ctx.addIssue({
@@ -303,38 +340,7 @@ export const aiAuditEvidenceSchema = z
       });
     }
     if (evidence.profileId === "test-anthropic") {
-      if (evidence.provider !== "anthropic") {
-        ctx.addIssue({
-          code: "custom",
-          path: ["provider"],
-          message: "Anthropic test profile audit evidence must identify Anthropic",
-        });
-      }
-      if (evidence.zdrBasis !== "none") {
-        ctx.addIssue({
-          code: "custom",
-          path: ["zdrBasis"],
-          message: "Anthropic test profile cannot claim ZDR",
-        });
-      }
-      const blockedBeforeProvider = evidence.outcome === "blocked";
-      if (
-        !blockedBeforeProvider &&
-        (evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")
-      ) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["dataClasses"],
-          message: "Anthropic test profile audit evidence must be synthetic-only",
-        });
-      }
-      if (!blockedBeforeProvider && !evidence.syntheticProvenance) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["syntheticProvenance"],
-          message: "Anthropic test profile audit evidence requires verified provenance",
-        });
-      }
+      validateAnthropicAuditEvidence(evidence, ctx);
     }
   });
 export type AiAuditEvidence = z.infer<typeof aiAuditEvidenceSchema>;
