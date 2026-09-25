@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Refactored Anthropic provider error normalization into focused abort and HTTP classification helpers; transport and additional HTTP status fixtures keep the gateway's retry behavior covered.
+
 ### Added
 - Interchangeable AI provider gateway plan (`docs/roadmap/ai-provider-gateway-plan.md`): PR 0–7 scopes, exit checks, merge gates, and four parallel worktrees after verification and contract freeze. PR 0 verifies Anthropic Sonnet 4.6 forced-tool output on synthetic data. Public OpenRouter metadata records 20 GLM 5.3 Flash endpoint records advertising ZDR, tools, forced tool choice, and structured outputs; Fireworks is a candidate tag. The user approved deferring OpenRouter until model access and account privacy evidence are available. Mock remains default; real-data and production AI stay disabled. PR 0 is complete for this approved scope. Documentation only; no runtime change.
 - PR 1 AI gateway contract foundation: shared Zod schemas and inferred types for use-case inputs/outputs, mock and synthetic-only Anthropic profiles, typed gateway/provider/tool ports, metadata-only audit evidence, and use-case-specific POST/SSE contracts. PARE agent aliases now use the shared inferred model types. Provider SDK imports are boundary-checked and confined to AI gateway infrastructure.
@@ -34,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Root build and typecheck now fail early when the gitignored `@prism/types` output is missing or older than its source, with a direct rebuild command in the error.
 
 ### Fixed
+- Live PARE now validates its gateway route at startup: it requires the non-production synthetic Anthropic profile and all three PARE use cases enabled. Approval evidence checks and dispatch persistence were split into focused functions so PR 4 stays within the enforced complexity limit.
+- Keep Anthropic API key reads and missing-key validation in the provider factory after merging the gateway core refactor, preserving the adapter's opt-in key isolation.
+- PR 2 AI gateway complexity gate: separate input minimization, route policy, provider/tool steps, budget retry, audit lifecycle, and evidence validation into focused functions. Preserve mock-default and synthetic-only Anthropic behavior while restoring the required `check:complexity` pass (owner D: platform trust).
 - Database error diagnostics and connection pool bounds: Prisma failures now log `error.code` and `error.meta` alongside the message at the startup sample seed and in `db-doctor`, where the `@prisma/adapter-pg` driver adapter previously left a bare code frame with no cause and produced a blank line. This covers 2 of the 12 message-only extraction sites; the HTTP request path that clients see is unchanged and tracked separately. Both `pg` pools are now explicitly bounded at `max: 5`, `idleTimeoutMillis: 10000`, and `connectionTimeoutMillis: 30000`, replacing an unset connection timeout that let a checkout against an unavailable database wait indefinitely. This does not address the intermittent idle-connection failures, which remain under investigation.
 - Floorplan preview recovery now serves legacy official drafts that predate persisted snapshots, seeds snapshots for new compatibility data, and keeps client editor failures inside the dashboard error state instead of surfacing an unhandled runtime rejection.
 - Dependency audit gate: move the four Next.js portals to the patched 16.3 line, update NestJS 11, and override vulnerable transitive `js-yaml`, `multer`, and `sharp` resolutions so CI can evaluate pull-request code instead of stopping on known high/critical advisories.
