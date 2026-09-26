@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-09-26
+
+- **Verified:** Refetched and reviewed GitHub PRs #65-#71 (phase PR 0-6); recorded exact base/head SHAs and confirmed Node CI, Gitleaks, and CodeQL pass on every current head. Phase PR 7 has not been opened. Local PR 6 validation passed for types, API, event portal, boundaries, Prisma, migrations, and invariants. Corrected PR 6's exit: local synthetic smoke passed; staging pilot, full PARE provenance, 20-run measurements, and PMCM review/sign-off remain pending.
+
 ## 2026-09-25
 
 - **Recorded:** PR 6 freezes synthetic PARE and unsigned-conforme scenarios, local pass criteria, and a results table. Final single-run Anthropic smoke completed all four fixed use cases with registered PARE tool loops; exploratory failures remain visible. Full PARE provenance chaining, synthetic staging pilot, 20-run metrics, and PMCM review remain pending. OpenRouter and all real-data/production AI stay disabled.

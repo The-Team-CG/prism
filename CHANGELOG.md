@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Corrected the AI gateway phase 6 record: local synthetic smoke passed, while the synthetic staging pilot and its 20-run, full PARE provenance, PMCM review, and sign-off gates remain pending. Recorded the exact phase PR 0-6 stack heads and bases after review.
 - Refactored Anthropic provider error normalization into focused abort and HTTP classification helpers; transport and additional HTTP status fixtures keep the gateway's retry behavior covered.
 
 ### Added
