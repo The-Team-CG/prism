@@ -148,7 +148,7 @@ Verified at `a95ab19`:
 | Failures | Fail closed. Retry the same route within limits. Never fail over to another provider or profile. Never substitute mock output in live mode. |
 | Streaming | The port has `stream` from PR 1. FR-AI-09 uses it in PR 5. The input types leave room for multi-turn chat (FR-AI-05 POA, FR-AI-07 copilot), which is built later. |
 | New use case | FR-AI-09 client communication drafts, starting with the unsigned-conforme trigger. |
-| Done for this plan | PRs 0 to 7 merged; mock and Anthropic synthetic-only routes pass their conformance checks; a synthetic staging pilot succeeds; OpenRouter remains deferred; production live AI stays off until a ZDR route is verified and D separately approves real-data use. |
+| Completion criteria | PRs 0 to 7 merged; mock and Anthropic synthetic-only routes pass their conformance checks; a synthetic staging pilot succeeds; OpenRouter remains deferred; production live AI stays off until a ZDR route is verified and D separately approves real-data use. |
 
 ## Architecture
 
@@ -296,12 +296,23 @@ reported by GitHub for that PR; it is the immediate parent head in this stack.
 | 5 | [#70](https://github.com/The-Team-CG/prism/pull/70) | `codex/ai-gateway-pr4` `1db6e1d7d30995a7da84fce957a2a26e2bc92240` | `codex/ai-gateway-pr5` `410ad26c21e04622e1477ddb633cc279c1d9a9ea` | Open, draft | Node CI, Gitleaks, CodeQL passed |
 | 6 | [#71](https://github.com/The-Team-CG/prism/pull/71) | `codex/ai-gateway-pr5` `410ad26c21e04622e1477ddb633cc279c1d9a9ea` | `codex/ai-gateway-pr6-eval` `5185af4d402111ebe413948a911cc08161bb1396` | Open, draft | Node CI, Gitleaks, CodeQL passed |
 
+| Phase | Change in the reviewed diff | Review result |
+| --- | --- | --- |
+| 0 / #65 | Records the synthetic Anthropic forced-tool probe and defers OpenRouter pending model access and account privacy evidence. | Decision documented; no second provider qualified. |
+| 1 / #66 | Freezes shared Zod contracts, gateway/provider/tool ports, provenance contract, and SDK import boundary. | Only mock and Anthropic test profiles are currently selectable. |
+| 2 / #67 | Adds mock-default gateway, audit/budget controls, synthetic fixture checks, and the AI audit migration. | Migration has static checks; deployment remains unverified. |
+| 3 / #68 | Adds the Anthropic adapter and provider conformance tests. | OpenRouter adapter remains deferred. |
+| 4 / #69 | Moves the PARE agents onto the gateway and updates execution/audit approval paths. | PARE still hard-codes Anthropic profile/provider acceptance; see Task 2 follow-up. |
+| 5 / #70 | Adds conforme communication drafts, server-owned reminder-window claim, and PMCM review flow. | Uses generic synthetic input; saved-draft cancellation is terminal for that reminder window. |
+| 6 / #71 | Adds fixed evaluation fixtures, strict structured output, and a one-sample local smoke record. | Full PARE provenance chain, staging pilot, 20-run measurements, and PMCM review remain pending. |
+
 All seven PRs remain open. Green CI does not close phase exit gates. The
-review found that PR #69 still checks for an Anthropic profile/provider inside
-PARE, so a second provider cannot run PARE until that policy is made provider
-neutral. PR #71 proves one local Anthropic sample per use case, not full PARE
-orchestration, staging reliability, or PMCM usability. OpenRouter remains
-deferred pending authenticated model access and account-level privacy evidence.
+review also found that PR #69 still checks for an Anthropic profile/provider
+inside PARE, so a second provider cannot run PARE until that policy is made
+provider neutral. PR #71 proves one local Anthropic sample per use case, not
+full PARE orchestration, staging reliability, or PMCM usability. OpenRouter
+remains deferred pending authenticated model access and account-level privacy
+evidence.
 
 Local validation on phase PR 6 head `5185af4d402111ebe413948a911cc08161bb1396`:
 
