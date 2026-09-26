@@ -9,7 +9,7 @@ authority: informative
 owner: "D (Anthony)"
 audience: [engineers, agents, reviewers]
 scope: "AI gateway contracts and core, Anthropic synthetic-data adapter, PARE migration, FR-AI-09 streaming communication drafts, model evaluation, and a synthetic-data staging pilot; OpenRouter deferred pending model access and account privacy evidence"
-last_verified: "2026-09-25; PR 6 local synthetic smoke and API typecheck, test, build, and boundary checks; staging pending"
+last_verified: "2026-09-26; PR #65-#71 head/base SHAs, green CI, PR 6 local synthetic smoke, API/event checks; staging pending"
 sources:
   - id: pare-agents
     resource: "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents"
@@ -279,6 +279,45 @@ PRs 3 to 5 may be draft PRs while PR 2 is in flight. Each becomes mergeable
 only after rebasing on the merged dependencies and passing its full exit checks.
 No branch enables a live production use case by default.
 
+## Stack review record (2026-09-26)
+
+The plan's phase numbers map to the open GitHub stack as follows: phase PR 0 is
+GitHub PR #65; phase PRs 1 to 6 are #66 to #71. Phase PR 7 (governance
+promotion) has not been opened. The base SHA below is the exact base commit
+reported by GitHub for that PR; it is the immediate parent head in this stack.
+
+| Phase | GitHub PR | Base branch and SHA | Head branch and SHA | State | Required CI |
+| --- | ---: | --- | --- | --- | --- |
+| 0 | [#65](https://github.com/The-Team-CG/prism/pull/65) | `staging` `ea9407fa4f533e6ff5308ba376933f145e31b630` | `codex/ai-gateway-pr0` `cf1e2afba4ce82f5425b4472b2a36f120e90aabe` | Open, ready | Node CI, Gitleaks, CodeQL passed |
+| 1 | [#66](https://github.com/The-Team-CG/prism/pull/66) | `codex/ai-gateway-pr0` `cf1e2afba4ce82f5425b4472b2a36f120e90aabe` | `codex/ai-gateway-pr1` `ac88330db33f5db19867d4b2e3c624f73da23773` | Open, draft | Node CI, Gitleaks, CodeQL passed |
+| 2 | [#67](https://github.com/The-Team-CG/prism/pull/67) | `codex/ai-gateway-pr1` `ac88330db33f5db19867d4b2e3c624f73da23773` | `codex/ai-gateway-pr2` `594c2b63f3c972f805483a97834ef2fd31f2dfd8` | Open, draft | Node CI, Gitleaks, CodeQL passed |
+| 3 | [#68](https://github.com/The-Team-CG/prism/pull/68) | `codex/ai-gateway-pr2` `594c2b63f3c972f805483a97834ef2fd31f2dfd8` | `codex/ai-gateway-pr3` `ec06dce910efe4d8df08ccdbbf36c490e668f3b7` | Open, draft | Node CI, Gitleaks, CodeQL passed |
+| 4 | [#69](https://github.com/The-Team-CG/prism/pull/69) | `codex/ai-gateway-pr3` `ec06dce910efe4d8df08ccdbbf36c490e668f3b7` | `codex/ai-gateway-pr4` `1db6e1d7d30995a7da84fce957a2a26e2bc92240` | Open, draft | Node CI, Gitleaks, CodeQL passed |
+| 5 | [#70](https://github.com/The-Team-CG/prism/pull/70) | `codex/ai-gateway-pr4` `1db6e1d7d30995a7da84fce957a2a26e2bc92240` | `codex/ai-gateway-pr5` `410ad26c21e04622e1477ddb633cc279c1d9a9ea` | Open, draft | Node CI, Gitleaks, CodeQL passed |
+| 6 | [#71](https://github.com/The-Team-CG/prism/pull/71) | `codex/ai-gateway-pr5` `410ad26c21e04622e1477ddb633cc279c1d9a9ea` | `codex/ai-gateway-pr6-eval` `5185af4d402111ebe413948a911cc08161bb1396` | Open, draft | Node CI, Gitleaks, CodeQL passed |
+
+All seven PRs remain open. Green CI does not close phase exit gates. The
+review found that PR #69 still checks for an Anthropic profile/provider inside
+PARE, so a second provider cannot run PARE until that policy is made provider
+neutral. PR #71 proves one local Anthropic sample per use case, not full PARE
+orchestration, staging reliability, or PMCM usability. OpenRouter remains
+deferred pending authenticated model access and account-level privacy evidence.
+
+Local validation on phase PR 6 head `5185af4d402111ebe413948a911cc08161bb1396`:
+
+- `@prism/types`: build, typecheck, and 50 tests passed.
+- API: Prisma validation, typecheck, build, and 729 tests passed (42 skipped).
+- Event portal: typecheck and full suite passed (135 tests); the two conforme
+  draft view/model tests also passed separately (8 tests).
+- `check:boundaries`: 1,195 files passed; `test:boundaries`: 52 tests passed.
+- Offline schema diff and migration verification passed; migration policy
+  tests passed (28), migration guard found 67 migrations (63 immutable legacy,
+  4 owner-aware), invariant dry-run passed (6 declarations), and invariant
+  tests passed (17).
+- `git diff --check` passed over the complete phase PR 0-6 stack. An initial
+  concurrent event suite run timed out one architecture scan; the isolated
+  full rerun passed. No locale-sensitive formatter failure reproduced.
+
 ### PR 0 — Verify runtime and provider routes
 
 **Owner:** D, with B validating the PARE forced-tool scenario. **Files:** this
@@ -542,9 +581,16 @@ failed at `check-deploy-secrets` because
 skipped. The synthetic staging pilot cannot run through the repository's
 deployment path until that gate passes and the stacked PRs reach `staging`.
 
-**Exit:** An inspectable results table is recorded; the synthetic staging
-pilot passes without real event data or autonomous sending. The production
-route remains absent and gated.
+**Local synthetic exit:** The inspectable results table and the four-scenario
+local smoke above pass on mock and Anthropic; each sampled PARE stage completes
+one registered tool loop. This does not demonstrate full PARE orchestration,
+staging reliability, or PMCM usability.
+
+**Staging pilot: PENDING.** It passes only after the deployed synthetic pilot
+runs at least 20 samples per route/use case, full PARE orchestration uses a
+server-owned provenance chain, PMCM factual/edit review and D/B/A sign-off are
+recorded, and the measured thresholds are met. Do not report the PR 6 staging
+exit as passed before those gates close.
 
 ### PR 7 — Governance promotion and closeout
 
