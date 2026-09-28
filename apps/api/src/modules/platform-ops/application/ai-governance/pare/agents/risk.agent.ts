@@ -1,4 +1,4 @@
-import type { AiGateway } from '../../../../contracts/ai-governance/ai-gateway.port';
+import type { AiGateway, AiSyntheticPareChain } from '../../../../contracts/ai-governance/ai-gateway.port';
 import type { PARERisk, PARERiskLevel, PAREContext, PARECandidate } from '../pare.types';
 import { assertPareExecutionAllowed } from '../pare-execution.policy';
 import { runPareAiUseCase, type PareAgentRunResult } from '../pare-ai-gateway';
@@ -87,6 +87,7 @@ export class RiskAgent {
   async runPareRiskAgent(
     ctx: PAREContext,
     signal?: AbortSignal,
+    syntheticPareChain?: AiSyntheticPareChain,
   ): Promise<PareAgentRunResult<PARERisk>> {
     assertPareExecutionAllowed(this.mode);
     throwIfAborted(signal);
@@ -97,6 +98,7 @@ export class RiskAgent {
         ctx,
         createPareRiskToolHandlers(ctx),
         signal,
+        syntheticPareChain,
       );
     }
     return { output: mockRisk(ctx), evidence: null };

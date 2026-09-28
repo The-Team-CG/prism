@@ -282,6 +282,49 @@ export const aiApprovalStateSchema = z.enum([
 ]);
 export type AiApprovalState = z.infer<typeof aiApprovalStateSchema>;
 
+export const aiPareProvenanceChainStageSchema = z.enum([
+  "pare.budget",
+  "pare.risk",
+  "pare.message-drafts",
+]);
+export type AiPareProvenanceChainStage = z.infer<typeof aiPareProvenanceChainStageSchema>;
+
+const aiDigestSchema = z.string().regex(/^[a-f0-9]{64}$/);
+export const aiPareProvenanceChainEvidenceSchema = z
+  .object({
+    chainId: nonEmptyStringSchema,
+    rootFixtureId: nonEmptyStringSchema,
+    rootDigest: aiDigestSchema,
+    stage: aiPareProvenanceChainStageSchema,
+    stageIndex: z.number().int().min(0).max(2),
+    auditId: nonEmptyStringSchema,
+    inputDigest: aiDigestSchema,
+    outputDigest: aiDigestSchema,
+    toolResultDigests: z.array(aiDigestSchema).min(1).max(64),
+    priorAuditIds: z.array(nonEmptyStringSchema).max(2),
+    priorOutputDigests: z.array(aiDigestSchema).max(2),
+  })
+  .strict()
+  .superRefine((evidence, ctx) => {
+    const stages = aiPareProvenanceChainStageSchema.options;
+    if (stages[evidence.stageIndex] !== evidence.stage) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["stageIndex"],
+        message: "PARE provenance stages must follow budget, risk, then message drafts",
+      });
+    }
+    if (evidence.priorAuditIds.length !== evidence.stageIndex ||
+      evidence.priorOutputDigests.length !== evidence.stageIndex) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["priorAuditIds"],
+        message: "PARE provenance must name every earlier completed stage",
+      });
+    }
+  });
+export type AiPareProvenanceChainEvidence = z.infer<typeof aiPareProvenanceChainEvidenceSchema>;
+
 const aiAuditEvidenceBaseSchema = z
   .object({
     requestId: nonEmptyStringSchema,
@@ -302,6 +345,7 @@ const aiAuditEvidenceBaseSchema = z
     outcome: aiRunOutcomeSchema,
     approvalState: aiApprovalStateSchema,
     syntheticProvenance: aiSyntheticProvenanceSchema.optional(),
+    pareChain: aiPareProvenanceChainEvidenceSchema.optional(),
   })
   .strict();
 
