@@ -32,6 +32,11 @@ const context: PAREContext = {
   candidates: [{ supplierId: 'supplier_2', supplierName: 'Replacement', tier: 'tier_1', quotedAmount: 40, reliabilityScore: 1, halal: false, priorPmcmEvents: 2, reason: 'Available' }],
 };
 
+const providerRouteCases = [
+  { label: 'Anthropic', profileId: 'test-anthropic', provider: 'anthropic' as const },
+  { label: 'OpenRouter', profileId: 'test-openrouter', provider: 'openrouter' as const },
+];
+
 type StoredRow = { id: string; [key: string]: unknown };
 type GatewayCall = {
   useCaseId: AiUseCaseId;
@@ -42,22 +47,29 @@ type FakeGatewayOptions = {
   failure?: Pick<AiGatewayRunFailure, 'outcome' | 'error'>;
   outputOverride?: unknown;
   onRun?: (signal?: AbortSignal) => void;
+  profileId?: string;
+  provider?: AiAuditEvidence['provider'];
 };
 
 function evidenceFor(
   useCaseId: AiUseCaseId,
   correlationId: string,
   outcome: AiAuditEvidence['outcome'] = 'completed',
+  profileId = 'test-anthropic',
+  provider: AiAuditEvidence['provider'] = 'anthropic',
 ): AiAuditEvidence {
   return aiAuditEvidenceSchema.parse({
     requestId: `ai_${useCaseId}`,
     correlationId,
     useCaseId,
     promptVersion: `${useCaseId}-v1`,
-    profileId: 'test-anthropic',
-    provider: 'anthropic',
+    profileId,
+    provider,
     requestedModel: 'claude-sonnet-4-6',
     responseModel: 'claude-sonnet-4-6',
+    endpointTag: provider === 'openrouter' ? 'fake-openrouter' : 'anthropic-direct',
+    routeRevision: 'a'.repeat(64),
+    routePolicyOutcome: 'synthetic_verified',
     zdrBasis: 'none',
     dataClasses: ['synthetic'],
     usage: { inputTokens: 10, outputTokens: 12 },
@@ -106,6 +118,8 @@ function fakeGateway(options: FakeGatewayOptions = {}) {
       useCaseId,
       callOptions?.correlationId ?? 'missing-correlation',
       options.failure?.outcome ?? 'completed',
+      options.profileId,
+      options.provider,
     );
     if (options.failure) {
       return {
@@ -235,8 +249,32 @@ describe('PARE gateway boundary', () => {
       profileId: 'mock',
       liveUseCases: new Set(),
       isProduction: false,
-    })).toThrow(/live PARE requires.*test-anthropic/i);
+    })).toThrow(/all three PARE use cases/i);
     expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
+  });
+
+  it('accepts a fully enabled synthetic route without an Anthropic-specific profile requirement', () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const { prisma } = harness();
+    const { gateway } = fakeGateway({ profileId: 'test-openrouter', provider: 'openrouter' });
+    const route = {
+      provider: 'openrouter' as const,
+      model: 'test-model',
+      endpointPolicyId: 'fake-openrouter',
+      adapterRevision: 'fake-openrouter-v1',
+      zdrBasis: 'none' as const,
+      allowedDataClasses: ['synthetic' as const],
+    };
+    const profile = {
+      id: 'test-openrouter',
+      routesByTier: { fast: route, strong: route },
+    };
+    expect(() => new PAREService(prisma as unknown as PrismaService, undefined, gateway, {
+      profile,
+      profileId: 'test-openrouter',
+      liveUseCases: new Set<AiUseCaseId>(['pare.budget', 'pare.risk', 'pare.message-drafts']),
+      isProduction: false,
+    })).not.toThrow();
   });
 
   it('rejects live PARE at startup when a PARE gateway use case is not enabled', () => {
@@ -270,9 +308,9 @@ describe('PARE gateway boundary', () => {
     expect(pending.pareResult).toMatchObject({
       mode: 'live',
       runEvidence: expect.arrayContaining([
-        expect.objectContaining({ useCaseId: 'pare.budget', profileId: 'test-anthropic' }),
-        expect.objectContaining({ useCaseId: 'pare.risk', profileId: 'test-anthropic' }),
-        expect.objectContaining({ useCaseId: 'pare.message-drafts', profileId: 'test-anthropic' }),
+        expect.objectContaining({ useCaseId: 'pare.budget', routePolicyOutcome: 'synthetic_verified' }),
+        expect.objectContaining({ useCaseId: 'pare.risk', routePolicyOutcome: 'synthetic_verified' }),
+        expect.objectContaining({ useCaseId: 'pare.message-drafts', routePolicyOutcome: 'synthetic_verified' }),
       ]),
     });
     expect(calls).toHaveLength(3);
@@ -317,9 +355,10 @@ describe('PARE gateway boundary', () => {
     expect(state.audits).toHaveLength(0);
   });
 
-  it('treats gateway step exhaustion and invalid output as failures without mock fallback', async () => {
+  it.each(providerRouteCases)('treats gateway step exhaustion and invalid output the same through $label', async route => {
     vi.stubEnv('PARE_MODE', 'live');
     const exhausted = fakeGateway({
+      ...route,
       failure: {
         outcome: 'incomplete',
         error: { code: 'step_limit', message: 'exhausted', retryable: false },
@@ -332,7 +371,7 @@ describe('PARE gateway boundary', () => {
     expect(first.state.approvals).toHaveLength(0);
     expect(first.state.audits).toHaveLength(0);
 
-    const invalid = fakeGateway({ outputOverride: { feasible: true } });
+    const invalid = fakeGateway({ ...route, outputOverride: { feasible: true } });
     const second = harness(invalid.gateway);
     await expect(second.service.handleEmergencyTrigger('request_1')).rejects.toMatchObject({
       name: 'PareAiGatewayError', code: 'invalid_output', retryable: false,
@@ -349,11 +388,20 @@ describe('PARE gateway boundary', () => {
     expect(state.audits).toHaveLength(0);
   });
 
-  it('allows PMCM to approve a fully verified synthetic gateway result without sending messages', async () => {
+  it.each(providerRouteCases)('keeps the same PMCM approval gate and no-send behavior through $label', async route => {
     vi.stubEnv('PARE_MODE', 'live');
-    const { gateway, calls } = fakeGateway();
+    const { gateway, calls } = fakeGateway(route);
     const { service, state } = harness(gateway);
     const pending = await service.handleEmergencyTrigger('request_1');
+    const pendingPayload = state.audits[0].sanitizedPayload as Record<string, unknown>;
+    const pendingEvidence = pendingPayload.runEvidence as Record<string, unknown>[];
+    expect(state.approvals[0]).toMatchObject({ status: 'pending_human_approval' });
+    expect(state.audits[0].zdrConfirmed).toBe(false);
+    expect(pendingEvidence).toHaveLength(3);
+    expect(pendingEvidence.every(evidence =>
+      evidence.provider === route.provider && evidence.profileId === route.profileId &&
+      evidence.routePolicyOutcome === 'synthetic_verified')).toBe(true);
+
     const approved = await service.approveRecommendation(pending.id, 'Verified PMCM');
     expect(approved).toMatchObject({
       status: 'approved', reviewedBy: 'Verified PMCM',
@@ -364,7 +412,7 @@ describe('PARE gateway boundary', () => {
     expect(calls).toHaveLength(3);
   });
 
-  it.each(['blocked', 'mismatched', 'unaudited'] as const)(
+  it.each(['blocked', 'mismatched', 'unaudited', 'ineligible'] as const)(
     'rejects %s live evidence at PMCM approval', async corruption => {
       vi.stubEnv('PARE_MODE', 'live');
       const { gateway } = fakeGateway();
@@ -375,6 +423,7 @@ describe('PARE gateway boundary', () => {
       if (corruption === 'blocked') evidence[0].outcome = 'blocked';
       if (corruption === 'mismatched') evidence[0].correlationId = 'another-request';
       if (corruption === 'unaudited') auditPayload.runEvidence = [];
+      if (corruption === 'ineligible') evidence[0].routePolicyOutcome = 'mock_local';
 
       await expect(service.approveRecommendation(pending.id, 'Verified PMCM'))
         .rejects.toThrow(/matching durable PARE audit/);

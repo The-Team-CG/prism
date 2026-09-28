@@ -12,7 +12,7 @@ export type AiUseCaseId = z.infer<typeof aiUseCaseIdSchema>;
 export const aiProviderIdSchema = z.enum(["mock", "anthropic", "openrouter"]);
 export type AiProviderId = z.infer<typeof aiProviderIdSchema>;
 
-export const aiRouteProfileIdSchema = z.enum(["mock", "test-anthropic"]);
+export const aiRouteProfileIdSchema = nonEmptyStringSchema;
 export type AiRouteProfileId = z.infer<typeof aiRouteProfileIdSchema>;
 
 export const aiModelTierSchema = z.enum(["fast", "strong"]);
@@ -20,6 +20,14 @@ export type AiModelTier = z.infer<typeof aiModelTierSchema>;
 
 export const aiZdrBasisSchema = z.enum(["provider-enforced", "none"]);
 export type AiZdrBasis = z.infer<typeof aiZdrBasisSchema>;
+
+export const aiRoutePolicyOutcomeSchema = z.enum([
+  "synthetic_verified",
+  "zdr_approved",
+  "mock_local",
+  "denied",
+]);
+export type AiRoutePolicyOutcome = z.infer<typeof aiRoutePolicyOutcomeSchema>;
 
 export const aiDataClassSchema = z.enum([
   "synthetic",
@@ -50,6 +58,8 @@ export const aiRouteSchema = z
   .object({
     provider: aiProviderIdSchema,
     model: nonEmptyStringSchema,
+    endpointPolicyId: nonEmptyStringSchema,
+    adapterRevision: nonEmptyStringSchema,
     zdrBasis: aiZdrBasisSchema,
     allowedDataClasses: z.array(aiDataClassSchema).min(1).max(5),
   })
@@ -60,40 +70,22 @@ export const aiRouteProfileSchema = z
   .object({
     id: aiRouteProfileIdSchema,
     routesByTier: z.record(aiModelTierSchema, aiRouteSchema),
+    routesByUseCase: z.partialRecord(aiUseCaseIdSchema, aiRouteSchema).optional(),
   })
   .strict()
   .superRefine((profile, ctx) => {
-    for (const tier of ["fast", "strong"] as const) {
-      const route = profile.routesByTier[tier];
-      if (profile.id === "mock" && route.provider !== "mock") {
+    const routes = [
+      ...Object.entries(profile.routesByTier).map(([key, route]) => ({ key, route, field: "routesByTier" })),
+      ...Object.entries(profile.routesByUseCase ?? {}).map(([key, route]) => ({ key, route, field: "routesByUseCase" })),
+    ];
+    for (const { key, route, field } of routes) {
+      if (route.provider !== "mock" && route.zdrBasis === "none" &&
+        (route.allowedDataClasses.length !== 1 || route.allowedDataClasses[0] !== "synthetic")) {
         ctx.addIssue({
           code: "custom",
-          path: ["routesByTier", tier, "provider"],
-          message: "The mock profile must use the mock provider for every tier",
+          path: [field, key, "allowedDataClasses"],
+          message: "An external non-ZDR route can only accept synthetic data",
         });
-      }
-      if (profile.id === "test-anthropic") {
-        if (route.provider !== "anthropic") {
-          ctx.addIssue({
-            code: "custom",
-            path: ["routesByTier", tier, "provider"],
-            message: "The test-anthropic profile must use Anthropic for every tier",
-          });
-        }
-        if (route.zdrBasis !== "none") {
-          ctx.addIssue({
-            code: "custom",
-            path: ["routesByTier", tier, "zdrBasis"],
-            message: "The Anthropic test route has no verified ZDR",
-          });
-        }
-        if (route.allowedDataClasses.length !== 1 || route.allowedDataClasses[0] !== "synthetic") {
-          ctx.addIssue({
-            code: "custom",
-            path: ["routesByTier", tier, "allowedDataClasses"],
-            message: "The Anthropic test route only accepts synthetic data",
-          });
-        }
       }
     }
   });
@@ -299,6 +291,8 @@ const aiAuditEvidenceBaseSchema = z
     profileId: aiRouteProfileIdSchema,
     provider: aiProviderIdSchema,
     requestedModel: nonEmptyStringSchema,
+    routeRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    routePolicyOutcome: aiRoutePolicyOutcomeSchema,
     responseModel: nonEmptyStringSchema.optional(),
     endpointTag: nonEmptyStringSchema.optional(),
     zdrBasis: aiZdrBasisSchema,
@@ -311,54 +305,30 @@ const aiAuditEvidenceBaseSchema = z
   })
   .strict();
 
-function validateAnthropicAuditEvidence(
-  evidence: z.infer<typeof aiAuditEvidenceBaseSchema>,
-  ctx: z.RefinementCtx,
-): void {
-  if (evidence.provider !== "anthropic") {
+export const aiAuditEvidenceSchema = aiAuditEvidenceBaseSchema.superRefine((evidence, ctx) => {
+  if (evidence.routePolicyOutcome === "synthetic_verified" &&
+    (!evidence.syntheticProvenance || evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")) {
     ctx.addIssue({
       code: "custom",
-      path: ["provider"],
-      message: "Anthropic test profile audit evidence must identify Anthropic",
+      path: ["routePolicyOutcome"],
+      message: "Synthetic-verified route evidence requires verified synthetic provenance",
     });
   }
-  if (evidence.zdrBasis !== "none") {
+  if (evidence.routePolicyOutcome === "zdr_approved" && evidence.zdrBasis !== "provider-enforced") {
     ctx.addIssue({
       code: "custom",
-      path: ["zdrBasis"],
-      message: "Anthropic test profile cannot claim ZDR",
+      path: ["routePolicyOutcome"],
+      message: "ZDR-approved route evidence must record a provider-enforced ZDR basis",
     });
   }
-  const blockedBeforeProvider = evidence.outcome === "blocked";
-  if (!blockedBeforeProvider && (evidence.dataClasses.length !== 1 || evidence.dataClasses[0] !== "synthetic")) {
+  if (evidence.outcome === "completed" && evidence.routePolicyOutcome === "denied") {
     ctx.addIssue({
       code: "custom",
-      path: ["dataClasses"],
-      message: "Anthropic test profile audit evidence must be synthetic-only",
+      path: ["routePolicyOutcome"],
+      message: "A denied route policy cannot produce a completed result",
     });
   }
-  if (!blockedBeforeProvider && !evidence.syntheticProvenance) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["syntheticProvenance"],
-      message: "Anthropic test profile audit evidence requires verified provenance",
-    });
-  }
-}
-
-export const aiAuditEvidenceSchema = aiAuditEvidenceBaseSchema
-  .superRefine((evidence, ctx) => {
-    if (evidence.profileId === "mock" && evidence.provider !== "mock") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["provider"],
-        message: "Mock profile audit evidence must identify the mock provider",
-      });
-    }
-    if (evidence.profileId === "test-anthropic") {
-      validateAnthropicAuditEvidence(evidence, ctx);
-    }
-  });
+});
 export type AiAuditEvidence = z.infer<typeof aiAuditEvidenceSchema>;
 
 export const aiGatewayRunSuccessSchema = z

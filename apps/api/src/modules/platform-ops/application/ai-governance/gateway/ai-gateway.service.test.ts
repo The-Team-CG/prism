@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { pareBudgetAnalysisSchema, pareRiskSchema, type AiSyntheticProvenance } from '@prism/types';
+import { pareBudgetAnalysisSchema, pareRiskSchema, type AiRouteProfile, type AiSyntheticProvenance } from '@prism/types';
 import type { PrismaService } from '@prism/kernel/database';
 import type { AiProviderAdapter, AiProviderRequest, AiProviderResponse } from '../../../contracts/ai-governance/ai-gateway.port';
 import type { AiGatewayRuntimeConfig } from './ai-gateway.config';
-import { resolveAiGatewayRuntimeConfig } from './ai-gateway.config';
+import { AI_ROUTE_PROFILES, resolveAiGatewayRuntimeConfig } from './ai-gateway.config';
 import { AiGatewayService } from './ai-gateway.service';
 import {
   SyntheticFixtureRegistry,
@@ -76,14 +76,35 @@ function gateway(
 
 class CountingAnthropicAdapter implements AiProviderAdapter {
   readonly provider = 'anthropic' as const;
-  run = vi.fn(async (_request: AiProviderRequest): Promise<AiProviderResponse> => ({
-    text: '{"level":"LOW","factors":[],"recommendation":"Review"}',
+  readonly endpointPolicyId = 'anthropic-direct';
+  run = vi.fn(async (request: AiProviderRequest): Promise<AiProviderResponse> => ({
+    text: request.systemPrompt.includes('Use case: pare.budget.')
+      ? JSON.stringify(SYNTHETIC_PARE_MESSAGE_CONTEXT_FIXTURE.budgetAnalysis)
+      : '{"level":"LOW","factors":[],"recommendation":"Review"}',
     toolCalls: [],
     stopReason: 'end_turn',
     usage: { inputTokens: 10, outputTokens: 8 },
+    responseModel: request.model,
+    endpointTag: this.endpointPolicyId,
   }));
   async *stream(request: AiProviderRequest): AsyncIterable<{ type: 'final'; response: AiProviderResponse }> {
     yield { type: 'final', response: await this.run(request) };
+  }
+}
+
+class CountingOpenRouterAdapter implements AiProviderAdapter {
+  readonly provider = 'openrouter' as const;
+  readonly endpointPolicyId = 'fake-openrouter';
+  run = vi.fn(async (): Promise<AiProviderResponse> => ({
+    text: JSON.stringify(SYNTHETIC_PARE_MESSAGE_CONTEXT_FIXTURE.budgetAnalysis),
+    toolCalls: [],
+    stopReason: 'end_turn',
+    usage: { inputTokens: 10, outputTokens: 12 },
+    responseModel: 'glm-test',
+    endpointTag: this.endpointPolicyId,
+  }));
+  async *stream(_request: AiProviderRequest): AsyncIterable<{ type: 'final'; response: AiProviderResponse }> {
+    yield { type: 'final', response: await this.run() };
   }
 }
 
@@ -109,12 +130,12 @@ describe('AI gateway core', () => {
   it('defaults to the mock profile and rejects live routes with invalid configuration', () => {
     expect(runtime().profileId).toBe('mock');
     expect(runtime().liveUseCases.size).toBe(0);
-    expect(runtime({ AI_ROUTE_PROFILE: 'openrouter' }).profileId).toBe('mock');
+    expect(() => runtime({ AI_ROUTE_PROFILE: 'openrouter' })).toThrow(/Unsupported AI_ROUTE_PROFILE/);
     expect(() => runtime({ AI_ROUTE_PROFILE: 'openrouter', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured' })).toThrow(/Unsupported AI_ROUTE_PROFILE/);
     expect(runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'comms.draft' }).profileId).toBe('test-anthropic');
     expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'pare.unknown', ANTHROPIC_API_KEY: 'configured' })).toThrow(/Unsupported AI live use case/);
-    expect(runtime({ AI_ROUTE_PROFILE: 'test-anthropic', NODE_ENV: 'production' }).profileId).toBe('mock');
-    expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured', NODE_ENV: 'production' })).toThrow(/disabled in production/);
+    expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', NODE_ENV: 'production' })).toThrow(/synthetic-only.*production/i);
+    expect(() => runtime({ AI_ROUTE_PROFILE: 'test-anthropic', AI_LIVE_USE_CASES: 'pare.risk', ANTHROPIC_API_KEY: 'configured', NODE_ENV: 'production' })).toThrow(/synthetic-only.*production/i);
   });
 
   it('runs mock calls through validated output, usage reservation, and one audit outcome', async () => {
@@ -141,7 +162,14 @@ describe('AI gateway core', () => {
     expect(audit.status).toBe('completed');
     expect(audit.zdrConfirmed).toBe(false);
     expect(audit.inputTokens).toBeGreaterThan(0);
-    expect(audit.sanitizedPayload).toEqual(SYNTHETIC_PARE_CONTEXT_FIXTURE);
+    expect(audit.sanitizedPayload).toMatchObject({
+      ...SYNTHETIC_PARE_CONTEXT_FIXTURE,
+      _aiGatewayRoute: {
+        routeRevision: expect.stringMatching(/^[a-f0-9]{64}$/),
+        routePolicyOutcome: 'mock_local',
+        endpointPolicyId: 'deterministic-mock',
+      },
+    });
   });
 
   it('drafts a generic conforme reminder from inquiry identity only', async () => {
@@ -228,6 +256,7 @@ describe('AI gateway core', () => {
     const { prisma, audits } = fakePrisma();
     const adapter = new class implements AiProviderAdapter {
       readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       run = vi.fn(async (request: AiProviderRequest): Promise<AiProviderResponse> => {
         if (request.messages.some((message) => message.role === 'tool')) {
           return {
@@ -275,10 +304,60 @@ describe('AI gateway core', () => {
     expect([...audits.values()][0].outcome).toBe('completed');
   });
 
+  it('switches the same PARE agent between providers through reviewed profiles only', async () => {
+    const externalRoute = (provider: 'anthropic' | 'openrouter', model: string, endpointPolicyId: string) => ({
+      provider,
+      model,
+      endpointPolicyId,
+      adapterRevision: `${provider}-conformance-v1`,
+      zdrBasis: 'none' as const,
+      allowedDataClasses: ['synthetic' as const],
+    });
+    const anthroProfile = AI_ROUTE_PROFILES['test-anthropic'];
+    const openRouterRoute = externalRoute('openrouter', 'glm-test', 'fake-openrouter');
+    const openRouterProfile: AiRouteProfile = {
+      id: 'test-openrouter',
+      routesByTier: { fast: openRouterRoute, strong: openRouterRoute },
+    };
+    const outcomes = [];
+
+    for (const [profile, adapter] of [
+      [anthroProfile, new CountingAnthropicAdapter()],
+      [openRouterProfile, new CountingOpenRouterAdapter()],
+    ] as const) {
+      const { prisma, audits } = fakePrisma();
+      const profiles = { ...AI_ROUTE_PROFILES, [profile.id]: profile };
+      const aiRuntime = resolveAiGatewayRuntimeConfig(config({
+        AI_ROUTE_PROFILE: profile.id,
+        AI_LIVE_USE_CASES: 'pare.budget',
+      }), profiles);
+      const service = gateway(prisma, aiRuntime, adapter);
+      service.onModuleInit();
+      const result = await new BudgetAgent('live', service)
+        .runPareBudgetAgent(SYNTHETIC_PARE_EVALUATION_CONTEXT_FIXTURE);
+
+      expect(result.output).toEqual(SYNTHETIC_PARE_MESSAGE_CONTEXT_FIXTURE.budgetAnalysis);
+      expect(result.evidence).toMatchObject({
+        provider: profile.routesByTier.fast.provider,
+        profileId: profile.id,
+        routePolicyOutcome: 'synthetic_verified',
+        endpointTag: profile.routesByTier.fast.endpointPolicyId,
+        approvalState: 'pending',
+      });
+      expect(result.evidence?.routeRevision).toMatch(/^[a-f0-9]{64}$/);
+      const audit = [...audits.values()][0];
+      expect(audit).toMatchObject({ provider: profile.routesByTier.fast.provider, humanApprovalRequired: true, humanApproved: false });
+      outcomes.push({ output: result.output, routePolicyOutcome: result.evidence?.routePolicyOutcome });
+    }
+
+    expect(outcomes[0]).toEqual(outcomes[1]);
+  });
+
   it('accepts a synthetic date and numeric timeline tool result but blocks a phone number', async () => {
     const { prisma } = fakePrisma();
     const adapter = new class implements AiProviderAdapter {
       readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       async run(request: AiProviderRequest): Promise<AiProviderResponse> {
         return request.messages.some((message) => message.role === 'tool')
           ? {
@@ -358,6 +437,7 @@ describe('AI gateway core', () => {
     const { prisma, audits } = fakePrisma();
     const adapter = new class implements AiProviderAdapter {
       readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       run = vi.fn(async (request: AiProviderRequest): Promise<AiProviderResponse> => {
         if (request.messages.some((message) => message.role === 'tool')) {
           return {
@@ -419,6 +499,7 @@ describe('AI gateway core', () => {
     const { prisma } = fakePrisma();
     const adapter = new class implements AiProviderAdapter {
       readonly provider = 'anthropic' as const;
+      readonly endpointPolicyId = 'anthropic-direct';
       run = vi.fn(async (): Promise<AiProviderResponse> => ({
         text: '',
         toolCalls: [{

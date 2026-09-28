@@ -21,7 +21,9 @@ import {
   AI_PROVIDER_ADAPTERS,
   AI_SYNTHETIC_PROVENANCE_VERIFIER,
   resolveAiGatewayRuntimeConfig,
+  resolveAiRoute,
 } from './application/ai-governance/gateway/ai-gateway.config';
+import { AI_USE_CASE_REGISTRY } from './application/ai-governance/gateway/ai-use-cases';
 import { SyntheticFixtureRegistry } from './application/ai-governance/gateway/synthetic-fixture-registry';
 import { AI_GATEWAY } from './contracts/ai-governance/ai-gateway.port';
 import { MockAiProviderAdapter } from './infrastructure/ai-governance/mock-ai-provider.adapter';
@@ -68,9 +70,13 @@ export function createAiProviderAdapters(
   config: Pick<ConfigService, 'get'>,
 ): AiProviderAdapter[] {
   const adapters: AiProviderAdapter[] = [mockAdapter];
-  if (runtime.profileId !== 'test-anthropic' || runtime.liveUseCases.size === 0) {
-    return adapters;
+  const liveProviders = new Set([...runtime.liveUseCases].map((useCaseId) =>
+    resolveAiRoute(runtime.profile, useCaseId, AI_USE_CASE_REGISTRY[useCaseId].modelTier).provider));
+  const unsupportedProviders = [...liveProviders].filter((provider) => provider !== 'mock' && provider !== 'anthropic');
+  if (unsupportedProviders.length > 0) {
+    throw new Error(`No AI provider adapter factory is registered for: ${unsupportedProviders.join(', ')}`);
   }
+  if (!liveProviders.has('anthropic')) return adapters;
 
   const apiKey = config.get<string>('ANTHROPIC_API_KEY')?.trim();
   if (!apiKey) {

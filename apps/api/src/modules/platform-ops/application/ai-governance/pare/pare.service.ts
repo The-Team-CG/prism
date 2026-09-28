@@ -14,7 +14,7 @@ import { SupplierFinderAgent } from './agents/supplier-finder.agent';
 import { BudgetAgent } from './agents/budget.agent';
 import { RiskAgent } from './agents/risk.agent';
 import { MessageDrafterAgent } from './agents/message-drafter.agent';
-import { isSyntheticAnthropicEvidence } from './pare-ai-gateway';
+import { isPareRoutePolicyEligibleEvidence } from './pare-ai-gateway';
 import type {
   PAREApprovalRecord,
   PAREApprovalStatus,
@@ -115,8 +115,8 @@ function resolveTriggerArgs(
 }
 
 function assertLivePareRoute(runtime: AiGatewayRuntimeConfig): void {
-  if (runtime.profileId !== 'test-anthropic' || runtime.isProduction) {
-    throw new PareConfigurationError('Live PARE requires the non-production test-anthropic route');
+  if (runtime.isProduction) {
+    throw new PareConfigurationError('Live PARE is disabled in production until its activation is approved');
   }
   const requiredUseCases: AiUseCaseId[] = ['pare.budget', 'pare.risk', 'pare.message-drafts'];
   if (!requiredUseCases.every((id) => runtime.liveUseCases.has(id))) {
@@ -156,7 +156,7 @@ function isExpectedLiveEvidence(
     !seen.has(evidence.useCaseId) &&
     evidence.outcome === 'completed' &&
     evidence.correlationId === requestId &&
-    isSyntheticAnthropicEvidence(evidence);
+    isPareRoutePolicyEligibleEvidence(evidence);
 }
 
 function assertLiveEvidenceSet(evidenceSet: AiAuditEvidence[], requestId: string): void {
@@ -304,7 +304,7 @@ export class PAREService implements PareApprovalGovernance {
           modelVersion: this.mode === 'mock' ? 'mock' : 'ai-gateway',
           dataCategories: toPrismaJson(dataCategories),
           sanitizedPayload: toPrismaJson(sanitizedPayload),
-          zdrConfirmed: this.mode === 'mock' || runEvidence.every((evidence) => evidence.zdrBasis === 'provider-enforced'),
+          zdrConfirmed: this.mode === 'mock' || runEvidence.every((evidence) => evidence.routePolicyOutcome === 'zdr_approved'),
           humanApprovalRequired: true,
           status: 'pending_human_approval',
           createdAt: triggeredAt,

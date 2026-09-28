@@ -121,6 +121,8 @@ export type AiProviderStreamEvent =
 
 export interface AiProviderAdapter {
   readonly provider: AiProviderId;
+  /** Identifies the provider endpoint configured by this adapter instance. */
+  readonly endpointPolicyId?: string;
   run(request: AiProviderRequest, signal?: AbortSignal): Promise<AiProviderResponse>;
   stream(request: AiProviderRequest, signal?: AbortSignal): AsyncIterable<AiProviderStreamEvent>;
 }

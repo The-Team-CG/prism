@@ -314,6 +314,15 @@ full PARE orchestration, staging reliability, or PMCM usability. OpenRouter
 remains deferred pending authenticated model access and account-level privacy
 evidence.
 
+**Task 2 follow-up (2026-09-28):** The provider-specific PARE acceptance was
+removed and verified on the local `codex/ai-gateway-task2-provider-neutral`
+branch, layered on the local Task 1 evidence branch. The fake second-provider
+test demonstrates route-policy switching for the same PARE use case. This
+local change does not update GitHub PR #69 (`codex/ai-gateway-pr4`, head
+`1db6e1d`); the open stack still needs to be rebased/integrated and reviewed.
+It does not qualify OpenRouter or establish full PARE provenance or staging
+evidence.
+
 Local validation on phase PR 6 head `5185af4d402111ebe413948a911cc08161bb1396`:
 
 - `@prism/types`: build, typecheck, and 50 tests passed.

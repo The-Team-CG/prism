@@ -40,12 +40,8 @@ function matchesPareRun(evidence: AiAuditEvidence, useCaseId: PareAiUseCaseId, t
     evidence.outcome === 'completed';
 }
 
-export function isSyntheticAnthropicEvidence(evidence: AiAuditEvidence): boolean {
-  return evidence.profileId === 'test-anthropic' &&
-    evidence.provider === 'anthropic' &&
-    evidence.zdrBasis === 'none' &&
-    evidence.dataClasses.length === 1 &&
-    evidence.dataClasses[0] === 'synthetic' &&
+export function isPareRoutePolicyEligibleEvidence(evidence: AiAuditEvidence): boolean {
+  return (evidence.routePolicyOutcome === 'synthetic_verified' || evidence.routePolicyOutcome === 'zdr_approved') &&
     Boolean(evidence.syntheticProvenance);
 }
 
@@ -76,7 +72,7 @@ export async function runPareAiUseCase<K extends PareAiUseCaseId>(
     throw new PareAiGatewayError('failed', 'invalid_output', false);
   }
   const evidence = evidenceResult.data;
-  if (!matchesPareRun(evidence, useCaseId, context.triggerId) || !isSyntheticAnthropicEvidence(evidence)) {
+  if (!matchesPareRun(evidence, useCaseId, context.triggerId) || !isPareRoutePolicyEligibleEvidence(evidence)) {
     throw new PareAiGatewayError('blocked', 'synthetic_provenance_required', false);
   }
 
