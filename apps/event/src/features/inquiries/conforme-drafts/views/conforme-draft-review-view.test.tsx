@@ -29,7 +29,6 @@ function model(status: string, overrides: Record<string, unknown> = {}) {
     draft: null,
     subject: '',
     body: '',
-    streamedCharacters: 12,
     errorMessage: null,
     setSubject: vi.fn(),
     setBody: vi.fn(),
@@ -56,13 +55,33 @@ describe('ConformeDraftReviewView', () => {
     expect((viewModel.current.startManualWriting as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
   });
 
-  it('exposes a cancel action while the POST stream is active', () => {
-    model('streaming');
-    render(<ConformeDraftReviewView inquiries={[inquiry]} />);
+  it('shows generation progress from metadata without implying draft text is arriving token by token', () => {
+    model('starting');
+    const { rerender } = render(<ConformeDraftReviewView inquiries={[inquiry]} />);
 
-    expect(screen.getByRole('status').textContent).toContain('12 characters received');
+    expect(screen.getByRole('status').textContent).toContain('Starting draft');
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
+
+    model('generating');
+    rerender(<ConformeDraftReviewView inquiries={[inquiry]} />);
+
+    expect(screen.getByRole('status').textContent).toContain('Generating draft');
+    expect(screen.getByRole('status').textContent).not.toMatch(/character|token/i);
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect((viewModel.current.cancelGeneration as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers manual writing and editable fields when no saved draft exists', () => {
+    model('idle');
+    const { rerender } = render(<ConformeDraftReviewView inquiries={[inquiry]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Write manually' }));
+    expect((viewModel.current.startManualWriting as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+
+    model('editing');
+    rerender(<ConformeDraftReviewView inquiries={[inquiry]} />);
+    expect(screen.getByLabelText('Subject')).toBeTruthy();
+    expect(screen.getByLabelText('Message')).toBeTruthy();
   });
 
   it('keeps approval and cancellation explicit while a validated draft is pending', () => {
@@ -86,6 +105,12 @@ describe('ConformeDraftReviewView', () => {
     });
     render(<ConformeDraftReviewView inquiries={[inquiry]} />);
 
+    expect(screen.getByText(/canceling permanently rejects this draft for its reminder window/i)).toBeTruthy();
+    expect(screen.getByDisplayValue('Subject')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Subject'), { target: { value: 'Edited subject' } });
+    expect((viewModel.current.setSubject as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith('Edited subject');
+    expect(screen.getByRole('button', { name: 'Cancel draft' }).getAttribute('aria-describedby'))
+      .toBe('conforme-draft-cancel-warning');
     fireEvent.click(screen.getByRole('button', { name: 'Approve and queue for delivery' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel draft' }));
     expect((viewModel.current.approve as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);

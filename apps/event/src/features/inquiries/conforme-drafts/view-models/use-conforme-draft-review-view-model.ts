@@ -13,7 +13,9 @@ import {
 export type ConformeDraftReviewStatus =
   | 'loading'
   | 'idle'
-  | 'streaming'
+  | 'starting'
+  | 'generating'
+  | 'cancelling'
   | 'editing'
   | 'saving'
   | 'pending'
@@ -26,7 +28,6 @@ export function useConformeDraftReviewViewModel(inquiry: PrismInquiry) {
   const [draft, setDraft] = useState<ConformeDraftReviewRecord | null>(null);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  const [streamedCharacters, setStreamedCharacters] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -55,12 +56,11 @@ export function useConformeDraftReviewViewModel(inquiry: PrismInquiry) {
     if (abortRef.current) return;
     const controller = new AbortController();
     abortRef.current = controller;
-    setStatus('streaming');
+    setStatus('starting');
     setErrorMessage(null);
-    setStreamedCharacters(0);
     try {
-      const saved = await generateConformeDraft(inquiry.id, controller.signal, (text) => {
-        setStreamedCharacters((current) => current + text.length);
+      const saved = await generateConformeDraft(inquiry.id, controller.signal, () => {
+        if (!controller.signal.aborted) setStatus('generating');
       });
       setDraft(saved);
       setSubject(saved.draft.subject);
@@ -79,9 +79,10 @@ export function useConformeDraftReviewViewModel(inquiry: PrismInquiry) {
   }, [inquiry.id]);
 
   const cancelGeneration = useCallback(() => {
-    abortRef.current?.abort(new Error('Draft generation cancelled'));
-    abortRef.current = null;
-    setStatus('idle');
+    const controller = abortRef.current;
+    if (!controller) return;
+    controller.abort(new Error('Draft generation cancelled'));
+    setStatus('cancelling');
   }, []);
 
   const startManualWriting = useCallback(() => {
@@ -150,7 +151,6 @@ export function useConformeDraftReviewViewModel(inquiry: PrismInquiry) {
     draft,
     subject,
     body,
-    streamedCharacters,
     errorMessage,
     setSubject,
     setBody,

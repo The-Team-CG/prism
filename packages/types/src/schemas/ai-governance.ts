@@ -306,20 +306,23 @@ export const aiPareProvenanceChainEvidenceSchema = z
   })
   .strict()
   .superRefine((evidence, ctx) => {
-    const stages = aiPareProvenanceChainStageSchema.options;
-    if (stages[evidence.stageIndex] !== evidence.stage) {
+    const linearIndex = aiPareProvenanceChainStageSchema.options.indexOf(evidence.stage);
+    const isLinearStage = evidence.stageIndex === linearIndex;
+    const isIndependentRiskRoot = evidence.stage === "pare.risk" && evidence.stageIndex === 0;
+    const expectedParentCount = evidence.stageIndex;
+    if (!isLinearStage && !isIndependentRiskRoot) {
       ctx.addIssue({
         code: "custom",
         path: ["stageIndex"],
-        message: "PARE provenance stages must follow budget, risk, then message drafts",
+        message: "PARE provenance stage index does not match a supported chain version",
       });
     }
-    if (evidence.priorAuditIds.length !== evidence.stageIndex ||
-      evidence.priorOutputDigests.length !== evidence.stageIndex) {
+    if (evidence.priorAuditIds.length !== expectedParentCount ||
+      evidence.priorOutputDigests.length !== expectedParentCount) {
       ctx.addIssue({
         code: "custom",
         path: ["priorAuditIds"],
-        message: "PARE provenance must name every earlier completed stage",
+        message: "PARE provenance must name every direct completed dependency",
       });
     }
   });
