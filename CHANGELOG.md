@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- AI gateway route policy is provider-neutral: reviewed profiles can override a route per use case before falling back to model tier, route revisions and policy outcomes are recorded with audit evidence, and PARE checks the gateway's policy outcome instead of Anthropic identity or a provider-specific ZDR predicate. A fake second-provider test exercises the same PARE approval/audit path after a route switch; OpenRouter remains unqualified and is not registered. Unknown explicit profiles/use cases fail startup; mock remains the default.
 - Corrected the AI gateway phase 6 record: local synthetic smoke passed, while the synthetic staging pilot and its 20-run, full PARE provenance, PMCM review, and sign-off gates remain pending. Recorded the exact phase PR 0-6 stack heads and bases after review.
 - Refactored Anthropic provider error normalization into focused abort and HTTP classification helpers; transport and additional HTTP status fixtures keep the gateway's retry behavior covered.
 

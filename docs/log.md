@@ -1,5 +1,10 @@
 # Documentation bundle update log
 
+## 2026-09-28
+
+- **Implemented:** Completion-plan Task 2 on `codex/ai-gateway-task2-provider-neutral`: route profiles support use-case overrides with tier fallback; startup rejects unknown explicit profiles/use cases; audit evidence records a SHA-256 route revision and provider-neutral policy outcome; PARE approval consumes that outcome rather than Anthropic identity or a provider-specific ZDR check. A fake second adapter proves configuration-only route switching for the same PARE use case. OpenRouter remains unqualified and is not registered as a runtime route.
+- **Verified:** `@prism/types` build, typecheck, and 51 tests; focused API gateway/PARE/conforme tests (67 passed, 2 skipped); API typecheck; `check:boundaries` (1,195 files); `test:boundaries` (52 tests); and `git diff --check` passed. Work remains local; no PR, push, merge, live provider qualification, or activation was performed.
+
 ## 2026-09-26
 
 - **Verified:** Refetched and reviewed GitHub PRs #65-#71 (phase PR 0-6); recorded exact base/head SHAs and confirmed Node CI, Gitleaks, and CodeQL pass on every current head. Phase PR 7 has not been opened. Local PR 6 validation passed for types, API, event portal, boundaries, Prisma, migrations, and invariants. Corrected PR 6's exit: local synthetic smoke passed; staging pilot, full PARE provenance, 20-run measurements, and PMCM review/sign-off remain pending.

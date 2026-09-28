@@ -32,6 +32,8 @@ const pareInput = {
 const mockRoute = {
   provider: "mock",
   model: "deterministic-v1",
+  endpointPolicyId: "deterministic-mock",
+  adapterRevision: "deterministic-v1",
   zdrBasis: "none",
   allowedDataClasses: ["synthetic", "public", "internal", "personal", "sensitive"],
 };
@@ -39,6 +41,8 @@ const mockRoute = {
 const anthropicRoute = {
   provider: "anthropic",
   model: "claude-sonnet-4-6",
+  endpointPolicyId: "anthropic-direct",
+  adapterRevision: "anthropic-conformance-v1",
   zdrBasis: "none",
   allowedDataClasses: ["synthetic"],
 };
@@ -59,19 +63,58 @@ describe("AI governance contracts", () => {
     ).toBe(true);
   });
 
-  it("rejects Anthropic routes that claim ZDR, allow real data, or use another provider", () => {
-    for (const invalidRoute of [
-      { ...anthropicRoute, zdrBasis: "provider-enforced" },
-      { ...anthropicRoute, allowedDataClasses: ["synthetic", "personal"] },
-      { ...anthropicRoute, provider: "openrouter" },
-    ]) {
-      expect(
-        aiRouteProfileSchema.safeParse({
-          id: "test-anthropic",
-          routesByTier: { fast: invalidRoute, strong: anthropicRoute },
-        }).success,
-      ).toBe(false);
-    }
+  it("accepts route overrides and audits provider-neutral policy evidence", () => {
+    const alternateProviderProfile = {
+      id: "test-openrouter",
+      routesByTier: { fast: { ...mockRoute, provider: "openrouter", model: "glm-test", endpointPolicyId: "fake-openrouter", adapterRevision: "fake-openrouter-v1", zdrBasis: "none", allowedDataClasses: ["synthetic"] }, strong: { ...mockRoute, provider: "openrouter", model: "glm-test", endpointPolicyId: "fake-openrouter", adapterRevision: "fake-openrouter-v1", zdrBasis: "none", allowedDataClasses: ["synthetic"] } },
+      routesByUseCase: { "pare.risk": { ...mockRoute, provider: "openrouter", model: "glm-risk-test", endpointPolicyId: "fake-openrouter", adapterRevision: "fake-openrouter-v1", zdrBasis: "none", allowedDataClasses: ["synthetic"] } },
+    };
+    const evidence = {
+      requestId: "request-1",
+      useCaseId: "pare.risk",
+      promptVersion: "pare-risk-v1",
+      profileId: "test-openrouter",
+      provider: "openrouter",
+      requestedModel: "glm-risk-test",
+      endpointTag: "fake-openrouter",
+      routeRevision: "a".repeat(64),
+      routePolicyOutcome: "synthetic_verified",
+      zdrBasis: "none",
+      dataClasses: ["synthetic"],
+      latencyMs: 12,
+      outcome: "completed",
+      approvalState: "pending",
+      syntheticProvenance: {
+        source: "test-fixture",
+        sourceId: "pare-fixture-event-1",
+        verifiedAt: "2026-09-24T00:00:00.000Z",
+        verifier: "test-fixture-registry",
+      },
+    };
+
+    expect(aiRouteProfileSchema.safeParse(alternateProviderProfile).success).toBe(true);
+    expect(aiAuditEvidenceSchema.safeParse(evidence).success).toBe(true);
+  });
+
+  it("rejects any non-ZDR external route that allows non-synthetic data", () => {
+    expect(
+      aiRouteProfileSchema.safeParse({
+        id: "test-external",
+        routesByTier: {
+          fast: { ...anthropicRoute, provider: "openrouter", allowedDataClasses: ["synthetic", "personal"] },
+          strong: anthropicRoute,
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      aiRouteProfileSchema.safeParse({
+        id: "approved-zdr-route",
+        routesByTier: {
+          fast: { ...anthropicRoute, provider: "openrouter", zdrBasis: "provider-enforced", allowedDataClasses: ["synthetic", "personal"] },
+          strong: anthropicRoute,
+        },
+      }).success,
+    ).toBe(true);
   });
 
   it("binds each POST use-case ID to its own input schema", () => {
@@ -154,6 +197,8 @@ describe("AI governance contracts", () => {
       provider: "anthropic",
       requestedModel: "claude-sonnet-4-6",
       zdrBasis: "none",
+      routeRevision: "a".repeat(64),
+      routePolicyOutcome: "synthetic_verified",
       dataClasses: ["synthetic"],
       latencyMs: 124,
       outcome: "completed",
@@ -172,12 +217,13 @@ describe("AI governance contracts", () => {
         ...evidence,
         dataClasses: ['internal', 'personal'],
         syntheticProvenance: undefined,
+        routePolicyOutcome: 'denied',
         outcome: 'blocked',
       }).success,
     ).toBe(true);
     expect(aiAuditEvidenceSchema.safeParse({ ...evidence, payload: pareInput }).success).toBe(false);
     expect(aiAuditEvidenceSchema.safeParse({ ...evidence, syntheticProvenance: undefined }).success).toBe(false);
-    expect(aiAuditEvidenceSchema.safeParse({ ...evidence, provider: "openrouter" }).success).toBe(false);
+    expect(aiAuditEvidenceSchema.safeParse({ ...evidence, provider: "openrouter" }).success).toBe(true);
     expect(
       aiGatewayStreamEventSchema.safeParse({
         type: "delta",
