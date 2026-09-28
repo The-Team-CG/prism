@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- The health endpoint now reports the AI gateway profile and provider-call state from the resolved runtime configuration, including local OpenRouter and Anthropic selection. No tests or provider calls were run for this review finding.
 - Refactored AI gateway runtime configuration, route-policy checks, PARE orchestration, and durable provenance validation into focused functions to satisfy the cyclomatic-complexity gate while retaining fail-closed checks; aligned the api-client streaming fixture with the required route-evidence fields. No tests or provider calls were run for this refactor.
 - Local development can select the Anthropic or OpenRouter adapter with AI_PROVIDER and switch models with AI_MODEL, AI_MODEL_FAST, or AI_MODEL_STRONG. A single supported API key auto-selects its synthetic-only route; with no key, mock remains the default, and two configured keys require an explicit provider. Provider/model selection keeps the route privacy and no-fallback controls; it does not qualify staging or real-data use. No tests or provider calls were run for this change; see docs/runbooks/ai-provider-routing.md.
 - PARE event-context loading now starts the event's selected-quote and briefing reads together; the reads are independent and each still falls back to its existing empty value on failure. A focused test confirms both reads begin before either resolves. No runtime improvement is claimed without the planned staging measurement.
