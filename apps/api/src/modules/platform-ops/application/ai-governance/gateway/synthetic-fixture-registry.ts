@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import {
   aiPareProvenanceChainEvidenceSchema,
   pareContextSchema,
@@ -13,6 +13,7 @@ import type {
   AiSyntheticPareChainVerification,
   AiSyntheticProvenanceVerifier,
 } from '../../../contracts/ai-governance/ai-gateway.port';
+import { digestJson, digestJsonOrNull } from '../json-digest';
 
 export const SYNTHETIC_PARE_CANDIDATE_FIXTURE = pareCandidateSchema.parse({
   supplierId: 'ai-fixture-candidate-v1',
@@ -146,16 +147,6 @@ export const SYNTHETIC_PARE_TOOL_RESULT_FIXTURES = {
   },
 } as const;
 
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right));
-    return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
 const pareProvenance = {
   source: 'test-fixture',
   sourceId: 'ai-pare-context-v1',
@@ -190,7 +181,7 @@ const registeredFixtures: ReadonlyArray<readonly [unknown, Omit<AiSyntheticProve
 
 const registeredDigests = new Map<string, Omit<AiSyntheticProvenance, 'verifiedAt'>>(
   registeredFixtures.map(([value, provenance]) => [
-    createHash('sha256').update(canonicalJson(value)).digest('hex'),
+    digestJson(value),
     provenance,
   ]),
 );
@@ -198,7 +189,7 @@ const registeredDigests = new Map<string, Omit<AiSyntheticProvenance, 'verifiedA
 /** Only exact, server-owned fixtures can be certified synthetic. */
 export class SyntheticFixtureRegistry implements AiSyntheticProvenanceVerifier {
   async verify(input: unknown): Promise<AiSyntheticProvenance | null> {
-    const digest = digestJson(input);
+    const digest = digestJsonOrNull(input);
     if (!digest) return null;
     const registered = registeredDigests.get(digest);
     return registered ? { ...registered, verifiedAt: new Date().toISOString() } : null;
@@ -207,7 +198,7 @@ export class SyntheticFixtureRegistry implements AiSyntheticProvenanceVerifier {
   async beginPareChain(input: unknown, correlationId: string): Promise<AiSyntheticPareChain | null> {
     const root = pareContextSchema.safeParse(input);
     if (!root.success || root.data.triggerId !== correlationId) return null;
-    const rootDigest = digestJson(root.data);
+    const rootDigest = digestJsonOrNull(root.data);
     if (!rootDigest || rootDigest !== digestJson(SYNTHETIC_PARE_CHAIN_ROOT_FIXTURE)) return null;
     const provenance = await this.verify(root.data);
     if (!provenance || provenance.sourceId !== pareChainRootProvenance.sourceId) return null;
@@ -249,7 +240,7 @@ export class SyntheticFixtureRegistry implements AiSyntheticProvenanceVerifier {
       completeStage: (rawEvidence, output) => {
         if (!pending) return false;
         const parsedEvidence = aiPareProvenanceChainEvidenceSchema.safeParse(rawEvidence);
-        const outputDigest = digestJson(output);
+        const outputDigest = digestJsonOrNull(output);
         if (!parsedEvidence.success || !outputDigest) return false;
         const evidence = parsedEvidence.data;
         const expected = pending;
@@ -267,13 +258,5 @@ export class SyntheticFixtureRegistry implements AiSyntheticProvenanceVerifier {
       },
     };
     return chain;
-  }
-}
-
-function digestJson(value: unknown): string | null {
-  try {
-    return createHash('sha256').update(canonicalJson(value)).digest('hex');
-  } catch {
-    return null;
   }
 }
