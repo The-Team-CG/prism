@@ -326,6 +326,17 @@ evidence record promoted under `docs/architecture/decisions/` at closeout.
   observed token usage, latency, and estimated direct cost; never treat an
   estimate as a billing receipt.
 
+**Progress (2026-09-28):** OpenRouter's current public listing includes
+`z-ai/glm-5.3-flash` and advertises tool calling and structured outputs, but it
+lists multiple upstream providers; this is public metadata, not qualification
+of a specific endpoint. OpenRouter documents request controls for an exact
+provider allowlist, disabled fallbacks, ZDR, and data-collection denial. The
+authenticated account settings, selected endpoint, endpoint-specific behavior,
+processor locations, and logging/cache settings remain unverified. No
+`OPENROUTER_API_KEY` is configured in the API environment, so no authenticated
+forced-tool probe has run. The adapter and active profile remain absent until
+the access and privacy gates are verified.
+
 **Exit:** Two external providers serve the same registered use case using
 only a reviewed configuration selection, with the same safety and approval
 checks. This is the synthetic interchangeability proof; it is not real-data
