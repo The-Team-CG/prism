@@ -888,15 +888,15 @@ model OpsSupplierApplication {
   additionalNotes         String    @default("") @map("additional_notes")
   status                  String    @default("pending")
   declineReason           String?   @map("decline_reason")
-  reviewedAt              DateTime? @map("reviewed_at")
-  approvedAt              DateTime? @map("approved_at")
+  reviewedAt              DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  approvedAt              DateTime? @map("approved_at") @db.Timestamptz(6)
   convertedSupplierId     String?   @unique(map: "supplier_applications_converted_supplier_id_key") @map("converted_supplier_id")
   conversionIdempotencyKey String?   @unique(map: "supplier_applications_conversion_idempotency_key_key") @map("conversion_idempotency_key")
   conversionPayloadHash    String?   @map("conversion_payload_hash")
   privacyConsentAccepted  Boolean   @default(false) @map("privacy_consent_accepted")
   privacyNoticeVersion    String    @default("") @map("privacy_notice_version")
-  createdAt               DateTime  @default(now()) @map("created_at")
-  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at")
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   category OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   convertedSupplier OpsSupplier? @relation(fields: [convertedSupplierId], references: [id], onDelete: Restrict)
@@ -1743,19 +1743,19 @@ model OpsPareDispatch {
   id               String    @id
   eventId          String    @map("event_id")
   requestId        String    @map("request_id")
-  sourceUpdatedAt  DateTime  @map("source_updated_at")
+  sourceUpdatedAt  DateTime  @map("source_updated_at") @db.Timestamptz(6)
   status           String    @default("queued")
   attempts         Int       @default(0)
   correlationId    String    @map("correlation_id")
   leaseToken       String?   @map("lease_token")
-  leaseExpiresAt   DateTime? @map("lease_expires_at")
-  nextAttemptAt    DateTime  @default(now()) @map("next_attempt_at")
+  leaseExpiresAt   DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  nextAttemptAt    DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
   failureReason    String?   @map("failure_reason")
   approvalRecordId String?   @map("approval_record_id")
-  completedAt      DateTime? @map("completed_at")
-  failedAt         DateTime? @map("failed_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  failedAt         DateTime? @map("failed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   event   OpsEvent               @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -1947,14 +1947,14 @@ model OpsRegistrationPlatform {
   expectedPaxMin    Int      @default(0) @map("expected_pax_min")
   expectedPaxMax    Int      @default(0) @map("expected_pax_max")
   status            String   @default("not_started") @map("status")
-  setupConfirmedAt  DateTime? @map("setup_confirmed_at")
+  setupConfirmedAt  DateTime? @map("setup_confirmed_at") @db.Timestamptz(6)
   setupNotes        String   @default("") @map("setup_notes")
   headcountSource   String   @default("") @map("headcount_source")
   importedHeadcount Int      @default(0) @map("imported_headcount")
-  importedAt        DateTime? @map("imported_at")
+  importedAt        DateTime? @map("imported_at") @db.Timestamptz(6)
   importedFileName  String?  @map("imported_file_name")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -1976,12 +1976,46 @@ model OpsAiAuditLog {
   status                String   @default("blocked")
   createdAt             DateTime @default(now()) @map("created_at")
 
+  // Gateway evidence is nullable to preserve pre-gateway audit history.
+  requestId             String?  @unique(map: "ai_audit_logs_request_id_key") @map("request_id")
+  correlationId         String?  @map("correlation_id")
+  useCaseId             String?  @map("use_case_id")
+  promptVersion         String?  @map("prompt_version")
+  profileId             String?  @map("profile_id")
+  provider              String?
+  requestedModel        String?  @map("requested_model")
+  responseModel         String?  @map("response_model")
+  endpointTag           String?  @map("endpoint_tag")
+  zdrBasis              String?  @map("zdr_basis")
+  inputTokens           Int?     @map("input_tokens")
+  outputTokens          Int?     @map("output_tokens")
+  latencyMs             Int?     @map("latency_ms")
+  outcome               String?
+  approvalState         String?  @map("approval_state")
+  syntheticProvenance   Json?    @map("synthetic_provenance")
+  failureCode           String?  @map("failure_code")
+  budgetDate            DateTime? @db.Date @map("budget_date")
+  reservedTokens        Int      @default(0) @map("reserved_tokens")
+
   event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId], map: "ai_audit_logs_event_id_idx")
   @@index([featureName, createdAt], map: "ai_audit_logs_feature_name_created_at_idx")
   @@index([status, createdAt], map: "ai_audit_logs_status_created_at_idx")
   @@map("ai_audit_logs")
+  @@schema("trust_ops")
+}
+
+model OpsAiDailyTokenUsage {
+  id             String   @id
+  useCaseId      String   @map("use_case_id")
+  usageDate      DateTime @db.Date @map("usage_date")
+  reservedTokens Int      @default(0) @map("reserved_tokens")
+  consumedTokens Int      @default(0) @map("consumed_tokens")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([useCaseId, usageDate], map: "ai_daily_token_usage_use_case_date_key")
+  @@map("ai_daily_token_usage")
   @@schema("trust_ops")
 }
 
@@ -1997,13 +2031,34 @@ model OpsAiApprovalRecord {
   status        String    @default("pending_human_approval")
   requestedAt   DateTime  @default(now()) @map("requested_at")
   sourceDispatchId String? @unique(map: "ai_approval_records_source_dispatch_id_key") @map("source_dispatch_id")
+  reviewPayload Json      @default("{}") @map("review_payload")
 
   event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  conformeCommsDraft OpsConformeCommsDraft?
 
   @@index([aiAuditLogId], map: "ai_approval_records_ai_audit_log_id_idx")
   @@index([eventId], map: "ai_approval_records_event_id_idx")
   @@index([status, requestedAt], map: "ai_approval_records_status_requested_at_idx")
   @@map("ai_approval_records")
+  @@schema("trust_ops")
+}
+
+// PMCM-only review text lives outside the sanitized AI audit log.
+model OpsConformeCommsDraft {
+  id                   String   @id
+  inquiryId            String   @map("inquiry_id")
+  reminderWindowBaseAt String   @map("reminder_window_base_at")
+  decisionReminderAt   String?  @map("decision_reminder_at")
+  requestId            String   @map("request_id")
+  source               String
+  subject              String
+  body                 String
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  approval OpsAiApprovalRecord @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([inquiryId, createdAt], map: "conforme_comms_drafts_inquiry_id_created_at_idx")
+  @@map("conforme_comms_drafts")
   @@schema("trust_ops")
 }
 

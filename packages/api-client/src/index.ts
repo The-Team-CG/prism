@@ -27,6 +27,7 @@ export {
   PrismApiError,
   normalizePrismApiProblem,
   prismRequest,
+  prismSse,
   resolvePrismApiBaseUrl,
   toQueryString,
   type PrismRequestInit,

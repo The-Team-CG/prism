@@ -150,3 +150,85 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
 
   return responseBody as T;
 }
+
+type SseBuffer = { text: string; dataLines: string[] };
+
+function readSseLine(state: SseBuffer, rawLine: string, payloads: string[]) {
+  const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+  if (line === '') {
+    if (state.dataLines.length) payloads.push(state.dataLines.join('\n'));
+    state.dataLines = [];
+    return;
+  }
+  if (line.startsWith('data:')) state.dataLines.push(line.slice(5).replace(/^ /, ''));
+}
+
+function readSseChunk(state: SseBuffer, text: string, final = false): string[] {
+  state.text += text;
+  const payloads: string[] = [];
+  let lineEnd = state.text.indexOf('\n');
+  while (lineEnd !== -1) {
+    readSseLine(state, state.text.slice(0, lineEnd), payloads);
+    state.text = state.text.slice(lineEnd + 1);
+    lineEnd = state.text.indexOf('\n');
+  }
+  if (final) {
+    if (state.text) readSseLine(state, state.text, payloads);
+    if (state.dataLines.length) payloads.push(state.dataLines.join('\n'));
+    state.text = '';
+    state.dataLines = [];
+  }
+  return payloads;
+}
+
+async function openSseBody(path: string, init: PrismRequestInit): Promise<ReadableStream<Uint8Array>> {
+  const { authToken, baseUrl, body, headers, ...requestInit } = init;
+  const response = await fetch(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, {
+    ...requestInit,
+    headers: {
+      Accept: 'text/event-stream',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(headers ?? {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+  if (!response.ok) throw new PrismApiError(response.status, await parseResponseBody(response));
+  if (!response.headers.get('content-type')?.includes('text/event-stream')) {
+    throw new Error('P.R.I.S.M API did not return an event stream');
+  }
+  if (!response.body) throw new Error('P.R.I.S.M API returned an empty event stream');
+  return response.body;
+}
+
+export async function* prismSse<T>(
+  path: string,
+  init: PrismRequestInit,
+  parseEvent: (value: unknown) => T,
+): AsyncIterable<T> {
+  const reader = (await openSseBody(path, init)).getReader();
+  const decoder = new TextDecoder();
+  const sseBuffer: SseBuffer = { text: '', dataLines: [] };
+  let complete = false;
+
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) {
+        complete = true;
+        for (const payload of readSseChunk(sseBuffer, decoder.decode(), true)) {
+          yield parseEvent(JSON.parse(payload) as unknown);
+        }
+        return;
+      }
+
+      for (const payload of readSseChunk(sseBuffer, decoder.decode(next.value, { stream: true }))) {
+        yield parseEvent(JSON.parse(payload) as unknown);
+      }
+    }
+  } finally {
+    if (!complete) await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
