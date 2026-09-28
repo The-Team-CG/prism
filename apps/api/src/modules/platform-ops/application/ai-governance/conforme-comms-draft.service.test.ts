@@ -20,6 +20,8 @@ const EVIDENCE: AiAuditEvidence = {
   profileId: 'mock',
   provider: 'mock',
   requestedModel: 'mock',
+  routeRevision: 'a'.repeat(64),
+  routePolicyOutcome: 'mock_local',
   zdrBasis: 'none',
   dataClasses: ['synthetic'],
   latencyMs: 12,
@@ -296,7 +298,14 @@ describe('ConformeCommsDraftService', () => {
     expect([...state.drafts.values()][0].inquiryId).toBe('inq_1');
     const gatewayAudit = [...state.audits.values()].find((row) => row.featureName === 'comms.draft');
     expect(gatewayAudit?.dataCategories).toEqual(['synthetic']);
-    expect(gatewayAudit?.sanitizedPayload).toEqual(SYNTHETIC_COMMS_REQUEST_FIXTURE);
+    expect(gatewayAudit?.sanitizedPayload).toMatchObject({
+      ...SYNTHETIC_COMMS_REQUEST_FIXTURE,
+      _aiGatewayRoute: {
+        routeRevision: expect.stringMatching(/^[a-f0-9]{64}$/),
+        routePolicyOutcome: 'mock_local',
+        endpointPolicyId: 'deterministic-mock',
+      },
+    });
     expect(JSON.stringify(gatewayAudit)).not.toContain('inq_1');
   });
 

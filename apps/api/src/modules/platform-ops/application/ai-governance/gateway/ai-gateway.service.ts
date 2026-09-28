@@ -9,6 +9,7 @@ import {
   type AiGatewayRunFailure,
   type AiGatewayRunResult,
   type AiGatewayStreamEvent,
+  type AiRoutePolicyOutcome,
   type AiProviderId,
   type AiRoute,
   type AiRunOutcome,
@@ -32,6 +33,8 @@ import {
   AI_GATEWAY_RUNTIME_CONFIG,
   AI_PROVIDER_ADAPTERS,
   AI_SYNTHETIC_PROVENANCE_VERIFIER,
+  computeAiRouteRevision,
+  resolveAiRoute,
   type AiGatewayRuntimeConfig,
 } from './ai-gateway.config';
 import { AI_USE_CASE_REGISTRY } from './ai-use-cases';
@@ -54,6 +57,8 @@ type GatewayRunState = {
   useCaseId: AiUseCaseId;
   definition: AiUseCaseDefinition<AiUseCaseId>;
   route: AiRoute;
+  routeRevision: string;
+  routePolicyOutcome: AiRoutePolicyOutcome;
   startedAt: number;
   controller: AbortController;
   timeoutExpired: boolean;
@@ -248,11 +253,17 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
   }
 
   onModuleInit(): void {
-    if (this.runtime.liveUseCases.size > 0 && !this.adaptersByProvider.has('anthropic')) {
-      throw new Error('AI live use cases are enabled but the Anthropic adapter is not registered');
-    }
     if (!this.adaptersByProvider.has('mock')) {
       throw new Error('The required deterministic AI mock adapter is not registered');
+    }
+    for (const useCaseId of this.runtime.liveUseCases) {
+      const definition = AI_USE_CASE_REGISTRY[useCaseId];
+      const route = resolveAiRoute(this.runtime.profile, useCaseId, definition.modelTier);
+      const adapter = this.adaptersByProvider.get(route.provider);
+      if (!adapter) throw new Error(`AI live use case ${useCaseId} has no registered ${route.provider} adapter`);
+      if (adapter.endpointPolicyId !== route.endpointPolicyId) {
+        throw new Error(`AI live use case ${useCaseId} endpoint policy does not match its ${route.provider} adapter`);
+      }
     }
   }
 
@@ -332,7 +343,9 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
         : undefined,
       useCaseId,
       definition,
-      route: this.runtime.profile.routesByTier[definition.modelTier],
+      route: resolveAiRoute(this.runtime.profile, useCaseId, definition.modelTier),
+      routeRevision: computeAiRouteRevision(this.runtime.profile, useCaseId, definition.modelTier),
+      routePolicyOutcome: 'denied',
       startedAt: performance.now(),
       controller,
       timeoutExpired: false,
@@ -382,7 +395,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
         featureName: useCaseId,
         modelVersion: route.model,
         dataCategories: toPrismaJson(state.dataClasses),
-        sanitizedPayload: toPrismaJson(state.sanitizedPayload as Record<string, unknown>),
+        sanitizedPayload: toPrismaJson(this.auditPayload(state)),
         zdrConfirmed: route.zdrBasis === 'provider-enforced',
         humanApprovalRequired: true,
         humanApproved: false,
@@ -404,6 +417,8 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       profileId: this.runtime.profileId,
       provider: route.provider,
       requestedModel: route.model,
+      routeRevision: state.routeRevision,
+      routePolicyOutcome: state.routePolicyOutcome,
       ...(state.responseModel ? { responseModel: state.responseModel } : {}),
       ...(state.endpointTag ? { endpointTag: state.endpointTag } : {}),
       zdrBasis: route.zdrBasis,
@@ -426,7 +441,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
         status: outcome,
         outcome,
         dataCategories: toPrismaJson(state.dataClasses),
-        sanitizedPayload: toPrismaJson(state.sanitizedPayload as Record<string, unknown>),
+        sanitizedPayload: toPrismaJson(this.auditPayload(state)),
         syntheticProvenance: state.provenance ? toPrismaJson(state.provenance) : Prisma.DbNull,
         zdrBasis: state.route.zdrBasis,
         inputTokens: state.accumulatedInputTokens || null,
@@ -470,9 +485,32 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     await this.createAudit(state);
   }
 
+  private auditPayload(state: GatewayRunState): Record<string, unknown> {
+    const input = state.sanitizedPayload && typeof state.sanitizedPayload === 'object' && !Array.isArray(state.sanitizedPayload)
+      ? state.sanitizedPayload as Record<string, unknown>
+      : {};
+    return {
+      ...input,
+      _aiGatewayRoute: {
+        routeRevision: state.routeRevision,
+        routePolicyOutcome: state.routePolicyOutcome,
+        endpointPolicyId: state.route.endpointPolicyId,
+      },
+    };
+  }
+
   private enforceRoute(state: GatewayRunState): void {
-    this.enforceAnthropicTestRoute(state);
     const { route, provenance, dataClasses, definition, sanitizedPayload } = state;
+    if (route.provider !== 'mock' && !this.runtime.liveUseCases.has(state.useCaseId)) {
+      fail('blocked', 'use_case_disabled', 'This use case is not enabled for live provider calls');
+    }
+    if (route.provider === 'mock' && this.runtime.liveUseCases.has(state.useCaseId)) {
+      fail('blocked', 'configuration_invalid', 'An enabled live use case cannot resolve to the mock provider');
+    }
+    if (this.runtime.isProduction && route.provider !== 'mock' &&
+      route.allowedDataClasses.length === 1 && route.allowedDataClasses[0] === 'synthetic') {
+      fail('blocked', 'configuration_invalid', 'Synthetic-only external routes are disabled in production');
+    }
     const allowedClasses = new Set(route.allowedDataClasses);
     if (dataClasses.some((dataClass) => !allowedClasses.has(dataClass))) {
       fail(
@@ -484,23 +522,16 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     if (definition.requiresZdr && route.zdrBasis !== 'provider-enforced' && !provenance) {
       fail('blocked', 'zdr_required', 'Real-data use cases require a provider-enforced ZDR route');
     }
+    if (route.provider !== 'mock' && route.zdrBasis === 'none' &&
+      (!provenance || dataClasses.length !== 1 || dataClasses[0] !== 'synthetic')) {
+      fail('blocked', 'synthetic_provenance_required', 'A non-ZDR external route requires verified synthetic data');
+    }
     if (containsPii(sanitizedPayload)) {
       fail('blocked', 'synthetic_provenance_required', 'Minimized input still contains a high-risk personal-data pattern');
     }
-  }
-
-  private enforceAnthropicTestRoute(state: GatewayRunState): void {
-    if (this.runtime.profileId === 'test-anthropic') {
-      if (!this.runtime.liveUseCases.has(state.useCaseId)) {
-        fail('blocked', 'use_case_disabled', 'This use case is not enabled for live provider calls');
-      }
-      if (this.runtime.isProduction) {
-        fail('blocked', 'configuration_invalid', 'The Anthropic test profile is disabled in production');
-      }
-      if (!state.provenance || state.dataClasses.length !== 1 || state.dataClasses[0] !== 'synthetic') {
-        fail('blocked', 'synthetic_provenance_required', 'The Anthropic test route requires an exact server-registered synthetic fixture');
-      }
-    }
+    state.routePolicyOutcome = route.provider === 'mock'
+      ? 'mock_local'
+      : route.zdrBasis === 'provider-enforced' ? 'zdr_approved' : 'synthetic_verified';
   }
 
   private async runSteps(
@@ -510,6 +541,9 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
   ): Promise<AiGatewayRunResult<unknown>> {
     const adapter = this.adaptersByProvider.get(state.route.provider);
     if (!adapter) fail('unavailable', 'provider_unavailable', 'The selected provider adapter is not registered', true);
+    if (state.route.provider !== 'mock' && adapter.endpointPolicyId !== state.route.endpointPolicyId) {
+      fail('blocked', 'configuration_invalid', 'The selected provider adapter does not match the reviewed endpoint policy');
+    }
     const toolsByName = this.validateToolHandlers(options?.tools ?? state.definition.tools ?? []);
     let messages: AiProviderMessage[] = [{ role: 'user', content: canonicalJson(state.sanitizedPayload) }];
     let totalSteps = 0;
@@ -533,7 +567,10 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       state.accumulatedInputTokens += response.usage.inputTokens;
       state.accumulatedOutputTokens += response.usage.outputTokens;
       state.responseModel = response.responseModel;
-      state.endpointTag = response.endpointTag;
+      if (response.endpointTag && response.endpointTag !== state.route.endpointPolicyId) {
+        fail('failed', 'configuration_invalid', 'The provider response endpoint did not match the reviewed route');
+      }
+      state.endpointTag = response.endpointTag ?? adapter.endpointPolicyId ?? state.route.endpointPolicyId;
       if (response.stopReason === 'max_tokens') {
         fail('incomplete', 'step_limit', 'The provider stopped at the output-token limit');
       }

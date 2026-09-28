@@ -40,11 +40,13 @@ export function createAnthropicProviderClient(
 
 export class AnthropicProviderAdapter implements AiProviderAdapter {
   readonly provider = 'anthropic' as const;
+  readonly endpointPolicyId: string;
 
   constructor(
     private readonly client: Anthropic,
-    private readonly endpointTag = ANTHROPIC_DIRECT_ENDPOINT_TAG,
+    endpointPolicyId = ANTHROPIC_DIRECT_ENDPOINT_TAG,
   ) {
+    this.endpointPolicyId = endpointPolicyId;
     if (client.maxRetries !== 0) {
       throw new Error('Anthropic SDK retries must be disabled; retry policy belongs to the AI gateway');
     }
@@ -63,7 +65,7 @@ export class AnthropicProviderAdapter implements AiProviderAdapter {
         toAnthropicRequest(request),
         signal ? { signal } : undefined,
       );
-      return toProviderResponse(response, request, this.endpointTag);
+      return toProviderResponse(response, request, this.endpointPolicyId);
     } catch (error) {
       throw normalizeProviderError(error, signal);
     }
@@ -96,7 +98,7 @@ export class AnthropicProviderAdapter implements AiProviderAdapter {
       const finalMessage = await stream.finalMessage();
       yield {
         type: 'final',
-        response: toProviderResponse(finalMessage, request, this.endpointTag),
+        response: toProviderResponse(finalMessage, request, this.endpointPolicyId),
       };
     } catch (error) {
       throw normalizeProviderError(error, signal);

@@ -61,6 +61,7 @@ function mockOutput(request: AiProviderRequest): Record<string, unknown> {
 
 export class MockAiProviderAdapter implements AiProviderAdapter {
   readonly provider = 'mock' as const;
+  readonly endpointPolicyId = 'deterministic-mock';
 
   async run(request: AiProviderRequest, signal?: AbortSignal): Promise<AiProviderResponse> {
     if (signal?.aborted) throw new DOMException('The operation was aborted', 'AbortError');
