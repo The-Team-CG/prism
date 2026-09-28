@@ -186,6 +186,145 @@ const registeredDigests = new Map<string, Omit<AiSyntheticProvenance, 'verifiedA
   ]),
 );
 
+const PARE_CHAIN_STAGES = ['pare.budget', 'pare.risk', 'pare.message-drafts'] as const satisfies readonly AiUseCaseId[];
+type SyntheticPareContext = ReturnType<typeof pareContextSchema.parse>;
+
+type SyntheticPareChainState = {
+  correlationId: string;
+  rootDigest: string;
+  provenance: AiSyntheticProvenance;
+  chainId: string;
+  completed: Map<AiPareProvenanceChainStage, AiPareProvenanceChainEvidence>;
+  pending: Map<AiPareProvenanceChainStage, AiSyntheticPareChainVerification>;
+};
+
+function resolvePareChainStage(
+  state: SyntheticPareChainState,
+  useCaseId: AiUseCaseId,
+  stageCorrelationId: string | undefined,
+): AiPareProvenanceChainStage | null {
+  const stage = PARE_CHAIN_STAGES.find((candidate) => candidate === useCaseId);
+  if (!stage || stageCorrelationId !== state.correlationId) return null;
+  if (state.pending.has(stage) || state.completed.has(stage)) return null;
+  return stage;
+}
+
+function parsePareChainStageInput(input: unknown, correlationId: string): SyntheticPareContext | null {
+  const parsed = pareContextSchema.safeParse(input);
+  if (!parsed.success || parsed.data.triggerId !== correlationId) return null;
+  return parsed.data;
+}
+
+function hasExpectedStageOutputs(stage: AiPareProvenanceChainStage, data: SyntheticPareContext): boolean {
+  const { budgetAnalysis, riskAssessment, drafts } = data;
+  const isRootStage = stage === 'pare.budget' || stage === 'pare.risk';
+  if (isRootStage && (budgetAnalysis || riskAssessment || drafts)) return false;
+  if (stage === 'pare.message-drafts' && (!budgetAnalysis || !riskAssessment || drafts)) return false;
+  return true;
+}
+
+function pareStagePriorRecords(
+  stage: AiPareProvenanceChainStage,
+  data: SyntheticPareContext,
+  completed: SyntheticPareChainState['completed'],
+): AiPareProvenanceChainEvidence[] | null {
+  if (stage !== 'pare.message-drafts') return [];
+  const budgetRecord = completed.get('pare.budget');
+  const riskRecord = completed.get('pare.risk');
+  if (!budgetRecord || !riskRecord) return null;
+  if (digestJson(data.budgetAnalysis) !== budgetRecord.outputDigest ||
+    digestJson(data.riskAssessment) !== riskRecord.outputDigest) return null;
+  return [budgetRecord, riskRecord];
+}
+
+function verifyPareChainStage(
+  state: SyntheticPareChainState,
+  stageInput: unknown,
+  useCaseId: AiUseCaseId,
+  stageCorrelationId: string | undefined,
+): AiSyntheticPareChainVerification | null {
+  const stage = resolvePareChainStage(state, useCaseId, stageCorrelationId);
+  if (!stage) return null;
+  const data = parsePareChainStageInput(stageInput, state.correlationId);
+  if (!data) return null;
+  const { budgetAnalysis: _budget, riskAssessment: _risk, drafts: _drafts, ...base } = data;
+  if (digestJson(base) !== state.rootDigest || !hasExpectedStageOutputs(stage, data)) return null;
+  const priorRecords = pareStagePriorRecords(stage, data, state.completed);
+  if (!priorRecords) return null;
+
+  const verification: AiSyntheticPareChainVerification = {
+    provenance: { ...state.provenance, verifiedAt: new Date().toISOString() },
+    chainId: state.chainId,
+    rootFixtureId: state.provenance.sourceId,
+    rootDigest: state.rootDigest,
+    stage,
+    stageIndex: stage === 'pare.message-drafts' ? 2 : 0,
+    inputDigest: digestJson(data)!,
+    priorRecords,
+  };
+  state.pending.set(stage, verification);
+  return verification;
+}
+
+function matchesPareChainIdentity(
+  evidence: AiPareProvenanceChainEvidence,
+  expected: AiSyntheticPareChainVerification,
+): boolean {
+  return evidence.chainId === expected.chainId &&
+    evidence.rootFixtureId === expected.rootFixtureId &&
+    evidence.rootDigest === expected.rootDigest;
+}
+
+function matchesPareStageIdentity(
+  evidence: AiPareProvenanceChainEvidence,
+  expected: AiSyntheticPareChainVerification,
+): boolean {
+  return evidence.stage === expected.stage && evidence.stageIndex === expected.stageIndex;
+}
+
+function matchesPareStageDigests(
+  evidence: AiPareProvenanceChainEvidence,
+  expected: AiSyntheticPareChainVerification,
+  outputDigest: string,
+): boolean {
+  return evidence.inputDigest === expected.inputDigest && evidence.outputDigest === outputDigest;
+}
+
+function matchesParePriorRecords(
+  evidence: AiPareProvenanceChainEvidence,
+  expected: AiSyntheticPareChainVerification,
+): boolean {
+  return JSON.stringify(evidence.priorAuditIds) === JSON.stringify(expected.priorRecords.map((record) => record.auditId)) &&
+    JSON.stringify(evidence.priorOutputDigests) === JSON.stringify(expected.priorRecords.map((record) => record.outputDigest));
+}
+
+function matchesPareChainEvidence(
+  evidence: AiPareProvenanceChainEvidence,
+  expected: AiSyntheticPareChainVerification,
+  outputDigest: string,
+): boolean {
+  return matchesPareChainIdentity(evidence, expected) &&
+    matchesPareStageIdentity(evidence, expected) &&
+    matchesPareStageDigests(evidence, expected, outputDigest) &&
+    matchesParePriorRecords(evidence, expected);
+}
+
+function completePareChainStage(
+  state: SyntheticPareChainState,
+  rawEvidence: unknown,
+  output: unknown,
+): boolean {
+  const parsedEvidence = aiPareProvenanceChainEvidenceSchema.safeParse(rawEvidence);
+  const outputDigest = digestJsonOrNull(output);
+  if (!parsedEvidence.success || !outputDigest) return false;
+  const evidence = parsedEvidence.data;
+  const expected = state.pending.get(evidence.stage);
+  if (!expected || !matchesPareChainEvidence(evidence, expected, outputDigest)) return false;
+  state.completed.set(evidence.stage, evidence);
+  state.pending.delete(evidence.stage);
+  return true;
+}
+
 /** Only exact, server-owned fixtures can be certified synthetic. */
 export class SyntheticFixtureRegistry implements AiSyntheticProvenanceVerifier {
   async verify(input: unknown): Promise<AiSyntheticProvenance | null> {
@@ -203,68 +342,18 @@ export class SyntheticFixtureRegistry implements AiSyntheticProvenanceVerifier {
     const provenance = await this.verify(root.data);
     if (!provenance || provenance.sourceId !== pareChainRootProvenance.sourceId) return null;
 
-    const chainId = `pare_${randomUUID()}`;
-    const stageIds = ['pare.budget', 'pare.risk', 'pare.message-drafts'] as const satisfies readonly AiUseCaseId[];
-    const completed = new Map<AiPareProvenanceChainStage, AiPareProvenanceChainEvidence>();
-    const pending = new Map<AiPareProvenanceChainStage, AiSyntheticPareChainVerification>();
-
+    const state: SyntheticPareChainState = {
+      correlationId,
+      rootDigest,
+      provenance,
+      chainId: `pare_${randomUUID()}`,
+      completed: new Map(),
+      pending: new Map(),
+    };
     const chain: AiSyntheticPareChain = {
-      verifyStage: async (stageInput, useCaseId, stageCorrelationId) => {
-        const stage = stageIds.find((candidate) => candidate === useCaseId);
-        if (!stage || stageCorrelationId !== correlationId) return null;
-        if (pending.has(stage) || completed.has(stage)) return null;
-        const parsed = pareContextSchema.safeParse(stageInput);
-        if (!parsed.success || parsed.data.triggerId !== correlationId) return null;
-
-        const data = parsed.data;
-        const { budgetAnalysis, riskAssessment, drafts, ...base } = data;
-        if (digestJson(base) !== rootDigest) return null;
-        const rootStage = stage === 'pare.budget' || stage === 'pare.risk';
-        if (rootStage && (budgetAnalysis || riskAssessment || drafts)) return null;
-        if (stage === 'pare.message-drafts' && (!budgetAnalysis || !riskAssessment || drafts)) return null;
-
-        let priorRecords: AiPareProvenanceChainEvidence[] = [];
-        if (stage === 'pare.message-drafts') {
-          const budgetRecord = completed.get('pare.budget');
-          const riskRecord = completed.get('pare.risk');
-          if (!budgetRecord || !riskRecord) return null;
-          priorRecords = [budgetRecord, riskRecord];
-          if (digestJson(budgetAnalysis) !== budgetRecord.outputDigest ||
-            digestJson(riskAssessment) !== riskRecord.outputDigest) return null;
-        }
-
-        const verification: AiSyntheticPareChainVerification = {
-          provenance: { ...provenance, verifiedAt: new Date().toISOString() },
-          chainId,
-          rootFixtureId: provenance.sourceId,
-          rootDigest,
-          stage,
-          stageIndex: stage === 'pare.message-drafts' ? 2 : 0,
-          inputDigest: digestJson(data)!,
-          priorRecords,
-        };
-        pending.set(stage, verification);
-        return verification;
-      },
-      completeStage: (rawEvidence, output) => {
-        const parsedEvidence = aiPareProvenanceChainEvidenceSchema.safeParse(rawEvidence);
-        const outputDigest = digestJsonOrNull(output);
-        if (!parsedEvidence.success || !outputDigest) return false;
-        const evidence = parsedEvidence.data;
-        const expected = pending.get(evidence.stage);
-        if (!expected) return false;
-        if (evidence.chainId !== expected.chainId || evidence.rootFixtureId !== expected.rootFixtureId ||
-          evidence.rootDigest !== expected.rootDigest || evidence.stage !== expected.stage ||
-          evidence.stageIndex !== expected.stageIndex || evidence.inputDigest !== expected.inputDigest ||
-          evidence.outputDigest !== outputDigest ||
-          JSON.stringify(evidence.priorAuditIds) !== JSON.stringify(expected.priorRecords.map((record) => record.auditId)) ||
-          JSON.stringify(evidence.priorOutputDigests) !== JSON.stringify(expected.priorRecords.map((record) => record.outputDigest))) {
-          return false;
-        }
-        completed.set(evidence.stage, evidence);
-        pending.delete(evidence.stage);
-        return true;
-      },
+      verifyStage: async (stageInput, useCaseId, stageCorrelationId) =>
+        verifyPareChainStage(state, stageInput, useCaseId, stageCorrelationId),
+      completeStage: (rawEvidence, output) => completePareChainStage(state, rawEvidence, output),
     };
     return chain;
   }

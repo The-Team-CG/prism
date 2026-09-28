@@ -114,6 +114,145 @@ function isAbortSignal(value: unknown): value is AbortSignal {
 }
 
 type PreparedPareContext = NonNullable<Parameters<EventContextAgent['buildPareEventContext']>[1]>;
+type PareChainEvidence = NonNullable<AiAuditEvidence['pareChain']>;
+type PareChainVersion = typeof PARE_LINEAR_CHAIN_PROVENANCE_VERSION | typeof PARE_CHAIN_PROVENANCE_VERSION;
+type BudgetAgentRun = Awaited<ReturnType<BudgetAgent['runPareBudgetAgent']>>;
+type RiskAgentRun = Awaited<ReturnType<RiskAgent['runPareRiskAgent']>>;
+type DraftAgentRun = Awaited<ReturnType<MessageDrafterAgent['runPareMessageDraftAgent']>>;
+type PareAgentRuns = { budgetRun: BudgetAgentRun; riskRun: RiskAgentRun; draftRun: DraftAgentRun };
+
+type PareChainLayout = {
+  stages: readonly AiUseCaseId[];
+  stageIndexes: readonly number[];
+  parentIndexes: readonly (readonly number[])[];
+};
+
+function pareChainLayout(version: PareChainVersion): PareChainLayout {
+  return version === PARE_LINEAR_CHAIN_PROVENANCE_VERSION
+    ? { stages: ['pare.budget', 'pare.risk', 'pare.message-drafts'], stageIndexes: [0, 1, 2], parentIndexes: [[], [0], [0, 1]] }
+    : { stages: ['pare.budget', 'pare.risk', 'pare.message-drafts'], stageIndexes: [0, 0, 2], parentIndexes: [[], [], [0, 1]] };
+}
+
+function assertPareChainStageOrder(
+  evidence: AiAuditEvidence,
+  item: PareChainEvidence,
+  requestId: string,
+  expectedStage: AiUseCaseId,
+  expectedIndex: number,
+): void {
+  if (evidence.useCaseId !== expectedStage || evidence.correlationId !== requestId ||
+    item.stage !== expectedStage || item.stageIndex !== expectedIndex) {
+    throw new BadRequestException('PARE provenance stages are not one ordered completed chain');
+  }
+}
+
+function assertPareChainAuditIdentity(evidence: AiAuditEvidence, item: PareChainEvidence): void {
+  if (item.auditId !== `aia_${evidence.requestId}` || item.rootFixtureId !== evidence.syntheticProvenance?.sourceId) {
+    throw new BadRequestException('PARE provenance stages are not one ordered completed chain');
+  }
+}
+
+function assertPareChainSharedIdentity(item: PareChainEvidence, first: PareChainEvidence): void {
+  if (item.chainId !== first.chainId || item.rootFixtureId !== first.rootFixtureId || item.rootDigest !== first.rootDigest) {
+    throw new BadRequestException('PARE provenance stages are not one ordered completed chain');
+  }
+}
+
+function assertPareChainParents(item: PareChainEvidence, parentRecords: PareChainEvidence[]): void {
+  const parentAuditIds = parentRecords.map((parent) => parent.auditId);
+  const parentOutputDigests = parentRecords.map((parent) => parent.outputDigest);
+  if (JSON.stringify(item.priorAuditIds) !== JSON.stringify(parentAuditIds) ||
+    JSON.stringify(item.priorOutputDigests) !== JSON.stringify(parentOutputDigests)) {
+    throw new BadRequestException('PARE provenance stages are not one ordered completed chain');
+  }
+}
+
+function durableStageIdentityMatches(
+  row: OpsAiAuditLog,
+  item: AiAuditEvidence,
+  expectedUseCase: AiUseCaseId,
+): boolean {
+  return row.id === `aia_${item.requestId}` &&
+    row.requestId === item.requestId &&
+    row.useCaseId === expectedUseCase &&
+    row.correlationId === item.correlationId &&
+    row.status === 'completed' &&
+    row.outcome === 'completed';
+}
+
+function durableProviderEvidenceMatches(row: OpsAiAuditLog, item: AiAuditEvidence): boolean {
+  return row.profileId === item.profileId &&
+    row.provider === item.provider &&
+    row.requestedModel === item.requestedModel &&
+    row.promptVersion === item.promptVersion &&
+    (row.responseModel ?? undefined) === item.responseModel &&
+    row.endpointTag === item.endpointTag;
+}
+
+function durableApprovalEvidenceMatches(row: OpsAiAuditLog, item: AiAuditEvidence): boolean {
+  return row.zdrBasis === item.zdrBasis &&
+    row.approvalState === item.approvalState &&
+    row.humanApprovalRequired === true &&
+    row.humanApproved === false;
+}
+
+function durableRouteEvidenceMatches(route: Record<string, unknown>, item: AiAuditEvidence): boolean {
+  return route.routeRevision === item.routeRevision &&
+    route.routePolicyOutcome === item.routePolicyOutcome &&
+    route.endpointPolicyId === item.endpointTag;
+}
+
+function durableChainEvidenceMatches(
+  row: OpsAiAuditLog,
+  item: AiAuditEvidence,
+  storedChain: ReturnType<typeof aiPareProvenanceChainEvidenceSchema.safeParse>,
+): boolean {
+  if (!storedChain.success) return false;
+  return canonicalJson(storedChain.data) === canonicalJson(item.pareChain) &&
+    canonicalJson(row.syntheticProvenance) === canonicalJson(item.syntheticProvenance) &&
+    canonicalJson(row.dataCategories) === canonicalJson(item.dataClasses);
+}
+
+type PareRootStageState = {
+  cancellation: AbortController;
+  hasFailure: boolean;
+  firstFailure?: unknown;
+};
+
+async function runPareRootStage<T>(operation: () => Promise<T>, state: PareRootStageState): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!state.hasFailure) {
+      state.hasFailure = true;
+      state.firstFailure = error;
+    }
+    state.cancellation.abort(error);
+    throw error;
+  }
+}
+
+async function settlePareRootStages<TBudget, TRisk>(
+  budget: () => Promise<TBudget>,
+  risk: () => Promise<TRisk>,
+  cancellation: AbortController,
+): Promise<[TBudget, TRisk]> {
+  const state: PareRootStageState = { cancellation, hasFailure: false };
+  const [budgetSettled, riskSettled] = await Promise.allSettled([
+    runPareRootStage(budget, state),
+    runPareRootStage(risk, state),
+  ]);
+  if (state.hasFailure) throw state.firstFailure;
+  if (budgetSettled.status === 'rejected') throw budgetSettled.reason;
+  if (riskSettled.status === 'rejected') throw riskSettled.reason;
+  return [budgetSettled.value, riskSettled.value];
+}
+
+function createPareGatewaySignal(executionSignal: AbortSignal | undefined, cancellation: AbortController): AbortSignal {
+  return AbortSignal.any(executionSignal
+    ? [executionSignal, cancellation.signal]
+    : [cancellation.signal]);
+}
 
 function resolveTriggerArgs(
   sourceDispatchIdOrPrefetched?: string | PreparedPareContext,
@@ -195,30 +334,22 @@ function assertLiveEvidenceSet(evidenceSet: AiAuditEvidence[], requestId: string
 function assertPareChainEvidenceSet(
   evidenceSet: AiAuditEvidence[],
   requestId: string,
-  version: typeof PARE_LINEAR_CHAIN_PROVENANCE_VERSION | typeof PARE_CHAIN_PROVENANCE_VERSION,
+  version: PareChainVersion,
 ): void {
-  const expectedStages = ['pare.budget', 'pare.risk', 'pare.message-drafts'] as const;
-  const stageIndexes = version === PARE_LINEAR_CHAIN_PROVENANCE_VERSION ? [0, 1, 2] : [0, 0, 2];
-  const parentsByStage = version === PARE_LINEAR_CHAIN_PROVENANCE_VERSION
-    ? [[], [0], [0, 1]]
-    : [[], [], [0, 1]];
+  const layout = pareChainLayout(version);
   const chain = evidenceSet.map((evidence) => evidence.pareChain);
-  if (evidenceSet.length !== expectedStages.length || chain.some((item) => !item)) {
+  if (evidenceSet.length !== layout.stages.length || chain.some((item) => !item)) {
     throw new BadRequestException('A complete server-owned PARE provenance chain is required');
   }
   const first = chain[0]!;
   for (const [index, evidence] of evidenceSet.entries()) {
     const item = evidence.pareChain!;
-    const parentIndexes = parentsByStage[index];
+    const parentIndexes = layout.parentIndexes[index];
     const parentRecords = parentIndexes.map((parentIndex) => chain[parentIndex]!);
-    if (evidence.useCaseId !== expectedStages[index] || evidence.correlationId !== requestId ||
-      item.stage !== expectedStages[index] || item.stageIndex !== stageIndexes[index] || item.auditId !== `aia_${evidence.requestId}` ||
-      item.chainId !== first.chainId || item.rootFixtureId !== first.rootFixtureId || item.rootDigest !== first.rootDigest ||
-      item.rootFixtureId !== evidence.syntheticProvenance?.sourceId ||
-      JSON.stringify(item.priorAuditIds) !== JSON.stringify(parentRecords.map((prior) => prior!.auditId)) ||
-      JSON.stringify(item.priorOutputDigests) !== JSON.stringify(parentRecords.map((prior) => prior!.outputDigest))) {
-      throw new BadRequestException('PARE provenance stages are not one ordered completed chain');
-    }
+    assertPareChainStageOrder(evidence, item, requestId, layout.stages[index], layout.stageIndexes[index]);
+    assertPareChainAuditIdentity(evidence, item);
+    assertPareChainSharedIdentity(item, first);
+    assertPareChainParents(item, parentRecords);
   }
 }
 
@@ -267,10 +398,31 @@ export class PAREService implements PareApprovalGovernance {
     const { sourceDispatchId, executionSignal, preparedContext } = resolveTriggerArgs(
       sourceDispatchIdOrPrefetched, prefetchedOrSignal, signal,
     );
-    if (sourceDispatchId) {
-      const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
-      if (existing) return this.mapApprovalRecordWithAudit(existing, triggerId, sourceDispatchId);
-    }
+    const existing = await this.findExistingDispatchApproval(triggerId, sourceDispatchId);
+    if (existing) return existing;
+    this.assertExecutionDependencies();
+    this.throwIfAborted(executionSignal);
+    const triggeredAt = new Date();
+    const ctx = await this.buildPareContext(triggerId, preparedContext, sourceDispatchId, executionSignal);
+    const syntheticPareChain = await this.beginSyntheticPareChain(ctx);
+    this.throwIfAborted(executionSignal);
+    const gatewayCancellation = new AbortController();
+    const gatewaySignal = createPareGatewaySignal(executionSignal, gatewayCancellation);
+    const runs = await this.runPareAgents(ctx, gatewaySignal, gatewayCancellation, syntheticPareChain, executionSignal);
+    return this.createRecommendationFromRuns(ctx, runs, triggeredAt, sourceDispatchId, syntheticPareChain);
+  }
+
+  private async findExistingDispatchApproval(
+    triggerId: string,
+    sourceDispatchId?: string,
+  ): Promise<PAREApprovalRecord | null> {
+    if (!sourceDispatchId) return null;
+    const existing = await this.prisma.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
+    if (!existing) return null;
+    return this.mapApprovalRecordWithAudit(existing, triggerId, sourceDispatchId);
+  }
+
+  private assertExecutionDependencies(): void {
     assertPareExecutionAllowed(this.mode);
     if (this.mode === 'live' && !this.aiGateway) {
       throw new PareConfigurationError('PARE AI gateway is not registered; live PARE is disabled');
@@ -278,52 +430,47 @@ export class PAREService implements PareApprovalGovernance {
     if (this.mode === 'live' && this.aiRuntime && !this.syntheticVerifier?.beginPareChain) {
       throw new PareConfigurationError('Live PARE requires a server-owned synthetic provenance-chain verifier');
     }
-    this.throwIfAborted(executionSignal);
-    const triggeredAt = new Date();
+  }
 
-    // Agent 1 — event context
-    const ctx: PAREContext = await this.eventContextAgent.buildPareEventContext(triggerId, preparedContext, Boolean(sourceDispatchId), executionSignal);
+  private async buildPareContext(
+    triggerId: string,
+    preparedContext: PreparedPareContext | undefined,
+    sourceDispatchId: string | undefined,
+    signal: AbortSignal | undefined,
+  ): Promise<PAREContext> {
+    const ctx = await this.eventContextAgent.buildPareEventContext(
+      triggerId,
+      preparedContext,
+      Boolean(sourceDispatchId),
+      signal,
+    );
+    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx, signal);
+    return ctx;
+  }
 
-    // Agent 2 — find replacement candidates
-    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx, executionSignal);
-
-    let syntheticPareChain: AiSyntheticPareChain | undefined;
+  private async beginSyntheticPareChain(ctx: PAREContext): Promise<AiSyntheticPareChain | undefined> {
     if (this.mode === 'live' && this.syntheticVerifier?.beginPareChain) {
-      syntheticPareChain = await this.syntheticVerifier.beginPareChain(ctx, ctx.triggerId) ?? undefined;
+      const syntheticPareChain = await this.syntheticVerifier.beginPareChain(ctx, ctx.triggerId) ?? undefined;
       if (!syntheticPareChain) {
         throw new BadRequestException('PARE input is not a registered synthetic provenance-chain root');
       }
+      return syntheticPareChain;
     }
+    return undefined;
+  }
 
-    this.throwIfAborted(executionSignal);
-    const gatewayCancellation = new AbortController();
-    const gatewaySignal = AbortSignal.any(executionSignal
-      ? [executionSignal, gatewayCancellation.signal]
-      : [gatewayCancellation.signal]);
-
-    let hasRootStageFailure = false;
-    let firstRootStageFailure: unknown;
-    const runRootStage = async <T>(run: () => Promise<T>): Promise<T> => {
-      try {
-        return await run();
-      } catch (error) {
-        if (!hasRootStageFailure) {
-          hasRootStageFailure = true;
-          firstRootStageFailure = error;
-        }
-        gatewayCancellation.abort(error);
-        throw error;
-      }
-    };
-    const [budgetSettled, riskSettled] = await Promise.allSettled([
-      runRootStage(() => this.budgetAgent.runPareBudgetAgent(ctx, gatewaySignal, syntheticPareChain)),
-      runRootStage(() => this.riskAgent.runPareRiskAgent(ctx, gatewaySignal, syntheticPareChain)),
-    ]);
-    if (hasRootStageFailure) throw firstRootStageFailure;
-    if (budgetSettled.status === 'rejected') throw budgetSettled.reason;
-    if (riskSettled.status === 'rejected') throw riskSettled.reason;
-    const budgetRun = budgetSettled.value;
-    const riskRun = riskSettled.value;
+  private async runPareAgents(
+    ctx: PAREContext,
+    gatewaySignal: AbortSignal,
+    gatewayCancellation: AbortController,
+    syntheticPareChain: AiSyntheticPareChain | undefined,
+    executionSignal: AbortSignal | undefined,
+  ): Promise<PareAgentRuns> {
+    const [budgetRun, riskRun] = await settlePareRootStages(
+      () => this.budgetAgent.runPareBudgetAgent(ctx, gatewaySignal, syntheticPareChain),
+      () => this.riskAgent.runPareRiskAgent(ctx, gatewaySignal, syntheticPareChain),
+      gatewayCancellation,
+    );
     ctx.budgetAnalysis = budgetRun.output;
     ctx.riskAssessment = riskRun.output;
     const draftRun = await this.messageDrafterAgent
@@ -332,11 +479,19 @@ export class PAREService implements PareApprovalGovernance {
         gatewayCancellation.abort(error);
         throw error;
       });
-    const budgetAnalysis = budgetRun.output;
-    const riskAssessment = riskRun.output;
     ctx.drafts = draftRun.output;
     this.throwIfAborted(executionSignal);
+    return { budgetRun, riskRun, draftRun };
+  }
 
+  private async createRecommendationFromRuns(
+    ctx: PAREContext,
+    runs: PareAgentRuns,
+    triggeredAt: Date,
+    sourceDispatchId: string | undefined,
+    syntheticPareChain: AiSyntheticPareChain | undefined,
+  ): Promise<PAREApprovalRecord> {
+    const { budgetRun, riskRun, draftRun } = runs;
     const runEvidence = [budgetRun.evidence, riskRun.evidence, draftRun.evidence]
       .filter((evidence): evidence is AiAuditEvidence => evidence !== null);
     if (this.mode === 'live' && runEvidence.length !== 3) {
@@ -352,9 +507,9 @@ export class PAREService implements PareApprovalGovernance {
       eventName: ctx.eventName,
       withdrawnSupplier: ctx.withdrawnSupplier,
       candidates: ctx.candidates ?? [],
-      budgetAnalysis,
-      riskAssessment,
-      drafts: ctx.drafts,
+      budgetAnalysis: budgetRun.output,
+      riskAssessment: riskRun.output,
+      drafts: draftRun.output,
       mode: this.mode,
       runEvidence,
       triggeredAt: triggeredAt.toISOString(),
@@ -530,25 +685,42 @@ export class PAREService implements PareApprovalGovernance {
   ): Promise<void> {
     const payload = this.asRecord(audit.sanitizedPayload);
     const reviewPayloadDigest = payload.reviewPayloadDigest;
-    if ((payload.pareProvenanceVersion === PARE_LINEAR_CHAIN_PROVENANCE_VERSION ||
-      payload.pareProvenanceVersion === PARE_CHAIN_PROVENANCE_VERSION) && typeof reviewPayloadDigest !== 'string') {
-      throw new BadRequestException('The saved PARE review payload does not match its audited digest');
-    }
-    if (typeof reviewPayloadDigest === 'string') {
-      const serializedRows = await prisma.$queryRaw<Array<{ canonicalPayload: string }>>`
-        SELECT "review_payload"::text AS "canonicalPayload"
-        FROM "trust_ops"."ai_approval_records"
-        WHERE "id" = ${approvalRecordId}
-      `;
-      const canonicalPayload = serializedRows[0]?.canonicalPayload;
-      if (typeof canonicalPayload !== 'string' || digestSerializedText(canonicalPayload) !== reviewPayloadDigest) {
-        throw new BadRequestException('The saved PARE review payload does not match its audited digest');
-      }
-    }
+    await this.assertSavedReviewPayloadDigest(prisma, payload, reviewPayloadDigest, approvalRecordId);
     if (payload.mode === 'mock') {
       assertMockApprovalAudit(audit, payload);
       return;
     }
+    await this.assertLiveApprovalAudit(prisma, audit, payload);
+  }
+
+  private async assertSavedReviewPayloadDigest(
+    prisma: Prisma.TransactionClient,
+    payload: Record<string, unknown>,
+    reviewPayloadDigest: unknown,
+    approvalRecordId: string,
+  ): Promise<void> {
+    const hasVersionedChain = payload.pareProvenanceVersion === PARE_LINEAR_CHAIN_PROVENANCE_VERSION ||
+      payload.pareProvenanceVersion === PARE_CHAIN_PROVENANCE_VERSION;
+    if (hasVersionedChain && typeof reviewPayloadDigest !== 'string') {
+      throw new BadRequestException('The saved PARE review payload does not match its audited digest');
+    }
+    if (typeof reviewPayloadDigest !== 'string') return;
+    const serializedRows = await prisma.$queryRaw<Array<{ canonicalPayload: string }>>`
+      SELECT "review_payload"::text AS "canonicalPayload"
+      FROM "trust_ops"."ai_approval_records"
+      WHERE "id" = ${approvalRecordId}
+    `;
+    const canonicalPayload = serializedRows[0]?.canonicalPayload;
+    if (typeof canonicalPayload !== 'string' || digestSerializedText(canonicalPayload) !== reviewPayloadDigest) {
+      throw new BadRequestException('The saved PARE review payload does not match its audited digest');
+    }
+  }
+
+  private async assertLiveApprovalAudit(
+    prisma: Prisma.TransactionClient,
+    audit: OpsAiAuditLog,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
     const evidence = requireLiveRunEvidence(audit, payload);
     assertLiveEvidenceSet(evidence, auditRequestId(audit));
     if (payload.pareProvenanceVersion === PARE_CHAIN_PROVENANCE_VERSION ||
@@ -577,23 +749,25 @@ export class PAREService implements PareApprovalGovernance {
     const byId = new Map(rows.map((row) => [row.id, row]));
     for (const [index, item] of evidence.entries()) {
       const row = byId.get(item.pareChain!.auditId);
-      const payload = this.asRecord(row?.sanitizedPayload);
-      const route = this.asRecord(payload._aiGatewayRoute);
-      const storedChain = aiPareProvenanceChainEvidenceSchema.safeParse(payload._aiPareChain);
-      if (!row || row.id !== `aia_${item.requestId}` || row.requestId !== item.requestId ||
-        row.useCaseId !== expectedUseCases[index] || row.correlationId !== item.correlationId ||
-        row.status !== 'completed' || row.outcome !== 'completed' ||
-        row.profileId !== item.profileId || row.provider !== item.provider || row.requestedModel !== item.requestedModel ||
-        row.promptVersion !== item.promptVersion || (row.responseModel ?? undefined) !== item.responseModel || row.endpointTag !== item.endpointTag ||
-        row.zdrBasis !== item.zdrBasis || row.approvalState !== item.approvalState || row.humanApprovalRequired !== true ||
-        row.humanApproved !== false || canonicalJson(row.dataCategories) !== canonicalJson(item.dataClasses) ||
-        route.routeRevision !== item.routeRevision || route.routePolicyOutcome !== item.routePolicyOutcome ||
-        route.endpointPolicyId !== item.endpointTag ||
-        !storedChain.success || canonicalJson(storedChain.data) !== canonicalJson(item.pareChain) ||
-        canonicalJson(row.syntheticProvenance) !== canonicalJson(item.syntheticProvenance)) {
+      if (!row || !this.isMatchingDurablePareAudit(row, item, expectedUseCases[index])) {
         throw new BadRequestException('A matching durable completed PARE stage audit is required');
       }
     }
+  }
+
+  private isMatchingDurablePareAudit(
+    row: OpsAiAuditLog,
+    item: AiAuditEvidence,
+    expectedUseCase: AiUseCaseId,
+  ): boolean {
+    const payload = this.asRecord(row.sanitizedPayload);
+    const route = this.asRecord(payload._aiGatewayRoute);
+    const storedChain = aiPareProvenanceChainEvidenceSchema.safeParse(payload._aiPareChain);
+    return durableStageIdentityMatches(row, item, expectedUseCase) &&
+      durableProviderEvidenceMatches(row, item) &&
+      durableApprovalEvidenceMatches(row, item) &&
+      durableRouteEvidenceMatches(route, item) &&
+      durableChainEvidenceMatches(row, item, storedChain);
   }
 
   private async mapApprovalRecordWithAudit(record: ApprovalRow, expectedRequestId?: string, expectedSourceDispatchId?: string): Promise<PAREApprovalRecord> {

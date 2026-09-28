@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, type OpsAiAuditLog } from '@prisma/client';
 import {
   aiAuditEvidenceSchema,
   aiPareProvenanceChainEvidenceSchema,
@@ -89,6 +89,10 @@ type PreparedToolCall = {
   input: unknown;
 };
 
+type GatewayStepResult =
+  | { kind: 'continue'; messages: AiProviderMessage[] }
+  | { kind: 'completed'; result: AiGatewayRunResult<unknown> };
+
 class AiGatewayFault extends Error {
   constructor(readonly fault: GatewayFault) {
     super(fault.message);
@@ -113,6 +117,84 @@ function failForProviderUsage(usage: AiProviderResponse['usage']): never {
     retryable: false,
     providerUsage: usage,
   });
+}
+
+function plainRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function priorAuditIdentityMatches(
+  row: OpsAiAuditLog,
+  evidence: AiSyntheticPareChainVerification['priorRecords'][number],
+  correlationId: string | undefined,
+): boolean {
+  return row.id === evidence.auditId &&
+    row.requestId === evidence.auditId.slice('aia_'.length) &&
+    row.status === 'completed' &&
+    row.outcome === 'completed' &&
+    row.useCaseId === evidence.stage &&
+    row.correlationId === correlationId;
+}
+
+function assertRouteActivation(runtime: AiGatewayRuntimeConfig, state: GatewayRunState): void {
+  if (state.route.provider !== 'mock' && !runtime.liveUseCases.has(state.useCaseId)) {
+    fail('blocked', 'use_case_disabled', 'This use case is not enabled for live provider calls');
+  }
+  if (state.route.provider === 'mock' && runtime.liveUseCases.has(state.useCaseId)) {
+    fail('blocked', 'configuration_invalid', 'An enabled live use case cannot resolve to the mock provider');
+  }
+  if (runtime.isProduction && state.route.provider !== 'mock' && isSyntheticOnlyRoute(state.route)) {
+    fail('blocked', 'configuration_invalid', 'Synthetic-only external routes are disabled in production');
+  }
+}
+
+function isSyntheticOnlyRoute(route: AiRoute): boolean {
+  return route.allowedDataClasses.length === 1 && route.allowedDataClasses[0] === 'synthetic';
+}
+
+function assertRouteDataClasses(route: AiRoute, dataClasses: AiDataClass[]): void {
+  const allowedClasses = new Set(route.allowedDataClasses);
+  if (dataClasses.some((dataClass) => !allowedClasses.has(dataClass))) {
+    fail(
+      'blocked',
+      route.zdrBasis === 'none' ? 'synthetic_provenance_required' : 'zdr_required',
+      'The selected route does not allow this data classification',
+    );
+  }
+}
+
+function assertRouteZdrRequirement(
+  route: AiRoute,
+  definition: AiUseCaseDefinition<AiUseCaseId>,
+  provenance: AiSyntheticProvenance | null,
+): void {
+  if (definition.requiresZdr && route.zdrBasis !== 'provider-enforced' && !provenance) {
+    fail('blocked', 'zdr_required', 'Real-data use cases require a provider-enforced ZDR route');
+  }
+}
+
+function assertRouteSyntheticData(
+  route: AiRoute,
+  dataClasses: AiDataClass[],
+  provenance: AiSyntheticProvenance | null,
+): void {
+  if (route.provider === 'mock' || route.zdrBasis !== 'none') return;
+  if (!provenance || dataClasses.length !== 1 || dataClasses[0] !== 'synthetic') {
+    fail('blocked', 'synthetic_provenance_required', 'A non-ZDR external route requires verified synthetic data');
+  }
+}
+
+function assertRoutePayloadSanitized(payload: unknown): void {
+  if (containsPii(payload)) {
+    fail('blocked', 'synthetic_provenance_required', 'Minimized input still contains a high-risk personal-data pattern');
+  }
+}
+
+function routePolicyOutcome(route: AiRoute): AiRoutePolicyOutcome {
+  if (route.provider === 'mock') return 'mock_local';
+  return route.zdrBasis === 'provider-enforced' ? 'zdr_approved' : 'synthetic_verified';
 }
 
 function providerJsonText(text: string): string {
@@ -462,12 +544,26 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     input: unknown,
     options?: AiGatewayCallOptions,
   ): Promise<void> {
+    await this.parseAndSetInput(state, input);
+    await this.establishInputProvenance(state, options);
+    await this.minimizeAndValidateInput(state);
+    await this.createAudit(state);
+    await this.verifyPriorPareAudits(state);
+  }
+
+  private async parseAndSetInput(state: GatewayRunState, input: unknown): Promise<void> {
     const inputResult = state.definition.inputSchema.safeParse(input);
     if (!inputResult.success) {
       await this.createAudit(state);
       fail('blocked', 'invalid_input', 'Input did not match the registered use-case contract');
     }
     state.parsedInput = inputResult.data;
+  }
+
+  private async establishInputProvenance(
+    state: GatewayRunState,
+    options?: AiGatewayCallOptions,
+  ): Promise<void> {
     if (options?.syntheticPareChain) {
       try {
         state.pareChainVerification = await options.syntheticPareChain.verifyStage(
@@ -489,6 +585,9 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
         state.provenance = null;
       }
     }
+  }
+
+  private async minimizeAndValidateInput(state: GatewayRunState): Promise<void> {
     state.dataClasses = useCaseDataClasses(state.definition, Boolean(state.provenance));
     const minimized = minimizeValue('input', state.parsedInput, Boolean(state.provenance));
     const minimizedResult = state.definition.inputSchema.safeParse(minimized);
@@ -505,30 +604,32 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       await this.createAudit(state);
       fail('blocked', 'invalid_input', 'Minimized input exceeded the gateway size limit');
     }
-    await this.createAudit(state);
-    await this.verifyPriorPareAudits(state);
   }
 
   private async verifyPriorPareAudits(state: GatewayRunState): Promise<void> {
     const current = state.pareChainVerification;
     if (!current || current.priorRecords.length === 0) return;
-    const prior = current.priorRecords;
     const rows = await this.prisma.opsAiAuditLog.findMany({
-      where: { id: { in: prior.map((record) => record.auditId) } },
+      where: { id: { in: current.priorRecords.map((record) => record.auditId) } },
     });
     const byId = new Map(rows.map((row) => [row.id, row]));
-    for (const evidence of prior) {
-      const row = byId.get(evidence.auditId);
-      const payload = row?.sanitizedPayload && typeof row.sanitizedPayload === 'object' && !Array.isArray(row.sanitizedPayload)
-        ? row.sanitizedPayload as Record<string, unknown>
-        : {};
-      const parsedChainEvidence = aiPareProvenanceChainEvidenceSchema.safeParse(payload._aiPareChain);
-      if (!row || row.id !== evidence.auditId || row.requestId !== evidence.auditId.slice('aia_'.length) ||
-        row.status !== 'completed' || row.outcome !== 'completed' ||
-        row.useCaseId !== evidence.stage || row.correlationId !== state.correlationId ||
-        !parsedChainEvidence.success || canonicalJson(parsedChainEvidence.data) !== canonicalJson(evidence)) {
-        fail('blocked', 'synthetic_provenance_required', 'A prior PARE stage has no matching completed durable audit');
-      }
+    for (const evidence of current.priorRecords) {
+      this.assertPriorAuditMatches(byId.get(evidence.auditId), evidence, state.correlationId);
+    }
+  }
+
+  private assertPriorAuditMatches(
+    row: OpsAiAuditLog | undefined,
+    evidence: AiSyntheticPareChainVerification['priorRecords'][number],
+    correlationId: string | undefined,
+  ): void {
+    if (!row || !priorAuditIdentityMatches(row, evidence, correlationId)) {
+      fail('blocked', 'synthetic_provenance_required', 'A prior PARE stage has no matching completed durable audit');
+    }
+    const payload = plainRecord(row.sanitizedPayload);
+    const parsedChainEvidence = aiPareProvenanceChainEvidenceSchema.safeParse(payload._aiPareChain);
+    if (!parsedChainEvidence.success || canonicalJson(parsedChainEvidence.data) !== canonicalJson(evidence)) {
+      fail('blocked', 'synthetic_provenance_required', 'A prior PARE stage has no matching completed durable audit');
     }
   }
 
@@ -548,38 +649,12 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
   }
 
   private enforceRoute(state: GatewayRunState): void {
-    const { route, provenance, dataClasses, definition, sanitizedPayload } = state;
-    if (route.provider !== 'mock' && !this.runtime.liveUseCases.has(state.useCaseId)) {
-      fail('blocked', 'use_case_disabled', 'This use case is not enabled for live provider calls');
-    }
-    if (route.provider === 'mock' && this.runtime.liveUseCases.has(state.useCaseId)) {
-      fail('blocked', 'configuration_invalid', 'An enabled live use case cannot resolve to the mock provider');
-    }
-    if (this.runtime.isProduction && route.provider !== 'mock' &&
-      route.allowedDataClasses.length === 1 && route.allowedDataClasses[0] === 'synthetic') {
-      fail('blocked', 'configuration_invalid', 'Synthetic-only external routes are disabled in production');
-    }
-    const allowedClasses = new Set(route.allowedDataClasses);
-    if (dataClasses.some((dataClass) => !allowedClasses.has(dataClass))) {
-      fail(
-        'blocked',
-        route.zdrBasis === 'none' ? 'synthetic_provenance_required' : 'zdr_required',
-        'The selected route does not allow this data classification',
-      );
-    }
-    if (definition.requiresZdr && route.zdrBasis !== 'provider-enforced' && !provenance) {
-      fail('blocked', 'zdr_required', 'Real-data use cases require a provider-enforced ZDR route');
-    }
-    if (route.provider !== 'mock' && route.zdrBasis === 'none' &&
-      (!provenance || dataClasses.length !== 1 || dataClasses[0] !== 'synthetic')) {
-      fail('blocked', 'synthetic_provenance_required', 'A non-ZDR external route requires verified synthetic data');
-    }
-    if (containsPii(sanitizedPayload)) {
-      fail('blocked', 'synthetic_provenance_required', 'Minimized input still contains a high-risk personal-data pattern');
-    }
-    state.routePolicyOutcome = route.provider === 'mock'
-      ? 'mock_local'
-      : route.zdrBasis === 'provider-enforced' ? 'zdr_approved' : 'synthetic_verified';
+    assertRouteActivation(this.runtime, state);
+    assertRouteDataClasses(state.route, state.dataClasses);
+    assertRouteZdrRequirement(state.route, state.definition, state.provenance);
+    assertRouteSyntheticData(state.route, state.dataClasses, state.provenance);
+    assertRoutePayloadSanitized(state.sanitizedPayload);
+    state.routePolicyOutcome = routePolicyOutcome(state.route);
   }
 
   private async runSteps(
@@ -587,77 +662,137 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     options: AiGatewayCallOptions | undefined,
     useProviderStream: boolean,
   ): Promise<AiGatewayRunResult<unknown>> {
+    const adapter = this.requireStepAdapter(state);
+    const toolsByName = this.validateToolHandlers(options?.tools ?? state.definition.tools ?? []);
+    let messages: AiProviderMessage[] = [{ role: 'user', content: canonicalJson(state.sanitizedPayload) }];
+    for (let stepNumber = 1; stepNumber <= state.definition.limits.maxSteps; stepNumber += 1) {
+      const step = await this.runProviderStep(
+        state,
+        options,
+        useProviderStream,
+        adapter,
+        toolsByName,
+        messages,
+        stepNumber,
+      );
+      if (step.kind === 'completed') return step.result;
+      messages = step.messages;
+    }
+    return fail('incomplete', 'step_limit', 'The tool loop exhausted its configured step limit');
+  }
+
+  private requireStepAdapter(state: GatewayRunState): AiProviderAdapter {
     const adapter = this.adaptersByProvider.get(state.route.provider);
     if (!adapter) fail('unavailable', 'provider_unavailable', 'The selected provider adapter is not registered', true);
     if (state.route.provider !== 'mock' && adapter.endpointPolicyId !== state.route.endpointPolicyId) {
       fail('blocked', 'configuration_invalid', 'The selected provider adapter does not match the reviewed endpoint policy');
     }
-    const toolsByName = this.validateToolHandlers(options?.tools ?? state.definition.tools ?? []);
-    let messages: AiProviderMessage[] = [{ role: 'user', content: canonicalJson(state.sanitizedPayload) }];
-    let totalSteps = 0;
-    while (totalSteps < state.definition.limits.maxSteps) {
-      this.assertStepAvailable(state, options?.signal);
-      const remainingOutput = state.definition.limits.maxOutputTokens - state.accumulatedOutputTokens;
-      if (remainingOutput <= 0) fail('incomplete', 'step_limit', 'The run exhausted its output-token allowance');
-      const request = this.buildProviderRequest(state, messages, toolsByName, remainingOutput);
-      state.budgetDate = currentUtcDate();
-      totalSteps += 1;
-      const response = await this.callProviderWithRetry(
-        adapter,
-        request,
-        state.controller.signal,
-        useProviderStream,
-        state.requestId,
-        state.useCaseId,
-        state.budgetDate,
-        state.definition.limits.dailyTokenBudget,
-      );
-      state.accumulatedInputTokens += response.usage.inputTokens;
-      state.accumulatedOutputTokens += response.usage.outputTokens;
-      state.responseModel = response.responseModel;
-      if (response.endpointTag && response.endpointTag !== state.route.endpointPolicyId) {
-        fail('failed', 'configuration_invalid', 'The provider response endpoint did not match the reviewed route');
-      }
-      state.endpointTag = response.endpointTag ?? adapter.endpointPolicyId ?? state.route.endpointPolicyId;
-      if (response.stopReason === 'max_tokens') {
-        fail('incomplete', 'step_limit', 'The provider stopped at the output-token limit');
-      }
-      if (response.toolCalls.length > 0) {
-        if (totalSteps >= state.definition.limits.maxSteps) {
-          fail('incomplete', 'step_limit', 'The tool loop exhausted its configured step limit');
-        }
-        messages = await this.appendToolMessages(state, messages, response, toolsByName);
-        continue;
-      }
-      const output = this.parseOutput(state.definition, response.text);
-      if (state.pareChainVerification) {
-        if (state.toolResultDigests.length === 0) {
-          fail('blocked', 'synthetic_provenance_required', 'A PARE synthetic stage must complete at least one registered tool loop');
-        }
-        const verification = state.pareChainVerification;
-        state.pareChainEvidence = {
-          chainId: verification.chainId,
-          rootFixtureId: verification.rootFixtureId,
-          rootDigest: verification.rootDigest,
-          stage: verification.stage,
-          stageIndex: verification.stageIndex,
-          auditId: `aia_${state.requestId}`,
-          inputDigest: verification.inputDigest,
-          outputDigest: digestJson(output),
-          toolResultDigests: [...state.toolResultDigests],
-          priorAuditIds: verification.priorRecords.map((record) => record.auditId),
-          priorOutputDigests: verification.priorRecords.map((record) => record.outputDigest),
-        };
-      }
-      if (state.pareChainEvidence && !options?.syntheticPareChain?.completeStage(state.pareChainEvidence, output)) {
-        state.pareChainEvidence = undefined;
-        fail('blocked', 'synthetic_provenance_required', 'PARE output failed server-side provenance chain completion');
-      }
-      const result = { outcome: 'completed' as const, output, evidence: this.evidence(state, 'completed') };
-      await this.finishAudit(state, 'completed');
-      return result;
+    return adapter;
+  }
+
+  private async runProviderStep(
+    state: GatewayRunState,
+    options: AiGatewayCallOptions | undefined,
+    useProviderStream: boolean,
+    adapter: AiProviderAdapter,
+    toolsByName: ReadonlyMap<string, AiToolHandler>,
+    messages: AiProviderMessage[],
+    stepNumber: number,
+  ): Promise<GatewayStepResult> {
+    this.assertStepAvailable(state, options?.signal);
+    const response = await this.requestProviderStep(state, adapter, messages, toolsByName, useProviderStream);
+    if (response.stopReason === 'max_tokens') {
+      fail('incomplete', 'step_limit', 'The provider stopped at the output-token limit');
     }
-    return fail('incomplete', 'step_limit', 'The tool loop exhausted its configured step limit');
+    if (response.toolCalls.length > 0) {
+      if (stepNumber >= state.definition.limits.maxSteps) {
+        fail('incomplete', 'step_limit', 'The tool loop exhausted its configured step limit');
+      }
+      return {
+        kind: 'continue',
+        messages: await this.appendToolMessages(state, messages, response, toolsByName),
+      };
+    }
+    return {
+      kind: 'completed',
+      result: await this.completeProviderOutput(state, options, response),
+    };
+  }
+
+  private async requestProviderStep(
+    state: GatewayRunState,
+    adapter: AiProviderAdapter,
+    messages: AiProviderMessage[],
+    toolsByName: ReadonlyMap<string, AiToolHandler>,
+    useProviderStream: boolean,
+  ): Promise<AiProviderResponse> {
+    const remainingOutput = state.definition.limits.maxOutputTokens - state.accumulatedOutputTokens;
+    if (remainingOutput <= 0) fail('incomplete', 'step_limit', 'The run exhausted its output-token allowance');
+    const request = this.buildProviderRequest(state, messages, toolsByName, remainingOutput);
+    state.budgetDate = currentUtcDate();
+    const response = await this.callProviderWithRetry(
+      adapter,
+      request,
+      state.controller.signal,
+      useProviderStream,
+      state.requestId,
+      state.useCaseId,
+      state.budgetDate,
+      state.definition.limits.dailyTokenBudget,
+    );
+    this.recordProviderResponse(state, adapter, response);
+    return response;
+  }
+
+  private recordProviderResponse(
+    state: GatewayRunState,
+    adapter: AiProviderAdapter,
+    response: AiProviderResponse,
+  ): void {
+    state.accumulatedInputTokens += response.usage.inputTokens;
+    state.accumulatedOutputTokens += response.usage.outputTokens;
+    state.responseModel = response.responseModel;
+    if (response.endpointTag && response.endpointTag !== state.route.endpointPolicyId) {
+      fail('failed', 'configuration_invalid', 'The provider response endpoint did not match the reviewed route');
+    }
+    state.endpointTag = response.endpointTag ?? adapter.endpointPolicyId ?? state.route.endpointPolicyId;
+  }
+
+  private async completeProviderOutput(
+    state: GatewayRunState,
+    options: AiGatewayCallOptions | undefined,
+    response: AiProviderResponse,
+  ): Promise<AiGatewayRunResult<unknown>> {
+    const output = this.parseOutput(state.definition, response.text);
+    this.recordPareChainEvidence(state, output);
+    if (state.pareChainEvidence && !options?.syntheticPareChain?.completeStage(state.pareChainEvidence, output)) {
+      state.pareChainEvidence = undefined;
+      fail('blocked', 'synthetic_provenance_required', 'PARE output failed server-side provenance chain completion');
+    }
+    const result = { outcome: 'completed' as const, output, evidence: this.evidence(state, 'completed') };
+    await this.finishAudit(state, 'completed');
+    return result;
+  }
+
+  private recordPareChainEvidence(state: GatewayRunState, output: unknown): void {
+    const verification = state.pareChainVerification;
+    if (!verification) return;
+    if (state.toolResultDigests.length === 0) {
+      fail('blocked', 'synthetic_provenance_required', 'A PARE synthetic stage must complete at least one registered tool loop');
+    }
+    state.pareChainEvidence = {
+      chainId: verification.chainId,
+      rootFixtureId: verification.rootFixtureId,
+      rootDigest: verification.rootDigest,
+      stage: verification.stage,
+      stageIndex: verification.stageIndex,
+      auditId: `aia_${state.requestId}`,
+      inputDigest: verification.inputDigest,
+      outputDigest: digestJson(output),
+      toolResultDigests: [...state.toolResultDigests],
+      priorAuditIds: verification.priorRecords.map((record) => record.auditId),
+      priorOutputDigests: verification.priorRecords.map((record) => record.outputDigest),
+    };
   }
 
   private assertStepAvailable(state: GatewayRunState, callerSignal?: AbortSignal): void {
