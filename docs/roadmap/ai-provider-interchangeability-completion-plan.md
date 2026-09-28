@@ -332,10 +332,19 @@ lists multiple upstream providers; this is public metadata, not qualification
 of a specific endpoint. OpenRouter documents request controls for an exact
 provider allowlist, disabled fallbacks, ZDR, and data-collection denial. The
 authenticated account settings, selected endpoint, endpoint-specific behavior,
-processor locations, and logging/cache settings remain unverified. No
-`OPENROUTER_API_KEY` is configured in the API environment, so no authenticated
-forced-tool probe has run. The adapter and active profile remain absent until
-the access and privacy gates are verified.
+processor locations, and logging/cache settings remain unverified. A separate
+manual key smoke is available with
+`npm --workspace prism-api run ai:key-test:openrouter:free`. It targets only
+`stealth/space-bunny-alpha`, checks current model pricing and tool support before
+inference, sends one fixed synthetic forced-tool request pinned to `stealth`
+with fallbacks disabled, and does not retry. The probe rejects missing and
+placeholder credentials before network access and emits sanitized results.
+The user approved this synthetic-only test with the model's anonymous-provider
+retention caveat. No live request has run because the available key is a
+placeholder. This smoke tests key usability only; it does not qualify
+`z-ai/glm-5.3-flash`, verify account privacy controls, or authorize a route.
+The adapter and active profile remain absent until the access and privacy gates
+are verified.
 
 **Exit:** Two external providers serve the same registered use case using
 only a reviewed configuration selection, with the same safety and approval
