@@ -47,32 +47,38 @@ export class EventContextAgent {
     let allQuotes: any[] = [];
     let clientPreferences: string[] = [];
 
-    try {
-      allQuotes = await this.prisma.opsSupplierQuote.findMany({
-        where: { eventId: event.id, status: 'selected' },
-      });
-    } catch { /* DB unavailable — proceed with empty quotes */ }
-
-    try {
-      throwIfAborted(signal);
-      const briefings = await this.prisma.opsBriefing.findMany({
-        where: { eventId: event.id },
-        orderBy: { submittedAt: 'desc' },
-        take: 1,
-      });
-      if (briefings.length > 0 && briefings[0].serviceRequirements) {
-        const requirements = briefings[0].serviceRequirements;
-        if (Array.isArray(requirements)) {
-          requirements.forEach((value) => {
-            if (typeof value === 'string' && value.trim()) clientPreferences.push(value);
-          });
-        } else if (typeof requirements === 'object' && requirements !== null) {
-          Object.entries(requirements as Record<string, unknown>).forEach(([key, value]) => {
-            if (value && typeof value !== 'object') clientPreferences.push(`${key}: ${value}`);
-          });
-        }
+    const readSelectedQuotes = async () => {
+      try {
+        return await this.prisma.opsSupplierQuote.findMany({
+          where: { eventId: event.id, status: 'selected' },
+        });
+      } catch { /* DB unavailable — proceed with empty quotes */ return []; }
+    };
+    const readLatestBriefing = async () => {
+      try {
+        throwIfAborted(signal);
+        return await this.prisma.opsBriefing.findMany({
+          where: { eventId: event.id },
+          orderBy: { submittedAt: 'desc' },
+          take: 1,
+        });
+      } catch { /* DB unavailable — no preferences */ return []; }
+    };
+    const [quoteRows, briefings] = await Promise.all([readSelectedQuotes(), readLatestBriefing()]);
+    allQuotes = quoteRows;
+    throwIfAborted(signal);
+    if (briefings.length > 0 && briefings[0].serviceRequirements) {
+      const requirements = briefings[0].serviceRequirements;
+      if (Array.isArray(requirements)) {
+        requirements.forEach((value) => {
+          if (typeof value === 'string' && value.trim()) clientPreferences.push(value);
+        });
+      } else if (typeof requirements === 'object' && requirements !== null) {
+        Object.entries(requirements as Record<string, unknown>).forEach(([key, value]) => {
+          if (value && typeof value !== 'object') clientPreferences.push(`${key}: ${value}`);
+        });
       }
-    } catch { /* DB unavailable — no preferences */ }
+    }
 
     const spentBudget = allQuotes.reduce((sum: number, q: any) => sum + (q.amount ?? 0), 0);
     throwIfAborted(signal);

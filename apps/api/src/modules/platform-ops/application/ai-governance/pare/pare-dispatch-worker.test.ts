@@ -4,6 +4,7 @@ import type { PrismaService } from '@prism/kernel/database';
 import type { PAREApprovalRecord } from './pare.types';
 import { PareConfigurationError } from './pare-execution.policy';
 import { PareSourceNotFoundError } from './pare-source.errors';
+import { PareAiGatewayError } from './pare-ai-gateway';
 import { PARE_EXECUTION_TIMEOUT_MS, processPareDispatchQueue } from './pare-dispatch-worker';
 import { PareDispatchOutboxService } from './pare-dispatch-outbox.service';
 import { PAREService } from './pare.service';
@@ -108,6 +109,27 @@ describe('PARE dispatch outbox', () => {
     const missing = harness([row({ id: 'missing' })]);
     await processPareDispatchQueue(missing.prisma, { handleEmergencyTrigger: vi.fn(async () => { throw new PareSourceNotFoundError('source missing'); }) });
     expect(missing.rows[0]).toMatchObject({ status: 'failed', failureReason: expect.stringContaining('source request or event') });
+  });
+
+  it('retries transient gateway failures and terminally records incomplete runs', async () => {
+    const retryable = harness([row({ id: 'retryable' })]);
+    await processPareDispatchQueue(retryable.prisma, {
+      handleEmergencyTrigger: vi.fn(async () => {
+        throw new PareAiGatewayError('unavailable', 'provider_unavailable', true);
+      }),
+    });
+    expect(retryable.rows[0]).toMatchObject({ status: 'queued', attempts: 1 });
+
+    const incomplete = harness([row({ id: 'incomplete' })]);
+    await processPareDispatchQueue(incomplete.prisma, {
+      handleEmergencyTrigger: vi.fn(async () => {
+        throw new PareAiGatewayError('incomplete', 'step_limit', false);
+      }),
+    });
+    expect(incomplete.rows[0]).toMatchObject({
+      status: 'failed', attempts: 1,
+      failureReason: 'PARE AI gateway returned a terminal failure; operator review required',
+    });
   });
 
   it('settles an expired lease at the retry budget without executing again', async () => {

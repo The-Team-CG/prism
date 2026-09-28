@@ -48,6 +48,17 @@ function createParePrisma() {
   };
 
   const prisma = {
+    $queryRaw: async (query: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = query.join(' ');
+      if (sql.includes('::jsonb::text')) {
+        return [{ canonicalPayload: JSON.stringify(JSON.parse(String(values[0]))) }];
+      }
+      if (sql.includes('review_payload')) {
+        const approval = state.approvalRecords.find((row) => row.id === values[0]);
+        return approval ? [{ canonicalPayload: JSON.stringify(approval.reviewPayload) }] : [];
+      }
+      return [];
+    },
     opsSupplierQuoteRequest: {
       findUnique: async ({ where }: { where: { id?: string } }) =>
         where.id === quoteRequest.id
