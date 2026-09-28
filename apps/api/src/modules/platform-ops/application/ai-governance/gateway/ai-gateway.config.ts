@@ -72,12 +72,12 @@ export const AI_ROUTE_PROFILES: Readonly<Record<string, AiRouteProfile>> = {
       fast: {
         provider: 'openrouter', model: 'z-ai/glm-5.3-flash',
         endpointPolicyId: 'fireworks', adapterRevision: 'openrouter-glm-5.3-flash-zdr-v1',
-        zdrBasis: 'provider-enforced', allowedDataClasses: ['synthetic'],
+        zdrBasis: 'none', allowedDataClasses: ['synthetic'],
       },
       strong: {
         provider: 'openrouter', model: 'z-ai/glm-5.3-flash',
         endpointPolicyId: 'fireworks', adapterRevision: 'openrouter-glm-5.3-flash-zdr-v1',
-        zdrBasis: 'provider-enforced', allowedDataClasses: ['synthetic'],
+        zdrBasis: 'none', allowedDataClasses: ['synthetic'],
       },
     },
   },
