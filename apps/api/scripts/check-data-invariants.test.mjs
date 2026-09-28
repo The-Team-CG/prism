@@ -17,7 +17,7 @@ const SCRIPT_PATH = fileURLToPath(new URL('./check-data-invariants.mjs', import.
 describe('data invariant declaration validation', () => {
   it('loads and validates the checked-in invariant declarations', () => {
     const declarations = loadInvariantDeclarations();
-    assert.equal(declarations.length, 6);
+    assert.equal(declarations.length, 7);
     assert.deepEqual(
       declarations.map(({ id }) => id),
       [
@@ -27,6 +27,7 @@ describe('data invariant declaration validation', () => {
         'audit_chain_no_forks',
         'billing_sequence_covers_existing_statements',
         'migration_ledger_no_unfinished',
+        'pare_review_payload_has_audit_digest',
       ],
     );
   });
@@ -129,6 +130,6 @@ describe('dry-run process behavior', () => {
       encoding: 'utf8',
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /6 invariants/);
+    assert.match(result.stdout, /7 invariants/);
   });
 });

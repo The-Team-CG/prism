@@ -261,13 +261,15 @@ is not provenance.
   do not put generated client-facing draft text in sanitized audit JSON.
 - [x] Prove abort, lease retry, duplicate dispatch, and PMCM approval still
   behave as before. The focused PARE/dispatch tests pass, and approval now
-  rechecks the completed stage audits and saved review-payload digest.
+  rechecks the completed stage audits and saved review-payload digest. Preserve
+  pre-chain pending approvals with an explicit legacy version marker and cover
+  their post-migration review path.
 - [x] For the persistence change, run `prisma:validate`, offline migration
   verification, migration guards, and invariant checks.
 - [ ] Rehearse the forward migration on an approved restored database snapshot;
   record the snapshot, before/after schema and invariant results, and rollback
-  steps. This checkout has no API `.env` or snapshot artifact, so no database
-  target has been used.
+  steps. The user identified the local environment as the target; confirm it
+  contains an isolated restored snapshot before connecting.
 
 **Implementation status (2026-09-28):** The full three-stage path passes on a
 mock route and the synthetic Anthropic route profile with local scripted
@@ -275,9 +277,17 @@ adapters. The root fixture, correlation, stage order, prior outputs, registered
 tool results, and completed durable audits are verified before a following
 provider call. The PARE audit stores route/digest evidence and minimized
 inputs; generated review text is stored separately on the PMCM approval
-record. The focused API suite, typechecks, migration validation/guards,
-invariant dry-run, and boundary checks pass. Task 3 remains open only for the
-approved restored-snapshot migration rehearsal above.
+record. Pre-chain pending approvals retain their backfilled review payload and
+use an explicit legacy evidence version; new live PARE runs fail closed without
+the chain verifier and require the complete chain. Review payload hashes match
+PostgreSQL's stored JSONB text, which lets the read-only invariant recompute the
+same SHA-256 value. The focused API suite passes (83 passed, 2 skipped), API
+typecheck/build pass, and invariant dry-run/tests pass (7 declarations; 17
+tests). No restored snapshot or local PostgreSQL listener is available here;
+the only configured database URL is remote and was not used.
+The focused API suite, typechecks, migration validation/guards, invariant
+dry-run, and boundary checks pass. Task 3 remains open only for the approved
+restored-snapshot migration rehearsal above.
 
 **Exit:** Full synthetic PARE orchestration, not only independent stage
 smokes, passes on mock and the approved synthetic external route. Mutated or

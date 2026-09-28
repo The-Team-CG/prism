@@ -19,7 +19,7 @@ import {
   type AiUseCaseContractMap,
   type AiUseCaseId,
 } from '@prism/types';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type {
   AiGateway,
   AiGatewayCallOptions,
@@ -42,6 +42,7 @@ import {
   type AiGatewayRuntimeConfig,
 } from './ai-gateway.config';
 import { AI_USE_CASE_REGISTRY } from './ai-use-cases';
+import { canonicalJson, digestJson } from '../json-digest';
 
 const MAX_INPUT_BYTES = 32_768;
 const MAX_TOOL_RESULT_BYTES = 16_384;
@@ -112,20 +113,6 @@ function failForProviderUsage(usage: AiProviderResponse['usage']): never {
     retryable: false,
     providerUsage: usage,
   });
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right));
-    return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function digestJson(value: unknown): string {
-  return createHash('sha256').update(canonicalJson(value)).digest('hex');
 }
 
 function providerJsonText(text: string): string {
