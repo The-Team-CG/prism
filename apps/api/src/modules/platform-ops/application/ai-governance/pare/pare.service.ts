@@ -1,12 +1,21 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { OpsAiApprovalRecord, OpsAiAuditLog, Prisma } from '@prisma/client';
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
-import { aiAuditEvidenceSchema, type AiAuditEvidence, type AiUseCaseId } from '@prism/types';
-import { AI_GATEWAY, type AiGateway } from '../../../contracts/ai-governance/ai-gateway.port';
-import { AI_GATEWAY_RUNTIME_CONFIG, type AiGatewayRuntimeConfig } from '../gateway/ai-gateway.config';
+import {
+  aiAuditEvidenceSchema,
+  aiPareProvenanceChainEvidenceSchema,
+  type AiAuditEvidence,
+  type AiUseCaseId,
+} from '@prism/types';
+import { AI_GATEWAY, type AiGateway, type AiSyntheticPareChain, type AiSyntheticProvenanceVerifier } from '../../../contracts/ai-governance/ai-gateway.port';
+import {
+  AI_GATEWAY_RUNTIME_CONFIG,
+  AI_SYNTHETIC_PROVENANCE_VERIFIER,
+  type AiGatewayRuntimeConfig,
+} from '../gateway/ai-gateway.config';
 import { assertPareExecutionAllowed, configuredPareMode, PareConfigurationError, type PAREMode } from './pare-execution.policy';
 import { DataSanitizerService } from './data-sanitizer.service';
 import { EventContextAgent } from './agents/event-context.agent';
@@ -33,6 +42,7 @@ type ApprovalRow = {
   featureName: string;
   eventId?: string | null;
   status: string;
+  reviewPayload?: unknown;
   approvedBy?: string | null;
   approvedAt?: Date | string | null;
   requestedAt?: Date | string | null;
@@ -93,6 +103,20 @@ function auditRequestId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
 function auditEventId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
   const value = auditPayload(audit).eventId;
   return typeof value === 'string' ? value : '';
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+function digestJson(value: unknown): string {
+  return createHash('sha256').update(canonicalJson(value)).digest('hex');
 }
 
 function isAbortSignal(value: unknown): value is AbortSignal {
@@ -160,11 +184,10 @@ function isExpectedLiveEvidence(
 }
 
 function assertLiveEvidenceSet(evidenceSet: AiAuditEvidence[], requestId: string): void {
-  const expected = new Set<AiUseCaseId>(['pare.budget', 'pare.risk', 'pare.message-drafts']);
-  const seen = new Set<AiUseCaseId>();
+  const expected: readonly AiUseCaseId[] = ['pare.budget', 'pare.risk', 'pare.message-drafts'];
   let provenanceIdentity: string | undefined;
-  for (const evidence of evidenceSet) {
-    if (!isExpectedLiveEvidence(evidence, requestId, expected, seen)) {
+  for (const [index, evidence] of evidenceSet.entries()) {
+    if (evidence.useCaseId !== expected[index] || !isExpectedLiveEvidence(evidence, requestId, new Set(expected), new Set(expected.slice(0, index)))) {
       throw new BadRequestException('A matching durable PARE audit is required');
     }
     const provenance = evidence.syntheticProvenance;
@@ -173,10 +196,37 @@ function assertLiveEvidenceSet(evidenceSet: AiAuditEvidence[], requestId: string
       throw new BadRequestException('A matching durable PARE audit is required');
     }
     provenanceIdentity = identity;
-    seen.add(evidence.useCaseId);
   }
-  if (seen.size !== expected.size) {
+  if (evidenceSet.length !== expected.length) {
     throw new BadRequestException('A matching durable PARE audit is required');
+  }
+}
+
+function assertPareChainEvidenceSet(evidenceSet: AiAuditEvidence[], requestId: string): void {
+  const expectedStages = ['pare.budget', 'pare.risk', 'pare.message-drafts'] as const;
+  const chain = evidenceSet.map((evidence) => evidence.pareChain);
+  if (evidenceSet.length !== expectedStages.length || chain.some((item) => !item)) {
+    throw new BadRequestException('A complete server-owned PARE provenance chain is required');
+  }
+  const first = chain[0]!;
+  for (const [index, evidence] of evidenceSet.entries()) {
+    const item = evidence.pareChain!;
+    if (evidence.useCaseId !== expectedStages[index] || evidence.correlationId !== requestId ||
+      item.stage !== expectedStages[index] || item.stageIndex !== index || item.auditId !== `aia_${evidence.requestId}` ||
+      item.chainId !== first.chainId || item.rootFixtureId !== first.rootFixtureId || item.rootDigest !== first.rootDigest ||
+      item.rootFixtureId !== evidence.syntheticProvenance?.sourceId ||
+      JSON.stringify(item.priorAuditIds) !== JSON.stringify(chain.slice(0, index).map((prior) => prior!.auditId)) ||
+      JSON.stringify(item.priorOutputDigests) !== JSON.stringify(chain.slice(0, index).map((prior) => prior!.outputDigest))) {
+      throw new BadRequestException('PARE provenance stages are not one ordered completed chain');
+    }
+  }
+}
+
+function assertPareResultMatchesChain(evidenceSet: AiAuditEvidence[], pareResult: PAREResult): void {
+  const outputs = [pareResult.budgetAnalysis, pareResult.riskAssessment, pareResult.drafts];
+  if (evidenceSet.length !== outputs.length || evidenceSet.some((evidence, index) =>
+    evidence.pareChain?.outputDigest !== digestJson(outputs[index]))) {
+    throw new BadRequestException('PARE review result does not match its completed provenance chain');
   }
 }
 
@@ -195,6 +245,8 @@ export class PAREService implements PareApprovalGovernance {
     @Optional() @Inject(AUDIT_WRITER) private readonly auditWriter?: AuditWriter,
     @Optional() @Inject(AI_GATEWAY) private readonly aiGateway?: AiGateway,
     @Optional() @Inject(AI_GATEWAY_RUNTIME_CONFIG) private readonly aiRuntime?: AiGatewayRuntimeConfig,
+    @Optional() @Inject(AI_SYNTHETIC_PROVENANCE_VERIFIER)
+    private readonly syntheticVerifier?: AiSyntheticProvenanceVerifier,
   ) {
     this.mode = configuredPareMode(process.env.PARE_MODE);
     if (this.mode === 'live' && this.aiRuntime) assertLivePareRoute(this.aiRuntime);
@@ -232,27 +284,34 @@ export class PAREService implements PareApprovalGovernance {
     // Agent 2 — find replacement candidates
     ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx, executionSignal);
 
+    let syntheticPareChain: AiSyntheticPareChain | undefined;
+    if (this.mode === 'live' && this.syntheticVerifier?.beginPareChain) {
+      syntheticPareChain = await this.syntheticVerifier.beginPareChain(ctx, ctx.triggerId) ?? undefined;
+      if (!syntheticPareChain) {
+        throw new BadRequestException('PARE input is not a registered synthetic provenance-chain root');
+      }
+    }
+
     this.throwIfAborted(executionSignal);
     const gatewayCancellation = new AbortController();
     const gatewaySignal = AbortSignal.any(executionSignal
       ? [executionSignal, gatewayCancellation.signal]
       : [gatewayCancellation.signal]);
 
-    // Agents 3 + 4 — run in parallel (independent of each other)
-    const [budgetRun, riskRun] = await Promise.all([
-      this.budgetAgent.runPareBudgetAgent(ctx, gatewaySignal),
-      this.riskAgent.runPareRiskAgent(ctx, gatewaySignal),
-    ]).catch((error: unknown) => {
+    const { budgetRun, riskRun, draftRun } = await (async () => {
+      // Each following stage receives the validated output of the previous stage.
+      const budgetRun = await this.budgetAgent.runPareBudgetAgent(ctx, gatewaySignal, syntheticPareChain);
+      ctx.budgetAnalysis = budgetRun.output;
+      const riskRun = await this.riskAgent.runPareRiskAgent(ctx, gatewaySignal, syntheticPareChain);
+      ctx.riskAssessment = riskRun.output;
+      const draftRun = await this.messageDrafterAgent.runPareMessageDraftAgent(ctx, gatewaySignal, syntheticPareChain);
+      return { budgetRun, riskRun, draftRun };
+    })().catch((error: unknown) => {
       gatewayCancellation.abort(error);
       throw error;
     });
     const budgetAnalysis = budgetRun.output;
     const riskAssessment = riskRun.output;
-    ctx.budgetAnalysis = budgetAnalysis;
-    ctx.riskAssessment = riskAssessment;
-
-    // Agent 5 — draft messages
-    const draftRun = await this.messageDrafterAgent.runPareMessageDraftAgent(ctx, gatewaySignal);
     ctx.drafts = draftRun.output;
     this.throwIfAborted(executionSignal);
 
@@ -260,6 +319,9 @@ export class PAREService implements PareApprovalGovernance {
       .filter((evidence): evidence is AiAuditEvidence => evidence !== null);
     if (this.mode === 'live' && runEvidence.length !== 3) {
       throw new PareConfigurationError('PARE live run is missing gateway evidence');
+    }
+    if (this.mode === 'live' && syntheticPareChain) {
+      assertPareChainEvidenceSet(runEvidence, ctx.triggerId);
     }
 
     const pareResult: PAREResult = {
@@ -276,6 +338,8 @@ export class PAREService implements PareApprovalGovernance {
       triggeredAt: triggeredAt.toISOString(),
     };
 
+    if (syntheticPareChain) assertPareResultMatchesChain(runEvidence, pareResult);
+
     return this.persistRecommendation(ctx, pareResult, triggeredAt, sourceDispatchId);
   }
 
@@ -287,9 +351,18 @@ export class PAREService implements PareApprovalGovernance {
   ): Promise<PAREApprovalRecord> {
     const runEvidence = pareResult.runEvidence;
     // Log to OpsAiAuditLog (ZDR sanitized)
-    const { data: sanitizedPayload, dataCategories } = this.sanitizer.sanitize(
-      pareResult as unknown as Record<string, unknown>,
+    const { runEvidence: _runEvidence, ...reviewResult } = pareResult;
+    const { data: reviewPayload, dataCategories } = this.sanitizer.sanitize(
+      reviewResult as unknown as Record<string, unknown>,
     );
+    const sanitizedPayload = {
+      requestId: pareResult.requestId,
+      eventId: pareResult.eventId,
+      mode: pareResult.mode,
+      runEvidence,
+      triggeredAt: pareResult.triggeredAt,
+      reviewPayloadDigest: digestJson(reviewPayload),
+    };
     const aiAuditLogId = randomUUID();
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -319,6 +392,7 @@ export class PAREService implements PareApprovalGovernance {
           status: 'pending_human_approval',
           requestedAt: triggeredAt,
           sourceDispatchId: sourceDispatchId ?? null,
+          reviewPayload: toPrismaJson(reviewPayload),
         } });
 
         return this.mapApprovalRecord(approval, audit);
@@ -398,7 +472,7 @@ export class PAREService implements PareApprovalGovernance {
       if (record.status !== 'pending_human_approval') throw new BadRequestException('Only pending PARE recommendations can be reviewed');
       const audit = requireMatchingAudit(record, await tx.opsAiAuditLog.findUnique({ where: { id: record.aiAuditLogId } }));
       await this.assertDispatchMatches(tx, record, audit);
-      if (status === 'approved') this.assertApprovableAudit(audit);
+      if (status === 'approved') await this.assertApprovableAudit(tx, audit, record.reviewPayload);
       const data = { status, humanApproved: status === 'approved', approvedBy: reviewedBy, approvedAt: new Date() };
       const claimed = await tx.opsAiApprovalRecord.updateMany({
         where: { id, status: 'pending_human_approval' }, data,
@@ -413,13 +487,55 @@ export class PAREService implements PareApprovalGovernance {
     });
   }
 
-  private assertApprovableAudit(audit: OpsAiAuditLog) {
+  private async assertApprovableAudit(
+    prisma: Prisma.TransactionClient,
+    audit: OpsAiAuditLog,
+    reviewPayload?: unknown,
+  ): Promise<void> {
     const payload = this.asRecord(audit.sanitizedPayload);
+    if (typeof payload.reviewPayloadDigest === 'string' &&
+      digestJson(reviewPayload ?? {}) !== payload.reviewPayloadDigest) {
+      throw new BadRequestException('The saved PARE review payload does not match its audited digest');
+    }
     if (payload.mode === 'mock') {
       assertMockApprovalAudit(audit, payload);
       return;
     }
-    assertLiveEvidenceSet(requireLiveRunEvidence(audit, payload), auditRequestId(audit));
+    const evidence = requireLiveRunEvidence(audit, payload);
+    assertLiveEvidenceSet(evidence, auditRequestId(audit));
+    if (this.syntheticVerifier?.beginPareChain) {
+      assertPareChainEvidenceSet(evidence, auditRequestId(audit));
+      await this.assertDurablePareChainAudits(prisma, evidence);
+    }
+  }
+
+  private async assertDurablePareChainAudits(
+    prisma: Prisma.TransactionClient,
+    evidence: AiAuditEvidence[],
+  ): Promise<void> {
+    const expectedUseCases: readonly AiUseCaseId[] = ['pare.budget', 'pare.risk', 'pare.message-drafts'];
+    const ids = evidence.map((item) => item.pareChain!.auditId);
+    const rows = await prisma.opsAiAuditLog.findMany({ where: { id: { in: ids } } });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    for (const [index, item] of evidence.entries()) {
+      const row = byId.get(item.pareChain!.auditId);
+      const payload = this.asRecord(row?.sanitizedPayload);
+      const route = this.asRecord(payload._aiGatewayRoute);
+      const storedChain = aiPareProvenanceChainEvidenceSchema.safeParse(payload._aiPareChain);
+      if (!row || row.id !== `aia_${item.requestId}` || row.requestId !== item.requestId ||
+        row.useCaseId !== expectedUseCases[index] || row.correlationId !== item.correlationId ||
+        row.status !== 'completed' || row.outcome !== 'completed' ||
+        row.profileId !== item.profileId || row.provider !== item.provider || row.requestedModel !== item.requestedModel ||
+        row.promptVersion !== item.promptVersion || (row.responseModel ?? undefined) !== item.responseModel || row.endpointTag !== item.endpointTag ||
+        row.zdrBasis !== item.zdrBasis || row.approvalState !== item.approvalState || row.humanApprovalRequired !== true ||
+        row.humanApproved !== false || canonicalJson(row.dataCategories) !== canonicalJson(item.dataClasses) ||
+        route.routeRevision !== item.routeRevision || route.routePolicyOutcome !== item.routePolicyOutcome ||
+        route.endpointPolicyId !== item.endpointTag ||
+        !storedChain.success || canonicalJson(storedChain.data) !== canonicalJson(item.pareChain) ||
+        canonicalJson(row.syntheticProvenance) !== canonicalJson(item.syntheticProvenance)) {
+        throw new BadRequestException('A matching durable completed PARE stage audit is required');
+      }
+    }
   }
 
   private async mapApprovalRecordWithAudit(record: ApprovalRow, expectedRequestId?: string, expectedSourceDispatchId?: string): Promise<PAREApprovalRecord> {
@@ -463,7 +579,11 @@ export class PAREService implements PareApprovalGovernance {
   }
 
   private mapApprovalRecord(record: ApprovalRow, audit: AuditRow | null): PAREApprovalRecord {
-    const pareResult = this.mapPareResult(audit?.sanitizedPayload, record, audit);
+    const payload = {
+      ...this.asRecord(record.reviewPayload),
+      ...this.asRecord(audit?.sanitizedPayload),
+    };
+    const pareResult = this.mapPareResult(payload, record, audit);
     return {
       id: record.id,
       eventId: pareResult.eventId,

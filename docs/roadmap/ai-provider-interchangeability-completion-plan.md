@@ -9,7 +9,7 @@ authority: informative
 owner: "D (Anthony)"
 audience: [engineers, agents, reviewers]
 scope: "Completion work after the AI gateway PR 0-7 stack: provider-neutral PARE, route configuration, synthetic and live provider interchangeability, staging evidence, governance closeout, and separately approved real-data activation"
-last_verified: "2026-09-28; local Task 2 branch based on Task 1 evidence, focused checks passed"
+last_verified: "2026-09-28; Task 3 implementation checks passed; restored-snapshot migration rehearsal pending"
 sources:
   - id: gateway-plan
     resource: "docs/roadmap/ai-provider-gateway-plan.md"
@@ -240,8 +240,9 @@ remain open under Tasks 3-9.
 ## Task 3: Prove a server-owned PARE provenance chain
 
 **Files:** `apps/api/src/modules/platform-ops/application/ai-governance/gateway/synthetic-fixture-registry.ts`
-and tests; PARE context assembler, gateway and safety tests; gateway audit
-schema/migration only if a durable digest field is needed.
+and tests; PARE context assembler, gateway and safety tests;
+`apps/api/prisma/schema.prisma` and a `trust_ops` migration for the separate
+PMCM review payload.
 
 **Contract:** A synthetic PARE run starts at one registered root fixture.
 Before each later stage, the server assembles context from the root and
@@ -250,18 +251,33 @@ correlation ID, stage order, prior completed audit IDs, and a canonical digest
 of each prior output. A browser-supplied flag or copied fixture-shaped JSON
 is not provenance.
 
-- [ ] Write a failing full-orchestration test: one synthetic emergency
+- [x] Write a failing full-orchestration test: one synthetic emergency
   trigger runs budget, risk, and message stages through the registered route,
   including their tool loops, and reaches PMCM review without sending.
-- [ ] Add negative tests that alter an earlier stage output, correlation ID,
+- [x] Add negative tests that alter an earlier stage output, correlation ID,
   tool result, or audit outcome; each must block the next provider call.
-- [ ] Add the smallest server-owned chain record and verifier needed for those
+- [x] Add the smallest server-owned chain record and verifier needed for those
   tests. Persist only minimized input and digest/route evidence in AI audit;
   do not put generated client-facing draft text in sanitized audit JSON.
-- [ ] Prove abort, lease retry, duplicate dispatch, and PMCM approval still
-  behave as before. If persistence changes, run `prisma:validate`, offline
-  migration verification, migration guards, invariant checks, and a restored
-  database migration rehearsal.
+- [x] Prove abort, lease retry, duplicate dispatch, and PMCM approval still
+  behave as before. The focused PARE/dispatch tests pass, and approval now
+  rechecks the completed stage audits and saved review-payload digest.
+- [x] For the persistence change, run `prisma:validate`, offline migration
+  verification, migration guards, and invariant checks.
+- [ ] Rehearse the forward migration on an approved restored database snapshot;
+  record the snapshot, before/after schema and invariant results, and rollback
+  steps. This checkout has no API `.env` or snapshot artifact, so no database
+  target has been used.
+
+**Implementation status (2026-09-28):** The full three-stage path passes on a
+mock route and the synthetic Anthropic route profile with local scripted
+adapters. The root fixture, correlation, stage order, prior outputs, registered
+tool results, and completed durable audits are verified before a following
+provider call. The PARE audit stores route/digest evidence and minimized
+inputs; generated review text is stored separately on the PMCM approval
+record. The focused API suite, typechecks, migration validation/guards,
+invariant dry-run, and boundary checks pass. Task 3 remains open only for the
+approved restored-snapshot migration rehearsal above.
 
 **Exit:** Full synthetic PARE orchestration, not only independent stage
 smokes, passes on mock and the approved synthetic external route. Mutated or

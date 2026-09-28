@@ -2031,6 +2031,7 @@ model OpsAiApprovalRecord {
   status        String    @default("pending_human_approval")
   requestedAt   DateTime  @default(now()) @map("requested_at")
   sourceDispatchId String? @unique(map: "ai_approval_records_source_dispatch_id_key") @map("source_dispatch_id")
+  reviewPayload Json      @default("{}") @map("review_payload")
 
   event OpsEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
   conformeCommsDraft OpsConformeCommsDraft?
