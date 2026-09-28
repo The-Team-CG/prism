@@ -28,6 +28,7 @@ import { SyntheticFixtureRegistry } from './application/ai-governance/gateway/sy
 import { AI_GATEWAY } from './contracts/ai-governance/ai-gateway.port';
 import { MockAiProviderAdapter } from './infrastructure/ai-governance/mock-ai-provider.adapter';
 import { AnthropicProviderAdapter, createAnthropicProviderClient } from './infrastructure/ai-governance/anthropic-provider.adapter';
+import { OpenRouterProviderAdapter } from './infrastructure/ai-governance/openrouter-provider.adapter';
 import type { AiProviderAdapter } from './contracts/ai-governance/ai-gateway.port';
 import type { AiGatewayRuntimeConfig } from './application/ai-governance/gateway/ai-gateway.config';
 import { PAREService } from './application/ai-governance/pare/pare.service';
@@ -72,17 +73,36 @@ export function createAiProviderAdapters(
   const adapters: AiProviderAdapter[] = [mockAdapter];
   const liveProviders = new Set([...runtime.liveUseCases].map((useCaseId) =>
     resolveAiRoute(runtime.profile, useCaseId, AI_USE_CASE_REGISTRY[useCaseId].modelTier).provider));
-  const unsupportedProviders = [...liveProviders].filter((provider) => provider !== 'mock' && provider !== 'anthropic');
+  const unsupportedProviders = [...liveProviders].filter((provider) =>
+    provider !== 'mock' && provider !== 'anthropic' && provider !== 'openrouter');
   if (unsupportedProviders.length > 0) {
     throw new Error(`No AI provider adapter factory is registered for: ${unsupportedProviders.join(', ')}`);
   }
-  if (!liveProviders.has('anthropic')) return adapters;
-
-  const apiKey = config.get<string>('ANTHROPIC_API_KEY')?.trim();
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY is required when AI live use cases are enabled');
+  if (liveProviders.has('anthropic')) {
+    const apiKey = config.get<string>('ANTHROPIC_API_KEY')?.trim();
+    if (!apiKey) {
+      throw new Error('ANTHROPIC_API_KEY is required when AI live use cases are enabled');
+    }
+    adapters.push(new AnthropicProviderAdapter(createAnthropicProviderClient({ apiKey })));
   }
-  adapters.push(new AnthropicProviderAdapter(createAnthropicProviderClient({ apiKey })));
+
+  if (liveProviders.has('openrouter')) {
+    const endpointPolicyIds = new Set([...runtime.liveUseCases]
+      .map((useCaseId) => resolveAiRoute(runtime.profile, useCaseId, AI_USE_CASE_REGISTRY[useCaseId].modelTier))
+      .filter((route) => route.provider === 'openrouter')
+      .map((route) => route.endpointPolicyId));
+    const [endpointPolicyId] = endpointPolicyIds;
+    if (endpointPolicyIds.size !== 1 || !endpointPolicyId) {
+      throw new Error('Enabled OpenRouter use cases must share one reviewed endpoint policy');
+    }
+
+    const apiKey = config.get<string>('OPENROUTER_API_KEY')?.trim();
+    if (!apiKey) {
+      throw new Error('OPENROUTER_API_KEY is required when OpenRouter use cases are enabled');
+    }
+    adapters.push(new OpenRouterProviderAdapter({ apiKey, endpointPolicyId }));
+  }
+
   return adapters;
 }
 

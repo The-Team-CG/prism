@@ -8,11 +8,11 @@ export async function loadConformeDraft(inquiryId: string) {
 export async function generateConformeDraft(
   inquiryId: string,
   signal: AbortSignal,
-  onDelta: (text: string) => void,
+  onMetadata: () => void,
 ) {
   let completed = false;
   for await (const event of conformeDraftRepository.stream({ inquiryId }, signal)) {
-    if (event.type === 'delta') onDelta(event.text);
+    if (event.type === 'meta') onMetadata();
     if (event.type === 'failure') {
       throw new Error(event.result.outcome === 'aborted' ? 'cancelled' : 'unavailable');
     }

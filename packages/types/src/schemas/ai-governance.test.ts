@@ -97,7 +97,7 @@ describe("AI governance contracts", () => {
     expect(aiAuditEvidenceSchema.safeParse(evidence).success).toBe(true);
   });
 
-  it("validates ordered PARE provenance evidence using digests and prior audit IDs only", () => {
+  it("validates linear and dependency-based PARE provenance evidence using digests and audit IDs only", () => {
     const pareChain = {
       chainId: "chain-1",
       rootFixtureId: "ai-pare-chain-root-v1",
@@ -113,6 +113,12 @@ describe("AI governance contracts", () => {
     } as const;
 
     expect(aiPareProvenanceChainEvidenceSchema.safeParse(pareChain).success).toBe(true);
+    expect(aiPareProvenanceChainEvidenceSchema.safeParse({
+      ...pareChain,
+      stageIndex: 0,
+      priorAuditIds: [],
+      priorOutputDigests: [],
+    }).success).toBe(true);
     expect(aiPareProvenanceChainEvidenceSchema.safeParse({
       ...pareChain,
       stageIndex: 2,

@@ -517,7 +517,6 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       where: { id: { in: prior.map((record) => record.auditId) } },
     });
     const byId = new Map(rows.map((row) => [row.id, row]));
-    const expectedUseCases: readonly AiUseCaseId[] = ['pare.budget', 'pare.risk', 'pare.message-drafts'];
     for (const evidence of prior) {
       const row = byId.get(evidence.auditId);
       const payload = row?.sanitizedPayload && typeof row.sanitizedPayload === 'object' && !Array.isArray(row.sanitizedPayload)
@@ -526,7 +525,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       const parsedChainEvidence = aiPareProvenanceChainEvidenceSchema.safeParse(payload._aiPareChain);
       if (!row || row.id !== evidence.auditId || row.requestId !== evidence.auditId.slice('aia_'.length) ||
         row.status !== 'completed' || row.outcome !== 'completed' ||
-        row.useCaseId !== expectedUseCases[evidence.stageIndex] || row.correlationId !== state.correlationId ||
+        row.useCaseId !== evidence.stage || row.correlationId !== state.correlationId ||
         !parsedChainEvidence.success || canonicalJson(parsedChainEvidence.data) !== canonicalJson(evidence)) {
         fail('blocked', 'synthetic_provenance_required', 'A prior PARE stage has no matching completed durable audit');
       }

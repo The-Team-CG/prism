@@ -5,6 +5,7 @@
 * [Parallel worktrees](parallel-worktrees.md) - checkout-derived dev ports and junction-safe worktree teardown.
 * [Portal accounts](portal-accounts.md) - local demo credentials and role-boundary notes.
 * [Deployment secrets](deployment-secrets.md) - GitHub Actions secrets, variables, provider targets, and deployment verification.
+* [AI provider routing](ai-provider-routing.md) - local provider/model selection, synthetic-only limits, and production gates.
 
 Runbooks describe current procedures and required evidence. They do not
 authorize destructive database actions or imply staging/production deployment.
