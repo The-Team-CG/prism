@@ -166,6 +166,7 @@ export function createAiProviderAdapters(
     AiGovernanceService,
     ConformeCommsDraftService,
     AiGatewayService,
+    AI_GATEWAY_RUNTIME_CONFIG,
     AI_GATEWAY,
     PAREService,
     PareDispatchOutboxService,
