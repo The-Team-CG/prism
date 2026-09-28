@@ -18,6 +18,8 @@ describe('conforme draft streaming client', () => {
       profileId: 'mock',
       provider: 'mock',
       requestedModel: 'mock',
+      routeRevision: 'a'.repeat(64),
+      routePolicyOutcome: 'mock_local',
       zdrBasis: 'none',
       dataClasses: ['synthetic'],
       latencyMs: 10,
