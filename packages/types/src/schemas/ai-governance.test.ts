@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aiAuditEvidenceSchema,
+  aiPareProvenanceChainEvidenceSchema,
   aiGatewayRequestSchema,
   aiGatewayStreamEventSchema,
   aiRouteProfileSchema,
@@ -94,6 +95,36 @@ describe("AI governance contracts", () => {
 
     expect(aiRouteProfileSchema.safeParse(alternateProviderProfile).success).toBe(true);
     expect(aiAuditEvidenceSchema.safeParse(evidence).success).toBe(true);
+  });
+
+  it("validates ordered PARE provenance evidence using digests and prior audit IDs only", () => {
+    const pareChain = {
+      chainId: "chain-1",
+      rootFixtureId: "ai-pare-chain-root-v1",
+      rootDigest: "a".repeat(64),
+      stage: "pare.risk",
+      stageIndex: 1,
+      auditId: "aia_risk-request",
+      inputDigest: "b".repeat(64),
+      outputDigest: "c".repeat(64),
+      toolResultDigests: ["d".repeat(64)],
+      priorAuditIds: ["aia_budget-request"],
+      priorOutputDigests: ["e".repeat(64)],
+    } as const;
+
+    expect(aiPareProvenanceChainEvidenceSchema.safeParse(pareChain).success).toBe(true);
+    expect(aiPareProvenanceChainEvidenceSchema.safeParse({
+      ...pareChain,
+      stageIndex: 2,
+    }).success).toBe(false);
+    expect(aiPareProvenanceChainEvidenceSchema.safeParse({
+      ...pareChain,
+      generatedOutput: "Do not persist draft text in chain evidence",
+    }).success).toBe(false);
+    expect(aiPareProvenanceChainEvidenceSchema.safeParse({
+      ...pareChain,
+      toolResultDigests: [],
+    }).success).toBe(false);
   });
 
   it("rejects any non-ZDR external route that allows non-synthetic data", () => {

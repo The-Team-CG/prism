@@ -2,6 +2,7 @@ import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   aiAuditEvidenceSchema,
+  aiPareProvenanceChainEvidenceSchema,
   type AiApprovalState,
   type AiAuditEvidence,
   type AiDataClass,
@@ -9,6 +10,7 @@ import {
   type AiGatewayRunFailure,
   type AiGatewayRunResult,
   type AiGatewayStreamEvent,
+  type AiPareProvenanceChainEvidence,
   type AiRoutePolicyOutcome,
   type AiProviderId,
   type AiRoute,
@@ -17,7 +19,7 @@ import {
   type AiUseCaseContractMap,
   type AiUseCaseId,
 } from '@prism/types';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type {
   AiGateway,
   AiGatewayCallOptions,
@@ -25,6 +27,8 @@ import type {
   AiProviderMessage,
   AiProviderRequest,
   AiProviderResponse,
+  AiSyntheticPareChainVerification,
+  AiSyntheticProvenanceVerifier,
   AiToolHandler,
   AiUseCaseDefinition,
 } from '../../../contracts/ai-governance/ai-gateway.port';
@@ -65,6 +69,9 @@ type GatewayRunState = {
   parsedInput?: unknown;
   sanitizedPayload: unknown;
   provenance: AiSyntheticProvenance | null;
+  pareChainVerification?: AiSyntheticPareChainVerification;
+  pareChainEvidence?: AiPareProvenanceChainEvidence;
+  toolResultDigests: string[];
   dataClasses: AiDataClass[];
   auditCreated: boolean;
   accumulatedInputTokens: number;
@@ -115,6 +122,10 @@ function canonicalJson(value: unknown): string {
     return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(',')}}`;
   }
   return JSON.stringify(value);
+}
+
+function digestJson(value: unknown): string {
+  return createHash('sha256').update(canonicalJson(value)).digest('hex');
 }
 
 function providerJsonText(text: string): string {
@@ -247,7 +258,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     @Inject(AI_PROVIDER_ADAPTERS)
     adapters: AiProviderAdapter[],
     @Inject(AI_SYNTHETIC_PROVENANCE_VERIFIER)
-    private readonly syntheticVerifier: { verify(input: unknown): Promise<AiSyntheticProvenance | null> },
+    private readonly syntheticVerifier: AiSyntheticProvenanceVerifier,
   ) {
     this.adaptersByProvider = new Map(adapters.map((adapter) => [adapter.provider, adapter]));
   }
@@ -351,6 +362,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       timeoutExpired: false,
       sanitizedPayload: {},
       provenance: null,
+      toolResultDigests: [],
       dataClasses: useCaseDataClasses(definition, false),
       auditCreated: false,
       accumulatedInputTokens: 0,
@@ -366,7 +378,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     if (options?.signal?.aborted) controller.abort();
 
     try {
-      await this.prepareInput(state, input);
+      await this.prepareInput(state, input, options);
       this.enforceRoute(state);
       return await this.runSteps(state, options, useProviderStream) as AiGatewayRunResult<AiUseCaseContractMap[K]['output']>;
     } catch (error) {
@@ -430,6 +442,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       outcome,
       approvalState: 'pending' satisfies AiApprovalState,
       ...(state.provenance ? { syntheticProvenance: state.provenance } : {}),
+      ...(outcome === 'completed' && state.pareChainEvidence ? { pareChain: state.pareChainEvidence } : {}),
     });
   }
 
@@ -457,17 +470,37 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     });
   }
 
-  private async prepareInput(state: GatewayRunState, input: unknown): Promise<void> {
+  private async prepareInput(
+    state: GatewayRunState,
+    input: unknown,
+    options?: AiGatewayCallOptions,
+  ): Promise<void> {
     const inputResult = state.definition.inputSchema.safeParse(input);
     if (!inputResult.success) {
       await this.createAudit(state);
       fail('blocked', 'invalid_input', 'Input did not match the registered use-case contract');
     }
     state.parsedInput = inputResult.data;
-    try {
-      state.provenance = await this.syntheticVerifier.verify(state.parsedInput);
-    } catch {
-      state.provenance = null;
+    if (options?.syntheticPareChain) {
+      try {
+        state.pareChainVerification = await options.syntheticPareChain.verifyStage(
+          state.parsedInput,
+          state.useCaseId,
+          state.correlationId,
+        ) ?? undefined;
+      } catch {
+        state.pareChainVerification = undefined;
+      }
+      if (!state.pareChainVerification) {
+        fail('blocked', 'synthetic_provenance_required', 'PARE stage is not valid for the registered synthetic provenance chain');
+      }
+      state.provenance = state.pareChainVerification.provenance;
+    } else {
+      try {
+        state.provenance = await this.syntheticVerifier.verify(state.parsedInput);
+      } catch {
+        state.provenance = null;
+      }
     }
     state.dataClasses = useCaseDataClasses(state.definition, Boolean(state.provenance));
     const minimized = minimizeValue('input', state.parsedInput, Boolean(state.provenance));
@@ -477,12 +510,40 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       fail('blocked', 'invalid_input', 'Input could not be safely minimized');
     }
     state.sanitizedPayload = minimizedResult.data;
+    if (state.pareChainVerification && digestJson(state.sanitizedPayload) !== state.pareChainVerification.inputDigest) {
+      fail('blocked', 'synthetic_provenance_required', 'Minimized PARE input does not match the registered provenance chain');
+    }
     if (Buffer.byteLength(canonicalJson(state.sanitizedPayload)) > MAX_INPUT_BYTES) {
       state.sanitizedPayload = {};
       await this.createAudit(state);
       fail('blocked', 'invalid_input', 'Minimized input exceeded the gateway size limit');
     }
     await this.createAudit(state);
+    await this.verifyPriorPareAudits(state);
+  }
+
+  private async verifyPriorPareAudits(state: GatewayRunState): Promise<void> {
+    const current = state.pareChainVerification;
+    if (!current || current.priorRecords.length === 0) return;
+    const prior = current.priorRecords;
+    const rows = await this.prisma.opsAiAuditLog.findMany({
+      where: { id: { in: prior.map((record) => record.auditId) } },
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const expectedUseCases: readonly AiUseCaseId[] = ['pare.budget', 'pare.risk', 'pare.message-drafts'];
+    for (const evidence of prior) {
+      const row = byId.get(evidence.auditId);
+      const payload = row?.sanitizedPayload && typeof row.sanitizedPayload === 'object' && !Array.isArray(row.sanitizedPayload)
+        ? row.sanitizedPayload as Record<string, unknown>
+        : {};
+      const parsedChainEvidence = aiPareProvenanceChainEvidenceSchema.safeParse(payload._aiPareChain);
+      if (!row || row.id !== evidence.auditId || row.requestId !== evidence.auditId.slice('aia_'.length) ||
+        row.status !== 'completed' || row.outcome !== 'completed' ||
+        row.useCaseId !== expectedUseCases[evidence.stageIndex] || row.correlationId !== state.correlationId ||
+        !parsedChainEvidence.success || canonicalJson(parsedChainEvidence.data) !== canonicalJson(evidence)) {
+        fail('blocked', 'synthetic_provenance_required', 'A prior PARE stage has no matching completed durable audit');
+      }
+    }
   }
 
   private auditPayload(state: GatewayRunState): Record<string, unknown> {
@@ -496,6 +557,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
         routePolicyOutcome: state.routePolicyOutcome,
         endpointPolicyId: state.route.endpointPolicyId,
       },
+      ...(state.pareChainEvidence ? { _aiPareChain: state.pareChainEvidence } : {}),
     };
   }
 
@@ -582,6 +644,29 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
         continue;
       }
       const output = this.parseOutput(state.definition, response.text);
+      if (state.pareChainVerification) {
+        if (state.toolResultDigests.length === 0) {
+          fail('blocked', 'synthetic_provenance_required', 'A PARE synthetic stage must complete at least one registered tool loop');
+        }
+        const verification = state.pareChainVerification;
+        state.pareChainEvidence = {
+          chainId: verification.chainId,
+          rootFixtureId: verification.rootFixtureId,
+          rootDigest: verification.rootDigest,
+          stage: verification.stage,
+          stageIndex: verification.stageIndex,
+          auditId: `aia_${state.requestId}`,
+          inputDigest: verification.inputDigest,
+          outputDigest: digestJson(output),
+          toolResultDigests: [...state.toolResultDigests],
+          priorAuditIds: verification.priorRecords.map((record) => record.auditId),
+          priorOutputDigests: verification.priorRecords.map((record) => record.outputDigest),
+        };
+      }
+      if (state.pareChainEvidence && !options?.syntheticPareChain?.completeStage(state.pareChainEvidence, output)) {
+        state.pareChainEvidence = undefined;
+        fail('blocked', 'synthetic_provenance_required', 'PARE output failed server-side provenance chain completion');
+      }
       const result = { outcome: 'completed' as const, output, evidence: this.evidence(state, 'completed') };
       await this.finishAudit(state, 'completed');
       return result;
@@ -675,13 +760,20 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
       if (typeof content !== 'string' || Buffer.byteLength(content) > MAX_TOOL_RESULT_BYTES || containsPii(content)) {
         fail('blocked', 'invalid_tool_call', 'Tool output exceeded safety checks');
       }
-      results.push({ toolCallId: call.id, content: await this.verifyToolResult(state.route, content) });
+      const verified = await this.verifyToolResult(state, content);
+      if (verified.digest) state.toolResultDigests.push(verified.digest);
+      results.push({ toolCallId: call.id, content: verified.content });
     }
     return results;
   }
 
-  private async verifyToolResult(route: AiRoute, content: string): Promise<string> {
-    if (route.zdrBasis !== 'none' || route.provider === 'mock') return content;
+  private async verifyToolResult(
+    state: GatewayRunState,
+    content: string,
+  ): Promise<{ content: string; digest?: string }> {
+    const { route } = state;
+    const requiresSynthetic = Boolean(state.pareChainVerification) || (route.zdrBasis === 'none' && route.provider !== 'mock');
+    if (!requiresSynthetic) return { content };
     let parsedToolResult: unknown;
     try {
       parsedToolResult = JSON.parse(content);
@@ -692,7 +784,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     if (!toolProvenance) {
       fail('blocked', 'synthetic_provenance_required', 'The tool result was not a registered synthetic fixture');
     }
-    return canonicalJson(parsedToolResult);
+    return { content: canonicalJson(parsedToolResult), digest: digestJson(parsedToolResult) };
   }
 
   private parseOutput(definition: AiUseCaseDefinition<AiUseCaseId>, text: string): unknown {
@@ -713,6 +805,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     error: unknown,
     callerSignal?: AbortSignal,
   ): Promise<AiGatewayRunFailure> {
+    state.pareChainEvidence = undefined;
     if (!state.auditCreated) {
       // If audit persistence itself failed, stop before any provider call.
       if (!(error instanceof AiGatewayFault)) throw error;

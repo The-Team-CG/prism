@@ -4,6 +4,8 @@ import type {
   AiGatewayRunResult,
   AiGatewayStreamEvent,
   AiModelTier,
+  AiPareProvenanceChainEvidence,
+  AiPareProvenanceChainStage,
   AiProviderId,
   AiRouteProfileId,
   AiSyntheticProvenance,
@@ -32,8 +34,35 @@ export type AiToolHandler<TInput = unknown> = {
 export type AiGatewayCallOptions = {
   correlationId?: string;
   tools?: readonly AiToolHandler[];
+  syntheticPareChain?: AiSyntheticPareChain;
   signal?: AbortSignal;
 };
+
+export type AiSyntheticPareChainVerification = {
+  provenance: AiSyntheticProvenance;
+  chainId: string;
+  rootFixtureId: string;
+  rootDigest: string;
+  stage: AiPareProvenanceChainStage;
+  stageIndex: number;
+  inputDigest: string;
+  priorRecords: readonly AiPareProvenanceChainEvidence[];
+};
+
+/** Opaque, server-created capability for one ordered synthetic PARE run. */
+export interface AiSyntheticPareChain {
+  verifyStage(
+    input: unknown,
+    useCaseId: AiUseCaseId,
+    correlationId?: string,
+  ): Promise<AiSyntheticPareChainVerification | null>;
+  completeStage(evidence: AiPareProvenanceChainEvidence, output: unknown): boolean;
+}
+
+export interface AiSyntheticProvenanceVerifier {
+  verify(input: unknown): Promise<AiSyntheticProvenance | null>;
+  beginPareChain?(input: unknown, correlationId: string): Promise<AiSyntheticPareChain | null>;
+}
 
 export interface AiGateway {
   run<K extends AiUseCaseId>(
@@ -125,11 +154,6 @@ export interface AiProviderAdapter {
   readonly endpointPolicyId?: string;
   run(request: AiProviderRequest, signal?: AbortSignal): Promise<AiProviderResponse>;
   stream(request: AiProviderRequest, signal?: AbortSignal): AsyncIterable<AiProviderStreamEvent>;
-}
-
-/** Implementations must verify the source record; callers cannot assert provenance. */
-export interface AiSyntheticProvenanceVerifier {
-  verify(input: unknown): Promise<AiSyntheticProvenance | null>;
 }
 
 export type AiResolvedRoute = {

@@ -5,7 +5,7 @@ import {
   type AiRunOutcome,
   type AiUseCaseOutput,
 } from '@prism/types';
-import type { AiGateway, AiToolHandler } from '../../../contracts/ai-governance/ai-gateway.port';
+import type { AiGateway, AiSyntheticPareChain, AiToolHandler } from '../../../contracts/ai-governance/ai-gateway.port';
 import type { PAREContext } from './pare.types';
 import { PARE_AI_USE_CASES } from './pare-ai-use-cases';
 import { PareConfigurationError } from './pare-execution.policy';
@@ -41,8 +41,10 @@ function matchesPareRun(evidence: AiAuditEvidence, useCaseId: PareAiUseCaseId, t
 }
 
 export function isPareRoutePolicyEligibleEvidence(evidence: AiAuditEvidence): boolean {
-  return (evidence.routePolicyOutcome === 'synthetic_verified' || evidence.routePolicyOutcome === 'zdr_approved') &&
-    Boolean(evidence.syntheticProvenance);
+  const providerRoute = evidence.routePolicyOutcome === 'synthetic_verified' || evidence.routePolicyOutcome === 'zdr_approved';
+  const verifiedMock = evidence.routePolicyOutcome === 'mock_local' && evidence.provider === 'mock' &&
+    evidence.dataClasses.length === 1 && evidence.dataClasses[0] === 'synthetic';
+  return (providerRoute || verifiedMock) && Boolean(evidence.syntheticProvenance);
 }
 
 export async function runPareAiUseCase<K extends PareAiUseCaseId>(
@@ -51,6 +53,7 @@ export async function runPareAiUseCase<K extends PareAiUseCaseId>(
   context: PAREContext,
   tools: readonly AiToolHandler[],
   signal?: AbortSignal,
+  syntheticPareChain?: AiSyntheticPareChain,
 ): Promise<PareAgentRunResult<AiUseCaseOutput<K>>> {
   if (!gateway) {
     throw new PareConfigurationError('PARE AI gateway is not registered; live PARE is disabled');
@@ -60,6 +63,7 @@ export async function runPareAiUseCase<K extends PareAiUseCaseId>(
   const result = await gateway.run(useCaseId, context, {
     correlationId: context.triggerId,
     tools,
+    ...(syntheticPareChain ? { syntheticPareChain } : {}),
     signal,
   });
   if (result.outcome !== 'completed') {

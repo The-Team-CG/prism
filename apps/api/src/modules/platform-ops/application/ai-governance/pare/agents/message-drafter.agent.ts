@@ -1,4 +1,4 @@
-import type { AiGateway } from '../../../../contracts/ai-governance/ai-gateway.port';
+import type { AiGateway, AiSyntheticPareChain } from '../../../../contracts/ai-governance/ai-gateway.port';
 import type { PAREDrafts, PAREContext } from '../pare.types';
 import { assertPareExecutionAllowed } from '../pare-execution.policy';
 import { runPareAiUseCase, type PareAgentRunResult } from '../pare-ai-gateway';
@@ -53,6 +53,7 @@ export class MessageDrafterAgent {
   async runPareMessageDraftAgent(
     ctx: PAREContext,
     signal?: AbortSignal,
+    syntheticPareChain?: AiSyntheticPareChain,
   ): Promise<PareAgentRunResult<PAREDrafts>> {
     assertPareExecutionAllowed(this.mode);
     throwIfAborted(signal);
@@ -63,6 +64,7 @@ export class MessageDrafterAgent {
         ctx,
         createPareMessageDraftToolHandlers(ctx),
         signal,
+        syntheticPareChain,
       );
     }
     return { output: mockDrafts(ctx), evidence: null };

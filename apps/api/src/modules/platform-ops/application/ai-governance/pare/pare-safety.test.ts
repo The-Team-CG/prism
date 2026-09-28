@@ -319,7 +319,10 @@ describe('PARE gateway boundary', () => {
     ]);
     expect(calls.every(call => call.options?.signal && !call.options.signal.aborted)).toBe(true);
     expect(calls.find(call => call.useCaseId === 'pare.budget')?.input).toEqual(context);
-    expect(calls.find(call => call.useCaseId === 'pare.risk')?.input).toEqual(context);
+    expect(calls.find(call => call.useCaseId === 'pare.risk')?.input).toMatchObject({
+      ...context,
+      budgetAnalysis: { summary: 'Replacement is within budget.' },
+    });
     expect(calls.find(call => call.useCaseId === 'pare.message-drafts')?.input).toMatchObject({
       budgetAnalysis: { summary: 'Replacement is within budget.' },
       riskAssessment: { level: 'LOW' },
