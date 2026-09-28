@@ -32,6 +32,7 @@ export default defineConfig({
       '@prism/kernel/event-core': resolve(__dirname, './src/kernel/event-core/index.ts'),
       '@prism/kernel/access-control': resolve(__dirname, './src/kernel/access-control/index.ts'),
       '@prism/contexts/commercial': resolve(__dirname, './src/modules/commercial/index.ts'),
+      '@prism/contexts/event-lifecycle/conforme-reminder-window': resolve(__dirname, './src/modules/event-lifecycle/conforme-reminder-window.ts'),
       '@prism/contexts/event-lifecycle': resolve(__dirname, './src/modules/event-lifecycle/index.ts'),
       '@prism/contexts/platform-ops': resolve(__dirname, './src/modules/platform-ops/index.ts'),
       '@prism/contexts/identity-access': resolve(__dirname, './src/modules/identity-access/index.ts'),

@@ -40,6 +40,13 @@
     "context": "platform-ops",
     "severity": "critical",
     "query": "SELECT migration_name, started_at, finished_at, rolled_back_at\nFROM public._prisma_migrations\nWHERE finished_at IS NULL AND rolled_back_at IS NULL\nORDER BY started_at, migration_name;"
+  },
+  {
+    "id": "pare_review_payload_has_audit_digest",
+    "description": "Every PARE review payload with a digest reference is an object and its SHA-256 matches the stored JSONB payload.",
+    "context": "platform-ops",
+    "severity": "high",
+    "query": "SELECT approval.id AS approval_id, audit.id AS audit_id, audit.sanitized_payload->>'reviewPayloadDigest' AS review_payload_digest\nFROM trust_ops.ai_approval_records AS approval\nJOIN trust_ops.ai_audit_logs AS audit ON audit.id = approval.ai_audit_log_id\nWHERE approval.feature_name = 'PARE'\n  AND audit.feature_name = 'PARE'\n  AND (audit.sanitized_payload->>'pareProvenanceVersion' = '1' OR audit.sanitized_payload ? 'reviewPayloadDigest')\n  AND (jsonb_typeof(approval.review_payload) IS DISTINCT FROM 'object'\n    OR COALESCE(audit.sanitized_payload->>'reviewPayloadDigest', '') !~ '^[0-9a-f]{64}$'\n    OR encode(sha256(convert_to(approval.review_payload::text, 'UTF8')), 'hex') <> audit.sanitized_payload->>'reviewPayloadDigest')\nORDER BY approval.id;"
   }
 ]
 
