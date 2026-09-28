@@ -190,41 +190,87 @@ function assertProfileCompatible(
   }
 }
 
-export function resolveAiGatewayRuntimeConfig(
-  config: Pick<ConfigService, 'get'>,
-  profiles: Readonly<Record<string, AiRouteProfile>> = AI_ROUTE_PROFILES,
-): AiGatewayRuntimeConfig {
+type AiRuntimeEnvironment = {
+  configuredProfileId: string;
+  explicitProfileId?: string;
+  isDevelopment: boolean;
+  isProduction: boolean;
+};
+
+function readRuntimeEnvironment(config: Pick<ConfigService, 'get'>): AiRuntimeEnvironment {
   const configuredProfileId = config.get<string>('AI_ROUTE_PROFILE')?.trim() || '';
   const explicitProfileId = configuredProfileId && configuredProfileId !== 'mock'
     ? configuredProfileId
     : undefined;
   const environment = config.get<string>('NODE_ENV')?.trim() || '';
-  const isDevelopment = environment === 'development';
-  const isProduction = environment === 'production';
-  const configuredProvider = readConfiguredProvider(config);
-  const localKeyProvider = isDevelopment && !explicitProfileId && !configuredProvider
-    ? providerFromLocalKeys(config)
-    : undefined;
-  const requestedProvider = configuredProvider ?? localKeyProvider;
+  return {
+    configuredProfileId,
+    explicitProfileId,
+    isDevelopment: environment === 'development',
+    isProduction: environment === 'production',
+  };
+}
 
-  const selectedProfileId = explicitProfileId ??
-    (requestedProvider && requestedProvider !== 'mock'
-      ? LOCAL_SYNTHETIC_PROFILE_BY_PROVIDER[requestedProvider]
-      : configuredProfileId || 'mock');
+function resolveRequestedProvider(
+  config: Pick<ConfigService, 'get'>,
+  environment: AiRuntimeEnvironment,
+): AiProviderId | undefined {
+  const configuredProvider = readConfiguredProvider(config);
+  if (configuredProvider) return configuredProvider;
+  if (environment.isDevelopment && !environment.explicitProfileId) return providerFromLocalKeys(config);
+  return undefined;
+}
+
+function selectProfileId(
+  environment: AiRuntimeEnvironment,
+  requestedProvider: AiProviderId | undefined,
+): string {
+  if (environment.explicitProfileId) return environment.explicitProfileId;
+  if (requestedProvider && requestedProvider !== 'mock') {
+    return LOCAL_SYNTHETIC_PROFILE_BY_PROVIDER[requestedProvider];
+  }
+  return environment.configuredProfileId || 'mock';
+}
+
+function loadSelectedProfile(
+  profiles: Readonly<Record<string, AiRouteProfile>>,
+  selectedProfileId: string,
+  requestedProvider: AiProviderId | undefined,
+): AiRouteProfile {
   const configuredProfile = profiles[selectedProfileId];
   if (!configuredProfile) throw new Error('Unsupported AI_ROUTE_PROFILE: ' + selectedProfileId);
   const parsedProfile = aiRouteProfileSchema.parse(configuredProfile);
   if (parsedProfile.id !== selectedProfileId) {
     throw new Error('AI route profile registry key does not match profile ID: ' + selectedProfileId);
   }
-
-  const selectedProfileProvider = profileProvider(parsedProfile);
-  if (requestedProvider && selectedProfileProvider !== requestedProvider) {
+  const selectedProvider = profileProvider(parsedProfile);
+  if (requestedProvider && selectedProvider !== requestedProvider) {
     throw new Error('AI_PROVIDER=' + requestedProvider + ' conflicts with AI_ROUTE_PROFILE=' + selectedProfileId);
   }
-  const usesRuntimeProviderSelection = !explicitProfileId &&
-    selectedProfileProvider !== undefined &&
-    selectedProfileProvider !== 'mock';
+  return parsedProfile;
+}
+
+function resolveLiveUseCases(
+  config: Pick<ConfigService, 'get'>,
+  localSyntheticProviderMode: boolean,
+): Set<AiUseCaseId> {
+  const rawLiveUseCases = config.get<string>('AI_LIVE_USE_CASES')?.trim() || '';
+  if (rawLiveUseCases) return parseLiveUseCases(rawLiveUseCases);
+  if (localSyntheticProviderMode) return new Set<AiUseCaseId>(LOCAL_SYNTHETIC_USE_CASES);
+  return new Set<AiUseCaseId>();
+}
+
+export function resolveAiGatewayRuntimeConfig(
+  config: Pick<ConfigService, 'get'>,
+  profiles: Readonly<Record<string, AiRouteProfile>> = AI_ROUTE_PROFILES,
+): AiGatewayRuntimeConfig {
+  const environment = readRuntimeEnvironment(config);
+  const requestedProvider = resolveRequestedProvider(config, environment);
+  const selectedProfileId = selectProfileId(environment, requestedProvider);
+  const parsedProfile = loadSelectedProfile(profiles, selectedProfileId, requestedProvider);
+  const selectedProfileProvider = profileProvider(parsedProfile);
+  const usesRuntimeProviderSelection = !environment.explicitProfileId &&
+    selectedProfileProvider !== undefined && selectedProfileProvider !== 'mock';
   const runtimeProfile = usesRuntimeProviderSelection
     ? { ...parsedProfile, id: 'local-' + selectedProfileProvider + '-synthetic' }
     : parsedProfile;
@@ -234,19 +280,14 @@ export function resolveAiGatewayRuntimeConfig(
     strong: readConfiguredModel(config, 'AI_MODEL_STRONG'),
   });
 
-  const localSyntheticProviderMode = isDevelopment && usesRuntimeProviderSelection;
-  const rawLiveUseCases = config.get<string>('AI_LIVE_USE_CASES')?.trim() || '';
-  const liveUseCases = rawLiveUseCases
-    ? parseLiveUseCases(rawLiveUseCases)
-    : localSyntheticProviderMode
-      ? new Set<AiUseCaseId>(LOCAL_SYNTHETIC_USE_CASES)
-      : new Set<AiUseCaseId>();
-  assertProfileCompatible(profile, liveUseCases, isProduction);
+  const localSyntheticProviderMode = environment.isDevelopment && usesRuntimeProviderSelection;
+  const liveUseCases = resolveLiveUseCases(config, localSyntheticProviderMode);
+  assertProfileCompatible(profile, liveUseCases, environment.isProduction);
   return {
     profile,
     profileId: profile.id,
     liveUseCases,
-    isProduction,
+    isProduction: environment.isProduction,
     ...(localSyntheticProviderMode ? { localSyntheticProviderMode: true } : {}),
   };
 }
