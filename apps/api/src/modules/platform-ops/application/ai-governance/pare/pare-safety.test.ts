@@ -173,9 +173,31 @@ function harness(gateway?: AiGateway) {
   const prisma = {
     opsAiAuditLog: model(state.audits, 'audit'),
     opsAiApprovalRecord: model(state.approvals, 'approval'),
-    $transaction: vi.fn(async <T>(work: (tx: { opsAiAuditLog: ReturnType<typeof model>; opsAiApprovalRecord: ReturnType<typeof model> }) => Promise<T>) => {
+    $transaction: vi.fn(async <T>(work: (tx: {
+      opsAiAuditLog: ReturnType<typeof model>;
+      opsAiApprovalRecord: ReturnType<typeof model>;
+      $queryRaw: (...args: unknown[]) => Promise<unknown[]>;
+    }) => Promise<T>) => {
       const draft = structuredClone(state);
-      const result = await work({ opsAiAuditLog: model(draft.audits, 'audit'), opsAiApprovalRecord: model(draft.approvals, 'approval') });
+      const result = await work({
+        opsAiAuditLog: model(draft.audits, 'audit'),
+        opsAiApprovalRecord: model(draft.approvals, 'approval'),
+        $queryRaw: vi.fn(async (query: unknown, ...values: unknown[]) => {
+          const sql = Array.isArray(query)
+            ? query.join(' ')
+            : query && typeof query === 'object' && 'sql' in query && typeof query.sql === 'string'
+              ? query.sql
+              : '';
+          if (sql.includes('::jsonb::text')) {
+            return [{ canonicalPayload: JSON.stringify(JSON.parse(String(values[0]))) }];
+          }
+          if (sql.includes('review_payload')) {
+            const approval = draft.approvals.find((row) => row.id === values[0]);
+            return approval ? [{ canonicalPayload: JSON.stringify(approval.reviewPayload) }] : [];
+          }
+          return [];
+        }),
+      });
       state.audits.splice(0, state.audits.length, ...draft.audits);
       state.approvals.splice(0, state.approvals.length, ...draft.approvals);
       return result;
@@ -287,6 +309,25 @@ describe('PARE gateway boundary', () => {
       liveUseCases: new Set<AiUseCaseId>(['pare.budget', 'pare.risk']),
       isProduction: false,
     })).toThrow(/all three PARE use cases/i);
+    expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
+  });
+
+  it('fails configured live PARE if the server-owned chain verifier is missing', async () => {
+    vi.stubEnv('PARE_MODE', 'live');
+    const { gateway } = fakeGateway();
+    const { prisma, state } = harness(gateway);
+    const runtime = {
+      profile: AI_ROUTE_PROFILES['test-anthropic'],
+      profileId: 'test-anthropic',
+      liveUseCases: new Set<AiUseCaseId>(['pare.budget', 'pare.risk', 'pare.message-drafts']),
+      isProduction: false,
+    };
+    const service = new PAREService(prisma as unknown as PrismaService, undefined, gateway, runtime);
+
+    await expect(service.handleEmergencyTrigger('request_1'))
+      .rejects.toThrow(/server-owned synthetic provenance-chain verifier/i);
+    expect(state.approvals).toHaveLength(0);
+    expect(state.audits).toHaveLength(0);
     expect(EventContextAgent.prototype.buildPareEventContext).not.toHaveBeenCalled();
   });
 

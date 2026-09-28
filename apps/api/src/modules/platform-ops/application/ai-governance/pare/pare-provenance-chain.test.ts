@@ -99,7 +99,21 @@ function createPrismaHarness() {
   const auditModel = createModel(state.audits);
   const approvalModel = createModel(state.approvals);
   const tx = {
-    $queryRaw: vi.fn(async () => [{ id: 'daily-token-budget' }]),
+    $queryRaw: vi.fn(async (query: unknown, ...values: unknown[]) => {
+      const sql = Array.isArray(query)
+        ? query.join(' ')
+        : query && typeof query === 'object' && 'sql' in query && typeof query.sql === 'string'
+          ? query.sql
+          : '';
+      if (sql.includes('::jsonb::text')) {
+        return [{ canonicalPayload: JSON.stringify(JSON.parse(String(values[0]))) }];
+      }
+      if (sql.includes('review_payload')) {
+        const approval = state.approvals.find((row) => row.id === values[0]);
+        return approval ? [{ canonicalPayload: JSON.stringify(approval.reviewPayload) }] : [];
+      }
+      return [{ id: 'daily-token-budget' }];
+    }),
     $executeRaw: vi.fn(async () => 1),
     opsAiAuditLog: auditModel,
     opsAiApprovalRecord: approvalModel,
@@ -213,7 +227,9 @@ describe('PARE provenance chain', () => {
     const { root, adapter, registry, service } = setup('anthropic');
     const verify = registry.verify.bind(registry);
     vi.spyOn(registry, 'verify').mockImplementation(async (input) => {
-      if (input && typeof input === 'object' && !('triggerId' in input)) return null;
+      if (input && typeof input === 'object' && !Array.isArray(input) && 'withdrawnSupplierQuote' in input) {
+        Object.assign(input, { remainingBudget: 7_499 });
+      }
       return verify(input);
     });
 
@@ -247,6 +263,49 @@ describe('PARE provenance chain', () => {
     expect(approved.status).toBe('approved');
     expect(state.audits.find((row) => row.featureName === 'PARE')?.status).toBe('approved');
     expect(approved.pareResult.drafts).toEqual(outputs['pare.message-drafts']);
+  });
+
+  it('keeps pre-chain pending PARE approvals reviewable after the migration', async () => {
+    const { root, state, service } = setup('anthropic');
+    const pending = await service.handleEmergencyTrigger(root.triggerId);
+    const parentAudit = state.audits.find((row) => row.featureName === 'PARE');
+    const auditPayload = parentAudit?.sanitizedPayload as Record<string, unknown> | undefined;
+    if (!auditPayload) throw new Error('Expected a PARE aggregate audit');
+    auditPayload.pareProvenanceVersion = 0;
+    delete auditPayload.reviewPayloadDigest;
+    auditPayload.runEvidence = (auditPayload.runEvidence as Record<string, unknown>[]).map((item) => {
+      const legacyItem = { ...item };
+      delete legacyItem.pareChain;
+      return legacyItem;
+    });
+
+    const approved = await service.approveRecommendation(pending.id, 'pmcm-reviewer');
+
+    expect(approved.status).toBe('approved');
+    expect(approved.pareResult.drafts).toEqual(outputs['pare.message-drafts']);
+  });
+
+  it('rejects chain evidence when the version marker is missing', async () => {
+    const { root, state, service } = setup('anthropic');
+    const pending = await service.handleEmergencyTrigger(root.triggerId);
+    const parentAudit = state.audits.find((row) => row.featureName === 'PARE');
+    const auditPayload = parentAudit?.sanitizedPayload as Record<string, unknown> | undefined;
+    if (!auditPayload) throw new Error('Expected a PARE aggregate audit');
+    delete auditPayload.pareProvenanceVersion;
+
+    await expect(service.approveRecommendation(pending.id, 'pmcm-reviewer'))
+      .rejects.toThrow(/supported PARE provenance version/i);
+    expect(state.approvals[0]?.status).toBe('pending_human_approval');
+  });
+
+  it('fails closed when live PARE has no server-owned chain verifier', async () => {
+    const { root, prisma, state, adapter, gateway } = setup('anthropic');
+    const serviceWithoutVerifier = new PAREService(prisma, undefined, gateway, createRuntime('anthropic'));
+
+    await expect(serviceWithoutVerifier.handleEmergencyTrigger(root.triggerId))
+      .rejects.toThrow(/server-owned synthetic provenance-chain verifier/i);
+    expect(adapter.requests).toHaveLength(0);
+    expect(state.approvals).toHaveLength(0);
   });
 
   it('rejects PMCM approval if a completed stage audit was changed after the run', async () => {

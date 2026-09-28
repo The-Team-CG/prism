@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { OpsAiApprovalRecord, OpsAiAuditLog, Prisma } from '@prisma/client';
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
@@ -24,6 +24,7 @@ import { BudgetAgent } from './agents/budget.agent';
 import { RiskAgent } from './agents/risk.agent';
 import { MessageDrafterAgent } from './agents/message-drafter.agent';
 import { isPareRoutePolicyEligibleEvidence } from './pare-ai-gateway';
+import { canonicalJson, digestJson, digestSerializedText } from '../json-digest';
 import type {
   PAREApprovalRecord,
   PAREApprovalStatus,
@@ -35,6 +36,8 @@ import type {
   PARERisk,
 } from './pare.types';
 import type { PareApprovalGovernance } from '../../../contracts/ai-governance/pare-approval-governance.port';
+
+const PARE_CHAIN_PROVENANCE_VERSION = 1;
 
 type ApprovalRow = {
   id: string;
@@ -103,20 +106,6 @@ function auditRequestId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
 function auditEventId(audit: Pick<AuditRow, 'sanitizedPayload'>): string {
   const value = auditPayload(audit).eventId;
   return typeof value === 'string' ? value : '';
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right));
-    return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
-
-function digestJson(value: unknown): string {
-  return createHash('sha256').update(canonicalJson(value)).digest('hex');
 }
 
 function isAbortSignal(value: unknown): value is AbortSignal {
@@ -275,6 +264,9 @@ export class PAREService implements PareApprovalGovernance {
     if (this.mode === 'live' && !this.aiGateway) {
       throw new PareConfigurationError('PARE AI gateway is not registered; live PARE is disabled');
     }
+    if (this.mode === 'live' && this.aiRuntime && !this.syntheticVerifier?.beginPareChain) {
+      throw new PareConfigurationError('Live PARE requires a server-owned synthetic provenance-chain verifier');
+    }
     this.throwIfAborted(executionSignal);
     const triggeredAt = new Date();
 
@@ -355,14 +347,10 @@ export class PAREService implements PareApprovalGovernance {
     const { data: reviewPayload, dataCategories } = this.sanitizer.sanitize(
       reviewResult as unknown as Record<string, unknown>,
     );
-    const sanitizedPayload = {
-      requestId: pareResult.requestId,
-      eventId: pareResult.eventId,
-      mode: pareResult.mode,
-      runEvidence,
-      triggeredAt: pareResult.triggeredAt,
-      reviewPayloadDigest: digestJson(reviewPayload),
-    };
+    const serializedReviewPayload = JSON.stringify(reviewPayload);
+    if (typeof serializedReviewPayload !== 'string') {
+      throw new BadRequestException('PARE review payload could not be serialized');
+    }
     const aiAuditLogId = randomUUID();
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -370,6 +358,24 @@ export class PAREService implements PareApprovalGovernance {
           const existing = await tx.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
           if (existing) return this.mapApprovalRecordWithTransactionAudit(tx, existing, ctx.triggerId, sourceDispatchId);
         }
+        const serializedRows = await tx.$queryRaw<Array<{ canonicalPayload: string }>>`
+          SELECT ${serializedReviewPayload}::jsonb::text AS "canonicalPayload"
+        `;
+        const canonicalPayload = serializedRows[0]?.canonicalPayload;
+        if (typeof canonicalPayload !== 'string') {
+          throw new BadRequestException('PARE review payload could not be serialized by the database');
+        }
+        const sanitizedPayload = {
+          requestId: pareResult.requestId,
+          eventId: pareResult.eventId,
+          mode: pareResult.mode,
+          pareProvenanceVersion: runEvidence.length === 3 && runEvidence.every((evidence) => evidence.pareChain)
+            ? PARE_CHAIN_PROVENANCE_VERSION
+            : 0,
+          runEvidence,
+          triggeredAt: pareResult.triggeredAt,
+          reviewPayloadDigest: digestSerializedText(canonicalPayload),
+        };
         const audit = await tx.opsAiAuditLog.create({ data: {
           id: aiAuditLogId,
           eventId: ctx.eventId,
@@ -472,7 +478,7 @@ export class PAREService implements PareApprovalGovernance {
       if (record.status !== 'pending_human_approval') throw new BadRequestException('Only pending PARE recommendations can be reviewed');
       const audit = requireMatchingAudit(record, await tx.opsAiAuditLog.findUnique({ where: { id: record.aiAuditLogId } }));
       await this.assertDispatchMatches(tx, record, audit);
-      if (status === 'approved') await this.assertApprovableAudit(tx, audit, record.reviewPayload);
+      if (status === 'approved') await this.assertApprovableAudit(tx, audit, record.id);
       const data = { status, humanApproved: status === 'approved', approvedBy: reviewedBy, approvedAt: new Date() };
       const claimed = await tx.opsAiApprovalRecord.updateMany({
         where: { id, status: 'pending_human_approval' }, data,
@@ -490,12 +496,23 @@ export class PAREService implements PareApprovalGovernance {
   private async assertApprovableAudit(
     prisma: Prisma.TransactionClient,
     audit: OpsAiAuditLog,
-    reviewPayload?: unknown,
+    approvalRecordId: string,
   ): Promise<void> {
     const payload = this.asRecord(audit.sanitizedPayload);
-    if (typeof payload.reviewPayloadDigest === 'string' &&
-      digestJson(reviewPayload ?? {}) !== payload.reviewPayloadDigest) {
+    const reviewPayloadDigest = payload.reviewPayloadDigest;
+    if (payload.pareProvenanceVersion === PARE_CHAIN_PROVENANCE_VERSION && typeof reviewPayloadDigest !== 'string') {
       throw new BadRequestException('The saved PARE review payload does not match its audited digest');
+    }
+    if (typeof reviewPayloadDigest === 'string') {
+      const serializedRows = await prisma.$queryRaw<Array<{ canonicalPayload: string }>>`
+        SELECT "review_payload"::text AS "canonicalPayload"
+        FROM "trust_ops"."ai_approval_records"
+        WHERE "id" = ${approvalRecordId}
+      `;
+      const canonicalPayload = serializedRows[0]?.canonicalPayload;
+      if (typeof canonicalPayload !== 'string' || digestSerializedText(canonicalPayload) !== reviewPayloadDigest) {
+        throw new BadRequestException('The saved PARE review payload does not match its audited digest');
+      }
     }
     if (payload.mode === 'mock') {
       assertMockApprovalAudit(audit, payload);
@@ -503,9 +520,14 @@ export class PAREService implements PareApprovalGovernance {
     }
     const evidence = requireLiveRunEvidence(audit, payload);
     assertLiveEvidenceSet(evidence, auditRequestId(audit));
-    if (this.syntheticVerifier?.beginPareChain) {
+    if (payload.pareProvenanceVersion === PARE_CHAIN_PROVENANCE_VERSION) {
+      if (!this.syntheticVerifier?.beginPareChain) {
+        throw new BadRequestException('The server-owned PARE provenance-chain verifier is unavailable');
+      }
       assertPareChainEvidenceSet(evidence, auditRequestId(audit));
       await this.assertDurablePareChainAudits(prisma, evidence);
+    } else if (payload.pareProvenanceVersion !== 0 || evidence.some((item) => item.pareChain)) {
+      throw new BadRequestException('A supported PARE provenance version is required');
     }
   }
 
