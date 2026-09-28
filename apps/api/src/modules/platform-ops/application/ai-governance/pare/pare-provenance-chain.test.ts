@@ -15,6 +15,8 @@ import {
 import { MockAiProviderAdapter } from '../../../infrastructure/ai-governance/mock-ai-provider.adapter';
 import { BudgetAgent } from './agents/budget.agent';
 import { EventContextAgent } from './agents/event-context.agent';
+import { MessageDrafterAgent } from './agents/message-drafter.agent';
+import { RiskAgent } from './agents/risk.agent';
 import { SupplierFinderAgent } from './agents/supplier-finder.agent';
 import { PAREService } from './pare.service';
 import type { PAREContext } from './pare.types';
@@ -22,6 +24,12 @@ import type { PAREContext } from './pare.types';
 type StoredRow = { id: string; [key: string]: unknown };
 type Stage = 'pare.budget' | 'pare.risk' | 'pare.message-drafts';
 type Provider = 'anthropic' | 'mock';
+
+function deferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
 
 const outputs = {
   'pare.budget': SYNTHETIC_PARE_MESSAGE_CONTEXT_FIXTURE.budgetAnalysis,
@@ -166,24 +174,40 @@ describe('PARE provenance chain', () => {
 
       expect(pending.status).toBe('pending');
       expect(pending.pareResult.drafts).toEqual(outputs['pare.message-drafts']);
-      expect(adapter.requests.map(({ useCaseId }) => useCaseId)).toEqual([
-        'pare.budget', 'pare.budget',
-        'pare.risk', 'pare.risk',
-        'pare.message-drafts', 'pare.message-drafts',
-      ]);
+      expect(adapter.requests.filter(({ useCaseId }) => useCaseId === 'pare.budget')).toHaveLength(2);
+      expect(adapter.requests.filter(({ useCaseId }) => useCaseId === 'pare.risk')).toHaveLength(2);
+      expect(adapter.requests.filter(({ useCaseId }) => useCaseId === 'pare.message-drafts')).toHaveLength(2);
       expect(adapter.requests.find(({ useCaseId }) => useCaseId === 'pare.risk')?.request.messages[0])
+        .toMatchObject({ role: 'user', content: expect.not.stringContaining('budgetAnalysis') });
+      expect(adapter.requests.find(({ useCaseId }) => useCaseId === 'pare.message-drafts')?.request.messages[0])
         .toMatchObject({ role: 'user', content: expect.stringContaining('budgetAnalysis') });
       expect(adapter.requests.find(({ useCaseId }) => useCaseId === 'pare.message-drafts')?.request.messages[0])
         .toMatchObject({ role: 'user', content: expect.stringContaining('riskAssessment') });
 
       const gatewayAudits = state.audits.filter((row) => row.useCaseId);
       expect(gatewayAudits).toHaveLength(3);
-      const chains = gatewayAudits.map((row) => (row.sanitizedPayload as Record<string, unknown>)._aiPareChain);
-      expect(chains).toEqual([
-        expect.objectContaining({ stage: 'pare.budget', stageIndex: 0, toolResultDigests: expect.any(Array) }),
-        expect.objectContaining({ stage: 'pare.risk', stageIndex: 1, priorAuditIds: [gatewayAudits[0].id] }),
-        expect.objectContaining({ stage: 'pare.message-drafts', stageIndex: 2, priorAuditIds: [gatewayAudits[0].id, gatewayAudits[1].id] }),
-      ]);
+      const auditsByStage = new Map(gatewayAudits.map((row) => [row.useCaseId, row]));
+      const chainsByStage = new Map(gatewayAudits.map((row) => [
+        (row.sanitizedPayload as Record<string, unknown>)._aiPareChain &&
+          ((row.sanitizedPayload as Record<string, unknown>)._aiPareChain as Record<string, unknown>).stage,
+        (row.sanitizedPayload as Record<string, unknown>)._aiPareChain as Record<string, unknown>,
+      ]));
+      const budgetAudit = auditsByStage.get('pare.budget')!;
+      const riskAudit = auditsByStage.get('pare.risk')!;
+      expect(chainsByStage.get('pare.budget')).toEqual(expect.objectContaining({
+        stage: 'pare.budget', stageIndex: 0, priorAuditIds: [], toolResultDigests: expect.any(Array),
+      }));
+      expect(chainsByStage.get('pare.risk')).toEqual(expect.objectContaining({
+        stage: 'pare.risk', stageIndex: 0, priorAuditIds: [], priorOutputDigests: [],
+      }));
+      expect(chainsByStage.get('pare.message-drafts')).toEqual(expect.objectContaining({
+        stage: 'pare.message-drafts', stageIndex: 2,
+        priorAuditIds: [budgetAudit.id, riskAudit.id],
+        priorOutputDigests: [
+          (chainsByStage.get('pare.budget') as Record<string, unknown>).outputDigest,
+          (chainsByStage.get('pare.risk') as Record<string, unknown>).outputDigest,
+        ],
+      }));
       const pareAudit = state.audits.find((row) => row.featureName === 'PARE');
       expect(pareAudit?.sanitizedPayload).not.toHaveProperty('drafts');
       expect(pareAudit?.sanitizedPayload).not.toHaveProperty('clientReassurance');
@@ -194,7 +218,154 @@ describe('PARE provenance chain', () => {
     },
   );
 
-  it('blocks a changed budget output before the risk provider call', async () => {
+  it('starts budget and risk from the same root context and waits for both before drafting', async () => {
+    const { root, service } = setup('anthropic');
+    const budgetGate = deferred();
+    const riskGate = deferred();
+    const budgetStarted = deferred<PAREContext>();
+    const riskStarted = deferred<PAREContext>();
+    const budgetCompleted = deferred();
+    const riskCompleted = deferred();
+    let riskStartedBeforeBudgetRelease = false;
+    const budgetOriginal = BudgetAgent.prototype.runPareBudgetAgent;
+    const riskOriginal = RiskAgent.prototype.runPareRiskAgent;
+    const draftSpy = vi.spyOn(MessageDrafterAgent.prototype, 'runPareMessageDraftAgent');
+
+    vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async function (this: BudgetAgent, ctx, signal, chain) {
+      budgetStarted.resolve(ctx);
+      await budgetGate.promise;
+      const result = await budgetOriginal.call(this, ctx, signal, chain);
+      budgetCompleted.resolve();
+      return result;
+    });
+    vi.spyOn(RiskAgent.prototype, 'runPareRiskAgent').mockImplementation(async function (this: RiskAgent, ctx, signal, chain) {
+      riskStartedBeforeBudgetRelease = !budgetGateResolved;
+      riskStarted.resolve(ctx);
+      await riskGate.promise;
+      const result = await riskOriginal.call(this, ctx, signal, chain);
+      riskCompleted.resolve();
+      return result;
+    });
+
+    let budgetGateResolved = false;
+    const run = service.handleEmergencyTrigger(root.triggerId);
+    const settledRun = run.catch((error: unknown) => error);
+    const budgetContext = await budgetStarted.promise;
+    const rootContextUnchanged = !('budgetAnalysis' in budgetContext) && !('riskAssessment' in budgetContext);
+
+    budgetGateResolved = true;
+    budgetGate.resolve();
+    const riskContext = await riskStarted.promise;
+    expect(budgetContext).toBe(riskContext);
+    expect(rootContextUnchanged).toBe(true);
+    expect(riskStartedBeforeBudgetRelease).toBe(true);
+
+    await budgetCompleted.promise;
+    expect(draftSpy).not.toHaveBeenCalled();
+    riskGate.resolve();
+    await riskCompleted.promise;
+
+    const result = await settledRun;
+    expect(result).toMatchObject({ status: 'pending' });
+    expect(draftSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('aborts and awaits the sibling stage before rejecting, without starting drafts', async () => {
+    const { root, service } = setup('anthropic');
+    const budgetFailure = new Error('budget stage failed');
+    const budgetStarted = deferred();
+    const riskSawAbort = deferred();
+    const releaseRisk = deferred();
+    let riskStartedBeforeBudgetFailure = false;
+    const draftSpy = vi.spyOn(MessageDrafterAgent.prototype, 'runPareMessageDraftAgent');
+
+    vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async () => {
+      budgetStarted.resolve();
+      await releaseBudget.promise;
+      throw budgetFailure;
+    });
+    vi.spyOn(RiskAgent.prototype, 'runPareRiskAgent').mockImplementation(async function (_ctx, signal) {
+      riskStartedBeforeBudgetFailure = true;
+      if (signal?.aborted) riskSawAbort.resolve();
+      else signal?.addEventListener('abort', () => riskSawAbort.resolve(), { once: true });
+      await releaseRisk.promise;
+      throw new Error('risk sibling settled after cancellation');
+    });
+
+    let settled = false;
+    const releaseBudget = deferred();
+    const run = service.handleEmergencyTrigger(root.triggerId);
+    void run.then(() => { settled = true; }, () => { settled = true; });
+    try {
+      await budgetStarted.promise;
+      await Promise.resolve();
+      const siblingStartedInParallel = riskStartedBeforeBudgetFailure;
+      releaseBudget.resolve();
+      if (siblingStartedInParallel) {
+        await riskSawAbort.promise;
+        await Promise.resolve();
+        expect(settled).toBe(false);
+      }
+      expect(draftSpy).not.toHaveBeenCalled();
+      releaseRisk.resolve();
+      await expect(run).rejects.toBe(budgetFailure);
+      expect(siblingStartedInParallel).toBe(true);
+    } finally {
+      releaseRisk.resolve();
+      releaseBudget.resolve();
+    }
+
+    expect(settled).toBe(true);
+    expect(draftSpy).not.toHaveBeenCalled();
+  });
+
+  it('aborts and awaits budget when the independent risk stage fails first', async () => {
+    const { root, service } = setup('anthropic');
+    const riskFailure = new Error('risk stage failed');
+    const budgetStarted = deferred();
+    const budgetSawAbort = deferred();
+    const releaseBudgetSibling = deferred();
+    let riskStartedBeforeBudgetRelease = false;
+    const draftSpy = vi.spyOn(MessageDrafterAgent.prototype, 'runPareMessageDraftAgent');
+
+    vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async function (_ctx, signal) {
+      budgetStarted.resolve();
+      if (signal?.aborted) budgetSawAbort.resolve();
+      else signal?.addEventListener('abort', () => budgetSawAbort.resolve(), { once: true });
+      await releaseBudgetSibling.promise;
+      throw new Error('budget sibling settled after cancellation');
+    });
+    vi.spyOn(RiskAgent.prototype, 'runPareRiskAgent').mockImplementation(async () => {
+      riskStartedBeforeBudgetRelease = true;
+      throw riskFailure;
+    });
+
+    let settled = false;
+    const run = service.handleEmergencyTrigger(root.triggerId);
+    void run.then(() => { settled = true; }, () => { settled = true; });
+    try {
+      await budgetStarted.promise;
+      await Promise.resolve();
+      const siblingStartedInParallel = riskStartedBeforeBudgetRelease;
+      if (!siblingStartedInParallel) releaseBudgetSibling.resolve();
+      else {
+        await budgetSawAbort.promise;
+        await Promise.resolve();
+        expect(settled).toBe(false);
+      }
+      releaseBudgetSibling.resolve();
+      expect(draftSpy).not.toHaveBeenCalled();
+      await expect(run).rejects.toBe(riskFailure);
+      expect(siblingStartedInParallel).toBe(true);
+    } finally {
+      releaseBudgetSibling.resolve();
+    }
+
+    expect(settled).toBe(true);
+    expect(draftSpy).not.toHaveBeenCalled();
+  });
+
+  it('blocks drafting when a completed budget output is changed', async () => {
     const { root, adapter, service } = setup('anthropic');
     const original = BudgetAgent.prototype.runPareBudgetAgent;
     vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async function (this: BudgetAgent, ctx, signal, chain) {
@@ -205,10 +376,10 @@ describe('PARE provenance chain', () => {
     await expect(service.handleEmergencyTrigger(root.triggerId)).rejects.toMatchObject({
       name: 'PareAiGatewayError', outcome: 'blocked', code: 'synthetic_provenance_required',
     });
-    expect(adapter.requests.map(({ useCaseId }) => useCaseId)).toEqual(['pare.budget', 'pare.budget']);
+    expect(adapter.requests.some(({ useCaseId }) => useCaseId === 'pare.message-drafts')).toBe(false);
   });
 
-  it('blocks a changed correlation ID before the risk provider call', async () => {
+  it('blocks drafting when the shared PARE correlation ID changes', async () => {
     const { root, adapter, service } = setup('anthropic');
     const original = BudgetAgent.prototype.runPareBudgetAgent;
     vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async function (this: BudgetAgent, ctx, signal, chain) {
@@ -220,7 +391,7 @@ describe('PARE provenance chain', () => {
     await expect(service.handleEmergencyTrigger(root.triggerId)).rejects.toMatchObject({
       name: 'PareAiGatewayError', outcome: 'blocked', code: 'synthetic_provenance_required',
     });
-    expect(adapter.requests.map(({ useCaseId }) => useCaseId)).toEqual(['pare.budget', 'pare.budget']);
+    expect(adapter.requests.some(({ useCaseId }) => useCaseId === 'pare.message-drafts')).toBe(false);
   });
 
   it('blocks a mutated tool result before the provider can continue its tool loop', async () => {
@@ -236,10 +407,10 @@ describe('PARE provenance chain', () => {
     await expect(service.handleEmergencyTrigger(root.triggerId)).rejects.toMatchObject({
       name: 'PareAiGatewayError', outcome: 'blocked', code: 'synthetic_provenance_required',
     });
-    expect(adapter.requests.map(({ useCaseId }) => useCaseId)).toEqual(['pare.budget']);
+    expect(adapter.requests.some(({ useCaseId }) => useCaseId === 'pare.message-drafts')).toBe(false);
   });
 
-  it('blocks a changed durable prior audit outcome before the risk provider call', async () => {
+  it('blocks drafting when a completed root audit outcome changes', async () => {
     const { root, adapter, state, service } = setup('anthropic');
     const original = BudgetAgent.prototype.runPareBudgetAgent;
     vi.spyOn(BudgetAgent.prototype, 'runPareBudgetAgent').mockImplementation(async function (this: BudgetAgent, ctx, signal, chain) {
@@ -252,7 +423,7 @@ describe('PARE provenance chain', () => {
     await expect(service.handleEmergencyTrigger(root.triggerId)).rejects.toMatchObject({
       name: 'PareAiGatewayError', outcome: 'blocked', code: 'synthetic_provenance_required',
     });
-    expect(adapter.requests.map(({ useCaseId }) => useCaseId)).toEqual(['pare.budget', 'pare.budget']);
+    expect(adapter.requests.some(({ useCaseId }) => useCaseId === 'pare.message-drafts')).toBe(false);
   });
 
   it('allows PMCM approval only while every completed stage audit still matches the chain', async () => {
@@ -262,6 +433,35 @@ describe('PARE provenance chain', () => {
 
     expect(approved.status).toBe('approved');
     expect(state.audits.find((row) => row.featureName === 'PARE')?.status).toBe('approved');
+    expect(approved.pareResult.drafts).toEqual(outputs['pare.message-drafts']);
+  });
+
+  it('keeps already-pending linear provenance version 1 approvals reviewable', async () => {
+    const { root, state, service } = setup('anthropic');
+    const pending = await service.handleEmergencyTrigger(root.triggerId);
+    const parentAudit = state.audits.find((row) => row.featureName === 'PARE');
+    const auditPayload = parentAudit?.sanitizedPayload as Record<string, unknown> | undefined;
+    if (!auditPayload) throw new Error('Expected a PARE aggregate audit');
+    auditPayload.pareProvenanceVersion = 1;
+
+    const stageAudits = new Map(state.audits.filter((row) => row.useCaseId).map((row) => [row.useCaseId, row]));
+    const budgetChain = (stageAudits.get('pare.budget')!.sanitizedPayload as Record<string, unknown>)._aiPareChain as Record<string, unknown>;
+    const riskAudit = stageAudits.get('pare.risk')!;
+    const riskPayload = riskAudit.sanitizedPayload as Record<string, unknown>;
+    const riskChain = riskPayload._aiPareChain as Record<string, unknown>;
+    const parentEvidence = auditPayload.runEvidence as Record<string, unknown>[];
+    const riskEvidence = parentEvidence.find((item) => item.useCaseId === 'pare.risk')!.pareChain as Record<string, unknown>;
+    const legacyRiskLinks = {
+      stageIndex: 1,
+      priorAuditIds: [budgetChain.auditId],
+      priorOutputDigests: [budgetChain.outputDigest],
+    };
+    Object.assign(riskChain, legacyRiskLinks);
+    Object.assign(riskEvidence, legacyRiskLinks);
+
+    const approved = await service.approveRecommendation(pending.id, 'pmcm-reviewer');
+
+    expect(approved.status).toBe('approved');
     expect(approved.pareResult.drafts).toEqual(outputs['pare.message-drafts']);
   });
 

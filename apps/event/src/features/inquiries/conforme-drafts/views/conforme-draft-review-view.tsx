@@ -15,13 +15,18 @@ type DraftModel = ReturnType<typeof useConformeDraftReviewViewModel>;
 
 function DraftStatus({ model, currentWindowDraft }: { model: DraftModel; currentWindowDraft: boolean }) {
   if (model.status === 'loading') return <p role="status" className="text-sm text-muted-foreground">Loading draft status…</p>;
-  if (model.status === 'streaming') {
+  if (model.status === 'starting' || model.status === 'generating') {
     return (
       <div className="flex items-center gap-3" role="status" aria-live="polite">
-        <span className="text-sm text-muted-foreground">Generating draft · {model.streamedCharacters} characters received</span>
+        <span className="text-sm text-muted-foreground">
+          {model.status === 'starting' ? 'Starting draft…' : 'Generating draft…'}
+        </span>
         <Button type="button" variant="secondary" onClick={model.cancelGeneration}>Cancel</Button>
       </div>
     );
+  }
+  if (model.status === 'cancelling') {
+    return <p role="status" aria-live="polite" className="text-sm text-muted-foreground">Cancelling draft…</p>;
   }
   if (model.status === 'approved') {
     return currentWindowDraft
@@ -97,6 +102,11 @@ function DraftReviewActions({ model, currentWindowDraft, stalePendingDraft }: {
 }) {
   return (
     <>
+      {model.status === 'pending' && (
+        <p id="conforme-draft-cancel-warning" className="basis-full text-sm text-muted-foreground">
+          Canceling permanently rejects this draft for its reminder window. It cannot be reopened or regenerated for that same window.
+        </p>
+      )}
       {model.status === 'editing' && (
         <>
           <Button type="button" onClick={model.saveManual}>Save manual draft</Button>
@@ -106,13 +116,13 @@ function DraftReviewActions({ model, currentWindowDraft, stalePendingDraft }: {
       {model.status === 'pending' && currentWindowDraft && (
         <>
           <Button type="button" onClick={model.approve}>Approve and queue for delivery</Button>
-          <Button type="button" variant="secondary" onClick={model.cancelDraft}>Cancel draft</Button>
+          <Button type="button" variant="secondary" aria-describedby="conforme-draft-cancel-warning" onClick={model.cancelDraft}>Cancel draft</Button>
         </>
       )}
       {stalePendingDraft && (
         <>
           <p className="self-center text-sm text-muted-foreground">This pending draft belongs to an earlier reminder window and cannot be approved.</p>
-          <Button type="button" variant="secondary" onClick={model.cancelDraft}>Cancel previous draft</Button>
+          <Button type="button" variant="secondary" aria-describedby="conforme-draft-cancel-warning" onClick={model.cancelDraft}>Cancel previous draft</Button>
         </>
       )}
       {model.status === 'unavailable' && model.draft && currentWindowDraft && (

@@ -1,7 +1,7 @@
 ---
 type: "Execution Plan"
 title: "AI provider interchangeability completion"
-description: "Finish the governed AI gateway, prove configuration-only provider switching, and separately qualify real-data routes."
+description: "Complete the governed AI gateway and make provider/model switching configuration-only across supported adapters, while separately qualifying staging and real-data routes."
 tags: [ai, ai-governance, pare, platform-ops, provider-routing, zdr]
 status: active
 updated: "2026-09-28"
@@ -9,7 +9,7 @@ authority: informative
 owner: "D (Anthony)"
 audience: [engineers, agents, reviewers]
 scope: "Completion work after the AI gateway PR 0-7 stack: provider-neutral PARE, route configuration, synthetic and live provider interchangeability, staging evidence, governance closeout, and separately approved real-data activation"
-last_verified: "2026-09-28; Task 3 implementation checks passed; restored-snapshot migration rehearsal pending"
+last_verified: "2026-09-28; local Task 3 migration rehearsal and Task 5 PMCM walkthrough recorded; provider/model environment selection implemented but untested; staging and live-provider gates remain open"
 sources:
   - id: gateway-plan
     resource: "docs/roadmap/ai-provider-gateway-plan.md"
@@ -79,20 +79,19 @@ This plan has four independently reportable outcomes:
    limited live rollout, with no feature-code or prompt change. If only one
    provider can meet the data policy, this outcome remains open.
 
-The candidate second route is OpenRouter with the model named in the gateway
-phase plan. It is a candidate, not an approved model or endpoint. Obtain model
-access and authenticated account evidence before writing an active profile.
-If its model, endpoint, privacy controls, or conformance fail, stop that route
-and record the failed evidence. Qualify another provider through the same
-gate; never configure an unverified fallback or call the goal complete.
-
+OpenRouter is registered as a local synthetic-only candidate using GLM 5.3 Flash
+pinned to Fireworks. Registration and configurable model selection do not qualify
+the route. Endpoint-level ZDR/tool behavior, account privacy and processor
+evidence, and provider conformance remain open. Keep it synthetic-only and
+fail-closed until those gates pass; do not configure an unverified fallback or
+call the goal complete.
 ## Approved decisions and invariants
 
 | Decision | Execution rule |
 | --- | --- |
-| Configuration | Route definitions and use-case registry entries are code-reviewed. Environment selects an approved profile and live-use-case allowlist; it cannot name an arbitrary provider, model, or endpoint. |
-| Granularity | A profile may override a route by use-case ID. With no override, resolve `routesByTier[definition.modelTier]`. This preserves the existing fast/strong defaults while allowing independent approved route selection. |
-| Model changes | Pin an exact model identifier and endpoint policy in each reviewed route revision. Any model, endpoint, provider option, or SDK/HTTP behavior change requires conformance evidence and a new reviewed revision. |
+| Configuration | Environment may select one registered adapter (anthropic or openrouter) and a model ID for that provider. Unknown adapters fail startup. The endpoint, privacy controls, data class, and no-fallback behavior remain route-policy decisions; staging and real-data eligibility still require their qualification gates. |
+| Granularity | AI_MODEL applies to all routes; AI_MODEL_FAST and AI_MODEL_STRONG override the matching tier. Use-case routes inherit the model for their registered tier unless a route profile defines a separate use-case route. |
+| Model changes | Runtime model selection changes the exact route and its digest. It does not qualify a model: the provider and pinned endpoint must support the gateway contract and route privacy policy before staging or real-data use. OpenRouter remains pinned to the reviewed endpoint with no fallback. |
 | Invalid configuration | An explicitly supplied unknown profile, route, or use-case ID fails startup, even when the live allowlist is empty. An omitted profile defaults to mock. A selected live profile with no enabled use cases starts but calls remain blocked. |
 | Safety | Mock is the default. Non-ZDR routes accept only server-verified synthetic data and never run in production. No cross-provider automatic failover or live-to-mock substitution occurs. |
 | PARE | PARE checks use-case identity, correlation, completed outcome, durable audit match, and approved data-policy evidence. Provider name, model, profile ID, key, and route choice remain in gateway policy or infrastructure. |
@@ -100,6 +99,24 @@ gate; never configure an unverified fallback or call the goal complete.
 | Draft cancellation | Cancelling a saved draft is a terminal rejection for that reminder window. PMCM can edit a pending draft, write manually before a saved draft exists, and retry an aborted or failed generation. The UI states the terminal effect before rejection. |
 | Real-data draft input | Keep the first communication draft generic: no client name, event facts, recipient, or deadline reaches the provider. Personalization requires a separate data-contract and privacy review. |
 | Human action | Gateway outputs remain recommendations or drafts. PMCM approval is required before a notification enters the outbox; no route sends or assigns autonomously. |
+
+## Current execution status (2026-09-28)
+
+| Task | Done | Still required or blocked |
+| --- | --- | --- |
+| 2 — provider-neutral gateway | Provider-neutral route selection and audit evidence are implemented. Environment configuration now selects Anthropic or OpenRouter and a model globally or by fast/strong tier. | The environment selector was not tested in this continuation, per user direction. The route switch and full PARE chain still need their acceptance verification. |
+| 3 — PARE provenance | The fail-closed budget/risk/draft DAG, durable provenance checks, approval rechecks, migration checks, and synthetic PGlite restore rehearsal are recorded. | Full-chain execution on a qualified external synthetic route and staging measurement remain open. Do not claim a runtime speedup before staging measurement. |
+| 4 — second synthetic provider | The OpenRouter adapter and composition wiring are implemented. GLM 5.3 Flash is the default OpenRouter model, pinned to Fireworks with ZDR and data-collection denial. Anthropic and OpenRouter can be selected by configuration; mock remains the default without local provider configuration. | Endpoint-level ZDR eligibility, account privacy/processor evidence, provider conformance, and same-fixture route-switch evidence remain open. No provider inference was run for the environment-selector change. |
+| 5 — PMCM draft semantics | The local PMCM walkthrough passed with the mock gateway; the draft remained pending and the outbox stayed empty. | Representative staging review is tracked under Task 6. |
+| 6 — staging pilot | The synthetic migration rehearsal, frozen thresholds, and fixed fixtures are recorded. | Staging restore/evaluation, quote foreign-key/index/default drift reconciliation, deployment hook, 20 calls per route/use case, PMCM and D/B/A reviews, and sign-off remain open. |
+| 7 — governance closeout | Deferred pending staging and review evidence. | Route/privacy records and governance promotion remain open; PARE_MODE has not been retired. |
+| 8 — real-data decision | Owner D recorded a no-go for real-data activation in this plan; production AI_LIVE_USE_CASES stays empty. | Real-data use remains unapproved. Reopen only through a separate decision after the required provider, privacy, staging, and review evidence. |
+| 9 — live provider choice | No second live-eligible provider is qualified. | Requires a separate real-data approval and a second independent live-eligible provider. |
+
+The plan remains active. Code availability and previously recorded local
+evidence do not satisfy the outstanding staging, privacy, review, or live-route
+gates. Per the user's direction, no tests or provider calls were run for the
+provider/model environment-selector change.
 
 ## Work sequence and ownership
 
@@ -205,45 +222,31 @@ PARE receives a route-policy outcome such as `synthetic_verified` or
 an invalid explicit route fails before a provider call; a fake provider swap
 requires configuration only.
 
-- [x] Add failing contract/config tests: use-case override wins over tier;
-  tier remains the fallback; unknown explicit profile or use-case fails
-  startup; omitted profile resolves mock; production rejects synthetic-only
-  routes; a model/endpoint change changes the reviewed route revision.
-- [x] Extend the shared Zod profile and evidence schemas, rebuild
-  `@prism/types`, then implement resolution and startup validation. Keep keys
-  exclusively in provider factories. Do not add app-local DTO copies.
-- [x] Replace PARE checks for `test-anthropic`, `anthropic`, and `zdrBasis:
-  none` with gateway-owned route eligibility. PARE must still reject missing,
-  mismatched, incomplete, blocked, or unaudited runs.
-- [x] Add a fake second adapter in tests. Switch profiles for the same PARE
-  use case without modifying its agent or service and assert identical
-  policy, audit, approval, failure, and no-autonomous-send behavior.
-- [x] Run `npm --workspace @prism/types run build`, its typecheck/tests,
-  `npm --workspace prism-api run typecheck`, focused gateway/PARE tests,
-  `npm run check:boundaries`, and `npm run test:boundaries`.
+- [x] Add route-resolution, startup-validation, route-revision, and policy
+  outcome coverage. Use-case overrides take precedence over tier defaults;
+  invalid configured IDs fail closed; an omitted profile remains mock.
+- [x] Extend the shared Zod profile and evidence schemas and keep API keys in
+  provider factories. No app-local duplicate contracts were added.
+- [x] Move PARE route eligibility to gateway-owned policy outcomes while
+  preserving provenance, audit, correlation, failure, and PMCM approval checks.
+- [x] Exercise the same PARE use case with a fake second adapter after a
+  configuration-only route switch.
+- [x] Previously recorded verification passed: shared types build/typecheck and
+  51 tests; focused API tests (67 passed, 2 skipped); API typecheck; boundaries
+  (1,195 files); and boundary tests (52 passed).
 
-**Completed (2026-09-28):** Shared schemas now carry provider-neutral route
-metadata and policy outcomes; route resolution applies use-case override then
-tier fallback; explicit unknown profile/use-case configuration fails closed;
-audit evidence stores the SHA-256 route revision and policy outcome. PARE uses
-that outcome while retaining its completion, correlation, provenance, audit,
-and PMCM approval checks. A fake second adapter exercises the same PARE use
-case and existing approval/failure gates after a profile switch without
-changing feature code. Verification passed: `@prism/types` build, typecheck,
-and 51 tests; focused API tests (67 passed, 2 skipped); API typecheck;
-`check:boundaries` (1,195 files); and `test:boundaries` (52 tests). The work is
-local on `codex/ai-gateway-task2-provider-neutral`; it has not been pushed or
-opened as a PR. This completes Task 2 only: the second adapter is a test fake,
-so OpenRouter qualification, full PARE chain proof, staging, and activation
-remain open under Tasks 3-9.
+**Completed (2026-09-28):** Shared contracts carry provider-neutral route
+metadata and policy outcomes; use-case route selection falls back to the model
+tier; exact route revisions are included in audit evidence. The fake-adapter
+switch exercises the same PARE path without feature-code or prompt changes.
+The provider/model environment selector was added after that verification and
+was not tested in this continuation, per user direction.
 
 ## Task 3: Prove a server-owned PARE provenance chain
 
-**Files:** `apps/api/src/modules/platform-ops/application/ai-governance/gateway/synthetic-fixture-registry.ts`
-and tests; PARE context assembler, gateway and safety tests;
-`apps/api/prisma/schema.prisma` and a `trust_ops` migration for the separate
-PMCM review payload.
-
+**Files:** apps/api/src/modules/platform-ops/application/ai-governance/gateway/synthetic-fixture-registry.ts
+and tests; PARE context assembler, gateway and safety tests; apps/api/prisma/schema.prisma
+and the trust_ops migration for the separate PMCM review payload.
 **Contract:** A synthetic PARE run starts at one registered root fixture.
 Before each later stage, the server assembles context from the root and
 validated earlier gateway outputs. The verifier checks root identity,
@@ -251,44 +254,19 @@ correlation ID, stage order, prior completed audit IDs, and a canonical digest
 of each prior output. A browser-supplied flag or copied fixture-shaped JSON
 is not provenance.
 
-- [x] Write a failing full-orchestration test: one synthetic emergency
-  trigger runs budget, risk, and message stages through the registered route,
-  including their tool loops, and reaches PMCM review without sending.
-- [x] Add negative tests that alter an earlier stage output, correlation ID,
-  tool result, or audit outcome; each must block the next provider call.
-- [x] Add the smallest server-owned chain record and verifier needed for those
-  tests. Persist only minimized input and digest/route evidence in AI audit;
-  do not put generated client-facing draft text in sanitized audit JSON.
-- [x] Prove abort, lease retry, duplicate dispatch, and PMCM approval still
-  behave as before. The focused PARE/dispatch tests pass, and approval now
-  rechecks the completed stage audits and saved review-payload digest. Preserve
-  pre-chain pending approvals with an explicit legacy version marker and cover
-  their post-migration review path.
-- [x] For the persistence change, run `prisma:validate`, offline migration
-  verification, migration guards, and invariant checks.
-- [ ] Rehearse the forward migration on an approved restored database snapshot;
-  record the snapshot, before/after schema and invariant results, and rollback
-  steps. The user identified the local environment as the target; confirm it
-  contains an isolated restored snapshot before connecting.
-
-**Implementation status (2026-09-28):** The full three-stage path passes on a
-mock route and the synthetic Anthropic route profile with local scripted
-adapters. The root fixture, correlation, stage order, prior outputs, registered
-tool results, and completed durable audits are verified before a following
-provider call. The PARE audit stores route/digest evidence and minimized
-inputs; generated review text is stored separately on the PMCM approval
-record. Pre-chain pending approvals retain their backfilled review payload and
-use an explicit legacy evidence version; new live PARE runs fail closed without
-the chain verifier and require the complete chain. Review payload hashes match
-PostgreSQL's stored JSONB text, which lets the read-only invariant recompute the
-same SHA-256 value. The focused API suite passes (83 passed, 2 skipped), API
-typecheck/build pass, and invariant dry-run/tests pass (7 declarations; 17
-tests). No restored snapshot or local PostgreSQL listener is available here;
-the only configured database URL is remote and was not used.
-The focused API suite, typechecks, migration validation/guards, invariant
-dry-run, and boundary checks pass. Task 3 remains open only for the approved
-restored-snapshot migration rehearsal above.
-
+- [x] Add a full-orchestration test for one synthetic emergency trigger through
+  budget, risk, and message stages, including tool loops and PMCM review without
+  sending.
+- [x] Add negative cases for changed stage output, correlation, tool result, and
+  audit outcome; each blocks the next provider call.
+- [x] Persist minimized inputs and digest/route evidence in AI audit, and keep
+  generated review text separate from sanitized audit JSON.
+- [x] Preserve abort, lease retry, duplicate dispatch, PMCM approval rechecks,
+  and legacy pending approvals. Previously recorded focused safety/provenance,
+  migration, invariant, typecheck, and build checks passed.
+- [x] Rehearse the migration on an isolated synthetic PGlite snapshot/restore;
+  apply the pending AI migrations and confirm schema, migration state, and
+  invariants. This is synthetic rehearsal evidence, not a staging restore.
 **Exit:** Full synthetic PARE orchestration, not only independent stage
 smokes, passes on mock and the approved synthetic external route. Mutated or
 unregistered chains fail before another provider request.
@@ -301,51 +279,17 @@ unregistered chains fail before another provider request.
 route profile/schema, `.env.example`, conformance fixtures, and the provider
 evidence record promoted under `docs/architecture/decisions/` at closeout.
 
-- [ ] Obtain authenticated model access and inspect the candidate's current
-  account-level privacy controls, exact endpoint slugs, model ID, tool choice,
-  structured output, streaming, error, abort, and usage behavior. Record
-  processor locations, logging/cache behavior, and the ZDR basis without
-  credentials or raw prompts. Public metadata alone cannot approve a route.
-- [ ] Run a direct synthetic forced-tool probe to establish endpoint and tool
-  viability. Implement a disabled adapter behind the existing port, then run
-  the provider conformance matrix before adding an active profile. Required
-  cases: valid/invalid output,
-  malformed/unknown tool, step exhaustion, 429/5xx retry, nonretryable 4xx,
-  stream abort, usage/response-model capture, endpoint option serialization,
-  and no cross-provider fallback.
-- [ ] If the candidate passes, add a reviewed, exact-model, exact-endpoint
-  synthetic profile. Register the adapter only when that profile and a
-  nonempty use-case allowlist require it. If evidence fails, keep the route
-  absent and repeat the same qualification with a different provider; do not
-  enable a partial route.
-- [ ] Run the same fixed PARE and communication-draft cases against Anthropic
-  and the second provider. Switch only `AI_ROUTE_PROFILE`/the approved route
-  selection; no feature file, prompt, or use-case contract may change.
-- [ ] Run API typecheck/build/tests, provider conformance, architecture lint,
-  boundaries, and a built-API synthetic smoke. Record model/endpoint revision,
-  observed token usage, latency, and estimated direct cost; never treat an
-  estimate as a billing receipt.
-
-**Progress (2026-09-28):** OpenRouter's current public listing includes
-`z-ai/glm-5.3-flash` and advertises tool calling and structured outputs, but it
-lists multiple upstream providers; this is public metadata, not qualification
-of a specific endpoint. OpenRouter documents request controls for an exact
-provider allowlist, disabled fallbacks, ZDR, and data-collection denial. The
-authenticated account settings, selected endpoint, endpoint-specific behavior,
-processor locations, and logging/cache settings remain unverified. A separate
-manual key smoke is available with
-`npm --workspace prism-api run ai:key-test:openrouter:free`. It targets only
-`stealth/space-bunny-alpha`, checks current model pricing and tool support before
-inference, sends one fixed synthetic forced-tool request pinned to `stealth`
-with fallbacks disabled, and does not retry. The probe rejects missing and
-placeholder credentials before network access and emits sanitized results.
-The user approved this synthetic-only test with the model's anonymous-provider
-retention caveat. No live request has run because the available key is a
-placeholder. This smoke tests key usability only; it does not qualify
-`z-ai/glm-5.3-flash`, verify account privacy controls, or authorize a route.
-The adapter and active profile remain absent until the access and privacy gates
-are verified.
-
+- [ ] Obtain authenticated model access and review account privacy controls,
+  exact endpoint ZDR/tool support, processor locations, and logging behavior.
+- [x] Implement the OpenRouter adapter and conditional composition wiring.
+  The GLM 5.3 Flash candidate is pinned to Fireworks, synthetic-only, and
+  configured to request ZDR, deny data collection, and disable fallback.
+- [x] Add configuration-only selection for Anthropic/OpenRouter and global or
+  fast/strong model IDs. The selector change remains untested per user direction.
+- [ ] Complete endpoint/provider conformance and same-fixture real-adapter
+  switching. No live provider call was run for this continuation.
+- [ ] Run the planned API/provider verification and record cost/latency only
+  after route settings are stable and the user authorizes that verification.
 **Exit:** Two external providers serve the same registered use case using
 only a reviewed configuration selection, with the same safety and approval
 checks. This is the synthetic interchangeability proof; it is not real-data

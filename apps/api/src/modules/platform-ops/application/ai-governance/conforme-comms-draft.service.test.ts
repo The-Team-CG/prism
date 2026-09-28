@@ -440,4 +440,18 @@ describe('ConformeCommsDraftService', () => {
     expect(cancelled.reviewedBy).toBe('Verified PMCM');
     expect(state.notifications).toHaveLength(0);
   });
+
+  it('keeps cancellation terminal for the current reminder window', async () => {
+    const { service, state, gateway } = createHarness();
+    await consume(await service.prepareStream({ inquiryId: 'inq_1' }, verifiedActor()));
+    const approval = [...state.approvals.values()][0];
+
+    await service.cancel(approval.id, verifiedActor());
+
+    await expect(service.prepareStream({ inquiryId: 'inq_1' }, verifiedActor()))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(gateway.stream).toHaveBeenCalledTimes(1);
+    expect(state.approvals.get(approval.id)?.status).toBe('rejected');
+    expect(state.notifications).toHaveLength(0);
+  });
 });

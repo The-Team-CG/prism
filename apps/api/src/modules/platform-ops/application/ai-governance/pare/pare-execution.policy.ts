@@ -10,7 +10,8 @@ export class PareConfigurationError extends ServiceUnavailableException {
   }
 }
 
-export function configuredPareMode(value: string | undefined): PAREMode {
+export function configuredPareMode(value: string | undefined, localSyntheticProviderMode = false): PAREMode {
+  if (localSyntheticProviderMode && (value === undefined || value === 'mock')) return 'live';
   if (value === undefined || value === 'mock') return 'mock';
   if (value === 'live') return 'live';
   throw new Error('PARE_MODE must be mock or live');
