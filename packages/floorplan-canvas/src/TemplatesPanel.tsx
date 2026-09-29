@@ -5,7 +5,7 @@ import {
   cloneTemplateObjects,
   type FloorPlanTemplate,
 } from "./templates";
-import { addTemplate, loadTemplates, removeTemplate } from "./data/templates-repository";
+import type { TemplateStore } from "./template-store";
 
 function ThumbSvg({ t }: { t: FloorPlanTemplate }) {
   const W = 96;
@@ -69,7 +69,7 @@ function ThumbSvg({ t }: { t: FloorPlanTemplate }) {
   );
 }
 
-export function TemplatesPanel() {
+export function TemplatesPanel({ store }: { store: TemplateStore }) {
   const { state, dispatch } = useEditor();
   const [templates, setTemplates] = useState<FloorPlanTemplate[]>([]);
   const [q, setQ] = useState("");
@@ -83,7 +83,7 @@ export function TemplatesPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    loadTemplates()
+    store.load()
       .then((next) => {
         if (!cancelled) setTemplates(next);
       })
@@ -93,14 +93,14 @@ export function TemplatesPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [store]);
 
   async function save() {
     const p = state.project;
     setBusy(true);
     setError(null);
     try {
-      const t = await addTemplate({
+      const t = await store.add({
         name: name.trim() || "Untitled template",
         venue: p.venue,
         widthM: p.widthM,
@@ -112,7 +112,7 @@ export function TemplatesPanel() {
         guests: includeGuests ? p.guests : [],
         suppliers: includeSuppliers ? p.suppliers : [],
       });
-      setTemplates(await loadTemplates());
+      setTemplates(await store.load());
       setSaving(false);
       setJustSavedId(t.id);
       setTimeout(() => setJustSavedId(null), 1500);
@@ -141,8 +141,8 @@ export function TemplatesPanel() {
     setBusy(true);
     setError(null);
     try {
-      await removeTemplate(id);
-      setTemplates(await loadTemplates());
+      await store.remove(id);
+      setTemplates(await store.load());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to delete template");
     } finally {

@@ -19,6 +19,7 @@
     "@mui/material": "7.3.5",
     "@popperjs/core": "2.11.8",
     "@prism/api-client": "*",
+    "@prism/floorplan-canvas": "*",
     "@prism/tokens": "*",
     "@prism/types": "*",
     "@prism/ui": "*",

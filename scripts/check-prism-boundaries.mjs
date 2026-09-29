@@ -57,6 +57,10 @@ function hasPrivateCrossContextImport(normalized, source) {
 
 export const boundaryRules = [
   {
+    name: "shared floorplan canvas must not import apps, portals, UI or API clients",
+    filePattern: /^packages\/floorplan-canvas\//,
+    importPattern: /\b(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](?:@\/|apps\/|@prism\/(?:api-client|client|event|guest|supplier|ui|compatibility)(?:\/|["']))/,
+  },  {
     name: "provider SDK imports must stay in AI gateway infrastructure",
     filePattern: /^(?:apps|packages)\//,
     allowedFilePattern: aiProviderImportExceptionPattern,

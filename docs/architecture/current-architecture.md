@@ -110,8 +110,11 @@ flowchart LR
 | --- | --- |
 | `packages/types` | Shared Zod write schemas, inferred write types, read-model interfaces, session keys, and contract parsing. |
 | `packages/api-client` | Shared request helpers and typed API-client functions for role apps. |
+| `packages/floorplan-canvas` | Role-neutral editor state, canvas mechanics, and floorplan editor panels, injected with role-owned template storage. It does not read app identity or authorize, persist, or submit workflows. |
 | `packages/ui` | Shared shells, brand, public blocks, and presentation primitives; no workflow ownership or role data rules. |
 | `packages/tokens` | Shared design tokens, theme values, and typography. |
+
+Portal role apps import `@prism/floorplan-canvas` through their local floorplan editor wrappers. The client app chooses read-only mode for official layouts and keeps preference workflows; the event app retains PMCM official-plan authoring. Template API adapters stay in each portal.
 
 ## Backend modular monolith
 

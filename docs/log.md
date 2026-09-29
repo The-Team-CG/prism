@@ -2,6 +2,8 @@
 
 ## 2026-09-29
 
+- **Updated:** Added `@prism/floorplan-canvas` as the shared role-neutral editor module. Client and event retain template API adapters and choose their own read-only labels and workflow permissions; official-plan ownership stays in the event app.
+
 - **Added:** Development efficiency report and focused behavior-testing guidance in `AGENTS.md` and the pull-request template.
 - **Retired:** Removed the completed gateway working plan, architecture priority/risk matrix, superseded execution plans, dated catalog snapshots, and completed supplier-review working artifacts. Durable implementation and governance state remain in the living architecture, product, and runbook documents; Git history retains the retired working artifacts.
 
