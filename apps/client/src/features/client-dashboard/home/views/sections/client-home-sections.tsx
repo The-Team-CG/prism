@@ -194,8 +194,8 @@ export function ClientHomeActionCenter({
   return (
     <div className="space-y-4">
       <h2 className="text-base font-black text-foreground">Action center</h2>
-      <ClientActionGroup title="Needs your action" description="Client decisions that can move planning forward." actions={clientActions.filter((a) => a.tone === "primary" || a.tone === "warning")} onAction={runClientAction} />
-      <ClientActionGroup title="Waiting on PMCM" description="Being prepared or reviewed by the event team." actions={clientActions.filter((a) => a.tone === "neutral")} onAction={runClientAction} />
+      <ClientActionGroup title="Needs your action" description="Client decisions that can move planning forward." actions={clientActions.filter((a) => a.tone === "primary" || a.tone === "warning")} onAction={runClientAction} showDetailsAndCta />
+      <ClientActionGroup title="Waiting on PMCM" description="Being prepared or reviewed by the event team." actions={clientActions.filter((a) => a.tone === "neutral")} onAction={runClientAction} showDetailsAndCta />
       {actionCenterIsClear(actionCenter.counts) ? (
         <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-8 py-10 text-center">
           <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-(--prism-success)/10">

@@ -134,7 +134,7 @@ export function actionCenterItemToDashboardAction(
     id: item.id,
     title: item.label,
     description: item.description,
-    detail: item.dueAt ? formatEventDate(item.dueAt) : formatStatusLabel(item.status),
+    detail: formatEventDate(item.dueAt),
     ctaLabel: "Open",
     href: item.href,
     icon: clientActionIcon(item.kind),
