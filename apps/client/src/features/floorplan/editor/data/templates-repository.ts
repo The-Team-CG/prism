@@ -1,5 +1,4 @@
-import type { CanvasObject, Guest, Supplier } from "../types";
-import type { CreateTemplateInput, FloorPlanTemplate } from "../templates";
+import type { CanvasObject, CreateTemplateInput, FloorPlanTemplate, Guest, Supplier } from "@prism/floorplan-canvas";
 
 type ApiTemplate = {
   id: string;

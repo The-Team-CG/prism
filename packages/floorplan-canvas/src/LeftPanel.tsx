@@ -9,6 +9,7 @@ import { TemplatesPanel } from "./TemplatesPanel";
 import { ASSETS, CATEGORY_LABELS, assetToObject, type AssetDef } from "./assetLibrary";
 import type { ElementCategory } from "./types";
 import { useEditor } from "./store";
+import type { TemplateStore } from "./template-store";
 
 type TabId = "components" | "guests" | "suppliers" | "layers" | "templates";
 
@@ -154,7 +155,7 @@ function ComponentsPanel() {
   );
 }
 
-export function LeftPanel() {
+export function LeftPanel({ templateStore }: { templateStore: TemplateStore }) {
   const [active, setActive] = useState<TabId>("components");
 
   let content: React.ReactNode;
@@ -171,7 +172,7 @@ export function LeftPanel() {
     );
   } else if (active === "guests") content = <GuestsPanel />;
   else if (active === "suppliers") content = <SuppliersPanel />;
-  else content = <TemplatesPanel />;
+  else content = <TemplatesPanel store={templateStore} />;
 
   return (
     <div className="flex shrink-0 border-r border-neutral-200 bg-white">
