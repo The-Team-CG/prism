@@ -24,6 +24,10 @@ const legacyBackendPattern = /^apps\/api\/libs\/(?:contexts|modules|core)\//;
 const prismaMutationPattern =
   /(?:\b(?:this\.)?prisma(?:\.[A-Za-z_$][\w$]*)*|\btx(?:\.[A-Za-z_$][\w$]*)*)\.(?:createMany|create|updateMany|update|upsert|deleteMany|delete|\$executeRawUnsafe|\$executeRaw)\s*\(/;
 const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
+const aiProviderSdkImportPattern =
+  /\b(?:from\s*|import\s*(?:\(\s*)?|require\s*\(\s*)["'](?:@anthropic-ai\/sdk(?:\/[^"']*)?|@openrouter\/[^"']+|openai(?:\/[^"']*)?|@google\/generative-ai(?:\/[^"']*)?|@google-cloud\/vertexai(?:\/[^"']*)?|@aws-sdk\/client-bedrock-runtime(?:\/[^"']*)?|@ai-sdk\/[^"']+|ai(?:\/[^"']*)?)["']/;
+const aiProviderImportExceptionPattern =
+  /^apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\//;
 
 function contextOf(normalized) {
   return normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1] ?? null;
@@ -31,8 +35,12 @@ function contextOf(normalized) {
 
 function hasPrivateModuleImport(source) {
   const nestedImports = source.matchAll(/from\s+["'](@prism\/(?:contexts|kernel)\/[^/"']+\/[^"']+)["']/g);
-  const publicReadSeams = new Set(['@prism/contexts/read-models/closeout', '@prism/contexts/read-models/event-scope']);
-  return [...nestedImports].some((match) => !publicReadSeams.has(match[1]));
+  const publicSubpathSeams = new Set([
+    '@prism/contexts/read-models/closeout',
+    '@prism/contexts/read-models/event-scope',
+    '@prism/contexts/event-lifecycle/conforme-reminder-window',
+  ]);
+  return [...nestedImports].some((match) => !publicSubpathSeams.has(match[1]));
 }
 
 function hasPrivateCrossContextImport(normalized, source) {
@@ -48,6 +56,12 @@ function hasPrivateCrossContextImport(normalized, source) {
 }
 
 export const boundaryRules = [
+  {
+    name: "provider SDK imports must stay in AI gateway infrastructure",
+    filePattern: /^(?:apps|packages)\//,
+    allowedFilePattern: aiProviderImportExceptionPattern,
+    importPattern: aiProviderSdkImportPattern,
+  },
   {
     name: "client app must not import event app internals",
     filePattern: /^apps\/client\//,

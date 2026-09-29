@@ -28,6 +28,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { ClientOnboardingTracker } from "@/features/clients/onboarding";
 import { InquiryIntakeLog } from "@/features/inquiries/intake";
+import { ConformeDraftReviewView } from "@/features/inquiries/conforme-drafts";
 import { PAREPanel } from "@/features/pare/panel";
 import { Phase4Workspace } from "@/features/closure/phase4";
 import { EventArchiveSearchView } from "@/features/closure/archive";
@@ -490,6 +491,7 @@ export function EventDashboardInquiriesSectionView() {
               onSendReminder={sendConformeReminder}
               busy={Boolean(busy)}
             />
+            <ConformeDraftReviewView inquiries={state.inquiries} />
           </>
   );
 }

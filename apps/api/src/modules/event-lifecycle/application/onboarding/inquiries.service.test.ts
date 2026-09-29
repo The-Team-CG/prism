@@ -60,6 +60,23 @@ function createService(existing = [inquiry()]) {
       create: vi.fn(async ({ data }) => { const row = { ...data }; documents.push(row); return row; }),
     },
     opsInquiry: {
+      findUniqueOrThrow: vi.fn(async ({ where }) => {
+        const row = records.find((item) => item.id === where.id);
+        if (!row) throw new Error('Inquiry not found');
+        return row;
+      }),
+      updateMany: vi.fn(async ({ where, data }) => {
+        const row = records.find((item) => item.id === where.id);
+        const dateMatches = (left: unknown, right: unknown) =>
+          left === null || right === null ? left === right : left instanceof Date && right instanceof Date && left.getTime() === right.getTime();
+        if (
+          !row || row.status !== where.status || row.conformeSignedAt !== where.conformeSignedAt ||
+          !dateMatches(row.conformeSentAt, where.conformeSentAt) ||
+          !dateMatches(row.lastConformeReminderAt, where.lastConformeReminderAt)
+        ) return { count: 0 };
+        Object.assign(row, data);
+        return { count: 1 };
+      }),
       update: vi.fn(async ({ where, data }) => {
         const index = records.findIndex((item) => item.id === where.id);
         records[index] = { ...records[index], ...data };
@@ -205,5 +222,26 @@ describe('InquiriesService', () => {
     )).rejects.toBeInstanceOf(BadRequestException);
 
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('uses the shared reminder-window claim so the scheduled sweep queues only once', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-24T12:00:00.000Z'));
+    try {
+      const { service, notifications } = createService([inquiry({
+        status: 'accepted',
+        conformeSentAt: new Date('2026-09-15T12:00:00.000Z'),
+      })]);
+
+      await service.runConformeReminderSweep();
+      expect(notifications).toHaveLength(2);
+      expect(notifications[0][0]).toMatchObject({ channel: 'email', idempotencyKey: expect.stringContaining('conforme-follow-up:inq_existing:') });
+      expect(notifications[1][0]).toMatchObject({ channel: 'viber', idempotencyKey: expect.stringContaining('conforme-follow-up:inq_existing:') });
+
+      await service.runConformeReminderSweep();
+      expect(notifications).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
