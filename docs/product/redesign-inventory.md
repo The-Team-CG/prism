@@ -4,7 +4,7 @@ title: "P.R.I.S.M whole-app redesign inventory"
 description: "Current portal and API surface inventory classified by redesign severity, owner goal, and readiness gate."
 tags: [product, redesign, inventory, ownership, frontend, backend]
 status: active
-updated: "2026-09-01"
+updated: "2026-09-29"
 authority: informative
 owner: "A (Maxine), D (Anthony)"
 audience: [design, frontend-engineers, product, reviewers]
@@ -17,9 +17,6 @@ sources:
   - id: current-architecture
     resource: "docs/architecture/current-architecture.md"
     title: "Current architecture"
-  - id: roadmap
-    resource: "docs/roadmap/architecture-priority-risk-matrix.md"
-    title: "Architecture priority and risk matrix"
 ---
 # P.R.I.S.M whole-app redesign inventory
 
@@ -147,7 +144,7 @@ This map connects the app/package inventory to remaining product work. Update it
 | `packages/types` | Shared role read models, lifecycle helpers, session helpers, action/result/error/list/file-matrix contracts exist. | Add fields only when an app surface depends on them; avoid unused speculative types. | Anthony | Francis, Ethan, Maxine | `@prism/types` typecheck/test. |
 | `packages/api-client` | Scoped helpers exist for PMCM, client, supplier, guest, billing, event file requirements, and normalized API problems. | Add endpoint helpers before app code depends on new routes; keep sample aggregate compatibility-only. | Anthony | Francis, Ethan | `@prism/api-client` typecheck/test. |
 | `packages/ui` | Shared shell/public/client blocks exist. | Classify reusable primitives and keep workflow logic out; apply shell rules to first PMCM and portal surfaces. | Maxine | Francis, Ethan | UX brief; visual QA checklist; app typechecks. |
-| Docs/evidence | Living product, architecture, roadmap, and readiness docs. | Keep ledger, inventory, readiness, and architecture docs aligned after each merge; add screenshots and command evidence when claiming demo readiness. | Anthony | Maxine, Francis, Ethan | `git diff --check`; constitution and directory indexes; clean branch status. |
+| Docs/evidence | Living product, architecture, and readiness docs. | Keep ledger, inventory, readiness, and architecture docs aligned after each merge; add screenshots and command evidence when claiming demo readiness. | Anthony | Maxine, Francis, Ethan | `git diff --check`; constitution and directory indexes; clean branch status. |
 
 ## Redesign Sequencing
 

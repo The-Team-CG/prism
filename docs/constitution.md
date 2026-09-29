@@ -53,8 +53,7 @@ workflow cuts a version.
    ownership map.
 4. `docs/architecture/decisions/` records accepted architecture decisions.
 5. `docs/product/feature-ledger.md` defines active product-family decisions.
-6. `docs/roadmap/architecture-priority-risk-matrix.md` sequences follow-up work.
-7. `docs/reference/prism-v4/` preserves historical/source material only.
+6. `docs/reference/prism-v4/` preserves historical/source material only.
 
 If two documents conflict, update the lower-authority document or record a new
 decision; do not leave parallel current interpretations in place.
@@ -89,8 +88,8 @@ technical helper, repository, or deployment mode is not automatically a new
 bounded context.
 
 The kernel may be used by contexts but must not depend on business contexts.
-The known access-control audit seam is recorded in the context-contract register
-and roadmap; it is not permission to add more kernel-to-business imports.
+The known access-control audit seam is recorded in the context-contract
+register; it is not permission to add more kernel-to-business imports.
 
 ## Contracts and compatibility
 
@@ -146,7 +145,7 @@ The bundle uses OKF v0.2-style Markdown:
 - Every non-index concept starts with an `At a glance` section that states its
   purpose, authority, owner, scope, use/change triggers, and verification.
 - Use `status: canonical` for living sources of truth, `active` for maintained
-  inventories or roadmaps, and `reference` for preserved source material.
+  inventories or registers, and `reference` for preserved source material.
 - Use `authority: normative`, `informative`, `operational`, or `reference` to
   distinguish how a document may be used; status and authority are separate.
 - Living documents are current, portable, and conversation-agnostic. They do
