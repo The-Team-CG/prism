@@ -16,10 +16,6 @@ export async function loadCoordinatorRoleView(session: EventSession, eventId: st
   return coordinatorsRepository.loadRoleView(session, eventId);
 }
 
-export async function loadCoordinatorRunSheet(session: EventSession, eventId: string, dayId: string) {
-  return coordinatorsRepository.getRunSheet(session, eventId, dayId);
-}
-
 export async function acknowledgeCoordinatorAssignment(
   eventId: string,
   assignmentId: string,
