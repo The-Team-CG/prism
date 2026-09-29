@@ -119,34 +119,39 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       timer: deriveLiveOpsTimer({ eventId, authored: scheduleDays.length > 0, days: scheduleDays.map(mapScheduleDay), serverTime: new Date().toISOString() }, new Date()),
     };
 
-    if (actor.role === OpsUserRole.Coordinator) {
-      if (!coordinatorAssignment) throw new ForbiddenException('Coordinator is not assigned to this event');
-      return {
-        ...base,
-        role: coordinatorAssignment.role,
-        isDesignatedOperator: designatedOperator,
-        canMarkDelegatedAttendance: designatedOperator,
-        supplierStatuses: designatedOperator || this.isIngressRole(coordinatorAssignment.role)
-          ? supplierStatuses.map((status) => ({
-              id: status.id,
-              eventId: status.eventId,
-              supplierId: status.supplierId,
-              supplierName: status.supplierName,
-              category: status.category,
-              assignmentStatus: status.assignmentStatus,
-              readinessStatus: status.readinessStatus,
-              eventDayStatus: status.eventDayStatus,
-              eventDayNotes: status.eventDayNotes,
-              verificationStatus: status.verificationStatus,
-              verifiedAt: status.verifiedAt,
-              verifiedBy: status.verifiedBy,
-          }))
-          : [],
-        guestCheckIns: this.isRegistrationRole(coordinatorAssignment.role) ? base.guestCheckIns : [],
-      };
-    }
+    if (actor.role !== OpsUserRole.Coordinator) return base;
+    return this.mapCoordinatorLiveOps(base, coordinatorAssignment, designatedOperator);
+  }
 
-    return base;
+  private mapCoordinatorLiveOps(
+    base: PrismLiveOps,
+    assignment: Awaited<ReturnType<LiveOpsReadModelsService['requireCoordinatorAssignmentForEvent']>> | null,
+    designatedOperator: boolean,
+  ): PrismCoordinatorLiveOps {
+    if (!assignment) throw new ForbiddenException('Coordinator is not assigned to this event');
+    return {
+      ...base,
+      role: assignment.role,
+      isDesignatedOperator: designatedOperator,
+      canMarkDelegatedAttendance: designatedOperator,
+      supplierStatuses: designatedOperator || this.isIngressRole(assignment.role)
+        ? base.supplierStatuses.map((status) => ({
+            id: status.id,
+            eventId: status.eventId,
+            supplierId: status.supplierId,
+            supplierName: status.supplierName,
+            category: status.category,
+            assignmentStatus: status.assignmentStatus,
+            readinessStatus: status.readinessStatus,
+            eventDayStatus: status.eventDayStatus,
+            eventDayNotes: status.eventDayNotes,
+            verificationStatus: status.verificationStatus,
+            verifiedAt: status.verifiedAt,
+            verifiedBy: status.verifiedBy,
+          }))
+        : [],
+      guestCheckIns: this.isRegistrationRole(assignment.role) ? base.guestCheckIns : [],
+    };
   }
 
   private async loadW20Context(eventId: string, coordinatorAssignment: Awaited<ReturnType<LiveOpsReadModelsService['requireCoordinatorAssignmentForEvent']>> | null) {
