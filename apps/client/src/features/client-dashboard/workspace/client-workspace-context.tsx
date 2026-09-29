@@ -42,7 +42,6 @@ export type ClientWorkspaceValue = {
   state: PrismClientWorkspace | null;
   actionCenter: PrismClientActionCenter | null;
   actionCenterLoadFailed: boolean;
-  actionCenterFromWorkspaceFallback: boolean;
   error: string | null;
   notice: string | null;
   busy: string | null;

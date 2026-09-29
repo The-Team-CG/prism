@@ -172,13 +172,11 @@ export function ClientHomeActionCenter({
   actionCenter,
   clientActions,
   runClientAction,
-  fromWorkspaceFallback,
   loadFailed = false,
 }: {
   actionCenter: PrismClientActionCenter | null;
   clientActions: ClientDashboardAction[];
   runClientAction: (action: ClientDashboardAction) => void;
-  fromWorkspaceFallback?: boolean;
   loadFailed?: boolean;
 }) {
   if (loadFailed && !actionCenter) {
@@ -192,15 +190,10 @@ export function ClientHomeActionCenter({
     );
   }
   if (!actionCenter) return null;
-  if (clientActions.length === 0 && !fromWorkspaceFallback) return null;
+  if (clientActions.length === 0) return null;
   return (
     <div className="space-y-4">
       <h2 className="text-base font-black text-foreground">Action center</h2>
-      {fromWorkspaceFallback ? (
-        <p className="rounded-xl border border-(--prism-amber)/20 bg-(--prism-amber)/8 px-4 py-3 text-xs text-muted-foreground">
-          Showing next actions from your workspace because the action center could not load. This is a labeled fallback, not live command-inbox data.
-        </p>
-      ) : null}
       <ClientActionGroup title="Needs your action" description="Client decisions that can move planning forward." actions={clientActions.filter((a) => a.tone === "primary" || a.tone === "warning")} onAction={runClientAction} />
       <ClientActionGroup title="Waiting on PMCM" description="Being prepared or reviewed by the event team." actions={clientActions.filter((a) => a.tone === "neutral")} onAction={runClientAction} />
       {actionCenterIsClear(actionCenter.counts) ? (
