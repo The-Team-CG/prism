@@ -1,4 +1,5 @@
 import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestNextAction, GuestSession } from "./guest-dashboard-types";
+import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 
 export function guestNextActions(checkedIn: boolean, feedbackSubmitted: boolean): GuestNextAction[] {
   return [
@@ -7,7 +8,6 @@ export function guestNextActions(checkedIn: boolean, feedbackSubmitted: boolean)
   ];
 }
 
-export const PRIVACY_NOTICE_VERSION = "2026-05-01";
 export const POLL_INTERVAL_MS = 20_000;
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_DURATION_S = 60;
@@ -30,7 +30,7 @@ export function buildCheckInPayload(input: {
     walkIn: headcount ? false : input.walkIn,
     verificationStatus: headcount ? "verified" : input.walkIn ? "flagged" : "verified",
     privacyConsentAccepted: input.consentAccepted,
-    privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+    privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     marketingConsentAccepted: false,
   };
 }
@@ -90,7 +90,7 @@ export function buildFeedbackPayload(input: {
     rating: Number(input.rating),
     comment: input.comment,
     privacyConsentAccepted: input.consentAccepted,
-    privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+    privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     marketingConsentAccepted: false,
   };
   if (input.photo) payload.photo = toMediaMeta(input.photo);

@@ -1,8 +1,14 @@
 import type { PrismEventWrapUp, StartEventWrapUpInput, UpdateEventWrapUpInput } from "@prism/types";
-import { prismApi } from "@/lib/prism-api";
+import { eventApiRequest } from "@/lib/prism-api";
 
 export const wrapUpRepository = {
-  get(eventId: string): Promise<PrismEventWrapUp | null> { return prismApi.getEventWrapUp(eventId); },
-  start(eventId: string, input: StartEventWrapUpInput): Promise<PrismEventWrapUp> { return prismApi.startEventWrapUp(eventId, input); },
-  update(eventId: string, input: UpdateEventWrapUpInput): Promise<PrismEventWrapUp> { return prismApi.updateEventWrapUp(eventId, input); },
+  get(eventId: string): Promise<PrismEventWrapUp | null> {
+    return eventApiRequest<PrismEventWrapUp | null>(`/api/events/${eventId}/wrap-up`);
+  },
+  start(eventId: string, input: StartEventWrapUpInput): Promise<PrismEventWrapUp> {
+    return eventApiRequest<PrismEventWrapUp>(`/api/events/${eventId}/wrap-up`, { method: "POST", body: input });
+  },
+  update(eventId: string, input: UpdateEventWrapUpInput): Promise<PrismEventWrapUp> {
+    return eventApiRequest<PrismEventWrapUp>(`/api/events/${eventId}/wrap-up`, { method: "PATCH", body: input });
+  },
 };

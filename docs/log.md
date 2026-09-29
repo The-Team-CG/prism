@@ -1,5 +1,13 @@
 # Documentation bundle update log
 
+## 2026-09-30
+
+- **Recorded:** The maintainability delivery establishes capability modules behind stable shared-package exports, a role-neutral floorplan editor package, feature-owned portal data access, explicit consent evidence, and a compact paged PMCM command inbox capped at page 100 with selected-event detail loaded on demand. Authenticated identity comes from the stored bearer token; sample compatibility stays explicitly isolated.
+- **Promoted and retired:** Moved lasting ownership, package, compatibility, and dashboard-read decisions into `AGENTS.md` and `docs/architecture/current-architecture.md`; removed the completed temporary specs and implementation plans. Git history retains those working artifacts.
+- **Verified:** Full production build passed across all 10 Turborepo tasks; root typecheck passed all 15 tasks. The final build also confirmed the API client source resolves in all four Next portals.
+- **Verified:** Full API suite passed (788 tests; 42 skipped; 133 test files passed and 15 skipped). Workspace tests passed: types 55, API client 28, client 56, event 140, supplier 24, guest 13, and floorplan canvas 5; the inbox controller regression test passed 3/3.
+- **Verified:** Boundary scan passed for 1,217 files, boundary guard suite passed 53 tests, architecture lint and `git diff --check` passed. Final review reported no remaining actionable findings.
+
 ## 2026-09-29
 
 - **Updated:** Added `@prism/floorplan-canvas` as the shared role-neutral editor module. Client and event retain template API adapters and choose their own read-only labels and workflow permissions; official-plan ownership stays in the event app.

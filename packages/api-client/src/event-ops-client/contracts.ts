@@ -1,17 +1,17 @@
 export type {
   EventOpsActorQuery,
   EventOpsClientOptions,
-} from "./contracts/primitives.js";
+} from "./contracts/primitives";
 
-import type { EventOpsAuthContract } from "./contracts/auth.js";
-import type { EventOpsSampleContract } from "./contracts/sample.js";
-import type { EventOpsInquiryContract } from "./contracts/inquiries.js";
-import type { EventOpsEventsContract } from "./contracts/events.js";
-import type { EventOpsWorkspacesContract } from "./contracts/workspaces.js";
-import type { EventOpsGuestContract } from "./contracts/guest.js";
-import type { EventOpsLiveOpsContract } from "./contracts/live-ops.js";
-import type { EventOpsSupplierApplicationsContract } from "./contracts/supplier-applications.js";
-import type { EventOpsCommunicationContract } from "./contracts/communication.js";
+import type { EventOpsAuthContract } from "./contracts/auth";
+import type { EventOpsSampleContract } from "./contracts/sample";
+import type { EventOpsInquiryContract } from "./contracts/inquiries";
+import type { EventOpsEventsContract } from "./contracts/events";
+import type { EventOpsWorkspacesContract } from "./contracts/workspaces";
+import type { EventOpsGuestContract } from "./contracts/guest";
+import type { EventOpsLiveOpsContract } from "./contracts/live-ops";
+import type { EventOpsSupplierApplicationsContract } from "./contracts/supplier-applications";
+import type { EventOpsCommunicationContract } from "./contracts/communication";
 
 /**
  * Re-export write DTOs from `@prism/types` (Zod schemas + `z.infer`).

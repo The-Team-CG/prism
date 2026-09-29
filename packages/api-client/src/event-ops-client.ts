@@ -1,18 +1,18 @@
 import type {
   EventOpsClient,
   EventOpsClientOptions,
-} from "./event-ops-client/contracts.js";
-import { createAuthClient } from "./event-ops-client/auth.js";
-import { createSampleClient } from "./event-ops-client/sample.js";
-import { createInquiriesClient } from "./event-ops-client/inquiries.js";
-import { createEventsClient } from "./event-ops-client/events.js";
-import { createWorkspacesClient } from "./event-ops-client/workspaces.js";
-import { createGuestClient } from "./event-ops-client/guest.js";
-import { createLiveOpsClient } from "./event-ops-client/live-ops.js";
-import { createSupplierApplicationsClient } from "./event-ops-client/supplier-applications.js";
-import { createCommunicationClient } from "./event-ops-client/communication.js";
+} from "./event-ops-client/contracts";
+import { createAuthClient } from "./event-ops-client/auth";
+import { createSampleClient } from "./event-ops-client/sample";
+import { createInquiriesClient } from "./event-ops-client/inquiries";
+import { createEventsClient } from "./event-ops-client/events";
+import { createWorkspacesClient } from "./event-ops-client/workspaces";
+import { createGuestClient } from "./event-ops-client/guest";
+import { createLiveOpsClient } from "./event-ops-client/live-ops";
+import { createSupplierApplicationsClient } from "./event-ops-client/supplier-applications";
+import { createCommunicationClient } from "./event-ops-client/communication";
 
-export * from "./event-ops-client/contracts.js";
+export * from "./event-ops-client/contracts";
 
 export function createEventOpsClient(
   options: EventOpsClientOptions = {},

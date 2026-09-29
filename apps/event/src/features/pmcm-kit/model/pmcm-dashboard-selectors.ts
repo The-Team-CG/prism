@@ -10,7 +10,8 @@ export function selectSelectedEvent(
   events: PrismEvent[],
   selectedEventId?: string | null,
 ): PrismEvent | undefined {
-  return events.find((event) => event.id === selectedEventId) ?? events[0];
+  if (!selectedEventId) return undefined;
+  return events.find((event) => event.id === selectedEventId);
 }
 
 export function selectPendingApprovals(approvalRequests: PrismApprovalRequest[]): PrismApprovalRequest[] {

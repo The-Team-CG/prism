@@ -1,11 +1,11 @@
 import type { ModerateGuestFeedbackInput, PrismGuestFeedback } from "@prism/types";
-import { prismApi } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 
 export const feedbackModerationRepository = {
   listPending(eventId: string): Promise<PrismGuestFeedback[]> {
-    return prismApi.pendingGuestFeedback(eventId);
+    return eventApi.guest.pendingFeedback(eventId);
   },
   moderate(eventId: string, feedbackId: string, input: ModerateGuestFeedbackInput): Promise<PrismGuestFeedback> {
-    return prismApi.moderateGuestFeedback(eventId, feedbackId, input);
+    return eventApi.guest.moderateFeedback(eventId, feedbackId, input);
   },
 };

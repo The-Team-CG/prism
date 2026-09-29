@@ -65,13 +65,13 @@ describe("findBoundaryViolations", () => {
   it("blocks redesign work from adding new sample-state or storage-key coupling", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
-      "apps/client/src/lib/prism-api.ts": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
+      "apps/client/src/compatibility/sample/prism-api.ts": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
       "apps/guest/src/app/dashboard/page.tsx": 'const key = "prism:guest-session";',
       "apps/event/src/app/dashboard/page.tsx": "eventOpsClient.sample.state();",
     });
 
     assert.deepEqual(violations, [
-      "apps/client/src/app/page.tsx: role apps must not import the client mock sample dataset",
+      "apps/client/src/app/page.tsx: client mock sample data belongs in local demo compatibility",
       "apps/guest/src/app/dashboard/page.tsx: role apps must use shared Prism session and sample storage keys",
       "apps/event/src/app/dashboard/page.tsx: role apps must not read the broad sample state aggregate",
     ]);

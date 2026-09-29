@@ -24,7 +24,7 @@ import type {
   PrismEventHandoff,
   PrismEventEodReport,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives.js";
+import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsLiveOpsContract {
   coordinator: {
