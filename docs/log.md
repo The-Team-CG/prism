@@ -1,5 +1,10 @@
 # Documentation bundle update log
 
+## 2026-09-29
+
+- **Added:** Development efficiency report and focused behavior-testing guidance in `AGENTS.md` and the pull-request template.
+- **Retired:** Removed the completed gateway working plan, architecture priority/risk matrix, superseded execution plans, dated catalog snapshots, and completed supplier-review working artifacts. Durable implementation and governance state remain in the living architecture, product, and runbook documents; Git history retains the retired working artifacts.
+
 ## 2026-09-28
 
 - **Implemented:** Local AI routing now supports selecting the implemented Anthropic or OpenRouter adapter with AI_PROVIDER and selecting a model with AI_MODEL, AI_MODEL_FAST, or AI_MODEL_STRONG. In development, one provider key auto-selects that provider; two keys require an explicit selection, and no key preserves mock behavior. Synthetic fixture, provenance, and approval gates remain active; staging and production do not auto-select a provider. Updated the provider routing runbook. No tests or provider calls were run for this change.

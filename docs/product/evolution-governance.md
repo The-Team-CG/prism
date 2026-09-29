@@ -4,7 +4,7 @@ title: "P.R.I.S.M product evolution governance"
 description: "Rules for adding, revising, merging, deferring, and retiring Prism feature families without losing role, contract, or operational clarity."
 tags: [product, governance, features, decisions]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-29"
 authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
@@ -54,7 +54,7 @@ If these documents conflict, use this order for product planning:
 1. Current app boundaries in `../../AGENTS.md`.
 2. Architecture and feature ledger (`../architecture/current-architecture.md`, `feature-ledger.md`).
 3. This product evolution governance document.
-4. Current implementation evidence in the feature ledger and architecture roadmap.
+4. Current implementation evidence in the feature ledger, current architecture, and accepted ADRs.
 5. Original feature catalog in `../reference/prism-v4/`.
 
 The original catalog should still be preserved for traceability, but implementation should not blindly ship catalog items that are outdated, redundant, unsafe, or weak from a product perspective.
@@ -226,9 +226,10 @@ Outdated docs should be handled intentionally:
 - Preserve historical catalog files unless a new catalog version is created.
 - Remove or archive planning docs that contradict the current role-specific app boundaries.
 - Rewrite planning docs that still use old product-name terminology.
-- Prefer one active ledger or roadmap entry per initiative; do not create a
-  long-lived execution-plan document. Delete completed execution plans after
-  promoting their durable decisions; Git history preserves the original.
+- Prefer one active canonical record per initiative: use the feature ledger for
+  product work and ADRs for accepted architecture decisions. Do not create a
+  long-lived execution-plan document. Delete completed plans after promoting
+  their durable decisions; Git history preserves the original.
 - Keep [`../index.md`](../index.md) and the relevant directory index current
   whenever new governing docs are added.
 - Keep docs **conversation-agnostic**: durable product/engineering truth only—no chat handoff notes, session diaries, or assumptions that the reader saw a prior conversation.
