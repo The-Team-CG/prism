@@ -2,6 +2,7 @@
 @import "tailwindcss";
 @import "@prism/tokens/typography.css";
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../../packages/floorplan-canvas/src/**/*.{ts,tsx}";
 
 :root {
   color-scheme: light;
