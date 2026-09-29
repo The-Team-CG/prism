@@ -1,8 +1,8 @@
 import type { PrismFileRequirementsMatrix } from "@prism/types";
-import { prismApi } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 
 export const fileRequirementsMatrixRepository = {
   load(eventId: string): Promise<PrismFileRequirementsMatrix> {
-    return prismApi.fileRequirements(eventId);
+    return eventApi.events.fileRequirements(eventId);
   },
 };

@@ -10,7 +10,7 @@ import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access
 import { Inject } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import { portalUrlFor } from '@prism/types';
+import { portalUrlFor, PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import { mapSupplierApplication, mapSupplierApplicationStatus } from './supplier-application.mappers';
 import { applicationStatusForReviewAction } from './supplier-application-status';
 
@@ -84,8 +84,8 @@ export class SupplierApplicationService {
           bniMember: Boolean(input.bniMember),
           portfolioUrl: input.portfolioUrl ?? '',
           additionalNotes: input.additionalNotes ?? '',
-          privacyConsentAccepted: true,
-          privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
+          privacyConsentAccepted: input.privacyConsentAccepted,
+          privacyNoticeVersion: input.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
           status: 'pending',
         },
         include: { category: true, convertedSupplier: true },

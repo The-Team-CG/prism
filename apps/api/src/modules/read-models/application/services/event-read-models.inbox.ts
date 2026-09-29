@@ -1,17 +1,23 @@
 import type {
-  OpsCoordinatorAssignment,
   OpsDocument,
   OpsEvent,
   OpsFloorPlanDraft,
-  OpsInquiry,
   OpsPaymentMilestone,
   OpsPaymentRecord,
   OpsPostEventDocument,
-  OpsSupplierQuoteRequest,
 } from '@prisma/client';
 import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
+import type {
+  PmcmInboxCoordinatorAssignment,
+  PmcmInboxEvent,
+  PmcmInboxFloorPlanDraft,
+  PmcmInboxInquiry,
+  PmcmInboxPaymentMilestone,
+  PmcmInboxPostEventDocument,
+  PmcmInboxQuoteRequest,
+} from '../queries/pmcm-command-inbox.types';
 
-type EventRef = Pick<OpsEvent, 'id' | 'eventName' | 'eventDate' | 'floorPlanStatus' | 'status' | 'clientName'>;
+type EventRef = PmcmInboxEvent;
 type BriefingRef = { eventId: string };
 type BillingStatementRef = { id: string; eventId: string; status: string; number: string };
 
@@ -307,13 +313,13 @@ function clientClosureActionItem(document: OpsPostEventDocument, events: EventRe
 }
 
 export function collectPmcmCommandInboxItems(input: {
-  inquiries: OpsInquiry[];
+  inquiries: PmcmInboxInquiry[];
   events: EventRef[];
-  paymentMilestones: OpsPaymentMilestone[];
-  quoteRequests: OpsSupplierQuoteRequest[];
-  coordinatorAssignments: OpsCoordinatorAssignment[];
-  floorPlanDrafts: OpsFloorPlanDraft[];
-  postEventDocuments: OpsPostEventDocument[];
+  paymentMilestones: PmcmInboxPaymentMilestone[];
+  quoteRequests: PmcmInboxQuoteRequest[];
+  coordinatorAssignments: PmcmInboxCoordinatorAssignment[];
+  floorPlanDrafts: PmcmInboxFloorPlanDraft[];
+  postEventDocuments: PmcmInboxPostEventDocument[];
 }): PrismCommandInboxItem[] {
   const eventsById = new Map(input.events.map((event) => [event.id, event]));
   const items = [
@@ -328,12 +334,13 @@ export function collectPmcmCommandInboxItems(input: {
   items.sort((left, right) => {
     const severity = priorityRank(left.severity) - priorityRank(right.severity);
     if (severity !== 0) return severity;
-    return dateRank(left.dueAt ?? left.createdAt) - dateRank(right.dueAt ?? right.createdAt);
+    const date = dateRank(left.dueAt ?? left.createdAt) - dateRank(right.dueAt ?? right.createdAt);
+    return date !== 0 ? date : left.id.localeCompare(right.id);
   });
   return items;
 }
 
-function collectInquiryInboxItems(inquiries: OpsInquiry[]) {
+function collectInquiryInboxItems(inquiries: PmcmInboxInquiry[]) {
   const items: PrismCommandInboxItem[] = [];
   for (const inquiry of inquiries) {
     items.push(...inquiryInboxItems(inquiry));
@@ -341,7 +348,7 @@ function collectInquiryInboxItems(inquiries: OpsInquiry[]) {
   return items;
 }
 
-function inquiryInboxItems(inquiry: OpsInquiry): PrismCommandInboxItem[] {
+function inquiryInboxItems(inquiry: PmcmInboxInquiry): PrismCommandInboxItem[] {
   const items: PrismCommandInboxItem[] = [];
   if (inquiry.status === 'new') {
     items.push({
@@ -401,7 +408,7 @@ function eventFloorplanInboxItem(event: EventRef): PrismCommandInboxItem | null 
   };
 }
 
-function collectBillingInboxItems(payments: OpsPaymentMilestone[], eventsById: Map<string, EventRef>) {
+function collectBillingInboxItems(payments: PmcmInboxPaymentMilestone[], eventsById: Map<string, EventRef>) {
   const items: PrismCommandInboxItem[] = [];
   for (const payment of payments) {
     const item = billingInboxItem(payment, eventsById);
@@ -411,7 +418,7 @@ function collectBillingInboxItems(payments: OpsPaymentMilestone[], eventsById: M
 }
 
 function billingInboxItem(
-  payment: OpsPaymentMilestone,
+  payment: PmcmInboxPaymentMilestone,
   eventsById: Map<string, EventRef>,
 ): PrismCommandInboxItem | null {
   const event = eventsById.get(payment.eventId);
@@ -432,7 +439,7 @@ function billingInboxItem(
   };
 }
 
-function collectSupplierInboxItems(requests: OpsSupplierQuoteRequest[], eventsById: Map<string, EventRef>) {
+function collectSupplierInboxItems(requests: PmcmInboxQuoteRequest[], eventsById: Map<string, EventRef>) {
   const items: PrismCommandInboxItem[] = [];
   for (const request of requests) {
     const item = supplierInboxItem(request, eventsById);
@@ -442,7 +449,7 @@ function collectSupplierInboxItems(requests: OpsSupplierQuoteRequest[], eventsBy
 }
 
 function supplierInboxItem(
-  request: OpsSupplierQuoteRequest,
+  request: PmcmInboxQuoteRequest,
   eventsById: Map<string, EventRef>,
 ): PrismCommandInboxItem | null {
   const event = eventsById.get(request.eventId);
@@ -462,7 +469,7 @@ function supplierInboxItem(
   };
 }
 
-function collectCoordinatorInboxItems(assignments: OpsCoordinatorAssignment[], eventsById: Map<string, EventRef>) {
+function collectCoordinatorInboxItems(assignments: PmcmInboxCoordinatorAssignment[], eventsById: Map<string, EventRef>) {
   const items: PrismCommandInboxItem[] = [];
   for (const assignment of assignments) {
     const item = coordinatorInboxItem(assignment, eventsById);
@@ -472,7 +479,7 @@ function collectCoordinatorInboxItems(assignments: OpsCoordinatorAssignment[], e
 }
 
 function coordinatorInboxItem(
-  assignment: OpsCoordinatorAssignment,
+  assignment: PmcmInboxCoordinatorAssignment,
   eventsById: Map<string, EventRef>,
 ): PrismCommandInboxItem | null {
   const event = eventsById.get(assignment.eventId);
@@ -492,7 +499,7 @@ function coordinatorInboxItem(
   };
 }
 
-function collectFloorplanDraftInboxItems(drafts: OpsFloorPlanDraft[], eventsById: Map<string, EventRef>) {
+function collectFloorplanDraftInboxItems(drafts: PmcmInboxFloorPlanDraft[], eventsById: Map<string, EventRef>) {
   const items: PrismCommandInboxItem[] = [];
   for (const draft of drafts) {
     const item = floorplanDraftInboxItem(draft, eventsById);
@@ -502,7 +509,7 @@ function collectFloorplanDraftInboxItems(drafts: OpsFloorPlanDraft[], eventsById
 }
 
 function floorplanDraftInboxItem(
-  draft: OpsFloorPlanDraft,
+  draft: PmcmInboxFloorPlanDraft,
   eventsById: Map<string, EventRef>,
 ): PrismCommandInboxItem | null {
   const event = eventsById.get(draft.eventId);
@@ -522,7 +529,7 @@ function floorplanDraftInboxItem(
   };
 }
 
-function collectClosureInboxItems(documents: OpsPostEventDocument[], eventsById: Map<string, EventRef>) {
+function collectClosureInboxItems(documents: PmcmInboxPostEventDocument[], eventsById: Map<string, EventRef>) {
   const items: PrismCommandInboxItem[] = [];
   for (const document of documents) {
     const item = closureInboxItem(document, eventsById);
@@ -532,7 +539,7 @@ function collectClosureInboxItems(documents: OpsPostEventDocument[], eventsById:
 }
 
 function closureInboxItem(
-  document: OpsPostEventDocument,
+  document: PmcmInboxPostEventDocument,
   eventsById: Map<string, EventRef>,
 ): PrismCommandInboxItem | null {
   const event = eventsById.get(document.eventId);

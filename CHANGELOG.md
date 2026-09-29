@@ -8,10 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Staged maintainability refactor design specs and project sequence for CI boundary enforcement, shared contracts, floorplan reuse, portal data access, consent evidence, and PMCM dashboard reads.
+- Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Client and event feature requests now live in feature data adapters; the event portal's former broad command facade is split by workflow, while client-local demo behavior is isolated under its compatibility path. Authenticated reads and writes derive actor identity from the stored bearer token without caller-supplied actor names or role query parameters.
+- The initial PMCM dashboard loads summary counts and a paged actionable inbox instead of the broad dashboard workspace. Each actionable source has stable ordering and explicit `hasMore` metadata; page indexes are capped at 100 to bound offset queries, and event details load after selection.
+- Normal sign-in screens no longer prefill sample-account credentials; local demo account instructions remain in the internal runbook.
+- Approval requests now require `privacyConsentAccepted: true` at the shared contract and auth-service boundary. Portal consent submissions use the centralized notice version, signed-in clients must explicitly accept before submitting a new event inquiry, and staff roster check-ins no longer record guest consent.
+- Added shared Zod contracts for supplier creation, updates, tier changes, and certifications used by the event command adapters.
 - Client and event now share the floorplan canvas editor mechanics through `@prism/floorplan-canvas`; each portal keeps its template repository and role-specific read-only policy.
 - Split shared event-ops contracts and API-client transports into capability modules behind unchanged package-root exports.
 - OpenRouter synthetic-profile audits keep `zdrConfirmed` false while endpoint and account ZDR qualification remains open; the adapter still requests ZDR and denies data collection, and the route remains synthetic-only. No tests or provider calls were run per release-review instruction.

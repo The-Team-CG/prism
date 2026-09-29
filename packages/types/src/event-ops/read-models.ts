@@ -170,6 +170,16 @@ export interface PrismCommandInboxItem {
 
 export interface PrismPmcmCommandInbox {
   generatedAt: string;
+  summary: {
+    activeEvents: number;
+    pendingInquiries: number;
+    pendingApprovals: number;
+  };
+  page: {
+    index: number;
+    size: number;
+    hasMore: boolean;
+  };
   counts: Record<PrismCommandInboxSeverity, number>;
   items: PrismCommandInboxItem[];
 }

@@ -23,6 +23,38 @@ export const requestSupplierQuotesSchema = z.object({
 });
 export type RequestSupplierQuotesInput = z.infer<typeof requestSupplierQuotesSchema>;
 
+export const createSupplierSchema = z.object({
+  categoryId: nonEmptyStringSchema,
+  name: nonEmptyStringSchema,
+  contactName: optionalTrimmedStringSchema,
+  email: z.string().email().optional(),
+  phone: optionalTrimmedStringSchema,
+  tier: z.enum(["tier_1", "tier_2", "pending_first_event"]).optional(),
+  bniMember: z.boolean().optional(),
+  serviceInclusions: optionalTrimmedStringSchema,
+  performanceNotes: optionalTrimmedStringSchema,
+});
+export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
+
+export const updateSupplierSchema = createSupplierSchema.partial();
+export type UpdateSupplierInput = z.infer<typeof updateSupplierSchema>;
+
+export const changeSupplierTierSchema = z.object({
+  tier: z.enum(["tier_1", "tier_2", "pending_first_event"]),
+  reason: nonEmptyStringSchema,
+});
+export type ChangeSupplierTierInput = z.infer<typeof changeSupplierTierSchema>;
+
+export const createSupplierCertificationSchema = z.object({
+  fileName: nonEmptyStringSchema,
+  documentType: nonEmptyStringSchema,
+  issuer: optionalTrimmedStringSchema,
+  expiresAt: optionalTrimmedStringSchema,
+  status: z.enum(["submitted", "verified", "expired", "rejected"]).optional(),
+  notes: optionalTrimmedStringSchema,
+});
+export type CreateSupplierCertificationInput = z.infer<typeof createSupplierCertificationSchema>;
+
 export const createBillingSourceSchema = z.object({
   sourceType: optionalTrimmedStringSchema,
   sourceLabel: nonEmptyStringSchema,

@@ -3,6 +3,7 @@ import type {
   PrismClientActionCenter,
   PrismClientWorkspace,
   PrismPmcmCommandInbox,
+  PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
   PrismRegistrationPlatform,
@@ -10,9 +11,9 @@ import type {
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
 } from "@prism/types";
-import { prismRequest } from "../http";
-import type { EventOpsClient, EventOpsClientOptions } from "./contracts.js";
-import { withBase, actorPath } from "./shared.js";
+import { prismRequest, toQueryString } from "../http";
+import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
+import { withBase, actorPath } from "./shared";
 
 export function createWorkspacesClient(
   options: EventOpsClientOptions,
@@ -89,11 +90,13 @@ export function createWorkspacesClient(
         ),
     },
     pmcm: {
-      commandInbox: (actor = {}) =>
-        prismRequest<PrismPmcmCommandInbox>(
-          actorPath("/pmcm/command-inbox", actor),
+      commandInbox: (query: PrismPmcmCommandInboxQueryInput = { page: 0 }) => {
+        const params = toQueryString(query);
+        return prismRequest<PrismPmcmCommandInbox>(
+          params ? `/pmcm/command-inbox?${params}` : "/pmcm/command-inbox",
           withBase(options),
-        ),
+        );
+      },
       eventWorkspace: (eventId, actor = {}) =>
         prismRequest<PrismPmcmEventWorkspace>(
           actorPath(`/pmcm/events/${eventId}/workspace`, actor),

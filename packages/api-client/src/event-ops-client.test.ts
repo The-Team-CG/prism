@@ -94,6 +94,34 @@ describe("toQueryString", () => {
 });
 
 describe("createEventOpsClient", () => {
+  it("posts login and approval requests through the shared auth contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "approval_1" }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.auth.login({ email: "client@example.test", password: "not-a-real-password" });
+    await client.auth.requestApproval({
+      email: "client@example.test",
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: "2026-05-01",
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email: "client@example.test", password: "not-a-real-password" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/auth/approval-requests", {
+      method: "POST",
+      body: JSON.stringify({
+        email: "client@example.test",
+        privacyConsentAccepted: true,
+        privacyNoticeVersion: "2026-05-01",
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
   it("loads PMCM state through the sample aggregate endpoint", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -150,47 +178,65 @@ describe("createEventOpsClient", () => {
     );
   });
 
-  it("loads event file requirements as a scoped read model", async () => {
+  it("loads event file requirements with bearer auth and no actor query", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ eventId: "evt_1", items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.events.fileRequirements("evt_1", { actorRole: "client", clientName: "Ana Reyes" });
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "client-session-token",
+    });
+    await client.events.fileRequirements("evt_1");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/events/evt_1/file-requirements?actorRole=client&clientName=Ana+Reyes",
+      "http://localhost:4000/api/events/evt_1/file-requirements",
       {
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer client-session-token",
+        },
       },
     );
   });
 
-  it("loads scoped client workspace through the shared contract", async () => {
+  it("loads the client workspace with bearer auth and no actor query", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.clientWorkspace.detail({ actorRole: "client", clientName: "Ana Reyes" });
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "client-session-token",
+    });
+    await client.clientWorkspace.detail();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/client/workspace?actorRole=client&clientName=Ana+Reyes",
+      "http://localhost:4000/api/client/workspace",
       {
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer client-session-token",
+        },
       },
     );
   });
 
-  it("loads client action center through the shared contract", async () => {
+  it("loads the client action center with bearer auth and no actor query", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.clientWorkspace.actionCenter({ actorRole: "client", clientName: "Ana Reyes" });
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "client-session-token",
+    });
+    await client.clientWorkspace.actionCenter();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/client/action-center?actorRole=client&clientName=Ana+Reyes",
+      "http://localhost:4000/api/client/action-center",
       {
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer client-session-token",
+        },
       },
     );
   });
@@ -333,10 +379,10 @@ describe("createEventOpsClient", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.pmcm.commandInbox({ actorName: "Ms. Mys", actorRole: "pmcm-admin" });
+    await client.pmcm.commandInbox({ page: 2 });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://localhost:4000/api/pmcm/command-inbox?actorName=Ms.+Mys&actorRole=pmcm-admin",
+      "http://localhost:4000/api/pmcm/command-inbox?page=2",
       {
         headers: { "Content-Type": "application/json" },
       },

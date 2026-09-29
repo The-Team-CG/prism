@@ -12,8 +12,8 @@ import type {
   PrismEventEodReport,
 } from "@prism/types";
 import { prismRequest } from "../http";
-import type { EventOpsClient, EventOpsClientOptions } from "./contracts.js";
-import { withBase, actorPath } from "./shared.js";
+import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
+import { withBase, actorPath } from "./shared";
 
 export function createLiveOpsClient(
   options: EventOpsClientOptions,

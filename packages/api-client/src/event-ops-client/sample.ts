@@ -1,7 +1,7 @@
 import type { PrismSampleState } from "@prism/types";
 import { prismRequest } from "../http";
-import type { EventOpsClient, EventOpsClientOptions } from "./contracts.js";
-import { withBase } from "./shared.js";
+import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
+import { withBase } from "./shared";
 
 export function createSampleClient(
   options: EventOpsClientOptions,

@@ -1,7 +1,6 @@
 import type {
   PrismCoordinatorWorkspace,
   PrismPmcmCommandInbox,
-  PrismPmcmDashboardWorkspace,
   PrismApprovalRequest,
 } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
@@ -10,10 +9,8 @@ import { getCachedApprovalRequests, loadApprovalRequests } from "@/features/even
 import { getCachedCommandInbox, loadCommandInbox } from "@/features/command-inbox/list";
 import {
   getCachedCoordinatorWorkspace,
-  getCachedPmcmState,
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
-  loadPmcmState,
 } from "./load-dashboard-workspace";
 
 type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
@@ -25,7 +22,7 @@ export type DashboardSessionLoadSetters = {
   setStatus: (status: WorkspaceStatus) => void;
   setSession: (session: EventSession) => void;
   setError: (error: string | null) => void;
-  setState: (state: PrismPmcmDashboardWorkspace | null) => void;
+  setState: (state: null) => void;
   setCoordinatorState: (state: PrismCoordinatorWorkspace | null) => void;
   setApprovalRequests: (requests: PrismApprovalRequest[]) => void;
   setCommandInbox: (inbox: PrismPmcmCommandInbox) => void;
@@ -88,33 +85,27 @@ function loadCoordinatorDashboard(
 }
 
 function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSessionLoadSetters) {
-  const cachedState = getCachedPmcmState();
   const cachedApprovals = getCachedApprovalRequests();
   const cachedInbox = getCachedCommandInbox();
 
-  if (cachedState) {
-    setters.setState(cachedState.value);
-    setters.setCoordinatorState(null);
-  }
+  setters.setState(null);
+  setters.setCoordinatorState(null);
   if (cachedApprovals) setters.setApprovalRequests(cachedApprovals.value);
   if (cachedInbox) setters.setCommandInbox(cachedInbox.value);
 
-  const stateIsFresh = isCachedFresh(cachedState);
   const approvalsAreFresh = isCachedFresh(cachedApprovals);
   const inboxIsFresh = isCachedFresh(cachedInbox);
-  if (stateIsFresh && approvalsAreFresh && inboxIsFresh) {
+  if (approvalsAreFresh && inboxIsFresh) {
     setters.setStatus("ready");
     return;
   }
 
   Promise.all([
-    resolveCachedOrLoad(stateIsFresh, cachedState, loadPmcmState),
     resolveCachedOrLoad(approvalsAreFresh, cachedApprovals, loadApprovalRequests),
     resolveInbox(inboxIsFresh, cachedInbox),
   ])
-    .then(([next, requests, inboxResult]) => {
+    .then(([requests, inboxResult]) => {
       if (isCancelled()) return;
-      setters.setState(next);
       setters.setApprovalRequests(requests);
       setters.setCommandInbox(inboxResult);
       setters.setCommandInboxLoadFailed(false);

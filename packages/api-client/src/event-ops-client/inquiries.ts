@@ -1,7 +1,7 @@
 import type { PrismInquiry } from "@prism/types";
 import { prismRequest, prismSse } from "../http";
-import type { EventOpsClient, EventOpsClientOptions } from "./contracts.js";
-import { withBase, actorPath, parseCommsDraftStreamEvent } from "./shared.js";
+import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
+import { withBase, actorPath, parseCommsDraftStreamEvent } from "./shared";
 
 export function createInquiriesClient(
   options: EventOpsClientOptions,

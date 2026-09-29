@@ -22,6 +22,11 @@ export const eventDecisionSchema = z.object({
 });
 export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
 
+export const pmcmCommandInboxQuerySchema = z.object({
+  page: z.coerce.number().int().min(0).max(100).default(0),
+});
+export type PrismPmcmCommandInboxQueryInput = z.infer<typeof pmcmCommandInboxQuerySchema>;
+
 /**
  * Write DTOs for portal ↔ API mutations.
  * Schemas are the source of truth; types are `z.infer`.
@@ -322,9 +327,7 @@ export const createSupplierApplicationSchema = z.object({
   bniMember: z.boolean().optional(),
   portfolioUrl: optionalTrimmedStringSchema,
   additionalNotes: optionalTrimmedStringSchema,
-  privacyConsentAccepted: z.boolean().optional(),
-  privacyNoticeVersion: optionalTrimmedStringSchema,
-});
+}).extend(privacyConsentSchema.shape);
 export type CreateSupplierApplicationInput = z.infer<typeof createSupplierApplicationSchema>;
 
 export const supplierApplicationStatusQuerySchema = z.object({

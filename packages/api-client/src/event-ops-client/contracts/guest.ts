@@ -12,7 +12,7 @@ import type {
   UpdateWalkInPolicyInput,
   UpdateGuestVerificationInput,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives.js";
+import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsGuestContract {
   guest: {

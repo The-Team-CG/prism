@@ -8,8 +8,8 @@ import type {
   PrismEventFreezeException,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
-import type { EventOpsClient, EventOpsClientOptions } from "./contracts.js";
-import { withBase, actorPath } from "./shared.js";
+import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
+import { withBase, actorPath } from "./shared";
 
 export function createEventsClient(
   options: EventOpsClientOptions,

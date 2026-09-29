@@ -25,6 +25,9 @@ export function previousSupplierApplicationStep(step: number): number {
 }
 
 export function buildSupplierApplicationPayload(form: SupplierApplicationForm): CreateSupplierApplicationInput {
+  if (!form.privacyConsentAccepted) {
+    throw new Error("Privacy consent is required before submitting an application");
+  }
   return {
     companyName: form.companyName.trim(),
     contactName: form.contactName.trim(),
@@ -38,7 +41,7 @@ export function buildSupplierApplicationPayload(form: SupplierApplicationForm): 
     portfolioUrl: form.portfolioUrl.trim() || undefined,
     additionalNotes: form.additionalNotes.trim() || undefined,
     bniMember: form.bniMember,
-    privacyConsentAccepted: form.privacyConsentAccepted,
+    privacyConsentAccepted: true,
     privacyNoticeVersion: form.privacyNoticeVersion,
   };
 }

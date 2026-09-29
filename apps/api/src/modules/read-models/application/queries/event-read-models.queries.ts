@@ -32,7 +32,7 @@ export const MAX_CLIENT_WORKSPACE_ROWS = 500;
 export const MAX_CLIENT_ACTION_CENTER_ROWS = 500;
 export const MAX_SUPPLIER_WORKSPACE_ROWS = 500;
 export const MAX_SUPPLIER_EVENTS = 500;
-export const MAX_PMCM_INBOX_ROWS = 500;
+export const MAX_PMCM_COMMAND_INBOX_PAGE_SIZE = 10;
 export const MAX_PMCM_EVENT_WORKSPACE_ROWS = 500;
 export const MAX_PMCM_DASHBOARD_ROWS = 500;
 export const MAX_ACTIVE_COORDINATORS = 500;
@@ -243,22 +243,77 @@ export class EventReadModelQueries {
     return this.prisma.opsSupplierQuoteRequest.findMany({ where: { supplierId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_SUPPLIER_WORKSPACE_ROWS });
   }
 
-  // Query budget: seven bounded PMCM command-inbox queries, no per-row Prisma loop.
-  pmcmCommandInbox() {
-    return Promise.all([
-      this.prisma.opsInquiry.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsEvent.findMany({
-        where: { archived: false },
-        include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_EVENT_FLOORPLAN_DRAFTS } },
-        orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
-        take: MAX_VISIBLE_EVENTS,
+  // Each actionable source has its own deterministic page so combined queue rows are never silently dropped.
+  async pmcmCommandInbox(page: number, pageSize = MAX_PMCM_COMMAND_INBOX_PAGE_SIZE) {
+    const skip = page * pageSize;
+    const take = pageSize + 1;
+    const [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments] = await Promise.all([
+      this.prisma.opsInquiry.findMany({
+        where: { OR: [{ status: 'new' }, { status: 'accepted', conformeSignedAt: null }] },
+        select: { id: true, status: true, clientName: true, eventName: true, createdAt: true, acceptedAt: true, conformeSignedAt: true, portalInvitationExpiresAt: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], skip, take,
       }),
-      this.prisma.opsPaymentMilestone.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }] }),
-      this.prisma.opsSupplierQuoteRequest.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsCoordinatorAssignment.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsFloorPlanDraft.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }] }),
-      this.prisma.opsPostEventDocument.findMany({ take: MAX_PMCM_INBOX_ROWS, orderBy: [{ title: 'asc' }, { id: 'asc' }] }),
+      this.prisma.opsEvent.findMany({
+        where: { archived: false, floorPlanStatus: { not: 'approved' } },
+        select: { id: true, eventName: true, eventDate: true, floorPlanStatus: true, status: true, clientName: true },
+        orderBy: [{ eventDate: 'asc' }, { id: 'asc' }], skip, take,
+      }),
+      this.prisma.opsPaymentMilestone.findMany({
+        where: { status: { not: 'paid' } },
+        select: { id: true, eventId: true, label: true, status: true, dueDate: true },
+        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], skip, take,
+      }),
+      this.prisma.opsSupplierQuoteRequest.findMany({
+        where: { status: { notIn: ['selected', 'closed', 'cancelled'] } },
+        select: { id: true, eventId: true, supplierName: true, status: true, dueDate: true },
+        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], skip, take,
+      }),
+      this.prisma.opsCoordinatorAssignment.findMany({
+        where: { status: { notIn: ['confirmed', 'checked_in', 'completed'] } },
+        select: { id: true, eventId: true, coordinatorName: true, status: true, createdAt: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], skip, take,
+      }),
+      this.prisma.opsFloorPlanDraft.findMany({
+        where: { status: { in: ['submitted', 'in_review'] } },
+        select: { id: true, eventId: true, name: true, status: true, updatedAt: true },
+        orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }], skip, take,
+      }),
+      this.prisma.opsPostEventDocument.findMany({
+        where: { status: { not: 'complete' } },
+        select: { id: true, eventId: true, title: true, status: true },
+        orderBy: [{ id: 'asc' }], skip, take,
+      }),
     ]);
+    const items = <T,>(rows: T[]) => rows.slice(0, pageSize);
+
+    return {
+      inquiries: items(inquiries),
+      events: items(events),
+      paymentMilestones: items(paymentMilestones),
+      quoteRequests: items(quoteRequests),
+      coordinatorAssignments: items(coordinatorAssignments),
+      floorPlanDrafts: items(floorPlanDrafts),
+      postEventDocuments: items(postEventDocuments),
+      hasMore: [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments]
+        .some((rows) => rows.length > pageSize),
+    };
+  }
+
+  pmcmCommandInboxEventRefs(eventIds: string[]) {
+    if (eventIds.length === 0) return Promise.resolve([]);
+    return this.prisma.opsEvent.findMany({
+      where: { id: { in: eventIds }, archived: false },
+      select: { id: true, eventName: true, eventDate: true, floorPlanStatus: true, status: true, clientName: true },
+      orderBy: [{ id: 'asc' }],
+    });
+  }
+
+  pmcmCommandInboxSummary() {
+    return Promise.all([
+      this.prisma.opsEvent.count({ where: { archived: false } }),
+      this.prisma.opsInquiry.count({ where: { status: 'new' } }),
+      this.prisma.opsApprovalRequest.count({ where: { status: 'pending' } }),
+    ]).then(([activeEvents, pendingInquiries, pendingApprovals]) => ({ activeEvents, pendingInquiries, pendingApprovals }));
   }
 
   // Query budget: fourteen selected-event relation queries; guest, staffing, and registration reads use public reader ports outside this query builder.

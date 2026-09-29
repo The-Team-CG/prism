@@ -5,6 +5,7 @@ import type {
   PrismClientActionCenter,
   PrismClientWorkspace,
   PrismPmcmCommandInbox,
+  PrismPmcmCommandInboxQueryInput,
   PrismPmcmDashboardWorkspace,
   PrismPmcmEventWorkspace,
   PrismRegistrationPlatform,
@@ -16,7 +17,7 @@ import type {
   UpdateSupplierEventStatusInput,
   UploadContractInput,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives.js";
+import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsWorkspacesContract {
   clientWorkspace: {
@@ -33,7 +34,7 @@ export interface EventOpsWorkspacesContract {
   };
 
   pmcm: {
-    commandInbox(actor?: EventOpsActorQuery): Promise<PrismPmcmCommandInbox>;
+    commandInbox(query?: PrismPmcmCommandInboxQueryInput): Promise<PrismPmcmCommandInbox>;
     eventWorkspace(
       eventId: string,
       actor?: EventOpsActorQuery,

@@ -5,7 +5,7 @@ import {
   commsDraftResultSchema,
 } from "@prism/types";
 import { toQueryString, type PrismRequestInit } from "../http";
-import type { EventOpsActorQuery, EventOpsClientOptions } from "./contracts.js";
+import type { EventOpsActorQuery, EventOpsClientOptions } from "./contracts";
 
 export function parseCommsDraftStreamEvent(
   value: unknown,

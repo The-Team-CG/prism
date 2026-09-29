@@ -175,26 +175,6 @@ export function SupplierSignInView() {
                 </button>
               </form>
 
-              <div className="mt-6 border-t border-[#d9d9d9] pt-5">
-                <p className="mb-3 text-sm font-medium text-[#888888]">Sample accounts</p>
-                <div className="flex flex-col gap-2">
-                  {vm.sampleAccounts.map((sample) => (
-                    <button
-                      key={sample.email}
-                      type="button"
-                      onClick={() => vm.applySampleAccount(sample.email, sample.password)}
-                      className="flex items-center justify-between rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-left transition hover:border-[#c01867]/40 hover:bg-white/80"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-[#171216]">{sample.label}</p>
-                        <p className="text-xs text-[#888888]">{sample.tier}</p>
-                      </div>
-                      <ArrowRight className="size-4 text-[#a7a7a7]" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <ApprovalRequestPanel
                 showApproval={vm.showApproval}
                 busy={vm.busy}

@@ -1,26 +1,26 @@
-import { prismApi } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 import { saveEventSession, type EventSession } from "@/app/lib/session";
 import type { PrismAuthenticatedSession, PrismAuthResponse, PrismTwoFactorSetup } from "@prism/types";
 
 export const eventAuthRepository = {
   login(input: { email: string; password: string }): Promise<PrismAuthResponse> {
-    return prismApi.login(input);
+    return eventApi.auth.login(input);
   },
 
   setupTwoFactor(token: string): Promise<PrismTwoFactorSetup> {
-    return prismApi.setupTwoFactor(token);
+    return eventApi.auth.setupTwoFactor(token);
   },
 
   verifyTwoFactor(token: string, code: string): Promise<PrismAuthenticatedSession> {
-    return prismApi.verifyTwoFactor(token, code);
+    return eventApi.auth.verifyTwoFactor({ token, code });
   },
 
   requestPasswordReset(email: string) {
-    return prismApi.requestPasswordReset(email);
+    return eventApi.auth.requestPasswordReset(email);
   },
 
   consumePasswordReset(input: { token: string; password: string }) {
-    return prismApi.consumePasswordReset(input);
+    return eventApi.auth.consumePasswordReset(input.token, input.password);
   },
 
   persistSession(session: EventSession): void {

@@ -95,12 +95,13 @@ HTTP                                    →  @prism/api-client in data/
 Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/dashboard-shell)
 Floorplan editor mechanics              →  @prism/floorplan-canvas from role wrappers; role apps own storage and read-only policy
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
-Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample` (API only); portal adapters remain thin
+Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample` (API); `apps/client/src/compatibility/sample` (browser local demo only)
 ```
 
 **Portal `lib/prism-api` policy**
 
-- Keep **thin**: wire `createEventOpsClient` + role-specific helpers only.
+- Keep **transport-only**: construct `createEventOpsClient`, read the role session token, and expose only URL/request helpers. Do not add domain operations to a portal-wide `prismApi` object.
+- Put HTTP calls in `features/**/data`; group dashboard commands by their owning context and compose them at the screen boundary. Derive actor identity from the verified bearer token, not caller-supplied names or role query parameters.
 - **Do not** re-export `Prism*` domain types for new code — import from `@prism/types`.
 - Guest/supplier should stay near zero custom types; client/event may still hold sample/local helpers until fully retired.
 - New repositories prefer `@prism/api-client` + `@prism/types` directly (see guest).

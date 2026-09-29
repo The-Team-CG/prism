@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nonEmptyStringSchema } from './common.js';
+import { nonEmptyStringSchema, privacyConsentSchema } from './common.js';
 
 export const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -18,12 +18,7 @@ export const consumePasswordResetSchema = z.object({
 });
 export type ConsumePasswordResetInput = z.infer<typeof consumePasswordResetSchema>;
 
-export const requestApprovalSchema = z.object({
-  email: z.string().trim().email(),
-  privacyConsentAccepted: z.boolean().optional(),
-  privacyNoticeVersion: z.string().trim().optional(),
-  marketingConsentAccepted: z.boolean().optional(),
-});
+export const requestApprovalSchema = z.object({ email: z.string().trim().email() }).merge(privacyConsentSchema);
 export type RequestApprovalInput = z.infer<typeof requestApprovalSchema>;
 
 export const twoFactorTokenSchema = z.object({ token: nonEmptyStringSchema });

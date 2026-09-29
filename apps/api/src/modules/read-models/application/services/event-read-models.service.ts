@@ -34,7 +34,7 @@ import {
   STAFFING_READER,
   type StaffingReader,
 } from '@prism/contexts/operations';
-import { EventReadModelQueries } from '../queries/event-read-models.queries';
+import { EventReadModelQueries, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE } from '../queries/event-read-models.queries';
 import {
   buildDefenseActions,
   countMatching,
@@ -423,23 +423,36 @@ export class EventReadModelsService {
     };
   }
 
-  async pmcmCommandInbox(actor: ResolvedEventOpsActor) {
+  async pmcmCommandInbox(actor: ResolvedEventOpsActor, page = 0) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM command inbox');
 
-    const [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments] =
-      await this.queries.pmcmCommandInbox();
+    const pageData = await this.queries.pmcmCommandInbox(page);
+    const eventIds = [...new Set([
+      ...pageData.events.map((event) => event.id),
+      ...pageData.paymentMilestones.map((row) => row.eventId),
+      ...pageData.quoteRequests.map((row) => row.eventId),
+      ...pageData.coordinatorAssignments.map((row) => row.eventId),
+      ...pageData.floorPlanDrafts.map((row) => row.eventId),
+      ...pageData.postEventDocuments.map((row) => row.eventId),
+    ])];
+    const [events, summary] = await Promise.all([
+      this.queries.pmcmCommandInboxEventRefs(eventIds),
+      this.queries.pmcmCommandInboxSummary(),
+    ]);
     const items = collectPmcmCommandInboxItems({
-      inquiries,
+      inquiries: pageData.inquiries,
       events,
-      paymentMilestones,
-      quoteRequests,
-      coordinatorAssignments,
-      floorPlanDrafts,
-      postEventDocuments,
+      paymentMilestones: pageData.paymentMilestones,
+      quoteRequests: pageData.quoteRequests,
+      coordinatorAssignments: pageData.coordinatorAssignments,
+      floorPlanDrafts: pageData.floorPlanDrafts,
+      postEventDocuments: pageData.postEventDocuments,
     });
 
     return {
       generatedAt: new Date().toISOString(),
+      summary,
+      page: { index: page, size: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, hasMore: pageData.hasMore },
       counts: countBySeverity(items),
       items,
     };

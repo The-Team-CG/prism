@@ -5,7 +5,7 @@ import type {
   CreatePrismInquiryInput,
   PrismInquiry,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives.js";
+import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsInquiryContract {
   inquiries: {

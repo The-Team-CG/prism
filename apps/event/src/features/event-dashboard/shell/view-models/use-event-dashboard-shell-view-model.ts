@@ -65,6 +65,7 @@ export function useEventDashboardShellViewModel({
   const workspace = useEventDashboardWorkspaceViewModel({
     selectedEventId,
     screenName: screen.name,
+    section,
   });
   const {
     session,
@@ -97,6 +98,7 @@ export function useEventDashboardShellViewModel({
     setDefenseReadiness,
     setFloorPlanTemplates,
     refreshCommandInbox,
+    changeCommandInboxPage,
   } = workspace;
   useEffect(() => {
     setSection(routeState.section);
@@ -107,11 +109,13 @@ export function useEventDashboardShellViewModel({
 
   useEffect(() => {
     if (!state) return;
-    setSelectedEventId((prev) => routeState.eventId ?? prev ?? state.events[0]?.id ?? null);
+    setSelectedEventId((prev) => routeState.eventId ?? prev);
   }, [routeState.eventId, state]);
 
   const events = useMemo(() => selectActiveEvents(state), [state]);
-  const selectedEvent = selectSelectedEvent(events, selectedEventId);
+  const selectedEvent = selectedEventWorkspace?.event.id === selectedEventId
+    ? selectedEventWorkspace.event
+    : selectSelectedEvent(events, selectedEventId);
   const supplierCategories = state?.supplierCategories ?? [];
   const suppliers = state?.suppliers ?? [];
   const coordinators = state?.coordinators ?? [];
@@ -379,7 +383,7 @@ export function useEventDashboardShellViewModel({
     changeSupplierTier: (supplierId: string, tier: Parameters<typeof commands.changeSupplierTier>[1]["tier"], reason: string) => run("supplier tier change", () => commands.changeSupplierTier(supplierId, { tier, reason })),
     promoteSupplier: (supplierId: string, tier: Parameters<typeof commands.promoteSupplier>[1]["tier"], reason: string) => selectedEvent ? run("supplier promotion", () => commands.promoteSupplier(supplierId, { eventId: selectedEvent.id, tier, reason, idempotencyKey: `promotion-${supplierId}-${selectedEvent.id}` })) : Promise.resolve(),
     addSupplierReview: (supplierId: string, input: Parameters<typeof commands.addSupplierReview>[1]) => session
-      ? runWithSuccess("supplier private review", () => commands.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }, session))
+      ? runWithSuccess("supplier private review", () => commands.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }))
       : Promise.resolve(false),
     addSupplierCertification: (supplierId: string, input: Parameters<typeof commands.addSupplierCertification>[1]) => run("supplier certification", () => commands.addSupplierCertification(supplierId, input)),
     requestSupplierQuotes: (input: Parameters<typeof commands.requestSupplierQuotes>[1]) => selectedEvent ? run("request supplier quotes", () => commands.requestSupplierQuotes(selectedEvent.id, input)) : Promise.resolve(),
@@ -388,8 +392,8 @@ export function useEventDashboardShellViewModel({
     sendBillingStatement: (billingId: string) => selectedEvent ? run("send billing statement", () => commands.sendBillingStatement(selectedEvent.id, billingId)) : Promise.resolve(),
     createComplianceRule: (input: Parameters<typeof commands.createComplianceRule>[0]) => run("create compliance rule", () => commands.createComplianceRule(input)),
     runComplianceChecks: (phase: string) => selectedEvent ? run("run compliance", () => commands.runCompliance(selectedEvent.id, phase)) : Promise.resolve(),
-    resolveComplianceCheck: (checkId: string) => selectedEvent ? run("resolve compliance", () => commands.resolveCompliance(selectedEvent.id, checkId, { action: "resolve", note: "Resolved during PMCM review.", actorName: "Ms. Mys" })) : Promise.resolve(),
-    overrideComplianceCheck: (checkId: string, reason: string) => selectedEvent ? run("override compliance", () => commands.resolveCompliance(selectedEvent.id, checkId, { action: "override", overrideReason: reason, actorName: "Ms. Mys" })) : Promise.resolve(),
+    resolveComplianceCheck: (checkId: string) => selectedEvent ? run("resolve compliance", () => commands.resolveCompliance(selectedEvent.id, checkId, { action: "resolve", note: "Resolved during PMCM review." })) : Promise.resolve(),
+    overrideComplianceCheck: (checkId: string, reason: string) => selectedEvent ? run("override compliance", () => commands.resolveCompliance(selectedEvent.id, checkId, { action: "override", overrideReason: reason,  })) : Promise.resolve(),
     createBillingSource: (input: Parameters<typeof commands.createBillingSource>[1]) => selectedEvent ? run("create billing source", () => commands.createBillingSource(selectedEvent.id, input)) : Promise.resolve(),
     approveBillingSource: (sourceId: string) => selectedEvent ? run("approve billing source", () => commands.approveBillingSource(selectedEvent.id, sourceId, "Approved by PMCM.")) : Promise.resolve(),
     generateBillingStatement: (sourceId: string) => selectedEvent ? run("generate billing statement", () => commands.generateBillingStatement(selectedEvent.id, sourceId)) : Promise.resolve(),
@@ -399,13 +403,13 @@ export function useEventDashboardShellViewModel({
     loadEventInsights: () => selectedEvent ? commands.eventInsights(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: string, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
-    saveCoordinatorCoverage: (input: Parameters<typeof commands.upsertCoordinatorCoverage>[2]) => selectedEvent && session ? runAsBoolean("coordinator coverage", () => commands.upsertCoordinatorCoverage(session, selectedEvent.id, input)) : Promise.resolve(false),
-    sendCoordinatorAcknowledgementReminders: () => selectedEvent && session ? runAsBoolean("acknowledgement reminders", () => commands.sendCoordinatorAcknowledgementReminders(session, selectedEvent.id)) : Promise.resolve(false),
-    designateEventDayOperator: (coordinatorId: string) => selectedEvent && session ? run("designate event operator", () => commands.designateEventDayOperator(session, selectedEvent.id, { coordinatorId })) : Promise.resolve(),
-    loadCoordinatorAvailability: (coordinatorId: string) => selectedEvent && session ? commands.listCoordinatorAvailability(session, selectedEvent.id, coordinatorId) : Promise.resolve([]),
-    createCoordinatorAvailability: (coordinatorId: string, input: Parameters<typeof commands.createCoordinatorAvailability>[3]) => selectedEvent && session ? run("coordinator availability", () => commands.createCoordinatorAvailability(session, selectedEvent.id, coordinatorId, input)) : Promise.resolve(),
-    deleteCoordinatorAvailability: (coordinatorId: string, availabilityId: string) => selectedEvent && session ? run("remove coordinator availability", () => commands.deleteCoordinatorAvailability(session, selectedEvent.id, coordinatorId, availabilityId)) : Promise.resolve(),
-    decideEventTaskReassignment: (requestId: string, input: Parameters<typeof commands.decidePmcmEventTaskReassignment>[3]) => selectedEvent && session ? runLiveOps("task reassignment", () => commands.decidePmcmEventTaskReassignment(session, selectedEvent.id, requestId, input)) : Promise.resolve(),
+    saveCoordinatorCoverage: (input: Parameters<typeof commands.upsertCoordinatorCoverage>[1]) => selectedEvent && session ? runAsBoolean("coordinator coverage", () => commands.upsertCoordinatorCoverage(selectedEvent.id, input)) : Promise.resolve(false),
+    sendCoordinatorAcknowledgementReminders: () => selectedEvent && session ? runAsBoolean("acknowledgement reminders", () => commands.sendCoordinatorAcknowledgementReminders(selectedEvent.id)) : Promise.resolve(false),
+    designateEventDayOperator: (coordinatorId: string) => selectedEvent && session ? run("designate event operator", () => commands.designateEventDayOperator(selectedEvent.id, { coordinatorId })) : Promise.resolve(),
+    loadCoordinatorAvailability: (coordinatorId: string) => selectedEvent && session ? commands.listCoordinatorAvailability(selectedEvent.id, coordinatorId) : Promise.resolve([]),
+    createCoordinatorAvailability: (coordinatorId: string, input: Parameters<typeof commands.createCoordinatorAvailability>[2]) => selectedEvent && session ? run("coordinator availability", () => commands.createCoordinatorAvailability(selectedEvent.id, coordinatorId, input)) : Promise.resolve(),
+    deleteCoordinatorAvailability: (coordinatorId: string, availabilityId: string) => selectedEvent && session ? run("remove coordinator availability", () => commands.deleteCoordinatorAvailability(selectedEvent.id, coordinatorId, availabilityId)) : Promise.resolve(),
+    decideEventTaskReassignment: (requestId: string, input: Parameters<typeof commands.decidePmcmEventTaskReassignment>[2]) => selectedEvent && session ? runLiveOps("task reassignment", () => commands.decidePmcmEventTaskReassignment(selectedEvent.id, requestId, input)) : Promise.resolve(),
     createEventDayTask: (input: Parameters<typeof commands.createEventDayTask>[1]) => selectedEvent ? runLiveOps("create task", () => commands.createEventDayTask(selectedEvent.id, input)) : Promise.resolve(),
     updateEventDayTask: (taskId: string, input: Parameters<typeof commands.updateEventDayTask>[2]) => selectedEvent ? runLiveOps("update task", () => commands.updateEventDayTask(selectedEvent.id, taskId, input)) : Promise.resolve(),
     escalateEventDayTask: (taskId: string, input: Parameters<typeof commands.escalateEventDayTask>[2]) => selectedEvent ? runLiveOps("escalate task", () => commands.escalateEventDayTask(selectedEvent.id, taskId, input)) : Promise.resolve(),
@@ -436,6 +440,7 @@ export function useEventDashboardShellViewModel({
     },
     closeEditor: () => setScreen({ name: "portal" }),
     refreshCommandInbox,
+    changeCommandInboxPage,
     resetDashboard: () => run("reset", commands.reset),
     approveApprovalRequest: (requestId: string) => run("approve account", () => commands.approveApprovalRequest(requestId)),
     declineApprovalRequest: (requestId: string) => run("decline account", () => commands.declineApprovalRequest(requestId)),

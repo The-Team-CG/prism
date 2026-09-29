@@ -44,6 +44,7 @@ import {
 } from '@prism/contexts/event-lifecycle';
 import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
+import { PRISM_PRIVACY_NOTICE_VERSION, type RequestApprovalInput } from '@prism/types';
 import { AuditService, PrivacyOperationsService } from '@prism/contexts/platform-ops';
 import { AuthOperationsService, AuthSecurityService } from '@prism/contexts/identity-access';
 import {
@@ -146,13 +147,6 @@ type CreateInquiryInput = {
   loggedByRole?: string;
   loggedByName?: string;
   message: string;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-};
-
-type RequestApprovalInput = {
-  email: string;
   privacyConsentAccepted?: boolean;
   privacyNoticeVersion?: string;
   marketingConsentAccepted?: boolean;
@@ -2011,7 +2005,7 @@ export class SampleCompatibilityService implements OnModuleInit {
           portalActivatedAt: createdAt,
           portalInvitationStatus: 'opened',
           privacyConsentAccepted: true,
-          privacyNoticeVersion: '2026-05-01',
+          privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
           createdAt,
         },
       });
@@ -2387,7 +2381,7 @@ export class SampleCompatibilityService implements OnModuleInit {
           portalInvitationOpenedAt: createdAt,
           portalInvitationExpiresAt: addDays(createdAt, 7),
           privacyConsentAccepted: true,
-          privacyNoticeVersion: '2026-05-01',
+          privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
           marketingConsentAccepted: false,
           createdAt,
         },

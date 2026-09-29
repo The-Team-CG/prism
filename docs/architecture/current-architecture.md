@@ -4,12 +4,12 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-09-29"
+updated: "2026-09-30"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-09-08; P0 context and session composition"
+last_verified: "2026-09-30; maintainability refactor verification"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -114,7 +114,31 @@ flowchart LR
 | `packages/ui` | Shared shells, brand, public blocks, and presentation primitives; no workflow ownership or role data rules. |
 | `packages/tokens` | Shared design tokens, theme values, and typography. |
 
+Event-ops contracts and API-client endpoints are organized into capability
+modules behind the existing package-root exports. Portal consumers keep stable
+imports while ownership and changes stay local to each capability.
+
 Portal role apps import `@prism/floorplan-canvas` through their local floorplan editor wrappers. The client app chooses read-only mode for official layouts and keeps preference workflows; the event app retains PMCM official-plan authoring. Template API adapters stay in each portal.
+
+## Portal data access and PMCM dashboard reads
+
+Portal `lib/prism-api` modules are transport setup only: they construct the
+shared API client with the role's stored bearer token and may expose thin URL or
+request helpers. Feature HTTP calls belong in `features/**/data`, grouped by
+their owning workflow or bounded context. A screen-level dashboard adapter may
+compose those feature operations, but it must not depend on `Pick<typeof
+prismApi>` or recreate an app-wide API facade. Authenticated actor identity is
+derived from the verified session token; callers do not supply actor names or
+role query parameters as identity evidence.
+
+The initial PMCM home reads a compact summary and the paged command inbox. The
+inbox queries seven actionable source streams with stable ordering, a page size
+of ten per stream, and one extra row per stream to determine `hasMore`; exact
+summary counts use aggregate queries. The selected-event workspace is fetched
+when an event is selected. The broad PMCM dashboard read remains available to
+secondary sections and loads only after navigation away from the home and inbox
+sections. These bounds constrain records queried and returned; they do not claim
+a measured latency improvement.
 
 ## Backend modular monolith
 

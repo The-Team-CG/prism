@@ -1,3 +1,5 @@
+import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+
 export type InquiryForm = {
   clientName: string;
   companyName: string;
@@ -22,8 +24,6 @@ export type InquiryForm = {
 };
 
 export type InquirySubmitStatus = "idle" | "loading" | "submitted" | "error";
-
-export const PRIVACY_NOTICE_VERSION = "2026-05-01";
 
 export const INQUIRY_WIZARD_STEPS = ["Contact Info", "Event Details", "Budget & Notes", "Confirm"] as const;
 
@@ -81,6 +81,6 @@ export const INITIAL_INQUIRY_FORM: InquiryForm = {
   source: "",
   channel: "",
   privacyConsentAccepted: false,
-  privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+  privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
   marketingConsentAccepted: false,
 };
