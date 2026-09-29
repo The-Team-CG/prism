@@ -106,6 +106,7 @@ export class EventDecisionService {
     const coordinatorIds = [...new Set(rows.flatMap((row) => (row.coordinatorId ? [row.coordinatorId] : [])))].sort();
     // The booking and replacement flows take this per coordinator/day lock; a fixed order keeps two decisions from deadlocking.
     for (const coordinatorId of coordinatorIds) await lockCoordinatorAssignmentDay(tx, coordinatorId, nextDate);
+    const nextDateEnd = new Date(nextDate.getTime() + 24 * 60 * 60 * 1000);
     const [bookings, blocks] = coordinatorIds.length
       ? await Promise.all([
           tx.opsCoordinatorAssignment.findMany({
@@ -119,7 +120,7 @@ export class EventDecisionService {
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           }),
           tx.opsCoordinatorAvailability.findMany({
-            where: { coordinatorId: { in: coordinatorIds }, startsAt: { lte: nextDate }, endsAt: { gt: nextDate } },
+            where: { coordinatorId: { in: coordinatorIds }, startsAt: { lt: nextDateEnd }, endsAt: { gt: nextDate } },
             select: { coordinatorId: true },
           }),
         ])

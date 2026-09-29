@@ -77,8 +77,8 @@ function setup(options: { assignments?: AssignmentRow[]; eventNames?: Record<str
     opsEventDecision: { create: vi.fn().mockResolvedValue({ id: 'decision-1', eventId: 'evt-1' }), update: vi.fn().mockResolvedValue({}), findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn().mockResolvedValue(null) },
     opsCoordinatorAssignment: assignments,
     opsCoordinatorAvailability: {
-      findMany: vi.fn(async ({ where }: { where: { coordinatorId: { in: string[] }; startsAt: { lte: Date }; endsAt: { gt: Date } } }) =>
-        unavailable.filter((block) => where.coordinatorId.in.includes(block.coordinatorId) && block.startsAt <= where.startsAt.lte && block.endsAt > where.endsAt.gt),
+      findMany: vi.fn(async ({ where }: { where: { coordinatorId: { in: string[] }; startsAt: { lt: Date }; endsAt: { gt: Date } } }) =>
+        unavailable.filter((block) => where.coordinatorId.in.includes(block.coordinatorId) && block.startsAt < where.startsAt.lt && block.endsAt > where.endsAt.gt),
       ),
     },
     opsSupplierQuoteRequest: { findMany: vi.fn().mockResolvedValue([{ id: 'supplier-1', supplierName: 'Supplier', assignmentStatus: 'selected' }]), updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
@@ -175,7 +175,7 @@ describe('EventDecisionService', () => {
         assignment({ id: 'kept-1', coordinatorId: 'coord-1', doubleBookingWarning: true, conflictEventId: 'evt-9', conflictEventName: 'Old clash' }),
         assignment({ id: 'kept-2', coordinatorId: 'coord-2' }),
       ],
-      unavailable: [{ coordinatorId: 'coord-2', startsAt: new Date('2026-12-01T00:00:00.000Z'), endsAt: new Date('2026-12-15T00:00:00.000Z') }],
+      unavailable: [{ coordinatorId: 'coord-2', startsAt: new Date('2026-12-10T13:00:00.000Z'), endsAt: new Date('2026-12-10T18:00:00.000Z') }],
     });
 
     await service.decide('evt-1', postpone('preserve_obligations'), actor);

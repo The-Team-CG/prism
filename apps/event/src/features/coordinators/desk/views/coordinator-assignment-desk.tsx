@@ -36,7 +36,8 @@ function hasUnavailableAssignmentConflict(
   assignments: PrismCoordinatorAssignment[],
   availability: PrismCoordinatorAvailability[],
 ) {
-  const eventDateAtMidnight = new Date(`${eventDate}T00:00:00.000Z`).getTime();
+  const eventDateStart = new Date(`${eventDate}T00:00:00.000Z`).getTime();
+  const eventDateEnd = eventDateStart + 24 * 60 * 60 * 1000;
   const activelyAssigned = assignments.some((assignment) =>
     assignment.eventId === eventId &&
     assignment.coordinatorId === coordinatorId &&
@@ -45,8 +46,8 @@ function hasUnavailableAssignmentConflict(
   return activelyAssigned && availability.some((item) =>
     item.coordinatorId === coordinatorId &&
     item.kind === "unavailable" &&
-    Date.parse(item.startsAt) <= eventDateAtMidnight &&
-    Date.parse(item.endsAt) > eventDateAtMidnight,
+    Date.parse(item.startsAt) < eventDateEnd &&
+    Date.parse(item.endsAt) > eventDateStart,
   );
 }
 
