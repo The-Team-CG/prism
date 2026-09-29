@@ -56,6 +56,30 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
+type AvailabilityRow = {
+  id: string;
+  coordinatorId: string;
+  startsAt: Date;
+  endsAt: Date;
+  kind: string;
+  note: string;
+  declaredBy: string;
+  createdAt: Date;
+};
+
+function mapAvailability(row: AvailabilityRow) {
+  return {
+    id: row.id,
+    coordinatorId: row.coordinatorId,
+    startsAt: timestamp(row.startsAt),
+    endsAt: timestamp(row.endsAt),
+    kind: row.kind,
+    note: row.note,
+    declaredBy: row.declaredBy,
+    createdAt: timestamp(row.createdAt),
+  };
+}
+
 @Injectable()
 export class CoordinatorsService {
   constructor(
@@ -118,36 +142,71 @@ export class CoordinatorsService {
       orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
       take: MAX_STAFFING_AVAILABILITY,
     });
-    return rows.map((row) => ({
-      id: row.id,
-      coordinatorId: row.coordinatorId,
-      startsAt: timestamp(row.startsAt),
-      endsAt: timestamp(row.endsAt),
-      kind: row.kind,
-      note: row.note,
-      declaredBy: row.declaredBy,
-      createdAt: timestamp(row.createdAt),
-    }));
+    return rows.map(mapAvailability);
   }
 
   async createAvailability(
     coordinatorId: string,
     input: CreateCoordinatorAvailabilityInput,
     actor: ResolvedEventOpsActor,
+    eventId?: string,
   ) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator availability');
     const coordinator = await this.prisma.opsCoordinator.findUnique({ where: { id: coordinatorId } });
     if (!coordinator) throw new NotFoundException('Coordinator not found');
-    return this.prisma.opsCoordinatorAvailability.create({
-      data: {
-        id: `coord_avail_${randomUUID()}`,
-        coordinatorId,
-        startsAt: new Date(input.startsAt),
-        endsAt: new Date(input.endsAt),
-        kind: input.kind,
-        note: input.note ?? '',
-        declaredBy: actor.name,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.opsCoordinatorAvailability.create({
+        data: {
+          id: `coord_avail_${randomUUID()}`,
+          coordinatorId,
+          startsAt: new Date(input.startsAt),
+          endsAt: new Date(input.endsAt),
+          kind: input.kind,
+          note: input.note ?? '',
+          declaredBy: actor.name,
+        },
+      });
+      await this.auditWriter.write({
+        eventId,
+        actor: actor.name,
+        action: `Declared ${coordinator.name} ${input.kind} from ${isoDate(created.startsAt)} to ${isoDate(created.endsAt)}`,
+        actionType: AuditActionType.Create,
+        category: AuditCategory.Events,
+        affectedType: 'coordinator_availability',
+        affectedId: created.id,
+        affectedLabel: coordinator.name,
+        metadata: { kind: input.kind, startsAt: timestamp(created.startsAt), endsAt: timestamp(created.endsAt), note: input.note ?? '' },
+      }, { prisma: tx, actorId: actor.id ?? actor.name, correlationId: `coord-availability:${created.id}` });
+      return mapAvailability(created);
+    });
+  }
+
+  async deleteAvailability(
+    coordinatorId: string,
+    availabilityId: string,
+    actor: ResolvedEventOpsActor,
+    eventId?: string,
+  ) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator availability');
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.opsCoordinatorAvailability.findFirst({
+        where: { id: availabilityId, coordinatorId },
+        include: { coordinator: { select: { name: true } } },
+      });
+      if (!existing) throw new NotFoundException('Availability entry not found');
+      await tx.opsCoordinatorAvailability.delete({ where: { id: availabilityId } });
+      await this.auditWriter.write({
+        eventId,
+        actor: actor.name,
+        action: `Removed ${existing.kind} entry for ${existing.coordinator.name} (${isoDate(existing.startsAt)} to ${isoDate(existing.endsAt)})`,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Events,
+        affectedType: 'coordinator_availability',
+        affectedId: existing.id,
+        affectedLabel: existing.coordinator.name,
+        metadata: { removed: true, kind: existing.kind, startsAt: timestamp(existing.startsAt), endsAt: timestamp(existing.endsAt), note: existing.note },
+      }, { prisma: tx, actorId: actor.id ?? actor.name, correlationId: `coord-availability-removed:${existing.id}` });
+      return { id: existing.id };
     });
   }
 
@@ -239,7 +298,7 @@ export class CoordinatorsService {
       include: { event: { select: { eventName: true, eventDate: true } }, coordinator: { select: { email: true } } },
       orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
     });
-    const results = [] as Array<{ assignmentId: string; status: string; reason: string }>;
+    const results = [] as Array<{ assignmentId: string; status: string; reason: string | null }>;
     for (const assignment of assignments) {
       const cycle = isoDate(assignment.eventDate ?? assignment.event.eventDate);
       const queued = await this.notificationOutboxWriter.write({
@@ -254,7 +313,7 @@ export class CoordinatorsService {
       results.push({
         assignmentId: assignment.id,
         status: delivered?.status ?? 'queued',
-        reason: delivered?.failureReason ?? 'Delivery provider is not configured',
+        reason: delivered?.failureReason ?? null,
       });
     }
     return { leadTimeDays: ACKNOWLEDGEMENT_LEAD_TIME_DAYS, reminders: results };
@@ -308,10 +367,11 @@ export class CoordinatorsService {
       throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
     }
 
+    const eventDateEnd = new Date(event.eventDate.getTime() + 24 * 60 * 60 * 1000);
     const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
     const unavailable = availabilityModel
       ? await availabilityModel.findFirst({
-          where: { coordinatorId: coordinator.id, startsAt: { lte: event.eventDate }, endsAt: { gt: event.eventDate } },
+          where: { coordinatorId: coordinator.id, startsAt: { lt: eventDateEnd }, endsAt: { gt: event.eventDate } },
           orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
         })
       : null;
@@ -820,10 +880,11 @@ export class CoordinatorsService {
     const busyIds = new Set(
       busy.map((row) => row.coordinatorId).filter((id): id is string => Boolean(id)),
     );
+    const eventDateEnd = new Date(event.eventDate.getTime() + 24 * 60 * 60 * 1000);
     const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
     const unavailable = availabilityModel
       ? await availabilityModel.findMany({
-          where: { startsAt: { lte: event.eventDate }, endsAt: { gt: event.eventDate } },
+          where: { startsAt: { lt: eventDateEnd }, endsAt: { gt: event.eventDate } },
           select: { coordinatorId: true },
         })
       : [];

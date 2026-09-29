@@ -6,12 +6,18 @@ import type {
   CoordinatorAssignmentAcknowledgementInput,
   DecideEventTaskReassignmentInput,
   UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  VerifySupplierStatusInput,
   WithdrawCoordinatorAssignmentInput,
 } from "@prism/types";
 import { coordinatorsRepository } from "../data/coordinators-repository";
 
 export async function loadCoordinatorRoleView(session: EventSession, eventId: string) {
   return coordinatorsRepository.loadRoleView(session, eventId);
+}
+
+export async function loadCoordinatorRunSheet(session: EventSession, eventId: string, dayId: string) {
+  return coordinatorsRepository.getRunSheet(session, eventId, dayId);
 }
 
 export async function acknowledgeCoordinatorAssignment(
@@ -92,5 +98,35 @@ export async function markAttendanceAndRefreshRoleView(input: {
     input.assignmentId,
     input.input,
   );
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function updateOwnTaskAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  taskId: string;
+  input: UpdateEventDayTaskInput;
+}) {
+  await coordinatorsRepository.updateOwnTask(input.session, input.eventId, input.taskId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function updateDelegatedAttendanceAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  assignmentId: string;
+  input: UpdateCoordinatorAttendanceInput;
+}) {
+  await coordinatorsRepository.updateDelegatedAttendance(input.session, input.eventId, input.assignmentId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function verifySupplierStatusAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  requestId: string;
+  input: VerifySupplierStatusInput;
+}) {
+  await coordinatorsRepository.verifySupplierStatus(input.session, input.eventId, input.requestId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }

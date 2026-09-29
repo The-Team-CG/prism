@@ -12,6 +12,8 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import { useState } from "react";
+import { decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
 
 import type {
   EscalateLiveOpsInput,
@@ -28,11 +30,13 @@ import type {
   UpdateEventDayTaskInput,
   UpdateUrgentIssueInput,
   VerifySupplierStatusInput,
+  DecideEventTaskReassignmentInput,
 } from "@prism/types";
 import { cx, label } from "@/features/pmcm-kit";
 import { liveOpsPillClass } from "../model/live-ops-workspace-rules";
 import { useCoordinatorRowViewModel } from "../view-models/use-coordinator-row-view-model";
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
+import { LiveOpsControlSurface } from "@/features/live-ops/schedule";
 
 type LiveOpsVm = ReturnType<typeof useLiveOperationsWorkspaceViewModel>;
 
@@ -166,6 +170,7 @@ export function LiveOpsDesk({
   onUpdateCoordinatorAttendance,
   onReplaceCoordinator,
   onVerifySupplierStatus,
+  onDecideTaskReassignment,
 }: {
   liveOps: PrismLiveOps;
   coordinators: PrismCoordinator[];
@@ -178,9 +183,27 @@ export function LiveOpsDesk({
   onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
   onReplaceCoordinator: (assignmentId: string, input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
   onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
+  onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
+  const runSheet = liveOps.schedule?.authored && liveOps.schedule.days[0]
+    ? {
+        eventId: liveOps.event.id,
+        day: liveOps.schedule.days[0],
+        coordinators: liveOps.coordinatorAssignments,
+        supplierCommitments: liveOps.supplierStatuses.map((item) => ({
+          id: item.id,
+          supplierName: item.supplierName,
+          category: item.category,
+          status: item.eventDayStatus ?? item.readinessStatus ?? "unknown",
+          notes: item.eventDayNotes ?? "",
+        })),
+        openTasks: liveOps.tasks.filter((item) => item.status !== "done"),
+        openIssues: liveOps.urgentIssues.filter((item) => item.status !== "resolved"),
+      }
+    : { eventId: liveOps.event.id, authored: false as const, reason: "no_schedule" as const };
   return (
     <>
+      {liveOps.schedule ? <div className="rounded-lg border border-border bg-card p-5"><LiveOpsControlSurface schedule={liveOps.schedule} timer={liveOps.timer} runSheet={runSheet} /></div> : null}
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="rounded-lg border border-border bg-card p-5">
           <Header icon={Truck} eyebrow="Supplier setup" title="Self-reported status and PMCM verification" />
@@ -221,6 +244,8 @@ export function LiveOpsDesk({
         <LiveOpsTasksPanel liveOps={liveOps} busy={busy} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
       </section>
 
+      <ReassignmentReviewPanel liveOps={liveOps} busy={busy} onDecide={onDecideTaskReassignment} />
+
       <section className="rounded-lg border border-border bg-card p-5">
         <Header icon={ShieldCheck} eyebrow="Live log" title="Event-day operational trail" />
         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -237,6 +262,40 @@ export function LiveOpsDesk({
         </div>
       </section>
     </>
+  );
+}
+
+function ReassignmentReviewPanel({
+  liveOps,
+  busy,
+  onDecide,
+}: {
+  liveOps: PrismLiveOps;
+  busy: boolean;
+  onDecide: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
+}) {
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const pending = (liveOps.taskReassignmentRequests ?? []).filter((request) => request.status === "pending");
+  if (pending.length === 0) return null;
+  return (
+    <section className="rounded-lg border border-border bg-card p-5">
+      <Header icon={UserCheck} eyebrow="PMCM review" title="Coordinator task reassignment requests" />
+      <div className="mt-4 space-y-3">
+        {pending.map((request) => (
+          <div key={request.id} className="rounded-md border border-border bg-background p-4">
+            <p className="font-semibold">{request.fromOwnerRole} → {request.toOwnerRole}{request.toOwnerName ? ` (${request.toOwnerName})` : ""}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Task {request.taskId}. Requested by {request.requestedBy}. {request.reason}</p>
+            <label className="mt-3 grid gap-1 text-xs font-semibold text-muted-foreground">Decision note
+              <textarea value={reasons[request.id] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [request.id]: event.target.value }))} rows={2} className="rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground" placeholder="Required when rejecting" />
+            </label>
+            <div className="mt-3 flex gap-2">
+              <button type="button" disabled={busy} onClick={() => { const input = parseContract(decideEventTaskReassignmentSchema, { decision: "approved", reason: reasons[request.id] }, "Task reassignment decision"); void onDecide(request.id, input); }} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">Approve</button>
+              <button type="button" disabled={busy || !(reasons[request.id] ?? "").trim()} onClick={() => { const input = parseContract(decideEventTaskReassignmentSchema, { decision: "rejected", reason: reasons[request.id] }, "Task reassignment decision"); void onDecide(request.id, input); }} className="h-9 rounded-md border border-border px-3 text-sm font-semibold disabled:opacity-60">Reject</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
