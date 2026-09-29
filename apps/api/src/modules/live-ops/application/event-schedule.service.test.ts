@@ -3,10 +3,49 @@ import { ForbiddenException } from '@nestjs/common';
 import { EventScheduleService } from './event-schedule.service';
 
 function service(access: { requireActorRole: ReturnType<typeof vi.fn> }, staffing = {}) {
-  return new EventScheduleService({} as never, access as never, {} as never, staffing as never, {} as never);
+  return new EventScheduleService({} as never, access as never, {} as never, staffing as never, { getEventLiveOps: vi.fn() } as never);
 }
 
 describe('EventScheduleService authority', () => {
+  it('returns only the event-scoped live-ops view to an assigned coordinator run sheet', async () => {
+    const eventId = 'evt_1';
+    const actor = { id: 'usr_coord', role: 'coordinator', name: 'Coordinator', email: 'coord@example.test' };
+    const day = {
+      id: 'day_1',
+      eventId,
+      dayDate: '2026-10-01',
+      label: 'Event day',
+      status: 'planned',
+      segments: [],
+    };
+    const ownAssignment = { id: 'assignment_own', coordinatorName: 'Coordinator' };
+    const scopedLiveOps = {
+      schedule: { eventId, authored: true, days: [day], serverTime: '2026-09-29T00:00:00.000Z' },
+      coordinatorAssignments: [ownAssignment],
+      supplierStatuses: [{ id: 'supplier_visible', supplierName: 'Visible Supplier', category: 'Catering', eventDayStatus: 'ready', readinessStatus: 'ready', eventDayNotes: '' }],
+      tasks: [{ id: 'task_visible' }],
+      urgentIssues: [{ id: 'issue_visible' }],
+    };
+    const readModel = { getEventLiveOps: vi.fn(async () => scopedLiveOps) };
+    const instance = new EventScheduleService(
+      {} as never,
+      { requireActorRole: vi.fn(async () => undefined) } as never,
+      {} as never,
+      {} as never,
+      readModel as never,
+    );
+
+    const result = await instance.getRunSheet(eventId, 'day_1', actor as never);
+
+    expect(result).toMatchObject({
+      coordinators: [ownAssignment],
+      supplierCommitments: [{ id: 'supplier_visible', supplierName: 'Visible Supplier' }],
+      openTasks: [{ id: 'task_visible' }],
+      openIssues: [{ id: 'issue_visible' }],
+    });
+    expect(readModel.getEventLiveOps).toHaveBeenCalledWith(eventId, actor);
+  });
+
   it('keeps operator designation PMCM-only', async () => {
     const access = { requireActorRole: vi.fn().mockRejectedValue(new ForbiddenException('denied')) };
     await expect(service(access).designateOperator('evt_1', { coordinatorId: 'coord_1' }, { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('denied');
@@ -49,7 +88,7 @@ describe('EventScheduleService authority', () => {
       access as never,
       auditWriter as never,
       {} as never,
-      {} as never,
+      { getEventLiveOps: vi.fn() } as never,
       { now: () => new Date('2026-09-08T03:00:00.000Z') },
     );
 

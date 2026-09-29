@@ -64,9 +64,24 @@ function createService(assignment: unknown) {
   const eventAccessPolicyService = {
     requireActorRole: vi.fn(async () => undefined),
     recordForbiddenAccess: vi.fn(async () => undefined),
+    sameText: vi.fn((left: string | null | undefined, right: string | null | undefined) => left?.trim().toLowerCase() === right?.trim().toLowerCase()),
   };
   const liveOperationsService = {
     createEventDayTask: vi.fn(),
+    updateEventDayTask: vi.fn(async (_eventId: string, taskId: string, input: { status?: string; notes?: string; ownerName?: string; slaDueAt?: string }) => ({
+      id: taskId,
+      eventId: 'evt_sample_ayala',
+      title: 'Open registration',
+      assignedRole: 'Registration Staff',
+      ownerName: input.ownerName ?? 'Marco Santos',
+      priority: 'normal',
+      status: input.status ?? 'open',
+      notes: input.notes ?? '',
+      dueAt: null,
+      slaDueAt: input.slaDueAt ?? null,
+      createdAt: new Date('2026-09-02T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-02T00:00:00.000Z'),
+    })),
     updateCoordinatorAttendance: vi.fn(async () => coordinatorAssignmentRow()),
     computeSlaStatus: vi.fn(() => 'on_track'),
   };
@@ -136,6 +151,35 @@ describe('EventLiveOpsCommandService event scoping', () => {
 
     await service.createEventDayTask('evt_sample_ayala', { title: 'Open registration' }, coordinatorActor());
     expect(liveOperationsService.createEventDayTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps coordinator task updates to progress fields so reassignment requires PMCM review', async () => {
+    const { service, liveOperationsService, eventAccessPolicyService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsEventDayTask.findFirst.mockResolvedValue({
+      id: 'task_registration',
+      eventId: 'evt_sample_ayala',
+      title: 'Open registration',
+      assignedRole: 'Registration Staff',
+      ownerName: 'Marco Santos',
+      status: 'open',
+    } as never);
+
+    await expect(
+      service.updateEventDayTask(
+        'evt_sample_ayala',
+        'task_registration',
+        { status: 'in_progress', ownerName: 'Rhea Dela Cruz' },
+        coordinatorActor(),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(liveOperationsService.updateEventDayTask).not.toHaveBeenCalled();
+    expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+      'coordinator task ownership update',
+      'evt_sample_ayala',
+    );
   });
 });
 
