@@ -47,6 +47,16 @@ export const CoordinatorAssignmentStatus = {
   Replaced: 'replaced',
 } as const;
 
+/**
+ * Assignment states that no longer occupy a coordinator on the event date.
+ * Booking, availability and coverage checks treat every other state as active,
+ * so any workflow that releases a coordinator must write one of these.
+ */
+export const INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES = [
+  CoordinatorAssignmentStatus.Cancelled,
+  CoordinatorAssignmentStatus.Replaced,
+] as const;
+
 export const EventDayTaskStatus = {
   Open: 'open',
   InProgress: 'in_progress',

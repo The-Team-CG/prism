@@ -74,9 +74,22 @@ function createPrisma() {
       findMany: async () => [coordinator],
     },
     opsCoordinatorAvailability: {
-      findFirst: async ({ where }: { where?: { coordinatorId?: string } } = {}) =>
-        availability.find((row) => !where?.coordinatorId || row.coordinatorId === where.coordinatorId) ?? null,
-      findMany: async () => availability,
+      findFirst: async ({ where }: { where?: { coordinatorId?: string; startsAt?: { lte?: Date; lt?: Date }; endsAt?: { gt?: Date } } } = {}) =>
+        availability.find((row) => {
+          if (where?.coordinatorId && row.coordinatorId !== where.coordinatorId) return false;
+          if (where?.startsAt?.lte && row.startsAt > where.startsAt.lte) return false;
+          if (where?.startsAt?.lt && row.startsAt >= where.startsAt.lt) return false;
+          if (where?.endsAt?.gt && row.endsAt <= where.endsAt.gt) return false;
+          return true;
+        }) ?? null,
+      findMany: async ({ where }: { where?: { coordinatorId?: string; startsAt?: { lte?: Date; lt?: Date }; endsAt?: { gt?: Date } } } = {}) =>
+        availability.filter((row) => {
+          if (where?.coordinatorId && row.coordinatorId !== where.coordinatorId) return false;
+          if (where?.startsAt?.lte && row.startsAt > where.startsAt.lte) return false;
+          if (where?.startsAt?.lt && row.startsAt >= where.startsAt.lt) return false;
+          if (where?.endsAt?.gt && row.endsAt <= where.endsAt.gt) return false;
+          return true;
+        }),
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: new Date() };
         availability.push(row);
@@ -173,13 +186,13 @@ function createService(prisma: any, accessPolicy: any = createAccessPolicy()) {
 }
 
 describe('CoordinatorsService', () => {
-  it('rejects assignments inside the transaction when declared availability blocks the event date', async () => {
+  it('rejects assignments when declared unavailability overlaps any time on the event date', async () => {
     const fake = createPrisma();
     fake.availability.push({
       id: 'coord_avail_blocked',
       coordinatorId: coordinator.id,
-      startsAt: new Date('2026-06-17T00:00:00.000Z'),
-      endsAt: new Date('2026-06-19T00:00:00.000Z'),
+      startsAt: new Date('2026-06-18T13:00:00.000Z'),
+      endsAt: new Date('2026-06-18T16:00:00.000Z'),
       kind: 'blocked',
       note: 'Medical leave',
     });

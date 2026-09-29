@@ -112,37 +112,46 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       eventDayLogs: data.eventDayLogs.map(mapEventDayLog),
       isDesignatedOperator: designatedOperator,
       canMarkDelegatedAttendance: designatedOperator,
-      taskReassignmentRequests: reassignmentRequests.map((request) => this.mapReassignmentRequest(request)),
+      taskReassignmentRequests: (!coordinatorAssignment || designatedOperator)
+        ? reassignmentRequests.map((request) => this.mapReassignmentRequest(request))
+        : [],
       schedule: { eventId, authored: scheduleDays.length > 0, days: scheduleDays.map(mapScheduleDay), serverTime: new Date().toISOString() },
       timer: deriveLiveOpsTimer({ eventId, authored: scheduleDays.length > 0, days: scheduleDays.map(mapScheduleDay), serverTime: new Date().toISOString() }, new Date()),
     };
 
-    if (actor.role === OpsUserRole.Coordinator) {
-      if (!coordinatorAssignment) throw new ForbiddenException('Coordinator is not assigned to this event');
-      return {
-        ...base,
-        role: coordinatorAssignment.role,
-        isDesignatedOperator: designatedOperator,
-        canMarkDelegatedAttendance: designatedOperator,
-        supplierStatuses: supplierStatuses.map((status) => ({
-          id: status.id,
-          eventId: status.eventId,
-          supplierId: status.supplierId,
-          supplierName: status.supplierName,
-          category: status.category,
-          assignmentStatus: status.assignmentStatus,
-          readinessStatus: status.readinessStatus,
-          eventDayStatus: status.eventDayStatus,
-          eventDayNotes: status.eventDayNotes,
-          verificationStatus: status.verificationStatus,
-          verifiedAt: status.verifiedAt,
-          verifiedBy: status.verifiedBy,
-        })),
-        guestCheckIns: this.isRegistrationRole(coordinatorAssignment.role) ? base.guestCheckIns : [],
-      };
-    }
+    if (actor.role !== OpsUserRole.Coordinator) return base;
+    return this.mapCoordinatorLiveOps(base, coordinatorAssignment, designatedOperator);
+  }
 
-    return base;
+  private mapCoordinatorLiveOps(
+    base: PrismLiveOps,
+    assignment: Awaited<ReturnType<LiveOpsReadModelsService['requireCoordinatorAssignmentForEvent']>> | null,
+    designatedOperator: boolean,
+  ): PrismCoordinatorLiveOps {
+    if (!assignment) throw new ForbiddenException('Coordinator is not assigned to this event');
+    return {
+      ...base,
+      role: assignment.role,
+      isDesignatedOperator: designatedOperator,
+      canMarkDelegatedAttendance: designatedOperator,
+      supplierStatuses: designatedOperator || this.isIngressRole(assignment.role)
+        ? base.supplierStatuses.map((status) => ({
+            id: status.id,
+            eventId: status.eventId,
+            supplierId: status.supplierId,
+            supplierName: status.supplierName,
+            category: status.category,
+            assignmentStatus: status.assignmentStatus,
+            readinessStatus: status.readinessStatus,
+            eventDayStatus: status.eventDayStatus,
+            eventDayNotes: status.eventDayNotes,
+            verificationStatus: status.verificationStatus,
+            verifiedAt: status.verifiedAt,
+            verifiedBy: status.verifiedBy,
+          }))
+        : [],
+      guestCheckIns: this.isRegistrationRole(assignment.role) ? base.guestCheckIns : [],
+    };
   }
 
   private async loadW20Context(eventId: string, coordinatorAssignment: Awaited<ReturnType<LiveOpsReadModelsService['requireCoordinatorAssignmentForEvent']>> | null) {
@@ -173,11 +182,11 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
 
   private visibleUrgentIssues(issues: Awaited<ReturnType<EventReadModelQueries['liveOpsForEvent']>>['urgentIssues'], assignment: Awaited<ReturnType<LiveOpsReadModelsService['requireCoordinatorAssignmentForEvent']>> | null, designatedOperator: boolean) {
     if (!assignment || designatedOperator) return issues;
-    return issues.filter((issue) =>
-      !issue.ownerRole ||
-      this.eventAccessPolicyService.sameText(issue.ownerRole, assignment.role) ||
-      this.eventAccessPolicyService.sameText(issue.ownerName, assignment.coordinatorName),
-    );
+    return issues.filter((issue) => {
+      const roleMatches = Boolean(issue.ownerRole?.trim()) && this.eventAccessPolicyService.sameText(issue.ownerRole, assignment.role);
+      const ownerMatches = Boolean(issue.ownerName?.trim()) && this.eventAccessPolicyService.sameText(issue.ownerName, assignment.coordinatorName);
+      return roleMatches || ownerMatches;
+    });
   }
 
   private mapReassignmentRequest(request: ReassignmentQueryRow) {
@@ -299,6 +308,11 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
   private isRegistrationRole(role: string) {
     const normalized = role.toLowerCase();
     return normalized.includes('registration') || normalized.includes('usher');
+  }
+
+  private isIngressRole(role?: string | null) {
+    const value = role?.toLowerCase() ?? '';
+    return value.includes('ingress') || value.includes('egress');
   }
 
   private withExpiredQuoteRequestStatus(request: OpsSupplierQuoteRequest) {

@@ -10,6 +10,10 @@ import {
   withdrawCoordinatorAssignmentSchema,
   parseContract,
   updateCoordinatorAttendanceSchema,
+  updateEventDayTaskSchema,
+  verifySupplierStatusSchema,
+  type PrismEventRunSheet,
+  type CreateEventTaskReassignmentInput,
   type PrismCoordinatorRoleView,
   type PrismCoordinatorWorkspace,
 } from "@prism/types";
@@ -20,7 +24,11 @@ import {
   createUrgentIssueAndRefreshRoleView,
   requestTaskReassignmentAndRefreshRoleView,
   loadCoordinatorRoleView,
+  loadCoordinatorRunSheet,
   markAttendanceAndRefreshRoleView,
+  updateOwnTaskAndRefreshRoleView,
+  updateDelegatedAttendanceAndRefreshRoleView,
+  verifySupplierStatusAndRefreshRoleView,
 } from "../use-cases/coordinator-desk-actions";
 import {
   attendanceChoiceLabel,
@@ -62,6 +70,7 @@ export function useCoordinatorViewModel({
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
+  const [runSheet, setRunSheet] = useState<PrismEventRunSheet | { eventId: string; authored: false; reason: "no_schedule" } | null>(null);
   const [roleViewStatus, setRoleViewStatus] = useState<CoordinatorViewStatus>("idle");
   const [roleViewError, setRoleViewError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("coord-home");
@@ -85,6 +94,8 @@ export function useCoordinatorViewModel({
   const [issueAssignToMe, setIssueAssignToMe] = useState(false);
   const [reassignmentBusy, setReassignmentBusy] = useState(false);
   const [reassignmentError, setReassignmentError] = useState<string | null>(null);
+  const [operatorBusy, setOperatorBusy] = useState(false);
+  const [operatorError, setOperatorError] = useState<string | null>(null);
   // EP-11-S03: per-flow state, same reasoning as the S02 task and issue flows.
   const [attendanceBusy, setAttendanceBusy] = useState(false);
   const [attendanceError, setAttendanceError] = useState<string | null>(null);
@@ -94,6 +105,7 @@ export function useCoordinatorViewModel({
   useEffect(() => {
     if (!event?.id) {
       setRoleView(null);
+      setRunSheet(null);
       setRoleViewStatus("idle");
       setRoleViewError(null);
       return;
@@ -102,11 +114,21 @@ export function useCoordinatorViewModel({
     let alive = true;
     setRoleViewStatus("loading");
     setRoleViewError(null);
+    setRunSheet(null);
     loadCoordinatorRoleView(session, event.id)
-      .then((next) => {
+      .then(async (next) => {
         if (!alive) return;
         setRoleView(next);
         setRoleViewStatus("success");
+        const dayId = next.schedule?.days[0]?.id;
+        if (next.schedule?.authored && dayId) {
+          try {
+            const sheet = await loadCoordinatorRunSheet(session, event.id, dayId);
+            if (alive) setRunSheet(sheet);
+          } catch {
+            if (alive) setRunSheet(null);
+          }
+        }
       })
       .catch((err) => {
         if (!alive) return;
@@ -250,17 +272,14 @@ export function useCoordinatorViewModel({
     }
   }
 
-  async function requestReassignment(taskId: string) {
+  async function requestReassignment(taskId: string, values: CreateEventTaskReassignmentInput) {
     if (!event || !roleView?.isDesignatedOperator) return;
-    const toOwnerRole = window.prompt("Role to take this task")?.trim() ?? "";
-    const toOwnerName = window.prompt("Coordinator name (optional)")?.trim() ?? "";
-    const reason = window.prompt("Why does this task need reassignment?")?.trim() ?? "";
     setReassignmentBusy(true);
     setReassignmentError(null);
     try {
       const input = parseContract(
         createEventTaskReassignmentSchema,
-        { toOwnerRole, toOwnerName: toOwnerName || undefined, reason },
+        values,
         "Task reassignment request",
       );
       setRoleView(
@@ -271,6 +290,43 @@ export function useCoordinatorViewModel({
     } finally {
       setReassignmentBusy(false);
     }
+  }
+
+  async function updateTaskStatus(taskId: string, status: string) {
+    if (!event) return;
+    setTaskBusy(true);
+    setTaskError(null);
+    try {
+      const input = parseContract(updateEventDayTaskSchema, { status }, "Coordinator task update");
+      setRoleView(await updateOwnTaskAndRefreshRoleView({ session, eventId: event.id, taskId, input }));
+    } catch (error) {
+      setTaskError(error instanceof Error ? error.message : "Unable to update this task.");
+    } finally { setTaskBusy(false); }
+  }
+
+  async function updateDelegatedAttendance(assignmentId: string, status: string) {
+    if (!event || !roleView?.isDesignatedOperator) return;
+    setOperatorBusy(true);
+    setOperatorError(null);
+    try {
+      const input = parseContract(updateCoordinatorAttendanceSchema, { status, notes: "Updated by the designated event operator." }, "Coordinator attendance update");
+      setRoleView(await updateDelegatedAttendanceAndRefreshRoleView({ session, eventId: event.id, assignmentId, input }));
+    } catch (error) { setOperatorError(error instanceof Error ? error.message : "Unable to update coordinator attendance."); }
+    finally { setOperatorBusy(false); }
+  }
+
+  async function verifySupplier(requestId: string, verificationStatus: "verified" | "disputed") {
+    if (!event || !(roleView?.isDesignatedOperator || roleView?.role.toLowerCase().includes("ingress"))) return;
+    setOperatorBusy(true);
+    setOperatorError(null);
+    try {
+      const input = parseContract(verifySupplierStatusSchema, {
+        verificationStatus,
+        notes: verificationStatus === "verified" ? "Ingress confirmed supplier setup on site." : "Ingress disputed the reported setup; PMCM follow-up required.",
+      }, "Supplier setup verification");
+      setRoleView(await verifySupplierStatusAndRefreshRoleView({ session, eventId: event.id, requestId, input }));
+    } catch (error) { setOperatorError(error instanceof Error ? error.message : "Unable to update supplier setup status."); }
+    finally { setOperatorBusy(false); }
   }
 
   async function submitAttendance(choice: CoordinatorAttendanceChoice) {
@@ -350,6 +406,7 @@ export function useCoordinatorViewModel({
     activeDraft,
     busy,
     roleView,
+    runSheet,
     roleViewLoading: roleViewStatus === "loading",
     roleViewError,
     roleDataStatus:
@@ -412,6 +469,13 @@ export function useCoordinatorViewModel({
       busy: reassignmentBusy,
       error: reassignmentError,
       request: requestReassignment,
+    },
+    taskActions: { busy: taskBusy, error: taskError, updateStatus: updateTaskStatus },
+    operatorActions: {
+      busy: operatorBusy,
+      error: operatorError,
+      updateAttendance: updateDelegatedAttendance,
+      verifySupplier,
     },
     attendanceStatus,
     attendanceForm: {

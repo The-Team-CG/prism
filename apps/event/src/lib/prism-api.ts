@@ -19,6 +19,7 @@ import type {
   PrismComplianceRisk,
   PrismCoordinator,
   PrismCoordinatorAssignment,
+  PrismCoordinatorAvailability,
   PrismCoordinatorRoleRequirement,
   PrismCoordinatorRoleView,
   PrismCoordinatorWorkspace,
@@ -39,6 +40,7 @@ import type {
   PrismGuestCheckIn,
   PrismInquiry,
   PrismLiveOps,
+  PrismEventRunSheet,
   PrismLoginHistory,
   PrismNotificationLog,
   PrismPaymentMilestone,
@@ -97,6 +99,10 @@ import type {
   GuestRosterSearchInput,
   UpdateGuestVerificationInput,
   EventDecisionInput,
+  CreateCoordinatorAvailabilityInput,
+  CreateCoordinatorCoverageRequirementInput,
+  CreateEventOperatorDesignationInput,
+  PrismAcknowledgementReminderResult,
 } from "@prism/types";
 
 export type PrismEventDecision = {
@@ -716,6 +722,97 @@ export const prismApi = {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
+  verifyCoordinatorSupplierStatus: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    requestId: string,
+    input: VerifySupplierStatusInput,
+  ) => request<PrismSupplierQuoteRequest>(
+    withCoordinatorActor(`/api/events/${eventId}/supplier-status/${requestId}/verify`, session),
+    { method: "PATCH", body: JSON.stringify(input) },
+  ),
+  updateCoordinatorEventDayTask: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    taskId: string,
+    input: UpdateEventDayTaskInput,
+  ) => request<PrismEventDayTask>(
+    withCoordinatorActor(`/api/events/${eventId}/event-day/tasks/${taskId}`, session),
+    { method: "PATCH", body: JSON.stringify(input) },
+  ),
+  getCoordinatorRunSheet: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    dayId?: string,
+  ) => request<PrismEventRunSheet | { eventId: string; authored: false; reason: "no_schedule" }>(
+    withCoordinatorActor(`/api/events/${eventId}/run-sheet${dayId ? `?dayId=${encodeURIComponent(dayId)}` : ""}`, session),
+  ),
+  updateDelegatedCoordinatorAttendance: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    assignmentId: string,
+    input: UpdateCoordinatorAttendanceInput,
+  ) => request<PrismCoordinatorAssignment>(
+    withCoordinatorActor(`/api/events/${eventId}/coordinators/${assignmentId}/status`, session),
+    { method: "PATCH", body: JSON.stringify(input) },
+  ),
+  decidePmcmEventTaskReassignment: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    requestId: string,
+    input: DecideEventTaskReassignmentInput,
+  ) => request<PrismEventTaskReassignmentRequest>(
+    withPmcmAdminActor(`/api/events/${eventId}/event-day/task-reassignments/${requestId}`, session),
+    { method: "PATCH", body: JSON.stringify(input) },
+  ),
+  designateEventDayOperator: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    input: CreateEventOperatorDesignationInput,
+  ) => request<unknown>(
+    withPmcmAdminActor(`/api/events/${eventId}/operator-designation`, session),
+    { method: "POST", body: JSON.stringify(input) },
+  ),
+  upsertCoordinatorCoverage: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    input: CreateCoordinatorCoverageRequirementInput,
+  ) => request<unknown>(
+    withPmcmAdminActor(`/api/events/${eventId}/staffing/coverage`, session),
+    { method: "POST", body: JSON.stringify(input) },
+  ),
+  sendCoordinatorAcknowledgementReminders: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+  ) => request<PrismAcknowledgementReminderResult>(
+    withPmcmAdminActor(`/api/events/${eventId}/staffing/acknowledgement-reminders`, session),
+    { method: "POST" },
+  ),
+  listCoordinatorAvailability: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    coordinatorId: string,
+  ) => request<PrismCoordinatorAvailability[]>(
+    withPmcmAdminActor(`/api/events/${eventId}/coordinators/${coordinatorId}/availability`, session),
+  ),
+  createCoordinatorAvailability: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    coordinatorId: string,
+    input: CreateCoordinatorAvailabilityInput,
+  ) => request<PrismCoordinatorAvailability>(
+    withPmcmAdminActor(`/api/events/${eventId}/coordinators/${coordinatorId}/availability`, session),
+    { method: "POST", body: JSON.stringify(input) },
+  ),
+  deleteCoordinatorAvailability: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+    coordinatorId: string,
+    availabilityId: string,
+  ) => request<{ id: string }>(
+    withPmcmAdminActor(`/api/events/${eventId}/coordinators/${coordinatorId}/availability/${availabilityId}`, session),
+    { method: "DELETE" },
+  ),
   coordinatorWorkspace: (session: { name: string; email: string; role: string }) =>
     request<PrismCoordinatorWorkspace>(withCoordinatorActor("/api/coordinator/workspace", session)),
   coordinatorRoleView: (session: { name: string; email: string; role: string }, eventId: string) =>
