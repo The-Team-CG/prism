@@ -367,10 +367,11 @@ export class CoordinatorsService {
       throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
     }
 
+    const eventDateEnd = new Date(event.eventDate.getTime() + 24 * 60 * 60 * 1000);
     const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
     const unavailable = availabilityModel
       ? await availabilityModel.findFirst({
-          where: { coordinatorId: coordinator.id, startsAt: { lte: event.eventDate }, endsAt: { gt: event.eventDate } },
+          where: { coordinatorId: coordinator.id, startsAt: { lt: eventDateEnd }, endsAt: { gt: event.eventDate } },
           orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
         })
       : null;
@@ -879,10 +880,11 @@ export class CoordinatorsService {
     const busyIds = new Set(
       busy.map((row) => row.coordinatorId).filter((id): id is string => Boolean(id)),
     );
+    const eventDateEnd = new Date(event.eventDate.getTime() + 24 * 60 * 60 * 1000);
     const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
     const unavailable = availabilityModel
       ? await availabilityModel.findMany({
-          where: { startsAt: { lte: event.eventDate }, endsAt: { gt: event.eventDate } },
+          where: { startsAt: { lt: eventDateEnd }, endsAt: { gt: event.eventDate } },
           select: { coordinatorId: true },
         })
       : [];

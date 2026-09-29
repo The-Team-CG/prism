@@ -126,20 +126,22 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
         role: coordinatorAssignment.role,
         isDesignatedOperator: designatedOperator,
         canMarkDelegatedAttendance: designatedOperator,
-        supplierStatuses: supplierStatuses.map((status) => ({
-          id: status.id,
-          eventId: status.eventId,
-          supplierId: status.supplierId,
-          supplierName: status.supplierName,
-          category: status.category,
-          assignmentStatus: status.assignmentStatus,
-          readinessStatus: status.readinessStatus,
-          eventDayStatus: status.eventDayStatus,
-          eventDayNotes: status.eventDayNotes,
-          verificationStatus: status.verificationStatus,
-          verifiedAt: status.verifiedAt,
-          verifiedBy: status.verifiedBy,
-        })),
+        supplierStatuses: designatedOperator || this.isIngressRole(coordinatorAssignment.role)
+          ? supplierStatuses.map((status) => ({
+              id: status.id,
+              eventId: status.eventId,
+              supplierId: status.supplierId,
+              supplierName: status.supplierName,
+              category: status.category,
+              assignmentStatus: status.assignmentStatus,
+              readinessStatus: status.readinessStatus,
+              eventDayStatus: status.eventDayStatus,
+              eventDayNotes: status.eventDayNotes,
+              verificationStatus: status.verificationStatus,
+              verifiedAt: status.verifiedAt,
+              verifiedBy: status.verifiedBy,
+          }))
+          : [],
         guestCheckIns: this.isRegistrationRole(coordinatorAssignment.role) ? base.guestCheckIns : [],
       };
     }
@@ -175,11 +177,11 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
 
   private visibleUrgentIssues(issues: Awaited<ReturnType<EventReadModelQueries['liveOpsForEvent']>>['urgentIssues'], assignment: Awaited<ReturnType<LiveOpsReadModelsService['requireCoordinatorAssignmentForEvent']>> | null, designatedOperator: boolean) {
     if (!assignment || designatedOperator) return issues;
-    return issues.filter((issue) =>
-      !issue.ownerRole ||
-      this.eventAccessPolicyService.sameText(issue.ownerRole, assignment.role) ||
-      this.eventAccessPolicyService.sameText(issue.ownerName, assignment.coordinatorName),
-    );
+    return issues.filter((issue) => {
+      const roleMatches = Boolean(issue.ownerRole?.trim()) && this.eventAccessPolicyService.sameText(issue.ownerRole, assignment.role);
+      const ownerMatches = Boolean(issue.ownerName?.trim()) && this.eventAccessPolicyService.sameText(issue.ownerName, assignment.coordinatorName);
+      return roleMatches || ownerMatches;
+    });
   }
 
   private mapReassignmentRequest(request: ReassignmentQueryRow) {
@@ -301,6 +303,11 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
   private isRegistrationRole(role: string) {
     const normalized = role.toLowerCase();
     return normalized.includes('registration') || normalized.includes('usher');
+  }
+
+  private isIngressRole(role?: string | null) {
+    const value = role?.toLowerCase() ?? '';
+    return value.includes('ingress') || value.includes('egress');
   }
 
   private withExpiredQuoteRequestStatus(request: OpsSupplierQuoteRequest) {

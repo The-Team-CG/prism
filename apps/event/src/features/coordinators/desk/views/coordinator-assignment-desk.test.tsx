@@ -8,8 +8,8 @@ describe("CoordinatorAssignmentDesk availability conflicts", () => {
     const availability = [{
       id: "availability_1",
       coordinatorId: "coord_1",
-      startsAt: "2026-10-01T00:00:00.000Z",
-      endsAt: "2026-10-02T00:00:00.000Z",
+      startsAt: "2026-10-01T13:00:00.000Z",
+      endsAt: "2026-10-01T17:00:00.000Z",
       kind: "unavailable",
       note: "Personal leave",
       declaredBy: "PMCM Admin",

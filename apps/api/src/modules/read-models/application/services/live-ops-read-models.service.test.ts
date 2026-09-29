@@ -327,7 +327,7 @@ describe('LiveOpsReadModelsService', () => {
     expect(result.taskReassignmentRequests).toHaveLength(1);
   });
 
-  it('scopes coordinator data and strips supplier and guest details outside registration', async () => {
+  it('scopes coordinator data and hides supplier and unassigned issue details outside their role', async () => {
     const assignment = assignmentFixture('Logistics Coordinator');
     const { service } = createService({
       tasks: [taskFixture('task_visible', 'Logistics Coordinator'), taskFixture('task_hidden', 'Registration Staff')],
@@ -341,18 +341,30 @@ describe('LiveOpsReadModelsService', () => {
 
     expect(result.role).toBe('Logistics Coordinator');
     expect(result.tasks.map((task) => task.id)).toEqual(['task_visible']);
-    expect(result.urgentIssues.map((issue) => issue.id)).toEqual(['issue_visible', 'issue_unassigned']);
+    expect(result.urgentIssues.map((issue) => issue.id)).toEqual(['issue_visible']);
     expect(result.guestAttendanceCount).toBe(1);
     expect(result.guestCheckIns).toEqual([]);
-    expect(result.supplierStatuses[0]).toMatchObject({
+    expect(result.supplierStatuses).toEqual([]);
+    expect(result.taskReassignmentRequests).toEqual([]);
+  });
+
+  it('exposes supplier setup statuses to ingress coordinators while stripping private supplier details', async () => {
+    const { service } = createService({
+      assignment: assignmentFixture('Ingress and Egress Assistant'),
+      supplierRequests: [supplierRequestFixture()],
+    });
+
+    const result = await service.getEventLiveOps(EVENT_ID, actor(OpsUserRole.Coordinator));
+
+    expect(result.supplierStatuses).toMatchObject([{
       id: 'quote_request_1',
+      supplierName: 'Sonic Line Events',
       eventDayStatus: 'set_up_ready',
       verificationStatus: 'verified',
-    });
+    }]);
     expect(result.supplierStatuses[0]).not.toHaveProperty('accessToken');
     expect(result.supplierStatuses[0]).not.toHaveProperty('confidentialBid');
     expect(result.supplierStatuses[0]).not.toHaveProperty('eventDayVerificationNotes');
-    expect(result.taskReassignmentRequests).toEqual([]);
   });
 
   it('does not query live-ops data before confirming coordinator assignment', async () => {
