@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { PrismPmcmCommandInbox } from "@prism/types";
 import { EventCommandInbox } from "./event-command-inbox";
 
@@ -30,5 +30,22 @@ describe("EventCommandInbox — render states", () => {
     render(<EventCommandInbox inbox={EMPTY_INBOX} onRefresh={() => {}} onPageChange={() => {}} loadFailed={false} />);
     expect(screen.getByText("No pending actions")).toBeTruthy();
     expect(screen.queryByText("Loading command inbox...")).toBeNull();
+  });
+
+  it("moves only to available inbox pages", () => {
+    const onPageChange = vi.fn();
+    const { rerender } = render(
+      <EventCommandInbox inbox={{ ...EMPTY_INBOX, page: { index: 0, size: 10, hasMore: true } }} onRefresh={() => {}} onPageChange={onPageChange} loadFailed={false} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(onPageChange).toHaveBeenCalledWith(1);
+
+    rerender(
+      <EventCommandInbox inbox={{ ...EMPTY_INBOX, page: { index: 100, size: 10, hasMore: false } }} onRefresh={() => {}} onPageChange={onPageChange} loadFailed={false} />,
+    );
+    expect((screen.getByRole("button", { name: "Next page" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+    expect(onPageChange).toHaveBeenCalledWith(99);
   });
 });

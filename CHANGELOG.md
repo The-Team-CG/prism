@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Normal sign-in screens no longer prefill sample-account credentials; local demo account instructions remain in the internal runbook.
 - Approval requests now require `privacyConsentAccepted: true` at the shared contract and auth-service boundary. Portal consent submissions use the centralized notice version, signed-in clients must explicitly accept before submitting a new event inquiry, and staff roster check-ins no longer record guest consent.
 - Added shared Zod contracts for supplier creation, updates, tier changes, and certifications used by the event command adapters.
-- Client and event now share the floorplan canvas editor mechanics through `@prism/floorplan-canvas`; each portal keeps its template repository and role-specific read-only policy.
+- Client and event now share the floorplan canvas editor mechanics through `@prism/floorplan-canvas`; both portal stylesheets scan the shared package for Tailwind classes, and each portal keeps its template repository and role-specific read-only policy.
 - Split shared event-ops contracts and API-client transports into capability modules behind unchanged package-root exports.
 - OpenRouter synthetic-profile audits keep `zdrConfirmed` false while endpoint and account ZDR qualification remains open; the adapter still requests ZDR and denies data collection, and the route remains synthetic-only. No tests or provider calls were run per release-review instruction.
 - The health endpoint now reports the AI gateway profile and provider-call state from the resolved runtime configuration, including local OpenRouter and Anthropic selection. No tests or provider calls were run for this review finding.
