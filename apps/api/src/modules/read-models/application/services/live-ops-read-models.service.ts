@@ -112,7 +112,9 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       eventDayLogs: data.eventDayLogs.map(mapEventDayLog),
       isDesignatedOperator: designatedOperator,
       canMarkDelegatedAttendance: designatedOperator,
-      taskReassignmentRequests: reassignmentRequests.map((request) => this.mapReassignmentRequest(request)),
+      taskReassignmentRequests: (!coordinatorAssignment || designatedOperator)
+        ? reassignmentRequests.map((request) => this.mapReassignmentRequest(request))
+        : [],
       schedule: { eventId, authored: scheduleDays.length > 0, days: scheduleDays.map(mapScheduleDay), serverTime: new Date().toISOString() },
       timer: deriveLiveOpsTimer({ eventId, authored: scheduleDays.length > 0, days: scheduleDays.map(mapScheduleDay), serverTime: new Date().toISOString() }, new Date()),
     };
