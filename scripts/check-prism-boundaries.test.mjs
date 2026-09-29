@@ -111,4 +111,42 @@ describe("findBoundaryViolations", () => {
       ]);
     }
   });
+
+  it("allows the focused conforme reminder claim seam only", () => {
+    const path = "apps/api/src/modules/platform-ops/application/ai-governance/conforme-comms-draft.service.ts";
+    assert.deepEqual(findBoundaryViolations({ [path]:
+      'import { CONFORME_REMINDER_WINDOW_CLAIMER } from "@prism/contexts/event-lifecycle/conforme-reminder-window";',
+    }), []);
+    for (const imported of ["@prism/contexts/event-lifecycle/application/onboarding/inquiries.service", "@prism/contexts/event-lifecycle/conforme-reminder-window/private"]) {
+      assert.deepEqual(findBoundaryViolations({ [path]: `import { InquiryService } from "${imported}";` }), [
+        `${path}: backend code must use public context and kernel entrypoints`,
+      ]);
+    }
+  });
+
+  it("confines provider SDK imports to gateway infrastructure after the PARE migration", () => {
+    const allowedAdapter = "apps/api/src/modules/platform-ops/infrastructure/ai-governance/anthropic.adapter.ts";
+    const migratedAgent = "apps/api/src/modules/platform-ops/application/ai-governance/pare/agents/budget.agent.ts";
+    const blockedPortal = "apps/event/src/features/pare/data/provider.ts";
+    const blockedBackend = "apps/api/src/modules/commercial/application/provider.ts";
+    const blockedSharedTypes = "packages/types/src/provider.ts";
+    const mockOnlyTest = "apps/api/src/modules/platform-ops/application/ai-governance/pare/pare-safety.test.ts";
+
+    assert.deepEqual(
+      findBoundaryViolations({
+        [allowedAdapter]: 'import Anthropic from "@anthropic-ai/sdk";',
+        [migratedAgent]: 'const sdk = await import("@anthropic-ai/sdk");',
+        [mockOnlyTest]: 'vi.mock("@anthropic-ai/sdk");',
+        [blockedPortal]: 'const sdk = await import("openai");',
+        [blockedBackend]: 'const sdk = require("@openrouter/sdk");',
+        [blockedSharedTypes]: 'import type { Anthropic } from "@anthropic-ai/sdk";',
+      }),
+      [
+        `${migratedAgent}: provider SDK imports must stay in AI gateway infrastructure`,
+        `${blockedPortal}: provider SDK imports must stay in AI gateway infrastructure`,
+        `${blockedBackend}: provider SDK imports must stay in AI gateway infrastructure`,
+        `${blockedSharedTypes}: provider SDK imports must stay in AI gateway infrastructure`,
+      ],
+    );
+  });
 });

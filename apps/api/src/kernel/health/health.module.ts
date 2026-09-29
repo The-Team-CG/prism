@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { HealthController } from './health.controller';
 
 /**
@@ -6,6 +7,7 @@ import { HealthController } from './health.controller';
  * Read-only: none.
  */
 @Module({
+  imports: [ConfigModule],
   controllers: [HealthController],
 })
 export class HealthModule {}

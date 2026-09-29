@@ -1,58 +1,28 @@
-export type PAREContext = {
-  triggerId: string;
-  eventId: string;
-  eventName: string;
-  eventDate: string;
-  daysUntilEvent: number;
-  clientName: string;
-  totalBudget: number;
-  spentBudget: number;
-  remainingBudget: number;
-  withdrawnSupplier: {
-    id: string;
-    name: string;
-    category: string;
-    tier: string;
-    quotedAmount: number;
-  };
-  clientPreferences: string[];
-  candidates?: PARECandidate[];
-  budgetAnalysis?: PAREBudgetAnalysis;
-  riskAssessment?: PARERisk;
-  drafts?: PAREDrafts;
-};
+import type {
+  AiAuditEvidence,
+  AiPareBudgetAnalysis,
+  AiPareCandidate,
+  AiPareContext,
+  AiPareDrafts,
+  AiPareRisk,
+  AiPareRiskLevel,
+} from '@prism/types';
 
-export type PARECandidate = {
-  supplierId: string;
-  supplierName: string;
-  tier: string;
-  quotedAmount: number;
-  reliabilityScore: number;
-  halal: boolean;
-  priorPmcmEvents: number;
-  reason: string;
-};
+export type {
+  AiPareBudgetAnalysis,
+  AiPareCandidate,
+  AiPareContext,
+  AiPareDrafts,
+  AiPareRisk,
+  AiPareRiskLevel,
+} from '@prism/types';
 
-export type PAREBudgetAnalysis = {
-  feasible: boolean;
-  selectedCandidate: PARECandidate;
-  costDelta: number;
-  costDeltaLabel: string;
-  summary: string;
-};
-
-export type PARERiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
-
-export type PARERisk = {
-  level: PARERiskLevel;
-  factors: string[];
-  recommendation: string;
-};
-
-export type PAREDrafts = {
-  supplierNotification: string;
-  clientReassurance: string;
-};
+export type PAREContext = AiPareContext;
+export type PARECandidate = AiPareCandidate;
+export type PAREBudgetAnalysis = AiPareBudgetAnalysis;
+export type PARERiskLevel = AiPareRiskLevel;
+export type PARERisk = AiPareRisk;
+export type PAREDrafts = AiPareDrafts;
 
 export type PAREResult = {
   requestId: string;
@@ -70,6 +40,7 @@ export type PAREResult = {
   riskAssessment: PARERisk;
   drafts: PAREDrafts;
   mode: 'mock' | 'live';
+  runEvidence: AiAuditEvidence[];
   triggeredAt: string;
 };
 

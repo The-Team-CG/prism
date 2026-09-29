@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Logger } from '@nestjs/common';
 import { PareConfigurationError } from './pare-execution.policy';
 import { PareSourceNotFoundError } from './pare-source.errors';
+import { PareAiGatewayError } from './pare-ai-gateway';
 import type { OpsPareDispatch, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/kernel/database';
 import type { PAREApprovalRecord } from './pare.types';
@@ -55,15 +56,17 @@ function available(now: Date, maxAttempts?: number): Prisma.OpsPareDispatchWhere
   };
 }
 
-function terminalFailure(error: unknown): 'configuration' | 'missing' | null {
+function terminalFailure(error: unknown): 'configuration' | 'missing' | 'gateway' | null {
   if (error instanceof PareConfigurationError || (error instanceof Error && error.name === 'PareConfigurationError')) return 'configuration';
   if (error instanceof PareSourceNotFoundError || (error instanceof Error && error.name === 'PareSourceNotFoundError')) return 'missing';
+  if (error instanceof PareAiGatewayError && !error.retryable) return 'gateway';
   return null;
 }
 
-function failureReason(error: unknown, terminal: 'configuration' | 'missing' | null, exhausted: boolean) {
+function failureReason(error: unknown, terminal: 'configuration' | 'missing' | 'gateway' | null, exhausted: boolean) {
   if (terminal === 'configuration') return 'PARE execution is disabled or misconfigured; operator action required';
   if (terminal === 'missing') return 'PARE source request or event was not found; operator action required';
+  if (terminal === 'gateway') return 'PARE AI gateway returned a terminal failure; operator review required';
   return exhausted ? 'PARE execution failed; operator review required' : 'PARE execution failed; retry scheduled';
 }
 

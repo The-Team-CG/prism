@@ -23,8 +23,10 @@ export * from './infrastructure/storage/local-filesystem-storage.adapter';
 export * from './api/storage/storage.controller';
 
 export * from './api/ai-governance/ai-governance.controller';
+export * from './api/ai-governance/conforme-comms-drafts.controller';
 export * from './api/ai-governance/ai-governance.dto';
 export * from './application/ai-governance/ai-governance.service';
+export * from './application/ai-governance/conforme-comms-draft.service';
 export * from './application/ai-governance/pare/pare.service';
 export * from './application/ai-governance/pare/pare.types';
 export * from './application/ai-governance/pare/pare-dispatch-worker';
@@ -32,3 +34,5 @@ export * from './application/ai-governance/pare/pare-dispatch-outbox.service';
 export * from './contracts/ai-governance/pare-dispatch-writer.port';
 export * from './contracts/ai-governance/pare-approval-governance.port';
 export * from './contracts/ai-governance/pare-ops.tokens';
+export * from './contracts/ai-governance/ai-gateway.port';
+export * from './application/ai-governance/gateway/ai-gateway.service';

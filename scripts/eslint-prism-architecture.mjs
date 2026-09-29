@@ -14,9 +14,10 @@ const contexts = [
   "platform-ops",
   "read-models",
 ];
-const publicReadModelSeams = new Set([
+const publicContextSubpaths = new Set([
   "read-models/closeout",
   "read-models/event-scope",
+  "event-lifecycle/conforme-reminder-window",
 ]);
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -119,7 +120,7 @@ const noPrivateContextImports = {
       if (typeof source !== "string") return;
 
       const contextAlias = source.match(/^@prism\/contexts\/([^/]+)(?:\/(.*))?$/);
-      if (contextAlias?.[2] && !publicReadModelSeams.has(`${contextAlias[1]}/${contextAlias[2]}`)) {
+      if (contextAlias?.[2] && !publicContextSubpaths.has(`${contextAlias[1]}/${contextAlias[2]}`)) {
         reportImport(currentContext, node, "Import bounded-context capabilities through its public entrypoint, not a private implementation.");
         return;
       }
