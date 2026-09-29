@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Staged maintainability refactor design specs and project sequence for CI boundary enforcement, shared contracts, floorplan reuse, portal data access, consent evidence, and PMCM dashboard reads.
+
 ### Changed
 - OpenRouter synthetic-profile audits keep `zdrConfirmed` false while endpoint and account ZDR qualification remains open; the adapter still requests ZDR and denies data collection, and the route remains synthetic-only. No tests or provider calls were run per release-review instruction.
 - The health endpoint now reports the AI gateway profile and provider-call state from the resolved runtime configuration, including local OpenRouter and Anthropic selection. No tests or provider calls were run for this review finding.
