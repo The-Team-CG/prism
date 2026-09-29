@@ -250,6 +250,24 @@ function createService(input: {
       supplierRequests: input.supplierRequests ?? [],
       eventDayLogs: input.eventDayLogs ?? [],
     })),
+    taskReassignmentRequests: vi.fn(async () => [{
+      id: 'reassignment_1',
+      eventId: EVENT_ID,
+      taskId: 'task_1',
+      requestedBy: 'Francis Coordinator',
+      requestedByRole: 'coordinator',
+      fromOwnerRole: 'Logistics Coordinator',
+      fromOwnerName: 'Francis Coordinator',
+      toOwnerRole: 'Floor Director',
+      toOwnerName: '',
+      reason: 'Coverage changed',
+      status: 'pending',
+      requestedAt: CREATED_AT,
+      autoApproveAt: CREATED_AT,
+      decidedAt: null,
+      decidedBy: null,
+      decisionReason: null,
+    }]),
   } as unknown as EventReadModelQueries;
   const policy = {
     requireActorRole: vi.fn(async () => undefined),
@@ -306,6 +324,7 @@ describe('LiveOpsReadModelsService', () => {
     expect(result.eventDayLogs).toEqual([
       expect.objectContaining({ actionType: 'supplier_verified', relatedId: 'quote_request_1' }),
     ]);
+    expect(result.taskReassignmentRequests).toHaveLength(1);
   });
 
   it('scopes coordinator data and strips supplier and guest details outside registration', async () => {
@@ -333,6 +352,7 @@ describe('LiveOpsReadModelsService', () => {
     expect(result.supplierStatuses[0]).not.toHaveProperty('accessToken');
     expect(result.supplierStatuses[0]).not.toHaveProperty('confidentialBid');
     expect(result.supplierStatuses[0]).not.toHaveProperty('eventDayVerificationNotes');
+    expect(result.taskReassignmentRequests).toEqual([]);
   });
 
   it('does not query live-ops data before confirming coordinator assignment', async () => {

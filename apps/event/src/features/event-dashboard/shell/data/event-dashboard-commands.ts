@@ -50,6 +50,13 @@ export type EventDashboardCommands = Pick<
   | "submitBriefing"
   | "submitFloorPlanDraft"
   | "updateCoordinatorAttendance"
+  | "decidePmcmEventTaskReassignment"
+  | "designateEventDayOperator"
+  | "upsertCoordinatorCoverage"
+  | "sendCoordinatorAcknowledgementReminders"
+  | "listCoordinatorAvailability"
+  | "createCoordinatorAvailability"
+  | "deleteCoordinatorAvailability"
   | "updateEventDayTask"
   | "updateSupplier"
   | "updateUrgentIssue"
@@ -115,6 +122,13 @@ export const eventDashboardCommands = {
   submitBriefing: prismApi.submitBriefing,
   submitFloorPlanDraft: prismApi.submitFloorPlanDraft,
   updateCoordinatorAttendance: prismApi.updateCoordinatorAttendance,
+  decidePmcmEventTaskReassignment: prismApi.decidePmcmEventTaskReassignment,
+  designateEventDayOperator: prismApi.designateEventDayOperator,
+  upsertCoordinatorCoverage: prismApi.upsertCoordinatorCoverage,
+  sendCoordinatorAcknowledgementReminders: prismApi.sendCoordinatorAcknowledgementReminders,
+  listCoordinatorAvailability: prismApi.listCoordinatorAvailability,
+  createCoordinatorAvailability: prismApi.createCoordinatorAvailability,
+  deleteCoordinatorAvailability: prismApi.deleteCoordinatorAvailability,
   updateEventDayTask: prismApi.updateEventDayTask,
   updateSupplier: prismApi.updateSupplier,
   updateUrgentIssue: prismApi.updateUrgentIssue,

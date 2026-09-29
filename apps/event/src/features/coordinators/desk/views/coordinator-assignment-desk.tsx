@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, UserCheck, UsersRound } from "lucide-react";
 
-import type { PrismCoordinator, PrismCoordinatorAssignment, PrismCoordinatorCoverage, PrismCoordinatorRoleRequirement, PrismEvent } from "@prism/types";
+import { createCoordinatorAvailabilitySchema, createCoordinatorCoverageRequirementSchema, parseContract, type CreateCoordinatorAvailabilityInput, type PrismCoordinator, type PrismCoordinatorAssignment, type PrismCoordinatorAvailability, type PrismCoordinatorCoverage, type PrismCoordinatorRoleRequirement, type PrismEvent } from "@prism/types";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -36,6 +36,12 @@ export function CoordinatorAssignmentDesk({
   roleRequirements,
   busy,
   onAssign,
+  onSaveCoverage,
+  onSendReminders,
+  onDesignateOperator,
+  onLoadAvailability,
+  onCreateAvailability,
+  onDeleteAvailability,
 }: {
   event: PrismEvent;
   coordinators: PrismCoordinator[];
@@ -43,6 +49,12 @@ export function CoordinatorAssignmentDesk({
   roleRequirements: Array<PrismCoordinatorRoleRequirement | PrismCoordinatorCoverage>;
   busy: boolean;
   onAssign: (coordinator: PrismCoordinator, role: string, overrideConflict?: boolean) => Promise<void>;
+  onSaveCoverage: (input: { role: string; required: number; requiredSkills: string[] }) => Promise<boolean>;
+  onSendReminders: () => Promise<boolean>;
+  onDesignateOperator: (coordinatorId: string) => Promise<void>;
+  onLoadAvailability: (coordinatorId: string) => Promise<PrismCoordinatorAvailability[]>;
+  onCreateAvailability: (coordinatorId: string, input: CreateCoordinatorAvailabilityInput) => Promise<void>;
+  onDeleteAvailability: (coordinatorId: string, availabilityId: string) => Promise<void>;
 }) {
   const [roleFilter, setRoleFilter] = useState("all");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
@@ -52,8 +64,70 @@ export function CoordinatorAssignmentDesk({
     conflict: PrismCoordinatorAssignment;
   } | null>(null);
   const [ackPanelOpen, setAckPanelOpen] = useState(true);
+  const [coverageRole, setCoverageRole] = useState("");
+  const [coverageRequired, setCoverageRequired] = useState("1");
+  const [coverageSkills, setCoverageSkills] = useState("");
+  const [coverageMessage, setCoverageMessage] = useState<string | null>(null);
+  const [reminderMessage, setReminderMessage] = useState<string | null>(null);
+  const [operatorId, setOperatorId] = useState("");
+  const [availabilityCoordinatorId, setAvailabilityCoordinatorId] = useState("");
+  const [availability, setAvailability] = useState<PrismCoordinatorAvailability[]>([]);
+  const [availabilityStart, setAvailabilityStart] = useState("");
+  const [availabilityEnd, setAvailabilityEnd] = useState("");
+  const [availabilityNote, setAvailabilityNote] = useState("");
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
 
   const pendingAcknowledgments = assignments.filter((a) => a.status === "pending_acknowledgement");
+
+  async function sendReminders() {
+    setReminderMessage(null);
+    const sent = await onSendReminders();
+    setReminderMessage(sent ? "Reminder request sent. The server applies the seven day window." : "Reminder request failed. Check the PMCM status message.");
+  }
+
+  async function saveCoverage(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCoverageMessage(null);
+    try {
+      const input = parseContract(createCoordinatorCoverageRequirementSchema, {
+        role: coverageRole,
+        required: Number(coverageRequired),
+        requiredSkills: coverageSkills.split(",").map((skill) => skill.trim()).filter(Boolean),
+      }, "Coordinator coverage target");
+      const saved = await onSaveCoverage(input);
+      setCoverageMessage(saved ? `Coverage target saved for ${input.role}.` : "Coverage target was not saved. Check the PMCM status message.");
+    } catch (error) {
+      setCoverageMessage(error instanceof Error ? error.message : "Unable to save this coverage target.");
+    }
+  }
+
+  async function loadAvailability(coordinatorId: string) {
+    setAvailabilityCoordinatorId(coordinatorId);
+    setAvailabilityError(null);
+    if (!coordinatorId) { setAvailability([]); return; }
+    setAvailabilityBusy(true);
+    try { setAvailability(await onLoadAvailability(coordinatorId)); }
+    catch (error) { setAvailabilityError(error instanceof Error ? error.message : "Unable to load unavailable dates."); }
+    finally { setAvailabilityBusy(false); }
+  }
+
+  async function saveAvailability(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!availabilityCoordinatorId) return;
+    setAvailabilityError(null);
+    try {
+      const input = parseContract(createCoordinatorAvailabilitySchema, {
+        startsAt: new Date(availabilityStart).toISOString(),
+        endsAt: new Date(availabilityEnd).toISOString(),
+        kind: "unavailable",
+        note: availabilityNote,
+      }, "Coordinator unavailable dates");
+      await onCreateAvailability(availabilityCoordinatorId, input);
+      setAvailabilityNote("");
+      await loadAvailability(availabilityCoordinatorId);
+    } catch (error) { setAvailabilityError(error instanceof Error ? error.message : "Unable to save unavailable dates."); }
+  }
 
   const eventDate = dateKey(event.eventDate);
   const eventAssignments = assignments.filter((a) => a.eventId === event.id);
@@ -136,6 +210,11 @@ export function CoordinatorAssignmentDesk({
                   <span className="rounded-full border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{asg.role}</span>
                 </div>
               ))}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+                <p className="text-xs text-muted-foreground">Send a reminder to pending coordinators whose event is within seven days.</p>
+                <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void sendReminders()}>Send reminders</Button>
+              </div>
+              {reminderMessage ? <p role="status" className="text-sm text-(--prism-success)">{reminderMessage}</p> : null}
             </CardBody>
           )}
         </Card>
@@ -176,6 +255,55 @@ export function CoordinatorAssignmentDesk({
           )}
         </CardBody>
       </Card>
+
+      <div className="grid gap-5 xl:grid-cols-3">
+        <Card>
+          <CardHeader><h2 className="text-sm font-bold text-foreground">Coverage targets</h2></CardHeader>
+          <CardBody className="space-y-3">
+            <form className="space-y-3" onSubmit={(event) => void saveCoverage(event)}>
+              <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Role<input required value={coverageRole} onChange={(event) => setCoverageRole(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground" placeholder="e.g. Floor Director" /></label>
+              <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Required coordinators<input type="number" min="0" step="1" required value={coverageRequired} onChange={(event) => setCoverageRequired(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground" /></label>
+              <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Required skills, comma separated<input value={coverageSkills} onChange={(event) => setCoverageSkills(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground" placeholder="first aid, registration" /></label>
+              <Button type="submit" size="sm" disabled={busy || !coverageRole.trim()}>Save target</Button>
+            </form>
+            {coverageMessage ? <p role="status" className="text-xs text-muted-foreground">{coverageMessage}</p> : null}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader><h2 className="text-sm font-bold text-foreground">Event Day System Operator</h2></CardHeader>
+          <CardBody className="space-y-3">
+            <p className="text-sm text-muted-foreground">Choose the coordinator who will control delegated attendance and operator actions. Designating someone replaces the current operator.</p>
+            <select aria-label="Event Day System Operator" value={operatorId} onChange={(event) => setOperatorId(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm">
+              <option value="">Select a coordinator</option>
+              {coordinators.filter((coordinator) => coordinator.active).map((coordinator) => <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>)}
+            </select>
+            <Button type="button" size="sm" disabled={busy || !operatorId} onClick={() => void onDesignateOperator(operatorId)}>Designate operator</Button>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader><h2 className="text-sm font-bold text-foreground">Coordinator unavailability</h2></CardHeader>
+          <CardBody className="space-y-3">
+            <select aria-label="Coordinator availability" value={availabilityCoordinatorId} onChange={(event) => void loadAvailability(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm">
+              <option value="">Select coordinator</option>
+              {coordinators.filter((coordinator) => coordinator.active).map((coordinator) => <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>)}
+            </select>
+            {availabilityBusy ? <p className="text-xs text-muted-foreground">Loading dates…</p> : null}
+            <div className="max-h-28 space-y-2 overflow-y-auto">
+              {availability.map((item) => <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2 py-1.5 text-xs"><span>{new Date(item.startsAt).toLocaleDateString()} – {new Date(item.endsAt).toLocaleDateString()}{item.note ? ` · ${item.note}` : ""}</span><button type="button" className="text-destructive" disabled={busy} onClick={async () => { await onDeleteAvailability(item.coordinatorId, item.id); await loadAvailability(item.coordinatorId); }}>Remove</button></div>)}
+              {availabilityCoordinatorId && !availabilityBusy && availability.length === 0 ? <p className="text-xs text-muted-foreground">No unavailable dates recorded.</p> : null}
+            </div>
+            <form className="space-y-2" onSubmit={(event) => void saveAvailability(event)}>
+              <input aria-label="Unavailable from" type="datetime-local" required value={availabilityStart} onChange={(event) => setAvailabilityStart(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" />
+              <input aria-label="Unavailable until" type="datetime-local" required value={availabilityEnd} onChange={(event) => setAvailabilityEnd(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" />
+              <input aria-label="Availability note" value={availabilityNote} onChange={(event) => setAvailabilityNote(event.target.value)} placeholder="Optional note" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" />
+              <Button type="submit" size="sm" disabled={busy || availabilityBusy || !availabilityCoordinatorId}>Add unavailable dates</Button>
+            </form>
+            {availabilityError ? <p role="alert" className="text-xs text-destructive">{availabilityError}</p> : null}
+          </CardBody>
+        </Card>
+      </div>
 
       {/* Coordinator assignment */}
       <Card>
