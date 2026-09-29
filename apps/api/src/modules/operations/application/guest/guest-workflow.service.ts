@@ -16,6 +16,7 @@ import type {
   WithdrawGuestFeedbackConsentInput,
   PrismGuestEventWatermark,
 } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
 export type EventWithDrafts = OpsEvent & { floorPlanDrafts?: unknown[]; walkInPolicy?: string | null; walkInThreshold?: number | null };
@@ -163,8 +164,8 @@ export class GuestWorkflowService {
             status: 'checked_in',
             walkIn: Boolean(input.walkIn),
             verificationStatus: input.verificationStatus ?? (input.walkIn ? 'flagged' : 'verified'),
-            privacyConsentAccepted: true,
-            privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
+            privacyConsentAccepted: input.privacyConsentAccepted === true,
+            privacyNoticeVersion: input.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
           },
         });
@@ -235,8 +236,8 @@ export class GuestWorkflowService {
             // Binary bytes are not stored until W10 supplies an approved object-storage adapter.
             photoFileName: null,
             videoFileName: null,
-            privacyConsentAccepted: true,
-            privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
+            privacyConsentAccepted: input.privacyConsentAccepted === true,
+            privacyNoticeVersion: input.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
             moderationStatus: 'pending_review',
             ...(mediaAttachments.length > 0 ? { mediaAttachments: { create: mediaAttachments } } : {}),
@@ -330,8 +331,8 @@ export class GuestWorkflowService {
           status: 'checked_in',
           walkIn: false,
           verificationStatus: 'verified',
-          privacyConsentAccepted: true,
-          privacyNoticeVersion: '2026-05-01',
+          privacyConsentAccepted: false,
+          privacyNoticeVersion: '',
           marketingConsentAccepted: false,
         },
       });

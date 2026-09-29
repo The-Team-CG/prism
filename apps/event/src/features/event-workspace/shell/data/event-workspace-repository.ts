@@ -1,5 +1,5 @@
 import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFeed, PrismLiveOps, PrismPmcmEventWorkspace, PrismRegistrationPlatform } from "@prism/types";
-import { prismApi } from "@/lib/prism-api";
+import { eventApi, eventApiRequest } from "@/lib/prism-api";
 
 type TimedCache<T> = { value: T; loadedAt: number };
 export type EventCommandData = {
@@ -30,19 +30,19 @@ function isFresh(loadedAt: number, ttl: number) {
 
 export const eventWorkspaceRepository = {
   loadWorkspace(eventId: string): Promise<PrismPmcmEventWorkspace> {
-    return prismApi.pmcmEventWorkspace(eventId);
+    return eventApi.pmcm.eventWorkspace(eventId);
   },
 
   loadLiveOps(eventId: string): Promise<PrismLiveOps> {
-    return prismApi.liveOps(eventId);
+    return eventApi.liveOps.eventDayWorkspace(eventId);
   },
 
   loadStatusFeed(eventId: string): Promise<PrismEventDayStatusFeed> {
-    return prismApi.eventDayStatusFeed(eventId);
+    return eventApiRequest<PrismEventDayStatusFeed>(`/api/events/${eventId}/event-day/status-feed`);
   },
 
   loadDefenseReadiness(eventId: string): Promise<PrismDefenseReadiness> {
-    return prismApi.defenseReadiness(eventId);
+    return eventApiRequest<PrismDefenseReadiness>(`/api/events/${eventId}/defense-readiness`);
   },
 
   getCachedApprovalRequests() {
@@ -55,8 +55,7 @@ export const eventWorkspaceRepository = {
     }
     if (!force && approvalRequestsRequest) return approvalRequestsRequest;
 
-    approvalRequestsRequest = prismApi
-      .approvalRequests()
+    approvalRequestsRequest = eventApiRequest<PrismApprovalRequest[]>("/api/auth/approval-requests")
       .then((next) => {
         approvalRequestsCache = { value: next, loadedAt: Date.now() };
         return next;
@@ -95,10 +94,10 @@ export const eventWorkspaceRepository = {
         });
 
       const [liveOps, statusFeed, defenseReadiness, registrationPlatform] = await Promise.all([
-        settle("liveOps", prismApi.liveOps(eventId)),
-        settle("statusFeed", prismApi.eventDayStatusFeed(eventId)),
-        settle("defenseReadiness", prismApi.defenseReadiness(eventId)),
-        settle("registrationPlatform", prismApi.getRegistrationPlatform(eventId)),
+        settle("liveOps", eventApi.liveOps.eventDayWorkspace(eventId)),
+        settle("statusFeed", eventApiRequest<PrismEventDayStatusFeed>(`/api/events/${eventId}/event-day/status-feed`)),
+        settle("defenseReadiness", eventApiRequest<PrismDefenseReadiness>(`/api/events/${eventId}/defense-readiness`)),
+        settle("registrationPlatform", eventApi.pmcm.registrationPlatform(eventId)),
       ]);
 
       const next: EventCommandData = {

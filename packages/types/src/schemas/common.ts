@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /** Shared privacy consent fields used on public / guest write surfaces. */
 export const privacyConsentSchema = z.object({
-  privacyConsentAccepted: z.boolean().optional(),
+  privacyConsentAccepted: z.literal(true),
   privacyNoticeVersion: z.string().min(1).optional(),
   marketingConsentAccepted: z.boolean().optional(),
 });

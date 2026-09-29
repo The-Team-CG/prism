@@ -10,12 +10,38 @@ import {
   type CreateFloorPlanPreferenceInput,
   type CreateFloorPlanRevisionCommentInput,
   type PrismUser,
+  type PrismFloorPlanSnapshot,
 } from "@prism/types";
-import { prismApi } from "@/lib/prism-api";
+import {
+  clientApi,
+  clientApiRequest,
+  isClientLocalDemoMode,
+} from "@/lib/prism-api";
+import { prismApi as samplePrismApi } from "@/compatibility/sample/prism-api";
 import type { Project } from "@/features/floorplan/editor";
 import type { ClientSession } from "../model/client-dashboard-types";
 
 export type FloorPlanPreferenceInput = CreateFloorPlanPreferenceInput;
+
+type ApiFloorPlanSnapshot = Omit<PrismFloorPlanSnapshot, "objects" | "guests" | "suppliers"> &
+  Pick<Project, "objects" | "guests" | "suppliers">;
+
+function toProject(plan: ApiFloorPlanSnapshot): Project {
+  const timestamp = plan.updatedAt ? new Date(plan.updatedAt).getTime() : Date.now();
+  return {
+    id: plan.id,
+    name: plan.name,
+    venue: plan.venue,
+    widthM: plan.width,
+    heightM: plan.height,
+    pax: plan.pax,
+    objects: plan.objects ?? [],
+    guests: plan.guests ?? [],
+    suppliers: plan.suppliers ?? [],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
 
 export const clientDashboardRepository = {
   readSession(): ClientSession | null {
@@ -31,15 +57,18 @@ export const clientDashboardRepository = {
   },
 
   loadWorkspace(session: Pick<PrismUser, "name" | "email">): Promise<PrismClientWorkspace> {
-    return prismApi.clientState(session);
+    if (isClientLocalDemoMode) return samplePrismApi.clientState(session);
+    return clientApi.clientWorkspace.detail();
   },
 
   loadActionCenter(session: Pick<PrismUser, "name" | "email">): Promise<PrismClientActionCenter> {
-    return prismApi.clientActionCenter(session);
+    if (isClientLocalDemoMode) return samplePrismApi.clientActionCenter(session);
+    return clientApi.clientWorkspace.actionCenter();
   },
 
   createInquiry(input: CreatePrismInquiryInput) {
-    return prismApi.createInquiry(input);
+    if (isClientLocalDemoMode) return samplePrismApi.createInquiry(input);
+    return clientApi.inquiries.create(input);
   },
 
   createFloorPlanPreference(
@@ -47,16 +76,24 @@ export const clientDashboardRepository = {
     input: FloorPlanPreferenceInput,
     session?: Pick<PrismUser, "name" | "email">,
   ): Promise<PrismFloorPlanDraft> {
-    return prismApi.createFloorPlanPreference(eventId, input, session);
+    if (isClientLocalDemoMode) return samplePrismApi.createFloorPlanPreference(eventId, input, session);
+    return clientApiRequest<PrismFloorPlanDraft>(
+      `/events/${eventId}/floorplan-preferences`,
+      { method: "POST", body: input },
+    );
   },
 
-  loadFloorPlanSnapshot(
+  async loadFloorPlanSnapshot(
     eventId: string,
     draftId: string,
     type: "submitted" | "approved" = "approved",
     session?: Pick<PrismUser, "name" | "email">,
   ): Promise<Project> {
-    return prismApi.loadFloorPlanSnapshot(eventId, draftId, type, session);
+    if (isClientLocalDemoMode) return samplePrismApi.loadFloorPlanSnapshot(eventId, draftId, type, session);
+    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(
+      `/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`,
+    );
+    return toProject(plan);
   },
 
   submitFloorPlanRevisionComment(
@@ -65,14 +102,36 @@ export const clientDashboardRepository = {
     input: CreateFloorPlanRevisionCommentInput,
     session?: Pick<PrismUser, "name" | "email">,
   ): Promise<PrismFloorPlanDraft> {
-    return prismApi.reviewFloorPlanDraft(eventId, draftId, input, session);
+    if (isClientLocalDemoMode) return samplePrismApi.reviewFloorPlanDraft(eventId, draftId, input, session);
+    return clientApi.events.reviewFloorPlanDraft(eventId, draftId, input);
   },
 
-  loadPlan(planId: string, session?: Pick<PrismUser, "name" | "email">): Promise<Project> {
-    return prismApi.loadPlan(planId, session);
+  async loadPlan(planId: string, session?: Pick<PrismUser, "name" | "email">): Promise<Project> {
+    if (isClientLocalDemoMode) return samplePrismApi.loadPlan(planId, session);
+    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(`/plans/${planId}`);
+    return toProject(plan);
   },
 
-  savePlan(project: Project, session?: Pick<PrismUser, "name" | "email">): Promise<Project> {
-    return prismApi.savePlan(project, session);
+  async savePlan(project: Project, session?: Pick<PrismUser, "name" | "email">): Promise<Project> {
+    if (isClientLocalDemoMode) return samplePrismApi.savePlan(project, session);
+    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(
+      `/plans/${project.id}`,
+      {
+        method: "PUT",
+        body: {
+          venue: project.venue,
+          width: Math.max(1, Math.round(project.widthM)),
+          height: Math.max(1, Math.round(project.heightM)),
+          gridSize: 1,
+          pax: Math.max(0, Math.round(project.pax)),
+          objects: project.objects,
+          guests: project.guests,
+          suppliers: project.suppliers,
+          seats: [],
+          seatCategories: [],
+        },
+      },
+    );
+    return toProject(plan);
   },
 };

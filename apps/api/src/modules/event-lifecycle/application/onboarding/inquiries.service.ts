@@ -2,6 +2,7 @@ import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenEx
 import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismEventOpsActorContext } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
@@ -407,8 +408,8 @@ export class InquiriesService {
             previousDeclinedInquiryId: previousDeclined?.id ?? null,
             previousDeclineReason: previousDeclined?.declineReason ?? null,
             message: input.message,
-            privacyConsentAccepted: Boolean(input.privacyConsentAccepted),
-            privacyNoticeVersion: input.privacyNoticeVersion ?? '2026-05-01',
+            privacyConsentAccepted: input.privacyConsentAccepted === true,
+            privacyNoticeVersion: input.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
             status: 'new',
           },

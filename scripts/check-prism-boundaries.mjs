@@ -102,9 +102,9 @@ export const boundaryRules = [
     importPattern: /(?:eventOpsClient\.sample\.state\(|prismApi\.state\(|["']\/api\/sample\/state["']|["']\/sample\/state["'])/,
   },
   {
-    name: "role apps must not import the client mock sample dataset",
+    name: "client mock sample data belongs in local demo compatibility",
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
-    allowedFilePattern: /^apps\/client\/src\/lib\/prism-api\.ts$/,
+    allowedFilePattern: /^apps\/client\/src\/compatibility\/sample\/prism-api\.ts$/,
     importPattern: /from\s+["']@\/mock\/prism-sample-state["']/,
   },
   {

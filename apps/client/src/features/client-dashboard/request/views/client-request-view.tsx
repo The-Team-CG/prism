@@ -101,7 +101,18 @@ export function ClientRequestView() {
           </ol>
         </div>
 
-        <Button type="submit" disabled={busy === "event-request"} className="w-full rounded-lg font-bold">
+        <label className="flex items-start gap-3 text-sm leading-5 text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={requestForm.privacyConsentAccepted}
+            onChange={(event) => setRequestForm({ ...requestForm, privacyConsentAccepted: event.target.checked })}
+            required
+            className="mt-0.5 size-4 accent-primary"
+          />
+          <span>I consent to PMCM processing this request to review and plan the event.</span>
+        </label>
+
+        <Button type="submit" disabled={busy === "event-request" || !requestForm.privacyConsentAccepted} className="w-full rounded-lg font-bold">
           Submit request <Send className="size-4" />
         </Button>
       </form>

@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
-import type { PrismUser, RequestApprovalInput } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser, type RequestApprovalInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { writeAudit } from '@prism/kernel/access-control';
@@ -194,10 +194,10 @@ export class AuthOperationsService {
   }
 
   async requestApproval(input: string | RequestApprovalInput) {
-    const approvalInput = typeof input === 'string' ? { email: input } : input;
-    if (!approvalInput.privacyConsentAccepted) {
+    if (typeof input === 'string' || input.privacyConsentAccepted !== true) {
       throw new BadRequestException('Privacy consent is required before requesting account approval');
     }
+    const approvalInput = input;
     const user = await this.prisma.opsUser.findUnique({
       where: { email: approvalInput.email.trim().toLowerCase() },
     });
@@ -214,14 +214,14 @@ export class AuthOperationsService {
         role: user.role as PrismUser['role'],
         organization: user.organization,
         status: 'pending',
-        privacyConsentAccepted: true,
-        privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? '2026-05-01',
+        privacyConsentAccepted: approvalInput.privacyConsentAccepted,
+        privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
         marketingConsentAccepted: Boolean(approvalInput.marketingConsentAccepted),
       },
       update: {
         status: 'pending',
-        privacyConsentAccepted: true,
-        privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? '2026-05-01',
+        privacyConsentAccepted: approvalInput.privacyConsentAccepted,
+        privacyNoticeVersion: approvalInput.privacyNoticeVersion ?? PRISM_PRIVACY_NOTICE_VERSION,
         marketingConsentAccepted: Boolean(approvalInput.marketingConsentAccepted),
         requestedAt: new Date(),
       },

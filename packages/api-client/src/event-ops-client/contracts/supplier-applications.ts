@@ -6,7 +6,7 @@ import type {
   PrismSupplierApplicationStatusResult,
 } from "@prism/types";
 import type { PrismRequestInit } from "../../http";
-import type { EventOpsActorQuery } from "./primitives.js";
+import type { EventOpsActorQuery } from "./primitives";
 
 export interface EventOpsSupplierApplicationsContract {
   supplierApplications: {

@@ -24,6 +24,7 @@ export type ClientRequestForm = {
   venueCity: string;
   budgetRange: string;
   message: string;
+  privacyConsentAccepted: boolean;
 };
 
 /** Minimal router surface used by client dashboard pages */

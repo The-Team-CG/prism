@@ -5,7 +5,7 @@ import type { PrismFileRequirementsMatrix, PrismUser } from "@prism/types";
 import { FileCheck2 } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { prismApi } from "@/lib/prism-api";
+import { clientFileRequirementsRepository } from "../data/client-file-requirements-repository";
 
 const STORAGE_GATE_COPY =
   "Required files are shown as metadata. Uploads, share, and download stay gated until object storage is approved.";
@@ -26,8 +26,8 @@ export function ClientFileRequirementsMatrix({
       return;
     }
     let alive = true;
-    prismApi
-      .fileRequirements(eventId, session)
+    clientFileRequirementsRepository
+      .load(eventId, session)
       .then((next) => {
         if (alive) {
           setMatrix(next);

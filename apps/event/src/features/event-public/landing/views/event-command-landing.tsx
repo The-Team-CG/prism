@@ -463,10 +463,6 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
                 </Button>
               </div>
             </form>
-            <div className="mt-5 grid gap-1.5 border-t border-border pt-4 text-xs text-muted-foreground">
-              <p><span className="font-bold text-foreground">PMCM:</span> mys@pmcm.test / prism-admin</p>
-              <p><span className="font-bold text-foreground">Coordinator:</span> marco@pmcm.test / prism-coordinator</p>
-            </div>
           </section>
         </div>
       )}

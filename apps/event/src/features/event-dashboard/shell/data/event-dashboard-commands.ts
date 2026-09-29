@@ -1,151 +1,24 @@
-import { prismApi } from "@/lib/prism-api";
+import { closureCommands } from "./commands/closure-commands";
+import { commercialCommands } from "./commands/commercial-commands";
+import { complianceCommands } from "./commands/compliance-commands";
+import { floorplanCommands } from "./commands/floorplan-commands";
+import { guestCommands } from "./commands/guest-commands";
+import { identityCommands } from "./commands/identity-commands";
+import { lifecycleCommands } from "./commands/lifecycle-commands";
+import { operationsCommands } from "./commands/operations-commands";
+import { sampleCommands } from "./commands/sample-commands";
 
-/**
- * Focused command port for the PMCM dashboard.
- *
- * The legacy portal adapter remains the transport composition root for now,
- * but the dashboard does not depend on its broad object surface.
- */
-export type EventDashboardCommands = Pick<
-  typeof prismApi,
-  | "acceptInquiry"
-  | "addSupplierCertification"
-  | "addSupplierReview"
-  | "approveApprovalRequest"
-  | "approveBillingSource"
-  | "approveFloorPlanDraft"
-  | "archiveEvent"
-  | "recordActualEventEnd"
-  | "getEventWrapUp"
-  | "startEventWrapUp"
-  | "updateEventWrapUp"
-  | "assignCoordinator"
-  | "createBillingSource"
-  | "createComplianceRule"
-  | "createEventDayTask"
-  | "createFloorPlanDraft"
-  | "createSupplier"
-  | "createUrgentIssue"
-  | "changeSupplierTier"
-  | "promoteSupplier"
-  | "declineApprovalRequest"
-  | "declineInquiry"
-  | "escalateEventDayTask"
-  | "escalateUrgentIssue"
-  | "generateBillingStatement"
-  | "generateEventInsights"
-  | "loadPlan"
-  | "logInquiryOnBehalf"
-  | "pendInquiry"
-  | "recordPayment"
-  | "replaceCoordinator"
-  | "requestSupplierQuotes"
-  | "reset"
-  | "resolveCompliance"
-  | "runCompliance"
-  | "savePlan"
-  | "selectSupplierQuote"
-  | "sendBillingStatement"
-  | "sendConformeReminder"
-  | "submitBriefing"
-  | "submitFloorPlanDraft"
-  | "updateCoordinatorAttendance"
-  | "decidePmcmEventTaskReassignment"
-  | "designateEventDayOperator"
-  | "upsertCoordinatorCoverage"
-  | "sendCoordinatorAcknowledgementReminders"
-  | "listCoordinatorAvailability"
-  | "createCoordinatorAvailability"
-  | "deleteCoordinatorAvailability"
-  | "updateEventDayTask"
-  | "updateSupplier"
-  | "updateUrgentIssue"
-  | "uploadConforme"
-  | "verifySupplierStatus"
-  | "withdrawSupplier"
-  | "closeGates"
-  | "eventInsights"
-  | "pmcmEventWorkspace"
-  | "upsertRegistrationPlatform"
-  | "updateRegistrationPlatform"
-  | "importHeadcount"
-  | "searchGuestRoster"
-  | "searchGuestRosterWithFilters"
-  | "importGuestRoster"
-  | "checkInGuestRoster"
-  | "verifyGuestRoster"
-  | "getWalkInPolicy"
-  | "updateWalkInPolicy"
->;
-
-/** Stable dashboard command adapter; individual features depend on this port. */
+/** Screen-level composition for the PMCM shell; endpoint work stays with each domain. */
 export const eventDashboardCommands = {
-  acceptInquiry: prismApi.acceptInquiry,
-  addSupplierCertification: prismApi.addSupplierCertification,
-  addSupplierReview: prismApi.addSupplierReview,
-  approveApprovalRequest: prismApi.approveApprovalRequest,
-  approveBillingSource: prismApi.approveBillingSource,
-  approveFloorPlanDraft: prismApi.approveFloorPlanDraft,
-  archiveEvent: prismApi.archiveEvent,
-  recordActualEventEnd: prismApi.recordActualEventEnd,
-  getEventWrapUp: prismApi.getEventWrapUp,
-  startEventWrapUp: prismApi.startEventWrapUp,
-  updateEventWrapUp: prismApi.updateEventWrapUp,
-  assignCoordinator: prismApi.assignCoordinator,
-  createBillingSource: prismApi.createBillingSource,
-  createComplianceRule: prismApi.createComplianceRule,
-  createEventDayTask: prismApi.createEventDayTask,
-  createFloorPlanDraft: prismApi.createFloorPlanDraft,
-  createSupplier: prismApi.createSupplier,
-  createUrgentIssue: prismApi.createUrgentIssue,
-  changeSupplierTier: prismApi.changeSupplierTier,
-  promoteSupplier: prismApi.promoteSupplier,
-  declineApprovalRequest: prismApi.declineApprovalRequest,
-  declineInquiry: prismApi.declineInquiry,
-  escalateEventDayTask: prismApi.escalateEventDayTask,
-  escalateUrgentIssue: prismApi.escalateUrgentIssue,
-  generateBillingStatement: prismApi.generateBillingStatement,
-  generateEventInsights: prismApi.generateEventInsights,
-  loadPlan: prismApi.loadPlan,
-  logInquiryOnBehalf: prismApi.logInquiryOnBehalf,
-  pendInquiry: prismApi.pendInquiry,
-  recordPayment: prismApi.recordPayment,
-  replaceCoordinator: prismApi.replaceCoordinator,
-  requestSupplierQuotes: prismApi.requestSupplierQuotes,
-  reset: prismApi.reset,
-  resolveCompliance: prismApi.resolveCompliance,
-  runCompliance: prismApi.runCompliance,
-  savePlan: prismApi.savePlan,
-  selectSupplierQuote: prismApi.selectSupplierQuote,
-  sendBillingStatement: prismApi.sendBillingStatement,
-  sendConformeReminder: prismApi.sendConformeReminder,
-  submitBriefing: prismApi.submitBriefing,
-  submitFloorPlanDraft: prismApi.submitFloorPlanDraft,
-  updateCoordinatorAttendance: prismApi.updateCoordinatorAttendance,
-  decidePmcmEventTaskReassignment: prismApi.decidePmcmEventTaskReassignment,
-  designateEventDayOperator: prismApi.designateEventDayOperator,
-  upsertCoordinatorCoverage: prismApi.upsertCoordinatorCoverage,
-  sendCoordinatorAcknowledgementReminders: prismApi.sendCoordinatorAcknowledgementReminders,
-  listCoordinatorAvailability: prismApi.listCoordinatorAvailability,
-  createCoordinatorAvailability: prismApi.createCoordinatorAvailability,
-  deleteCoordinatorAvailability: prismApi.deleteCoordinatorAvailability,
-  updateEventDayTask: prismApi.updateEventDayTask,
-  updateSupplier: prismApi.updateSupplier,
-  updateUrgentIssue: prismApi.updateUrgentIssue,
-  uploadConforme: prismApi.uploadConforme,
-  verifySupplierStatus: prismApi.verifySupplierStatus,
-  withdrawSupplier: prismApi.withdrawSupplier,
-  closeGates: prismApi.closeGates,
-  eventInsights: prismApi.eventInsights,
-  pmcmEventWorkspace: prismApi.pmcmEventWorkspace,
-  upsertRegistrationPlatform: prismApi.upsertRegistrationPlatform,
-  updateRegistrationPlatform: prismApi.updateRegistrationPlatform,
-  importHeadcount: prismApi.importHeadcount,
-  searchGuestRoster: prismApi.searchGuestRoster,
-  searchGuestRosterWithFilters: prismApi.searchGuestRosterWithFilters,
-  importGuestRoster: prismApi.importGuestRoster,
-  checkInGuestRoster: prismApi.checkInGuestRoster,
-  verifyGuestRoster: prismApi.verifyGuestRoster,
-  getWalkInPolicy: prismApi.getWalkInPolicy,
-  updateWalkInPolicy: prismApi.updateWalkInPolicy,
-} satisfies EventDashboardCommands;
+  ...identityCommands,
+  ...lifecycleCommands,
+  ...floorplanCommands,
+  ...commercialCommands,
+  ...complianceCommands,
+  ...operationsCommands,
+  ...guestCommands,
+  ...closureCommands,
+  ...sampleCommands,
+};
+
+export type EventDashboardCommands = typeof eventDashboardCommands;

@@ -137,15 +137,12 @@ describe('GuestWorkflowService', () => {
     await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).rejects.toThrow('Guest event code was not found');
   });
 
-  it('requires privacy consent before guest check-in and feedback writes', async () => {
+  it('requires privacy consent before guest check-in writes', async () => {
     const { service } = createGuestWorkflowFixture();
 
     await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', { guestName: 'Sofia Lim' })).rejects.toThrow(
       'Privacy consent is required before guest check-in',
     );
-    await expect(
-      service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { guestName: 'Sofia Lim', rating: 5 }),
-    ).rejects.toThrow('Privacy consent is required before guest feedback submission');
   });
 
   it('does not allow archived events to resolve ordinary guest check-in access', async () => {

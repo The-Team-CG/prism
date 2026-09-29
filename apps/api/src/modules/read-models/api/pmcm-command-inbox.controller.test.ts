@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsPmcmCommandInboxController } from './pmcm-command-inbox.controller';
+import { BadRequestException } from '@nestjs/common';
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
@@ -34,11 +35,20 @@ describe('OpsPmcmCommandInboxController', () => {
       expiresAt: '2026-07-03T12:00:00.000Z',
     };
 
-    await expect(controller.commandInbox(verifiedActor as any)).resolves.toEqual({
+    await expect(controller.commandInbox(undefined, verifiedActor as any)).resolves.toEqual({
       items: [{ id: 'inquiry:inq_sample' }],
     });
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
-    expect(eventReadModelsService.pmcmCommandInbox).toHaveBeenCalledWith({ role: 'pmcm-admin', name: 'Maxine' });
+    expect(eventReadModelsService.pmcmCommandInbox).toHaveBeenCalledWith({ role: 'pmcm-admin', name: 'Maxine' }, 0);
+  });
+
+  it('rejects invalid page offsets before querying', async () => {
+    const controller = new OpsPmcmCommandInboxController(
+      { pmcmCommandInbox: vi.fn() } as any,
+      { resolveActor: vi.fn() } as any,
+    );
+    expect(() => controller.commandInbox('-1', {} as any)).toThrow(BadRequestException);
+    expect(() => controller.commandInbox('101', {} as any)).toThrow(BadRequestException);
   });
 });

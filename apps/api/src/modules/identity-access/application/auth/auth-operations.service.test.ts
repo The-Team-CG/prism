@@ -2,6 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { AuthOperationsService } from './auth-operations.service';
 
 describe('AuthOperationsService', () => {
+  it('rejects legacy approval requests that carry no explicit consent evidence', async () => {
+    const service = Object.create(AuthOperationsService.prototype) as AuthOperationsService;
+
+    await expect(service.requestApproval('ana@example.test')).rejects.toThrow(
+      'Privacy consent is required before requesting account approval',
+    );
+  });
+
   it('does not grant a PMCM admin session after password verification alone', async () => {
     const user = {
       id: 'usr_pmcm',
