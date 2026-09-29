@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - Refreshed the transitive `undici` lockfile entry used by event portal tests to a patched 8.x release after the dependency audit flagged the older version.
-- Worktree port discovery now resolves Windows drive and UNC paths consistently when its tooling tests run on Linux.
+- Worktree port discovery and process-ownership checks now resolve Windows drive and UNC paths consistently when their tooling tests run on Linux.
 - Client and event feature requests now live in feature data adapters; the event portal's former broad command facade is split by workflow, while client-local demo behavior is isolated under its compatibility path. Authenticated reads and writes derive actor identity from the stored bearer token without caller-supplied actor names or role query parameters.
 - The initial PMCM dashboard loads summary counts and a paged actionable inbox instead of the broad dashboard workspace. Each actionable source has stable ordering and explicit `hasMore` metadata; page indexes are capped at 100 to bound offset queries, and event details load after selection.
 - Normal sign-in screens no longer prefill sample-account credentials; local demo account instructions remain in the internal runbook.
