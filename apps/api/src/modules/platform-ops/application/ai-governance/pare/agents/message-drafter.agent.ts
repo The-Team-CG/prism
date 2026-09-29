@@ -1,7 +1,8 @@
+import type { AiGateway, AiSyntheticPareChain } from '../../../../contracts/ai-governance/ai-gateway.port';
 import type { PAREDrafts, PAREContext } from '../pare.types';
 import { assertPareExecutionAllowed } from '../pare-execution.policy';
-
-// ─── Mock fallback ────────────────────────────────────────────────────────────
+import { runPareAiUseCase, type PareAgentRunResult } from '../pare-ai-gateway';
+import { createPareMessageDraftToolHandlers } from '../pare-ai-use-cases';
 
 function mockDrafts(ctx: PAREContext): PAREDrafts {
   const replacement = ctx.budgetAnalysis?.selectedCandidate;
@@ -43,151 +44,35 @@ PMCM Events Management`.trim();
   return { supplierNotification, clientReassurance };
 }
 
-// ─── Tool definitions for Claude ─────────────────────────────────────────────
-
-const DRAFTER_TOOLS = [
-  {
-    name: 'get_event_and_replacement_summary',
-    description: 'Returns full event details, withdrawn supplier info, recommended replacement details, risk level, and any client preferences needed for drafting messages.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'submit_message_drafts',
-    description: 'Submit the final drafted messages. Both messages will be shown to PMCM Admin for review before sending.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        supplierNotification: {
-          type: 'string',
-          description: 'Professional message to the replacement supplier offering them the assignment. Should be warm, clear, and urgent but not alarming.',
-        },
-        clientReassurance: {
-          type: 'string',
-          description: 'Professional message to the client informing them of the supplier change. Should be reassuring, confident, and avoid unnecessary detail about what went wrong.',
-        },
-      },
-      required: ['supplierNotification', 'clientReassurance'],
-    },
-  },
-] as const;
-
-// ─── Live tool executor ───────────────────────────────────────────────────────
-
-function executeDrafterTool(toolName: string, ctx: PAREContext): string {
-  if (toolName === 'get_event_and_replacement_summary') {
-    const replacement = ctx.budgetAnalysis?.selectedCandidate;
-    return JSON.stringify({
-      event: {
-        name: ctx.eventName,
-        date: ctx.eventDate,
-        daysAway: ctx.daysUntilEvent,
-        clientName: ctx.clientName,
-        clientPreferences: ctx.clientPreferences,
-      },
-      withdrawnSupplier: {
-        name: ctx.withdrawnSupplier.name,
-        category: ctx.withdrawnSupplier.category,
-        tier: ctx.withdrawnSupplier.tier,
-      },
-      recommendedReplacement: replacement
-        ? {
-            name: replacement.supplierName,
-            tier: replacement.tier,
-            reliabilityScore: replacement.reliabilityScore,
-            priorPmcmEvents: replacement.priorPmcmEvents,
-            halal: replacement.halal,
-            quotedAmount: replacement.quotedAmount,
-          }
-        : null,
-      riskLevel: ctx.riskAssessment?.level ?? 'UNKNOWN',
-      budgetFeasible: ctx.budgetAnalysis?.feasible ?? null,
-      budgetSummary: ctx.budgetAnalysis?.summary ?? null,
-    });
-  }
-  return JSON.stringify({ error: `Unknown tool: ${toolName}` });
-}
-
-// ─── Agent ────────────────────────────────────────────────────────────────────
-
 export class MessageDrafterAgent {
-  constructor(private readonly mode: 'mock' | 'live' = 'mock') {}
+  constructor(
+    private readonly mode: 'mock' | 'live' = 'mock',
+    private readonly gateway?: AiGateway,
+  ) {}
 
-  async runPareMessageDraftAgent(ctx: PAREContext, signal?: AbortSignal): Promise<PAREDrafts> {
+  async runPareMessageDraftAgent(
+    ctx: PAREContext,
+    signal?: AbortSignal,
+    syntheticPareChain?: AiSyntheticPareChain,
+  ): Promise<PareAgentRunResult<PAREDrafts>> {
     assertPareExecutionAllowed(this.mode);
     throwIfAborted(signal);
-    if (this.mode === 'live') return this.runWithClaude(ctx, signal);
-    return mockDrafts(ctx);
-  }
-
-  private async runWithClaude(ctx: PAREContext, signal?: AbortSignal): Promise<PAREDrafts> {
-    const { default: Anthropic } = await import('@anthropic-ai/sdk');
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    const systemPrompt = `You are the Communications Drafting agent for P.R.I.S.M, an event management system run by PMCM Events (led by Ms. Mys).
-A supplier emergency has occurred. You MUST NOT respond in prose. Every response must be a tool call.
-Step 1: call get_event_and_replacement_summary to retrieve full event, supplier, and client context.
-Step 2: call submit_message_drafts with both drafted messages.
-
-Tone guidelines:
-- Supplier message: warm, professional, urgent but not panicked. Make them feel valued and chosen.
-- Client message: reassuring, confident, no unnecessary detail about what went wrong. Protect the client relationship.
-- Both messages should sound like they come from a professional event coordination team, not a system.
-- Do not use the word "unfortunate" or imply the situation is a disaster.
-
-These drafts will be reviewed and approved by PMCM Admin (Ms. Mys) before sending.`;
-
-    const userPrompt = `Draft the supplier notification and client reassurance messages for this emergency supplier replacement. Call get_event_and_replacement_summary first, then submit_message_drafts.`;
-
-    const messages: any[] = [{ role: 'user', content: userPrompt }];
-
-    for (let i = 0; i < 6; i++) {
-      throwIfAborted(signal);
-      const isLastChance = i >= 4;
-      const tool_choice = isLastChance
-        ? { type: 'tool' as const, name: 'submit_message_drafts' }
-        : { type: 'any' as const };
-
-      const response = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        system: systemPrompt,
-        tools: DRAFTER_TOOLS as any,
-        tool_choice,
-        messages,
-      }, { signal });
-
-      messages.push({ role: 'assistant', content: response.content });
-
-      if (response.stop_reason === 'tool_use') {
-        const toolResults: any[] = [];
-        for (const block of response.content) {
-          if (block.type !== 'tool_use') continue;
-
-          if (block.name === 'submit_message_drafts') {
-            const input = block.input as any;
-            return {
-              supplierNotification: input.supplierNotification as string,
-              clientReassurance: input.clientReassurance as string,
-            };
-          }
-
-          const result = executeDrafterTool(block.name, ctx);
-          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
-        }
-        if (toolResults.length > 0) {
-          messages.push({ role: 'user', content: toolResults });
-        }
-      }
+    if (this.mode === 'live') {
+      return runPareAiUseCase(
+        this.gateway,
+        'pare.message-drafts',
+        ctx,
+        createPareMessageDraftToolHandlers(ctx),
+        signal,
+        syntheticPareChain,
+      );
     }
-
-    return mockDrafts(ctx);
+    return { output: mockDrafts(ctx), evidence: null };
   }
 }
 
-function throwIfAborted(signal?: AbortSignal) {
-  if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('PARE execution aborted');
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw signal.reason instanceof Error ? signal.reason : new Error('PARE execution aborted');
+  }
 }
