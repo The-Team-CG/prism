@@ -49,6 +49,32 @@ function coordinatorAssignmentRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function urgentIssueRow(overrides: Record<string, unknown> = {}) {
+  const at = new Date('2026-09-02T00:00:00.000Z');
+  return {
+    id: 'issue_1',
+    eventId: 'evt_sample_ayala',
+    title: 'Power interruption',
+    description: '',
+    severity: 'high',
+    status: 'open',
+    affectedArea: 'Main Stage',
+    ownerRole: 'Registration Staff',
+    ownerName: 'Marco Santos',
+    resolution: '',
+    openedBy: 'Marco Santos',
+    slaDueAt: null,
+    slaStatus: 'on_track',
+    escalationLevel: 'none',
+    escalatedAt: null,
+    escalatedBy: null,
+    escalationNotes: '',
+    createdAt: at,
+    updatedAt: at,
+    ...overrides,
+  };
+}
+
 function createService(assignment: unknown) {
   const prisma = {
     opsEvent: {
@@ -60,6 +86,9 @@ function createService(assignment: unknown) {
     opsEventDayTask: {
       findFirst: vi.fn(async () => null),
     },
+    opsUrgentIssue: {
+      findFirst: vi.fn(async () => null),
+    },
   };
   const eventAccessPolicyService = {
     requireActorRole: vi.fn(async () => undefined),
@@ -68,6 +97,9 @@ function createService(assignment: unknown) {
   };
   const liveOperationsService = {
     createEventDayTask: vi.fn(),
+    createUrgentIssue: vi.fn(async (_eventId: string, _input: unknown) => urgentIssueRow()),
+    updateUrgentIssue: vi.fn(async () => urgentIssueRow()),
+    escalateUrgentIssue: vi.fn(async () => urgentIssueRow()),
     updateEventDayTask: vi.fn(async (_eventId: string, taskId: string, input: { status?: string; notes?: string; ownerName?: string; slaDueAt?: string }) => ({
       id: taskId,
       eventId: 'evt_sample_ayala',
@@ -179,6 +211,85 @@ describe('EventLiveOpsCommandService event scoping', () => {
       expect.objectContaining({ role: OpsUserRole.Coordinator }),
       'coordinator task ownership update',
       'evt_sample_ayala',
+    );
+  });
+
+  it('assigns coordinator-created urgent issues to the creator role and queue by default', async () => {
+    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+
+    await service.createUrgentIssue('evt_sample_ayala', { title: 'Power interruption' }, coordinatorActor());
+
+    expect(liveOperationsService.createUrgentIssue).toHaveBeenCalledWith(
+      'evt_sample_ayala',
+      expect.objectContaining({ ownerRole: 'Registration Staff', ownerName: 'Marco Santos' }),
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+    );
+  });
+
+  it('does not let a coordinator create an urgent issue in another role queue', async () => {
+    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+
+    await expect(
+      service.createUrgentIssue(
+        'evt_sample_ayala',
+        { title: 'Finance issue', ownerRole: 'Finance', ownerName: 'Finance Lead' },
+        coordinatorActor(),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(liveOperationsService.createUrgentIssue).not.toHaveBeenCalled();
+  });
+
+  it.each(['update', 'escalate'] as const)('blocks coordinators from %s issues owned by another role', async (operation) => {
+    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsUrgentIssue.findFirst.mockResolvedValue(urgentIssueRow({ ownerRole: 'Finance', ownerName: 'Finance Lead' }) as never);
+    const action = operation === 'update'
+      ? service.updateUrgentIssue('evt_sample_ayala', 'issue_1', { status: 'resolved' }, coordinatorActor())
+      : service.escalateUrgentIssue('evt_sample_ayala', 'issue_1', { notes: 'Escalate this' }, coordinatorActor());
+
+    await expect(action).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(liveOperationsService.updateUrgentIssue).not.toHaveBeenCalled();
+    expect(liveOperationsService.escalateUrgentIssue).not.toHaveBeenCalled();
+  });
+
+  it('does not let a coordinator reassign an urgent issue through update or escalation fields', async () => {
+    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsUrgentIssue.findFirst.mockResolvedValue(urgentIssueRow() as never);
+
+    await expect(
+      service.updateUrgentIssue('evt_sample_ayala', 'issue_1', { ownerRole: 'Finance', ownerName: 'Finance Lead' }, coordinatorActor()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.escalateUrgentIssue('evt_sample_ayala', 'issue_1', { ownerRole: 'Finance', ownerName: 'Finance Lead' }, coordinatorActor()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(liveOperationsService.updateUrgentIssue).not.toHaveBeenCalled();
+    expect(liveOperationsService.escalateUrgentIssue).not.toHaveBeenCalled();
+  });
+
+  it('allows the designated operator to reassign an urgent issue', async () => {
+    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsEventOperatorDesignation.findFirst.mockResolvedValue({ id: 'operator_designation_1' } as never);
+    prisma.opsUrgentIssue.findFirst.mockResolvedValue(urgentIssueRow() as never);
+
+    await service.updateUrgentIssue(
+      'evt_sample_ayala',
+      'issue_1',
+      { ownerRole: 'Finance', ownerName: 'Finance Lead' },
+      coordinatorActor(),
+    );
+
+    expect(liveOperationsService.updateUrgentIssue).toHaveBeenCalledWith(
+      'evt_sample_ayala',
+      'issue_1',
+      { ownerRole: 'Finance', ownerName: 'Finance Lead' },
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
     );
   });
 });
