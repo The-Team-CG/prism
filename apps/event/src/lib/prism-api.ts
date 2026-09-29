@@ -40,7 +40,6 @@ import type {
   PrismGuestCheckIn,
   PrismInquiry,
   PrismLiveOps,
-  PrismEventRunSheet,
   PrismLoginHistory,
   PrismNotificationLog,
   PrismPaymentMilestone,
@@ -103,6 +102,7 @@ import type {
   CreateCoordinatorCoverageRequirementInput,
   CreateEventOperatorDesignationInput,
   PrismAcknowledgementReminderResult,
+  PrismEventOperatorDesignation,
 } from "@prism/types";
 
 export type PrismEventDecision = {
@@ -740,13 +740,6 @@ export const prismApi = {
     withCoordinatorActor(`/api/events/${eventId}/event-day/tasks/${taskId}`, session),
     { method: "PATCH", body: JSON.stringify(input) },
   ),
-  getCoordinatorRunSheet: (
-    session: { name: string; email: string; role: string },
-    eventId: string,
-    dayId?: string,
-  ) => request<PrismEventRunSheet | { eventId: string; authored: false; reason: "no_schedule" }>(
-    withCoordinatorActor(`/api/events/${eventId}/run-sheet${dayId ? `?dayId=${encodeURIComponent(dayId)}` : ""}`, session),
-  ),
   updateDelegatedCoordinatorAttendance: (
     session: { name: string; email: string; role: string },
     eventId: string,
@@ -772,6 +765,12 @@ export const prismApi = {
   ) => request<unknown>(
     withPmcmAdminActor(`/api/events/${eventId}/operator-designation`, session),
     { method: "POST", body: JSON.stringify(input) },
+  ),
+  getEventDayOperator: (
+    session: { name: string; email: string; role: string },
+    eventId: string,
+  ) => request<PrismEventOperatorDesignation>(
+    withPmcmAdminActor(`/api/events/${eventId}/operator-designation`, session),
   ),
   upsertCoordinatorCoverage: (
     session: { name: string; email: string; role: string },

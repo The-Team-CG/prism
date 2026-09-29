@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EventScheduleService } from './event-schedule.service';
 
 function service(access: { requireActorRole: ReturnType<typeof vi.fn> }, staffing = {}) {
@@ -76,6 +76,7 @@ describe('EventScheduleService authority', () => {
     };
     const tx = {
       opsCoordinator: { findFirst: vi.fn().mockResolvedValue(current) },
+      opsCoordinatorAssignment: { findFirst: vi.fn().mockResolvedValue({ id: 'assignment_2' }) },
       opsEventOperatorDesignation: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         create: vi.fn().mockResolvedValue(created),
@@ -100,5 +101,74 @@ describe('EventScheduleService authority', () => {
     });
     expect(tx.opsEventOperatorDesignation.create).toHaveBeenCalledTimes(1);
     expect(auditWriter.write).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('EventScheduleService operator designation', () => {
+  const pmcm = { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never;
+  const clock = { now: () => new Date('2026-09-08T03:00:00.000Z') };
+
+  type AssignmentRow = { eventId: string; coordinatorId: string; status: string };
+
+  function harness(assignments: AssignmentRow[]) {
+    const tx = {
+      opsCoordinator: { findFirst: vi.fn().mockResolvedValue({ id: 'coord_2', name: 'Coordinator Two', active: true }) },
+      // Answers the way the database would: a row matches unless its status is in the excluded list.
+      opsCoordinatorAssignment: {
+        findFirst: vi.fn(async ({ where }: { where: { eventId: string; coordinatorId: string; status: { notIn: string[] } } }) =>
+          assignments.find((row) => row.eventId === where.eventId && row.coordinatorId === where.coordinatorId && !where.status.notIn.includes(row.status)) ?? null),
+      },
+      opsEventOperatorDesignation: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        create: vi.fn().mockResolvedValue({ id: 'designation_2', eventId: 'evt_1', coordinatorId: 'coord_2' }),
+      },
+    };
+    const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
+    const instance = new EventScheduleService(prisma as never, { requireActorRole: vi.fn() } as never, { write: vi.fn() } as never, {} as never, { getEventLiveOps: vi.fn() } as never, clock);
+    return { instance, tx };
+  }
+
+  it('designates a coordinator who is working the event', async () => {
+    const { instance, tx } = harness([{ eventId: 'evt_1', coordinatorId: 'coord_2', status: 'pending_acknowledgement' }]);
+
+    await instance.designateOperator('evt_1', { coordinatorId: 'coord_2' }, pmcm);
+
+    expect(tx.opsEventOperatorDesignation.create).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['cancelled', 'replaced', 'declined'])('refuses a coordinator whose assignment is %s and leaves the current operator in place', async (status) => {
+    const { instance, tx } = harness([{ eventId: 'evt_1', coordinatorId: 'coord_2', status }]);
+
+    await expect(instance.designateOperator('evt_1', { coordinatorId: 'coord_2' }, pmcm)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(tx.opsEventOperatorDesignation.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsEventOperatorDesignation.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a coordinator who is only assigned to a different event', async () => {
+    const { instance, tx } = harness([{ eventId: 'evt_other', coordinatorId: 'coord_2', status: 'acknowledged' }]);
+
+    await expect(instance.designateOperator('evt_1', { coordinatorId: 'coord_2' }, pmcm)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(tx.opsEventOperatorDesignation.create).not.toHaveBeenCalled();
+  });
+
+  it('reports the current operator by name, or none before anyone is designated', async () => {
+    const findFirst = vi.fn()
+      .mockResolvedValueOnce({ coordinatorId: 'coord_2', coordinator: { name: 'Coordinator Two' }, designatedAt: new Date('2026-09-08T03:00:00.000Z') })
+      .mockResolvedValueOnce(null);
+    const instance = new EventScheduleService({ opsEventOperatorDesignation: { findFirst } } as never, { requireActorRole: vi.fn() } as never, {} as never, {} as never, { getEventLiveOps: vi.fn() } as never, clock);
+
+    await expect(instance.getOperatorDesignation('evt_1', pmcm)).resolves.toEqual({
+      eventId: 'evt_1',
+      operator: { coordinatorId: 'coord_2', coordinatorName: 'Coordinator Two', designatedAt: '2026-09-08T03:00:00.000Z' },
+    });
+    await expect(instance.getOperatorDesignation('evt_1', pmcm)).resolves.toEqual({ eventId: 'evt_1', operator: null });
+  });
+
+  it('keeps the current-operator lookup away from coordinators', async () => {
+    const access = { requireActorRole: vi.fn().mockRejectedValue(new ForbiddenException('denied')) };
+
+    await expect(service(access).getOperatorDesignation('evt_1', { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('denied');
   });
 });

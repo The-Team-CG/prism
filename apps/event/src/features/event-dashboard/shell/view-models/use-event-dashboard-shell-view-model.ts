@@ -165,12 +165,20 @@ export function useEventDashboardShellViewModel({
   }
 
   async function runAsBoolean(actionLabel: string, action: () => Promise<unknown>) {
-    let succeeded = false;
-    await run(actionLabel, async () => {
+    const outcome = await runForResult(actionLabel, async () => {
       await action();
-      succeeded = true;
+      return true;
     });
-    return succeeded;
+    return outcome === true;
+  }
+
+  /** Runs an action like run() and hands its result back to the caller; null means it failed (run() already reported why). */
+  async function runForResult<T>(actionLabel: string, action: () => Promise<T>): Promise<T | null> {
+    let result: T | null = null;
+    await run(actionLabel, async () => {
+      result = await action();
+    });
+    return result;
   }
 
   async function runWithSuccess(actionLabel: string, action: () => Promise<unknown>) {
@@ -400,11 +408,12 @@ export function useEventDashboardShellViewModel({
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: string, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
     saveCoordinatorCoverage: (input: Parameters<typeof commands.upsertCoordinatorCoverage>[2]) => selectedEvent && session ? runAsBoolean("coordinator coverage", () => commands.upsertCoordinatorCoverage(session, selectedEvent.id, input)) : Promise.resolve(false),
-    sendCoordinatorAcknowledgementReminders: () => selectedEvent && session ? runAsBoolean("acknowledgement reminders", () => commands.sendCoordinatorAcknowledgementReminders(session, selectedEvent.id)) : Promise.resolve(false),
-    designateEventDayOperator: (coordinatorId: string) => selectedEvent && session ? run("designate event operator", () => commands.designateEventDayOperator(session, selectedEvent.id, { coordinatorId })) : Promise.resolve(),
+    sendCoordinatorAcknowledgementReminders: () => selectedEvent && session ? runForResult("acknowledgement reminders", () => commands.sendCoordinatorAcknowledgementReminders(session, selectedEvent.id)) : Promise.resolve(null),
+    designateEventDayOperator: (coordinatorId: string) => selectedEvent && session ? runAsBoolean("designate event operator", () => commands.designateEventDayOperator(session, selectedEvent.id, { coordinatorId })) : Promise.resolve(false),
+    loadEventDayOperator: () => selectedEvent && session ? commands.getEventDayOperator(session, selectedEvent.id).then((designation) => designation.operator) : Promise.resolve(null),
     loadCoordinatorAvailability: (coordinatorId: string) => selectedEvent && session ? commands.listCoordinatorAvailability(session, selectedEvent.id, coordinatorId) : Promise.resolve([]),
-    createCoordinatorAvailability: (coordinatorId: string, input: Parameters<typeof commands.createCoordinatorAvailability>[3]) => selectedEvent && session ? run("coordinator availability", () => commands.createCoordinatorAvailability(session, selectedEvent.id, coordinatorId, input)) : Promise.resolve(),
-    deleteCoordinatorAvailability: (coordinatorId: string, availabilityId: string) => selectedEvent && session ? run("remove coordinator availability", () => commands.deleteCoordinatorAvailability(session, selectedEvent.id, coordinatorId, availabilityId)) : Promise.resolve(),
+    createCoordinatorAvailability: (coordinatorId: string, input: Parameters<typeof commands.createCoordinatorAvailability>[3]) => selectedEvent && session ? runAsBoolean("coordinator availability", () => commands.createCoordinatorAvailability(session, selectedEvent.id, coordinatorId, input)) : Promise.resolve(false),
+    deleteCoordinatorAvailability: (coordinatorId: string, availabilityId: string) => selectedEvent && session ? runAsBoolean("remove coordinator availability", () => commands.deleteCoordinatorAvailability(session, selectedEvent.id, coordinatorId, availabilityId)) : Promise.resolve(false),
     decideEventTaskReassignment: (requestId: string, input: Parameters<typeof commands.decidePmcmEventTaskReassignment>[3]) => selectedEvent && session ? runLiveOps("task reassignment", () => commands.decidePmcmEventTaskReassignment(session, selectedEvent.id, requestId, input)) : Promise.resolve(),
     createEventDayTask: (input: Parameters<typeof commands.createEventDayTask>[1]) => selectedEvent ? runLiveOps("create task", () => commands.createEventDayTask(selectedEvent.id, input)) : Promise.resolve(),
     updateEventDayTask: (taskId: string, input: Parameters<typeof commands.updateEventDayTask>[2]) => selectedEvent ? runLiveOps("update task", () => commands.updateEventDayTask(selectedEvent.id, taskId, input)) : Promise.resolve(),

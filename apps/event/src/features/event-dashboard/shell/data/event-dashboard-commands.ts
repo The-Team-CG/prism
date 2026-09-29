@@ -52,6 +52,7 @@ export type EventDashboardCommands = Pick<
   | "updateCoordinatorAttendance"
   | "decidePmcmEventTaskReassignment"
   | "designateEventDayOperator"
+  | "getEventDayOperator"
   | "upsertCoordinatorCoverage"
   | "sendCoordinatorAcknowledgementReminders"
   | "listCoordinatorAvailability"
@@ -124,6 +125,7 @@ export const eventDashboardCommands = {
   updateCoordinatorAttendance: prismApi.updateCoordinatorAttendance,
   decidePmcmEventTaskReassignment: prismApi.decidePmcmEventTaskReassignment,
   designateEventDayOperator: prismApi.designateEventDayOperator,
+  getEventDayOperator: prismApi.getEventDayOperator,
   upsertCoordinatorCoverage: prismApi.upsertCoordinatorCoverage,
   sendCoordinatorAcknowledgementReminders: prismApi.sendCoordinatorAcknowledgementReminders,
   listCoordinatorAvailability: prismApi.listCoordinatorAvailability,

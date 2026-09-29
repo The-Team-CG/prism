@@ -3,7 +3,7 @@ import type { OpsEventScheduleSegment, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor, writeAudit, AUDIT_WRITER, type AuditWriter } from '@prism/kernel/access-control';
-import { OpsUserRole } from '@prism/kernel/event-core';
+import { CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole } from '@prism/kernel/event-core';
 import { STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
 import { LIVE_OPS_READ_MODEL, type LiveOpsReadModel } from '@prism/contexts/read-models';
 import type {
@@ -15,6 +15,7 @@ import type {
   CreateEventScheduleSegmentInput,
   PrismEventEodReport,
   PrismEventHandoff,
+  PrismEventOperatorDesignation,
   PrismEventRunSheet,
   PrismEventSchedule,
   PrismEventScheduleDay,
@@ -24,6 +25,12 @@ import type {
 } from '@prism/types';
 
 export type LiveOpsClock = { now(): Date };
+
+/** A coordinator who left, was replaced, or declined cannot run the event, so they cannot be its operator. */
+const OPERATOR_INELIGIBLE_ASSIGNMENT_STATUSES = [
+  ...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES,
+  CoordinatorAssignmentStatus.Declined,
+];
 
 export class SystemLiveOpsClock implements LiveOpsClock {
   now() { return new Date(); }
@@ -129,12 +136,33 @@ export class EventScheduleService {
     const designation = await this.prisma.$transaction(async (tx) => {
       const coordinator = await tx.opsCoordinator.findFirst({ where: { id: input.coordinatorId, active: true } });
       if (!coordinator) throw new NotFoundException('Coordinator not found');
+      // Designating replaces the current operator, so an unassigned pick would strip a working operator and then be refused every operator action.
+      const working = await tx.opsCoordinatorAssignment.findFirst({
+        where: { eventId, coordinatorId: coordinator.id, status: { notIn: [...OPERATOR_INELIGIBLE_ASSIGNMENT_STATUSES] } },
+        select: { id: true },
+      });
+      if (!working) throw new BadRequestException('The Event Day System Operator must be a coordinator assigned to this event');
       await tx.opsEventOperatorDesignation.updateMany({ where: { eventId, revokedAt: null }, data: { revokedAt: this.clock.now(), revokedBy: actor.id ?? actor.name } });
       const created = await tx.opsEventOperatorDesignation.create({ data: { id: `eodsg_${randomUUID()}`, eventId, coordinatorId: coordinator.id, designatedBy: actor.id ?? actor.name } });
       await writeAudit(this.auditWriter, eventId, actor.name, `Designated event day system operator: ${coordinator.name}`, { actorRole: actor.role, actorEmail: actor.email, actionType: 'assign', category: 'live_ops', affectedType: 'event_operator_designation', affectedId: created.id }, { prisma: tx, actorId: actor.id, correlationId: `operator-designation:${created.id}` });
       return created;
     });
     return designation;
+  }
+
+  async getOperatorDesignation(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventOperatorDesignation> {
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event day system operator designation', eventId);
+    const current = await this.prisma.opsEventOperatorDesignation.findFirst({
+      where: { eventId, revokedAt: null },
+      include: { coordinator: { select: { name: true } } },
+      orderBy: [{ designatedAt: 'desc' }, { id: 'desc' }],
+    });
+    return {
+      eventId,
+      operator: current
+        ? { coordinatorId: current.coordinatorId, coordinatorName: current.coordinator.name, designatedAt: current.designatedAt.toISOString() }
+        : null,
+    };
   }
 
   async createHandoff(eventId: string, input: CreateEventHandoffInput, actor: ResolvedEventOpsActor): Promise<PrismEventHandoff> {
