@@ -990,96 +990,146 @@ function CoordinatorRoleQueueAndLive({
   taskActions: CoordinatorTaskActionsModel;
   operatorActions: CoordinatorOperatorActionsModel;
 }) {
-  const checkInCopy = registrationRole
-    ? `${roleView.guestAttendanceCount} checked in, including walk-ins flagged for PMCM review.`
-    : `${roleView.guestAttendanceCount} checked in. Guest-level records are hidden for this role.`;
-
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <CoordinatorTaskForm taskForm={taskForm} />
       <CoordinatorIssueForm issueForm={issueForm} />
-      <CCard>
-        <CCardHeader>
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="size-4 text-(--prism-signal)" />
-            <h3 className="text-sm font-bold text-foreground">Floor and stage briefing</h3>
-          </div>
-        </CCardHeader>
-        <CCardBody className="space-y-2">
-          {roleView.briefing ? (
-            <>
-              <p className="text-sm font-semibold text-foreground">{roleView.briefing.venue || "Venue briefing pending"}</p>
-              <p className="text-sm text-muted-foreground">
-                {roleView.briefing.guestCount} guests · {roleView.briefing.budgetRange || "Budget range pending"}
-              </p>
-              <p className="text-sm leading-6 text-muted-foreground">{roleView.briefing.notes || "No briefing notes supplied."}</p>
-              {roleView.briefing.serviceRequirements.length ? (
-                <p className="text-xs font-semibold text-muted-foreground">
-                  Services: {roleView.briefing.serviceRequirements.join(", ")}
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">PMCM has not submitted the event briefing yet.</p>
-          )}
-        </CCardBody>
-      </CCard>
-      {roleView.isDesignatedOperator ? (
-        <CoordinatorOperatorControls roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />
-      ) : null}
-      {!roleView.isDesignatedOperator && roleView.role.toLowerCase().includes("ingress") ? <CoordinatorSupplierChecks roleView={roleView} actions={operatorActions} /> : null}
-      <CCard>
-        <CCardHeader>
-          <div className="flex items-center gap-2">
-            <ClipboardList className="size-4 text-(--prism-signal)" />
-            <h3 className="text-sm font-bold text-foreground">Role queue</h3>
-            {roleView.tasks.length > 0 ? (
-              <span className="ml-auto rounded-full bg-(--prism-signal)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-signal)">
-                {roleView.tasks.length}
-              </span>
-            ) : null}
-          </div>
-        </CCardHeader>
-        <CCardBody id="coordinator-role-queue" className="scroll-mt-24">
-          {roleView.tasks.length === 0 ? <p className="text-sm text-muted-foreground">No event-day tasks assigned to this role yet.</p> : null}
-          <div className="space-y-2">
-            {roleView.tasks.map((task) => (
-              <div key={task.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-muted/40 p-3.5">
-                <div><p className="text-sm font-bold text-foreground">{task.title}</p><p className="mt-0.5 text-xs text-muted-foreground">{task.assignedRole}{task.notes ? ` — ${task.notes}` : ""}{task.slaDueAt ? ` · Due ${new Date(task.slaDueAt).toLocaleString("en-PH")}` : ""}</p></div>
-                <div className="flex items-center gap-2"><StatusBadge status={task.status} /><Button type="button" size="sm" variant="outline" disabled={taskActions.busy || task.status === "blocked"} onClick={() => taskActions.updateStatus(task.id, task.status === "done" ? "open" : task.status === "in_progress" ? "done" : "in_progress")}>{task.status === "done" ? "Reopen" : task.status === "in_progress" ? "Mark done" : "Start"}</Button></div>
-              </div>
-            ))}
-          </div>
-          {taskActions.error ? <p role="alert" className={FORM_ALERT}>{taskActions.error}</p> : null}
-        </CCardBody>
-      </CCard>
-
-      <CCard>
-        <CCardHeader>
-          <div className="flex items-center gap-2">
-            <Radio className="size-4 text-(--prism-signal)" />
-            <h3 className="text-sm font-bold text-foreground">Role-safe live data</h3>
-          </div>
-        </CCardHeader>
-        <CCardBody id="coordinator-live-data" className="scroll-mt-24 space-y-3">
-          <div className="rounded-xl bg-muted/40 p-4">
-            <p className="text-sm font-bold text-foreground">Registration check-ins</p>
-            <p className="mt-1 text-sm text-muted-foreground">{checkInCopy}</p>
-          </div>
-          <CompactRecordList
-            emptyText="No urgent issue assigned to this role."
-            items={roleView.urgentIssues.map((issue) => ({
-              id: issue.id,
-              title: issue.title,
-              description: `${label(issue.status)} — ${issue.ownerRole || "Unassigned"}`,
-              meta: issue.slaDueAt ? `Due ${new Date(issue.slaDueAt).toLocaleString("en-PH")}` : undefined,
-              status: issue.slaStatus ?? issue.status,
-              icon: Radio,
-            }))}
-          />
-        </CCardBody>
-      </CCard>
+      <CoordinatorBriefingCard roleView={roleView} />
+      <CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />
+      <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
+      <CoordinatorRoleLiveData roleView={roleView} registrationRole={registrationRole} />
     </div>
+  );
+}
+
+function CoordinatorBriefingCard({ roleView }: { roleView: PrismCoordinatorRoleView }) {
+  return (
+    <CCard>
+      <CCardHeader>
+        <div className="flex items-center gap-2">
+          <LayoutGrid className="size-4 text-(--prism-signal)" />
+          <h3 className="text-sm font-bold text-foreground">Floor and stage briefing</h3>
+        </div>
+      </CCardHeader>
+      <CCardBody className="space-y-2">
+        {roleView.briefing ? (
+          <>
+            <p className="text-sm font-semibold text-foreground">{roleView.briefing.venue || "Venue briefing pending"}</p>
+            <p className="text-sm text-muted-foreground">
+              {roleView.briefing.guestCount} guests · {roleView.briefing.budgetRange || "Budget range pending"}
+            </p>
+            <p className="text-sm leading-6 text-muted-foreground">{roleView.briefing.notes || "No briefing notes supplied."}</p>
+            {roleView.briefing.serviceRequirements.length ? (
+              <p className="text-xs font-semibold text-muted-foreground">
+                Services: {roleView.briefing.serviceRequirements.join(", ")}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">PMCM has not submitted the event briefing yet.</p>
+        )}
+      </CCardBody>
+    </CCard>
+  );
+}
+
+function CoordinatorRoleActions({ roleView, reassignment, operatorActions }: {
+  roleView: PrismCoordinatorRoleView;
+  reassignment: CoordinatorReassignmentModel;
+  operatorActions: CoordinatorOperatorActionsModel;
+}) {
+  return (
+    <>
+      {roleView.isDesignatedOperator && <CoordinatorOperatorControls roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />}
+      {!roleView.isDesignatedOperator && roleView.role.toLowerCase().includes("ingress") && <CoordinatorSupplierChecks roleView={roleView} actions={operatorActions} />}
+    </>
+  );
+}
+
+function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: PrismCoordinatorRoleView; taskActions: CoordinatorTaskActionsModel }) {
+  return (
+    <CCard>
+      <CCardHeader>
+        <div className="flex items-center gap-2">
+          <ClipboardList className="size-4 text-(--prism-signal)" />
+          <h3 className="text-sm font-bold text-foreground">Role queue</h3>
+          {roleView.tasks.length > 0 && (
+            <span className="ml-auto rounded-full bg-(--prism-signal)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-signal)">{roleView.tasks.length}</span>
+          )}
+        </div>
+      </CCardHeader>
+      <CCardBody id="coordinator-role-queue" className="scroll-mt-24">
+        {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No event-day tasks assigned to this role yet.</p>}
+        <div className="space-y-2">
+          {roleView.tasks.map((task) => <CoordinatorTaskQueueRow key={task.id} task={task} taskActions={taskActions} />)}
+        </div>
+        {taskActions.error && <p role="alert" className={FORM_ALERT}>{taskActions.error}</p>}
+      </CCardBody>
+    </CCard>
+  );
+}
+
+function CoordinatorTaskQueueRow({ task, taskActions }: { task: PrismCoordinatorRoleView["tasks"][number]; taskActions: CoordinatorTaskActionsModel }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-muted/40 p-3.5">
+      <div>
+        <p className="text-sm font-bold text-foreground">{task.title}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {task.assignedRole}{task.notes ? ` — ${task.notes}` : ""}{task.slaDueAt ? ` · Due ${new Date(task.slaDueAt).toLocaleString("en-PH")}` : ""}
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <StatusBadge status={task.status} />
+        <Button type="button" size="sm" variant="outline" disabled={taskActions.busy || task.status === "blocked"} onClick={() => taskActions.updateStatus(task.id, nextCoordinatorTaskStatus(task.status))}>
+          {coordinatorTaskActionLabel(task.status)}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function nextCoordinatorTaskStatus(status: string) {
+  if (status === "done") return "open";
+  if (status === "in_progress") return "done";
+  return "in_progress";
+}
+
+function coordinatorTaskActionLabel(status: string) {
+  if (status === "done") return "Reopen";
+  if (status === "in_progress") return "Mark done";
+  return "Start";
+}
+
+function CoordinatorRoleLiveData({ roleView, registrationRole }: { roleView: PrismCoordinatorRoleView; registrationRole: boolean }) {
+  const checkInCopy = registrationRole
+    ? `${roleView.guestAttendanceCount} checked in, including walk-ins flagged for PMCM review.`
+    : `${roleView.guestAttendanceCount} checked in. Guest-level records are hidden for this role.`;
+  return (
+    <CCard>
+      <CCardHeader>
+        <div className="flex items-center gap-2">
+          <Radio className="size-4 text-(--prism-signal)" />
+          <h3 className="text-sm font-bold text-foreground">Role-safe live data</h3>
+        </div>
+      </CCardHeader>
+      <CCardBody id="coordinator-live-data" className="scroll-mt-24 space-y-3">
+        <div className="rounded-xl bg-muted/40 p-4">
+          <p className="text-sm font-bold text-foreground">Registration check-ins</p>
+          <p className="mt-1 text-sm text-muted-foreground">{checkInCopy}</p>
+        </div>
+        <CompactRecordList
+          emptyText="No urgent issue assigned to this role."
+          items={roleView.urgentIssues.map((issue) => ({
+            id: issue.id,
+            title: issue.title,
+            description: `${label(issue.status)} — ${issue.ownerRole || "Unassigned"}`,
+            meta: issue.slaDueAt ? `Due ${new Date(issue.slaDueAt).toLocaleString("en-PH")}` : undefined,
+            status: issue.slaStatus ?? issue.status,
+            icon: Radio,
+          }))}
+        />
+      </CCardBody>
+    </CCard>
   );
 }
 
