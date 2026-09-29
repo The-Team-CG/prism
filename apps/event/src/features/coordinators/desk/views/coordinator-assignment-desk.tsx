@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, UserCheck, UsersRound } from "lucide-react";
 
-import type { PrismCoordinator, PrismCoordinatorAssignment, PrismCoordinatorCoverage, PrismCoordinatorRoleRequirement, PrismEvent } from "@prism/types";
+import { createCoordinatorAvailabilitySchema, createCoordinatorCoverageRequirementSchema, parseContract, type CreateCoordinatorAvailabilityInput, type PrismCoordinator, type PrismCoordinatorAssignment, type PrismCoordinatorAvailability, type PrismCoordinatorCoverage, type PrismCoordinatorRoleRequirement, type PrismEvent } from "@prism/types";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -29,6 +29,211 @@ function coordinatorRoleTags(coordinator: PrismCoordinator) {
   return [];
 }
 
+function hasUnavailableAssignmentConflict(
+  eventId: string,
+  eventDate: string,
+  coordinatorId: string,
+  assignments: PrismCoordinatorAssignment[],
+  availability: PrismCoordinatorAvailability[],
+) {
+  const eventDateStart = new Date(`${eventDate}T00:00:00.000Z`).getTime();
+  const eventDateEnd = eventDateStart + 24 * 60 * 60 * 1000;
+  const activelyAssigned = assignments.some((assignment) =>
+    assignment.eventId === eventId &&
+    assignment.coordinatorId === coordinatorId &&
+    isCoordinatorAssignmentActive(assignment),
+  );
+  return activelyAssigned && availability.some((item) =>
+    item.coordinatorId === coordinatorId &&
+    item.kind === "unavailable" &&
+    Date.parse(item.startsAt) < eventDateEnd &&
+    Date.parse(item.endsAt) > eventDateStart,
+  );
+}
+
+function PendingAcknowledgmentsPanel({ assignments, busy, open, reminderMessage, onToggle, onSendReminders }: {
+  assignments: PrismCoordinatorAssignment[];
+  busy: boolean;
+  open: boolean;
+  reminderMessage: string | null;
+  onToggle: () => void;
+  onSendReminders: () => void;
+}) {
+  return assignments.length > 0 && (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <UserCheck className="size-4 text-(--prism-amber)" />
+            <h2 className="text-sm font-bold text-foreground">Pending Acknowledgments</h2>
+            <span className="rounded-full bg-(--prism-amber)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{assignments.length}</span>
+          </div>
+          <button type="button" onClick={onToggle} className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted">
+            <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+      </CardHeader>
+      {open && (
+        <CardBody className="space-y-1">
+          {assignments.map((assignment) => (
+            <div key={assignment.id} className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 px-4 py-2.5">
+              <p className="text-sm font-bold text-foreground">{assignment.coordinatorName}</p>
+              <span className="rounded-full border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{assignment.role}</span>
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+            <p className="text-xs text-muted-foreground">Send a reminder to pending coordinators whose event is within seven days.</p>
+            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onSendReminders}>Send reminders</Button>
+          </div>
+          {reminderMessage && <p role="status" className="text-sm text-(--prism-success)">{reminderMessage}</p>}
+        </CardBody>
+      )}
+    </Card>
+  );
+}
+
+function StaffingSummary({ roleRequirements, assignmentCounts }: {
+  roleRequirements: Array<PrismCoordinatorRoleRequirement | PrismCoordinatorCoverage>;
+  assignmentCounts: Map<string, number>;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <UsersRound className="size-4 text-(--prism-signal)" />
+          <h2 className="text-sm font-bold text-foreground">Staffing summary</h2>
+        </div>
+      </CardHeader>
+      <CardBody>
+        {roleRequirements.length === 0 ? (
+          <EmptyState icon={UsersRound} title="No role requirements" description="Add role requirements to start tracking staffing coverage." />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {roleRequirements.map((requirement) => {
+              const assigned = "assigned" in requirement ? requirement.assigned : assignmentCounts.get(requirement.role) ?? 0;
+              const acknowledged = "acknowledged" in requirement ? requirement.acknowledged : 0;
+              const complete = "satisfied" in requirement ? requirement.satisfied : assigned >= requirement.required;
+              return (
+                <div key={requirement.role} className="rounded-xl border border-border bg-muted/30 p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-foreground">{requirement.role}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${complete ? "bg-(--prism-success)/10 text-(--prism-success)" : "bg-(--prism-amber)/10 text-(--prism-amber)"}`}>
+                      {assigned}/{requirement.required}{"acknowledged" in requirement ? ` · ${acknowledged} ack` : ""}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">{complete ? "Covered for this event." : "Still needs staffing."}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
+function CoverageTargetCard({ busy, role, required, skills, message, onRoleChange, onRequiredChange, onSkillsChange, onSubmit }: {
+  busy: boolean;
+  role: string;
+  required: string;
+  skills: string;
+  message: string | null;
+  onRoleChange: (value: string) => void;
+  onRequiredChange: (value: string) => void;
+  onSkillsChange: (value: string) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader><h2 className="text-sm font-bold text-foreground">Coverage targets</h2></CardHeader>
+      <CardBody className="space-y-3">
+        <form className="space-y-3" onSubmit={onSubmit}>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Role<input required value={role} onChange={(event) => onRoleChange(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground" placeholder="e.g. Floor Director" /></label>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Required coordinators<input type="number" min="0" step="1" required value={required} onChange={(event) => onRequiredChange(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground" /></label>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Required skills, comma separated<input value={skills} onChange={(event) => onSkillsChange(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground" placeholder="first aid, registration" /></label>
+          <Button type="submit" size="sm" disabled={busy || !role.trim()}>Save target</Button>
+        </form>
+        {message && <p role="status" className="text-xs text-muted-foreground">{message}</p>}
+      </CardBody>
+    </Card>
+  );
+}
+
+function OperatorDesignationCard({ coordinators, operatorId, busy, onChange, onDesignate }: {
+  coordinators: PrismCoordinator[];
+  operatorId: string;
+  busy: boolean;
+  onChange: (value: string) => void;
+  onDesignate: () => void;
+}) {
+  return (
+    <Card>
+      <CardHeader><h2 className="text-sm font-bold text-foreground">Event Day System Operator</h2></CardHeader>
+      <CardBody className="space-y-3">
+        <p className="text-sm text-muted-foreground">Choose the coordinator who will control delegated attendance and operator actions. Designating someone replaces the current operator.</p>
+        <select aria-label="Event Day System Operator" value={operatorId} onChange={(event) => onChange(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm">
+          <option value="">Select a coordinator</option>
+          {coordinators.filter((coordinator) => coordinator.active).map((coordinator) => <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>)}
+        </select>
+        <Button type="button" size="sm" disabled={busy || !operatorId} onClick={onDesignate}>Designate operator</Button>
+      </CardBody>
+    </Card>
+  );
+}
+
+function CoordinatorAvailabilityCard({
+  eventId, eventDate, coordinators, assignments, coordinatorId, entries, startsAt, endsAt, note, busy, loading, error,
+  onSelectCoordinator, onStartChange, onEndChange, onNoteChange, onSubmit, onDelete,
+}: {
+  eventId: string;
+  eventDate: string;
+  coordinators: PrismCoordinator[];
+  assignments: PrismCoordinatorAssignment[];
+  coordinatorId: string;
+  entries: PrismCoordinatorAvailability[];
+  startsAt: string;
+  endsAt: string;
+  note: string;
+  busy: boolean;
+  loading: boolean;
+  error: string | null;
+  onSelectCoordinator: (value: string) => void;
+  onStartChange: (value: string) => void;
+  onEndChange: (value: string) => void;
+  onNoteChange: (value: string) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onDelete: (item: PrismCoordinatorAvailability) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader><h2 className="text-sm font-bold text-foreground">Coordinator unavailability</h2></CardHeader>
+      <CardBody className="space-y-3">
+        <select aria-label="Coordinator availability" value={coordinatorId} onChange={(event) => onSelectCoordinator(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm">
+          <option value="">Select coordinator</option>
+          {coordinators.filter((coordinator) => coordinator.active).map((coordinator) => <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>)}
+        </select>
+        {loading && <p className="text-xs text-muted-foreground">Loading dates…</p>}
+        {coordinatorId && hasUnavailableAssignmentConflict(eventId, eventDate, coordinatorId, assignments, entries) && (
+          <p role="alert" className="rounded-lg border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-3 py-2 text-xs font-semibold text-(--prism-amber)">
+            An unavailable date overlaps this event assignment. Review coordinator coverage for {eventDate}.
+          </p>
+        )}
+        <div className="max-h-28 space-y-2 overflow-y-auto">
+          {entries.map((item) => <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2 py-1.5 text-xs"><span>{new Date(item.startsAt).toLocaleDateString()} – {new Date(item.endsAt).toLocaleDateString()}{item.note ? ` · ${item.note}` : ""}</span><button type="button" className="text-destructive" disabled={busy} onClick={() => onDelete(item)}>Remove</button></div>)}
+          {coordinatorId && !loading && entries.length === 0 && <p className="text-xs text-muted-foreground">No unavailable dates recorded.</p>}
+        </div>
+        <form className="space-y-2" onSubmit={onSubmit}>
+          <input aria-label="Unavailable from" type="datetime-local" required value={startsAt} onChange={(event) => onStartChange(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" />
+          <input aria-label="Unavailable until" type="datetime-local" required value={endsAt} onChange={(event) => onEndChange(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" />
+          <input aria-label="Availability note" value={note} onChange={(event) => onNoteChange(event.target.value)} placeholder="Optional note" className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm" />
+          <Button type="submit" size="sm" disabled={busy || loading || !coordinatorId}>Add unavailable dates</Button>
+        </form>
+        {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+      </CardBody>
+    </Card>
+  );
+}
+
 export function CoordinatorAssignmentDesk({
   event,
   coordinators,
@@ -36,6 +241,12 @@ export function CoordinatorAssignmentDesk({
   roleRequirements,
   busy,
   onAssign,
+  onSaveCoverage,
+  onSendReminders,
+  onDesignateOperator,
+  onLoadAvailability,
+  onCreateAvailability,
+  onDeleteAvailability,
 }: {
   event: PrismEvent;
   coordinators: PrismCoordinator[];
@@ -43,6 +254,12 @@ export function CoordinatorAssignmentDesk({
   roleRequirements: Array<PrismCoordinatorRoleRequirement | PrismCoordinatorCoverage>;
   busy: boolean;
   onAssign: (coordinator: PrismCoordinator, role: string, overrideConflict?: boolean) => Promise<void>;
+  onSaveCoverage: (input: { role: string; required: number; requiredSkills: string[] }) => Promise<boolean>;
+  onSendReminders: () => Promise<boolean>;
+  onDesignateOperator: (coordinatorId: string) => Promise<void>;
+  onLoadAvailability: (coordinatorId: string) => Promise<PrismCoordinatorAvailability[]>;
+  onCreateAvailability: (coordinatorId: string, input: CreateCoordinatorAvailabilityInput) => Promise<void>;
+  onDeleteAvailability: (coordinatorId: string, availabilityId: string) => Promise<void>;
 }) {
   const [roleFilter, setRoleFilter] = useState("all");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
@@ -52,8 +269,70 @@ export function CoordinatorAssignmentDesk({
     conflict: PrismCoordinatorAssignment;
   } | null>(null);
   const [ackPanelOpen, setAckPanelOpen] = useState(true);
+  const [coverageRole, setCoverageRole] = useState("");
+  const [coverageRequired, setCoverageRequired] = useState("1");
+  const [coverageSkills, setCoverageSkills] = useState("");
+  const [coverageMessage, setCoverageMessage] = useState<string | null>(null);
+  const [reminderMessage, setReminderMessage] = useState<string | null>(null);
+  const [operatorId, setOperatorId] = useState("");
+  const [availabilityCoordinatorId, setAvailabilityCoordinatorId] = useState("");
+  const [availability, setAvailability] = useState<PrismCoordinatorAvailability[]>([]);
+  const [availabilityStart, setAvailabilityStart] = useState("");
+  const [availabilityEnd, setAvailabilityEnd] = useState("");
+  const [availabilityNote, setAvailabilityNote] = useState("");
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
 
   const pendingAcknowledgments = assignments.filter((a) => a.status === "pending_acknowledgement");
+
+  async function sendReminders() {
+    setReminderMessage(null);
+    const sent = await onSendReminders();
+    setReminderMessage(sent ? "Reminder request sent. The server applies the seven day window." : "Reminder request failed. Check the PMCM status message.");
+  }
+
+  async function saveCoverage(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCoverageMessage(null);
+    try {
+      const input = parseContract(createCoordinatorCoverageRequirementSchema, {
+        role: coverageRole,
+        required: Number(coverageRequired),
+        requiredSkills: coverageSkills.split(",").map((skill) => skill.trim()).filter(Boolean),
+      }, "Coordinator coverage target");
+      const saved = await onSaveCoverage(input);
+      setCoverageMessage(saved ? `Coverage target saved for ${input.role}.` : "Coverage target was not saved. Check the PMCM status message.");
+    } catch (error) {
+      setCoverageMessage(error instanceof Error ? error.message : "Unable to save this coverage target.");
+    }
+  }
+
+  async function loadAvailability(coordinatorId: string) {
+    setAvailabilityCoordinatorId(coordinatorId);
+    setAvailabilityError(null);
+    if (!coordinatorId) { setAvailability([]); return; }
+    setAvailabilityBusy(true);
+    try { setAvailability(await onLoadAvailability(coordinatorId)); }
+    catch (error) { setAvailabilityError(error instanceof Error ? error.message : "Unable to load unavailable dates."); }
+    finally { setAvailabilityBusy(false); }
+  }
+
+  async function saveAvailability(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!availabilityCoordinatorId) return;
+    setAvailabilityError(null);
+    try {
+      const input = parseContract(createCoordinatorAvailabilitySchema, {
+        startsAt: new Date(availabilityStart).toISOString(),
+        endsAt: new Date(availabilityEnd).toISOString(),
+        kind: "unavailable",
+        note: availabilityNote,
+      }, "Coordinator unavailable dates");
+      await onCreateAvailability(availabilityCoordinatorId, input);
+      setAvailabilityNote("");
+      await loadAvailability(availabilityCoordinatorId);
+    } catch (error) { setAvailabilityError(error instanceof Error ? error.message : "Unable to save unavailable dates."); }
+  }
 
   const eventDate = dateKey(event.eventDate);
   const eventAssignments = assignments.filter((a) => a.eventId === event.id);
@@ -107,75 +386,57 @@ export function CoordinatorAssignmentDesk({
 
   return (
     <div className="space-y-5">
-      {/* Pending acknowledgments */}
-      {pendingAcknowledgments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <UserCheck className="size-4 text-(--prism-amber)" />
-                <h2 className="text-sm font-bold text-foreground">Pending Acknowledgments</h2>
-                <span className="rounded-full bg-(--prism-amber)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">
-                  {pendingAcknowledgments.length}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAckPanelOpen((prev) => !prev)}
-                className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-muted"
-              >
-                <ChevronDown className={`size-4 transition-transform ${ackPanelOpen ? "rotate-180" : ""}`} />
-              </button>
-            </div>
-          </CardHeader>
-          {ackPanelOpen && (
-            <CardBody className="space-y-1">
-              {pendingAcknowledgments.map((asg) => (
-                <div key={asg.id} className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 px-4 py-2.5">
-                  <p className="text-sm font-bold text-foreground">{asg.coordinatorName}</p>
-                  <span className="rounded-full border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-2 py-0.5 text-[10px] font-bold text-(--prism-amber)">{asg.role}</span>
-                </div>
-              ))}
-            </CardBody>
-          )}
-        </Card>
-      )}
+      <PendingAcknowledgmentsPanel
+        assignments={pendingAcknowledgments}
+        busy={busy}
+        open={ackPanelOpen}
+        reminderMessage={reminderMessage}
+        onToggle={() => setAckPanelOpen((previous) => !previous)}
+        onSendReminders={() => void sendReminders()}
+      />
 
-      {/* Staffing summary */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <UsersRound className="size-4 text-(--prism-signal)" />
-            <h2 className="text-sm font-bold text-foreground">Staffing summary</h2>
-          </div>
-        </CardHeader>
-        <CardBody>
-          {roleRequirements.length === 0 ? (
-            <EmptyState icon={UsersRound} title="No role requirements" description="Add role requirements to start tracking staffing coverage." />
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {roleRequirements.map((req) => {
-                const assigned = "assigned" in req ? req.assigned : assignmentCounts.get(req.role) ?? 0;
-                const acknowledged = "acknowledged" in req ? req.acknowledged : 0;
-                const complete = "satisfied" in req ? req.satisfied : assigned >= req.required;
-                return (
-                  <div key={req.role} className="rounded-xl border border-border bg-muted/30 p-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-bold text-foreground">{req.role}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${complete ? "bg-(--prism-success)/10 text-(--prism-success)" : "bg-(--prism-amber)/10 text-(--prism-amber)"}`}>
-                        {assigned}/{req.required}{"acknowledged" in req ? ` · ${acknowledged} ack` : ""}
-                      </span>
-                    </div>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      {complete ? "Covered for this event." : "Still needs staffing."}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardBody>
-      </Card>
+      <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} />
+
+      <div className="grid gap-5 xl:grid-cols-3">
+        <CoverageTargetCard
+          busy={busy}
+          role={coverageRole}
+          required={coverageRequired}
+          skills={coverageSkills}
+          message={coverageMessage}
+          onRoleChange={setCoverageRole}
+          onRequiredChange={setCoverageRequired}
+          onSkillsChange={setCoverageSkills}
+          onSubmit={(formEvent) => void saveCoverage(formEvent)}
+        />
+        <OperatorDesignationCard
+          coordinators={coordinators}
+          operatorId={operatorId}
+          busy={busy}
+          onChange={setOperatorId}
+          onDesignate={() => void onDesignateOperator(operatorId)}
+        />
+        <CoordinatorAvailabilityCard
+          eventId={event.id}
+          eventDate={eventDate}
+          coordinators={coordinators}
+          assignments={eventAssignments}
+          coordinatorId={availabilityCoordinatorId}
+          entries={availability}
+          startsAt={availabilityStart}
+          endsAt={availabilityEnd}
+          note={availabilityNote}
+          busy={busy}
+          loading={availabilityBusy}
+          error={availabilityError}
+          onSelectCoordinator={(coordinatorId) => void loadAvailability(coordinatorId)}
+          onStartChange={setAvailabilityStart}
+          onEndChange={setAvailabilityEnd}
+          onNoteChange={setAvailabilityNote}
+          onSubmit={(formEvent) => void saveAvailability(formEvent)}
+          onDelete={async (item) => { await onDeleteAvailability(item.coordinatorId, item.id); await loadAvailability(item.coordinatorId); }}
+        />
+      </div>
 
       {/* Coordinator assignment */}
       <Card>

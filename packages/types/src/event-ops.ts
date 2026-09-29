@@ -631,6 +631,15 @@ export interface PrismCoordinatorCoverage {
   satisfied: boolean;
 }
 
+export interface PrismAcknowledgementReminderResult {
+  leadTimeDays: number;
+  reminders: Array<{
+    assignmentId: string;
+    status: string;
+    reason: string | null;
+  }>;
+}
+
 export interface PrismGuestCheckIn {
   id: string;
   eventId: string;

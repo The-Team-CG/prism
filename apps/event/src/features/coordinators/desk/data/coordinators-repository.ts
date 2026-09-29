@@ -7,6 +7,8 @@ import type {
   CoordinatorAssignmentAcknowledgementInput,
   DecideEventTaskReassignmentInput,
   UpdateCoordinatorAttendanceInput,
+  UpdateEventDayTaskInput,
+  VerifySupplierStatusInput,
   WithdrawCoordinatorAssignmentInput,
 } from "@prism/types";
 
@@ -52,5 +54,17 @@ export const coordinatorsRepository = {
     input: UpdateCoordinatorAttendanceInput,
   ) {
     return prismApi.updateOwnCoordinatorAttendance(session, eventId, assignmentId, input);
+  },
+  getRunSheet(session: EventSession, eventId: string, dayId?: string) {
+    return prismApi.getCoordinatorRunSheet(session, eventId, dayId);
+  },
+  updateOwnTask(session: EventSession, eventId: string, taskId: string, input: UpdateEventDayTaskInput) {
+    return prismApi.updateCoordinatorEventDayTask(session, eventId, taskId, input);
+  },
+  updateDelegatedAttendance(session: EventSession, eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput) {
+    return prismApi.updateDelegatedCoordinatorAttendance(session, eventId, assignmentId, input);
+  },
+  verifySupplierStatus(session: EventSession, eventId: string, requestId: string, input: VerifySupplierStatusInput) {
+    return prismApi.verifyCoordinatorSupplierStatus(session, eventId, requestId, input);
   },
 };

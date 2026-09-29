@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -63,6 +63,19 @@ export class OpsCoordinatorCapacityController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'coordinator availability', eventId)
-      .then(() => this.coordinatorsService.createAvailability(coordinatorId, dto, actor));
+      .then(() => this.coordinatorsService.createAvailability(coordinatorId, dto, actor, eventId));
+  }
+
+  @Delete(':eventId/coordinators/:coordinatorId/availability/:availabilityId')
+  @UseGuards(EventSessionGuard)
+  deleteAvailability(
+    @Param('eventId') eventId: string,
+    @Param('coordinatorId') coordinatorId: string,
+    @Param('availabilityId') availabilityId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'coordinator availability', eventId)
+      .then(() => this.coordinatorsService.deleteAvailability(coordinatorId, availabilityId, actor, eventId));
   }
 }

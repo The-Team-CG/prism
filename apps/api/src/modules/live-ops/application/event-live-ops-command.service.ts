@@ -55,6 +55,10 @@ export class EventLiveOpsCommandService {
     actor: ResolvedEventOpsActor,
   ) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    if (actor.role === OpsUserRole.Coordinator && Object.keys(input).some((key) => key !== 'status')) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task ownership update', eventId);
+      throw new ForbiddenException('Coordinators may only update task status; request PMCM review to change task ownership');
+    }
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.liveOperationsService.updateEventDayTask(eventId, taskId, input, actor);
     return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
@@ -73,8 +77,9 @@ export class EventLiveOpsCommandService {
   }
 
   async createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor: ResolvedEventOpsActor) {
-    await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
-    const issue = await this.liveOperationsService.createUrgentIssue(eventId, input, actor);
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
+    const scopedInput = await this.scopeCoordinatorIssueInput(eventId, actor, assignment, designatedOperator, input);
+    const issue = await this.liveOperationsService.createUrgentIssue(eventId, scopedInput, actor);
     return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
 
@@ -84,7 +89,9 @@ export class EventLiveOpsCommandService {
     input: UpdateUrgentIssueInput,
     actor: ResolvedEventOpsActor,
   ) {
-    await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
+    await this.requireUrgentIssueScope(eventId, issueId, actor, assignment, designatedOperator);
+    await this.rejectCoordinatorIssueOwnershipChange(eventId, actor, designatedOperator, input.ownerRole, input.ownerName);
     const issue = await this.liveOperationsService.updateUrgentIssue(eventId, issueId, input, actor);
     return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -95,7 +102,9 @@ export class EventLiveOpsCommandService {
     input: EscalateLiveOpsInput,
     actor: ResolvedEventOpsActor,
   ) {
-    await this.requireEventDayWriteActor(eventId, actor, 'urgent issue escalation');
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'urgent issue escalation');
+    await this.requireUrgentIssueScope(eventId, issueId, actor, assignment, designatedOperator);
+    await this.rejectCoordinatorIssueOwnershipChange(eventId, actor, designatedOperator, input.ownerRole, input.ownerName);
     const issue = await this.liveOperationsService.escalateUrgentIssue(eventId, issueId, input, actor);
     return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
   }
@@ -276,6 +285,57 @@ export class EventLiveOpsCommandService {
     if (owner && !this.eventAccessPolicyService.sameText(owner, assignment.coordinatorName)) {
       throw new ForbiddenException('Coordinator may only create tasks for their own queue');
     }
+  }
+
+  private async scopeCoordinatorIssueInput(
+    eventId: string,
+    actor: ResolvedEventOpsActor,
+    assignment: Awaited<ReturnType<EventLiveOpsCommandService['requireCoordinatorAssignmentForEvent']>> | null,
+    designatedOperator: boolean,
+    input: CreateUrgentIssueInput,
+  ): Promise<CreateUrgentIssueInput> {
+    if (actor.role !== OpsUserRole.Coordinator || designatedOperator || !assignment) return input;
+    const role = input.ownerRole?.trim();
+    const owner = input.ownerName?.trim();
+    if ((role && !this.eventAccessPolicyService.sameText(role, assignment.role)) ||
+      (owner && !this.eventAccessPolicyService.sameText(owner, assignment.coordinatorName))) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator urgent issue ownership', eventId);
+      throw new ForbiddenException('Coordinator may only create issues for their own role and queue');
+    }
+    return { ...input, ownerRole: assignment.role, ownerName: assignment.coordinatorName };
+  }
+
+  private async requireUrgentIssueScope(
+    eventId: string,
+    issueId: string,
+    actor: ResolvedEventOpsActor,
+    assignment: Awaited<ReturnType<EventLiveOpsCommandService['requireCoordinatorAssignmentForEvent']>> | null,
+    designatedOperator: boolean,
+  ) {
+    if (actor.role !== OpsUserRole.Coordinator || designatedOperator) return;
+    const issue = await this.prisma.opsUrgentIssue.findFirst({
+      where: { id: issueId, eventId },
+      select: { ownerRole: true, ownerName: true },
+    });
+    if (!issue) throw new NotFoundException('Urgent issue not found');
+    const roleMatches = Boolean(issue.ownerRole?.trim()) && this.eventAccessPolicyService.sameText(issue.ownerRole, assignment?.role);
+    const ownerMatches = Boolean(issue.ownerName?.trim()) && this.eventAccessPolicyService.sameText(issue.ownerName, assignment?.coordinatorName);
+    if (!assignment || (!roleMatches && !ownerMatches)) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator urgent issue scope', eventId);
+      throw new ForbiddenException('Coordinator may only update issues in their own role or queue');
+    }
+  }
+
+  private async rejectCoordinatorIssueOwnershipChange(
+    eventId: string,
+    actor: ResolvedEventOpsActor,
+    designatedOperator: boolean,
+    ownerRole?: string,
+    ownerName?: string,
+  ) {
+    if (actor.role !== OpsUserRole.Coordinator || designatedOperator || (ownerRole === undefined && ownerName === undefined)) return;
+    await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator urgent issue ownership update', eventId);
+    throw new ForbiddenException('Coordinators cannot change urgent issue ownership directly');
   }
 
   private async requireTaskScope(

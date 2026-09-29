@@ -11,6 +11,7 @@ import type {
   UpdateEventDayTaskInput,
   UpdateUrgentIssueInput,
   VerifySupplierStatusInput,
+  DecideEventTaskReassignmentInput,
 } from "@prism/types";
 import { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
 import { LiveOpsDesk, LiveOpsOverview } from "./live-ops-sections";
@@ -31,6 +32,7 @@ export function LiveOperationsWorkspace({
   onUpdateCoordinatorAttendance,
   onReplaceCoordinator,
   onVerifySupplierStatus,
+  onDecideTaskReassignment,
 }: {
   event: PrismEvent;
   liveOps: PrismLiveOps | null;
@@ -47,6 +49,7 @@ export function LiveOperationsWorkspace({
   onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
   onReplaceCoordinator: (assignmentId: string, input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
   onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
+  onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
   const vm = useLiveOperationsWorkspaceViewModel({ liveOps, busy, onCreateTask, onCreateIssue });
 
@@ -73,6 +76,7 @@ export function LiveOperationsWorkspace({
           onUpdateCoordinatorAttendance={onUpdateCoordinatorAttendance}
           onReplaceCoordinator={onReplaceCoordinator}
           onVerifySupplierStatus={onVerifySupplierStatus}
+          onDecideTaskReassignment={onDecideTaskReassignment}
         />
       ) : (
         <section className="rounded-lg border border-dashed border-border bg-muted p-8 text-center text-sm text-muted-foreground">

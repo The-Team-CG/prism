@@ -129,7 +129,7 @@ export function CoordinatorView({
           scrollTo={scrollTo}
         />
         <div className="grid gap-4 xl:grid-cols-2">
-          <CoordinatorTimelineCard />
+          <CoordinatorTimelineCard roleView={roleView} runSheet={vm.runSheet} />
           <CoordinatorRoleBadgeCard
             assignment={assignment}
             busy={busy}
@@ -147,6 +147,8 @@ export function CoordinatorView({
           taskForm={vm.taskForm}
           issueForm={vm.issueForm}
           reassignment={vm.reassignment}
+          taskActions={vm.taskActions}
+          operatorActions={vm.operatorActions}
         />
       </div>
     </PrismDashboardShell>
