@@ -116,10 +116,3 @@ export const COORDINATOR_NAV_SCROLL: Record<string, string> = {
   "coord-attendance": "coordinator-attendance",
   "coord-timeline": "coordinator-timeline",
 };
-
-export const COORDINATOR_TIMELINE = [
-  ["02:00", "Production ingress opens", "Technicals and staging team report to dock."],
-  ["05:30", "Registration desk setup", "QR readers and fallback list checked."],
-  ["08:00", "Client walkthrough", "Floor Director escorts PMCM and client."],
-  ["09:00", "Doors open", "Guest arrival and welcome desk live."],
-] as const;
