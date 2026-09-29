@@ -32,6 +32,7 @@ interface TopBarProps {
   draftName?: string;
   draftStatus?: string;
   readOnly?: boolean;
+  readOnlyLabel: string;
   onSave?: (project: Project) => Promise<unknown>;
   onSubmit?: (project: Project) => Promise<unknown>;
 }
@@ -160,10 +161,10 @@ function SaveStatusChip({ saveState }: { saveState: SaveState }) {
   );
 }
 
-function ReadOnlyBadge() {
+function ReadOnlyBadge({ label }: { label: string }) {
   return (
     <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-3 text-xs font-medium text-neutral-700">
-      <Eye size={13} /> Read-only
+      <Eye size={13} /> {label}
     </span>
   );
 }
@@ -238,8 +239,10 @@ function TrailingActions({
   saveDisabled,
   saving,
   canSubmit,
+  readOnlyLabel,
 }: {
   readOnly: boolean;
+  readOnlyLabel: string;
   rightOpen: boolean;
   toggleRight: () => void;
   onSave: () => void;
@@ -248,7 +251,7 @@ function TrailingActions({
   saving: boolean;
   canSubmit: boolean;
 }) {
-  if (readOnly) return <ReadOnlyBadge />;
+  if (readOnly) return <ReadOnlyBadge label={readOnlyLabel} />;
   return (
     <EditActions
       rightOpen={rightOpen}
@@ -268,6 +271,7 @@ export function TopBar({
   draftName,
   draftStatus,
   readOnly = false,
+  readOnlyLabel,
   onSave,
   onSubmit,
 }: TopBarProps) {
@@ -344,6 +348,7 @@ export function TopBar({
         <SaveStatusChip saveState={saveState} />
         <TrailingActions
           readOnly={readOnly}
+          readOnlyLabel={readOnlyLabel}
           rightOpen={rightOpen}
           toggleRight={toggleRight}
           onSave={save}

@@ -15,6 +15,27 @@ describe("findBoundaryViolations", () => {
     assert.deepEqual(violations, []);
   });
 
+
+  it("allows the shared floorplan canvas to import only neutral shared packages", () => {
+    assert.deepEqual(findBoundaryViolations({
+      "packages/floorplan-canvas/src/index.ts": 'import type { CreatePrismInquiryInput } from "@prism/types";',
+      "packages/floorplan-canvas/src/Canvas.tsx": 'import { useState } from "react";',
+    }), []);
+
+    for (const imported of [
+      "@/lib/prism-api",
+      "apps/client/src/lib/prism-api",
+      "@prism/api-client",
+      "@prism/event",
+      "@prism/ui",
+    ]) {
+      assert.deepEqual(findBoundaryViolations({
+        "packages/floorplan-canvas/src/Canvas.tsx": `import { value } from "${imported}";`,
+      }), [
+        "packages/floorplan-canvas/src/Canvas.tsx: shared floorplan canvas must not import apps, portals, UI or API clients",
+      ]);
+    }
+  });
   it("blocks role app imports across app boundaries", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { EventShell } from "@prism/event";',
