@@ -59,7 +59,7 @@ export const EVENT_MONTHS = [
 
 export function eventDateParts(date?: string | null) {
   if (!date) return { day: "--", month: "TBD", year: "" };
-  const [year, month, day] = date.split("-");
+  const [year, month, day] = date.slice(0, 10).split("-");
   const monthIndex = Number(month) - 1;
   return {
     day: day?.padStart(2, "0") ?? "--",
