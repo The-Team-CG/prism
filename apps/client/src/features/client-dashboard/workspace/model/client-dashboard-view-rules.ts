@@ -57,7 +57,7 @@ export const EVENT_MONTHS = [
   "Dec",
 ];
 
-export function eventDateParts(date?: string) {
+export function eventDateParts(date?: string | null) {
   if (!date) return { day: "--", month: "TBD", year: "" };
   const [year, month, day] = date.split("-");
   const monthIndex = Number(month) - 1;
@@ -68,7 +68,7 @@ export function eventDateParts(date?: string) {
   };
 }
 
-export function formatEventDate(date?: string) {
+export function formatEventDate(date?: string | null) {
   const parts = eventDateParts(date);
   if (!date || parts.month === "TBD") return "Date pending";
   return `${EVENT_MONTHS[EVENT_MONTHS.findIndex((month) => month.toUpperCase() === parts.month)]} ${Number(parts.day)}, ${parts.year}`;
