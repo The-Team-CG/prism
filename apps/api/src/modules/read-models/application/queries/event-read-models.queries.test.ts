@@ -119,6 +119,22 @@ describe('EventReadModelQueries collection limits', () => {
     expect(page.hasMore).toBe(true);
   });
 
+  it('does not advertise a page beyond the accepted inbox range', async () => {
+    const prisma = new Proxy({}, {
+      get(_target, property: string) {
+        if (property === 'opsInquiry') {
+          return { findMany: vi.fn(async () => Array.from({ length: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE + 1 }, (_, index) => ({ id: `inq_${index}` }))) };
+        }
+        return model();
+      },
+    });
+    const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
+
+    const page = await queries.pmcmCommandInbox(100);
+
+    expect(page.hasMore).toBe(false);
+  });
+
   it('returns exact aggregate counts alongside capped defense rows', async () => {
     const opsEvent = model();
     const prisma = new Proxy(

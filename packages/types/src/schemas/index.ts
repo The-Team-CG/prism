@@ -79,6 +79,7 @@ export {
   createFloorPlanPreferenceSchema,
   createFloorPlanRevisionCommentSchema,
   eventDecisionSchema,
+  PRISM_PMCM_COMMAND_INBOX_MAX_PAGE,
   pmcmCommandInboxQuerySchema,
   type CreatePrismInquiryInput,
   type UpdateInquiryStatusInput,

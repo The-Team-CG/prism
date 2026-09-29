@@ -9,6 +9,7 @@ import type {
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditCategory } from '@prism/kernel/event-core';
+import { PRISM_PMCM_COMMAND_INBOX_MAX_PAGE } from '@prism/types';
 
 type SupplierWithProfile = OpsSupplier & {
   category: OpsSupplierCategory;
@@ -294,7 +295,7 @@ export class EventReadModelQueries {
       coordinatorAssignments: items(coordinatorAssignments),
       floorPlanDrafts: items(floorPlanDrafts),
       postEventDocuments: items(postEventDocuments),
-      hasMore: [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments]
+      hasMore: page < PRISM_PMCM_COMMAND_INBOX_MAX_PAGE && [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments]
         .some((rows) => rows.length > pageSize),
     };
   }
