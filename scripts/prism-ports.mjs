@@ -30,9 +30,16 @@ const OFFSET_STEP = 10;
 const OFFSET_SLOTS = 48;
 const SLOT_METADATA_FILE = "prism-port-slots.json";
 
+function resolveWorktreePath(value) {
+  const raw = String(value).trim();
+  return /^[a-zA-Z]:[\\/]/.test(raw) || raw.startsWith("\\\\")
+    ? path.win32.resolve(raw)
+    : path.resolve(raw);
+}
+
 export function normalizeWorktreePath(value) {
   const raw = String(value ?? "").trim();
-  return raw ? path.resolve(raw).replace(/\\/g, "/").replace(/\/{2,}/g, "/").replace(/\/$/, "").toLowerCase() : "";
+  return raw ? resolveWorktreePath(raw).replace(/\\/g, "/").replace(/\/{2,}/g, "/").replace(/\/$/, "").toLowerCase() : "";
 }
 
 /** FNV-1a over a normalized path, so the same worktree always gets the same slot. */
@@ -47,8 +54,7 @@ export function hashWorktreePath(value) {
 }
 
 export function isPrimaryCheckout({ gitDir, gitCommonDir }) {
-  const normalize = (value) => path.resolve(String(value ?? ".")).replace(/\\/g, "/").toLowerCase();
-  return normalize(gitDir) === normalize(gitCommonDir);
+  return normalizeWorktreePath(gitDir ?? ".") === normalizeWorktreePath(gitCommonDir ?? ".");
 }
 
 export function derivePortOffset({ worktreeRoot, isPrimary }) {
@@ -136,7 +142,7 @@ export function parseWorktreeList(output, exists = (candidate) => fs.existsSync(
       if (/^prunable(?:\s.*)?$/m.test(block)) return "";
       const match = block.match(/^worktree\s+(.+)$/m);
       if (!match) return "";
-      const candidate = path.resolve(match[1].trim());
+      const candidate = resolveWorktreePath(match[1]);
       return exists(candidate) ? candidate : "";
     })
     .filter(Boolean);
