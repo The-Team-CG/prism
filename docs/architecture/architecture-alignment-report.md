@@ -4,11 +4,11 @@ title: "P.R.I.S.M frontend and backend architecture alignment"
 description: "Evidence-led report for frontend route composition, feature MVVM, backend bounded contexts, persistence ownership, and extraction readiness."
 tags: [architecture, alignment, frontend, backend, ddd, modular-monolith, nextjs]
 status: canonical
-updated: "2026-09-01"
+updated: "2026-09-29"
 authority: informative
 owner: "D (Anthony)"
 audience: [agents, engineers, reviewers, product]
-scope: "all Prism portals, apps/api, packages, architecture decisions, and roadmap"
+scope: "all Prism portals, apps/api, packages, and architecture decisions"
 last_verified: "codex/architecture-alignment-fe-be"
 sources:
   - id: current-architecture
@@ -20,9 +20,6 @@ sources:
   - id: persistence-ownership
     resource: "docs/architecture/persistence-ownership.md"
     title: "P.R.I.S.M persistence ownership and joins"
-  - id: priority-risk-matrix
-    resource: "docs/roadmap/architecture-priority-risk-matrix.md"
-    title: "P.R.I.S.M architecture priority and risk matrix"
   - id: next-architecture
     resource: "C:/Users/anton/.agents/skills/next-feature-architecture/SKILL.md"
     title: "Next.js progressive feature MVVM guidance"
@@ -223,18 +220,6 @@ Known transitional seams are intentionally documented rather than hidden:
 
 These are follow-up design inputs, not reasons to split the database or deploy
 services immediately.
-
-## Priority and risk disposition
-
-The full sequenced matrix is
-[`../roadmap/architecture-priority-risk-matrix.md`](../roadmap/architecture-priority-risk-matrix.md).
-
-| Priority | Current disposition |
-| --- | --- |
-| P0 | Route-group intent and backend boundary checks are complete for the current portals; further wrapper simplification is opportunistic. |
-| P1 | Event dashboard route/VM/selector work, floorplan query bounds, audit inversion, ownership notes, and focused seams are complete for the identified slice. |
-| P2 | Remaining legacy DTO migrations are controlled, one touched contract at a time; further domain policies and platform-ops splitting remain evidence-driven. |
-| P3 | Parallel/intercepting routes, provider-registry expansion, broad visual redesign, and microservice deployment remain intentionally deferred. |
 
 ## Verification and acceptance
 

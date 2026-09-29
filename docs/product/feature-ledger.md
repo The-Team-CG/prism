@@ -4,12 +4,12 @@ title: "P.R.I.S.M feature ledger"
 description: "Active product-family decisions, ownership, sequencing, and evidence for Prism feature work."
 tags: [product, features, decisions, ownership]
 status: canonical
-updated: "2026-09-08"
+updated: "2026-09-28"
 authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, agents]
 scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
-last_verified: "2026-09-08; P0 W01-W09 overlay"
+last_verified: "2026-09-08"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
@@ -115,10 +115,12 @@ The Active Ledger above remains the product decision record. This table assigns 
 
 ## Correctness and policy evidence
 
-The [P0 readiness report](../roadmap/p0-correctness-readiness.md) records effort,
-priority, fix risk, transactional/HTTP evidence and blockers for W01-W09.
-These corrections do not promote a whole feature family from partial to complete.
+The following notes distinguish bounded correctness fixes from full feature
+completion. They do not promote a whole feature family from partial to complete.
 
+- **FL-007/New-S5:** Closure review prompts are event-scoped to confirmed
+  supplier assignments. Reviews are advisory, not an archive gate, and ratings,
+  dimensions, and notes remain PMCM-only.
 - **FL-002/FL-010:** Signed conforme no longer fabricates approved billing. Client payment totals reconcile actual paid and outstanding amounts.
 - **FL-005:** Proposal decisions require the primary client's verified identity and an issued proposal version. Reasons, actor/version identity and retries are durable. The production issuer is missing (W12), so the complete review journey remains gated.
 - **FL-007:** Supplier terminal transitions, selected-assignment confirmation, cancellation and event-review retries now enforce state, identity and transactional audit rules. Application conversion and complete assessment remain later work.

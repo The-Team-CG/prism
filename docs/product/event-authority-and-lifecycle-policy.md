@@ -8,7 +8,7 @@ authority: normative
 owner: "B (Francis)"
 audience: [product, engineering, design, reviewers]
 scope: "W08 policy decisions and the dependent W20, W23, W27, W31 and W34 capabilities"
-updated: "2026-09-08"
+updated: "2026-09-28"
 last_verified: "2026-09-08"
 sources:
   - resource: "AGENTS.md"
@@ -29,7 +29,7 @@ sources:
 - **Owner:** B; A owns clear role UX, C external portals, D authorization and audit integrity.
 - **Scope:** Official layouts, attendance, event end and wrap-up, close/archive, feedback and client categories.
 - **Use/change:** Apply when implementing these workflows; revise when the product owner changes a rule.
-- **Verify with:** The feature ledger, shared contracts, role-denial tests and the [P0 readiness report](../roadmap/p0-correctness-readiness.md).
+- **Verify with:** The feature ledger, shared contracts, role-denial tests, and the readiness foundation.
 
 ## Authority and lifecycle matrix
 

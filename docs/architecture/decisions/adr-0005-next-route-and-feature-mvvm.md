@@ -80,7 +80,7 @@ owning section view as children of the shared shell runtime. The former
 pathname-driven section dispatcher is gone, event-list filter URLs resolve
 through one dynamic `[eventSlug]` compatibility entry, and shared PMCM
 selectors live in `features/pmcm-kit/model`. The remaining portal-wide route
-group migration is still a separate roadmap item and is not implied by this
+group migration remains separate follow-up work and is not implied by this
 dashboard slice.
 
 ## Rejected alternatives

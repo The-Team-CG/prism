@@ -4,12 +4,12 @@ title: "P.R.I.S.M redesign readiness foundation"
 description: "Durable gates for sample state, sessions, app ownership, shared contracts, external dependencies, and safe redesign work."
 tags: [readiness, contracts, roles, compatibility, governance]
 status: canonical
-updated: "2026-09-08"
+updated: "2026-09-28"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, QA, reviewers]
 scope: "contracts, sample state, sessions, database runtime, external dependencies, and readiness gates"
-last_verified: "2026-09-08; P0 correctness and session acceptance"
+last_verified: "2026-09-08"
 sources:
   - id: constitution
     resource: "docs/constitution.md"
@@ -51,9 +51,11 @@ undocumented context.
 - Live AI and unknown modes fail before network/SDK effects, including direct agent entry points. Mock mode does not establish provider approval or zero-retention compliance.
 - The [authority/lifecycle policy](event-authority-and-lifecycle-policy.md) records accepted rules; its downstream implementation limits remain explicit.
 
-The [P0 readiness report](../roadmap/p0-correctness-readiness.md) records acceptance
-evidence and the remaining blockers. Local database and HTTP tests are separate
-from browser, staging and production readiness.
+The feature ledger and accepted product policies hold current implementation
+status and remaining blockers. Local database and HTTP acceptance, browser
+walkthroughs, staging evaluation, provider privacy review, and production
+approval are separate evidence gates; source or unit-test completion alone
+does not satisfy them.
 
 ## Purpose
 

@@ -15,7 +15,6 @@ Full map: [`docs/index.md`](docs/index.md). Agents: [`AGENTS.md`](AGENTS.md).
 | `docs/product/evolution-governance.md` | Add / revise / merge / defer / retire rules |
 | `docs/product/readiness-foundation.md` | Sample-state fencing, session keys, owner boundaries |
 | `docs/product/redesign-inventory.md` | Route inventory and redesign severity |
-| `docs/roadmap/architecture-priority-risk-matrix.md` | Architecture follow-up priorities and risks |
 | `docs/product/actual-system.md` | Actors, lifecycle, workflows |
 | `docs/product/future-state.md` | Target state |
 | `docs/reference/prism-v4/complete-feature-catalog.md` | Baseline catalog / manuscript counts (not a hard ceiling) |

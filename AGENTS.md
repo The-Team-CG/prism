@@ -16,7 +16,7 @@ single agent entrypoint.
 | Session/sample keys only in `@prism/types` | New app-local `prism:*` storage keys |
 | Import packages by role (table below); thin `lib/prism-api` | Re-export domain types from app facades; fat god facades for new code |
 | Name owner goal A–D on redesign/capability work | Treat owners as loose assignees |
-| Typecheck + tests for touched packages; `check:boundaries` on import moves | Commit secrets / `.env*` with credentials; casual `db:reset` |
+| Typecheck + focused behavior tests in touched workspaces; `check:boundaries` when imports move | Commit secrets / `.env*` with credentials; casual `db:reset` |
 | Update root `CHANGELOG.md` for every user-requested code, architecture, documentation, or operational delivery; update `docs/log.md` for documentation-bundle changes | Leave a delivery undocumented |
 | Preserve unrelated uncommitted work | Drive-by reverts outside task scope |
 
@@ -65,7 +65,7 @@ packages/types       @prism/types     Zod write schemas + domain types + session
 packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsClient, PrismApiError
 packages/ui          shells/brand/public blocks only — no workflows / role data rules
 packages/tokens      theme + typography CSS (+ token object)
-docs/                OKF product, architecture, roadmap, runbook, and reference bundle (see docs/index.md)
+docs/                OKF product, architecture, runbook, and reference bundle (see docs/index.md)
 ```
 
 **Bounded-context map (writes):** `event-lifecycle` (`onboarding`, `compliance`, `closure`, `files`), `commercial` (`quotes`, `suppliers`, `billing`), `operations` (`staffing`, `guest`), `floorplan` (`live`, `authoring`), `live-ops`, `identity-access`, and `platform-ops` (`trust`, `notifications`, `ai-governance`).
@@ -112,9 +112,10 @@ Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample`
 
 ```bash
 npm install
-npm run build && npm run typecheck
-npm run test:api
-npm run check:boundaries          # also: npm run test:boundaries
+npm run build && npm run typecheck # full monorepo; milestone/final verification
+npm run test:api                  # full API suite; use focused workspace tests while iterating
+npm run check:boundaries          # static boundary scan
+npm run test:boundaries           # guard/tooling tests; not a substitute for check:boundaries
 npm run smoke:ui                  # stack must be up
 npm run dev:api | dev:api:watch | dev:client | dev:event | dev:supplier | dev:guest
 ```
@@ -147,7 +148,15 @@ npm --workspace @prism/api-client run test
 
 **Env limits:** live DB audits / `db:perf:report` need DB creds; `smoke:ui` needs running stack; Docker scripts need Desktop (or `-Local` / `dev:*`). Failures in typecheck, unit tests, boundaries, `prisma:validate` are real bugs.
 
-**After change (narrow → wide):** typecheck touched workspaces → tests → `check:boundaries` if imports moved → `prisma:validate` + `db:verify:offline` if schema/queries → manual role path / `smoke:ui` if UX/API wiring.
+**After change (narrow → wide):** typecheck and behavior tests for touched workspaces (plus required dependencies) → `check:boundaries` if imports moved → `prisma:validate` + `db:verify:offline` if schema/queries changed → manual role path / `smoke:ui` if UX/API wiring changed → monorepo build and broad suites at milestones/final verification.
+
+## Testing discipline
+
+- Assert observable behavior and important safety boundaries. Tautological and change-detector tests that only mirror implementation or prove code changed are harmful; avoid them while retaining coverage for distinct failure modes.
+- For a bug fix, find and repair or extend the behavior test that should have caught it. Add a separate regression test only when a genuine behavior-coverage gap remains.
+- Prefer extending the nearest behavior-oriented test over creating a new test file. Combine trivial cases into one table-driven or grouped test when that stays readable.
+- When tests change, use `.github/pull_request_template.md` to summarize the observable behavior and focused checks. Reviewers assess test value from the behavior covered; a template response and green CI do not prove that a test is useful.
+- While editing, run focused checks for the touched module/workspace. Defer unrelated full suites and portal smoke tests to release milestones or final verification.
 
 ---
 
@@ -217,7 +226,7 @@ artifacts from Git history if forensic context is needed.
 | Architecture decisions and seams | `docs/architecture/decisions/` and `docs/architecture/context-contracts.md` |
 | Product decisions and implementation reality | `docs/product/feature-ledger.md`, `docs/product/actual-system.md` |
 | Governance and readiness | `docs/product/evolution-governance.md`, `docs/product/readiness-foundation.md` |
-| Redesign inventory and priority/risk matrix | `docs/product/redesign-inventory.md`, `docs/roadmap/architecture-priority-risk-matrix.md` |
+| Redesign inventory | `docs/product/redesign-inventory.md` |
 | Runbooks and demo accounts | `docs/runbooks/` |
 | Current system and target state | `docs/product/actual-system.md`, `docs/product/future-state.md` |
 | V4 baseline catalog | `docs/reference/prism-v4/complete-feature-catalog.md` (traceability; not a hard ceiling) |
