@@ -1,5 +1,29 @@
 # Documentation bundle update log
 
+## 2026-09-29
+
+- **Added:** Pull-request template prompt for observable behavior and focused
+  test evidence; agent guidance assigns semantic test review to the normal PR
+  reviewer instead of a brittle static checker.
+- **Retired:** Removed the AI provider gateway working plan and architecture
+  priority/risk matrix with their roadmap index and current-document links.
+  Provider implementation and governance state remain described by the product
+  and architecture sources.
+
+## 2026-09-28
+
+- **Retired:** Removed superseded P0/P1 execution reports, dated catalog
+  snapshots, and the completed PMCM supplier-review working plan/spec. Current
+  implementation gates are maintained in the feature ledger and readiness
+  foundation; the supplier-review boundary is now explicit in FL-007.
+- **Retained:** The AI provider gateway plan remains active because its
+  implementation stack is not in the staging baseline and staging/governance
+  evidence is still open. The architecture priority/risk matrix remains the
+  living architecture roadmap.
+- **Reviewed:** Added an efficiency report with current script/test/CI counts,
+  retained critical gates, and a staged plan for measuring selective
+  verification. Added behavior-first test guidance to `AGENTS.md`.
+
 ## 2026-09-24
 
 - **Added:** Interchangeable AI provider gateway plan. Every AI use case will call one `platform-ops` gateway; Anthropic Sonnet is a synthetic-data test route and OpenRouter `z-ai/glm-5.3-flash` is a production candidate pending ZDR/tool verification. The plan records PARE coupling, fail-closed rules, streaming FR-AI-09 drafts, and the separate Owner D approval required before live AI touches real data.

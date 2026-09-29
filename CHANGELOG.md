@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Interchangeable AI provider gateway plan (`docs/roadmap/ai-provider-gateway-plan.md`): PR 0–7 scopes, exit checks, merge gates, and four parallel worktrees after verification and contract freeze. The plan moves the audit migration into the gateway-core PR, treats OpenRouter GLM 5.3 Flash as a candidate pending ZDR/tool evidence, covers free-text sanitization and existing conforme reminder overlap, and keeps live real-data AI off until separate Owner D approval. Documentation only; no runtime change.
+- Development efficiency report with an inventory of scripts, tests, CI gates, and agent guidance; clarified focused behavior-testing rules in `AGENTS.md`.
+- Added a concise pull-request prompt for observable test behavior and focused checks.
 - EP-07-S10 supplier application status flow: added shared redacted status transport with no-store caching, a validated supplier status feature with visible/online/focus refresh and exponential backoff, repository-level transport error normalization, server-issued receipt references, transactional confirmation-email outbox intents, and focused API/client/portal tests. Runtime email delivery still depends on the platform notification provider and configured supplier portal origin.
 - Test-clock pinning guard: `check-test-clock-pinning.mjs` scans API source and integration tests, checks each test block or scope-aware suite setup (including nested `it.each` callbacks, helper-returned fixtures, and inherited parent-suite pins), and fails when a test compares a hardcoded date against a live clock without `vi.useFakeTimers`, with a reviewed allowlist carrying a written reason per file. Wired into CI.
 - Data-invariant verification gate: `apps/api/prisma/data-invariants.json` declares read-only violation queries for audit-chain rootedness, hashing, orphans and forks, billing sequence coverage, and migration-ledger completeness. `check-data-invariants.mjs` runs them with a SELECT-only guard, `--dry-run`, and `--json`; CI runs the dry-run and unit tests, and live mode is intended for a restored snapshot before deploy.
@@ -109,6 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Split remaining event-portal production functions above McCabe 10 into presentational section views and lookup-table helpers, without changing user-visible behavior.
 
 ### Removed
+- Superseded P0/P1 execution reports, dated catalog review/priority snapshots, and the completed PMCM supplier-review working plan/spec; their durable product decisions and remaining gates now live in the canonical product documents.
+- Retired the AI provider gateway working plan and architecture priority/risk matrix, removing their roadmap entrypoints and obsolete current-document links. No runtime changes.
 - The obsolete event dashboard `features/event-ops` facade, duplicate event filter route folders, and superseded API DTO files were removed after their behavior was covered by focused tests.
 - The guest direct-access `/info/[accessCode]` page and its `features/guest-event/info` module were removed in favor of the authenticated `/dashboard` guest UI.
 - Removed `.github/CODEOWNERS`; GitHub Free cannot enforce it on this private repository.

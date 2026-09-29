@@ -18,15 +18,13 @@ scope, verification, and source/provenance entries.
    contexts, seams, frontend structure, and accepted decisions.
 3. [Product](product/index.md) — current system, product direction, feature
    decisions, readiness, and redesign evidence.
-4. [Roadmap](roadmap/index.md) — priority, risk, dependencies, and verification
-   for the remaining architecture work.
-5. [Runbooks](runbooks/index.md) — local operation, database migrations, Docker, and demo accounts.
-6. [Reference](reference/index.md) — source-preserving V4 catalog material.
+4. [Runbooks](runbooks/index.md) — local operation, database migrations, Docker, and demo accounts.
+5. [Reference](reference/index.md) — source-preserving V4 catalog material.
 
 ## Metadata at a glance
 
 - `status: canonical` identifies a living source of truth; `active` identifies
-  a maintained inventory or roadmap; `reference` identifies preserved source
+  a maintained inventory or register; `reference` identifies preserved source
   material.
 - `authority` distinguishes `normative` rules, `informative` models,
   `operational` procedures, and `reference` material.
@@ -53,5 +51,6 @@ and its accepted ADRs. Product-family decisions live in
 scope; it does not override current product or architecture documents.
 
 Completed plans and dated review artifacts are not current authorities. Promote
-their durable decisions into a concept, ADR, or roadmap entry, then remove the
-working artifact; Git history preserves the original evidence.
+their durable decisions into a concept, ADR, feature-ledger entry, or current
+architecture record, then remove the working artifact; Git history preserves
+the original evidence.

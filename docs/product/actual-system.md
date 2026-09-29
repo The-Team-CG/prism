@@ -4,12 +4,12 @@ title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
 status: canonical
-updated: "2026-09-08"
+updated: "2026-09-29"
 authority: informative
 owner: "B (Francis)"
 audience: [product, engineering, design, reviewers]
 scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
-last_verified: "2026-09-08; P0 correctness overlay"
+last_verified: "2026-09-08"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -37,23 +37,21 @@ This document describes the current P.R.I.S.M system in product terms: what the
 complete system is, who uses it, what each workflow must do, and what
 information each role owns or can see. For feature decisions, use
 [`feature-ledger.md`](feature-ledger.md). For architecture and implementation
-gaps, use the
-[`architecture-priority-risk-matrix.md`](../roadmap/architecture-priority-risk-matrix.md).
-For software architecture,
-app/package/API boundaries, and technical stop rules, use
+gaps, use the current architecture and accepted architecture decisions. For
+software architecture, app/package/API boundaries, and technical stop rules, use
 [`../architecture/current-architecture.md`](../architecture/current-architecture.md).
 For target maturity, use [`future-state.md`](future-state.md).
 
 ## Current correctness limits
 
-The [P0 readiness report](../roadmap/p0-correctness-readiness.md) distinguishes
-implemented corrections from incomplete end-to-end capabilities. Signed conforme
-does not create an approved bill. Proposal review requires a real issued version;
-the production issuing workflow remains absent. Archive checks five explicit gates
-and requires a reasoned override while logistics completion has no authoritative
-source. Supported privacy deletion is operational soft redaction; unsupported
-rights and native-account erasure remain unexecuted. Live AI is disabled before
-external calls.
+The [feature ledger](feature-ledger.md) and [readiness foundation](readiness-foundation.md)
+distinguish implemented corrections from incomplete end-to-end capabilities.
+Signed conforme does not create an approved bill. Proposal review requires a real
+issued version; the production issuing workflow remains absent. Archive checks
+five explicit gates and requires a reasoned override while logistics completion
+has no authoritative source. Supported privacy deletion is operational soft
+redaction; unsupported rights and native-account erasure remain unexecuted. Live
+AI remains governed by the separate provider, privacy, and approval gates.
 
 The [authority and lifecycle policy](event-authority-and-lifecycle-policy.md)
 records the approved attendance operator, wrap-up, feedback window and client
@@ -245,6 +243,6 @@ The actual P.R.I.S.M system is complete enough for a milestone claim only when e
 
 Do not use this document to claim the current implementation is complete. Use
 [`feature-ledger.md`](feature-ledger.md) for product gaps and
-[`../roadmap/architecture-priority-risk-matrix.md`](../roadmap/architecture-priority-risk-matrix.md) for
-architecture gaps, and
+[`../architecture/current-architecture.md`](../architecture/current-architecture.md)
+and [`../architecture/decisions/`](../architecture/decisions/) for architecture gaps, and
 [`future-state.md`](future-state.md) for the target transition.
