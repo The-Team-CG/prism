@@ -29,6 +29,27 @@ function coordinatorRoleTags(coordinator: PrismCoordinator) {
   return [];
 }
 
+function hasUnavailableAssignmentConflict(
+  eventId: string,
+  eventDate: string,
+  coordinatorId: string,
+  assignments: PrismCoordinatorAssignment[],
+  availability: PrismCoordinatorAvailability[],
+) {
+  const eventDateAtMidnight = new Date(`${eventDate}T00:00:00.000Z`).getTime();
+  const activelyAssigned = assignments.some((assignment) =>
+    assignment.eventId === eventId &&
+    assignment.coordinatorId === coordinatorId &&
+    isCoordinatorAssignmentActive(assignment),
+  );
+  return activelyAssigned && availability.some((item) =>
+    item.coordinatorId === coordinatorId &&
+    item.kind === "unavailable" &&
+    Date.parse(item.startsAt) <= eventDateAtMidnight &&
+    Date.parse(item.endsAt) > eventDateAtMidnight,
+  );
+}
+
 export function CoordinatorAssignmentDesk({
   event,
   coordinators,
@@ -290,6 +311,11 @@ export function CoordinatorAssignmentDesk({
               {coordinators.filter((coordinator) => coordinator.active).map((coordinator) => <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>)}
             </select>
             {availabilityBusy ? <p className="text-xs text-muted-foreground">Loading dates…</p> : null}
+            {availabilityCoordinatorId && hasUnavailableAssignmentConflict(event.id, eventDate, availabilityCoordinatorId, eventAssignments, availability) ? (
+              <p role="alert" className="rounded-lg border border-(--prism-amber)/25 bg-(--prism-amber)/8 px-3 py-2 text-xs font-semibold text-(--prism-amber)">
+                An unavailable date overlaps this event assignment. Review coordinator coverage for {eventDate}.
+              </p>
+            ) : null}
             <div className="max-h-28 space-y-2 overflow-y-auto">
               {availability.map((item) => <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2 py-1.5 text-xs"><span>{new Date(item.startsAt).toLocaleDateString()} – {new Date(item.endsAt).toLocaleDateString()}{item.note ? ` · ${item.note}` : ""}</span><button type="button" className="text-destructive" disabled={busy} onClick={async () => { await onDeleteAvailability(item.coordinatorId, item.id); await loadAvailability(item.coordinatorId); }}>Remove</button></div>)}
               {availabilityCoordinatorId && !availabilityBusy && availability.length === 0 ? <p className="text-xs text-muted-foreground">No unavailable dates recorded.</p> : null}

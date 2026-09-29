@@ -1,10 +1,11 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import type { OpsEventScheduleDay, OpsEventScheduleSegment, Prisma } from '@prisma/client';
+import type { OpsEventScheduleSegment, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor, writeAudit, AUDIT_WRITER, type AuditWriter } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { STAFFING_READER, type StaffingReader } from '@prism/contexts/operations';
+import { LIVE_OPS_READ_MODEL, type LiveOpsReadModel } from '@prism/contexts/read-models';
 import type {
   CreateEventEodReplyInput,
   CreateEventEodReportInput,
@@ -21,8 +22,6 @@ import type {
   PrismLiveOpsTimer,
   UpdateEventScheduleSegmentStatusInput,
 } from '@prism/types';
-import { EventReadModelQueries } from '../../read-models/application/queries/event-read-models.queries';
-import { mapEventDayTask, mapUrgentIssue } from '../../read-models/application/mappers/live-ops-read-model.mappers';
 
 export type LiveOpsClock = { now(): Date };
 
@@ -62,10 +61,6 @@ function mapSegment(segment: OpsEventScheduleSegment): PrismEventScheduleSegment
   };
 }
 
-export function mapScheduleDay(day: OpsEventScheduleDay & { segments: OpsEventScheduleSegment[] }): PrismEventScheduleDay {
-  return { id: day.id, eventId: day.eventId, dayDate: day.dayDate.toISOString().slice(0, 10), label: day.label, status: day.status, segments: day.segments.map(mapSegment) };
-}
-
 function strings(value: Prisma.JsonValue): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
@@ -77,16 +72,13 @@ export class EventScheduleService {
     private readonly access: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
-    private readonly queries: EventReadModelQueries,
+    @Inject(LIVE_OPS_READ_MODEL) private readonly liveOpsReadModel: LiveOpsReadModel,
     @Optional() private readonly clock: LiveOpsClock = new SystemLiveOpsClock(),
   ) {}
 
   async getSchedule(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventSchedule> {
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'event schedule', eventId);
-    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true } });
-    if (!event) throw new NotFoundException('Event not found');
-    const days = await this.queries.scheduleForEvent(eventId);
-    return { eventId, authored: days.length > 0, days: days.map(mapScheduleDay), serverTime: this.clock.now().toISOString() };
+    const liveOps = await this.liveOpsReadModel.getEventLiveOps(eventId, actor);
+    return liveOps.schedule ?? { eventId, authored: false, days: [], serverTime: this.clock.now().toISOString() };
   }
 
   async createDay(eventId: string, input: CreateEventScheduleDayInput, actor: ResolvedEventOpsActor) {
@@ -187,12 +179,24 @@ export class EventScheduleService {
   }
 
   async getRunSheet(eventId: string, dayId: string | undefined, actor: ResolvedEventOpsActor): Promise<PrismEventRunSheet | { eventId: string; authored: false; reason: 'no_schedule' }> {
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'event run sheet', eventId);
-    const days = await this.queries.scheduleForEvent(eventId);
+    const liveOps = await this.liveOpsReadModel.getEventLiveOps(eventId, actor);
+    const days = liveOps.schedule?.days ?? [];
     const day = days.find((candidate) => candidate.id === dayId) ?? days[0];
     if (!day) return { eventId, authored: false, reason: 'no_schedule' };
-    const [assignments, data] = await Promise.all([this.staffingReader.listAssignmentsForEvent(eventId), this.queries.liveOpsForEvent(eventId)]);
-    return { eventId, day: mapScheduleDay(day), coordinators: assignments.map((assignment) => this.staffingReader.mapCoordinatorAssignment(assignment)), supplierCommitments: data.supplierRequests.map((request) => ({ id: request.id, supplierName: request.supplierName, category: request.category, status: request.eventDayStatus, notes: request.eventDayNotes })), openTasks: data.tasks.filter((task) => !['done', 'cancelled'].includes(task.status)).map(mapEventDayTask), openIssues: data.urgentIssues.filter((issue) => !['resolved', 'cancelled'].includes(issue.status)).map(mapUrgentIssue) };
+    return {
+      eventId,
+      day,
+      coordinators: liveOps.coordinatorAssignments,
+      supplierCommitments: liveOps.supplierStatuses.map((request) => ({
+        id: request.id,
+        supplierName: request.supplierName,
+        category: request.category,
+        status: request.eventDayStatus ?? request.readinessStatus ?? 'unknown',
+        notes: request.eventDayNotes ?? '',
+      })),
+      openTasks: liveOps.tasks.filter((task) => !['done', 'cancelled'].includes(task.status)),
+      openIssues: liveOps.urgentIssues.filter((issue) => !['resolved', 'cancelled'].includes(issue.status)),
+    };
   }
 
   async listEodReports(eventId: string, actor: ResolvedEventOpsActor) {

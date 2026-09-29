@@ -55,6 +55,10 @@ export class EventLiveOpsCommandService {
     actor: ResolvedEventOpsActor,
   ) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    if (actor.role === OpsUserRole.Coordinator && Object.keys(input).some((key) => key !== 'status')) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task ownership update', eventId);
+      throw new ForbiddenException('Coordinators may only update task status; request PMCM review to change task ownership');
+    }
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.liveOperationsService.updateEventDayTask(eventId, taskId, input, actor);
     return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
