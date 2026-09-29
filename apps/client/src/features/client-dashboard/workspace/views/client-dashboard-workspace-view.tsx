@@ -141,7 +141,6 @@ export function ClientDashboardWorkspaceView({
   // This is a persisted read model. A failed load must not fall back to
   // browser-clock-derived urgency from workspace data.
   const resolvedActionCenter = actionCenter;
-  const actionCenterFromWorkspaceFallback = false;
   const clientActions = selectClientDashboardActions(resolvedActionCenter, selectedEvent?.id);
   const nextAction = selectNextAction(clientActions);
   const isEventScopedView = isEventScopedClientRoute(route, eventId);
@@ -423,7 +422,6 @@ export function ClientDashboardWorkspaceView({
     state,
     actionCenter: resolvedActionCenter,
     actionCenterLoadFailed,
-    actionCenterFromWorkspaceFallback,
     error,
     notice,
     busy,
