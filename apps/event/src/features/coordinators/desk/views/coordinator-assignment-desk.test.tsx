@@ -161,6 +161,16 @@ describe("CoordinatorAssignmentDesk Event Day System Operator", () => {
     expect(props.onLoadOperator).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps designation unavailable when the current operator cannot be loaded", async () => {
+    const props = renderDesk({ onLoadOperator: vi.fn(async () => { throw new Error("Network unavailable"); }) });
+
+    expect(await screen.findByText(/could not load the current operator/i)).toBeTruthy();
+    expect(screen.queryByText("No operator designated yet.")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Event Day System Operator"), { target: { value: "coord_2" } });
+    expect((screen.getByRole("button", { name: "Designate operator" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(props.onDesignateOperator).not.toHaveBeenCalled();
+  });
+
   it("flags a designated operator who has since left the event", async () => {
     renderDesk({ onLoadOperator: vi.fn(async () => operator("Riley Tan", "coord_4")) });
 
