@@ -1,6 +1,7 @@
 import type {
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
+  PrismAcknowledgementReminderResult,
   UpdateCoordinatorAttendanceInput,
 } from "@prism/types";
 import { asIsoDateTime } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
@@ -316,4 +317,73 @@ export function buildCoordinatorAttendanceInput(
   choice: CoordinatorAttendanceChoice,
 ): UpdateCoordinatorAttendanceInput {
   return { status: choice, notes: "" };
+}
+
+/* ── Operator designation, task progress, supplier checks, availability ── */
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The API treats ingress and egress alike (event-live-ops-command.service.ts isIngressRole). */
+export function isIngressOrEgressRole(role?: string | null): boolean {
+  return /ingress|egress/i.test(role ?? "");
+}
+
+/** Mirrors the API's operator designation check: working the event and not declined. */
+export function isOperatorEligibleAssignment(assignment: { status?: string; coordinatorId?: string | null }): boolean {
+  return Boolean(assignment.coordinatorId) && isCoordinatorAssignmentActive(assignment) && assignment.status !== "declined";
+}
+
+/**
+ * Mirrors the API's task update scope (requireTaskScope). The operator may update any task; other
+ * coordinators only tasks for their own role that are unowned or owned by them. The role view also
+ * lists General Coordinator tasks, which the API refuses to let a regular coordinator change.
+ */
+export function canCoordinatorUpdateTask(
+  task: { assignedRole: string; ownerName?: string | null },
+  view: { role: string; isDesignatedOperator?: boolean; assignment: { coordinatorName: string } },
+): boolean {
+  if (view.isDesignatedOperator) return true;
+  const owner = trimmed(task.ownerName ?? undefined);
+  const ownedByAnother = owner !== "" && !sameCoordinatorName(owner, view.assignment.coordinatorName);
+  return sameCoordinatorName(task.assignedRole, view.role) && !ownedByAnother;
+}
+
+/** Coordinators the operator can mark: everyone still working the event except the operator. */
+export function delegatedAttendanceTargets<T extends { id: string; status?: string }>(assignments: T[], ownAssignmentId: string): T[] {
+  return assignments.filter((item) => item.id !== ownAssignmentId && isCoordinatorAssignmentActive(item));
+}
+
+/** Only suppliers with a confirmed assignment are on site, so only those have a setup to check. */
+export function confirmedSupplierChecks<T extends { assignmentStatus?: string }>(suppliers: T[]): T[] {
+  return suppliers.filter((supplier) => supplier.assignmentStatus === "confirmed");
+}
+
+/**
+ * Event dates and the API's availability overlap check work in whole UTC days, so unavailable dates
+ * are entered as first and last day and stored as [00:00 of the first day, 00:00 after the last day).
+ * Entering local date-times instead would leak part of a neighbouring day into the block.
+ */
+export function availabilityRangeFromDates(firstDay: string, lastDay: string): { startsAt: string; endsAt: string } {
+  const start = Date.parse(`${firstDay}T00:00:00.000Z`);
+  const last = Date.parse(`${lastDay}T00:00:00.000Z`);
+  if (Number.isNaN(start) || Number.isNaN(last)) throw new Error("Choose the first and last unavailable day.");
+  if (last < start) throw new Error("The last unavailable day cannot be before the first.");
+  return { startsAt: new Date(start).toISOString(), endsAt: new Date(last + DAY_MS).toISOString() };
+}
+
+export function formatAvailabilityRange(entry: { startsAt: string; endsAt: string }): string {
+  const first = new Date(entry.startsAt).toISOString().slice(0, 10);
+  const last = new Date(Date.parse(entry.endsAt) - 1).toISOString().slice(0, 10);
+  return first === last ? first : `${first} to ${last}`;
+}
+
+export function describeReminderResult(result: PrismAcknowledgementReminderResult | null): string {
+  if (!result) return "Reminders were not sent. Check the PMCM status message.";
+  if (result.reminders.length === 0) {
+    return `No pending acknowledgments are within ${result.leadTimeDays} days of their event, so no reminders were sent.`;
+  }
+  const failed = result.reminders.filter((item) => item.status === "failed").length;
+  const reminded = result.reminders.length - failed;
+  const summary = `${reminded} pending coordinator${reminded === 1 ? "" : "s"} reminded.`;
+  return failed ? `${summary} ${failed} could not be sent; check the PMCM status message.` : summary;
 }

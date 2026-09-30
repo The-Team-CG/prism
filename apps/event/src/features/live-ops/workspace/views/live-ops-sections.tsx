@@ -31,6 +31,7 @@ import type {
   UpdateUrgentIssueInput,
   VerifySupplierStatusInput,
   DecideEventTaskReassignmentInput,
+  PrismEventTaskReassignmentRequest,
 } from "@prism/types";
 import { cx, label } from "@/features/pmcm-kit";
 import { liveOpsPillClass } from "../model/live-ops-workspace-rules";
@@ -185,25 +186,9 @@ export function LiveOpsDesk({
   onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
-  const runSheet = liveOps.schedule?.authored && liveOps.schedule.days[0]
-    ? {
-        eventId: liveOps.event.id,
-        day: liveOps.schedule.days[0],
-        coordinators: liveOps.coordinatorAssignments,
-        supplierCommitments: liveOps.supplierStatuses.map((item) => ({
-          id: item.id,
-          supplierName: item.supplierName,
-          category: item.category,
-          status: item.eventDayStatus ?? item.readinessStatus ?? "unknown",
-          notes: item.eventDayNotes ?? "",
-        })),
-        openTasks: liveOps.tasks.filter((item) => item.status !== "done"),
-        openIssues: liveOps.urgentIssues.filter((item) => item.status !== "resolved"),
-      }
-    : { eventId: liveOps.event.id, authored: false as const, reason: "no_schedule" as const };
   return (
     <>
-      {liveOps.schedule ? <div className="rounded-lg border border-border bg-card p-5"><LiveOpsControlSurface schedule={liveOps.schedule} timer={liveOps.timer} runSheet={runSheet} /></div> : null}
+      {liveOps.schedule ? <div className="rounded-lg border border-border bg-card p-5"><LiveOpsControlSurface schedule={liveOps.schedule} timer={liveOps.timer} /></div> : null}
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="rounded-lg border border-border bg-card p-5">
           <Header icon={Truck} eyebrow="Supplier setup" title="Self-reported status and PMCM verification" />
@@ -265,7 +250,7 @@ export function LiveOpsDesk({
   );
 }
 
-function ReassignmentReviewPanel({
+export function ReassignmentReviewPanel({
   liveOps,
   busy,
   onDecide,
@@ -275,8 +260,22 @@ function ReassignmentReviewPanel({
   onDecide: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
   const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
   const pending = (liveOps.taskReassignmentRequests ?? []).filter((request) => request.status === "pending");
   if (pending.length === 0) return null;
+
+  function decide(request: PrismEventTaskReassignmentRequest, decision: "approved" | "rejected") {
+    setError(null);
+    try {
+      const input = parseContract(decideEventTaskReassignmentSchema, { decision, reason: reasons[request.id] }, "Task reassignment decision");
+      void onDecide(request.id, input);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to record this decision.");
+    }
+  }
+
+  const taskTitle = (taskId: string) => liveOps.tasks.find((task) => task.id === taskId)?.title ?? taskId;
+
   return (
     <section className="rounded-lg border border-border bg-card p-5">
       <Header icon={UserCheck} eyebrow="PMCM review" title="Coordinator task reassignment requests" />
@@ -284,17 +283,18 @@ function ReassignmentReviewPanel({
         {pending.map((request) => (
           <div key={request.id} className="rounded-md border border-border bg-background p-4">
             <p className="font-semibold">{request.fromOwnerRole} → {request.toOwnerRole}{request.toOwnerName ? ` (${request.toOwnerName})` : ""}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Task {request.taskId}. Requested by {request.requestedBy}. {request.reason}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Task: {taskTitle(request.taskId)}. Requested by {request.requestedBy}. {request.reason}</p>
             <label className="mt-3 grid gap-1 text-xs font-semibold text-muted-foreground">Decision note
               <textarea value={reasons[request.id] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [request.id]: event.target.value }))} rows={2} className="rounded-md border border-border bg-white px-3 py-2 text-sm text-foreground" placeholder="Required when rejecting" />
             </label>
             <div className="mt-3 flex gap-2">
-              <button type="button" disabled={busy} onClick={() => { const input = parseContract(decideEventTaskReassignmentSchema, { decision: "approved", reason: reasons[request.id] }, "Task reassignment decision"); void onDecide(request.id, input); }} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">Approve</button>
-              <button type="button" disabled={busy || !(reasons[request.id] ?? "").trim()} onClick={() => { const input = parseContract(decideEventTaskReassignmentSchema, { decision: "rejected", reason: reasons[request.id] }, "Task reassignment decision"); void onDecide(request.id, input); }} className="h-9 rounded-md border border-border px-3 text-sm font-semibold disabled:opacity-60">Reject</button>
+              <button type="button" disabled={busy} onClick={() => decide(request, "approved")} className="h-9 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">Approve</button>
+              <button type="button" disabled={busy || !(reasons[request.id] ?? "").trim()} onClick={() => decide(request, "rejected")} className="h-9 rounded-md border border-border px-3 text-sm font-semibold disabled:opacity-60">Reject</button>
             </div>
           </div>
         ))}
       </div>
+      {error ? <p role="alert" className="mt-3 rounded-md bg-(--prism-danger)/10 px-3 py-2 text-xs font-bold text-(--prism-danger)">{error}</p> : null}
     </section>
   );
 }
