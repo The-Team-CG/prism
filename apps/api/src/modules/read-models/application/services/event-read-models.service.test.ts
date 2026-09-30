@@ -171,6 +171,7 @@ function createPmcmReadModelService() {
       ]),
     },
     opsInquiry: {
+      count: vi.fn(async () => 3),
       findMany: vi.fn(async () => [
         {
           id: 'inq_new',
@@ -185,6 +186,7 @@ function createPmcmReadModelService() {
       ]),
     },
     opsEvent: {
+      count: vi.fn(async () => 11),
       findMany: vi.fn(async () => [event]),
       findUnique: vi.fn(async () => event),
     },
@@ -203,6 +205,7 @@ function createPmcmReadModelService() {
     opsCoordinatorAssignment: { findMany: vi.fn(async () => []) },
     opsFloorPlanDraft: { findMany: vi.fn(async () => []) },
     opsPostEventDocument: { findMany: vi.fn(async () => []) },
+    opsApprovalRequest: { count: vi.fn(async () => 2) },
     opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', eventId: 'evt_visible' }]) },
     opsBriefing: { findMany: vi.fn(async () => []) },
     opsSupplierQuote: { findMany: vi.fn(async () => []) },
@@ -462,6 +465,8 @@ describe('EventReadModelsService', () => {
     const inbox = await service.pmcmCommandInbox(actor);
 
     expect(inbox.counts.critical).toBe(1);
+    expect(inbox.summary).toEqual({ activeEvents: 11, pendingInquiries: 3, pendingApprovals: 2 });
+    expect(inbox.page).toEqual({ index: 0, size: 10, hasMore: false });
     expect(inbox.items[0]).toMatchObject({
       id: 'billing:pay_overdue',
       kind: 'billing',

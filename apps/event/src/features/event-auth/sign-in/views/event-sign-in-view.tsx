@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Eye, EyeOff, Handshake, Shield } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Handshake, Shield } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 import { Input } from "@/app/components/ui/input";
 import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
@@ -36,7 +36,7 @@ function EventSignInPasswordFields({
           required={required}
           value={email}
           onChange={(e) => onEmail(e.target.value)}
-          placeholder="mys@pmcm.test"
+          placeholder="name@company.com"
           className="h-13 rounded-lg border-[#d9d9d9] bg-white text-base text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
         />
       </div>
@@ -108,36 +108,6 @@ function EventSignInTwoFactorFields({
           placeholder="000000"
           className="h-13 rounded-lg border-[#d9d9d9] bg-white text-base tracking-[0.3em] text-[#444] placeholder:text-[#a7a7a7] focus-visible:ring-1 focus-visible:ring-[#c01867] sm:h-12 sm:text-sm"
         />
-      </div>
-    </div>
-  );
-}
-
-function EventSignInSampleAccounts({
-  samples,
-  onApply,
-}: {
-  samples: ReadonlyArray<{ name: string; role: string; email: string; password: string }>;
-  onApply: (sample: { email: string; password: string }) => void;
-}) {
-  return (
-    <div className="mt-6 border-t border-[#d9d9d9] pt-5">
-      <p className="mb-3 text-sm font-medium text-[#888888]">Sample accounts</p>
-      <div className="flex flex-col gap-2">
-        {samples.map((sample) => (
-          <button
-            key={sample.email}
-            type="button"
-            onClick={() => onApply(sample)}
-            className="flex items-center justify-between rounded-lg border border-[#d9d9d9] bg-white px-4 py-3 text-left transition hover:border-[#c01867]/40 hover:bg-white/80"
-          >
-            <div>
-              <p className="text-sm font-semibold text-[#171216]">{sample.name}</p>
-              <p className="text-xs text-[#888888]">{sample.role}</p>
-            </div>
-            <ArrowRight className="size-4 text-[#a7a7a7]" />
-          </button>
-        ))}
       </div>
     </div>
   );
@@ -222,9 +192,6 @@ export function EventSignInView() {
                 </a>
               </form>
 
-              <div hidden={!passwordPhase}>
-                <EventSignInSampleAccounts samples={vm.sampleAccounts} onApply={vm.applySample} />
-              </div>
             </div>
           </div>
 

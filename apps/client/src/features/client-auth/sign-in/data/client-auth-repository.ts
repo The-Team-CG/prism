@@ -1,15 +1,27 @@
 import {
   PRISM_SESSION_STORAGE_KEYS,
   savePrismSession,
+  isPrismAuthenticatedSession,
+  type PrismAuthenticatedSession,
+  type PrismUser,
   type PrivacyConsentInput,
 } from "@prism/types";
-import { prismApi } from "@/lib/prism-api";
+import { clientApi, isClientLocalDemoMode } from "@/lib/prism-api";
+import { prismApi as samplePrismApi } from "@/compatibility/sample/prism-api";
 
-export type ClientAuthSession = Awaited<ReturnType<typeof prismApi.login>>;
+export type ClientAuthSession =
+  | PrismAuthenticatedSession
+  | (PrismUser & { signedInAt: string });
 
 export const clientAuthRepository = {
   login(input: { email: string; password: string }): Promise<ClientAuthSession> {
-    return prismApi.login(input);
+    if (isClientLocalDemoMode) return samplePrismApi.login(input);
+    return clientApi.auth.login(input).then((response) => {
+      if (!isPrismAuthenticatedSession(response)) {
+        throw new Error("Client sign-in requires an authenticated session.");
+      }
+      return response;
+    });
   },
 
   saveClientSession(session: ClientAuthSession): void {
@@ -17,14 +29,17 @@ export const clientAuthRepository = {
   },
 
   requestApproval(email: string, consent: PrivacyConsentInput) {
-    return prismApi.requestApproval(email, consent);
+    if (isClientLocalDemoMode) return samplePrismApi.requestApproval(email, consent);
+    return clientApi.auth.requestApproval({ email, ...consent });
   },
 
   requestPasswordReset(email: string) {
-    return prismApi.requestPasswordReset(email);
+    if (isClientLocalDemoMode) return samplePrismApi.requestPasswordReset(email);
+    return clientApi.auth.requestPasswordReset(email);
   },
 
   consumePasswordReset(input: { token: string; password: string }) {
-    return prismApi.consumePasswordReset(input);
+    if (isClientLocalDemoMode) return samplePrismApi.consumePasswordReset(input);
+    return clientApi.auth.consumePasswordReset(input.token, input.password);
   },
 };

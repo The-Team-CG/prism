@@ -10,7 +10,11 @@ function normalizePath(value) {
 }
 
 function normalizeCheckoutRoot(value) {
-  return normalizePath(path.resolve(String(value || '.')));
+  const raw = String(value || '.').trim();
+  const resolved = /^[a-zA-Z]:[\\/]/.test(raw) || raw.startsWith('\\\\')
+    ? path.win32.resolve(raw)
+    : path.resolve(raw);
+  return normalizePath(resolved);
 }
 
 function hasWorktreeSegment(value) {

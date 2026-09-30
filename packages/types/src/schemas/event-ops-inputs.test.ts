@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { requestApprovalSchema } from "./auth-inputs.js";
+import { pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
   moderateGuestFeedbackSchema,
   withdrawGuestFeedbackConsentSchema,
   createSupplierApplicationSchema,
+  createSupplierSchema,
   createSupplierReviewSchema,
   createSupplierReliabilityNoteSchema,
   promoteSupplierSchema,
@@ -37,6 +40,24 @@ import {
 } from "./index.js";
 
 describe("event-ops write schemas", () => {
+  it("validates supplier creation fields used by the PMCM command adapter", () => {
+    expect(createSupplierSchema.safeParse({ categoryId: "cat_1", name: " " }).success).toBe(false);
+    expect(
+      createSupplierSchema.safeParse({
+        categoryId: "cat_1",
+        name: "Sound and Light Co.",
+        email: "not-an-email",
+      }).success,
+    ).toBe(false);
+    expect(
+      createSupplierSchema.safeParse({
+        categoryId: "cat_1",
+        name: "Sound and Light Co.",
+        email: "hello@sound.test",
+      }).success,
+    ).toBe(true);
+  });
+
   it("accepts a valid inquiry payload", () => {
     const parsed = createPrismInquirySchema.parse({
       clientName: "Maria Santos",
@@ -75,8 +96,33 @@ describe("event-ops write schemas", () => {
       createGuestFeedbackSchema.safeParse({
         guestName: "Alex",
         rating: 5,
+        privacyConsentAccepted: true,
       }).success,
     ).toBe(true);
+    expect(
+      createGuestFeedbackSchema.safeParse({ guestName: "Alex", rating: 5 }).success,
+    ).toBe(false);
+    expect(
+      createGuestFeedbackSchema.safeParse({
+        guestName: "Alex",
+        rating: 5,
+        privacyConsentAccepted: false,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires explicit consent for account approval requests", () => {
+    expect(requestApprovalSchema.safeParse({ email: "ana@example.test" }).success).toBe(false);
+    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: false }).success).toBe(false);
+    expect(requestApprovalSchema.safeParse({ email: "ana@example.test", privacyConsentAccepted: true }).success).toBe(true);
+  });
+
+  it("caps inbox paging at one hundred pages and rejects invalid offsets", () => {
+    expect(pmcmCommandInboxQuerySchema.parse({ page: "2" })).toEqual({ page: 2 });
+    expect(pmcmCommandInboxQuerySchema.parse({})).toEqual({ page: 0 });
+    expect(pmcmCommandInboxQuerySchema.safeParse({ page: "-1" }).success).toBe(false);
+    expect(pmcmCommandInboxQuerySchema.safeParse({ page: "100" }).success).toBe(true);
+    expect(pmcmCommandInboxQuerySchema.safeParse({ page: "101" }).success).toBe(false);
   });
 
   it("requires reasons for negative moderation and at least one consent withdrawal", () => {

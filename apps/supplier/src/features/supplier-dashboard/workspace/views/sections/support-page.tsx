@@ -70,7 +70,7 @@ export function SupportPage() {
             { title: "Assignment handoff", body: "After PMCM selects your quote, go to Bookings to confirm the assignment, save your contract filename, confirm readiness, and update event-day status." },
             { title: "Event day updates", body: "On the day of the event, use the Bookings section to mark Arrived, Set up and ready, and Done and leaving. These update your portal record for PMCM verification." },
             { title: "Payment inquiries", body: "Payment schedule and release is managed by PMCM billing. Check the Payments section for your selected quote amounts. Contact PMCM directly for payment timing." },
-            { title: "Portal access issues", body: "If you cannot sign in or see incorrect data, contact your PMCM coordinator directly. Sample accounts: ops@xperto.test or flowers@bloom.test with password prism-supplier." },
+            { title: "Portal access issues", body: "If you cannot sign in or see incorrect data, contact your PMCM coordinator directly." },
           ].map(({ title, body }) => (
             <div key={title} className="rounded-xl border border-border bg-muted/30 p-4">
               <p className="text-sm font-bold text-foreground">{title}</p>

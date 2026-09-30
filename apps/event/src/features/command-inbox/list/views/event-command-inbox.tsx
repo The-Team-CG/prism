@@ -64,13 +64,37 @@ function InboxItem({ item }: { item: PrismCommandInboxItem }) {
   return item.href ? <Link href={item.href} className="block">{card}</Link> : card;
 }
 
+function InboxPager({
+  inbox,
+  onPageChange,
+}: {
+  inbox: PrismPmcmCommandInbox | null;
+  onPageChange: (page: number) => void;
+}) {
+  if (!inbox || (inbox.page.index === 0 && !inbox.page.hasMore)) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Button variant="outline" size="sm" disabled={inbox.page.index === 0} onClick={() => onPageChange(inbox.page.index - 1)}>
+        Previous page
+      </Button>
+      <span className="text-xs text-muted-foreground">Page {inbox.page.index + 1}</span>
+      <Button variant="outline" size="sm" disabled={!inbox.page.hasMore} onClick={() => onPageChange(inbox.page.index + 1)}>
+        Next page
+      </Button>
+    </div>
+  );
+}
+
 export function EventCommandInbox({
   inbox,
   onRefresh,
+  onPageChange,
   loadFailed,
 }: {
   inbox: PrismPmcmCommandInbox | null;
   onRefresh: () => void;
+  onPageChange: (page: number) => void;
   loadFailed: boolean;
 }) {
   const groups = useMemo(
@@ -92,7 +116,7 @@ export function EventCommandInbox({
           <div>
             <p className="text-sm font-black text-foreground">{totalCount} action item{totalCount !== 1 ? "s" : ""}</p>
             <p className="text-xs text-muted-foreground">
-              {inbox ? `Generated ${compactTimestamp(inbox.generatedAt)}` : "Loading..."}
+              {inbox ? `Page ${inbox.page.index + 1} · ${compactTimestamp(inbox.generatedAt)}` : "Loading..."}
             </p>
           </div>
         </div>
@@ -142,6 +166,8 @@ export function EventCommandInbox({
           </Panel>
         ))
       )}
+
+      <InboxPager inbox={inbox} onPageChange={onPageChange} />
     </div>
   );
 }

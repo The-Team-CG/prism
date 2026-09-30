@@ -24,12 +24,14 @@ import {
 import { loadCommandInbox } from "@/features/command-inbox/list";
 import { eventWorkspaceRepository } from "@/features/event-workspace/shell";
 import {
+  getCachedPmcmState,
   isDashboardCacheFresh,
   loadCoordinatorWorkspace,
   loadPmcmState,
 } from "../use-cases/load-dashboard-workspace";
 import { startDashboardSessionLoad } from "../use-cases/start-dashboard-session-load";
 import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
+import type { DashboardSection } from "../model/event-dashboard-routing";
 
 type ScreenName = "portal" | "editor";
 type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
@@ -44,9 +46,11 @@ function isFresh(loadedAt: number, ttl?: number) {
 export function useEventDashboardWorkspaceViewModel({
   selectedEventId,
   screenName,
+  section,
 }: {
   selectedEventId: string | null;
   screenName: ScreenName;
+  section: DashboardSection;
 }) {
   const router = useRouter();
   const [session, setSession] = useState<EventSession | null>(null);
@@ -92,12 +96,13 @@ export function useEventDashboardWorkspaceViewModel({
         setStatus("ready");
         return;
       }
+      const shouldLoadBroadState = section !== "dashboard" && section !== "command-inbox";
       const [next, requests, inboxResult] = await Promise.all([
-        loadPmcmState(true),
+        shouldLoadBroadState ? loadPmcmState(true) : Promise.resolve(state),
         loadApprovalRequests(true),
-        loadCommandInbox(true),
+        loadCommandInbox(true, commandInbox?.page.index ?? 0),
       ]);
-      setState(next);
+      if (shouldLoadBroadState) setState(next);
       setApprovalRequests(requests);
       setCommandInbox(inboxResult);
       setCoordinatorState(null);
@@ -123,6 +128,28 @@ export function useEventDashboardWorkspaceViewModel({
   }, [router]);
 
   useEffect(() => {
+    if (!session || session.role !== "pmcm-admin") return;
+    if (section === "dashboard" || section === "command-inbox") {
+      setState(null);
+      return;
+    }
+    const cached = getCachedPmcmState();
+    if (cached) setState(cached.value);
+    if (cached && isDashboardCacheFresh(cached.loadedAt)) return;
+    let cancelled = false;
+    loadPmcmState(Boolean(cached))
+      .then((next) => {
+        if (!cancelled) setState(next);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load PMCM workspace");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, section]);
+
+  useEffect(() => {
     let cancelled = false;
     loadTemplates()
       .then((templates) => {
@@ -143,7 +170,7 @@ export function useEventDashboardWorkspaceViewModel({
       refresh(session).catch(() => undefined);
     }, 30_000);
     return () => window.clearInterval(id);
-  }, [session, screenName]);
+  }, [session, screenName, section, commandInbox?.page.index]);
 
   async function refreshApprovals() {
     const reqs = await loadApprovalRequests(true);
@@ -151,10 +178,22 @@ export function useEventDashboardWorkspaceViewModel({
   }
 
   async function refreshCommandInbox() {
-    const data = await loadCommandInbox(true);
+    const data = await loadCommandInbox(true, commandInbox?.page.index ?? 0);
     setCommandInbox(data);
     setCommandInboxLoadFailed(false);
     return data;
+  }
+
+  async function changeCommandInboxPage(page: number) {
+    try {
+      const data = await loadCommandInbox(false, page);
+      setCommandInbox(data);
+      setCommandInboxLoadFailed(false);
+      return data;
+    } catch (err) {
+      setCommandInboxLoadFailed(true);
+      throw err;
+    }
   }
 
   function applyEventCommandData(result: Awaited<ReturnType<typeof loadEventCommandData>>) {
@@ -237,6 +276,7 @@ export function useEventDashboardWorkspaceViewModel({
     refresh,
     refreshApprovals,
     refreshCommandInbox,
+    changeCommandInboxPage,
     loadLiveOps,
     refreshSelectedEventWorkspace,
     selectedEventWorkspace,

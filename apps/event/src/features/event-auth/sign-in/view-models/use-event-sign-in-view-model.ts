@@ -9,11 +9,6 @@ import {
 import { nextPathFromSearch } from "../model/event-sign-in-copy";
 import { beginEventTwoFactorSetup, signInToEventPortal, verifyEventTwoFactor } from "../use-cases/event-sign-in";
 
-export const EVENT_SAMPLE_ACCOUNTS = [
-  { name: "Ms. Mys", role: "PMCM Admin", email: "mys@pmcm.test", password: "prism-admin" },
-  { name: "Marco", role: "Coordinator", email: "marco@pmcm.test", password: "prism-coordinator" },
-] as const;
-
 function readNextPath() {
   if (typeof window === "undefined") return null;
   return nextPathFromSearch(window.location.search);
@@ -21,8 +16,8 @@ function readNextPath() {
 
 export function useEventSignInViewModel() {
   const router = useRouter();
-  const [email, setEmail] = useState("mys@pmcm.test");
-  const [password, setPassword] = useState("prism-admin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -105,15 +100,10 @@ export function useEventSignInViewModel() {
     error,
     status,
     busy: status === "loading",
-    sampleAccounts: EVENT_SAMPLE_ACCOUNTS,
     setEmail,
     setPassword,
     setShowPassword,
     setCode,
-    applySample: (sample: { email: string; password: string }) => {
-      setEmail(sample.email);
-      setPassword(sample.password);
-    },
     submit,
   };
 }

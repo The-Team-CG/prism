@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CreatePrismInquiryInput, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { cloneTemplateObjects, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
 import { ClientPortalSidebar } from "./sections/client-portal-sidebar";
@@ -89,6 +89,7 @@ const initialRequestForm: ClientRequestForm = {
   venueCity: "",
   budgetRange: "TBD / Flexible",
   message: "",
+  privacyConsentAccepted: false,
 };
 
 const EVENT_PREFETCH_ROUTES = [
@@ -314,6 +315,10 @@ export function ClientDashboardWorkspaceView({
   async function submitNewEventRequest(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     if (!session) return;
+    if (!requestForm.privacyConsentAccepted) {
+      setError("Please accept the privacy notice before submitting your request.");
+      return;
+    }
     setBusy("event-request");
     setError(null);
     setNotice(null);
@@ -334,7 +339,7 @@ export function ClientDashboardWorkspaceView({
           requestForm.budgetRange ? `Budget range: ${requestForm.budgetRange}` : "",
         ].filter(Boolean).join("\n\n"),
         privacyConsentAccepted: true,
-        privacyNoticeVersion: "2026-05-01",
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         marketingConsentAccepted: false,
       };
       await submitClientInquiry(payload);

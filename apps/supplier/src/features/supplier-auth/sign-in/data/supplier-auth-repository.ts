@@ -1,32 +1,46 @@
 import {
+  createEventOpsClient,
+  PrismApiError,
+} from "@prism/api-client";
+import {
+  consumePasswordResetSchema,
+  parseContract,
   PRISM_SESSION_STORAGE_KEYS,
   readPrismSession,
+  requestPasswordResetSchema,
   savePrismSession,
+  type ConsumePasswordResetInput,
+  type LoginInput,
+  type PrismApprovalRequest,
+  type PrismAuthResponse,
   type PrismAuthenticatedSession,
+  type RequestApprovalInput,
+  type RequestPasswordResetInput,
 } from "@prism/types";
 import { SUPPLIER_AUTH_API_OFFLINE_MESSAGE } from "../model/supplier-sign-in-rules";
-import type { SupplierAuthUser } from "../model/supplier-sign-in-types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.supplier;
+const supplierAuthClient = createEventOpsClient({ baseUrl: `${API_URL}/api` });
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  let response: Response;
+function apiErrorMessage(error: PrismApiError, fallback: string) {
+  const body = error.body;
+  if (typeof body === "object" && body !== null) {
+    const message = (body as { message?: unknown }).message;
+    if (Array.isArray(message)) return message.join(", ") || fallback;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+}
+
+async function runSupplierAuthRequest<T>(operation: () => Promise<T>, fallback: string): Promise<T> {
   try {
-    response = await fetch(`${API_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-      ...init,
-    });
+    return await operation();
   } catch (error) {
     if (error instanceof TypeError) throw new Error(SUPPLIER_AUTH_API_OFFLINE_MESSAGE);
+    if (error instanceof PrismApiError) throw new Error(apiErrorMessage(error, fallback));
     throw error;
   }
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = Array.isArray(body.message) ? body.message.join(", ") : body.message;
-    throw new Error(message || "Supplier sign in failed");
-  }
-  return body.data as T;
 }
 
 export const supplierAuthRepository = {
@@ -38,30 +52,33 @@ export const supplierAuthRepository = {
     savePrismSession(SESSION_KEY, session);
   },
 
-  login(email: string, password: string): Promise<SupplierAuthUser> {
-    return request<SupplierAuthUser>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+  login(input: LoginInput): Promise<PrismAuthResponse> {
+    return runSupplierAuthRequest(
+      () => supplierAuthClient.auth.login(input),
+      "Supplier sign in failed",
+    );
   },
 
-  requestApproval(payload: {
-    email: string;
-    privacyConsentAccepted: boolean;
-    privacyNoticeVersion: string;
-    marketingConsentAccepted: boolean;
-  }): Promise<unknown> {
-    return request("/api/auth/approval-requests", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+  requestApproval(input: RequestApprovalInput): Promise<PrismApprovalRequest> {
+    return runSupplierAuthRequest(
+      () => supplierAuthClient.auth.requestApproval(input),
+      "Unable to request supplier account approval",
+    );
   },
 
-  requestPasswordReset(email: string): Promise<{ message: string; deliveryAvailable: boolean }> {
-    return request('/api/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) });
+  requestPasswordReset(input: RequestPasswordResetInput): Promise<{ message: string; deliveryAvailable: boolean }> {
+    const contract = parseContract(requestPasswordResetSchema, input, "Password reset request");
+    return runSupplierAuthRequest(
+      () => supplierAuthClient.auth.requestPasswordReset(contract.email),
+      "Unable to request password reset",
+    );
   },
 
-  consumePasswordReset(input: { token: string; password: string }): Promise<{ message: string }> {
-    return request('/api/auth/password-reset/consume', { method: 'POST', body: JSON.stringify(input) });
+  consumePasswordReset(input: ConsumePasswordResetInput): Promise<{ message: string }> {
+    const contract = parseContract(consumePasswordResetSchema, input, "Password reset");
+    return runSupplierAuthRequest(
+      () => supplierAuthClient.auth.consumePasswordReset(contract.token, contract.password),
+      "Unable to consume password reset",
+    );
   },
 };

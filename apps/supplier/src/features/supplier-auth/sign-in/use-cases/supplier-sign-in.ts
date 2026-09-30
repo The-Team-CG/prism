@@ -1,8 +1,12 @@
 import { supplierAuthRepository } from "../data/supplier-auth-repository";
-import type { PrismAuthenticatedSession } from "@prism/types";
+import {
+  isPrismAuthenticatedSession,
+  loginSchema,
+  parseContract,
+  type PrismAuthenticatedSession,
+} from "@prism/types";
 import {
   approvalRequestPayload,
-  buildSupplierSession,
   isSupplierRole,
   mapWrongPortalMessage,
   resolvePostSignInPath,
@@ -17,11 +21,16 @@ export async function signInSupplier(input: {
   draft: SupplierSignInDraft;
   nextPath?: string | null;
 }): Promise<{ session: PrismAuthenticatedSession; redirectTo: string }> {
-  const user = await supplierAuthRepository.login(input.draft.email, input.draft.password);
+  const credentials = parseContract(loginSchema, input.draft, "Supplier sign-in");
+  const authResponse = await supplierAuthRepository.login(credentials);
+  if (!isPrismAuthenticatedSession(authResponse)) {
+    throw new Error(mapWrongPortalMessage("pmcm-admin"));
+  }
+  const user = authResponse;
   if (!isSupplierRole(user.role)) {
     throw new Error(mapWrongPortalMessage(user.role));
   }
-  const session = buildSupplierSession(user);
+  const session = user;
   supplierAuthRepository.saveSession(session);
   return {
     session,

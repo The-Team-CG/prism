@@ -1,6 +1,12 @@
 import type { EventSession } from "@/app/lib/session";
-import { prismApi } from "@/lib/prism-api";
+import { eventApiRequest } from "@/lib/prism-api";
 import type {
+  PrismCoordinatorAssignment,
+  PrismCoordinatorRoleView,
+  PrismEventDayTask,
+  PrismEventTaskReassignmentRequest,
+  PrismSupplierQuoteRequest,
+  PrismUrgentIssue,
   CreateEventDayTaskInput,
   CreateEventTaskReassignmentInput,
   CreateUrgentIssueInput,
@@ -14,22 +20,38 @@ import type {
 
 export const coordinatorsRepository = {
   loadRoleView(session: EventSession, eventId: string) {
-    return prismApi.coordinatorRoleView(session, eventId);
+    return eventApiRequest<PrismCoordinatorRoleView>(
+      `/api/coordinator/events/${eventId}/role-view`,
+      { authToken: session.accessToken },
+    );
   },
   acknowledge(eventId: string, assignmentId: string, input: CoordinatorAssignmentAcknowledgementInput) {
-    return prismApi.acknowledgeCoordinator(eventId, assignmentId, input);
+    return eventApiRequest<PrismCoordinatorAssignment>(
+      `/api/events/${eventId}/coordinators/${assignmentId}/acknowledge`,
+      { method: "PATCH", body: input },
+    );
   },
   withdraw(session: EventSession, eventId: string, assignmentId: string, input: WithdrawCoordinatorAssignmentInput) {
-    return prismApi.withdrawCoordinator(session, eventId, assignmentId, input);
+    return eventApiRequest<PrismCoordinatorAssignment>(
+      `/api/events/${eventId}/coordinators/${assignmentId}/withdraw`,
+      { method: "PATCH", body: input, authToken: session.accessToken },
+    );
   },
   createEventDayTask(session: EventSession, eventId: string, input: CreateEventDayTaskInput) {
-    return prismApi.createCoordinatorEventDayTask(session, eventId, input);
+    return eventApiRequest<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks`, {
+      method: "POST", body: input, authToken: session.accessToken,
+    });
   },
   createUrgentIssue(session: EventSession, eventId: string, input: CreateUrgentIssueInput) {
-    return prismApi.createCoordinatorUrgentIssue(session, eventId, input);
+    return eventApiRequest<PrismUrgentIssue>(`/api/events/${eventId}/urgent-issues`, {
+      method: "POST", body: input, authToken: session.accessToken,
+    });
   },
   listTaskReassignments(session: EventSession, eventId: string) {
-    return prismApi.listCoordinatorTaskReassignments(session, eventId);
+    return eventApiRequest<PrismEventTaskReassignmentRequest[]>(
+      `/api/events/${eventId}/event-day/task-reassignments`,
+      { authToken: session.accessToken },
+    );
   },
   requestTaskReassignment(
     session: EventSession,
@@ -37,7 +59,10 @@ export const coordinatorsRepository = {
     taskId: string,
     input: CreateEventTaskReassignmentInput,
   ) {
-    return prismApi.requestCoordinatorTaskReassignment(session, eventId, taskId, input);
+    return eventApiRequest<PrismEventTaskReassignmentRequest>(
+      `/api/events/${eventId}/event-day/tasks/${taskId}/reassignments`,
+      { method: "POST", body: input, authToken: session.accessToken },
+    );
   },
   decideTaskReassignment(
     session: EventSession,
@@ -45,7 +70,10 @@ export const coordinatorsRepository = {
     requestId: string,
     input: DecideEventTaskReassignmentInput,
   ) {
-    return prismApi.decideCoordinatorTaskReassignment(session, eventId, requestId, input);
+    return eventApiRequest<PrismEventTaskReassignmentRequest>(
+      `/api/events/${eventId}/event-day/task-reassignments/${requestId}`,
+      { method: "PATCH", body: input, authToken: session.accessToken },
+    );
   },
   updateOwnAttendance(
     session: EventSession,
@@ -53,15 +81,26 @@ export const coordinatorsRepository = {
     assignmentId: string,
     input: UpdateCoordinatorAttendanceInput,
   ) {
-    return prismApi.updateOwnCoordinatorAttendance(session, eventId, assignmentId, input);
+    return eventApiRequest<PrismCoordinatorAssignment>(
+      `/api/events/${eventId}/coordinators/${assignmentId}/status`,
+      { method: "PATCH", body: input, authToken: session.accessToken },
+    );
   },
   updateOwnTask(session: EventSession, eventId: string, taskId: string, input: UpdateEventDayTaskInput) {
-    return prismApi.updateCoordinatorEventDayTask(session, eventId, taskId, input);
+    return eventApiRequest<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}`, {
+      method: "PATCH", body: input, authToken: session.accessToken,
+    });
   },
   updateDelegatedAttendance(session: EventSession, eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput) {
-    return prismApi.updateDelegatedCoordinatorAttendance(session, eventId, assignmentId, input);
+    return eventApiRequest<PrismCoordinatorAssignment>(
+      `/api/events/${eventId}/coordinators/${assignmentId}/status`,
+      { method: "PATCH", body: input, authToken: session.accessToken },
+    );
   },
   verifySupplierStatus(session: EventSession, eventId: string, requestId: string, input: VerifySupplierStatusInput) {
-    return prismApi.verifyCoordinatorSupplierStatus(session, eventId, requestId, input);
+    return eventApiRequest<PrismSupplierQuoteRequest>(
+      `/api/events/${eventId}/supplier-status/${requestId}/verify`,
+      { method: "PATCH", body: input, authToken: session.accessToken },
+    );
   },
 };
