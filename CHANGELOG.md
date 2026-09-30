@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- EP-10-S03 design: documented the client ocular request, PMCM task flow, proposed waiver, and PA-59 review gate.
 - EP-10-S02 Task 1: added the per-event client event-day visibility setting, default-off persistence, PMCM Admin-only update, audit evidence, and PMCM/client event projection.
 - EP-10-S02 Task 2: extended the client workspace with five ordered, source-backed milestones and progress status, scoped to each actor-visible event.
 - EP-10-S02 Task 3: added the PMCM Admin event-day visibility switch and the client’s five-milestone timeline with a gated generic event-day status.
