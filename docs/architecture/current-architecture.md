@@ -41,7 +41,7 @@ target direction. Accepted architecture decisions are indexed in
 - **Purpose:** Describe the implemented application, package, API, and backend context boundaries.
 - **Authority:** Normative current architecture; accepted exceptions require an ADR.
 - **Owner:** D (Anthony).
-- **Scope:** Four role apps, shared packages, one NestJS API, Prisma, and compatibility surfaces.
+- **Scope:** Four role apps, shared packages, one NestJS API, Prisma, and local fixture seeding.
 - **Use when:** Locating ownership or deciding where a new route, contract, service, or query belongs.
 - **Change when:** A runtime boundary, bounded-context owner, package contract, or compatibility rule changes.
 - **Verify with:** Repository boundary checks, touched package checks, and API/portal verification.
@@ -66,8 +66,8 @@ no event scope.
 | One internal operating system | P.R.I.S.M serves PMCM's event lifecycle; it is not a public multi-tenant SaaS shell. |
 | Role-specific apps | PMCM/coordinator, client, supplier, and guest experiences remain separate apps. |
 | One shared API | `apps/api` remains one NestJS API and one Prisma client. |
-| Scoped contracts first | New role surfaces use scoped APIs and shared types instead of broad sample-state reads. |
-| Compatibility paths are temporary | `/api/sample/state` and reset/seed paths are for demo compatibility, not normal feature ownership. Sample reset is limited to a loopback `prism_sample_disposable` database and is invoked through the explicit local fixture command. |
+| Scoped contracts first | New role surfaces use scoped APIs and shared types instead of whole-system demo aggregates. |
+| Fixtures are seed-only | There are no `/api/sample/*` runtime routes or browser-local sample state. The explicit seed command writes development fixtures only into an empty loopback `prism_sample_disposable` database. |
 | PMCM owns official operations | PMCM owns official floorplans, supplier decisions, billing, compliance overrides, privacy operations, and audit review. |
 | Portals are constrained views | Client, supplier, and guest portals see only role-safe event data. |
 | High-risk dependencies are gated | Real storage, external auth, production notifications, QR/camera, and live AI require explicit approval, tests, and fallback behavior. |
@@ -87,7 +87,7 @@ flowchart LR
   GuestApp --> Api
   EventApp --> Api
   Api --> Prisma["Prisma data access"]
-  Prisma --> Postgres["Postgres or seeded sample database"]
+  Prisma --> Postgres["Postgres; local fixtures use a dedicated dev database"]
   Api --> Audit["Audit log"]
   Api --> Notifications["Notification outbox"]
   Api --> PareDispatch["PARE dispatch outbox"]
@@ -102,7 +102,7 @@ flowchart LR
 | `apps/event` | 3004 | PMCM, admin, coordinator role views | Sign-in, command inbox, selected event workspace, official floorplans, supplier review/selection, billing, compliance, live ops, closure, privacy/audit review. | Public marketing, supplier self-service, guest public access, client-only dashboard ownership. |
 | `apps/supplier` | 3002 | Suppliers and supplier applicants | Sign-in, assigned quotes, quote submission/revision, assignment confirmation, readiness, contract metadata, event-day status. | Other bids, PMCM private reviews, client data, internal PMCM costs. |
 | `apps/guest` | 3003 | Guests and walk-ins | Access-code entry, event pass, consented check-in, walk-in flagging, moderated feedback. | Planning, client/supplier dashboards, PMCM internals, cross-event reads. |
-| `apps/api` | 4000 | All apps through HTTP | Workflows, role scoping, sample auth, Prisma access, audit, notification outbox, AI governance, and `/sample/*` compatibility. | UI rendering, app-local session ownership, role-specific visual decisions. |
+| `apps/api` | 4000 | All apps through HTTP | Workflows, role scoping, built-in auth/RBAC, Prisma access, audit, notification outbox, and AI governance. | UI rendering, app-local session ownership, role-specific visual decisions. |
 
 ## Shared packages
 
@@ -157,7 +157,7 @@ apps/api/src/
     <context>.module.ts
     index.ts
   kernel/<cross-cutting-concern>/
-  compatibility/sample/
+  fixtures/             # explicit development-only seed module and data
 ```
 
 There is one API project in `apps/api/nest-cli.json`. The former collection of
@@ -184,21 +184,20 @@ models. `platform-ops` remains a bounded context because its policies and
 persistence are product-facing; it may be split later only after an explicit
 ownership/deployment decision.
 
-### Kernel and compatibility
+### Kernel and local fixtures
 
 ```text
 apps/api/src/kernel/
   access-control  database  event-core  event-session
   health          shared    shared-kernel
 
-apps/api/src/compatibility/sample/
 ```
 
 The kernel owns technical primitives: database access, event-core invariants and
 command execution, verified session/auth primitives, access policy, health,
-shared validation, and transaction helpers. `compatibility/sample` owns only
-`/sample/*` demo/seed/reset behavior and may aggregate public context providers.
-It is not the main data path for new role features.
+shared validation, and transaction helpers. `src/fixtures` composes only the
+database service and audit append path for the local seed command; it is not
+registered as an HTTP module or application runtime path.
 
 ### Boundary rules
 
@@ -212,8 +211,8 @@ read-models -> public readers/ports, read-only
 ```
 
 `scripts/check-prism-boundaries.mjs` and the backend architecture checker enforce
-the important rules: no private cross-context imports, no compatibility import
-from normal contexts or kernel, no Prisma writes from read models, budgeted raw
+the important rules: no private cross-context imports, no import
+from local fixture tooling into runtime contexts or kernel, no Prisma writes from read models, budgeted raw
 read queries, and no tracked source under the old API library roots.
 
 The kernel does not import a business context. `kernel/event-core` owns the
@@ -303,12 +302,12 @@ worker restores the idempotent `pare_triggered` activity audit.
 
 ## State and session rules
 
-1. Browser session and sample storage key names belong in `@prism/types`.
+1. Browser session storage key names belong in `@prism/types`.
 2. Role apps use shared helpers instead of adding literal `prism:*` keys.
-3. API-backed sample auth/RBAC is acceptable for the current pass.
+3. Built-in API auth/RBAC is the current implementation; external auth remains gated.
 4. External auth is gated until provider, session migration, tests, and fallback
    behavior are approved.
-5. Local sample state is allowed for seed/demo/reset compatibility only.
+5. Development fixtures are inserted only by the explicit seed command into an empty disposable local database; portals use scoped API-backed repositories.
 
 ## Integration and adapter boundaries
 
@@ -329,7 +328,7 @@ worker restores the idempotent `pare_triggered` activity audit.
 | Root build | `npm run build` |
 | API typecheck/build | `npm --workspace prism-api run typecheck` / `npm --workspace prism-api run build` |
 | API tests | `npm --workspace prism-api run test` |
-| API sample compatibility tests | `npm --workspace prism-api run test:sample-compatibility` |
+| Fixture command safety | `npm --workspace prism-api run test:fixtures:seed` plus the fixture seeder behavior test |
 | Prisma schema | `npm --workspace prism-api run prisma:validate` |
 | Backend architecture boundaries | `npm run check:boundaries` plus the backend architecture boundary audit |
 | UI smoke | `npm run smoke:ui` when the stack is available |
@@ -341,7 +340,7 @@ Stop and update the plan if a change would:
 
 1. Move PMCM command ownership into `apps/client`.
 2. Let client, supplier, guest, or coordinator actors read PMCM-only records.
-3. Treat `/api/sample/state` as the main path for a new role feature.
+3. Reintroduce a whole-system demo aggregate instead of a scoped read model.
 4. Add an app-local literal `prism:*` session key.
 5. Ship real storage, production notifications, external auth, QR/camera, or
    live AI without required gate evidence.

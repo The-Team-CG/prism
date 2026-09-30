@@ -89,7 +89,7 @@ export function NotificationEvidence({ logs }: { logs: PrismNotificationLog[] })
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Sent means provider acceptance, not recipient delivery. Historical sample statuses do not confirm delivery.
+          Sent means provider acceptance, not recipient delivery. Historical payment statuses do not confirm delivery.
         </p>
       </CardHeader>
       <CardBody>

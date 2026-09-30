@@ -10,7 +10,7 @@ import {
   ExportAuditLogsDto,
   ListAuditLogsDto,
   ReviewPrivacyRequestDto,
-  SampleActorDto,
+  ActorContextDto,
 } from './audit-privacy.dto';
 import { AuditService } from '../../application/trust/audit.service';
 import { PrivacyOperationsService } from '../../application/trust/privacy-operations.service';

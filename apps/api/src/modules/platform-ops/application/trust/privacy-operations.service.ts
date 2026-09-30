@@ -125,7 +125,7 @@ export class PrivacyOperationsService {
         this.privacySurface('account_approval_request', approvalRequests.length, ['email', 'role', 'organization', 'consent'], approvalRequests),
       ],
       retentionNotes: [
-        'Sample personal-data records are retained with the event record until archive policy is finalized.',
+        'Personal-data records remain with the event until the archive retention policy is finalized.',
         'Guest feedback remains moderated and is never published automatically.',
         'AI use remains blocked unless ZDR, sanitizer, audit, and human approval records are present.',
       ],
@@ -173,7 +173,7 @@ export class PrivacyOperationsService {
       {
         surface: 'audit',
         dataCategories: ['actor', 'action', 'affected_record', 'hash_chain'],
-        retentionPeriod: '7 years append-only sample policy',
+        retentionPeriod: 'Pending PMCM policy decision',
         deletionBehavior: 'Never hard delete or mutate in normal workflows; append redaction events instead.',
       },
     ];

@@ -1,4 +1,4 @@
-import type { PrismProjectLike, SampleRole } from "./core.js";
+import type { PrismProjectLike, PrismUserRole } from "./core.js";
 
 export interface PrismInquiry {
   id: string;
@@ -79,7 +79,7 @@ export interface PrismFloorPlanDraft {
     | string;
   isActive: boolean;
   sourceType: "client_preference" | "blank" | "template" | string;
-  createdByRole?: SampleRole | string;
+  createdByRole?: PrismUserRole | string;
   clientPreference?: PrismFloorPlanPreference;
   submittedSnapshot?: PrismFloorPlanSnapshot;
   approvedSnapshot?: PrismFloorPlanSnapshot;

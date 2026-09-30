@@ -41,7 +41,7 @@ export function pickActiveAssignment<T extends { attendanceStatus?: string; stat
  * (live-operations-workspace.tsx:270-276). It is NOT canonical: no agreed
  * coordinator role vocabulary exists yet, and this is pending a product
  * decision. Do not source it from COORDINATOR_ROLE_REQUIREMENTS in
- * sample-compatibility.service.ts, which is a dead sample surface carrying
+ * the removed compatibility service, which carried
  * its own diverged copy of the role-scoping filter.
  */
 const PROVISIONAL_TASK_ROLES = [

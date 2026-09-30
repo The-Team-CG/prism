@@ -35,7 +35,7 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
  * Owned tables: OpsCoordinatorAssignment (day-to-day staffing assignment;
  * live-ops also writes here for event-day updates), OpsGuestCheckIn,
  * OpsGuestFeedback.
- * Read-only: OpsCoordinator (sample-seeded only; no owning module), OpsEvent
+ * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent
  * (via inquiry-onboarding).
  */
 @Module({

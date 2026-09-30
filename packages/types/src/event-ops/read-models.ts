@@ -65,14 +65,6 @@ export interface PrismPmcmDashboardWorkspace {
   notificationLogs: PrismNotificationLog[];
 }
 
-/**
- * @deprecated Compatibility shape for local seed/reset/demo paths. New app
- * contracts should use role-specific workspaces such as
- * PrismPmcmDashboardWorkspace, PrismClientWorkspace, PrismSupplierWorkspace,
- * billing workspaces, or event-specific read models.
- */
-export interface PrismSampleState extends PrismPmcmDashboardWorkspace {}
-
 export type PrismClientWorkspace = Pick<
   PrismPmcmDashboardWorkspace,
   | "users"

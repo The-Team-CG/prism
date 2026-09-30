@@ -33,11 +33,19 @@ function createPaymentService() {
     sourceType: 'conforme', sourceDocumentId: null, lineItems: [], paymentSchedule: [], paymentMethods: [],
   };
   const prisma: any = {
-    opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample' })) },
+    opsEvent: {
+      findUnique: vi.fn(async () => ({ id: 'evt_sample' })),
+      findMany: vi.fn(async () => [{ id: 'evt_sample', eventName: 'Sample Event' }]),
+    },
     opsPaymentMilestone: {
       findUnique: vi.fn(async () => milestone),
       findMany: vi.fn(async () => [milestone]),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(milestone, data)),
+      updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        if (milestone.status === 'paid' || milestone.status === 'at_risk' || milestone.remainingBalance <= 0) return { count: 0 };
+        Object.assign(milestone, data);
+        return { count: 1 };
+      }),
     },
     opsPaymentRecord: {
       findMany: vi.fn(async () => history),
@@ -56,7 +64,7 @@ function createPaymentService() {
   const audit = { write: vi.fn() };
   const notifications = { write: vi.fn() };
   const service = new BillingOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
-  return { service, prisma, audit, history };
+  return { service, prisma, audit, history, milestone };
 }
 
 function createBillingStatementService(priorNumbers: string[]) {
@@ -118,6 +126,33 @@ function createBillingStatementService(priorNumbers: string[]) {
 }
 
 describe('BillingOperationsService', () => {
+  it('marks upcoming balances at risk and audits only the first successful transition', async () => {
+    const { service, prisma, audit, milestone } = createPaymentService();
+    milestone.label = 'Balance';
+    prisma.opsPaymentMilestone.findMany.mockImplementation(async () => [{ ...milestone, status: 'partially_paid' }]);
+
+    await service.runPaymentRiskSweep();
+    await service.runPaymentRiskSweep();
+
+    expect(milestone.status).toBe('at_risk');
+    expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledTimes(2);
+    expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: 'pay_downpayment',
+        eventId: 'evt_sample',
+        status: { notIn: ['paid', 'at_risk'] },
+        remainingBalance: { gt: 0 },
+      }),
+    }));
+    expect(audit.write).toHaveBeenCalledTimes(1);
+    expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: 'evt_sample',
+      action: 'Payment at risk for Sample Event',
+      affectedId: 'pay_downpayment',
+      affectedLabel: 'Balance',
+    }), undefined);
+  });
+
   it('renders a structurally parseable PDF with real newline bytes and matching xref offsets', () => {
     const pdf = renderBillingPdf({ number: 'BS-2026-0001', sourceLabel: 'Approved proposal', totalAmount: 100000 });
     const text = pdf.toString('utf8');

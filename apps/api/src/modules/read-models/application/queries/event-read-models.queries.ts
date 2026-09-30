@@ -391,7 +391,7 @@ export class EventReadModelQueries {
       })
       .then(async (suppliers) => {
         if (suppliers.length === 0) return [];
-        // Compatibility/sample Prisma doubles may not expose groupBy; production
+        // Some Prisma test doubles may not expose groupBy; production
         // Prisma does, and uses the exact aggregate to keep capped review rows
         // from changing the displayed supplier rating.
         const reviewAggregates = typeof this.prisma.opsSupplierReview.groupBy === 'function'

@@ -1,5 +1,5 @@
-import type { SampleRole } from "@prism/types";
+import type { PrismUserRole } from "@prism/types";
 
-export function isPmcmAdmin(role: SampleRole): boolean {
+export function isPmcmAdmin(role: PrismUserRole): boolean {
   return role === 'pmcm-admin'
 }
