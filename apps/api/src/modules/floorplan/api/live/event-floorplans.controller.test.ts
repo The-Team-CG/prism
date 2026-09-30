@@ -60,7 +60,7 @@ describe('OpsEventFloorplansController', () => {
     await expect(controller.approveFloorPlanDraft('evt_sample', 'fpd_new', verifiedPmcmActor as any)).resolves.toEqual({ id: 'fpd_new', status: 'approved' });
 
     expect(eventAccessPolicyService.requireCanMutateOfficialFloorplan).toHaveBeenCalledTimes(3);
-    expect(floorPlanWorkflowService.createFloorPlanDraft).toHaveBeenCalledWith('evt_sample', { name: 'Official', sourceType: 'blank' }, { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
+    expect(floorPlanWorkflowService.createFloorPlanDraft).toHaveBeenCalledWith('evt_sample', { name: 'Official', sourceType: 'blank' }, { actorId: 'user_pmcm', name: 'Maxine', role: OpsUserRole.PmcmAdmin });
     expect(floorPlanWorkflowService.submitFloorPlanDraft).toHaveBeenCalledWith('evt_sample', 'fpd_new', { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
     expect(floorPlanWorkflowService.approveFloorPlanDraft).toHaveBeenCalledWith('evt_sample', 'fpd_new', { name: 'Maxine', role: OpsUserRole.PmcmAdmin });
   });
@@ -107,7 +107,7 @@ describe('OpsEventFloorplansController', () => {
     expect(floorPlanWorkflowService.createFloorPlanPreference).toHaveBeenCalledWith(
       'evt_sample',
       expect.objectContaining({ name: 'Client Preference' }),
-      { name: 'Ana Reyes', role: OpsUserRole.Client },
+      { actorId: 'client_ana', name: 'Ana Reyes', role: OpsUserRole.Client },
     );
     expect(floorPlanWorkflowService.getFloorPlanSnapshot).toHaveBeenCalledWith('evt_sample', 'fpd_pref', 'submitted');
   });
