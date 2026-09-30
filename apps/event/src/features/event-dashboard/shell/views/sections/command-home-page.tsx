@@ -1,7 +1,6 @@
 "use client";
 
-import { CalendarDays, FileCheck2, RotateCcw, ShieldCheck } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { CalendarDays, FileCheck2, ShieldCheck } from "lucide-react";
 import { CommandStat } from "./command-stat";
 import { CommandHomeBanner } from "./command-home-banner";
 import { commandGreeting } from "../../model/command-home-copy";
@@ -13,12 +12,10 @@ export function CommandHomePage({
   session,
   summary,
   onNavigateSection,
-  onReset,
 }: {
   session: EventSession;
   summary: PrismPmcmCommandInbox["summary"];
   onNavigateSection: (section: DashboardSection) => void;
-  onReset: () => void;
 }) {
   const greeting = commandGreeting(new Date().getHours());
   const firstName = session.name.split(" ")[0];
@@ -55,12 +52,6 @@ export function CommandHomePage({
           icon={ShieldCheck}
           accent="text-(--prism-success)"
         />
-      </div>
-
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" className="rounded-lg font-bold" onClick={onReset}>
-          <RotateCcw className="mr-1.5 size-3.5" /> Reset sample data
-        </Button>
       </div>
     </div>
   );

@@ -14,10 +14,8 @@ describe('sample-compatibility controller routes', () => {
     expect(SAMPLE_COMPATIBILITY_CONTROLLERS.map(controllerPath).sort()).toEqual(['sample']);
   });
 
-  it('requires a verified session before sample reset', () => {
-    // SampleResetGuard delegates to EventSessionGuard unless the local-development
-    // bypass is explicitly configured; that delegation, and every condition under
-    // which the bypass is refused, is asserted in sample-reset.guard.test.ts.
+  it('requires the dedicated local reset guard before sample reset', () => {
+    // The guard key and target checks are asserted in sample-reset.guard.test.ts.
     const resetGuards = Reflect.getMetadata('__guards__', SAMPLE_COMPATIBILITY_CONTROLLERS[0].prototype.reset);
     expect(resetGuards).toContain(SampleResetGuard);
   });
@@ -27,8 +25,7 @@ describe('sample-compatibility controller routes', () => {
     // which left it open on staging while returning supplier quote accessTokens.
     const stateGuards = Reflect.getMetadata('__guards__', SAMPLE_COMPATIBILITY_CONTROLLERS[0].prototype.state);
     expect(stateGuards).toContain(SampleStateGuard);
-    // Each route still carries its own guard rather than one blanket class guard,
-    // because reset and state have different bypass rules.
+    // Each route carries its own guard because reset and state have different access rules.
     expect(Reflect.getMetadata('__guards__', SAMPLE_COMPATIBILITY_CONTROLLERS[0])).toBeUndefined();
   });
 });

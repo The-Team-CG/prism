@@ -36,9 +36,8 @@ export class SampleController {
   }
 
   /**
-   * Requires a verified PmcmAdmin/System session. SampleResetGuard additionally
-   * permits a local-development bypass so that unusable sample 2FA state cannot
-   * lock a developer out of the very endpoint that resets it.
+   * Requires the local fixture reset key; SampleResetGuard restricts the target
+   * to a non-production loopback database named prism_sample_disposable.
    */
   @Post('reset')
   @UseGuards(SampleResetGuard)

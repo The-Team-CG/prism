@@ -4,7 +4,7 @@ title: "P.R.I.S.M portal accounts"
 description: "Local demo accounts, access paths, and role-boundary notes for Prism portal verification."
 tags: [runbook, accounts, demo, roles]
 status: canonical
-updated: "2026-09-02"
+updated: "2026-09-30"
 authority: operational
 owner: "D (Anthony)"
 audience: [developers, QA, agents]
@@ -32,7 +32,7 @@ sources:
 
 Sample / defense accounts for every role portal. These are **local demo credentials only** — not production users.
 
-Accounts exist after sample reset recreates demo users. Password values are stored hashed in `OpsUser`; the plain passwords below are for local sign-in.
+Accounts exist after the explicit local fixture reset recreates demo users. Password values are stored hashed in `OpsUser`; the plain passwords below are for local sign-in.
 
 ## Portals
 
@@ -83,17 +83,24 @@ Guest name: any display name (e.g. Sofia Lim)
 | `evt_sample_ayala` | Ayala Tech Summit 2026 | Marco Santos (`coord_asg_ayala_marco`, Floor Director) |
 | `evt_sample_unassigned` | Coordinator Scope Check 2026 | none — use for unassigned-event 403s |
 
-A sample reset or API boot with an empty user table creates both. Existing databases gain the second event on the next `ensureSeeded()` without a full reset.
+A sample fixture reset creates both. API startup does not create or update sample data.
 
 ## How to load / refresh accounts
 
-Start does **not** seed data.
+API startup does **not** seed data. Reset is available only against a disposable local database and is no longer exposed in the event command UI.
 
-1. Ensure `apps/api/.env` has database URLs (Docker uses `.env.docker`).
-2. Fast local: `start-prism.cmd` — Docker: `start-prism-docker.cmd`
-3. To recreate sample users/events, use **Reset sample data** in the event command app.
+1. Create a local PostgreSQL database named `prism_sample_disposable` and apply the Prisma migrations to it.
+2. Ensure the first nonempty runtime URL in this order points to that local database: `SUPABASE_DB_URL`, `DATABASE_URL`, `PRISMA_DATABASE_URL`, then `DIRECT_URL`. Clear or replace any earlier remote URL. Set `DIRECT_URL` to the same local database for migrations, then apply them with `npm --workspace prism-api run db:setup`.
+3. Set a local-only `PRISM_DEV_RESET_KEY` and `PRISM_API_URL=http://localhost:4000` in `apps/api/.env`; the key must match the API's runtime environment. Start the local Node API with `start-prism.cmd`. A Docker API that connects to the database through a container service name is refused by this loopback-only guard.
+4. Run the explicit reset command from the repository root:
 
-After a sample reset you should be able to sign in with every account above.
+   ```bash
+   npm --workspace prism-api run sample:fixtures:reset -- --confirm-disposable-db prism_sample_disposable
+   ```
+
+   The command refuses remote API URLs, requires the exact database confirmation and reset key, and the API independently checks its actual runtime database host and name. It deletes and recreates sample operational data, so use only the disposable database.
+
+After the command completes, you should be able to sign in with every account above. Running the API alone does not create these accounts.
 
 ## Portal boundaries
 

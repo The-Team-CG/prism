@@ -19,14 +19,12 @@ import {
   MoreHorizontal,
   Pencil,
   ReceiptText,
-  RotateCcw,
   Search,
   Settings,
   Share2,
   ShieldCheck,
   Upload,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Badge } from "@/app/components/ui/badge";
@@ -42,13 +40,11 @@ export function EventQueueCard({
   events,
   selectedEventId,
   onSelectEvent,
-  onReset,
   onNavigateEvent,
 }: {
   events: PrismEvent[];
   selectedEventId?: string;
   onSelectEvent: (id: string) => void;
-  onReset: () => void;
   onNavigateEvent: (id: string) => void;
 }) {
   function statusAccent(status: string) {
@@ -68,14 +64,6 @@ export function EventQueueCard({
               {events.length} confirmed workspace{events.length === 1 ? "" : "s"}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onReset}
-            title="Reset sample data"
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-(--prism-signal)/30 hover:text-foreground"
-          >
-            <RotateCcw className="size-3" /> Reset sample
-          </button>
         </div>
       </CardHeader>
       {events.length === 0 ? (

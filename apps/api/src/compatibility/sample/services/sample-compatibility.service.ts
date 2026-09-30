@@ -2,9 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
-  OnModuleInit,
 } from '@nestjs/common';
 import type {
   OpsAiApprovalRecord,
@@ -26,7 +24,7 @@ import type {
   OpsSupplierQuoteRequest,
   OpsUser,
 } from '@prisma/client';
-import { describeDatabaseError, PrismaService, toPrismaJson } from '@prism/kernel/database';
+import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import {
   CommercialWorkflowService,
   mapQuoteRequestTokenDetail,
@@ -579,9 +577,7 @@ function addMinutes(value: Date, minutes: number) {
 }
 
 @Injectable()
-export class SampleCompatibilityService implements OnModuleInit {
-  private readonly logger = new Logger(SampleCompatibilityService.name);
-
+export class SampleCompatibilityService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
@@ -641,17 +637,6 @@ export class SampleCompatibilityService implements OnModuleInit {
 
   private async recordForbiddenAccess(actor: ResolvedSampleActor, resource: string, eventId?: string) {
     return this.eventAccessPolicyService.recordForbiddenAccess(actor, resource, eventId);
-  }
-
-  async onModuleInit() {
-    if (process.env.NODE_ENV !== 'production') {
-      void this.ensureSeeded().catch((error: unknown) => {
-        const message = describeDatabaseError(error);
-        this.logger.warn(
-          `Startup sample seed skipped; API will keep running, but data endpoints need the configured database. Reason: ${message}`,
-        );
-      });
-    }
   }
 
   private inquiryWorkflowContext() {
@@ -744,7 +729,10 @@ export class SampleCompatibilityService implements OnModuleInit {
   }
 
   async resetSample() {
-    return this.sampleStateService.resetSample(() => this.seedSample(), () => this.state());
+    return this.sampleStateService.resetSample(async () => {
+      await this.seedSample();
+      await this.ensureSampleSupportingFixtures();
+    }, () => this.state());
   }
 
   private async login(email: string, password: string) {
@@ -1750,11 +1738,7 @@ export class SampleCompatibilityService implements OnModuleInit {
     return this.mapEventInsight(insight);
   }
 
-  private async ensureSeeded() {
-    const count = await this.prisma.opsUser.count();
-    if (count === 0) {
-      await this.seedSample();
-    }
+  private async ensureSampleSupportingFixtures() {
     await this.ensureSupplierDirectorySeeded();
     await this.ensureComplianceRulesSeeded();
     await this.ensureSupplierQuoteSampleSeeded();
@@ -2661,9 +2645,6 @@ export class SampleCompatibilityService implements OnModuleInit {
     // second chain root and failed every later authenticated append closed.
     await this.auditService.audit('evt_sample_ayala', 'PMCM Admin', 'Created sample event workspace');
 
-    await this.ensureCoordinatorPoolSeeded();
-    await this.ensureUnassignedScopingEventSeeded();
-    await this.ensureAyalaCoordinatorAssignmentSeeded();
   }
 
   private async requireEvent(eventId: string) {

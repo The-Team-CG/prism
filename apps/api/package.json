@@ -15,6 +15,8 @@
         "prisma:validate": "prisma validate",
         "validate": "npm run prisma:validate && npm run typecheck && npm run build",
         "smoke": "node scripts/smoke-api.mjs",
+        "sample:fixtures:reset": "node --env-file=.env scripts/sample-fixtures-reset.mjs",
+        "test:fixtures:reset": "node --test scripts/sample-fixtures-reset.test.mjs",
         "db:doctor": "node --env-file=.env scripts/db-doctor.mjs",
         "db:doctor:runtime": "node --env-file=.env scripts/db-doctor.mjs --mode=runtime",
         "db:status": "npm run db:doctor && prisma migrate status",
