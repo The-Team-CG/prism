@@ -79,6 +79,7 @@ export {
   createFloorPlanPreferenceSchema,
   createFloorPlanRevisionCommentSchema,
   eventDecisionSchema,
+  setClientEventDayViewSchema,
   PRISM_PMCM_COMMAND_INBOX_MAX_PAGE,
   pmcmCommandInboxQuerySchema,
   type CreatePrismInquiryInput,
@@ -152,6 +153,7 @@ export {
   type CreateFloorPlanPreferenceInput,
   type CreateFloorPlanRevisionCommentInput,
   type EventDecisionInput,
+  type SetClientEventDayViewInput,
   type PrismPmcmCommandInboxQueryInput,
 } from "./event-ops-inputs.js";
 

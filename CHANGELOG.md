@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- EP-10-S02 Task 1: added the per-event client event-day visibility setting, default-off persistence, PMCM Admin-only update, audit evidence, and PMCM/client event projection.
+- Added a follow-up implementation plan for EP-10-S02 under docs/ethan, scoped to the workbook acceptance criteria and the current staging-based feature state.
 - EP-10-S01 client action center: removed the workspace-derived fallback; cards show due date or “Date pending”, status, and Open; the visible client home refreshes the existing read model every 30 seconds and on tab return, retaining last-good data on transient errors.
 - Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
