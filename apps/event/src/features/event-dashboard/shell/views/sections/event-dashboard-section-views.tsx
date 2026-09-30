@@ -95,6 +95,7 @@ export function EventDashboardCommandInboxSectionView() {
   const {
     commandInbox,
     refreshCommandInbox,
+    changeCommandInboxPage,
     commandInboxLoadFailed,
   } = useEventDashboardLoadedRouteViewModel();
   return (
@@ -102,6 +103,7 @@ export function EventDashboardCommandInboxSectionView() {
           <EventCommandInbox
             inbox={commandInbox}
             onRefresh={() => refreshCommandInbox().catch(() => undefined)}
+            onPageChange={(page) => changeCommandInboxPage(page).catch(() => undefined)}
             loadFailed={commandInboxLoadFailed}
           />
   );
@@ -532,22 +534,11 @@ export function EventDashboardEventsListSectionView() {
 export function EventDashboardHomeSectionView() {
   const {
     session,
-    state,
-    events,
-    selectedEvent,
-    unreviewedInquiries,
+    commandInbox,
     pendingApprovals,
-    defenseReadiness,
     navigateSection,
-    navigateEvent,
     resetDashboard,
-    acceptInquiry,
-    pendInquiry,
-    declineInquiry,
-    logInquiryOnBehalf,
     busy,
-    openConformeUpload,
-    sendConformeReminder,
     approveApprovalRequest,
     declineApprovalRequest,
   } = useEventDashboardLoadedRouteViewModel();
@@ -557,32 +548,9 @@ export function EventDashboardHomeSectionView() {
             <EventDashboardCommandInboxSectionView />
             <CommandHomePage
               session={session}
-              state={state}
-              events={events}
-              selectedEvent={selectedEvent}
-              unreviewedInquiries={unreviewedInquiries}
-              pendingApprovals={pendingApprovals}
-              defenseReadiness={defenseReadiness}
+              summary={commandInbox?.summary ?? { activeEvents: 0, pendingInquiries: 0, pendingApprovals: 0 }}
               onNavigateSection={navigateSection}
-              onNavigateEvent={navigateEvent}
               onReset={resetDashboard}
-            />
-
-            {/* Inquiry + onboarding below the command grid */}
-            <InquiryIntakeLog
-              inquiries={state.inquiries}
-              onAccept={acceptInquiry}
-              onPend={pendInquiry}
-              onDecline={declineInquiry}
-              onLogOnBehalf={logInquiryOnBehalf}
-              busy={Boolean(busy)}
-            />
-
-            <ClientOnboardingTracker
-              inquiries={state.inquiries}
-              onUploadConforme={openConformeUpload}
-              onSendReminder={sendConformeReminder}
-              busy={Boolean(busy)}
             />
 
             {/* Pending account approvals */}

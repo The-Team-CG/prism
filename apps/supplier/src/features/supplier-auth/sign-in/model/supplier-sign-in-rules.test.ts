@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { PrismAuthenticatedSession } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import {
   approvalRequestPayload,
-  buildSupplierSession,
   isExistingSupplierSession,
   isSupplierRole,
   isSupplierSignInDraftValid,
   mapWrongPortalMessage,
-  PRIVACY_NOTICE_VERSION,
   resolvePostSignInPath,
 } from "./supplier-sign-in-rules";
 
@@ -26,28 +25,6 @@ describe("supplier-sign-in-rules", () => {
   it("maps wrong portal messages", () => {
     expect(mapWrongPortalMessage("client")).toContain("client portal");
     expect(mapWrongPortalMessage("admin")).toContain("event command portal");
-  });
-
-  it("builds session with signedInAt", () => {
-    const session = buildSupplierSession(
-      {
-        id: "s1",
-        name: "Ops Lead",
-        email: "ops@xperto.test",
-        role: "supplier",
-        organization: "Xperto",
-        approvalStatus: "approved",
-        accessToken: "supplier-token",
-        expiresAt: "2026-07-02T00:00:00.000Z",
-      },
-      "2026-07-01T00:00:00.000Z",
-    );
-    expect(session.signedInAt).toBe("2026-07-01T00:00:00.000Z");
-    expect(session.email).toBe("ops@xperto.test");
-    // PA-284: the bearer token must survive into the persisted session, otherwise
-    // supplier reads fall back to unauthenticated calls.
-    expect(session.accessToken).toBe("supplier-token");
-    expect(session.expiresAt).toBe("2026-07-02T00:00:00.000Z");
   });
 
   it("resolves post sign-in path safely", () => {
@@ -77,8 +54,11 @@ describe("supplier-sign-in-rules", () => {
     expect(approvalRequestPayload("ops@xperto.test", true)).toEqual({
       email: "ops@xperto.test",
       privacyConsentAccepted: true,
-      privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       marketingConsentAccepted: false,
     });
+    expect(() => approvalRequestPayload("ops@xperto.test", false)).toThrow(
+      "Privacy consent is required before requesting supplier account approval",
+    );
   });
 });

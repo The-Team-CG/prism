@@ -57,6 +57,10 @@ function hasPrivateCrossContextImport(normalized, source) {
 
 export const boundaryRules = [
   {
+    name: "shared floorplan canvas must not import apps, portals, UI or API clients",
+    filePattern: /^packages\/floorplan-canvas\//,
+    importPattern: /\b(?:from\s*|import\s*\(\s*|require\s*\(\s*)["'](?:@\/|apps\/|@prism\/(?:api-client|client|event|guest|supplier|ui|compatibility)(?:\/|["']))/,
+  },  {
     name: "provider SDK imports must stay in AI gateway infrastructure",
     filePattern: /^(?:apps|packages)\//,
     allowedFilePattern: aiProviderImportExceptionPattern,
@@ -98,9 +102,9 @@ export const boundaryRules = [
     importPattern: /(?:eventOpsClient\.sample\.state\(|prismApi\.state\(|["']\/api\/sample\/state["']|["']\/sample\/state["'])/,
   },
   {
-    name: "role apps must not import the client mock sample dataset",
+    name: "client mock sample data belongs in local demo compatibility",
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
-    allowedFilePattern: /^apps\/client\/src\/lib\/prism-api\.ts$/,
+    allowedFilePattern: /^apps\/client\/src\/compatibility\/sample\/prism-api\.ts$/,
     importPattern: /from\s+["']@\/mock\/prism-sample-state["']/,
   },
   {

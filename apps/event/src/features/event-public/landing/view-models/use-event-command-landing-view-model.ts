@@ -13,8 +13,8 @@ export function useEventCommandLandingViewModel({
   onSignedIn: (session: EventSession) => void;
 }) {
   const router = useRouter();
-  const [email, setEmail] = useState("mys@pmcm.test");
-  const [password, setPassword] = useState("prism-admin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<EventCommandLandingStatus>("idle");
   const [accessOpen, setAccessOpen] = useState(false);

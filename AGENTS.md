@@ -63,6 +63,7 @@ apps/api/          Nest modular monolith + Prisma (port 4000)
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
 packages/types       @prism/types     Zod write schemas + domain types + session keys
 packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsClient, PrismApiError
+packages/floorplan-canvas  @prism/floorplan-canvas  shared role-neutral floorplan editor mechanics
 packages/ui          shells/brand/public blocks only — no workflows / role data rules
 packages/tokens      theme + typography CSS (+ token object)
 docs/                OKF product, architecture, runbook, and reference bundle (see docs/index.md)
@@ -81,6 +82,7 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 | --- | --- | --- | --- |
 | **`@prism/types`** | Zod **write** schemas + `z.infer` types; domain **read** interfaces; session/storage keys; `parseContract` | Any shared contract, FE model, API body, repository typing | App-local copy of the same shape |
 | **`@prism/api-client`** | HTTP transport + `createEventOpsClient` | **`features/**/data/*` only** (and thin `lib/prism-api` adapters) | Views, pages, view-models calling HTTP |
+| **`@prism/floorplan-canvas`** | Shared canvas editor mechanics, panels, and editor-only types | Floorplan editor role wrappers | Portal APIs, session/auth, workflow ownership, persistence, role decisions |
 | **`@prism/ui`** | Shells, brand, public marketing blocks, shared empty/status chrome | Cross-portal chrome | Role workflows, business rules |
 | **`@prism/tokens`** | `theme.css`, `typography.css`, `prismTokens` | Portal global CSS / design tokens | Per-app one-off color systems for shared brand |
 
@@ -91,13 +93,15 @@ Domain type / Zod schema / session key  →  @prism/types
 Parse untrusted form/API body           →  parseContract / schema.safeParse (@prism/types)
 HTTP                                    →  @prism/api-client in data/
 Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/dashboard-shell)
+Floorplan editor mechanics              →  @prism/floorplan-canvas from role wrappers; role apps own storage and read-only policy
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
-Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample` (API only); portal adapters remain thin
+Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample` (API); `apps/client/src/compatibility/sample` (browser local demo only)
 ```
 
 **Portal `lib/prism-api` policy**
 
-- Keep **thin**: wire `createEventOpsClient` + role-specific helpers only.
+- Keep **transport-only**: construct `createEventOpsClient`, read the role session token, and expose only URL/request helpers. Do not add domain operations to a portal-wide `prismApi` object.
+- Put HTTP calls in `features/**/data`; group dashboard commands by their owning context and compose them at the screen boundary. Derive actor identity from the verified bearer token, not caller-supplied names or role query parameters.
 - **Do not** re-export `Prism*` domain types for new code — import from `@prism/types`.
 - Guest/supplier should stay near zero custom types; client/event may still hold sample/local helpers until fully retired.
 - New repositories prefer `@prism/api-client` + `@prism/types` directly (see guest).

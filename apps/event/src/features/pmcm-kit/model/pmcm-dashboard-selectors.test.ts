@@ -28,10 +28,11 @@ describe("event-workspace-selectors", () => {
     expect(selectActiveEvents({ events }).map((entry) => entry.id)).toEqual(["e1"]);
   });
 
-  it("selects explicit event or falls back to first", () => {
+  it("only resolves a selected event when an id is present and authorized in the loaded list", () => {
     const events = [event({ id: "e1" }), event({ id: "e2" })];
     expect(selectSelectedEvent(events, "e2")?.id).toBe("e2");
-    expect(selectSelectedEvent(events, "missing")?.id).toBe("e1");
+    expect(selectSelectedEvent(events, "missing")).toBeUndefined();
+    expect(selectSelectedEvent(events)).toBeUndefined();
   });
 
   it("filters pending approvals", () => {

@@ -1,29 +1,18 @@
-import type { PrismAuthenticatedSession } from "@prism/types";
-import type { SupplierAuthUser, SupplierSampleAccount, SupplierSignInDraft } from "./supplier-sign-in-types";
+import {
+  PRISM_PRIVACY_NOTICE_VERSION,
+  parseContract,
+  requestApprovalSchema,
+  type PrismAuthenticatedSession,
+  type RequestApprovalInput,
+} from "@prism/types";
+import type { SupplierSignInDraft } from "./supplier-sign-in-types";
 
 export const SUPPLIER_AUTH_API_OFFLINE_MESSAGE =
   "P.R.I.S.M API is offline. Start `prism-api` on port 4000, then try again.";
 
-export const PRIVACY_NOTICE_VERSION = "2026-05-01";
-
-export const SAMPLE_SUPPLIER_ACCOUNTS: SupplierSampleAccount[] = [
-  {
-    email: "ops@xperto.test",
-    password: "prism-supplier",
-    label: "Xperto Events",
-    tier: "Tier 1 supplier",
-  },
-  {
-    email: "flowers@bloom.test",
-    password: "prism-supplier",
-    label: "Bloom Florals",
-    tier: "Tier 2 supplier",
-  },
-];
-
 export const DEFAULT_SIGN_IN_DRAFT: SupplierSignInDraft = {
-  email: "ops@xperto.test",
-  password: "prism-supplier",
+  email: "",
+  password: "",
 };
 
 export function isSupplierSignInDraftValid(draft: SupplierSignInDraft): boolean {
@@ -39,16 +28,6 @@ export function mapWrongPortalMessage(role: string): string {
     return "Client accounts belong in the client portal.";
   }
   return "PMCM accounts belong in the event command portal.";
-}
-
-export function buildSupplierSession(
-  user: SupplierAuthUser,
-  signedInAt: string = new Date().toISOString(),
-): PrismAuthenticatedSession {
-  return {
-    ...user,
-    signedInAt,
-  };
 }
 
 export function resolvePostSignInPath(nextParam: string | null | undefined): string {
@@ -76,11 +55,17 @@ export function mapApprovalRequestError(
   return fallback;
 }
 
-export function approvalRequestPayload(email: string, privacyConsentAccepted: boolean) {
-  return {
+export function approvalRequestPayload(
+  email: string,
+  privacyConsentAccepted: boolean,
+): RequestApprovalInput {
+  if (!privacyConsentAccepted) {
+    throw new Error("Privacy consent is required before requesting supplier account approval");
+  }
+  return parseContract(requestApprovalSchema, {
     email,
-    privacyConsentAccepted,
-    privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+    privacyConsentAccepted: true,
+    privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     marketingConsentAccepted: false,
-  };
+  }, "Supplier approval request");
 }
