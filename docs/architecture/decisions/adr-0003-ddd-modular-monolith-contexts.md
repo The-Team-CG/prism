@@ -64,7 +64,7 @@ apps/api/src/
 │   ├── platform-ops/
 │   └── read-models/
 ├── kernel/
-└── compatibility/sample/
+└── fixtures/                 # local seed-only module, not imported by AppModule
 ```
 
 The business contexts own policy and writes:

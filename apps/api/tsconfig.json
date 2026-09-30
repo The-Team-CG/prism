@@ -61,12 +61,6 @@
       "@prism/kernel/shared-kernel/*": [
         "src/kernel/shared-kernel/*"
       ],
-      "@prism/compatibility/sample": [
-        "src/compatibility/sample/index"
-      ],
-      "@prism/compatibility/sample/*": [
-        "src/compatibility/sample/*"
-      ],
       "@prism/contexts/floorplan": [
         "src/modules/floorplan/index"
       ],

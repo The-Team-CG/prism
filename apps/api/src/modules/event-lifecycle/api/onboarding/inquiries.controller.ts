@@ -12,7 +12,7 @@ import {
   type UpdateInquiryStatusInput,
   type UploadConformeInput,
 } from '@prism/types';
-import { SampleActorDto } from './inquiry.dto';
+import { ActorContextDto } from './inquiry.dto';
 import { mapDocument, mapInquiry, mapOnboardingEvent } from '../../application/onboarding/inquiry.mappers';
 import { InquiriesService } from '../../application/onboarding/inquiries.service';
 import { InquiryWorkflowService } from '../../application/onboarding/inquiry-workflow.service';
@@ -28,7 +28,7 @@ export class OpsInquiriesController {
   private inquiryWorkflowContext() {
     return {
       inquiriesService: this.inquiriesService,
-      resolveActor: (input?: SampleActorDto, verifiedActor?: PrismVerifiedEventActor) =>
+      resolveActor: (input?: ActorContextDto, verifiedActor?: PrismVerifiedEventActor) =>
         this.eventAccessPolicyService.resolveActor(input, verifiedActor),
       requireActorRole: (actor: ReturnType<EventAccessPolicyService['resolveActor']>, roles: OpsUserRole[], resource: string) =>
         this.eventAccessPolicyService.requireActorRole(actor, roles, resource),

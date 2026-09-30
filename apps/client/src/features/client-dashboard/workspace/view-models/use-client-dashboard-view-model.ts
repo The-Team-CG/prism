@@ -47,7 +47,7 @@ async function loadClientState(session: Pick<PrismUser, "email" | "name">, force
     if (existing) return existing;
   }
 
-  const request = loadClientWorkspace(session)
+  const request = loadClientWorkspace()
     .then((next) => {
       clientStateCache.set(key, { state: next, loadedAt: Date.now() });
       return next;
@@ -69,7 +69,7 @@ async function loadActionCenterCached(session: Pick<PrismUser, "email" | "name">
     if (existing) return existing;
   }
 
-  const request = loadClientActionCenter(session)
+  const request = loadClientActionCenter()
     .then((next) => {
       clientActionCenterCache.set(key, { actionCenter: next, loadedAt: Date.now() });
       return next;

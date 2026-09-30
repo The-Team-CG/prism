@@ -168,7 +168,6 @@ export function ClientDashboardWorkspaceView({
       selectedEvent.id,
       officialDraft.id,
       officialDraft.status === "approved" ? "approved" : "submitted",
-      session ?? undefined,
     )
       .then((project) => {
         floorPlanPreviewCache.set(cacheKey, { project, loadedAt: Date.now() });
@@ -207,9 +206,8 @@ export function ClientDashboardWorkspaceView({
             selectedEvent.id,
             draft.id,
             draft.status === "approved" ? "approved" : "submitted",
-            session ?? undefined,
           )
-        : await loadFloorPlanProject(draft.floorPlanId, session ?? undefined);
+        : await loadFloorPlanProject(draft.floorPlanId);
       setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to open floorplan");
@@ -233,7 +231,6 @@ export function ClientDashboardWorkspaceView({
           gridSize: 1,
           objects,
         }),
-        session ?? undefined,
       );
       await refresh();
       await openFloorplanEditor(draft);
@@ -254,7 +251,6 @@ export function ClientDashboardWorkspaceView({
       await submitFloorPlanPreference(
         selectedEvent.id,
         buildFloorPlanPreferencePayload(form, { venue: selectedEvent.eventName }),
-        session ?? undefined,
       );
       await refresh();
       setNotice("Floor plan draft saved. PMCM can review it, and approval will lock the plan.");
@@ -281,7 +277,6 @@ export function ClientDashboardWorkspaceView({
         selectedEvent.id,
         officialDraft.id,
         buildFloorPlanRevisionPayload(note),
-        session ?? undefined,
       );
       setRevisionComment("");
       await refresh();
@@ -381,7 +376,6 @@ export function ClientDashboardWorkspaceView({
         draft={screen.draft}
         project={screen.project}
         readOnly={screen.readOnly}
-        session={session}
         onBack={() => setScreen({ name: "dashboard" })}
         onSubmitted={async () => {
           await refresh();

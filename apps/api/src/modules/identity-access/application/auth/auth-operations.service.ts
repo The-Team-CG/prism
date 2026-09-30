@@ -37,7 +37,7 @@ export class AuthOperationsService {
 
     if (!user) {
       await this.rejectUnknownLogin(normalizedEmail);
-      throw new UnauthorizedException('Invalid mock credentials');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     await this.assertLoginAllowed(user, normalizedEmail, password);
@@ -74,7 +74,7 @@ export class AuthOperationsService {
 
     if (!AuthSecurityService.verifyPassword(user.password, password)) {
       await this.authAudit.handleFailedLogin(user);
-      throw new UnauthorizedException('Invalid mock credentials');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     if (user.approvalStatus !== 'approved') {
