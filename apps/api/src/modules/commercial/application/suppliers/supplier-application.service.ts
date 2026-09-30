@@ -198,6 +198,7 @@ export class SupplierApplicationService {
     if (!updated.categoryId) throw new BadRequestException('A supplier category is required before conversion');
     const supplierId = `sup_application_${applicationId}`;
     const normalizedEmail = updated.email.trim().toLowerCase();
+    // QUERY_AUDIT_RAW_SQL: serialize conversions by normalized email to prevent duplicate suppliers.
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${normalizedEmail}))`;
     const conflictingSupplier = await tx.opsSupplier.findFirst({ where: { email: { equals: normalizedEmail, mode: 'insensitive' } } });
     if (conflictingSupplier && conflictingSupplier.id !== supplierId) throw new BadRequestException('A supplier with this email already exists');

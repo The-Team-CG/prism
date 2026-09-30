@@ -270,7 +270,9 @@ export class GuestWorkflowService {
       // Keep the transaction bounded both by input size and by concurrent database work.
       for (let offset = 0; offset < input.rows.length; offset += 100) {
         const batch = input.rows.slice(offset, offset + 100);
-        rows.push(...await Promise.all(batch.map((row) => tx.opsGuestRosterEntry.upsert({
+        rows.push(...await Promise.all(batch.map(
+          // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each chunk is sliced to at most 100 input rows.
+          (row) => tx.opsGuestRosterEntry.upsert({
             where: { eventId_sourceKey: { eventId, sourceKey: row.sourceKey } },
             create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', verificationStatus: 'pending', source: input.source, importBatchId: batchId, withdrawnAt: null },
             update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
@@ -414,12 +416,18 @@ export class GuestWorkflowService {
 
   private async resolveGuestEventByAccessCode(accessCode: string, feedbackPath = false) {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: access codes are derived from event name and ID, so lookup scans only those two columns.
     const events = await this.prisma.opsEvent.findMany({
       where: feedbackPath ? {} : { archived: false },
-      include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS } },
+      select: { id: true, eventName: true },
       orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
     });
-    const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
+    const matched = events.find((item) => this.guestAccessCode(item) === normalizedCode);
+    if (!matched) throw new NotFoundException('Guest event code was not found');
+    const event = await this.prisma.opsEvent.findUnique({
+      where: { id: matched.id },
+      include: { floorPlanDrafts: { orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS } },
+    });
     if (!event) throw new NotFoundException('Guest event code was not found');
     return event;
   }

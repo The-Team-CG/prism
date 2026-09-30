@@ -33,6 +33,7 @@
         "db:audit:naming": "node --env-file=.env scripts/db-naming-audit.mjs",
         "db:audit:indexes": "node --env-file=.env scripts/db-index-audit.mjs",
         "db:audit:queries": "node scripts/db-query-audit.mjs",
+        "test:db:query-audit": "node --test scripts/db-query-audit.test.mjs",
         "db:perf:report": "node --env-file=.env scripts/db-performance-report.mjs",
         "db:reset": "node scripts/require-ack.mjs db:reset PRISM_API_DB_RESET_I_UNDERSTAND && npm run db:doctor && prisma migrate reset --force --skip-generate",
     "db:reset:2fa": "node scripts/require-ack.mjs db:reset:2fa PRISM_API_2FA_RESET_I_UNDERSTAND && node --env-file=.env scripts/reset-local-fixture-2fa.mjs",
