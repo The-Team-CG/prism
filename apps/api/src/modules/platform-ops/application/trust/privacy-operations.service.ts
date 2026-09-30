@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, OpsInquiry, Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import {
@@ -76,30 +76,40 @@ export class PrivacyOperationsService {
   ) {}
 
   async getInventory(input: PrivacyInventoryInput = {}) {
-    const [events, inquiries, approvalRequests] = await Promise.all([
-      this.prisma.opsEvent.findMany({
-        where: input.eventId ? { id: input.eventId } : {},
-        orderBy: { eventDate: 'asc' },
-      }),
-      this.prisma.opsInquiry.findMany(),
-      this.prisma.opsApprovalRequest.findMany(),
-    ]);
-    const eventIds = events.map((event: OpsEvent) => event.id);
-    const [guestCheckIns, guestFeedback] = await Promise.all([
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: the system-wide inventory must include every event when no event filter is supplied.
+    const events = await this.prisma.opsEvent.findMany({
+      where: input.eventId ? { id: input.eventId } : {},
+      select: { id: true, eventName: true, clientName: true, inquiryId: true, eventDate: true },
+      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+    });
+    const eventIds = events.map((event) => event.id);
+    const inquiryIds = Array.from(new Set(events.map((event) => event.inquiryId)));
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: this global surface reports consent totals across all approval requests, using consent fields only.
+    const approvalRequestsPromise = this.prisma.opsApprovalRequest.findMany({
+      select: { privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
+    });
+    const [inquiries, guestCheckIns, guestFeedback, approvalRequests] = await Promise.all([
+      inquiryIds.length
+        ? this.prisma.opsInquiry.findMany({
+            where: { id: { in: inquiryIds } },
+            select: { id: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
+          })
+        : Promise.resolve([]),
       this.prisma.opsGuestCheckIn.findMany({
-        where: eventIds.length ? { eventId: { in: eventIds } } : { eventId: { in: [] } },
-        orderBy: { checkedInAt: 'desc' },
+        where: { eventId: { in: eventIds } },
+        select: { eventId: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
       }),
       this.prisma.opsGuestFeedback.findMany({
-        where: eventIds.length ? { eventId: { in: eventIds } } : { eventId: { in: [] } },
-        orderBy: { submittedAt: 'desc' },
+        where: { eventId: { in: eventIds } },
+        select: { eventId: true, privacyConsentAccepted: true, privacyNoticeVersion: true, marketingConsentAccepted: true },
       }),
+      approvalRequestsPromise,
     ]);
 
-    const eventsInventory = events.map((event: OpsEvent) => {
-      const inquiry = inquiries.find((item: OpsInquiry) => item.id === event.inquiryId);
-      const checkIns = guestCheckIns.filter((item: OpsGuestCheckIn) => item.eventId === event.id);
-      const feedback = guestFeedback.filter((item: OpsGuestFeedback) => item.eventId === event.id);
+    const eventsInventory = events.map((event) => {
+      const inquiry = inquiries.find((item) => item.id === event.inquiryId);
+      const checkIns = guestCheckIns.filter((item) => item.eventId === event.id);
+      const feedback = guestFeedback.filter((item) => item.eventId === event.id);
       const surfaces = [
         this.privacySurface('inquiry', inquiry ? 1 : 0, ['client_contact', 'event_details', 'consent'], [
           inquiry,
@@ -180,6 +190,7 @@ export class PrivacyOperationsService {
   }
 
   async listRequests(input: ListPrivacyRequestsInput = {}) {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: PMCM currently needs the complete request queue; pagination requires an API and UI contract change.
     const requests = await this.prisma.opsPrivacyRequest.findMany({
       where: {
         ...(input.eventId ? { eventId: input.eventId } : {}),

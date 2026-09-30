@@ -109,12 +109,19 @@ afterEach(() => {
 
 describe('GuestWorkflowService', () => {
   it('resolves a guest event and returns attendance counts by access code', async () => {
-    const { service } = createGuestWorkflowFixture();
+    const { service, prisma } = createGuestWorkflowFixture();
 
     await expect(service.getEventByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({
       id: 'evt_sample',
       eventName: 'Ayala Tech Summit',
     });
+    expect(prisma.opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      select: { id: true, eventName: true },
+    }));
+    expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'evt_sample' },
+      include: { floorPlanDrafts: expect.objectContaining({ take: 100 }) },
+    }));
     await expect(service.countCheckInsForEvent('evt_sample')).resolves.toBe(1);
   });
 

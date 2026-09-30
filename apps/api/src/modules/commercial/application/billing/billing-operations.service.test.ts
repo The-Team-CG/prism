@@ -67,7 +67,7 @@ function createPaymentService() {
   return { service, prisma, audit, history, milestone };
 }
 
-function createBillingStatementService(priorNumbers: string[]) {
+function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number) {
   const event = {
     id: 'evt_billing_sequence',
     inquiryId: 'inq_billing_sequence',
@@ -89,18 +89,23 @@ function createBillingStatementService(priorNumbers: string[]) {
   };
   const statements = priorNumbers.map((number, index) => ({ id: `stmt_${index}`, number }));
   const sequenceRows: Array<{ next_number: number }> = [];
-  const queryRaw = vi.fn(async () => {
-    if (sequenceRows.length === 0) {
+  const queryRaw = vi.fn(async (parts: TemplateStringsArray) => {
+    const query = parts.join(' ');
+    if (query.includes('pg_advisory_xact_lock')) return [];
+    if (query.includes('MAX(substring')) {
       const maxSequence = statements.reduce((max, statement) => Math.max(max, Number(statement.number.slice(-4))), 0);
       return [{ next_number: maxSequence + 1 }];
     }
     return sequenceRows;
   });
-  const executeRaw = vi.fn(async () => {
-    if (sequenceRows.length === 0) {
+  const executeRaw = vi.fn(async (parts: TemplateStringsArray) => {
+    const query = parts.join(' ');
+    if (query.includes('INSERT INTO')) {
       const maxSequence = statements.reduce((max, statement) => Math.max(max, Number(statement.number.slice(-4))), 0);
-      sequenceRows.push({ next_number: maxSequence + 1 });
-    } else {
+      sequenceRows.push({ next_number: conflictingSequenceNumber ?? maxSequence + 1 });
+      return conflictingSequenceNumber === undefined ? 1 : 0;
+    }
+    if (query.includes('UPDATE')) {
       sequenceRows[0].next_number += 1;
     }
     return 1;
@@ -219,7 +224,41 @@ describe('BillingOperationsService', () => {
 
     expect(result.number).toBe(expectedNumber);
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(4);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses the stored sequence without rescanning prior statements on subsequent issues', async () => {
+    const { service, prisma } = createBillingStatementService(['BS-2026-0001']);
+
+    const first = await service.generateBillingStatement(
+      'evt_billing_sequence',
+      'bsrc_billing_sequence',
+      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+    );
+    const second = await service.generateBillingStatement(
+      'evt_billing_sequence',
+      'bsrc_billing_sequence',
+      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+    );
+
+    expect(first.number).toBe('BS-2026-0002');
+    expect(second.number).toBe('BS-2026-0003');
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(6);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses a sequence row initialized concurrently by an older server', async () => {
+    const { service, prisma } = createBillingStatementService(['BS-2026-0001'], 3);
+
+    const result = await service.generateBillingStatement(
+      'evt_billing_sequence',
+      'bsrc_billing_sequence',
+      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+    );
+
+    expect(result.number).toBe('BS-2026-0003');
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(4);
     expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
   });
 
