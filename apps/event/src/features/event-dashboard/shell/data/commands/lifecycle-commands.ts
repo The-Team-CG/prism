@@ -1,7 +1,12 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, RecordActualEventEndInput } from "@prism/types";
+import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, RecordActualEventEndInput, SetClientEventDayViewInput } from "@prism/types";
 
 export const lifecycleCommands = {
+setClientEventDayView: (eventId: string, input: SetClientEventDayViewInput) =>
+    request<PrismEvent>("/api/events/" + eventId + "/client-event-day-view", {
+      method: "PATCH",
+      body: input,
+    }),
 acceptInquiry: (inquiryId: string) =>
     request<PrismInquiry>(`/api/inquiries/${inquiryId}/status`, {
       method: "PATCH",
