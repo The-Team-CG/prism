@@ -34,6 +34,7 @@ export class OpsEventFloorplansController {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireCanMutateOfficialFloorplan(actor, eventId, 'official floorplan draft');
     return this.floorPlanWorkflowService.createFloorPlanDraft(eventId, dto, {
+      actorId: verifiedActor.actorId,
       name: actor.name,
       role: actor.role,
     });
@@ -60,6 +61,7 @@ export class OpsEventFloorplansController {
       throw new ForbiddenException('client cannot access this event floorplan preference');
     }
     return this.floorPlanWorkflowService.createFloorPlanPreference(eventId, dto, {
+      actorId: verifiedActor.actorId,
       name: actor.name,
       role: actor.role,
     });

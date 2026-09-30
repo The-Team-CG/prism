@@ -37,7 +37,7 @@ export class TemplatesController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body(zodBody(createTemplateSchema)) dto: CreateTemplateInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     await this.requireAuthoring(verifiedActor);
-    return this.templatesService.createTemplate(dto);
+    return this.templatesService.createTemplate(dto, verifiedActor.actorId);
   }
 
   @Patch(':templateId')
