@@ -18,7 +18,7 @@ import { EventScheduleService } from './application/event-schedule.service';
 
 /**
  * Owned tables: OpsCoordinatorAssignment (live-ops-triggered updates; day-to-day staffing assignment owned by staffing-ops), OpsCoordinatorReliabilityNote, OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue.
- * Read-only: OpsCoordinator (sample-seeded only; no owning module), OpsEvent (via inquiry-onboarding).
+ * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent (via inquiry-onboarding).
  */
 @Module({
   imports: [

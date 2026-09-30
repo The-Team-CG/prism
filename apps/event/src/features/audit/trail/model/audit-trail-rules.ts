@@ -56,7 +56,7 @@ export function summarizeAuditTrail({
     privacyRecordCount: privacySurfaces.reduce((total, surface) => total + surface.recordCount, 0),
     missingConsentCount: privacySurfaces.reduce((total, surface) => total + surface.missingConsentCount, 0),
     privacySurfaceCount: privacySurfaces.length,
-    retentionNote: privacyInventory?.retentionNotes?.[0] ?? "Sample retention notes unavailable",
+    retentionNote: privacyInventory?.retentionNotes?.[0] ?? "Retention notes unavailable",
   };
 }
 

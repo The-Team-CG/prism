@@ -12,8 +12,8 @@ single agent entrypoint.
 | **Shared contracts: Zod schema + `z.infer` in `@prism/types` only** | Parallel hand types; `as any`; app-local shared schemas; type-only DTOs without schema |
 | Own API work in `apps/api/src/modules/<bounded-context>/`; keep cross-cutting concerns in `src/kernel/` | God `event-ops` hub; private cross-context service imports |
 | Role app for the actor; thin `app/` routes; logic in `features/` | Rebuild `apps/client` as all-role PMCM shell; cross-import apps |
-| Scoped APIs + package contracts for new surfaces | Primary path via `/api/sample/state` or local sample state |
-| Session/sample keys only in `@prism/types` | New app-local `prism:*` storage keys |
+| Scoped APIs + package contracts for new surfaces | Whole-system demo state or browser-local fixture fallback |
+| Session/storage keys only in `@prism/types` | New app-local `prism:*` storage keys |
 | Import packages by role (table below); thin `lib/prism-api` | Re-export domain types from app facades; fat god facades for new code |
 | Name owner goal A–D on redesign/capability work | Treat owners as loose assignees |
 | Typecheck + focused behavior tests in touched workspaces; `check:boundaries` when imports move | Commit secrets / `.env*` with credentials; casual `db:reset` |
@@ -37,7 +37,7 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 - Portal access / event creation: **accepted inquiry + signed conforme**.
 - Public: landing + inquiry only. Dashboards: signed-in.
 - **Floorplan:** PMCM owns official plans in `apps/event`; clients submit layout preferences; clients see submitted/approved official layouts read-only. Keep canvas internals when moving ownership.
-- Auth now: API sample auth/RBAC (no external IdP unless a plan says so).
+- Auth now: built-in API auth/RBAC (no external IdP unless a plan says so).
 
 | App | Port | Actors | Owns | Must not |
 | --- | ---: | --- | --- | --- |
@@ -45,7 +45,7 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 | `supplier` | 3002 | suppliers | quotes, readiness, contracts meta, event-day status | other bids, PMCM/client private data |
 | `guest` | 3003 | guests | access code, pass, check-in, feedback | planning / other portals / PMCM |
 | `event` | 3004 | PMCM, coordinators | command inbox, workspace, floorplans, suppliers, billing, compliance, live ops, closure, trust | public marketing as home; supplier/guest self-service ownership |
-| `api` | 4000 | all via HTTP | workflows, RBAC, Prisma, audit, notify, AI gov, sample compat | UI, app session storage ownership |
+| `api` | 4000 | all via HTTP | workflows, RBAC, Prisma, audit, notify, AI gov | UI, app session storage ownership, local fixture seeding |
 
 **Visual:** no nav underlines; no eyebrow/outline/uppercase badge pills; no sidebar avatar if top-bar account menu exists.
 
@@ -58,7 +58,7 @@ apps/api/          Nest modular monolith + Prisma (port 4000)
   apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter)
     modules/       bounded contexts (api, application, contracts, domain, infrastructure as needed)
     kernel/        database, shared helpers, session/auth primitives, access control, health
-    compatibility/ sample/demo compatibility routes only
+    fixtures/      explicit local fixture seed module; CLI only, not imported by AppModule
   prisma/          schema + migrations
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
 packages/types       @prism/types     Zod write schemas + domain types + session keys
@@ -70,7 +70,7 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 ```
 
 **Bounded-context map (writes):** `event-lifecycle` (`onboarding`, `compliance`, `closure`, `files`), `commercial` (`quotes`, `suppliers`, `billing`), `operations` (`staffing`, `guest`), `floorplan` (`live`, `authoring`), `live-ops`, `identity-access`, and `platform-ops` (`trust`, `notifications`, `ai-governance`).
-**Read-only composition:** `read-models`. **Kernel:** `event-core`, `access-control`, `event-session`, `database`, `shared`, `shared-kernel`, and `health`. **Compatibility leaf:** `compatibility/sample` (`/sample/*` only). Full ownership: `docs/architecture/current-architecture.md`.
+**Read-only composition:** `read-models`. **Kernel:** `event-core`, `access-control`, `event-session`, `database`, `shared`, `shared-kernel`, and `health`. **Fixture tooling:** `apps/api/src/fixtures`, invoked only by the guarded local seed command and never registered as an HTTP module. Full ownership: `docs/architecture/current-architecture.md`.
 
 **FE (new screens):** `page → View → ViewModel → use-case → data → @prism/api-client` (or thin portal adapter). No HTTP/rules in `page.tsx`. Prefer single-screen forms/lists over wizards unless requested.
 
@@ -95,7 +95,7 @@ HTTP                                    →  @prism/api-client in data/
 Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/dashboard-shell)
 Floorplan editor mechanics              →  @prism/floorplan-canvas from role wrappers; role apps own storage and read-only policy
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
-Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample` (API); `apps/client/src/compatibility/sample` (browser local demo only)
+Local development fixtures             →  `apps/api/src/fixtures`, invoked only by the guarded seed CLI; never runtime API or browser state
 ```
 
 **Portal `lib/prism-api` policy**
@@ -103,7 +103,7 @@ Sample/mock-only / legacy compat        →  `apps/api/src/compatibility/sample`
 - Keep **transport-only**: construct `createEventOpsClient`, read the role session token, and expose only URL/request helpers. Do not add domain operations to a portal-wide `prismApi` object.
 - Put HTTP calls in `features/**/data`; group dashboard commands by their owning context and compose them at the screen boundary. Derive actor identity from the verified bearer token, not caller-supplied names or role query parameters.
 - **Do not** re-export `Prism*` domain types for new code — import from `@prism/types`.
-- Guest/supplier should stay near zero custom types; client/event may still hold sample/local helpers until fully retired.
+- Guest/supplier should stay near zero custom types; client/event adapters stay thin and API-backed, with no local demo mode or browser fixture fallback.
 - New repositories prefer `@prism/api-client` + `@prism/types` directly (see guest).
 
 **After changing `@prism/types`:** `npm --workspace @prism/types run build` (or `dev:api:watch`). Stale `dist/` breaks API/portal typecheck.
@@ -136,7 +136,7 @@ stop-prism-docker.cmd           rem docker compose down
 # apps/api
 npm run typecheck && npm run build && npm run prisma:validate
 npm run validate                  # prisma:validate + typecheck + build
-npm run test && npm run test:sample-compatibility
+npm run test && npm run test:fixtures:seed
 npm run db:verify:offline && npm run db:audit:queries   # safe offline-ish
 npm run db:doctor | db:status | db:setup | db:migrate | db:generate
 npm run db:audit:schemas|naming|indexes | db:perf:report | db:backup:json  # live DB
@@ -251,5 +251,5 @@ navigation only, and completed plans are not current sources of truth.
 | Zod 400s | shared schema in `@prism/types`; Nest uses `zodBody`; FE uses `parseContract` |
 | Migrate vs pooler | migrations use `DIRECT_URL` |
 | Boundary fail | no cross-app imports; share via `packages/*` or API |
-| Auth oddities | sample actor/role headers + `access-control` event scope |
-| New screen wants sample state | stop → scoped read model / capability route |
+| Auth oddities | test actor/role headers + `access-control` event scope |
+| New screen wants whole-system demo state | stop → scoped read model / capability route |

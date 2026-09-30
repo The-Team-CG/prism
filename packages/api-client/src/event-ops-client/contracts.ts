@@ -4,7 +4,6 @@ export type {
 } from "./contracts/primitives";
 
 import type { EventOpsAuthContract } from "./contracts/auth";
-import type { EventOpsSampleContract } from "./contracts/sample";
 import type { EventOpsInquiryContract } from "./contracts/inquiries";
 import type { EventOpsEventsContract } from "./contracts/events";
 import type { EventOpsWorkspacesContract } from "./contracts/workspaces";
@@ -49,7 +48,6 @@ export type {
 
 export interface EventOpsClient
   extends EventOpsAuthContract,
-    EventOpsSampleContract,
     EventOpsInquiryContract,
     EventOpsEventsContract,
     EventOpsWorkspacesContract,

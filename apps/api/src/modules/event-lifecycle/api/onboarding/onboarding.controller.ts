@@ -1,7 +1,7 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { SampleActorDto } from './inquiry.dto';
+import { ActorContextDto } from './inquiry.dto';
 import { mapDocument, mapInquiry, mapOnboardingEvent } from '../../application/onboarding/inquiry.mappers';
 import { InquiriesService } from '../../application/onboarding/inquiries.service';
 import { InquiryWorkflowService } from '../../application/onboarding/inquiry-workflow.service';
@@ -19,7 +19,7 @@ export class OpsOnboardingController {
   private inquiryWorkflowContext() {
     return {
       inquiriesService: this.inquiriesService,
-      resolveActor: (input?: SampleActorDto) => this.eventAccessPolicyService.resolveActor(input),
+      resolveActor: (input?: ActorContextDto) => this.eventAccessPolicyService.resolveActor(input),
       requireActorRole: (actor: ReturnType<EventAccessPolicyService['resolveActor']>, roles: OpsUserRole[], resource: string) =>
         this.eventAccessPolicyService.requireActorRole(actor, roles, resource),
       allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
