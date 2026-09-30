@@ -65,6 +65,37 @@ export interface PrismPmcmDashboardWorkspace {
   notificationLogs: PrismNotificationLog[];
 }
 
+export type PrismClientTimelineMilestoneKey =
+  | "conforme_signed"
+  | "proposal_accepted"
+  | "floor_plan_approved"
+  | "balance_payment_due"
+  | "event_date";
+
+export type PrismClientTimelineMilestoneStatus =
+  | "completed"
+  | "current"
+  | "pending";
+
+export interface PrismClientTimelineMilestone<
+  Key extends PrismClientTimelineMilestoneKey = PrismClientTimelineMilestoneKey,
+> {
+  key: Key;
+  date: string | null;
+  status: PrismClientTimelineMilestoneStatus;
+}
+
+export interface PrismClientEventTimeline {
+  eventId: string;
+  milestones: [
+    PrismClientTimelineMilestone<"conforme_signed">,
+    PrismClientTimelineMilestone<"proposal_accepted">,
+    PrismClientTimelineMilestone<"floor_plan_approved">,
+    PrismClientTimelineMilestone<"balance_payment_due">,
+    PrismClientTimelineMilestone<"event_date">,
+  ];
+}
+
 export type PrismClientWorkspace = Pick<
   PrismPmcmDashboardWorkspace,
   | "users"
@@ -81,7 +112,9 @@ export type PrismClientWorkspace = Pick<
   | "floorPlanDrafts"
   | "auditLogs"
   | "notificationLogs"
->;
+> & {
+  clientEventTimelines: PrismClientEventTimeline[];
+};
 
 export interface PrismBillingWorkspace {
   events: PrismEvent[];

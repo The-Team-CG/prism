@@ -194,6 +194,41 @@ export class EventReadModelQueries {
     ]);
   }
 
+  // Query budget: one bounded client milestone projection for visible event ids.
+  clientEventTimelineForEvents(eventIds: string[]) {
+    return this.prisma.opsEvent.findMany({
+      where: { id: { in: eventIds } },
+      select: {
+        id: true,
+        eventDate: true,
+        status: true,
+        archived: true,
+        proposalClientStatus: true,
+        proposalReviewedAt: true,
+        inquiry: { select: { conformeSignedAt: true } },
+        floorPlanDrafts: {
+          where: { status: 'approved', sourceType: { not: 'client_preference' } },
+          select: { isActive: true, approvedAt: true },
+          orderBy: [
+            { isActive: 'desc' },
+            { approvedAt: { sort: 'desc', nulls: 'last' } },
+            { id: 'asc' },
+          ],
+          take: 1,
+        },
+        paymentMilestones: {
+          where: { label: { contains: 'balance', mode: 'insensitive' } },
+          select: { dueDate: true, status: true, remainingBalance: true },
+          orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+          take: 1,
+        },
+      },
+      orderBy: [{ id: 'asc' }],
+      take: MAX_VISIBLE_EVENTS,
+    });
+  }
+
+
   // Query budget: seven client workspace queries for a bounded visible event id set, no per-row Prisma loop.
   clientWorkspaceForEvents(eventIds: string[]) {
     return Promise.all([
