@@ -59,7 +59,7 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
           {options.map((item) => <option key={item.id} value={item.coordinatorId ?? ""}>{item.coordinatorName} · {item.role}</option>)}
         </select>
         {options.length === 0 ? <p className="text-xs text-muted-foreground">Assign a coordinator to this event before designating an operator.</p> : null}
-        <Button type="button" size="sm" disabled={busy || current === undefined || loadError || !selected || selected === current?.coordinatorId} onClick={() => void designate()}>Designate operator</Button>
+        <Button type="button" size="sm" disabled={busy || current === undefined || !selected || selected === current?.coordinatorId} onClick={() => void designate()}>Designate operator</Button>
         {message ? <p role="status" className="text-xs text-muted-foreground">{message}</p> : null}
       </CardBody>
     </Card>
