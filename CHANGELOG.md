@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- PMCM operator designation now stays unavailable when the current operator lookup fails, so a replacement cannot be made without showing the existing designation.
 - Refreshed the transitive `undici` lockfile entry used by event portal tests to a patched 8.x release after the dependency audit flagged the older version.
 - Worktree port discovery and process-ownership checks now resolve Windows drive and UNC paths consistently when their tooling tests run on Linux.
 - Client and event feature requests now live in feature data adapters; the event portal's former broad command facade is split by workflow, while client-local demo behavior is isolated under its compatibility path. Authenticated reads and writes derive actor identity from the stored bearer token without caller-supplied actor names or role query parameters.
