@@ -95,9 +95,11 @@ type AuditReader = Pick<Prisma.TransactionClient, 'opsAuditLog'>;
 async function loadAuditLogs(prisma: AuditReader) {
   if (typeof prisma.opsAuditLog.findMany !== 'function') return [];
   const logs: Array<Awaited<ReturnType<AuditReader['opsAuditLog']['findMany']>>[number]> = [];
+  // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: integrity checks must read the full ordered chain in fixed-size pages.
   for (let skip = 0; ; skip += AUDIT_READ_PAGE_SIZE) {
     const page = await prisma.opsAuditLog.findMany({
       take: AUDIT_READ_PAGE_SIZE,
+      // QUERY_AUDIT_ALLOW_OFFSET: ordered full-chain verification advances through 1000-row pages.
       skip,
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
