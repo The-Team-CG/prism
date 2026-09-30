@@ -9,7 +9,6 @@ import {
   isSupplierSignInDraftValid,
   mapApprovalRequestError,
   mapSupplierSignInError,
-  SAMPLE_SUPPLIER_ACCOUNTS,
 } from "../model/supplier-sign-in-rules";
 import type { SupplierSignInDraft, SupplierSignInStatus } from "../model/supplier-sign-in-types";
 import {
@@ -40,10 +39,6 @@ export function useSupplierSignInViewModel() {
 
   function updatePassword(password: string) {
     setDraft((prev) => ({ ...prev, password }));
-  }
-
-  function applySampleAccount(email: string, password: string) {
-    setDraft({ email, password });
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -95,10 +90,8 @@ export function useSupplierSignInViewModel() {
     existing,
     status,
     busy: status === "loading",
-    sampleAccounts: SAMPLE_SUPPLIER_ACCOUNTS,
     updateEmail,
     updatePassword,
-    applySampleAccount,
     submit,
     requestApproval,
   };

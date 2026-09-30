@@ -1,3 +1,5 @@
+import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+
 export type SupplierApplicationForm = {
   companyName: string;
   contactName: string;
@@ -16,8 +18,6 @@ export type SupplierApplicationForm = {
 };
 
 export type SupplierApplicationSubmitStatus = "idle" | "loading" | "submitted" | "error";
-
-export const PRIVACY_NOTICE_VERSION = "2026-05-01";
 
 export const APPLICATION_WIZARD_STEPS = ["Company Info", "Services & Portfolio", "Certifications", "Review & Submit"] as const;
 
@@ -44,5 +44,5 @@ export const INITIAL_SUPPLIER_APPLICATION_FORM: SupplierApplicationForm = {
   additionalNotes: "",
   bniMember: false,
   privacyConsentAccepted: false,
-  privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+  privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
 };

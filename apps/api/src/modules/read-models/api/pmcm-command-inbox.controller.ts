@@ -1,7 +1,7 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import type { PrismVerifiedEventActor } from '@prism/types';
+import { pmcmCommandInboxQuerySchema, type PrismVerifiedEventActor } from '@prism/types';
 import { EventReadModelsService } from '../application/services/event-read-models.service';
 
 @Controller('pmcm')
@@ -13,8 +13,10 @@ export class OpsPmcmCommandInboxController {
 
   @Get('command-inbox')
   @UseGuards(EventSessionGuard)
-  commandInbox(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+  commandInbox(@Query('page') page: string | undefined, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const parsedQuery = pmcmCommandInboxQuerySchema.safeParse({ page });
+    if (!parsedQuery.success) throw new BadRequestException('Invalid command inbox page');
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.eventReadModelsService.pmcmCommandInbox(actor);
+    return this.eventReadModelsService.pmcmCommandInbox(actor, parsedQuery.data.page);
   }
 }
