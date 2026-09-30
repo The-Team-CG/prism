@@ -95,11 +95,12 @@ describe('FloorPlanWorkflowService', () => {
         sourceType: 'blank',
         objects: [{ id: 'stage', kind: 'stage', x: 10, y: 20, svgMarkup: '<svg />' }],
       },
-      { name: 'PMCM Admin', role: 'pmcm-admin' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     );
 
     expect(draft.status).toBe('pmcm_draft');
     expect(state.floorPlans).toHaveLength(1);
+    expect(state.floorPlans[0]).toMatchObject({ ownerId: 'user_pmcm_1' });
     expect(state.floorPlanDrafts[0]).toMatchObject({ name: 'Official Layout', status: 'pmcm_draft' });
     expect(state.floorPlanObjects[0]).toMatchObject({ objectId: 'stage', kind: 'stage', svgMarkup: '<svg />' });
     expect(state.events[0]).toMatchObject({ floorPlanStatus: 'pmcm_draft', readiness: 'Floorplan draft in progress' });
@@ -122,7 +123,7 @@ describe('FloorPlanWorkflowService', () => {
       service.createFloorPlanDraft(
         'evt_sample',
         { name: 'Official Layout', sourceType: 'blank' },
-        { name: 'PMCM Admin', role: 'pmcm-admin' },
+        { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
       ),
     ).rejects.toThrow('Official floor plan requires a signed conforme');
 
@@ -137,7 +138,7 @@ describe('FloorPlanWorkflowService', () => {
     await service.createFloorPlanDraft(
       'evt_sample',
       { name: 'Official Layout', sourceType: 'blank' },
-      { name: 'PMCM Admin', role: 'pmcm-admin' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     );
 
     // Proves the gate actually issued its own conforme read rather than being bypassed.
@@ -164,11 +165,12 @@ describe('FloorPlanWorkflowService', () => {
         constraints: ['VIP tables near stage'],
         objects: [{ id: 'vip-zone', kind: 'zone' }],
       },
-      { name: 'Ana Reyes', role: 'client' },
+      { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
     );
 
     expect(draft.status).toBe('client_submitted');
     expect(draft.createdByRole).toBe('client');
+    expect(state.floorPlans[0]).toMatchObject({ ownerId: 'user_client_1' });
     expect(state.floorPlanDrafts[0].clientPreference).toMatchObject({ seatingStyle: 'banquet', guestCount: 180 });
     expect(state.events[0]).toMatchObject({ floorPlanStatus: 'client_submitted', readiness: 'Client layout preference received' });
     expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
@@ -197,12 +199,13 @@ describe('FloorPlanWorkflowService', () => {
         guestCount: 180,
         constraints: [],
       },
-      { name: 'Ana Reyes', role: 'client' },
+      { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
     );
 
     // The preference itself is still recorded...
     expect(draft.status).toBe('client_submitted');
     expect(draft.createdByRole).toBe('client');
+    expect(state.floorPlans[0]).toMatchObject({ ownerId: 'user_client_1' });
     // ...and PMCM is still told the client wants changes.
     expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({

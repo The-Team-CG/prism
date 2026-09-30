@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- New floorplan writes now record the verified actor ID instead of assigning owner-sample. The sample principal remains local fixture data; existing owner metadata is preserved pending an accurate historical mapping.
 - Removed the broad sample compatibility API, API-client methods, and client browser-local fallback. Local development accounts and workflows remain available only through the explicit seed command, restricted to a fresh loopback `prism_sample_disposable` database; the command inserts fixtures and never deletes or resets data. Payment-risk evaluation now runs in the commercial scheduler, with conditional transitions and audit writes in the same transaction.
 - Updated the transitive `brace-expansion` and `undici` lockfile entries to patched releases so the dependency audit gate passes.
 - PMCM operator designation now stays unavailable when the current operator lookup fails, so a replacement cannot be made without showing the existing designation.
