@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
-import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
+import type { OpsAuditChainLock, OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
@@ -384,10 +384,10 @@ export class AuditService {
     const prisma = context.prisma;
     // A real row update locks appenders and rejects stale serializable snapshots.
     // An advisory lock alone would not refresh a caller's earlier snapshot.
-    await prisma.opsAuditChainLock.update({ where: { id: 'global' }, data: { revision: { increment: 1 } } });
-    const previous = await this.auditTail(prisma);
+    const chainLock = await prisma.opsAuditChainLock.update({ where: { id: 'global' }, data: { revision: { increment: 1 } } });
+    const previous = await this.auditTail(prisma, chainLock);
 
-    return prisma.opsAuditLog.create({
+    const created = await prisma.opsAuditLog.create({
       data: this.buildAuditData({
         ...options,
         eventId,
@@ -397,6 +397,11 @@ export class AuditService {
         createdAt: new Date(Math.max(Date.now(), (previous?.createdAt.getTime() ?? 0) + 1)),
       }),
     });
+    await prisma.opsAuditChainLock.update({
+      where: { id: 'global' },
+      data: { headId: created.id, headHash: created.immutableHash },
+    });
+    return created;
   }
 
   async recordAuthenticationAudit(input: AuditLogInput) {
@@ -442,10 +447,32 @@ export class AuditService {
     return reason;
   }
 
-  private async auditTail(prisma: Prisma.TransactionClient) {
-    // The complete chain is read in bounded pages so append integrity does not
-    // issue an unbounded database query.
-    const logs = await loadAuditLogs(prisma);
+  private async auditTail(
+    prisma: Prisma.TransactionClient,
+    chainLock: Pick<OpsAuditChainLock, 'headId' | 'headHash'>,
+  ) {
+    if (chainLock.headId || chainLock.headHash) {
+      if (!chainLock.headId || !chainLock.headHash) {
+        throw new AuditIntegrityConflictException('Audit chain head metadata is incomplete; integrity review is required', 'broken_chain');
+      }
+      const head = await prisma.opsAuditLog.findUnique({ where: { id: chainLock.headId } });
+      if (!head || head.immutableHash !== chainLock.headHash || !this.hasValidImmutableHash(head)) {
+        throw new AuditIntegrityConflictException('Audit chain head does not match its verified hash; integrity review is required', 'broken_chain');
+      }
+      const untrackedRow = await prisma.opsAuditLog.findFirst({
+        where: { createdAt: { gte: head.createdAt }, id: { not: head.id } },
+        select: { id: true },
+      });
+      if (!untrackedRow) return head;
+    }
+
+    // Existing installations bootstrap the verified head once. Later appends
+    // read only the head row unless an older writer left an untracked tail.
+    // verifyIntegrity remains a full scan.
+    return this.verifiedAuditTail(await loadAuditLogs(prisma));
+  }
+
+  private verifiedAuditTail(logs: OpsAuditLog[]) {
     if (logs.length === 0) return null;
     const chain = orderLinkedAuditLogs(logs);
     const tails = auditTailCandidates(logs);
@@ -458,6 +485,16 @@ export class AuditService {
         'broken_chain',
         chain.breakReason,
       );
+    }
+    let previousHash: string | null = null;
+    for (const log of chain.ordered) {
+      if (log.previousHash !== previousHash || !this.hasValidImmutableHash(log)) {
+        throw new AuditIntegrityConflictException(
+          `Audit history is not a verified hash-linked chain (${log.id})`,
+          'broken_chain',
+        );
+      }
+      previousHash = log.immutableHash;
     }
     return tails[0];
   }
