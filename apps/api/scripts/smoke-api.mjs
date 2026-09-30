@@ -111,13 +111,21 @@ if (health.status !== 'ok') {
 // Authoring and operational routes require a verified session. Keep login and
 // the two-factor challenge tokenless, then reuse the resulting bearer token for
 // every subsequent guarded request.
-const opsLogin = await expectOk('event ops auth login', '/api/auth/login', {
-  method: 'POST',
-  body: JSON.stringify({
-    email: 'mys@pmcm.test',
-    password: 'prism-admin',
-  }),
-});
+let opsLogin;
+try {
+  opsLogin = await expectOk('event ops auth login', '/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: 'mys@pmcm.test',
+      password: 'prism-admin',
+    }),
+  });
+} catch (error) {
+  throw new Error(
+    `${error instanceof Error ? error.message : 'Event ops login failed.'} ` +
+      'Load local fixtures first with `npm --workspace prism-api run sample:fixtures:reset -- --confirm-disposable-db prism_sample_disposable`.',
+  );
+}
 
 const opsTwoFactorSetup = await expectOk('event ops 2fa setup', '/api/auth/2fa/setup', {
   method: 'POST',
@@ -200,14 +208,6 @@ await expectBadRequest('reject unknown template field', '/api/templates', {
     unexpected: true,
   }),
 });
-
-const sample = await expectOk('reset sample compatibility state', '/api/sample/reset', {
-  method: 'POST',
-});
-
-if (!sample.events?.[0]?.id || !sample.inquiries?.[0]?.id) {
-  throw new Error(`event ops reset returned incomplete state: ${JSON.stringify(sample)}`);
-}
 
 // These auth and approval-request calls are public and intentionally omit the
 // operational bearer token.

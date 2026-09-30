@@ -16,7 +16,6 @@ import {
   QrCode,
   Radio,
   ReceiptText,
-  RotateCcw,
   ShieldCheck,
   Truck,
   UserCheck,
@@ -238,12 +237,10 @@ export function EventQueuePanel({
   events,
   selectedEventId,
   onSelectEvent,
-  onReset,
 }: {
   events: PrismEvent[];
   selectedEventId?: string;
   onSelectEvent: (eventId: string) => void;
-  onReset: () => void;
 }) {
   return (
     <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
@@ -252,17 +249,6 @@ export function EventQueuePanel({
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Event queue</p>
           <p className="mt-1 text-xs text-muted-foreground">{events.length} active PMCM workspace(s)</p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onReset}
-          title="Reset sample data"
-          className="size-8 rounded-md"
-        >
-          <RotateCcw aria-hidden="true" />
-          <span className="sr-only">Reset sample data</span>
-        </Button>
       </div>
       <CompactRecordList
         className="mt-2"

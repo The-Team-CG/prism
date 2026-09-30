@@ -517,7 +517,6 @@ export function EventDashboardEventsListSectionView() {
     eventsForView,
     selectedEvent,
     navigateEvent,
-    resetDashboard,
   } = useEventDashboardLoadedRouteViewModel();
   return (
 
@@ -525,7 +524,6 @@ export function EventDashboardEventsListSectionView() {
             events={eventsForView}
             selectedEventId={selectedEvent?.id}
             onSelectEvent={(id) => navigateEvent(id)}
-            onReset={resetDashboard}
             onNavigateEvent={(id) => navigateEvent(id, "overview")}
           />
   );
@@ -537,7 +535,6 @@ export function EventDashboardHomeSectionView() {
     commandInbox,
     pendingApprovals,
     navigateSection,
-    resetDashboard,
     busy,
     approveApprovalRequest,
     declineApprovalRequest,
@@ -550,7 +547,6 @@ export function EventDashboardHomeSectionView() {
               session={session}
               summary={commandInbox?.summary ?? { activeEvents: 0, pendingInquiries: 0, pendingApprovals: 0 }}
               onNavigateSection={navigateSection}
-              onReset={resetDashboard}
             />
 
             {/* Pending account approvals */}
