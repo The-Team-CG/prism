@@ -1,3 +1,6 @@
+-- prism-owner: platform-ops
+-- prism-kind: schema
+-- prism-risk: medium
 -- Appends maintain a verified chain head under the existing singleton lock.
 -- NULL values trigger one full verification/bootstrapping pass on first write.
 ALTER TABLE "trust_ops"."audit_chain_locks"
