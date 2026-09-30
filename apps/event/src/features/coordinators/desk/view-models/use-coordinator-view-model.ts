@@ -12,7 +12,6 @@ import {
   updateCoordinatorAttendanceSchema,
   updateEventDayTaskSchema,
   verifySupplierStatusSchema,
-  type PrismEventRunSheet,
   type CreateEventTaskReassignmentInput,
   type PrismCoordinatorRoleView,
   type PrismCoordinatorWorkspace,
@@ -24,7 +23,6 @@ import {
   createUrgentIssueAndRefreshRoleView,
   requestTaskReassignmentAndRefreshRoleView,
   loadCoordinatorRoleView,
-  loadCoordinatorRunSheet,
   markAttendanceAndRefreshRoleView,
   updateOwnTaskAndRefreshRoleView,
   updateDelegatedAttendanceAndRefreshRoleView,
@@ -39,6 +37,7 @@ import {
   canMarkOwnAttendance,
   isAttendanceChoiceDisabled,
   isRegistrationCoordinatorRole,
+  isIngressOrEgressRole,
   isReplacedAssignment,
   isTaskOutsideOwnQueue,
   pickActiveAssignment,
@@ -70,7 +69,6 @@ export function useCoordinatorViewModel({
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
-  const [runSheet, setRunSheet] = useState<PrismEventRunSheet | { eventId: string; authored: false; reason: "no_schedule" } | null>(null);
   const [roleViewStatus, setRoleViewStatus] = useState<CoordinatorViewStatus>("idle");
   const [roleViewError, setRoleViewError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("coord-home");
@@ -96,6 +94,8 @@ export function useCoordinatorViewModel({
   const [reassignmentError, setReassignmentError] = useState<string | null>(null);
   const [operatorBusy, setOperatorBusy] = useState(false);
   const [operatorError, setOperatorError] = useState<string | null>(null);
+  const [supplierBusy, setSupplierBusy] = useState(false);
+  const [supplierError, setSupplierError] = useState<string | null>(null);
   // EP-11-S03: per-flow state, same reasoning as the S02 task and issue flows.
   const [attendanceBusy, setAttendanceBusy] = useState(false);
   const [attendanceError, setAttendanceError] = useState<string | null>(null);
@@ -105,7 +105,6 @@ export function useCoordinatorViewModel({
   useEffect(() => {
     if (!event?.id) {
       setRoleView(null);
-      setRunSheet(null);
       setRoleViewStatus("idle");
       setRoleViewError(null);
       return;
@@ -114,21 +113,11 @@ export function useCoordinatorViewModel({
     let alive = true;
     setRoleViewStatus("loading");
     setRoleViewError(null);
-    setRunSheet(null);
     loadCoordinatorRoleView(session, event.id)
-      .then(async (next) => {
+      .then((next) => {
         if (!alive) return;
         setRoleView(next);
         setRoleViewStatus("success");
-        const dayId = next.schedule?.days[0]?.id;
-        if (next.schedule?.authored && dayId) {
-          try {
-            const sheet = await loadCoordinatorRunSheet(session, event.id, dayId);
-            if (alive) setRunSheet(sheet);
-          } catch {
-            if (alive) setRunSheet(null);
-          }
-        }
       })
       .catch((err) => {
         if (!alive) return;
@@ -315,18 +304,18 @@ export function useCoordinatorViewModel({
     finally { setOperatorBusy(false); }
   }
 
-  async function verifySupplier(requestId: string, verificationStatus: "verified" | "disputed") {
-    if (!event || !(roleView?.isDesignatedOperator || roleView?.role.toLowerCase().includes("ingress"))) return;
-    setOperatorBusy(true);
-    setOperatorError(null);
+  async function verifySupplier(requestId: string, verificationStatus: "verified" | "disputed", note = "") {
+    if (!event || !(roleView?.isDesignatedOperator || isIngressOrEgressRole(roleView?.role))) return;
+    setSupplierBusy(true);
+    setSupplierError(null);
     try {
       const input = parseContract(verifySupplierStatusSchema, {
         verificationStatus,
-        notes: verificationStatus === "verified" ? "Ingress confirmed supplier setup on site." : "Ingress disputed the reported setup; PMCM follow-up required.",
+        notes: note.trim() || (verificationStatus === "verified" ? "Supplier setup confirmed on site." : "Supplier setup disputed on site; PMCM follow-up required."),
       }, "Supplier setup verification");
       setRoleView(await verifySupplierStatusAndRefreshRoleView({ session, eventId: event.id, requestId, input }));
-    } catch (error) { setOperatorError(error instanceof Error ? error.message : "Unable to update supplier setup status."); }
-    finally { setOperatorBusy(false); }
+    } catch (error) { setSupplierError(error instanceof Error ? error.message : "Unable to update supplier setup status."); }
+    finally { setSupplierBusy(false); }
   }
 
   async function submitAttendance(choice: CoordinatorAttendanceChoice) {
@@ -406,7 +395,6 @@ export function useCoordinatorViewModel({
     activeDraft,
     busy,
     roleView,
-    runSheet,
     roleViewLoading: roleViewStatus === "loading",
     roleViewError,
     roleDataStatus:
@@ -474,6 +462,8 @@ export function useCoordinatorViewModel({
     operatorActions: {
       busy: operatorBusy,
       error: operatorError,
+      supplierBusy,
+      supplierError,
       updateAttendance: updateDelegatedAttendance,
       verifySupplier,
     },
