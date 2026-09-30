@@ -4,9 +4,17 @@ import {
   buildCoordinatorAttendanceInput,
   buildCoordinatorIssueInput,
   buildCoordinatorTaskInput,
+  availabilityRangeFromDates,
+  canCoordinatorUpdateTask,
   canConfirmPendingAttendance,
   canMarkOwnAttendance,
+  confirmedSupplierChecks,
+  delegatedAttendanceTargets,
+  describeReminderResult,
+  formatAvailabilityRange,
   isAttendanceChoiceDisabled,
+  isIngressOrEgressRole,
+  isOperatorEligibleAssignment,
   isReplacedAssignment,
   isTaskOutsideOwnQueue,
   requiresAttendanceConfirmation,
@@ -417,5 +425,103 @@ describe("buildCoordinatorAttendanceInput", () => {
         ),
       ).not.toThrow();
     }
+  });
+});
+
+describe("canCoordinatorUpdateTask", () => {
+  const floorDirector = { role: "Floor Director", assignment: { coordinatorName: "Marco Santos" } };
+
+  it("lets a coordinator progress tasks in their own queue, unowned or owned by them", () => {
+    expect(canCoordinatorUpdateTask({ assignedRole: "Floor Director", ownerName: "" }, floorDirector)).toBe(true);
+    expect(canCoordinatorUpdateTask({ assignedRole: "floor director", ownerName: "marco santos" }, floorDirector)).toBe(true);
+  });
+
+  it("hides the action on tasks the API would refuse: another owner, another role, or General Coordinator", () => {
+    expect(canCoordinatorUpdateTask({ assignedRole: "Floor Director", ownerName: "Taylor Reyes" }, floorDirector)).toBe(false);
+    expect(canCoordinatorUpdateTask({ assignedRole: "Stage Director", ownerName: "Marco Santos" }, floorDirector)).toBe(false);
+    expect(canCoordinatorUpdateTask({ assignedRole: "General Coordinator", ownerName: "" }, floorDirector)).toBe(false);
+  });
+
+  it("lets the designated operator progress any task", () => {
+    expect(canCoordinatorUpdateTask({ assignedRole: "Stage Director", ownerName: "Taylor Reyes" }, { ...floorDirector, isDesignatedOperator: true })).toBe(true);
+  });
+});
+
+describe("operator and supplier check eligibility", () => {
+  it("treats ingress and egress roles alike", () => {
+    expect(isIngressOrEgressRole("Ingress and Egress Assistant")).toBe(true);
+    expect(isIngressOrEgressRole("Egress Lead")).toBe(true);
+    expect(isIngressOrEgressRole("Floor Director")).toBe(false);
+    expect(isIngressOrEgressRole(undefined)).toBe(false);
+  });
+
+  it("only offers coordinators who are working the event as operator", () => {
+    expect(isOperatorEligibleAssignment({ coordinatorId: "coord_1", status: "acknowledged" })).toBe(true);
+    expect(isOperatorEligibleAssignment({ coordinatorId: "coord_1", status: "pending_acknowledgement" })).toBe(true);
+    for (const status of ["cancelled", "replaced", "declined"]) {
+      expect(isOperatorEligibleAssignment({ coordinatorId: "coord_1", status })).toBe(false);
+    }
+    expect(isOperatorEligibleAssignment({ coordinatorId: null, status: "acknowledged" })).toBe(false);
+  });
+
+  it("marks attendance only for other coordinators who are still on the event", () => {
+    const targets = delegatedAttendanceTargets([
+      { id: "own", status: "acknowledged" },
+      { id: "active", status: "acknowledged" },
+      { id: "replaced", status: "replaced" },
+      { id: "released", status: "cancelled" },
+    ], "own");
+    expect(targets.map((item) => item.id)).toEqual(["active"]);
+  });
+
+  it("checks only suppliers with a confirmed assignment", () => {
+    const suppliers = [
+      { id: "confirmed", assignmentStatus: "confirmed" },
+      { id: "pending", assignmentStatus: "pending_confirmation" },
+      { id: "withdrawn", assignmentStatus: "withdrawn" },
+    ];
+    expect(confirmedSupplierChecks(suppliers).map((item) => item.id)).toEqual(["confirmed"]);
+  });
+});
+
+describe("coordinator unavailable dates", () => {
+  // The API's overlap test for an event day (coordinators.service.ts resolveAssignmentPlan).
+  const blocksEventDay = (range: { startsAt: string; endsAt: string }, eventDay: string) => {
+    const dayStart = Date.parse(`${eventDay}T00:00:00.000Z`);
+    return Date.parse(range.startsAt) < dayStart + 86_400_000 && Date.parse(range.endsAt) > dayStart;
+  };
+
+  it("blocks exactly the chosen days, never a neighbouring day", () => {
+    const range = availabilityRangeFromDates("2026-12-10", "2026-12-11");
+    expect(range).toEqual({ startsAt: "2026-12-10T00:00:00.000Z", endsAt: "2026-12-12T00:00:00.000Z" });
+    expect(blocksEventDay(range, "2026-12-09")).toBe(false);
+    expect(blocksEventDay(range, "2026-12-10")).toBe(true);
+    expect(blocksEventDay(range, "2026-12-11")).toBe(true);
+    expect(blocksEventDay(range, "2026-12-12")).toBe(false);
+  });
+
+  it("rejects a missing day or a range that ends before it starts", () => {
+    expect(() => availabilityRangeFromDates("", "2026-12-10")).toThrow("Choose the first and last unavailable day.");
+    expect(() => availabilityRangeFromDates("2026-12-11", "2026-12-10")).toThrow("cannot be before");
+  });
+
+  it("shows a single day once and a longer block as first to last day", () => {
+    expect(formatAvailabilityRange(availabilityRangeFromDates("2026-12-10", "2026-12-10"))).toBe("2026-12-10");
+    expect(formatAvailabilityRange(availabilityRangeFromDates("2026-12-10", "2026-12-12"))).toBe("2026-12-10 to 2026-12-12");
+  });
+});
+
+describe("describeReminderResult", () => {
+  it("says when nothing was due and when the request failed", () => {
+    expect(describeReminderResult(null)).toMatch(/not sent/i);
+    expect(describeReminderResult({ leadTimeDays: 7, reminders: [] })).toMatch(/within 7 days.*no reminders were sent/i);
+  });
+
+  it("counts reminded coordinators and calls out failures", () => {
+    const queued = { assignmentId: "a1", status: "queued", reason: null };
+    expect(describeReminderResult({ leadTimeDays: 7, reminders: [queued] })).toBe("1 pending coordinator reminded.");
+    expect(describeReminderResult({ leadTimeDays: 7, reminders: [queued, { ...queued, assignmentId: "a2" }] })).toBe("2 pending coordinators reminded.");
+    expect(describeReminderResult({ leadTimeDays: 7, reminders: [queued, { assignmentId: "a2", status: "failed", reason: "no email" }] }))
+      .toBe("1 pending coordinator reminded. 1 could not be sent; check the PMCM status message.");
   });
 });

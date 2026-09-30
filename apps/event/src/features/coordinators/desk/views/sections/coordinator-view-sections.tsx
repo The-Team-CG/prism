@@ -34,10 +34,19 @@ import {
 } from "../../model/coordinator-view-copy";
 import type { CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
 import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
-import { useState } from "react";
-import type { CreateEventTaskReassignmentInput, PrismCoordinatorRoleView, PrismEventRunSheet } from "@prism/types";
+import type { PrismCoordinatorRoleView } from "@prism/types";
 import type { PrismCoordinatorAssignment } from "@prism/types";
 import { LiveOpsControlSurface } from "@/features/live-ops/schedule";
+import { CCard, CCardBody, CCardHeader, FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
+import {
+  CoordinatorRoleActions,
+  CoordinatorTaskQueue,
+  type CoordinatorOperatorActionsModel,
+  type CoordinatorReassignmentModel,
+  type CoordinatorTaskActionsModel,
+} from "./coordinator-operator-sections";
+
+export type { CoordinatorOperatorActionsModel, CoordinatorReassignmentModel, CoordinatorTaskActionsModel };
 
 type StatusSummaryItem = {
   id: string;
@@ -191,30 +200,6 @@ function CompactRecordRow({ item }: { item: CompactRecordItem }) {
   return <div className={cls}>{content}</div>;
 }
 
-function CCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>;
-}
-
-function CCardHeader({ children }: { children: React.ReactNode }) {
-  return <div className="border-b border-border px-5 py-4">{children}</div>;
-}
-
-function CCardBody({
-  children,
-  className = "",
-  id,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  id?: string;
-}) {
-  return (
-    <div id={id} className={`px-5 py-4 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
 function SectionAccent({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">{children}</p>;
 }
@@ -239,25 +224,6 @@ export type CoordinatorWorkspaceModel = {
   reassignment: CoordinatorReassignmentModel;
   taskActions: CoordinatorTaskActionsModel;
   operatorActions: CoordinatorOperatorActionsModel;
-};
-
-export type CoordinatorReassignmentModel = {
-  busy: boolean;
-  error: string | null;
-  request: (taskId: string, input: CreateEventTaskReassignmentInput) => void;
-};
-
-export type CoordinatorTaskActionsModel = {
-  busy: boolean;
-  error: string | null;
-  updateStatus: (taskId: string, status: string) => void;
-};
-
-export type CoordinatorOperatorActionsModel = {
-  busy: boolean;
-  error: string | null;
-  updateAttendance: (assignmentId: string, status: string) => void;
-  verifySupplier: (requestId: string, verificationStatus: "verified" | "disputed") => void;
 };
 
 export function CoordinatorGreetingBanner({
@@ -488,10 +454,7 @@ export function CoordinatorEventDayActions({
   );
 }
 
-export function CoordinatorTimelineCard({ roleView, runSheet }: {
-  roleView: PrismCoordinatorRoleView | null;
-  runSheet: PrismEventRunSheet | { eventId: string; authored: false; reason: "no_schedule" } | null;
-}) {
+export function CoordinatorTimelineCard({ roleView }: { roleView: PrismCoordinatorRoleView | null }) {
   return (
     <CCard>
       <CCardHeader>
@@ -501,7 +464,7 @@ export function CoordinatorTimelineCard({ roleView, runSheet }: {
         </div>
       </CCardHeader>
       <CCardBody id="coordinator-timeline" className="scroll-mt-24 space-y-3">
-        {roleView?.schedule ? <LiveOpsControlSurface schedule={roleView.schedule} timer={roleView.timer} runSheet={runSheet ?? undefined} /> : (
+        {roleView?.schedule ? <LiveOpsControlSurface schedule={roleView.schedule} timer={roleView.timer} /> : (
           <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">No event schedule has been published yet. Check with PMCM for the latest timing.</p>
         )}
       </CCardBody>
@@ -712,14 +675,6 @@ export type CoordinatorIssueFormModel = {
   error: string | null;
   submit: () => void;
 };
-
-const FIELD_LABEL = "text-xs font-bold text-muted-foreground";
-const FIELD_INPUT = "h-11 rounded-md border border-border bg-white px-3 text-sm";
-const FIELD_AREA = "rounded-md border border-border bg-white px-3 py-2 text-sm";
-const FORM_SUBMIT =
-  "h-11 rounded-md bg-(--prism-ink) px-3 text-sm font-bold text-sidebar-foreground disabled:opacity-60";
-const FORM_ALERT =
-  "rounded-md bg-(--prism-danger)/10 px-3 py-2 text-xs font-bold text-(--prism-danger)";
 
 function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel }) {
   const copy = coordinatorTaskFormCopy(taskForm.busy, taskForm.routesAway);
@@ -1033,73 +988,6 @@ function CoordinatorBriefingCard({ roleView }: { roleView: PrismCoordinatorRoleV
   );
 }
 
-function CoordinatorRoleActions({ roleView, reassignment, operatorActions }: {
-  roleView: PrismCoordinatorRoleView;
-  reassignment: CoordinatorReassignmentModel;
-  operatorActions: CoordinatorOperatorActionsModel;
-}) {
-  return (
-    <>
-      {roleView.isDesignatedOperator && <CoordinatorOperatorControls roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />}
-      {!roleView.isDesignatedOperator && roleView.role.toLowerCase().includes("ingress") && <CoordinatorSupplierChecks roleView={roleView} actions={operatorActions} />}
-    </>
-  );
-}
-
-function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: PrismCoordinatorRoleView; taskActions: CoordinatorTaskActionsModel }) {
-  return (
-    <CCard>
-      <CCardHeader>
-        <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-(--prism-signal)" />
-          <h3 className="text-sm font-bold text-foreground">Role queue</h3>
-          {roleView.tasks.length > 0 && (
-            <span className="ml-auto rounded-full bg-(--prism-signal)/10 px-2 py-0.5 text-[10px] font-bold text-(--prism-signal)">{roleView.tasks.length}</span>
-          )}
-        </div>
-      </CCardHeader>
-      <CCardBody id="coordinator-role-queue" className="scroll-mt-24">
-        {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No event-day tasks assigned to this role yet.</p>}
-        <div className="space-y-2">
-          {roleView.tasks.map((task) => <CoordinatorTaskQueueRow key={task.id} task={task} taskActions={taskActions} />)}
-        </div>
-        {taskActions.error && <p role="alert" className={FORM_ALERT}>{taskActions.error}</p>}
-      </CCardBody>
-    </CCard>
-  );
-}
-
-function CoordinatorTaskQueueRow({ task, taskActions }: { task: PrismCoordinatorRoleView["tasks"][number]; taskActions: CoordinatorTaskActionsModel }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-muted/40 p-3.5">
-      <div>
-        <p className="text-sm font-bold text-foreground">{task.title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {task.assignedRole}{task.notes ? ` — ${task.notes}` : ""}{task.slaDueAt ? ` · Due ${new Date(task.slaDueAt).toLocaleString("en-PH")}` : ""}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <StatusBadge status={task.status} />
-        <Button type="button" size="sm" variant="outline" disabled={taskActions.busy || task.status === "blocked"} onClick={() => taskActions.updateStatus(task.id, nextCoordinatorTaskStatus(task.status))}>
-          {coordinatorTaskActionLabel(task.status)}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function nextCoordinatorTaskStatus(status: string) {
-  if (status === "done") return "open";
-  if (status === "in_progress") return "done";
-  return "in_progress";
-}
-
-function coordinatorTaskActionLabel(status: string) {
-  if (status === "done") return "Reopen";
-  if (status === "in_progress") return "Mark done";
-  return "Start";
-}
-
 function CoordinatorRoleLiveData({ roleView, registrationRole }: { roleView: PrismCoordinatorRoleView; registrationRole: boolean }) {
   const checkInCopy = registrationRole
     ? `${roleView.guestAttendanceCount} checked in, including walk-ins flagged for PMCM review.`
@@ -1154,68 +1042,6 @@ export function CoordinatorAssignmentHistory({ assignments }: { assignments: Pri
             icon: CalendarClock,
           }))}
         />
-      </CCardBody>
-    </CCard>
-  );
-}
-
-function CoordinatorOperatorControls({
-  roleView,
-  reassignment,
-  operatorActions,
-}: {
-  roleView: PrismCoordinatorRoleView;
-  reassignment: CoordinatorReassignmentModel;
-  operatorActions: CoordinatorOperatorActionsModel;
-}) {
-  const [taskId, setTaskId] = useState("");
-  const [toOwnerRole, setToOwnerRole] = useState("");
-  const [toOwnerName, setToOwnerName] = useState("");
-  const [reason, setReason] = useState("");
-  const pending = (roleView.taskReassignmentRequests ?? []).filter((request) => request.status === "pending");
-  return (
-    <CCard>
-      <CCardHeader>
-        <div className="flex items-center gap-2">
-          <UserCheck className="size-4 text-(--prism-signal)" />
-          <h3 className="text-sm font-bold text-foreground">Operator controls</h3>
-        </div>
-      </CCardHeader>
-      <CCardBody className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          You are the designated Event Day System Operator. You may request task reassignment and mark attendance for other coordinators; PMCM approves reassignment decisions.
-        </p>
-        <p className="text-xs font-semibold text-muted-foreground">
-          {pending.length} reassignment request{pending.length === 1 ? "" : "s"} awaiting PMCM review.
-        </p>
-        <div className="space-y-2">
-          <form className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); if (!taskId) return; reassignment.request(taskId, { toOwnerRole, toOwnerName: toOwnerName || undefined, reason }); setReason(""); }}>
-            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Task<select required value={taskId} onChange={(event) => setTaskId(event.target.value)} className="h-10 rounded-md border border-border bg-background px-2 text-sm text-foreground"><option value="">Select task</option>{roleView.tasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
-            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">New owner role<input required value={toOwnerRole} onChange={(event) => setToOwnerRole(event.target.value)} className="h-10 rounded-md border border-border bg-background px-2 text-sm text-foreground" /></label>
-            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Coordinator name (optional)<input value={toOwnerName} onChange={(event) => setToOwnerName(event.target.value)} className="h-10 rounded-md border border-border bg-background px-2 text-sm text-foreground" /></label>
-            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Reason<textarea required value={reason} onChange={(event) => setReason(event.target.value)} rows={2} className="rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground" /></label>
-            <Button type="submit" size="sm" variant="outline" disabled={reassignment.busy || !roleView.tasks.length}>Request reassignment</Button>
-          </form>
-        </div>
-        {reassignment.error ? <p role="alert" className={FORM_ALERT}>{reassignment.error}</p> : null}
-        <div className="space-y-2 border-t border-border pt-3">
-          <p className="text-xs font-semibold text-muted-foreground">Delegated attendance</p>
-          {roleView.coordinatorAssignments.filter((item) => item.id !== roleView.assignment.id).map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"><span className="text-sm">{item.coordinatorName} · {item.role} · {item.attendanceStatus ?? "pending"}</span><div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={operatorActions.busy} onClick={() => operatorActions.updateAttendance(item.id, "present")}>Present</Button><Button type="button" size="sm" variant="outline" disabled={operatorActions.busy} onClick={() => operatorActions.updateAttendance(item.id, "late")}>Late</Button><Button type="button" size="sm" variant="outline" disabled={operatorActions.busy} onClick={() => operatorActions.updateAttendance(item.id, "absent")}>Absent</Button></div></div>)}
-        </div>
-        {roleView.role.toLowerCase().includes("ingress") ? <CoordinatorSupplierChecks roleView={roleView} actions={operatorActions} /> : null}
-        {operatorActions.error ? <p role="alert" className={FORM_ALERT}>{operatorActions.error}</p> : null}
-      </CCardBody>
-    </CCard>
-  );
-}
-
-function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoordinatorRoleView; actions: CoordinatorOperatorActionsModel }) {
-  return (
-    <CCard>
-      <CCardHeader><div className="flex items-center gap-2"><Truck className="size-4 text-(--prism-signal)" /><h3 className="text-sm font-bold text-foreground">Ingress supplier setup checks</h3></div></CCardHeader>
-      <CCardBody className="space-y-2">
-        {roleView.supplierStatuses.length === 0 ? <p className="text-sm text-muted-foreground">No supplier event-day updates yet.</p> : null}
-        {roleView.supplierStatuses.map((supplier) => <div key={supplier.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3"><div><p className="text-sm font-semibold">{supplier.supplierName} · {supplier.category}</p><p className="text-xs text-muted-foreground">{supplier.eventDayStatus || supplier.readinessStatus} · verification {supplier.verificationStatus}</p></div><div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={actions.busy} onClick={() => actions.verifySupplier(supplier.id, "verified")}>Verify setup</Button><Button type="button" size="sm" variant="outline" disabled={actions.busy} onClick={() => actions.verifySupplier(supplier.id, "disputed")}>Dispute</Button></div></div>)}
       </CCardBody>
     </CCard>
   );

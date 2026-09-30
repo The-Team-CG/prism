@@ -84,6 +84,12 @@ export class EventLiveOpsController {
     return this.scheduleService!.getRunSheet(eventId, dayId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
+  @Get(':eventId/operator-designation')
+  @UseGuards(EventSessionGuard)
+  operatorDesignation(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.scheduleService!.getOperatorDesignation(eventId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
   @Post(':eventId/operator-designation')
   @UseGuards(EventSessionGuard)
   designateOperator(@Param('eventId') eventId: string, @Body(zodBody(createEventOperatorDesignationSchema)) dto: CreateEventOperatorDesignationInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {

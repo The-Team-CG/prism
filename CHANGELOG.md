@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Updated the transitive `brace-expansion` and `undici` lockfile entries to patched releases so the dependency audit gate passes.
+- PMCM operator designation now stays unavailable when the current operator lookup fails, so a replacement cannot be made without showing the existing designation.
 - OpenRouter synthetic-profile audits keep `zdrConfirmed` false while endpoint and account ZDR qualification remains open; the adapter still requests ZDR and denies data collection, and the route remains synthetic-only. No tests or provider calls were run per release-review instruction.
 - The health endpoint now reports the AI gateway profile and provider-call state from the resolved runtime configuration, including local OpenRouter and Anthropic selection. No tests or provider calls were run for this review finding.
 - Refactored AI gateway runtime configuration, route-policy checks, PARE orchestration, and durable provenance validation into focused functions to satisfy the cyclomatic-complexity gate while retaining fail-closed checks; aligned the api-client streaming fixture with the required route-evidence fields. No tests or provider calls were run for this refactor.
@@ -58,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Root build and typecheck now fail early when the gitignored `@prism/types` output is missing or older than its source, with a direct rebuild command in the error.
 
 ### Fixed
+- Coordinator staffing and event-day follow-ups to the coordinator desk: the Event Day System Operator can be designated only from coordinators still working the event (the API now refuses anyone else instead of displacing the working operator) and PMCM staffing shows who is currently designated; acknowledgment reminders list only the selected event's pending coordinators and report how many were reminded; unavailable dates are entered as whole days so they block exactly those event days; coverage targets can be edited from the staffing summary and suggest known roles; coordinators see Start, Mark done and Reopen only on tasks the API lets them update; operators mark attendance only for coordinators still on the event and confirm an absence before it writes a permanent reliability note; supplier setup checks list confirmed suppliers to operators and ingress or egress coordinators, accept a note, and show failures to non-operators; the reassignment request picks its new owner from the event roster and PMCM sees the task title when reviewing it; the saved schedule no longer waits on a second run-sheet request. Focused API and portal tests, typechecks, the complexity gate and the boundary check pass.
 - Anthropic request validation now isolates registered-tool checks so PR 6's structured-output mapping stays within the enforced complexity limit.
 - Conforme audit migration metadata now points only to draft rows that were successfully backfilled.
 - Live PARE now validates its gateway route at startup: it requires the non-production synthetic Anthropic profile and all three PARE use cases enabled. Approval evidence checks and dispatch persistence were split into focused functions so PR 4 stays within the enforced complexity limit.
