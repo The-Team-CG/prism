@@ -91,19 +91,191 @@ describe('AuditService', () => {
 
   it('resolves a same-time history tail from links before appending', async () => {
     const created: any[] = [];
-    const root = { id: 'aud_root', immutableHash: 'hash_root', previousHash: null, createdAt: new Date('2026-04-29T09:00:00.000Z') };
-    const tail = { id: 'aud_tail', immutableHash: 'hash_tail', previousHash: 'hash_root', createdAt: root.createdAt };
+    const root = auditRow({ id: 'aud_root', createdAt: new Date('2026-04-29T09:00:00.000Z') });
+    const tail = auditRow({ id: 'aud_tail', previousHash: root.immutableHash, createdAt: root.createdAt });
+    const logs = [tail, root];
+    const lock = { id: 'global', revision: 0, headId: null as string | null, headHash: null as string | null };
     const prisma = {
       $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
-      opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
+      opsAuditChainLock: {
+        update: async ({ data }: { data: any }) => {
+          if (data.revision?.increment) lock.revision += data.revision.increment;
+          if (data.headId) lock.headId = data.headId;
+          if (data.headHash) lock.headHash = data.headHash;
+          return { ...lock };
+        },
+      },
       opsAuditLog: {
-        findMany: async () => [tail, root],
-        create: async ({ data }: { data: any }) => { created.push(data); return data; },
+        findMany: async () => logs,
+        findUnique: async ({ where }: { where: { id: string } }) => logs.find((log) => log.id === where.id) ?? null,
+        create: async ({ data }: { data: any }) => { created.push(data); logs.push(data); return data; },
       },
     };
     const service = new AuditService(prisma as never);
     await service.audit(undefined, 'PMCM Admin', 'Appended after tied history');
-    expect(created[0]).toMatchObject({ previousHash: 'hash_tail' });
+    expect(created[0]).toMatchObject({ previousHash: tail.immutableHash });
+  });
+
+  it('bootstraps the verified head once and uses it for later appends', async () => {
+    const logs: any[] = [auditRow({ id: 'aud_existing' })];
+    const created: any[] = [];
+    const lock = { id: 'global', revision: 0, headId: null as string | null, headHash: null as string | null };
+    let fullHistoryReads = 0;
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
+      opsAuditChainLock: {
+        update: async ({ data }: { data: any }) => {
+          if (data.revision?.increment) lock.revision += data.revision.increment;
+          if (data.headId) lock.headId = data.headId;
+          if (data.headHash) lock.headHash = data.headHash;
+          return { ...lock };
+        },
+      },
+      opsAuditLog: {
+        findMany: async () => { fullHistoryReads += 1; return [...logs]; },
+        findFirst: async ({ where }: { where: any }) => logs.find((log) => log.createdAt >= where.createdAt.gte && log.id !== where.id.not) ?? null,
+        findUnique: async ({ where }: { where: { id: string } }) => logs.find((log) => log.id === where.id) ?? null,
+        create: async ({ data }: { data: any }) => { created.push(data); logs.push(data); return data; },
+      },
+    };
+    const service = new AuditService(prisma as never);
+
+    await service.audit(undefined, 'PMCM Admin', 'First append after deployment');
+    await service.audit(undefined, 'PMCM Admin', 'Second append after deployment');
+
+    expect(fullHistoryReads).toBe(1);
+    expect(created[1].previousHash).toBe(created[0].immutableHash);
+    expect(lock).toMatchObject({ headId: created[1].id, headHash: created[1].immutableHash });
+  });
+
+  it('revalidates and reconciles an untracked tail left by an older writer', async () => {
+    const root = auditRow({ id: 'aud_stored_head' });
+    const untracked = auditRow({
+      id: 'aud_old_writer',
+      previousHash: root.immutableHash,
+      createdAt: new Date(root.createdAt.getTime() + 1),
+    });
+    const logs: any[] = [untracked, root];
+    const lock = { id: 'global', revision: 0, headId: root.id, headHash: root.immutableHash };
+    let fullHistoryReads = 0;
+    let created: any;
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
+      opsAuditChainLock: {
+        update: async ({ data }: { data: any }) => {
+          if (data.revision?.increment) lock.revision += data.revision.increment;
+          if (data.headId !== undefined) lock.headId = data.headId;
+          if (data.headHash !== undefined) lock.headHash = data.headHash;
+          return { ...lock };
+        },
+      },
+      opsAuditLog: {
+        findMany: async () => { fullHistoryReads += 1; return [...logs]; },
+        findFirst: async ({ where }: { where: any }) => logs.find((log) => log.createdAt >= where.createdAt.gte && log.id !== where.id.not) ?? null,
+        findUnique: async ({ where }: { where: { id: string } }) => logs.find((log) => log.id === where.id) ?? null,
+        create: async ({ data }: { data: any }) => { created = data; logs.push(data); return data; },
+      },
+    };
+    const service = new AuditService(prisma as never);
+
+    await service.audit(undefined, 'PMCM Admin', 'Append after old writer');
+
+    expect(fullHistoryReads).toBe(1);
+    expect(created.previousHash).toBe(untracked.immutableHash);
+    expect(lock).toMatchObject({ headId: created.id, headHash: created.immutableHash });
+  });
+
+  it('keeps concurrent appends on one linked chain under the row lock', async () => {
+    const logs: any[] = [];
+    const lock = { id: 'global', revision: 0, headId: null as string | null, headHash: null as string | null };
+    let previousLockHolder: Promise<void> = Promise.resolve();
+    const createTransaction = () => {
+      let releaseLock: (() => void) | undefined;
+      let holdsLock = false;
+      const tx = {
+        opsAuditChainLock: {
+          update: async ({ data }: { data: any }) => {
+            if (data.revision?.increment && !holdsLock) {
+              const previousHolder = previousLockHolder;
+              let releaseCurrent!: () => void;
+              previousLockHolder = new Promise<void>((resolve) => { releaseCurrent = resolve; });
+              await previousHolder;
+              releaseLock = releaseCurrent;
+              holdsLock = true;
+            }
+            if (data.revision?.increment) lock.revision += data.revision.increment;
+            if (data.headId !== undefined) lock.headId = data.headId;
+            if (data.headHash !== undefined) lock.headHash = data.headHash;
+            return { ...lock };
+          },
+        },
+        opsAuditLog: {
+          findMany: async () => [...logs],
+          findFirst: async ({ where }: { where: any }) => logs.find((log) => log.createdAt >= where.createdAt.gte && log.id !== where.id.not) ?? null,
+          findUnique: async ({ where }: { where: { id: string } }) => logs.find((log) => log.id === where.id) ?? null,
+          create: async ({ data }: { data: any }) => { logs.push(data); return data; },
+        },
+      };
+      return { tx, release: () => releaseLock?.() };
+    };
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => {
+        const transaction = createTransaction();
+        try {
+          return await callback(transaction.tx);
+        } finally {
+          transaction.release();
+        }
+      },
+      opsAuditLog: { findMany: async () => [...logs] },
+    };
+    const service = new AuditService(prisma as never);
+
+    await Promise.all(Array.from({ length: 8 }, (_, index) => service.audit(undefined, `Operator ${index}`, `Concurrent action ${index}`)));
+
+    await expect(service.verifyIntegrity()).resolves.toMatchObject({ valid: true, checkedCount: 8 });
+  });
+
+  it('refuses to append when the stored audit head no longer matches its verified row', async () => {
+    const head = auditRow({ id: 'aud_head' });
+    const lock = { id: 'global', revision: 0, headId: head.id, headHash: 'changed-hash' };
+    let createCount = 0;
+    const prisma = {
+      $transaction: async (callback: (tx: unknown) => unknown): Promise<unknown> => callback(prisma),
+      opsAuditChainLock: {
+        update: async ({ data }: { data: any }) => {
+          if (data.revision?.increment) lock.revision += data.revision.increment;
+          return { ...lock };
+        },
+      },
+      opsAuditLog: {
+        findUnique: async () => head,
+        create: async ({ data }: { data: unknown }) => { createCount += 1; return data; },
+      },
+    };
+    const service = new AuditService(prisma as never);
+
+    await expect(service.audit(undefined, 'PMCM Admin', 'Must not append')).rejects.toMatchObject({ kind: 'broken_chain' });
+    expect(createCount).toBe(0);
+  });
+
+  it('finds historical tampering during the separate full integrity scan', async () => {
+    const root = auditRow({ id: 'aud_historical_root' });
+    const head = auditRow({
+      id: 'aud_current_head',
+      previousHash: root.immutableHash,
+      createdAt: new Date(root.createdAt.getTime() + 1),
+    });
+    const tamperedRoot = { ...root, actor: 'Changed after append' };
+    const service = new AuditService({
+      opsAuditLog: { findMany: async () => [tamperedRoot, head] },
+    } as never);
+
+    await expect(service.verifyIntegrity()).resolves.toMatchObject({
+      valid: false,
+      checkedCount: 2,
+      firstBrokenLogId: root.id,
+    });
   });
 
   it('keeps authentication available while recording an audit-chain integrity incident', async () => {
