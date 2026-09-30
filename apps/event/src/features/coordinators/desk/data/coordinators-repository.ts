@@ -4,7 +4,6 @@ import type {
   PrismCoordinatorAssignment,
   PrismCoordinatorRoleView,
   PrismEventDayTask,
-  PrismEventRunSheet,
   PrismEventTaskReassignmentRequest,
   PrismSupplierQuoteRequest,
   PrismUrgentIssue,
@@ -85,13 +84,6 @@ export const coordinatorsRepository = {
     return eventApiRequest<PrismCoordinatorAssignment>(
       `/api/events/${eventId}/coordinators/${assignmentId}/status`,
       { method: "PATCH", body: input, authToken: session.accessToken },
-    );
-  },
-  getRunSheet(session: EventSession, eventId: string, dayId?: string) {
-    const query = dayId ? `?dayId=${encodeURIComponent(dayId)}` : "";
-    return eventApiRequest<PrismEventRunSheet | { eventId: string; authored: false; reason: "no_schedule" }>(
-      `/api/events/${eventId}/run-sheet${query}`,
-      { authToken: session.accessToken },
     );
   },
   updateOwnTask(session: EventSession, eventId: string, taskId: string, input: UpdateEventDayTaskInput) {

@@ -129,7 +129,7 @@ export function CoordinatorView({
           scrollTo={scrollTo}
         />
         <div className="grid gap-4 xl:grid-cols-2">
-          <CoordinatorTimelineCard roleView={roleView} runSheet={vm.runSheet} />
+          <CoordinatorTimelineCard roleView={roleView} />
           <CoordinatorRoleBadgeCard
             assignment={assignment}
             busy={busy}

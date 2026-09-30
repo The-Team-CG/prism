@@ -295,6 +295,7 @@ export function EventDashboardTeamSectionView() {
     saveCoordinatorCoverage,
     sendCoordinatorAcknowledgementReminders,
     designateEventDayOperator,
+    loadEventDayOperator,
     loadCoordinatorAvailability,
     createCoordinatorAvailability,
     deleteCoordinatorAvailability,
@@ -312,6 +313,7 @@ export function EventDashboardTeamSectionView() {
               onSaveCoverage={saveCoordinatorCoverage}
               onSendReminders={sendCoordinatorAcknowledgementReminders}
               onDesignateOperator={designateEventDayOperator}
+              onLoadOperator={loadEventDayOperator}
               onLoadAvailability={loadCoordinatorAvailability}
               onCreateAvailability={createCoordinatorAvailability}
               onDeleteAvailability={deleteCoordinatorAvailability}

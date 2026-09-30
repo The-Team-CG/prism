@@ -1,5 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput } from "@prism/types";
+import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput } from "@prism/types";
 
 export const operationsCommands = {
 assignCoordinator: (eventId: string, input: CreateCoordinatorAssignmentInput) =>
@@ -36,6 +36,9 @@ designateEventDayOperator: (eventId: string, input: CreateEventOperatorDesignati
   ) => request<unknown>(
     `/api/events/${eventId}/operator-designation`,
     { method: "POST", body: input },
+  ),
+getEventDayOperator: (eventId: string) => request<PrismEventOperatorDesignation>(
+    `/api/events/${eventId}/operator-designation`,
   ),
 escalateEventDayTask: (eventId: string, taskId: string, input: EscalateLiveOpsInput) =>
     request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/escalate`, {

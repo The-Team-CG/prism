@@ -123,6 +123,16 @@ export interface PrismAcknowledgementReminderResult {
   }>;
 }
 
+/** The coordinator PMCM has designated as Event Day System Operator, if any. */
+export interface PrismEventOperatorDesignation {
+  eventId: string;
+  operator: {
+    coordinatorId: string;
+    coordinatorName: string;
+    designatedAt: string;
+  } | null;
+}
+
 export interface PrismGuestCheckIn {
   id: string;
   eventId: string;

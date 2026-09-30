@@ -250,6 +250,7 @@ export function EventWorkspaceCoordinatorsTab() {
       onSaveCoverage={vm.saveCoordinatorCoverage}
       onSendReminders={vm.sendCoordinatorAcknowledgementReminders}
       onDesignateOperator={vm.designateEventDayOperator}
+      onLoadOperator={vm.loadEventDayOperator}
       onLoadAvailability={vm.loadCoordinatorAvailability}
       onCreateAvailability={vm.createCoordinatorAvailability}
       onDeleteAvailability={vm.deleteCoordinatorAvailability}

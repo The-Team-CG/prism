@@ -177,6 +177,14 @@ export function useEventDashboardShellViewModel({
     return succeeded;
   }
 
+  async function runForResult<T>(actionLabel: string, action: () => Promise<T>): Promise<T | null> {
+    let result: T | null = null;
+    await run(actionLabel, async () => {
+      result = await action();
+    });
+    return result;
+  }
+
   async function runWithSuccess(actionLabel: string, action: () => Promise<unknown>) {
     setBusy(actionLabel);
     setError(null);
@@ -404,11 +412,12 @@ export function useEventDashboardShellViewModel({
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: string, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
     saveCoordinatorCoverage: (input: Parameters<typeof commands.upsertCoordinatorCoverage>[1]) => selectedEvent && session ? runAsBoolean("coordinator coverage", () => commands.upsertCoordinatorCoverage(selectedEvent.id, input)) : Promise.resolve(false),
-    sendCoordinatorAcknowledgementReminders: () => selectedEvent && session ? runAsBoolean("acknowledgement reminders", () => commands.sendCoordinatorAcknowledgementReminders(selectedEvent.id)) : Promise.resolve(false),
-    designateEventDayOperator: (coordinatorId: string) => selectedEvent && session ? run("designate event operator", () => commands.designateEventDayOperator(selectedEvent.id, { coordinatorId })) : Promise.resolve(),
+    sendCoordinatorAcknowledgementReminders: () => selectedEvent && session ? runForResult("acknowledgement reminders", () => commands.sendCoordinatorAcknowledgementReminders(selectedEvent.id)) : Promise.resolve(null),
+    designateEventDayOperator: (coordinatorId: string) => selectedEvent && session ? runAsBoolean("designate event operator", () => commands.designateEventDayOperator(selectedEvent.id, { coordinatorId })) : Promise.resolve(false),
+    loadEventDayOperator: () => selectedEvent && session ? commands.getEventDayOperator(selectedEvent.id).then((designation) => designation.operator) : Promise.resolve(null),
     loadCoordinatorAvailability: (coordinatorId: string) => selectedEvent && session ? commands.listCoordinatorAvailability(selectedEvent.id, coordinatorId) : Promise.resolve([]),
-    createCoordinatorAvailability: (coordinatorId: string, input: Parameters<typeof commands.createCoordinatorAvailability>[2]) => selectedEvent && session ? run("coordinator availability", () => commands.createCoordinatorAvailability(selectedEvent.id, coordinatorId, input)) : Promise.resolve(),
-    deleteCoordinatorAvailability: (coordinatorId: string, availabilityId: string) => selectedEvent && session ? run("remove coordinator availability", () => commands.deleteCoordinatorAvailability(selectedEvent.id, coordinatorId, availabilityId)) : Promise.resolve(),
+    createCoordinatorAvailability: (coordinatorId: string, input: Parameters<typeof commands.createCoordinatorAvailability>[2]) => selectedEvent && session ? runAsBoolean("coordinator availability", () => commands.createCoordinatorAvailability(selectedEvent.id, coordinatorId, input)) : Promise.resolve(false),
+    deleteCoordinatorAvailability: (coordinatorId: string, availabilityId: string) => selectedEvent && session ? runAsBoolean("remove coordinator availability", () => commands.deleteCoordinatorAvailability(selectedEvent.id, coordinatorId, availabilityId)) : Promise.resolve(false),
     decideEventTaskReassignment: (requestId: string, input: Parameters<typeof commands.decidePmcmEventTaskReassignment>[2]) => selectedEvent && session ? runLiveOps("task reassignment", () => commands.decidePmcmEventTaskReassignment(selectedEvent.id, requestId, input)) : Promise.resolve(),
     createEventDayTask: (input: Parameters<typeof commands.createEventDayTask>[1]) => selectedEvent ? runLiveOps("create task", () => commands.createEventDayTask(selectedEvent.id, input)) : Promise.resolve(),
     updateEventDayTask: (taskId: string, input: Parameters<typeof commands.updateEventDayTask>[2]) => selectedEvent ? runLiveOps("update task", () => commands.updateEventDayTask(selectedEvent.id, taskId, input)) : Promise.resolve(),
