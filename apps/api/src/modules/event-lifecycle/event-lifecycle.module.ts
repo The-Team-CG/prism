@@ -30,6 +30,8 @@ import { EventDecisionController } from './api/decisions/event-decision.controll
 import { EventDecisionService } from './application/decisions/event-decision.service';
 import { ChangeManagementController } from './api/change/change-management.controller';
 import { ChangeManagementService } from './application/change/change-management.service';
+import { ClientEventDayViewController } from './api/client-visibility/client-event-day-view.controller';
+import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -70,6 +72,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventDocumentJourneyController,
     EventDecisionController,
     ChangeManagementController,
+    ClientEventDayViewController,
   ],
   providers: [
     InquiriesService,
@@ -93,6 +96,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     { provide: FILE_REQUIREMENT_COMMANDS, useValue: metadataOnlyFileCommands },
     EventDecisionService,
     ChangeManagementService,
+    ClientEventDayViewService,
   ],
   exports: [
     InquiriesService,

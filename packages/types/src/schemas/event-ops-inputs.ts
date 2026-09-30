@@ -22,6 +22,11 @@ export const eventDecisionSchema = z.object({
 });
 export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
 
+export const setClientEventDayViewSchema = z.object({
+  enabled: z.boolean(),
+});
+export type SetClientEventDayViewInput = z.infer<typeof setClientEventDayViewSchema>;
+
 export const PRISM_PMCM_COMMAND_INBOX_MAX_PAGE = 100;
 export const pmcmCommandInboxQuerySchema = z.object({
   page: z.coerce.number().int().min(0).max(PRISM_PMCM_COMMAND_INBOX_MAX_PAGE).default(0),

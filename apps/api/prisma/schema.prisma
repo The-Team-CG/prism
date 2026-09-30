@@ -264,6 +264,7 @@ model OpsEvent {
   actualEndedBy         String?   @map("actual_ended_by")
   status                String    @default("planning")
   clientPortalStatus    String    @default("locked") @map("client_portal_status")
+  clientEventDayViewEnabled Boolean @default(false) @map("client_event_day_view_enabled")
   readiness             String    @default("Conforme pending")
   archived              Boolean   @default(false)
   archivedAt            DateTime? @map("archived_at")
