@@ -24,7 +24,12 @@ import type {
 } from '@prisma/client';
 import { CLOSURE_READINESS_READER, type ClosureReadinessReader } from '@prism/contexts/event-lifecycle';
 import { OpsUserRole, SupplierQuoteRequestStatus, isOpsConstantValue } from '@prism/kernel/event-core';
-import type { PrismCommandInboxSeverity } from '@prism/types';
+import type {
+  PrismClientEventTimeline,
+  PrismClientTimelineMilestoneKey,
+  PrismClientTimelineMilestoneStatus,
+  PrismCommandInboxSeverity,
+} from '@prism/types';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
   GUEST_READER,
@@ -54,6 +59,68 @@ import {
 } from './event-read-models.inbox';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
+
+type ClientEventTimelineSource = Pick<
+  OpsEvent,
+  'id' | 'eventDate' | 'status' | 'archived' | 'proposalClientStatus' | 'proposalReviewedAt'
+> & {
+  inquiry: Pick<OpsInquiry, 'conformeSignedAt'> | null;
+  floorPlanDrafts: Array<Pick<OpsFloorPlanDraft, 'approvedAt'>>;
+  paymentMilestones: Array<Pick<OpsPaymentMilestone, 'dueDate' | 'status' | 'remainingBalance'>>;
+};
+
+const CLIENT_TIMELINE_KEYS = [
+  'conforme_signed',
+  'proposal_accepted',
+  'floor_plan_approved',
+  'balance_payment_due',
+  'event_date',
+] as const satisfies readonly PrismClientTimelineMilestoneKey[];
+
+function toClientTimelineDate(value: Date | null | undefined): string | null {
+  return value?.toISOString().slice(0, 10) ?? null;
+}
+
+function mapClientEventTimeline(source: ClientEventTimelineSource): PrismClientEventTimeline {
+  const balanceMilestone = source.paymentMilestones[0];
+  const terminalEvent = source.status === 'completed' || source.archived;
+  const milestoneDates = [
+    source.inquiry?.conformeSignedAt ?? null,
+    source.proposalClientStatus === 'approved' ? source.proposalReviewedAt : null,
+    source.floorPlanDrafts[0]?.approvedAt ?? null,
+    balanceMilestone?.dueDate ?? null,
+    source.eventDate,
+  ];
+  const completed = [
+    source.inquiry?.conformeSignedAt != null,
+    source.proposalClientStatus === 'approved',
+    source.floorPlanDrafts.length > 0,
+    balanceMilestone?.status === 'paid' || balanceMilestone?.remainingBalance === 0,
+    source.status === 'completed' || source.archived,
+  ];
+
+  let currentAssigned = false;
+  const milestones = CLIENT_TIMELINE_KEYS.map((key, index) => {
+    const isComplete = completed[index] ?? false;
+    let status: PrismClientTimelineMilestoneStatus;
+    if (isComplete) {
+      status = 'completed';
+    } else if (terminalEvent || currentAssigned) {
+      status = 'pending';
+    } else {
+      status = 'current';
+      currentAssigned = true;
+    }
+
+    return {
+      key,
+      date: toClientTimelineDate(milestoneDates[index]),
+      status,
+    };
+  }) as PrismClientEventTimeline['milestones'];
+
+  return { eventId: source.id, milestones };
+}
 
 export type EventListMappers = {
   mapEvent: (event: EventWithDrafts) => unknown;
@@ -281,16 +348,39 @@ export class EventReadModelsService {
         floorPlanDrafts: [],
         auditLogs: [],
         notificationLogs: [],
+        clientEventTimelines: [],
       };
     }
 
-    const [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs] =
-      await this.queries.clientWorkspaceForEvents(eventIds);
+    const [
+      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs],
+      timelineSources,
+    ] = await Promise.all([
+      this.queries.clientWorkspaceForEvents(eventIds),
+      this.queries.clientEventTimelineForEvents(eventIds),
+    ]);
+    const timelineSourceByEventId = new Map(timelineSources.map((source) => [source.id, source]));
+    const clientEventTimelines = visibleEvents.map((event) =>
+      mapClientEventTimeline(
+        timelineSourceByEventId.get(event.id) ?? {
+          id: event.id,
+          eventDate: event.eventDate,
+          status: event.status,
+          archived: event.archived,
+          proposalClientStatus: event.proposalClientStatus,
+          proposalReviewedAt: event.proposalReviewedAt,
+          inquiry: null,
+          floorPlanDrafts: [],
+          paymentMilestones: [],
+        },
+      ),
+    );
 
     return {
       users: [],
       inquiries: [],
       events: visibleEvents.map((event) => mappers.mapEvent(event)),
+      clientEventTimelines,
       documents: documents.map((document) => mappers.mapDocument(document)),
       briefings: briefings.map((briefing) => mappers.mapBriefing(briefing)),
       supplierQuotes: [],

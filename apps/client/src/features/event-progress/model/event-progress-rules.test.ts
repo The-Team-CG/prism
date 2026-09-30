@@ -19,6 +19,7 @@ const event: PrismEvent = {
 function workspace(overrides: Partial<PrismClientWorkspace> = {}): PrismClientWorkspace {
   return {
     events: [event],
+    clientEventTimelines: [],
     briefings: [],
     documents: [],
     billingStatements: [],
