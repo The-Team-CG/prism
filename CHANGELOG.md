@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- PMCM operator designation now stays unavailable when the current operator lookup fails, so a replacement cannot be made without showing the existing designation.
 - OpenRouter synthetic-profile audits keep `zdrConfirmed` false while endpoint and account ZDR qualification remains open; the adapter still requests ZDR and denies data collection, and the route remains synthetic-only. No tests or provider calls were run per release-review instruction.
 - The health endpoint now reports the AI gateway profile and provider-call state from the resolved runtime configuration, including local OpenRouter and Anthropic selection. No tests or provider calls were run for this review finding.
 - Refactored AI gateway runtime configuration, route-policy checks, PARE orchestration, and durable provenance validation into focused functions to satisfy the cyclomatic-complexity gate while retaining fail-closed checks; aligned the api-client streaming fixture with the required route-evidence fields. No tests or provider calls were run for this refactor.

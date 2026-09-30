@@ -20,6 +20,7 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
 }) {
   // undefined while the current operator is loading, null when nobody is designated.
   const [current, setCurrent] = useState<Operator | undefined>(undefined);
+  const [loadError, setLoadError] = useState(false);
   const [selected, setSelected] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const options = Array.from(new Map(candidates.map((item) => [item.coordinatorId, item])).values());
@@ -28,9 +29,10 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
   useEffect(() => {
     let alive = true;
     setCurrent(undefined);
+    setLoadError(false);
     onLoadOperator().then(
       (operator) => { if (alive) setCurrent(operator); },
-      () => { if (alive) setCurrent(null); },
+      () => { if (alive) setLoadError(true); },
     );
     return () => { alive = false; };
   }, [eventId]);
@@ -50,14 +52,14 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
       <CardHeader><h2 className="text-sm font-bold text-foreground">Event Day System Operator</h2></CardHeader>
       <CardBody className="space-y-3">
         <p className="text-sm text-muted-foreground">Choose the coordinator working this event who will control delegated attendance and operator actions. Designating someone replaces the current operator.</p>
-        <p role="status" className="text-sm font-semibold text-foreground">{currentOperatorText(current)}</p>
+        <p role="status" className="text-sm font-semibold text-foreground">{loadError ? "Could not load the current operator. Reload the page to try again." : currentOperatorText(current)}</p>
         {departed ? <p className="text-xs font-semibold text-(--prism-amber)">{departed.coordinatorName} is no longer assigned to this event. Designate a new operator.</p> : null}
         <select aria-label="Event Day System Operator" value={selected} onChange={(event) => setSelected(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm">
           <option value="">Select a coordinator</option>
           {options.map((item) => <option key={item.id} value={item.coordinatorId ?? ""}>{item.coordinatorName} · {item.role}</option>)}
         </select>
         {options.length === 0 ? <p className="text-xs text-muted-foreground">Assign a coordinator to this event before designating an operator.</p> : null}
-        <Button type="button" size="sm" disabled={busy || !selected || selected === current?.coordinatorId} onClick={() => void designate()}>Designate operator</Button>
+        <Button type="button" size="sm" disabled={busy || current === undefined || loadError || !selected || selected === current?.coordinatorId} onClick={() => void designate()}>Designate operator</Button>
         {message ? <p role="status" className="text-xs text-muted-foreground">{message}</p> : null}
       </CardBody>
     </Card>
