@@ -165,6 +165,11 @@ export function EventProgressView() {
               </h2>
             </CardHeader>
             <CardBody>
+              {progress.clientEventDayStatus && (
+                <p role="status" className="mb-4 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                  {progress.clientEventDayStatus}
+                </p>
+              )}
               <PrismStatusTimeline items={progress.timeline} />
             </CardBody>
           </Card>

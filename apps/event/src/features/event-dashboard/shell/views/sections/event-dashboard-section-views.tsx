@@ -113,10 +113,14 @@ export function EventDashboardSettingsSectionView() {
   const {
     session,
     selectedEvent,
+    toggleClientEventDayView,
   } = useEventDashboardLoadedRouteViewModel();
   return (
-
-          <EventSettingsWorkspace session={session} selectedEvent={selectedEvent} />
+    <EventSettingsWorkspace
+      session={session}
+      selectedEvent={selectedEvent}
+      onToggleClientEventDayView={toggleClientEventDayView}
+    />
   );
 }
 
