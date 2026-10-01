@@ -3,7 +3,7 @@ import type {
   CreateCoordinatorAssignmentInput,
   ReplaceCoordinatorAssignmentInput,
   WithdrawCoordinatorAssignmentInput,
-} from '../application/staffing/coordinators.service';
+} from '@prism/types';
 
 export interface StaffingCommands {
   assignCoordinator(eventId: string, input: CreateCoordinatorAssignmentInput, actor: ResolvedEventOpsActor): Promise<unknown>;
