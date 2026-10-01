@@ -1,7 +1,12 @@
+import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { approveBillingSourceSchema } from '@prism/types';
 import { BillingOperationsService, renderBillingPdf } from './billing-operations.service';
+import type { BillingActor } from '../../contracts/finance-commands.port';
+import type { StorageObjectService } from '@prism/contexts/platform-ops';
+
+const billingActor: BillingActor = { id: 'user_finance_1', name: 'Finance Operator', role: 'pmcm-admin', email: 'admin@pmcm.test', correlationId: 'corr_finance_1' };
 
 function createPaymentService() {
   const milestone = {
@@ -67,7 +72,7 @@ function createPaymentService() {
   return { service, prisma, audit, history, milestone };
 }
 
-function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number) {
+function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number, storageObjectService?: StorageObjectService) {
   const event = {
     id: 'evt_billing_sequence',
     inquiryId: 'inq_billing_sequence',
@@ -126,11 +131,21 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
   };
   const audit = { write: vi.fn() };
   const notifications = { write: vi.fn() };
-  const service = new BillingOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
+  const service = new BillingOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService(), storageObjectService);
   return { service, prisma, statements };
 }
 
 describe('BillingOperationsService', () => {
+  it('rejects a billing mutation without a verified actor before database access', async () => {
+    const { service, prisma } = createPaymentService();
+
+    await expect(service.markPayment('evt_sample', 'pay_downpayment', 'paid', undefined as unknown as BillingActor))
+      .rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.opsEvent.findUnique).not.toHaveBeenCalled();
+    expect(prisma.opsPaymentMilestone.findUnique).not.toHaveBeenCalled();
+    expect(prisma.opsPaymentMilestone.update).not.toHaveBeenCalled();
+  });
   it('marks upcoming balances at risk and audits only the first successful transition', async () => {
     const { service, prisma, audit, milestone } = createPaymentService();
     milestone.label = 'Balance';
@@ -181,7 +196,7 @@ describe('BillingOperationsService', () => {
         paymentMethod: 'Bank Transfer',
         referenceNumber: 'BNK-123',
       },
-      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test', correlationId: 'corr_finance_1' },
+      billingActor,
     );
 
     expect(prisma.opsPaymentRecord.create).not.toHaveBeenCalled();
@@ -200,13 +215,16 @@ describe('BillingOperationsService', () => {
       'evt_sample',
       'bsrc_sample',
       input,
-      { name: 'Maxine', role: 'pmcm-admin', email: 'maxine@pmcm.test', correlationId: 'corr_approval_1' },
+      { id: 'user_maxine', name: 'Maxine', role: 'pmcm-admin', email: 'maxine@pmcm.test', correlationId: 'corr_approval_1' },
     );
 
     expect(prisma.opsBillingSource.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ approvedBy: 'Maxine' }),
     }));
-    expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ actor: 'Maxine' }), undefined);
+    expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({
+      actor: 'Maxine',
+      metadata: expect.objectContaining({ actorId: 'user_maxine', correlationId: 'corr_approval_1' }),
+    }), undefined);
   });
 
   it.each([
@@ -219,7 +237,7 @@ describe('BillingOperationsService', () => {
     const result = await service.generateBillingStatement(
       'evt_billing_sequence',
       'bsrc_billing_sequence',
-      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+      billingActor,
     );
 
     expect(result.number).toBe(expectedNumber);
@@ -228,18 +246,38 @@ describe('BillingOperationsService', () => {
     expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
   });
 
+  it('attributes billing statement files to the verified actor identity', async () => {
+    const storageObjectService = {
+      requestUpload: vi.fn(async () => ({
+        status: 'ready',
+        object: { id: 'obj_billing_statement', lifecycleState: 'requested', providerObjectKey: 'billing-statement.pdf', checksumSha256: 'checksum' },
+      })),
+      confirmUpload: vi.fn(async () => ({ lifecycleState: 'stored', providerObjectKey: 'billing-statement.pdf' })),
+    } as unknown as StorageObjectService;
+    const { service } = createBillingStatementService([], undefined, storageObjectService);
+
+    await service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor);
+
+    expect(storageObjectService.requestUpload).toHaveBeenCalledWith(expect.objectContaining({
+      actor: expect.objectContaining({ id: billingActor.id, name: billingActor.name }),
+    }));
+    expect(storageObjectService.confirmUpload).toHaveBeenCalledWith(expect.objectContaining({
+      actor: expect.objectContaining({ id: billingActor.id, name: billingActor.name }),
+    }));
+  });
+
   it('uses the stored sequence without rescanning prior statements on subsequent issues', async () => {
     const { service, prisma } = createBillingStatementService(['BS-2026-0001']);
 
     const first = await service.generateBillingStatement(
       'evt_billing_sequence',
       'bsrc_billing_sequence',
-      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+      billingActor,
     );
     const second = await service.generateBillingStatement(
       'evt_billing_sequence',
       'bsrc_billing_sequence',
-      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+      billingActor,
     );
 
     expect(first.number).toBe('BS-2026-0002');
@@ -254,7 +292,7 @@ describe('BillingOperationsService', () => {
     const result = await service.generateBillingStatement(
       'evt_billing_sequence',
       'bsrc_billing_sequence',
-      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test' },
+      billingActor,
     );
 
     expect(result.number).toBe('BS-2026-0003');
@@ -274,14 +312,14 @@ describe('BillingOperationsService', () => {
         paymentMethod: 'Bank Transfer',
         referenceNumber: 'BNK-456',
       },
-      { name: 'PMCM Admin', role: 'pmcm-admin', email: 'admin@pmcm.test', correlationId: 'corr_finance_1' },
+      billingActor,
     );
 
     expect(prisma.opsPaymentRecord.create).toHaveBeenCalledTimes(1);
     expect(audit.write).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: 'evt_sample',
-        actor: 'PMCM Admin',
+        actor: 'Finance Operator',
         action: 'Recorded Bank Transfer payment for Downpayment',
         actorRole: 'pmcm-admin',
         actorEmail: 'admin@pmcm.test',
