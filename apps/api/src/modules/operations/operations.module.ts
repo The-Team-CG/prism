@@ -18,6 +18,7 @@ import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tok
 import { GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './contracts/guest-ops.tokens';
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
+import { CoordinatorAssignmentCommandService } from './application/staffing/coordinator-assignment-command.service';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
@@ -43,11 +44,12 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController],
   providers: [
     CoordinatorsService,
+    CoordinatorAssignmentCommandService,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
     RegistrationPlatformService,
     WalkInPolicyService,
-    { provide: STAFFING_COMMANDS, useExisting: CoordinatorsService },
+    { provide: STAFFING_COMMANDS, useExisting: CoordinatorAssignmentCommandService },
     { provide: STAFFING_READER, useExisting: CoordinatorsService },
     { provide: GUEST_COMMANDS, useExisting: GuestWorkflowService },
     { provide: GUEST_READER, useExisting: GuestWorkflowService },

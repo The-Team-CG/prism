@@ -11,13 +11,14 @@ import {
   type CreateCoordinatorAssignmentInput,
   type WithdrawCoordinatorAssignmentInput,
   type PrismVerifiedEventActor,
+  type ReplaceCoordinatorAssignmentInput,
 } from '@prism/types';
-import { CoordinatorsService, type ReplaceCoordinatorAssignmentInput } from '../../application/staffing/coordinators.service';
+import { CoordinatorAssignmentCommandService } from '../../application/staffing/coordinator-assignment-command.service';
 
 @Controller('events')
 export class OpsEventCoordinatorAssignmentsController {
   constructor(
-    private readonly coordinatorsService: CoordinatorsService,
+    private readonly assignmentCommands: CoordinatorAssignmentCommandService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
   ) {}
 
@@ -30,7 +31,7 @@ export class OpsEventCoordinatorAssignmentsController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.coordinatorsService.assignCoordinator(eventId, dto, actor);
+    return this.assignmentCommands.assignCoordinator(eventId, dto, actor);
   }
 
   @Patch(':eventId/coordinators/:assignmentId/acknowledge')
@@ -43,8 +44,8 @@ export class OpsEventCoordinatorAssignmentsController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return dto
-      ? this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId, actor, dto)
-      : this.coordinatorsService.acknowledgeCoordinator(eventId, assignmentId, actor);
+      ? this.assignmentCommands.acknowledgeCoordinator(eventId, assignmentId, actor, dto)
+      : this.assignmentCommands.acknowledgeCoordinator(eventId, assignmentId, actor);
   }
 
   @Patch(':eventId/coordinators/:assignmentId/withdraw')
@@ -56,7 +57,7 @@ export class OpsEventCoordinatorAssignmentsController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.coordinatorsService.withdrawCoordinator(eventId, assignmentId, dto, actor);
+    return this.assignmentCommands.withdrawCoordinator(eventId, assignmentId, dto, actor);
   }
 
   @Patch(':eventId/coordinators/:assignmentId/replace')
@@ -68,6 +69,6 @@ export class OpsEventCoordinatorAssignmentsController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.coordinatorsService.replaceCoordinator(eventId, assignmentId, dto, actor);
+    return this.assignmentCommands.replaceCoordinator(eventId, assignmentId, dto, actor);
   }
 }
