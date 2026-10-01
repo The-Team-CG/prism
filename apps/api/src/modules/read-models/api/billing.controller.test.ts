@@ -12,7 +12,7 @@ describe('OpsBillingController', () => {
     expect(controllerPath(OpsBillingController)).toBe('billing');
   });
 
-  it('serves billing through EventReadModelsService with read-model and finance mappers', async () => {
+  it('serves billing through EventReadModelsService and the shared billing mappers', async () => {
     const eventReadModelsService = {
       billing: vi.fn(async (_actor, mappers) => ({
         events: [
@@ -48,10 +48,10 @@ describe('OpsBillingController', () => {
             ],
           }),
         ],
-        billingSources: [mappers.mapBillingSource({ id: 'bsrc_1' })],
-        billingStatements: [mappers.mapBillingStatement({ id: 'bill_1' })],
-        paymentMilestones: [mappers.mapPaymentMilestone({ id: 'pay_1' }, [{ id: 'prec_1' }])],
-        paymentRecords: [mappers.mapPaymentRecord({ id: 'prec_1' })],
+        billingSources: [mappers.mapBillingSource({ id: 'bsrc_1', eventId: 'evt_sample', sourceType: 'proposal', sourceLabel: 'Approved source', sourceDocumentId: null, lineItems: [], paymentSchedule: [], paymentMethods: [], totalAmount: 100000, status: 'approved', approvedAt: new Date('2026-06-20T00:00:00.000Z'), approvedBy: 'Maxine', approvalNotes: '', paymentTermsPolicyState: 'standard', paymentTermsOverrideReason: null, paymentTermsApprovedBy: null, createdAt: new Date('2026-06-20T00:00:00.000Z'), updatedAt: new Date('2026-06-20T00:00:00.000Z') })],
+        billingStatements: [mappers.mapBillingStatement({ id: 'bill_1', eventId: 'evt_sample', number: 'BS-2026-0001', clientName: 'Ana Reyes', clientContact: 'ana@example.test', eventName: 'Ayala Summit', eventDate: null, lineItems: [], paymentSchedule: [], paymentMethods: [], totalAmount: 100000, documentId: null, pdfUrl: '', storageKey: '', storageObjectId: null, storageState: 'stored', status: 'issued', sentAt: null, generatedAt: new Date('2026-06-20T00:00:00.000Z') })],
+        paymentMilestones: [mappers.mapPaymentMilestone({ id: 'pay_1', eventId: 'evt_sample', label: 'Deposit', percentage: 50, amount: 100000, amountPaid: 25000, remainingBalance: 75000, dueDate: new Date('2026-07-01T00:00:00.000Z'), status: 'partially_paid' }, [{ id: 'prec_1', eventId: 'evt_sample', milestoneId: 'pay_1', amountReceived: 25000, paymentDate: new Date('2026-06-20T00:00:00.000Z'), paymentMethod: 'Bank Transfer', referenceNumber: 'REF-1', recordedAt: new Date('2026-06-20T01:00:00.000Z') }])],
+        paymentRecords: [mappers.mapPaymentRecord({ id: 'prec_1', eventId: 'evt_sample', milestoneId: 'pay_1', amountReceived: 25000, paymentDate: new Date('2026-06-20T00:00:00.000Z'), paymentMethod: 'Bank Transfer', referenceNumber: 'REF-1', recordedAt: new Date('2026-06-20T01:00:00.000Z') })],
       })),
     };
     const eventAccessPolicyService = {
@@ -61,16 +61,9 @@ describe('OpsBillingController', () => {
         name: verified.actorName,
       })),
     };
-    const billingOperationsService = {
-      mapBillingSource: vi.fn((source) => ({ kind: 'source', id: source.id })),
-      mapBillingStatement: vi.fn((statement) => ({ kind: 'statement', id: statement.id })),
-      mapPaymentMilestone: vi.fn((payment, history) => ({ kind: 'milestone', id: payment.id, history })),
-      mapPaymentRecord: vi.fn((record) => ({ kind: 'record', id: record.id })),
-    };
     const controller = new OpsBillingController(
       eventReadModelsService as any,
       eventAccessPolicyService as any,
-      billingOperationsService as any,
     );
     const verifiedActor = {
       id: 'user_client',
@@ -92,10 +85,10 @@ describe('OpsBillingController', () => {
       activeFloorPlanDraftId: 'fpd_active',
       guestAccessCode: 'AYALA-SUMMIT-MPLE',
     });
-    expect(result.billingSources).toEqual([{ kind: 'source', id: 'bsrc_1' }]);
-    expect(result.billingStatements).toEqual([{ kind: 'statement', id: 'bill_1' }]);
-    expect(result.paymentMilestones).toEqual([{ kind: 'milestone', id: 'pay_1', history: [{ id: 'prec_1' }] }]);
-    expect(result.paymentRecords).toEqual([{ kind: 'record', id: 'prec_1' }]);
+    expect(result.billingSources).toEqual([expect.objectContaining({ id: 'bsrc_1', sourceLabel: 'Approved source', totalAmount: 100000 })]);
+    expect(result.billingStatements).toEqual([expect.objectContaining({ id: 'bill_1', number: 'BS-2026-0001', status: 'issued' })]);
+    expect(result.paymentMilestones).toEqual([expect.objectContaining({ id: 'pay_1', amountPaid: 25000, remainingBalance: 75000, history: [expect.objectContaining({ id: 'prec_1', referenceNumber: 'REF-1' })] })]);
+    expect(result.paymentRecords).toEqual([expect.objectContaining({ id: 'prec_1', amountReceived: 25000, referenceNumber: 'REF-1' })]);
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(eventReadModelsService.billing).toHaveBeenCalledWith(
       { role: 'client', clientName: 'Ana Reyes', name: 'Ana Reyes' },
@@ -121,16 +114,9 @@ describe('OpsBillingController', () => {
     const eventAccessPolicyService = {
       resolveActor: vi.fn((_input: any, verified: any) => ({ role: verified.actorRole, name: verified.actorName })),
     };
-    const billingOperationsService = {
-      mapBillingSource: vi.fn(),
-      mapBillingStatement: vi.fn(),
-      mapPaymentMilestone: vi.fn(),
-      mapPaymentRecord: vi.fn(),
-    };
     const controller = new OpsBillingController(
       eventReadModelsService as any,
       eventAccessPolicyService as any,
-      billingOperationsService as any,
     );
     const verifiedActor = {
       id: `user_${actorRole}`,

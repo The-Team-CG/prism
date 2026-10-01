@@ -1,6 +1,5 @@
 import { Controller, Get, Inject, Param, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { FINANCE_COMMANDS, type FinanceCommands } from '@prism/contexts/commercial';
 import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorplan';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
@@ -20,7 +19,6 @@ export class OpsPmcmDashboardController {
   constructor(
     private readonly eventReadModelsService: EventReadModelsService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    @Inject(FINANCE_COMMANDS) private readonly financeCommands: FinanceCommands,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(FLOORPLAN_READER) private readonly floorplanReader: FloorplanReader,
     @Inject(GUEST_READER) private readonly guestReader: GuestReader,
@@ -43,7 +41,6 @@ export class OpsPmcmDashboardController {
 
   private mappers() {
     return createPmcmReadModelMappers({
-      financeCommands: this.financeCommands,
       staffingReader: this.staffingReader,
       floorplanReader: this.floorplanReader,
       guestReader: this.guestReader,
