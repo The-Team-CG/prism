@@ -1231,7 +1231,7 @@ model OpsUrgentIssue {
   ownerRole       String    @default("") @map("owner_role")
   ownerName       String    @default("") @map("owner_name")
   resolution      String    @default("")
-  openedBy        String    @default("PMCM Admin") @map("opened_by")
+  openedBy        String    @map("opened_by")
   slaDueAt        DateTime? @map("sla_due_at")
   slaStatus       String    @default("on_track") @map("sla_status")
   escalationLevel String    @default("none") @map("escalation_level")
