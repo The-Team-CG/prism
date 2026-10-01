@@ -60,7 +60,21 @@ export class CommunicationService {
     await this.ensureMembership(threadId, verified.id!);
     const cursor = decodeCursor(query.cursor);
     const limit = normalizeLimit(query.limit);
-    const rows = await this.prisma.opsCommunicationMessage.findMany({ where: { threadId, ...(cursor ? { OR: [{ createdAt: { lt: new Date(cursor.createdAt) } }, { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } }] } : {}) }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: limit + 1, select: messageSelect });
+    const where = cursor
+      ? {
+          threadId,
+          OR: [
+            { createdAt: { lt: new Date(cursor.createdAt) } },
+            { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } },
+          ],
+        }
+      : { threadId };
+    const rows = await this.prisma.opsCommunicationMessage.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      select: messageSelect,
+    });
     const hasMore = rows.length > limit;
     const pageRows = rows.slice(0, limit);
     const nextCursor = hasMore && pageRows.length ? encodeCursor({ createdAt: pageRows[pageRows.length - 1].createdAt.toISOString(), id: pageRows[pageRows.length - 1].id }) : null;
@@ -80,6 +94,7 @@ export class CommunicationService {
     const body = input.body.trim();
     const payloadHash = createHash('sha256').update(JSON.stringify({ threadId, senderId: verified.id, body })).digest('hex');
     return this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: serialize message sequencing and idempotency checks for this thread.
       await tx.$queryRaw`SELECT id FROM "supplier_ops"."communication_threads" WHERE id = ${threadId} FOR UPDATE`;
       const membership = await tx.opsCommunicationParticipant.findFirst({ where: { threadId, actorId: verified.id!, active: true }, select: { id: true } });
       if (!membership) throw new ForbiddenException('Actor is no longer an active thread participant');

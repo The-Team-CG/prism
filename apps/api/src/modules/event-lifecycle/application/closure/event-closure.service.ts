@@ -145,12 +145,14 @@ export class EventClosureService {
       take: 100,
     });
     const reminders: Array<{ eventId: string; hours: number }> = [];
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the source query limits this sweep to 100 events.
     for (const event of events) {
       if (!event.actualEndedAt) continue;
       const record = await this.prisma.$transaction(async (tx) => {
         const current = await tx.opsEventWrapUp.findUnique({ where: { eventId: event.id } });
         if (!current) return null;
         if (current.status === 'complete') return current;
+        // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: WRAP_UP_REMINDER_HOURS is the fixed two-entry schedule.
         for (const hours of WRAP_UP_REMINDER_HOURS) {
           const due = now.getTime() >= event.actualEndedAt!.getTime() + hours * 60 * 60 * 1000;
           const sentAt = hours === 12 ? current.twelveHourReminderAt : current.twentyFourHourReminderAt;

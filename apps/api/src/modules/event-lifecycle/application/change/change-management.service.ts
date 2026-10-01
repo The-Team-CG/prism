@@ -115,6 +115,7 @@ export class ChangeManagementService {
   }
 
   private async applyQuoteImpacts(tx: Prisma.TransactionClient, eventId: string, addendumId: string, changes: ReturnType<typeof compareSnapshots>) {
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each changed quote needs its own before/after impact record within this event.
     for (const change of changes) {
       const before = change.before as SnapshotEntry | null;
       const after = change.after as SnapshotEntry | null;
