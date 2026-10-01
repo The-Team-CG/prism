@@ -191,7 +191,9 @@ export class SupplierProfileCommandsService {
   private requireSupplierAttribution(actor: ResolvedEventOpsActor) {
     const id = actor.id?.trim();
     const name = actor.name.trim();
-    if (!id || !name) throw new ForbiddenException('Verified supplier actor is required');
+    if (actor.verified !== true || !id || !name) {
+      throw new ForbiddenException('Verified supplier actor is required');
+    }
     return { id, name };
   }
 
