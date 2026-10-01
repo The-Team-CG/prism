@@ -5,6 +5,7 @@ import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
 import { EventFileHub } from "./event-file-hub";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 import { EventTasksWorkspace } from "./event-tasks-workspace";
+import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
 import { CommandHomePage } from "./command-home-page";
 import { EventQueueCard } from "./event-queue-card";
@@ -64,6 +65,12 @@ export function EventDashboardTasksSectionView() {
     unreviewedInquiries,
     pendingApprovals,
     selectedEvent,
+    selectedEventWorkspace,
+    session,
+    busy,
+    scheduleOcularVisit,
+    completeOcularVisit,
+    waiveOcularVisit,
     defenseReadiness,
     commandInbox,
     drafts,
@@ -79,6 +86,14 @@ export function EventDashboardTasksSectionView() {
             unreviewedInquiries={unreviewedInquiries}
             pendingApprovals={pendingApprovals}
             selectedEvent={selectedEvent}
+            ocularVisit={selectedEventWorkspace?.event.id === selectedEvent?.id
+              ? selectedEventWorkspace?.ocularVisit ?? null
+              : null}
+            isAdmin={isPmcmAdmin(session.role)}
+            busy={busy !== null}
+            onScheduleOcularVisit={scheduleOcularVisit}
+            onCompleteOcularVisit={completeOcularVisit}
+            onWaiveOcularVisit={waiveOcularVisit}
             defenseReadiness={defenseReadiness}
             commandInbox={commandInbox}
             draftsCount={drafts.length}
