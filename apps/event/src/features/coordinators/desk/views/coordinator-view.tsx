@@ -13,14 +13,16 @@ import {
 } from "../model/coordinator-view-copy";
 import {
   CoordinatorBoundaryNotice,
-  CoordinatorAssignmentHistory,
   CoordinatorEventDayActions,
   CoordinatorGreetingBanner,
-  CoordinatorRoleBadgeCard,
-  CoordinatorRoleData,
   CoordinatorStatusSummary,
   CoordinatorTimelineCard,
 } from "./sections/coordinator-view-sections";
+import {
+  CoordinatorAssignmentHistory,
+  CoordinatorRoleBadgeCard,
+  CoordinatorRoleData,
+} from "./sections/coordinator-role-sections";
 
 export function CoordinatorView({
   session,
