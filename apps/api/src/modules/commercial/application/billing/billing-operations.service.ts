@@ -1,13 +1,15 @@
-import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, Optional } from '@nestjs/common';
-import { Prisma, type OpsAdditionalBilling, type OpsBillingCorrection, type OpsBillingDispute, type OpsBillingStatement, type OpsBillingSource, type OpsPaymentMilestone, type OpsPaymentRecord } from '@prisma/client';
+import { Inject, Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Prisma, type OpsAdditionalBilling, type OpsBillingCorrection, type OpsBillingDispute, type OpsBillingStatement, type OpsBillingSource } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
-import type { PrismCommandContext, PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, StorageObjectService, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/payment-terms.policy';
+import { validatePaymentTerms } from '../../domain/payment-terms.policy';
+import { auditMetadata, billingCommandContext, isoDate, timestamp, addDays, parseDate, requireBillingActor } from './billing-operations.utils';
+import { mapAdditionalBilling, mapBillingCorrection, mapBillingDispute, mapBillingSource, mapBillingStatement } from './billing-operations.mappers';
 import type {
   ApproveBillingSourceInput,
   BillingActor,
@@ -15,63 +17,13 @@ import type {
   BillingMethodInput,
   BillingScheduleInput,
   CreateBillingSourceInput,
-  RecordPaymentInput,
   RequestBillingCorrectionInput,
   ResolveBillingCorrectionInput,
   CreateBillingDisputeInput,
   ResolveBillingDisputeInput,
   CreateAdditionalBillingInput,
   WaiveAdditionalBillingInput,
-} from '../../contracts/finance-commands.port';
-
-function requireBillingActor(actor: BillingActor | undefined): BillingActor {
-  if (!actor?.id?.trim() || !actor.name?.trim() || !actor.role?.trim()) {
-    throw new ForbiddenException('Verified billing actor is required');
-  }
-  return actor;
-}
-
-function isoDate(value: Date) {
-  return value.toISOString().slice(0, 10);
-}
-
-function timestamp(value: Date) {
-  return value.toISOString();
-}
-
-function addDays(value: Date, days: number) {
-  const next = new Date(value);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function parseDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) throw new BadRequestException('Invalid date');
-  return date;
-}
-
-function auditMetadata(actor: BillingActor, metadata: Record<string, unknown> = {}) {
-  const next: Record<string, unknown> = { ...metadata, actorId: actor.id };
-  if (actor.correlationId) next.correlationId = actor.correlationId;
-  return Object.keys(next).length > 0 ? next : undefined;
-}
-
-function billingCommandContext(
-  eventId: string,
-  commandName: string,
-  idempotencyKey: string | undefined,
-  actor: BillingActor,
-): PrismCommandContext | undefined {
-  if (!idempotencyKey) return undefined;
-  return {
-    actorId: actor.id,
-    actorRole: actor.role,
-    eventId,
-    correlationId: actor.correlationId ?? `${commandName}:${eventId}:${idempotencyKey}`,
-    idempotencyKey,
-  };
-}
+} from '../../contracts/billing-operations.types';
 
 export function renderBillingPdf(input: { number: string; sourceLabel: string; totalAmount: number }) {
   const text = `P.R.I.S.M BILLING STATEMENT\n${input.number}\nSource: ${input.sourceLabel}\nTotal: ${input.totalAmount}`;
@@ -91,44 +43,6 @@ export function renderBillingPdf(input: { number: string; sourceLabel: string; t
   offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`;
   return Buffer.from(pdf, 'utf8');
-}
-
-function paymentReplay(milestone: OpsPaymentMilestone, history: OpsPaymentRecord[]) {
-  const amountPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
-  const remainingBalance = Math.max(0, milestone.amount - amountPaid);
-  return {
-    payment: {
-      ...milestone,
-      amountPaid,
-      remainingBalance,
-      status: remainingBalance === 0 ? 'paid' : amountPaid > 0 ? 'partially_paid' : 'pending',
-    },
-    history,
-  };
-}
-
-function isDuplicatePayment(record: OpsPaymentRecord, input: RecordPaymentInput, paymentDate: Date) {
-  return record.referenceNumber === (input.referenceNumber?.trim() ?? '')
-    && record.amountReceived === input.amountReceived
-    && isoDate(record.paymentDate) === isoDate(paymentDate)
-    && record.paymentMethod === input.paymentMethod;
-}
-
-function assertPaymentWithinBalance(milestone: OpsPaymentMilestone, history: OpsPaymentRecord[], input: RecordPaymentInput) {
-  const currentPaid = history.reduce((sum, record) => sum + record.amountReceived, 0);
-  if (currentPaid + input.amountReceived > milestone.amount) {
-    throw new BadRequestException('Payment record exceeds remaining milestone balance');
-  }
-}
-
-function assertPositivePayment(amount: number) {
-  if (amount <= 0) throw new BadRequestException('Amount received must be greater than zero');
-}
-
-function paymentStatus(amountPaid: number, amount: number) {
-  if (amountPaid === amount) return 'paid';
-  if (amountPaid > 0) return 'partially_paid';
-  return 'pending';
 }
 
 function isIdempotencyKeyViolation(error: unknown): boolean {
@@ -167,15 +81,6 @@ async function createIdempotently<T extends { payloadHash: string | null }>(
   }
 }
 
-async function lockPaymentMilestone(tx: Prisma.TransactionClient, milestoneId: string) {
-  if (tx.$queryRaw) {
-    // QUERY_AUDIT_RAW_SQL: lock the milestone row before applying a payment mutation.
-    const rows = await tx.$queryRaw<OpsPaymentMilestone[]>`SELECT * FROM "finance_ops"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
-    if (rows.length > 0) return rows[0];
-  }
-  return tx.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
-}
-
 @Injectable()
 export class BillingOperationsService {
   constructor(
@@ -185,212 +90,6 @@ export class BillingOperationsService {
     private readonly workflowCommandService: WorkflowCommandService,
     @Optional() private readonly storageObjectService?: StorageObjectService,
   ) {}
-
-  async runPaymentRiskSweep() {
-    const now = new Date();
-    const threshold = addDays(now, 2);
-    const events = await this.prisma.opsEvent.findMany({
-      where: {
-        archived: false,
-        eventDate: {
-          gte: now,
-          lte: threshold,
-        },
-      },
-      select: { id: true, eventName: true },
-    });
-
-    const eventIds = events.map((event) => event.id);
-    const milestones = eventIds.length === 0
-      ? []
-      : await this.prisma.opsPaymentMilestone.findMany({
-          where: { eventId: { in: eventIds } },
-          orderBy: [{ eventId: 'asc' }, { dueDate: 'asc' }, { id: 'asc' }],
-        });
-    const milestonesByEventId = new Map<string, OpsPaymentMilestone[]>();
-    for (const milestone of milestones) {
-      const eventMilestones = milestonesByEventId.get(milestone.eventId) ?? [];
-      eventMilestones.push(milestone);
-      milestonesByEventId.set(milestone.eventId, eventMilestones);
-    }
-
-    for (const event of events) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: two-day payment risk window.
-      const balance = (milestonesByEventId.get(event.id) ?? []).find((milestone) =>
-        milestone.label.toLowerCase().includes('balance'),
-      );
-      if (!balance || balance.status === 'paid' || balance.remainingBalance <= 0 || balance.status === 'at_risk') {
-        continue;
-      }
-
-      await this.workflowCommandService.execute<{ count: number }>({
-        name: 'mark_payment_at_risk',
-        eventId: event.id,
-        sideEffectMode: 'same_tx',
-        write: (transactionContext) =>
-          (transactionContext?.prisma ?? this.prisma).opsPaymentMilestone.updateMany({
-            where: {
-              id: balance.id,
-              eventId: event.id,
-              status: { notIn: ['paid', 'at_risk'] },
-              remainingBalance: { gt: 0 },
-            },
-            data: { status: 'at_risk' },
-          }),
-        sideEffects: async ({ count }, transactionContext?: PrismTransactionContext) => {
-          if (count === 0) return;
-          await writeAudit(this.auditWriter, event.id, 'System', `Payment at risk for ${event.eventName}`, {
-            category: AuditCategory.Finance,
-            actionType: AuditActionType.Update,
-            affectedType: 'payment_milestone',
-            affectedId: balance.id,
-            affectedLabel: balance.label,
-            severity: 'warning',
-          }, transactionContext);
-        },
-      });
-    }
-  }
-
-  async markPayment(eventId: string, milestoneId: string, status: string, actor: BillingActor) {
-    actor = requireBillingActor(actor);
-    let milestone: OpsPaymentMilestone | null = null;
-    return this.workflowCommandService.execute<OpsPaymentMilestone, ReturnType<BillingOperationsService['mapPaymentMilestone']>>({
-      name: 'mark_payment',
-      eventId,
-      validateState: async () => {
-        await this.requireEvent(eventId);
-        milestone = await this.prisma.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
-        if (!milestone || milestone.eventId !== eventId) throw new NotFoundException('Payment milestone not found');
-        status = nextPaymentMilestoneStatus({ current: milestone.status, amountPaid: milestone.amountPaid, amount: milestone.amount, requested: status });
-      },
-      write: () =>
-        this.prisma.opsPaymentMilestone
-          .update({
-            where: { id: milestoneId },
-            data: { status },
-          })
-          .catch(() => {
-            throw new NotFoundException('Payment milestone not found');
-          }),
-      sideEffects: async (payment) => {
-        await Promise.all([
-          writeAudit(this.auditWriter, eventId, actor.name, `Marked ${payment.label} as ${status}`, {
-            actorRole: actor.role,
-            actorEmail: actor.email,
-            category: AuditCategory.Finance,
-            actionType: AuditActionType.Update,
-            affectedType: 'payment_milestone',
-            affectedId: payment.id,
-            affectedLabel: payment.label,
-            metadata: auditMetadata(actor),
-          }),
-          writeNotification(this.notificationOutboxWriter, eventId, 'Finance', `${payment.label} ${status}`),
-        ]);
-      },
-      project: (payment) => this.mapPaymentMilestone(payment),
-    });
-  }
-
-  async recordPayment(
-    eventId: string,
-    milestoneId: string,
-    input: RecordPaymentInput,
-    actor: BillingActor,
-  ) {
-    actor = requireBillingActor(actor);
-    let milestone: OpsPaymentMilestone | null = null;
-    let paymentDate: Date | null = null;
-    let paymentPayloadHash = '';
-    let duplicateReplay: { payment: OpsPaymentMilestone; history: OpsPaymentRecord[] } | null = null;
-
-    return this.workflowCommandService.execute<
-      { payment: OpsPaymentMilestone; history: OpsPaymentRecord[] },
-      ReturnType<BillingOperationsService['mapPaymentMilestone']>
-    >({
-      name: 'record_payment',
-      eventId,
-      validateState: async () => {
-        await this.requireEvent(eventId);
-
-        milestone = await this.prisma.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
-        if (!milestone || milestone.eventId !== eventId) {
-          throw new NotFoundException('Payment milestone not found');
-        }
-
-        assertPositivePayment(input.amountReceived);
-
-        paymentDate = parseDate(input.paymentDate);
-        paymentPayloadHash = createHash('sha256').update(JSON.stringify({ eventId, milestoneId, ...input })).digest('hex');
-      },
-      write: async () => {
-        const recordedPaymentDate = paymentDate ?? parseDate(input.paymentDate);
-        paymentDate = recordedPaymentDate;
-
-        return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          const lockedMilestone = await lockPaymentMilestone(tx, milestoneId);
-          if (!lockedMilestone || lockedMilestone.eventId !== eventId) throw new NotFoundException('Payment milestone not found');
-          milestone = lockedMilestone;
-          const history = await tx.opsPaymentRecord.findMany({ where: { milestoneId }, orderBy: { paymentDate: 'asc' } });
-          const keyedRecord = input.idempotencyKey ? await tx.opsPaymentRecord.findUnique({ where: { idempotencyKey: input.idempotencyKey } }) : null;
-          if (keyedRecord) {
-            if (keyedRecord.payloadHash && keyedRecord.payloadHash !== paymentPayloadHash) throw new BadRequestException('Payment idempotency key was reused for different content');
-            duplicateReplay = paymentReplay(lockedMilestone, history);
-            return duplicateReplay;
-          }
-          const duplicateRecord = input.referenceNumber?.trim() ? history.find((record) => isDuplicatePayment(record, input, recordedPaymentDate)) : undefined;
-          if (duplicateRecord) {
-            duplicateReplay = paymentReplay(lockedMilestone, history);
-            return duplicateReplay;
-          }
-          assertPaymentWithinBalance(lockedMilestone, history, input);
-          await tx.opsPaymentRecord.create({
-            data: {
-              id: `payrec_${randomUUID()}`,
-              eventId,
-              milestoneId,
-              amountReceived: input.amountReceived,
-              paymentDate: recordedPaymentDate,
-              paymentMethod: input.paymentMethod,
-              referenceNumber: input.referenceNumber ?? '',
-              idempotencyKey: input.idempotencyKey ?? null,
-              payloadHash: paymentPayloadHash,
-            },
-          });
-
-          const updatedHistory = await tx.opsPaymentRecord.findMany({
-            where: { milestoneId },
-            orderBy: { paymentDate: 'asc' },
-          });
-          const amountPaid = updatedHistory.reduce((sum, record) => sum + record.amountReceived, 0);
-          const remainingBalance = Math.max(0, lockedMilestone.amount - amountPaid);
-          const nextStatus = paymentStatus(amountPaid, lockedMilestone.amount);
-          const payment = await tx.opsPaymentMilestone.update({
-            where: { id: milestoneId },
-            data: { amountPaid, remainingBalance, status: nextStatus },
-          });
-
-          return { payment, history: updatedHistory };
-        });
-      },
-      sideEffects: async ({ payment }) => {
-        if (duplicateReplay) return;
-        await writeAudit(this.auditWriter, eventId, actor.name, `Recorded ${input.paymentMethod} payment for ${payment.label}`, {
-          actorRole: actor.role,
-          actorEmail: actor.email,
-          category: AuditCategory.Finance,
-          actionType: AuditActionType.Create,
-          affectedType: 'payment_milestone',
-          affectedId: milestoneId,
-          affectedLabel: payment.label,
-          metadata: auditMetadata(actor, {
-            amountReceived: input.amountReceived,
-            referenceNumber: input.referenceNumber ?? '',
-          }),
-        });
-      },
-      project: ({ payment, history }) => this.mapPaymentMilestone(payment, history),
-    });
-  }
 
   async createBillingSource(eventId: string, input: CreateBillingSourceInput, actor: BillingActor) {
     actor = requireBillingActor(actor);
@@ -403,7 +102,7 @@ export class BillingOperationsService {
     let replayed = false;
     const payloadHash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
 
-    return this.workflowCommandService.execute<OpsBillingSource, ReturnType<BillingOperationsService['mapBillingSource']>>({
+    return this.workflowCommandService.execute<OpsBillingSource, ReturnType<typeof mapBillingSource>>({
       name: 'create_billing_source',
       eventId,
       context: billingCommandContext(eventId, 'create_billing_source', input.idempotencyKey, actor),
@@ -462,7 +161,7 @@ export class BillingOperationsService {
           metadata: auditMetadata(actor, { totalAmount }),
         });
       },
-      project: (source) => this.mapBillingSource(source),
+      project: (source) => mapBillingSource(source),
     });
   }
 
@@ -476,7 +175,7 @@ export class BillingOperationsService {
     const approvedBy = actor.name;
     let source: OpsBillingSource | null = null;
 
-    return this.workflowCommandService.execute<OpsBillingSource, ReturnType<BillingOperationsService['mapBillingSource']>>({
+    return this.workflowCommandService.execute<OpsBillingSource, ReturnType<typeof mapBillingSource>>({
       name: 'approve_billing_source',
       eventId,
       validateState: async () => {
@@ -507,7 +206,7 @@ export class BillingOperationsService {
           metadata: auditMetadata(actor, { totalAmount: approvedSource.totalAmount, approvalNotes: input.approvalNotes ?? '' }),
         });
       },
-      project: (approvedSource) => this.mapBillingSource(approvedSource),
+      project: (approvedSource) => mapBillingSource(approvedSource),
     });
   }
 
@@ -528,7 +227,7 @@ export class BillingOperationsService {
     const statementId = `bill_${randomUUID()}`;
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, sourceId: sourceId ?? null })).digest('hex');
 
-    return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<BillingOperationsService['mapBillingStatement']>>({
+    return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<typeof mapBillingStatement>>({
       name: 'generate_billing_statement',
       eventId,
       validateState: async () => {
@@ -666,13 +365,13 @@ export class BillingOperationsService {
             context,
           )));
       },
-      project: (statement) => this.mapBillingStatement(statement),
+      project: (statement) => mapBillingStatement(statement),
     });
   }
 
   async sendBillingStatement(eventId: string, billingId: string, actor: BillingActor) {
     actor = requireBillingActor(actor);
-    return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<BillingOperationsService['mapBillingStatement']>>({
+    return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<typeof mapBillingStatement>>({
       name: 'send_billing_statement',
       eventId,
       validateState: async () => {
@@ -704,7 +403,7 @@ export class BillingOperationsService {
           ] : []),
         ]);
       },
-      project: (billing) => this.mapBillingStatement(billing),
+      project: (billing) => mapBillingStatement(billing),
     });
   }
 
@@ -745,7 +444,7 @@ export class BillingOperationsService {
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
     let statement: OpsBillingStatement | null = null;
     let replayed = false;
-    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
+    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<typeof mapBillingCorrection>>({
       name: 'request_billing_correction', eventId, sideEffectMode: 'same_tx',
       context: billingCommandContext(eventId, 'request_billing_correction', input.idempotencyKey, actor),
       idempotencyPayloadHash: payloadHash,
@@ -765,14 +464,14 @@ export class BillingOperationsService {
         return db.opsBillingCorrection.create({ data: { id: `corr_${randomUUID()}`, eventId, statementId: statement!.id, reason: input.reason.trim(), correctedTotalAmount: input.correctedTotalAmount ?? null, status: 'pending', requestedBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
       },
       sideEffects: async (correction, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Requested billing correction for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_correction', affectedId: correction.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { statementId: statement!.id, reason: input.reason, correctedTotalAmount: input.correctedTotalAmount ?? null }) }, context); },
-      project: (correction) => this.mapBillingCorrection(correction),
+      project: (correction) => mapBillingCorrection(correction),
     });
   }
 
   async resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput, actor: BillingActor) {
     actor = requireBillingActor(actor);
     let correction: OpsBillingCorrection | null = null;
-    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
+    return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<typeof mapBillingCorrection>>({
       name: 'resolve_billing_correction', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
@@ -782,7 +481,7 @@ export class BillingOperationsService {
       },
       write: (context) => (context?.prisma ?? this.prisma).opsBillingCorrection.update({ where: { id: correctionId }, data: { status: input.action === 'approve' ? 'approved' : 'rejected', resolvedBy: actor.name, resolutionNotes: input.resolutionNotes?.trim() ?? null, resolvedAt: new Date() } }),
       sideEffects: async (resolved, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `${input.action === 'approve' ? 'Approved' : 'Rejected'} billing correction`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: input.action === 'approve' ? AuditActionType.Approve : AuditActionType.Update, affectedType: 'billing_correction', affectedId: resolved.id, affectedLabel: resolved.statementId, metadata: auditMetadata(actor, { resolutionNotes: input.resolutionNotes ?? '' }) }, context); },
-      project: (resolved) => this.mapBillingCorrection(resolved),
+      project: (resolved) => mapBillingCorrection(resolved),
     });
   }
 
@@ -791,7 +490,7 @@ export class BillingOperationsService {
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
     let statement: OpsBillingStatement | null = null;
     let replayed = false;
-    return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<BillingOperationsService['mapBillingDispute']>>({
+    return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<typeof mapBillingDispute>>({
       name: 'create_billing_dispute', eventId, sideEffectMode: 'same_tx',
       context: billingCommandContext(eventId, 'create_billing_dispute', input.idempotencyKey, actor),
       idempotencyPayloadHash: payloadHash,
@@ -816,13 +515,13 @@ export class BillingOperationsService {
         return db.opsBillingDispute.create({ data: { id: `dispute_${randomUUID()}`, eventId, statementId: statement!.id, milestoneId: input.milestoneId ?? null, amount: input.amount, reason: input.reason.trim(), status: 'open', raisedBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
       },
       sideEffects: async (dispute, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Opened billing dispute for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_dispute', affectedId: dispute.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { amount: input.amount, reason: input.reason }) }, context); },
-      project: (dispute) => this.mapBillingDispute(dispute),
+      project: (dispute) => mapBillingDispute(dispute),
     });
   }
 
   async resolveBillingDispute(eventId: string, disputeId: string, input: ResolveBillingDisputeInput, actor: BillingActor) {
     actor = requireBillingActor(actor);
-    return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<BillingOperationsService['mapBillingDispute']>>({
+    return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<typeof mapBillingDispute>>({
       name: 'resolve_billing_dispute', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
@@ -832,7 +531,7 @@ export class BillingOperationsService {
       },
       write: (context) => (context?.prisma ?? this.prisma).opsBillingDispute.update({ where: { id: disputeId }, data: { status: input.action === 'resolve' ? 'resolved' : 'rejected', resolvedBy: actor.name, resolutionNotes: input.resolutionNotes.trim(), resolvedAt: new Date() } }),
       sideEffects: async (dispute, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `Resolved billing dispute`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Update, affectedType: 'billing_dispute', affectedId: dispute.id, affectedLabel: dispute.statementId, metadata: auditMetadata(actor, { resolution: input.action, resolutionNotes: input.resolutionNotes }) }, context); },
-      project: (dispute) => this.mapBillingDispute(dispute),
+      project: (dispute) => mapBillingDispute(dispute),
     });
   }
 
@@ -842,7 +541,7 @@ export class BillingOperationsService {
     let event: Awaited<ReturnType<BillingOperationsService['requireEvent']>> | null = null;
     let issue: { id: string; eventId: string } | null = null;
     let replayed = false;
-    return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
+    return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<typeof mapAdditionalBilling>>({
       name: 'create_additional_billing', eventId, sideEffectMode: 'same_tx',
       context: billingCommandContext(eventId, 'create_additional_billing', input.idempotencyKey, actor),
       idempotencyPayloadHash: payloadHash,
@@ -863,13 +562,13 @@ export class BillingOperationsService {
         return db.opsAdditionalBilling.create({ data: { id: `addbill_${randomUUID()}`, eventId, urgentIssueId: issue!.id, description: input.description.trim(), amount: input.amount, status: 'issued', createdBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
       },
       sideEffects: async (billing, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Issued post-event additional billing`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'additional_billing', affectedId: billing.id, affectedLabel: input.description, metadata: auditMetadata(actor, { urgentIssueId: issue!.id, amount: input.amount }) }, context); },
-      project: (billing) => this.mapAdditionalBilling(billing),
+      project: (billing) => mapAdditionalBilling(billing),
     });
   }
 
   async waiveAdditionalBilling(eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput, actor: BillingActor) {
     actor = requireBillingActor(actor);
-    return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
+    return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<typeof mapAdditionalBilling>>({
       name: 'waive_additional_billing', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
         await this.requireEvent(eventId);
@@ -879,125 +578,8 @@ export class BillingOperationsService {
       },
       write: (context) => (context?.prisma ?? this.prisma).opsAdditionalBilling.update({ where: { id: additionalBillingId }, data: { status: 'waived', waiverReason: input.reason.trim(), waivedBy: actor.name, waivedAt: new Date() } }),
       sideEffects: async (billing, context) => { await writeAudit(this.auditWriter, eventId, actor.name, `Waived post-event additional billing`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Update, affectedType: 'additional_billing', affectedId: billing.id, affectedLabel: billing.description, metadata: auditMetadata(actor, { waiverReason: input.reason }) }, context); },
-      project: (billing) => this.mapAdditionalBilling(billing),
+      project: (billing) => mapAdditionalBilling(billing),
     });
-  }
-
-  mapBillingCorrection(correction: OpsBillingCorrection) {
-    return { id: correction.id, eventId: correction.eventId, statementId: correction.statementId, reason: correction.reason, correctedTotalAmount: correction.correctedTotalAmount ?? null, status: correction.status, requestedBy: correction.requestedBy, resolvedBy: correction.resolvedBy ?? null, resolutionNotes: correction.resolutionNotes ?? null, createdAt: timestamp(correction.createdAt), resolvedAt: correction.resolvedAt ? timestamp(correction.resolvedAt) : null };
-  }
-
-  mapBillingDispute(dispute: OpsBillingDispute) {
-    return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, reason: dispute.reason, status: dispute.status, raisedBy: dispute.raisedBy, resolvedBy: dispute.resolvedBy ?? null, resolutionNotes: dispute.resolutionNotes ?? null, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
-  }
-
-  mapAdditionalBilling(billing: OpsAdditionalBilling) {
-    return { id: billing.id, eventId: billing.eventId, urgentIssueId: billing.urgentIssueId, description: billing.description, amount: billing.amount, status: billing.status, createdBy: billing.createdBy, waiverReason: billing.waiverReason ?? null, waivedBy: billing.waivedBy ?? null, createdAt: timestamp(billing.createdAt), waivedAt: billing.waivedAt ? timestamp(billing.waivedAt) : null };
-  }
-
-  mapBillingSource(source: OpsBillingSource) {
-    return {
-      id: source.id,
-      eventId: source.eventId,
-      sourceType: source.sourceType,
-      sourceLabel: source.sourceLabel,
-      sourceDocumentId: source.sourceDocumentId ?? null,
-      lineItems: Array.isArray(source.lineItems) ? source.lineItems : [],
-      paymentSchedule: Array.isArray(source.paymentSchedule) ? source.paymentSchedule : [],
-      paymentMethods: Array.isArray(source.paymentMethods) ? source.paymentMethods : [],
-      totalAmount: source.totalAmount,
-      status: source.status,
-      approvedAt: source.approvedAt ? timestamp(source.approvedAt) : null,
-      approvedBy: source.approvedBy ?? null,
-      approvalNotes: source.approvalNotes,
-      paymentTermsPolicyState: source.paymentTermsPolicyState,
-      paymentTermsOverrideReason: source.paymentTermsOverrideReason ?? null,
-      paymentTermsApprovedBy: source.paymentTermsApprovedBy ?? null,
-      createdAt: timestamp(source.createdAt),
-      updatedAt: timestamp(source.updatedAt),
-    };
-  }
-
-  mapBillingStatement(statement: OpsBillingStatement) {
-    const expanded = statement as OpsBillingStatement & { sourceId?: string | null };
-    return {
-      id: statement.id,
-      eventId: statement.eventId,
-      sourceId: expanded.sourceId ?? null,
-      number: statement.number,
-      clientName: statement.clientName,
-      clientContact: statement.clientContact,
-      eventName: statement.eventName,
-      eventDate: statement.eventDate ? isoDate(statement.eventDate) : null,
-      lineItems: Array.isArray(statement.lineItems) ? statement.lineItems : [],
-      paymentSchedule: Array.isArray(statement.paymentSchedule) ? statement.paymentSchedule : [],
-      paymentMethods: Array.isArray(statement.paymentMethods) ? statement.paymentMethods : [],
-      totalAmount: statement.totalAmount,
-      documentId: statement.documentId ?? null,
-      pdfUrl: statement.pdfUrl,
-      storageKey: statement.storageKey,
-      storageObjectId: statement.storageObjectId ?? null,
-      storageState: statement.storageState,
-      status: statement.status,
-      sentAt: statement.sentAt ? timestamp(statement.sentAt) : null,
-      generatedAt: timestamp(statement.generatedAt),
-    };
-  }
-
-  mapPaymentMilestone(payment: OpsPaymentMilestone, history: OpsPaymentRecord[] = []) {
-    const amountPaid = payment.amountPaid ?? history.reduce((sum, record) => sum + record.amountReceived, 0);
-    const remainingBalance = payment.remainingBalance ?? Math.max(0, payment.amount - amountPaid);
-    return {
-      id: payment.id,
-      eventId: payment.eventId,
-      label: payment.label,
-      percentage: payment.percentage ?? 50,
-      amount: payment.amount,
-      amountPaid,
-      remainingBalance,
-      dueDate: isoDate(payment.dueDate),
-      status: payment.status,
-      history: history.map((record) => this.mapPaymentRecord(record)),
-    };
-  }
-
-  mapPaymentRecord(record: OpsPaymentRecord) {
-    return {
-      id: record.id,
-      eventId: record.eventId,
-      milestoneId: record.milestoneId,
-      amountReceived: record.amountReceived,
-      paymentDate: isoDate(record.paymentDate),
-      paymentMethod: record.paymentMethod,
-      referenceNumber: record.referenceNumber,
-      recordedAt: timestamp(record.recordedAt),
-    };
-  }
-
-  async getPaymentStatusForEvent(eventId: string) {
-    await this.requireEvent(eventId);
-    const [milestones, records] = await Promise.all([
-      this.prisma.opsPaymentMilestone.findMany({ where: { eventId }, orderBy: { createdAt: 'asc' } }),
-      this.prisma.opsPaymentRecord.findMany({ where: { eventId }, orderBy: { recordedAt: 'desc' } }),
-    ]);
-
-    const mappedMilestones = milestones.map((payment) =>
-      this.mapPaymentMilestone(
-        payment,
-        records.filter((record) => record.milestoneId === payment.id),
-      ),
-    );
-
-    return {
-      eventId,
-      milestones: mappedMilestones,
-      paymentRecords: records.map((record) => this.mapPaymentRecord(record)),
-      counts: {
-        paid: mappedMilestones.filter((payment) => payment.status === 'paid').length,
-        pending: mappedMilestones.filter((payment) => payment.status !== 'paid').length,
-        atRisk: mappedMilestones.filter((payment) => payment.status === 'at_risk').length,
-      },
-    };
   }
 
   private normalizeBillingLineItems(lineItems: BillingLineItemInput[] = []) {

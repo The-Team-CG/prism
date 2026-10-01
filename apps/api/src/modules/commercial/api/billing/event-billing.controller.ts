@@ -29,11 +29,13 @@ import {
   type WaiveAdditionalBillingInput,
 } from '@prism/types';
 import { BillingOperationsService } from '../../application/billing/billing-operations.service';
+import { PaymentOperationsService } from '../../application/billing/payment-operations.service';
 
 @Controller('events')
 export class OpsEventBillingController {
   constructor(
     private readonly billingOperationsService: BillingOperationsService,
+    private readonly paymentOperationsService: PaymentOperationsService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
   ) {}
 
@@ -84,7 +86,7 @@ export class OpsEventBillingController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'payment milestone', eventId);
-    return this.billingOperationsService.markPayment(eventId, milestoneId, dto.status, actor);
+    return this.paymentOperationsService.markPayment(eventId, milestoneId, dto.status, actor);
   }
 
   @Post(':eventId/payments/:milestoneId/records')
@@ -97,7 +99,7 @@ export class OpsEventBillingController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'payment recording', eventId);
-    return this.billingOperationsService.recordPayment(eventId, milestoneId, dto, actor);
+    return this.paymentOperationsService.recordPayment(eventId, milestoneId, dto, actor);
   }
 
   @Post(':eventId/billing-statements/:billingId/send')

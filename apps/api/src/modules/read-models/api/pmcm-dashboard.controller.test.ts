@@ -14,12 +14,6 @@ function createController() {
   const eventAccessPolicyService = {
     resolveActor: vi.fn((_input: any, verified: any) => ({ role: verified.actorRole, name: verified.actorName })),
   };
-  const billingOperationsService = {
-    mapBillingSource: vi.fn((source) => source),
-    mapBillingStatement: vi.fn((statement) => statement),
-    mapPaymentMilestone: vi.fn((milestone) => milestone),
-    mapPaymentRecord: vi.fn((record) => record),
-  };
   const coordinatorsService = {
     mapCoordinator: vi.fn((coordinator) => coordinator),
     mapCoordinatorAssignment: vi.fn((assignment) => assignment),
@@ -31,7 +25,6 @@ function createController() {
   const controller = new OpsPmcmDashboardController(
     eventReadModelsService as any,
     eventAccessPolicyService as any,
-    billingOperationsService as any,
     coordinatorsService as any,
     floorPlanWorkflowService as any,
     guestWorkflowService as any,

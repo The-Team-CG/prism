@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PaymentRiskScheduler } from './payment-risk.scheduler';
-import type { BillingOperationsService } from './billing-operations.service';
+import type { PaymentOperationsService } from './payment-operations.service';
 
 describe('PaymentRiskScheduler', () => {
   const previousFlag = process.env.PRISM_DISABLE_PAYMENT_RISK_JOB;
@@ -18,7 +18,7 @@ describe('PaymentRiskScheduler', () => {
   it('does not start the payment-risk interval when disabled', () => {
     vi.useFakeTimers();
     process.env.PRISM_DISABLE_PAYMENT_RISK_JOB = '1';
-    const service = { runPaymentRiskSweep: vi.fn().mockResolvedValue(undefined) } as unknown as BillingOperationsService;
+    const service = { runPaymentRiskSweep: vi.fn().mockResolvedValue(undefined) } as unknown as PaymentOperationsService;
     const scheduler = new PaymentRiskScheduler(service);
 
     scheduler.onModuleInit();
@@ -31,7 +31,7 @@ describe('PaymentRiskScheduler', () => {
   it('runs the payment-risk sweep on the interval', async () => {
     vi.useFakeTimers();
     delete process.env.PRISM_DISABLE_PAYMENT_RISK_JOB;
-    const service = { runPaymentRiskSweep: vi.fn().mockResolvedValue(undefined) } as unknown as BillingOperationsService;
+    const service = { runPaymentRiskSweep: vi.fn().mockResolvedValue(undefined) } as unknown as PaymentOperationsService;
     const scheduler = new PaymentRiskScheduler(service);
 
     scheduler.onModuleInit();
