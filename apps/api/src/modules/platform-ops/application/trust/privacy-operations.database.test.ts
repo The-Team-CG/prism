@@ -8,7 +8,14 @@ import { AuditService } from './audit.service';
 import { PrivacyOperationsService } from './privacy-operations.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL;
-const operator = { name: 'P0 database test operator', role: 'pmcm-admin' };
+const operator = {
+  id: 'p0-test-operator',
+  name: 'P0 database test operator',
+  role: 'pmcm-admin' as const,
+  email: 'p0-operator@privacy.test',
+  explicit: true,
+  verified: true,
+};
 
 // Opt-in, local, disposable database only. Cleanup uses exact IDs created by this suite.
 describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
@@ -70,7 +77,7 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
     return prisma.opsPrivacyRequest.create({ data: {
       id: requestId, subjectEmail, subjectName: options.subjectName ?? '',
       subjectType: options.subjectType ?? 'client', requestType: options.requestType ?? 'deletion',
-      status: options.status ?? 'approved', eventId: options.eventId,
+      status: options.status ?? 'approved', eventId: options.eventId, createdBy: operator.name,
     } });
   }
 

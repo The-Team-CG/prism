@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Privacy and AI governance writes now require verified trust actors; their audits and approval records use the real actor, and misleading database-side “PMCM Admin” defaults are removed.
 - Supplier quote requests, quote entry/selection, and availability changes now require a verified PMCM or system actor and store that actor's actual identity in audit records.
 - Account approval and decline audits now record the verified administrator identity instead of the generic “PMCM Admin” label.
 - Inquiry audits now use verified actors for on-behalf intake, status changes, and manual conforme reminders; anonymous public intake records an explicit System actor.

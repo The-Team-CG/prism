@@ -1,7 +1,16 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { PrivacyRequestType } from '@prism/kernel/event-core';
+import { OpsUserRole, PrivacyRequestType } from '@prism/kernel/event-core';
 import { PrivacyOperationsService } from './privacy-operations.service';
+
+const verifiedActor = {
+  id: 'user_mys',
+  role: OpsUserRole.PmcmAdmin,
+  email: 'mys@pmcm.test',
+  name: 'Mys',
+  explicit: true,
+  verified: true,
+};
 
 describe('PrivacyOperationsService', () => {
   function createService() {
@@ -26,14 +35,14 @@ describe('PrivacyOperationsService', () => {
     };
     const prisma = {
       opsPrivacyRequest: {
-        create: vi.fn(async () => created),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...created, ...data })),
         findMany: vi.fn(async () => [created]),
       },
     };
     const auditService = { audit: vi.fn(async () => undefined) };
-    const rootPrisma = { ...prisma, $transaction: async (callback: (tx: typeof prisma) => Promise<unknown>) => callback(prisma) };
+    const rootPrisma = { ...prisma, $transaction: vi.fn(async (callback: (tx: typeof prisma) => Promise<unknown>) => callback(prisma)) };
     const service = new PrivacyOperationsService(rootPrisma as never, auditService as never);
-    return { service, prisma, auditService, created };
+    return { service, prisma, rootPrisma, auditService, created };
   }
 
   it('creates a submitted privacy request and writes an audit trail', async () => {
@@ -47,22 +56,29 @@ describe('PrivacyOperationsService', () => {
         requestNotes: 'Need a copy of stored inquiry data',
         eventId: 'evt_sample',
       },
-      { name: 'Mys', role: 'pmcm-admin' },
+      verifiedActor,
     );
 
     expect(result).toMatchObject({
-      id: 'priv_1',
       status: 'submitted',
       subjectEmail: 'ana@ayala.test',
       requestType: PrivacyRequestType.Access,
     });
     expect(prisma.opsPrivacyRequest.create).toHaveBeenCalledTimes(1);
+    expect(prisma.opsPrivacyRequest.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ createdBy: verifiedActor.name }),
+    });
     expect(auditService.audit).toHaveBeenCalledWith(
       'evt_sample',
       'Mys',
       'Logged privacy request: access',
-      expect.objectContaining({ affectedType: 'privacy_request' }),
-      expect.objectContaining({ prisma }),
+      expect.objectContaining({
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
+        affectedType: 'privacy_request',
+        metadata: expect.objectContaining({ actorId: verifiedActor.id }),
+      }),
+      expect.objectContaining({ prisma, actorId: verifiedActor.id }),
     );
   });
 
@@ -72,9 +88,26 @@ describe('PrivacyOperationsService', () => {
     await expect(
       service.createRequest(
         { subjectType: 'client', subjectEmail: 'ana@ayala.test', requestType: 'erase-everything' },
-        { name: 'Mys', role: 'pmcm-admin' },
+        verifiedActor,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.opsPrivacyRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects privacy mutations from unverified actors before opening a transaction', async () => {
+    const { service, prisma, rootPrisma } = createService();
+    const unverifiedActor = { ...verifiedActor, verified: false };
+    const validInput = {
+      subjectType: 'client',
+      subjectEmail: 'ana@ayala.test',
+      requestType: PrivacyRequestType.Access,
+    };
+
+    await expect(service.createRequest(validInput, unverifiedActor)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.reviewRequest('priv_1', { status: 'approved' }, unverifiedActor)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.executeRequest('priv_1', {}, unverifiedActor)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(rootPrisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.opsPrivacyRequest.create).not.toHaveBeenCalled();
   });
 
@@ -102,7 +135,7 @@ describe('PrivacyOperationsService', () => {
     const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx)) };
     const auditService = { audit: vi.fn(async () => undefined) };
     const service = new PrivacyOperationsService(prisma as never, auditService as never);
-    const execute = () => service.executeRequest(request.id, {}, { name: 'Mys', role: 'pmcm-admin' });
+    const execute = () => service.executeRequest(request.id, {}, verifiedActor);
     return { request, tx, auditService, execute };
   }
 

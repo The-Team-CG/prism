@@ -3,6 +3,8 @@ import type { OpsAiApprovalRecord, OpsAiAuditLog } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { requireVerifiedTrustActor } from '../trust/verified-trust-actor';
 
 export type AiGovernanceDryRunInput = {
   eventId?: string;
@@ -63,7 +65,8 @@ export class AiGovernanceService {
     return redactValue('payload', payload) as Record<string, unknown>;
   }
 
-  async runDryRun(input: AiGovernanceDryRunInput): Promise<AiGovernanceDryRunResult> {
+  async runDryRun(input: AiGovernanceDryRunInput, actor: ResolvedEventOpsActor): Promise<AiGovernanceDryRunResult> {
+    const verifiedActor = requireVerifiedTrustActor(actor, 'an AI governance dry-run');
     const sanitizedPayload = this.sanitizePayload(input.payload ?? {});
     const dataCategories = this.detectDataCategories(input.payload ?? {});
     const baseData = {
@@ -100,7 +103,7 @@ export class AiGovernanceService {
         aiAuditLogId: audit.id,
         eventId: input.eventId ?? null,
         featureName: input.featureName,
-        requestedBy: 'PMCM Admin',
+        requestedBy: verifiedActor.name,
         humanApproved: false,
         status: 'pending_human_approval',
       },

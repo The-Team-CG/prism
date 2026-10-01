@@ -26,6 +26,24 @@ describe('OpsAiGovernanceController', () => {
     };
 
     await expect(controller.dryRun(dto, actor)).resolves.toEqual({ audit: { id: 'aia_1' }, approval: { id: 'aip_1' } });
-    expect(aiGovernanceService.runDryRun).toHaveBeenCalledWith(dto);
+    expect(aiGovernanceService.runDryRun).toHaveBeenCalledWith(dto, expect.objectContaining({
+      id: 'u1',
+      role: 'pmcm-admin',
+      name: 'Admin',
+      email: 'admin@example.test',
+      explicit: true,
+      verified: true,
+    }));
+  });
+
+  it('rejects non-trust actors before calling the governance service', async () => {
+    const aiGovernanceService = { runDryRun: vi.fn() };
+    const controller = new OpsAiGovernanceController(aiGovernanceService as any);
+    const dto = { featureName: 'PEIL', modelVersion: 'test', zdrConfirmed: true, payload: {} };
+
+    expect(() => controller.dryRun(dto as any, { ...actor, role: 'client', actorRole: 'client' } as any)).toThrow(
+      'Only trust operators can run AI governance dry-runs',
+    );
+    expect(aiGovernanceService.runDryRun).not.toHaveBeenCalled();
   });
 });
