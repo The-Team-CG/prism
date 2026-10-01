@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
-- Database loop auditing now follows inline and named callbacks passed through helper calls, so forwarded Prisma writes are reported for batching or an explicit bounded-work reason.
+- Database loop auditing now follows forwarded callbacks when a helper invokes them, while avoiding warnings for callbacks only stored or ignored.
 - Supplier reviews and promotions retain verified PMCM actor attribution; idempotent retries do not create duplicate or misleading review/promotion audit entries.
 - Billing mutations now require a verified actor ID, role, and name; calls with missing actor context fail before accessing billing data.
 - Split coordinator overview and role-interaction views into feature-local modules, keeping the existing observable task, supplier-check, attendance, and reassignment behavior.
