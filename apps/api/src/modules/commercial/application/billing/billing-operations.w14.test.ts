@@ -4,7 +4,7 @@ import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { CommandReceiptRecord, CommandReceiptStore } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { createBillingSourceSchema, createBillingDisputeSchema, requestBillingCorrectionSchema, waiveAdditionalBillingSchema } from '@prism/types';
-import { BillingOperationsService } from './billing-operations.service';
+import { BillingAdjustmentService } from './billing-adjustment.service';
 import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/payment-terms.policy';
 
 const actor = { id: 'actor_francis', name: 'Francis', role: OpsUserRole.PmcmAdmin, email: 'francis@pmcm.test' };
@@ -66,7 +66,7 @@ function createW14Service(withReceipts = false) {
   const workflow = withReceipts
     ? new WorkflowCommandService(transactionRunner as never, receiptStore)
     : new WorkflowCommandService();
-  const service = new BillingOperationsService(prisma, audit as any, { write: vi.fn() } as any, workflow);
+  const service = new BillingAdjustmentService(prisma, audit as any, workflow);
   return { service, prisma, audit, statement, correction, dispute, additional, receiptStore, transactionRunner };
 }
 
