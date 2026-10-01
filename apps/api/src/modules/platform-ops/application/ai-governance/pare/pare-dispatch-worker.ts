@@ -104,11 +104,13 @@ export async function processPareDispatchQueue(
   const rows = await prisma.opsPareDispatch.findMany({
     where: available(new Date(), maxAttempts),
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: maxBatch is clamped to MAX_BATCH (100) above.
     take: maxBatch,
   });
   const exhausted = await prisma.opsPareDispatch.findMany({
     where: { ...available(new Date()), attempts: { gte: maxAttempts } },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: maxBatch is clamped to MAX_BATCH (100) above.
     take: maxBatch,
   });
   for (const row of exhausted) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: findMany caps each worker invocation to maxBatch.
