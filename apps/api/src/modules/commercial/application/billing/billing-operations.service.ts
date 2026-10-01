@@ -1,4 +1,4 @@
-import { Inject, Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, type OpsAdditionalBilling, type OpsBillingCorrection, type OpsBillingDispute, type OpsBillingStatement, type OpsBillingSource, type OpsPaymentMilestone, type OpsPaymentRecord } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
@@ -24,6 +24,13 @@ import type {
   WaiveAdditionalBillingInput,
 } from '../../contracts/finance-commands.port';
 
+function requireBillingActor(actor: BillingActor | undefined): BillingActor {
+  if (!actor?.id?.trim() || !actor.name?.trim() || !actor.role?.trim()) {
+    throw new ForbiddenException('Verified billing actor is required');
+  }
+  return actor;
+}
+
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
@@ -45,7 +52,7 @@ function parseDate(value: string) {
 }
 
 function auditMetadata(actor: BillingActor, metadata: Record<string, unknown> = {}) {
-  const next = { ...metadata };
+  const next: Record<string, unknown> = { ...metadata, actorId: actor.id };
   if (actor.correlationId) next.correlationId = actor.correlationId;
   return Object.keys(next).length > 0 ? next : undefined;
 }
@@ -58,8 +65,8 @@ function billingCommandContext(
 ): PrismCommandContext | undefined {
   if (!idempotencyKey) return undefined;
   return {
-    actorId: actor.id ?? actor.name,
-    actorRole: actor.role ?? OpsUserRole.PmcmAdmin,
+    actorId: actor.id,
+    actorRole: actor.role,
     eventId,
     correlationId: actor.correlationId ?? `${commandName}:${eventId}:${idempotencyKey}`,
     idempotencyKey,
@@ -244,7 +251,8 @@ export class BillingOperationsService {
     }
   }
 
-  async markPayment(eventId: string, milestoneId: string, status: string, actor: BillingActor = { name: 'PMCM Admin' }) {
+  async markPayment(eventId: string, milestoneId: string, status: string, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     let milestone: OpsPaymentMilestone | null = null;
     return this.workflowCommandService.execute<OpsPaymentMilestone, ReturnType<BillingOperationsService['mapPaymentMilestone']>>({
       name: 'mark_payment',
@@ -287,8 +295,9 @@ export class BillingOperationsService {
     eventId: string,
     milestoneId: string,
     input: RecordPaymentInput,
-    actor: BillingActor = { name: 'PMCM Admin' },
+    actor: BillingActor,
   ) {
+    actor = requireBillingActor(actor);
     let milestone: OpsPaymentMilestone | null = null;
     let paymentDate: Date | null = null;
     let paymentPayloadHash = '';
@@ -384,6 +393,7 @@ export class BillingOperationsService {
   }
 
   async createBillingSource(eventId: string, input: CreateBillingSourceInput, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     let lineItems: BillingLineItemInput[] = [];
     let totalAmount = 0;
     let paymentSchedule: ReturnType<BillingOperationsService['normalizeBillingSchedule']> = [];
@@ -462,6 +472,7 @@ export class BillingOperationsService {
     input: ApproveBillingSourceInput = {},
     actor: BillingActor,
   ) {
+    actor = requireBillingActor(actor);
     const approvedBy = actor.name;
     let source: OpsBillingSource | null = null;
 
@@ -500,7 +511,8 @@ export class BillingOperationsService {
     });
   }
 
-  async generateBillingStatement(eventId: string, sourceId?: string, actor: BillingActor = { name: 'PMCM Admin' }, idempotencyKey?: string) {
+  async generateBillingStatement(eventId: string, sourceId: string | undefined, actor: BillingActor, idempotencyKey?: string) {
+    actor = requireBillingActor(actor);
     let event: Awaited<ReturnType<BillingOperationsService['requireEvent']>> | null = null;
     let inquiry: Awaited<ReturnType<PrismaService['opsInquiry']['findUnique']>> | null = null;
     let source: OpsBillingSource | null = null;
@@ -658,7 +670,8 @@ export class BillingOperationsService {
     });
   }
 
-  async sendBillingStatement(eventId: string, billingId: string, actor: BillingActor = { name: 'PMCM Admin' }) {
+  async sendBillingStatement(eventId: string, billingId: string, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     return this.workflowCommandService.execute<OpsBillingStatement, ReturnType<BillingOperationsService['mapBillingStatement']>>({
       name: 'send_billing_statement',
       eventId,
@@ -715,12 +728,12 @@ export class BillingOperationsService {
       contentType: 'application/pdf',
       declaredByteSize: pdfBytes.byteLength,
       checksumSha256: createHash('sha256').update(pdfBytes).digest('hex'),
-      actor: { id: actor.name, name: actor.name, role: storageActorRole, email: actor.email ?? '', eventId, explicit: true },
+      actor: { id: actor.id, name: actor.name, role: storageActorRole, email: actor.email ?? '', eventId, explicit: true },
     });
     let storageState = stored.object.lifecycleState;
     let storageKey = stored.object.providerObjectKey ?? '';
     if (stored.status === 'ready') {
-      const confirmed = await this.storageObjectService.confirmUpload({ objectId: stored.object.id, checksumSha256: stored.object.checksumSha256, byteSize: pdfBytes.byteLength, bytes: pdfBytes, actor: { id: actor.name, name: actor.name, role: storageActorRole, email: actor.email ?? '', eventId, explicit: true } });
+      const confirmed = await this.storageObjectService.confirmUpload({ objectId: stored.object.id, checksumSha256: stored.object.checksumSha256, byteSize: pdfBytes.byteLength, bytes: pdfBytes, actor: { id: actor.id, name: actor.name, role: storageActorRole, email: actor.email ?? '', eventId, explicit: true } });
       storageState = confirmed.lifecycleState;
       storageKey = confirmed.providerObjectKey ?? storageKey;
     }
@@ -728,6 +741,7 @@ export class BillingOperationsService {
   }
 
   async requestBillingCorrection(eventId: string, input: RequestBillingCorrectionInput, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
     let statement: OpsBillingStatement | null = null;
     let replayed = false;
@@ -756,6 +770,7 @@ export class BillingOperationsService {
   }
 
   async resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     let correction: OpsBillingCorrection | null = null;
     return this.workflowCommandService.execute<OpsBillingCorrection, ReturnType<BillingOperationsService['mapBillingCorrection']>>({
       name: 'resolve_billing_correction', eventId, sideEffectMode: 'same_tx',
@@ -772,6 +787,7 @@ export class BillingOperationsService {
   }
 
   async createBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
     let statement: OpsBillingStatement | null = null;
     let replayed = false;
@@ -805,6 +821,7 @@ export class BillingOperationsService {
   }
 
   async resolveBillingDispute(eventId: string, disputeId: string, input: ResolveBillingDisputeInput, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     return this.workflowCommandService.execute<OpsBillingDispute, ReturnType<BillingOperationsService['mapBillingDispute']>>({
       name: 'resolve_billing_dispute', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {
@@ -820,6 +837,7 @@ export class BillingOperationsService {
   }
 
   async createAdditionalBilling(eventId: string, input: CreateAdditionalBillingInput, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     const payloadHash = createHash('sha256').update(JSON.stringify({ eventId, ...input })).digest('hex');
     let event: Awaited<ReturnType<BillingOperationsService['requireEvent']>> | null = null;
     let issue: { id: string; eventId: string } | null = null;
@@ -850,6 +868,7 @@ export class BillingOperationsService {
   }
 
   async waiveAdditionalBilling(eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput, actor: BillingActor) {
+    actor = requireBillingActor(actor);
     return this.workflowCommandService.execute<OpsAdditionalBilling, ReturnType<BillingOperationsService['mapAdditionalBilling']>>({
       name: 'waive_additional_billing', eventId, sideEffectMode: 'same_tx',
       validateState: async () => {

@@ -29,21 +29,21 @@ export type BillingScheduleInput = NonNullable<CreateBillingSourceInput['payment
 export type BillingMethodInput = NonNullable<CreateBillingSourceInput['paymentMethods']>[number];
 
 export type BillingActor = {
-  id?: string;
+  id: string;
   name: string;
-  role?: string;
+  role: string;
   email?: string;
   correlationId?: string;
 };
 
 export interface FinanceCommands {
   runPaymentRiskSweep(): Promise<void>;
-  markPayment(eventId: string, milestoneId: string, status: string, actor?: BillingActor): Promise<unknown>;
-  recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput, actor?: BillingActor): Promise<unknown>;
+  markPayment(eventId: string, milestoneId: string, status: string, actor: BillingActor): Promise<unknown>;
+  recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput, actor: BillingActor): Promise<unknown>;
   createBillingSource(eventId: string, input: CreateBillingSourceInput, actor: BillingActor): Promise<unknown>;
   approveBillingSource(eventId: string, sourceId: string, input: ApproveBillingSourceInput, actor: BillingActor): Promise<unknown>;
-  generateBillingStatement(eventId: string, sourceId?: string, actor?: BillingActor, idempotencyKey?: string): Promise<unknown>;
-  sendBillingStatement(eventId: string, billingId: string, actor?: BillingActor): Promise<unknown>;
+  generateBillingStatement(eventId: string, sourceId: string | undefined, actor: BillingActor, idempotencyKey?: string): Promise<unknown>;
+  sendBillingStatement(eventId: string, billingId: string, actor: BillingActor): Promise<unknown>;
   requestBillingCorrection(eventId: string, input: RequestBillingCorrectionInput, actor: BillingActor): Promise<unknown>;
   resolveBillingCorrection(eventId: string, correctionId: string, input: ResolveBillingCorrectionInput, actor: BillingActor): Promise<unknown>;
   createBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor: BillingActor): Promise<unknown>;
