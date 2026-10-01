@@ -79,7 +79,7 @@ The static owner buckets map to physical schemas as follows:
 their table ownership is split in this register. A migration that crosses an
 owner boundary or changes a table-level exception requires an explicit policy
 and ownership review; the schema allowlist is not blanket permission to write
-another context's records. `read-models`, the kernel, and compatibility/sample
+another context's records. `read-models`, the kernel, and local fixture seed tooling
 do not own business migrations.
 
 `apps/api/scripts/check-prisma-migrations.mjs` enforces the policy for future
@@ -132,7 +132,7 @@ before implementation.
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
 | `OpsSupplier`, `OpsSupplierApplication`, `OpsSupplierCertification`, `OpsSupplierReview`, `OpsSupplierReliabilityNote` | `supplier_ops` | `commercial`; supplier directory, onboarding, certification, review, and reliability policy. |
-| `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `supplier_ops` | `commercial`; reference and review-dimension configuration. Some rows are currently sample-seeded and have no separate administration workflow. |
+| `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `supplier_ops` | `commercial`; reference and review-dimension configuration. Some rows are currently fixture-seeded and have no separate administration workflow. |
 | `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `supplier_ops` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. |
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `finance_ops` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. |
 | `OpsDocument` (supplier/billing kinds) | `event_core` | `commercial`; contract and billing document metadata through the document-vault capability. |
@@ -143,7 +143,7 @@ before implementation.
 | --- | --- | --- |
 | `OpsCoordinatorAssignment` | `staffing_ops` | `operations`; day-to-day staffing assignment and coordinator workspace. Live-ops event-day replacement/attendance updates are named transitional writes. |
 | `OpsGuestCheckIn`, `OpsGuestFeedback` | `guest_ops` | `operations`; guest check-in, consent, feedback, and moderation workflows. |
-| `OpsCoordinator` | `staffing_ops` | Reference data is currently sample-seeded and read through operations; add a real directory owner before introducing administration writes. |
+| `OpsCoordinator` | `staffing_ops` | Reference data is currently fixture-seeded and read through operations; add a real directory owner before introducing administration writes. |
 | `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog`, `OpsCoordinatorReliabilityNote` | `staffing_ops` | `live-ops`; event-day task, urgent-issue, log, escalation, and reliability workflows. |
 
 ### Platform trust, notifications, and AI governance
@@ -177,7 +177,7 @@ contract is introduced.
 | `platform-ops` privacy workflow | identity, event, commercial, guest records | Locate and anonymise/delete subject data when an approved privacy request executes | Governance requires a coordinated erasure transaction. Each affected model is named in the workflow; this is not general write permission. |
 | `identity-access` | platform trust records | Login-history and lockout telemetry via `AUTH_AUDIT` | Keeps platform implementation out of identity application code while the physical table ownership is clarified. |
 | `kernel/access-control` | platform audit | Emit forbidden-access evidence via kernel `AUDIT_WRITER` | Kernel stays business-context-free; the composition root binds the platform adapter. |
-| `compatibility/sample` | all seeded models | Seed/reset compatibility data only under `/sample/*` | Demo compatibility is not a product write path and must not be copied into new features. |
+| Local fixture seed tooling | selected development-reference models | Direct inserts only through the guarded CLI into an empty disposable local database; the API has no fixture routes or reset workflow. | Fixture setup is not a product write path and does not own ongoing business writes. |
 
 ## Join rules for new work
 

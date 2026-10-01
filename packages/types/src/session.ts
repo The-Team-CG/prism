@@ -12,8 +12,6 @@ export const PRISM_LEGACY_SESSION_STORAGE_KEYS = {
   clientMockAuthRequests: "prism:mock-auth-requests",
 } as const;
 
-export const PRISM_SAMPLE_STATE_STORAGE_KEY = "prism:prism-sample-state";
-
 export type PrismSessionStorageKey =
   (typeof PRISM_SESSION_STORAGE_KEYS)[keyof typeof PRISM_SESSION_STORAGE_KEYS];
 

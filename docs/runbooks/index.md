@@ -3,7 +3,7 @@
 * [Docker development and testing](docker-dev-testing.md) - local Docker modes, ports, environment files, and troubleshooting.
 * [Database migrations](database-migrations.md) - Prisma migration ownership, preflight, deployment, drift diagnosis, and recovery.
 * [Parallel worktrees](parallel-worktrees.md) - checkout-derived dev ports and junction-safe worktree teardown.
-* [Portal accounts](portal-accounts.md) - local demo credentials and role-boundary notes.
+* [Portal accounts](portal-accounts.md) - local fixture accounts and role-boundary notes.
 * [Deployment secrets](deployment-secrets.md) - GitHub Actions secrets, variables, provider targets, and deployment verification.
 * [AI provider routing](ai-provider-routing.md) - local provider/model selection, synthetic-only limits, and production gates.
 

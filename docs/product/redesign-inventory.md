@@ -4,7 +4,7 @@ title: "P.R.I.S.M whole-app redesign inventory"
 description: "Current portal and API surface inventory classified by redesign severity, owner goal, and readiness gate."
 tags: [product, redesign, inventory, ownership, frontend, backend]
 status: active
-updated: "2026-09-29"
+updated: "2026-09-30"
 authority: informative
 owner: "A (Maxine), D (Anthony)"
 audience: [design, frontend-engineers, product, reviewers]
@@ -53,10 +53,10 @@ Severity scale:
 | `apps/event` | PMCM admin and coordinator command app | Route-owned dashboard sections with compatibility-preserving event filters plus selected event workspace | S3 | Owner B (Francis) | Make PMCM and coordinator operations executable from command surfaces. | Event Command Inbox is now consumed by shell actions; selected event sections now prefer `PrismPmcmEventWorkspace`; event messages now have a route-owned workspace component; the event dashboard facade and duplicate filter folders are retired. Continue workspace IA, staffing/live-ops redesign, and route consolidation where it improves ownership. |
 | `apps/supplier` | Supplier portal | Landing, sign-in, dashboard | S2 | Owner C (Ethan) | Make supplier work limited to quote, assignment, contract, readiness, and event-day status. | Supplier Readiness Board is now visible on the dashboard; continue supplier application/status depth while preserving supplier-scoped data. |
 | `apps/guest` | Lightweight guest portal | Landing, sign-in, open code, dashboard | S1/Gate | Owner C (Ethan) | Make guest access low-friction, consented, and event-code scoped. | Use the shared Guest Event Pass contract. Keep lightweight. Gate QR/camera and media upload until HTTPS, consent, upload, and moderation are ready. |
-| `apps/api` | Shared NestJS API | One Nest source tree with DDD-shaped contexts under `apps/api/src/modules/*`, kernel primitives under `src/kernel/*`, and `/sample/*` compatibility under `src/compatibility/sample` | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Backend context consolidation is implemented: eight context roots, seven kernel concerns, one compatibility leaf, public indices, and executable boundary checks. Continue contract consolidation, table ownership, focused ports, and modular-monolith guardrails in `../architecture/current-architecture.md`. |
+| `apps/api` | Shared NestJS API | One Nest source tree with DDD-shaped contexts under `apps/api/src/modules/*`, kernel primitives under `src/kernel/*`, and guarded local fixture tooling under `src/fixtures` | S2 | Owner D (Anthony) | Make data, permissions, audit, files, lifecycle, notifications, and contracts trustworthy. | Backend context consolidation is implemented: eight context roots, seven kernel concerns, public indices, and executable boundary checks. Local fixture seeding runs through a separate CLI module not registered in the HTTP app. Continue contract consolidation, table ownership, focused ports, and modular-monolith guardrails in `../architecture/current-architecture.md`. |
 | `packages/ui` | Shared presentation system | App shell, public shell, primitives, blocks, client/public blocks | S1 | Owner A (Maxine) | Make shared presentation patterns coherent without absorbing workflow logic. | Keep presentation-only. Continue component consolidation through actual app needs. |
 | `packages/types` | Shared contracts | Lifecycle and capability contracts | S2 | Owner D (Anthony) | Make shared contracts the source of truth for role-safe app/API integration. | Expand route/feature contracts before large app redesign; keep read models and write schemas in this package. |
-| `packages/api-client` | Shared request helpers | Scoped API client, compatibility transport, and HTTP helper | S1 | Owner D (Anthony) | Make app data access typed, scoped, and migration-safe. | Keep the compatibility transport stable while feature data adapters use scoped helpers; do not grow a new aggregate facade. |
+| `packages/api-client` | Shared request helpers | Scoped API client and HTTP helpers | S1 | Owner D (Anthony) | Make app data access typed, scoped, and migration-safe. | Keep feature data adapters on scoped helpers; do not add a whole-system aggregate facade. |
 
 ## Owner System Goal Summary
 
@@ -114,7 +114,7 @@ Severity scale:
 | Surface | Routes | Severity | Redesign direction | Must preserve |
 | --- | --- | --- | --- | --- |
 | Guest landing | `/` | S0/S1 | Keep lightweight. Route users to code entry. | No account-heavy flow. |
-| Guest sign-in | `/sign-in` | S1 | Keep fallback only if needed by seeded/sample access. | No broad event browsing. |
+| Guest sign-in | `/sign-in` | S1 | Use the explicitly seeded local guest-pass fixture only for local verification. | No broad event browsing. |
 | Open code | `/open` | S1 | Make event code entry and consent clear. | Event-code scoped access. |
 | Guest dashboard | `/dashboard` | S1/Gate | Check-in, event info, feedback. Gate QR/media upload. | Consent required; no cross-event data. |
 
@@ -123,7 +123,7 @@ Severity scale:
 | Area | Current files | Severity | Redesign direction | Owner |
 | --- | --- | --- | --- | --- |
 | Backend bounded contexts | `apps/api/src/modules/<context>/` | S2 | Keep write ownership inside the owning context; compose cross-domain reads only in `modules/read-models`; expose only public indices, serializable contracts, or focused ports. | D |
-| Backend kernel/compatibility | `apps/api/src/kernel/<concern>/`, `apps/api/src/compatibility/sample/` | S2 | Keep database, event-core, access/session primitives, health, and shared helpers out of business contexts; keep sample aggregation behind `/sample/*`. | D |
+| Backend kernel and fixture tooling | `apps/api/src/kernel/<concern>/`, `apps/api/src/fixtures/` | S2 | Keep database, event-core, access/session primitives, health, and shared helpers out of business contexts; keep fixture seeding in a separate guarded CLI with no HTTP routes. | D |
 | Shared UI | `packages/ui/src/*` | S1 | Keep presentation-only; add app-specific blocks only after route inventory demands them. | A |
 | Shared contracts | `packages/types/src/*` | S2 | PMCM command inbox, selected-event workspace, client action-center, supplier readiness-board, guest event pass, and file matrix contracts exist. File UI may use `PrismFileRequirementsMatrix` for metadata status and visibility; upload-session, signed URL, retry, progress, and bulk upload UI are blocked until the storage adapter contract is approved and tested. | D |
 | API client | `packages/api-client/src/*` | S1 | PMCM command inbox, selected-event workspace, client action-center, and supplier readiness-board helpers now exist; keep removing broad state usage gradually. | D |
@@ -140,15 +140,15 @@ This map connects the app/package inventory to remaining product work. Update it
 | `apps/client` dashboard/action center | `PrismClientActionCenter` feeds dashboard actions with fallback. | Make next-action hierarchy first, remove or label broad fallback, add file/billing/floorplan/closeout cards only from existing contracts. | Ethan | Maxine, Anthony | `@prism/client` typecheck; client action-center route screenshot; official floorplan read-only evidence. |
 | `apps/supplier` dashboard | Supplier readiness board is visible and supplier-scoped contracts exist. | Redesign top section around quote, assignment, readiness, contract metadata, event-day status, and application/status messaging. | Ethan | Francis, Anthony, Maxine | `@prism/supplier` typecheck; supplier readiness tests; mobile screenshot. |
 | `apps/guest` access and dashboard | Guest event pass contract exists and open-code flow is available. | Clarify code entry, consent, check-in, walk-in flag, moderated feedback, invalid code, and QR/media gates. | Ethan | Anthony, Maxine | `@prism/guest` typecheck; guest workflow tests; mobile screenshot. |
-| `apps/api` capability modules | Scoped read models, policy tests, file matrix, auth/runtime DB guidance, and many workflow services exist. | Add tests only for touched slices; reject new normal `/api/sample/state` dependencies and any recreation of a centralized god hub. | Anthony | Francis, Ethan | Focused API tests; `prism-api` typecheck; boundary checks; DB doctors. |
+| `apps/api` capability modules | Scoped read models, policy tests, file matrix, auth/runtime DB guidance, and many workflow services exist. | Add tests only for touched slices; reject any reintroduction of whole-system state endpoints or a centralized god hub. | Anthony | Francis, Ethan | Focused API tests; `prism-api` typecheck; boundary checks; DB doctors. |
 | `packages/types` | Shared role read models, lifecycle helpers, session helpers, action/result/error/list/file-matrix contracts exist. | Add fields only when an app surface depends on them; avoid unused speculative types. | Anthony | Francis, Ethan, Maxine | `@prism/types` typecheck/test. |
-| `packages/api-client` | Scoped helpers exist for PMCM, client, supplier, guest, billing, event file requirements, and normalized API problems. | Add endpoint helpers before app code depends on new routes; keep sample aggregate compatibility-only. | Anthony | Francis, Ethan | `@prism/api-client` typecheck/test. |
+| `packages/api-client` | Scoped helpers exist for PMCM, client, supplier, guest, billing, event file requirements, and normalized API problems. | Add endpoint helpers before app code depends on new routes; keep the client focused on role-scoped endpoints. | Anthony | Francis, Ethan | `@prism/api-client` typecheck/test. |
 | `packages/ui` | Shared shell/public/client blocks exist. | Classify reusable primitives and keep workflow logic out; apply shell rules to first PMCM and portal surfaces. | Maxine | Francis, Ethan | UX brief; visual QA checklist; app typechecks. |
 | Docs/evidence | Living product, architecture, and readiness docs. | Keep ledger, inventory, readiness, and architecture docs aligned after each merge; add screenshots and command evidence when claiming demo readiness. | Anthony | Maxine, Francis, Ethan | `git diff --check`; constitution and directory indexes; clean branch status. |
 
 ## Redesign Sequencing
 
-1. Maxine and Anthony lock shell patterns, route inventory, typed contracts, sample-state boundaries, session/storage conventions, and the owner system goal for each branch.
+1. Maxine and Anthony lock shell patterns, route inventory, typed contracts, seed-only local fixture boundaries, session/storage conventions, and the owner system goal for each branch.
 2. Francis starts PMCM command dashboard and selected event workspace restructuring against the PMCM/coordinator operability goal.
 3. Ethan starts client action center and supplier readiness workflow against the external portal safety/action goal.
 4. Anthony verifies API role boundaries before app work merges.
@@ -164,4 +164,4 @@ This map connects the app/package inventory to remaining product work. Update it
 - The client cannot mutate official floorplans.
 - Supplier, coordinator, and guest routes do not expose PMCM-only data.
 - The old standalone UI modernization plan is retired; future redesign work follows living docs (`AGENTS.md`, the constitution, product docs, and architecture ADRs).
-- Redesign branches follow `readiness-foundation.md` and do not add new broad sample-state, app-local session-key, or cross-role import coupling.
+- Redesign branches follow `readiness-foundation.md` and do not add new broad demo-state, app-local session-key, or cross-role import coupling.

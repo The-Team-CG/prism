@@ -161,7 +161,7 @@ apps/api/src/
     infrastructure/           # adapters at a real replacement/composition seam
     <context>.module.ts       # one composition root
     index.ts                  # supported in-process surface
-  compatibility/sample/      # /sample/* seed/reset compatibility only
+  fixtures/                   # guarded local DB seed module; not registered in the API app
 ```
 
 Current business contexts are `event-lifecycle`, `commercial`, `operations`,

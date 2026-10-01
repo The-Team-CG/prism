@@ -18,7 +18,7 @@ const backendContextPattern = new RegExp(
   "^apps/api/src/modules/(?:" + backendContexts.join("|") + ")/",
 );
 const backendKernelPattern = /^apps\/api\/src\/kernel\//;
-const backendSourcePattern = /^apps\/api\/src\/(?:modules|kernel|compatibility)\//;
+const backendSourcePattern = /^apps\/api\/src\/(?:modules|kernel)\//;
 const readModelsPattern = /^apps\/api\/src\/modules\/read-models\//;
 const legacyBackendPattern = /^apps\/api\/libs\/(?:contexts|modules|core)\//;
 const prismaMutationPattern =
@@ -97,21 +97,21 @@ export const boundaryRules = [
     importPattern: /from\s+["'](?:@\/|apps\/)/,
   },
   {
-    name: "role apps must not read the broad sample state aggregate",
+    name: "role apps must not read a whole-system state aggregate",
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
     importPattern: /(?:eventOpsClient\.sample\.state\(|prismApi\.state\(|["']\/api\/sample\/state["']|["']\/sample\/state["'])/,
   },
   {
-    name: "client mock sample data belongs in local demo compatibility",
+    name: "role apps must not retain browser-local fixture fallbacks",
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
-    allowedFilePattern: /^apps\/client\/src\/compatibility\/sample\/prism-api\.ts$/,
-    importPattern: /from\s+["']@\/mock\/prism-sample-state["']/,
+
+    importPattern: /from\s+["'](?:@\/mock\/prism-sample-state|@\/compatibility\/sample\/prism-api)["']/,
   },
   {
-    name: "role apps must use shared Prism session and sample storage keys",
+    name: "role apps must use shared Prism session keys",
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
     importPattern:
-      /["']prism:(?:client-session|mock-auth-session|supplier-session|guest-session|event-command-session|prism-sample-state)["']/,
+      /["']prism:(?:client-session|mock-auth-session|supplier-session|guest-session|event-command-session)["']/,
   },
   {
     name: "backend services must not inject Prisma as any",
@@ -133,14 +133,14 @@ export const boundaryRules = [
     },
   },
   {
-    name: "backend contexts must not depend on sample compatibility",
+    name: "backend contexts must not import local fixture seed code",
     filePattern: backendContextPattern,
-    importPattern: /from\s+["']@prism\/compatibility\/sample(?:["']|\/)/,
+    importPattern: /from\s+["'][^"']*\/fixtures\/[^"']+["']/,
   },
   {
-    name: "kernel must not depend on sample compatibility",
+    name: "kernel must not import local fixture seed code",
     filePattern: backendKernelPattern,
-    importPattern: /from\s+["']@prism\/compatibility\/sample(?:["']|\/)/,
+    importPattern: /from\s+["'][^"']*\/fixtures\/[^"']+["']/,
   },
   {
     name: "read models must not mutate Prisma state",

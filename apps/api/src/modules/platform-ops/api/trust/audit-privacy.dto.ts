@@ -1,6 +1,6 @@
 import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
 
-export class SampleActorDto {
+export class ActorContextDto {
   @IsOptional()
   @IsString()
   actorId?: string;
@@ -38,7 +38,7 @@ export class SampleActorDto {
   accessCode?: string;
 }
 
-export class ListAuditLogsDto extends SampleActorDto {
+export class ListAuditLogsDto extends ActorContextDto {
   @IsOptional()
   @IsString()
   query?: string;
