@@ -12,11 +12,12 @@ function createService() {
   const context = {
     inquiriesService: {
       logInquiryOnBehalf: vi.fn(async () => ({ id: 'inq_logged' })),
+      sendConformeReminder: vi.fn(async () => ({ id: 'inq_reminded' })),
       uploadConforme: vi.fn(async () => ({ id: 'doc_sample' })),
     } as any,
     resolveActor: vi.fn((input: any = {}, verifiedActor?: any) =>
       verifiedActor
-        ? { role: verifiedActor.actorRole, name: verifiedActor.actorName }
+        ? { id: verifiedActor.actorId, role: verifiedActor.actorRole, name: verifiedActor.actorName, verified: true }
         : { role: input.actorRole, name: input.actorName ?? 'anonymous' },
     ),
     requireActorRole: vi.fn(async (actor, roles, resource) => {
@@ -64,17 +65,13 @@ describe('InquiryWorkflowService', () => {
     );
 
     expect(context.resolveActor).toHaveBeenCalledWith({ actorRole: OpsUserRole.Client });
-    expect(context.requireActorRole).toHaveBeenCalledWith(
-      { role: OpsUserRole.Client, name: 'anonymous' },
-      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
-      'log inquiry on behalf',
-    );
+    expect(context.requireActorRole).not.toHaveBeenCalled();
     expect(context.inquiriesService.logInquiryOnBehalf).not.toHaveBeenCalled();
   });
 
   it('denies a verified non-PmcmAdmin/System actor from logging inquiries on behalf', async () => {
     const { service, context } = createService();
-    const verifiedActor = { actorRole: 'client', actorName: 'A Client' };
+    const verifiedActor = { actorId: 'client_1', actorRole: 'client', actorName: 'A Client' };
     const input = {
       clientName: 'Walk In Client',
       email: 'walkin@example.test',
@@ -90,16 +87,37 @@ describe('InquiryWorkflowService', () => {
 
     expect(context.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(context.requireActorRole).toHaveBeenCalledWith(
-      { role: 'client', name: 'A Client' },
+      { id: 'client_1', role: 'client', name: 'A Client', verified: true },
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       'log inquiry on behalf',
     );
     expect(context.inquiriesService.logInquiryOnBehalf).not.toHaveBeenCalled();
   });
 
+  it('rejects caller-supplied PMCM context before role checks or inquiry creation', async () => {
+    const { service, context } = createService();
+    const input = {
+      clientName: 'Walk In Client',
+      email: 'walkin@example.test',
+      eventName: 'Walk In Product Launch',
+      eventDate: '2026-07-10',
+      clientType: 'Corporate',
+      message: 'Client gave details at PMCM office',
+    };
+
+    await expect(service.logInquiryOnBehalf(
+      input,
+      { actorId: 'spoofed_admin', actorRole: OpsUserRole.PmcmAdmin, actorName: 'Spoofed Admin' },
+      context as any,
+    )).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(context.requireActorRole).not.toHaveBeenCalled();
+    expect(context.inquiriesService.logInquiryOnBehalf).not.toHaveBeenCalled();
+  });
+
   it('allows a verified PmcmAdmin actor to log inquiries on behalf', async () => {
     const { service, context } = createService();
-    const verifiedActor = { actorRole: 'pmcm-admin', actorName: 'Ms. Mys' };
+    const verifiedActor = { actorId: 'pmcm_1', actorRole: 'pmcm-admin', actorName: 'Ms. Mys' };
     const input = {
       clientName: 'Walk In Client',
       email: 'walkin@example.test',
@@ -115,8 +133,28 @@ describe('InquiryWorkflowService', () => {
 
     expect(context.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(context.inquiriesService.logInquiryOnBehalf).toHaveBeenCalledWith(input, {
+      id: 'pmcm_1',
       role: 'pmcm-admin',
       name: 'Ms. Mys',
+      verified: true,
+    });
+  });
+
+  it('passes the verified actor to the manual conforme reminder command', async () => {
+    const { service, context } = createService();
+    const verifiedActor = { actorId: 'pmcm_3', actorRole: OpsUserRole.PmcmAdmin, actorName: 'A. Santos' };
+
+    await expect(service.sendConformeReminder('inq_existing', context as any, verifiedActor as any)).resolves.toEqual({
+      id: 'inq_reminded',
+    });
+
+    expect(context.requireActorRole).toHaveBeenCalledWith(
+      { id: 'pmcm_3', role: OpsUserRole.PmcmAdmin, name: 'A. Santos', verified: true },
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'conforme reminder',
+    );
+    expect(context.inquiriesService.sendConformeReminder).toHaveBeenCalledWith('inq_existing', {
+      id: 'pmcm_3', role: OpsUserRole.PmcmAdmin, name: 'A. Santos', verified: true,
     });
   });
 
@@ -137,7 +175,7 @@ describe('InquiryWorkflowService', () => {
 
   it('denies a verified non-PmcmAdmin actor from uploading conforme documents', async () => {
     const { service, context } = createService();
-    const verifiedActor = { actorRole: 'client', actorName: 'A Client' };
+    const verifiedActor = { actorId: 'client_3', actorRole: 'client', actorName: 'A Client' };
 
     await expect(
       service.uploadConforme('inq_sample', { fileName: 'signed.pdf' }, {}, context as any, verifiedActor as any),
@@ -145,7 +183,7 @@ describe('InquiryWorkflowService', () => {
 
     expect(context.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
     expect(context.requireActorRole).toHaveBeenCalledWith(
-      { role: 'client', name: 'A Client' },
+      { id: 'client_3', role: 'client', name: 'A Client', verified: true },
       [OpsUserRole.PmcmAdmin],
       'conforme upload',
     );
@@ -154,7 +192,7 @@ describe('InquiryWorkflowService', () => {
 
   it('allows a verified PmcmAdmin actor to upload conforme documents', async () => {
     const { service, context } = createService();
-    const verifiedActor = { actorRole: 'pmcm-admin', actorName: 'Ms. Mys' };
+    const verifiedActor = { actorId: 'pmcm_2', actorRole: 'pmcm-admin', actorName: 'Ms. Mys' };
 
     await expect(
       service.uploadConforme('inq_sample', { fileName: 'signed.pdf' }, {}, context as any, verifiedActor as any),
@@ -164,7 +202,7 @@ describe('InquiryWorkflowService', () => {
     expect(context.inquiriesService.uploadConforme).toHaveBeenCalledWith(
       'inq_sample',
       { fileName: 'signed.pdf' },
-      { role: 'pmcm-admin', name: 'Ms. Mys' },
+      { id: 'pmcm_2', role: 'pmcm-admin', name: 'Ms. Mys', verified: true },
     );
   });
 });
