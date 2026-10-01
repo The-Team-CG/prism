@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { InquiriesService } from './inquiries.service';
 
 function inquiry(overrides: Record<string, unknown> = {}) {
@@ -52,6 +53,7 @@ function createService(existing = [inquiry()]) {
   const audits: any[] = [];
   const transaction = {
     opsEvent: {
+      findFirst: vi.fn(async () => null),
       create: vi.fn(async ({ data }) => { const row = { ...data }; events.push(row); return row; }),
       update: vi.fn(async ({ where, data }) => { const row = events.find((item) => item.id === where.id); Object.assign(row, data); return row; }),
     },
@@ -145,13 +147,36 @@ describe('InquiriesService', () => {
           clientType: 'Corporate',
           message: 'Client gave details at PMCM office',
         },
-        { actorRole: 'client', actorName: 'Ana Reyes' },
+        { id: 'client_1', role: OpsUserRole.Client, name: 'Ana Reyes', explicit: true, verified: true },
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('rejects caller-supplied PMCM identity before creating an inquiry on behalf', async () => {
+    const { service, prisma } = createService([]);
+    const input = {
+      clientName: 'Walk In Client',
+      email: 'walkin@example.test',
+      eventName: 'Walk In Product Launch',
+      eventDate: '2026-07-10',
+      clientType: 'Corporate',
+      message: 'Client gave details at PMCM office',
+    };
+
+    await expect(service.logInquiryOnBehalf(
+      input,
+      { id: 'spoofed_admin', role: OpsUserRole.PmcmAdmin, name: 'Spoofed Admin', explicit: true, verified: false },
+    )).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.opsInquiry.create).not.toHaveBeenCalled();
+
+    await expect(service.logInquiryOnBehalf(input, undefined as unknown as ResolvedEventOpsActor))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.opsInquiry.create).not.toHaveBeenCalled();
+  });
+
   it('persists the channel and real actor identity when logging an inquiry on behalf of a client', async () => {
-    const { service } = createService([]);
+    const { service, audits } = createService([]);
 
     const created = await service.logInquiryOnBehalf(
       {
@@ -164,16 +189,30 @@ describe('InquiriesService', () => {
         channel: 'Walk-In',
         message: 'Client gave details at PMCM office',
       },
-      { actorRole: 'pmcm-admin', actorName: 'Marco' },
+      {
+        id: 'pmcm_1',
+        role: OpsUserRole.PmcmAdmin,
+        name: 'Marco',
+        email: 'marco@pmcm.test',
+        explicit: true,
+        verified: true,
+      } satisfies ResolvedEventOpsActor,
     );
 
     expect((created as any).channel).toBe('Walk-In');
     expect((created as any).source).toBe('BNI Referral');
     expect((created as any).loggedByName).toBe('Marco');
+    expect((created as any).loggedByRole).toBe(OpsUserRole.PmcmAdmin);
+    expect(audits[0]?.[0]).toMatchObject({
+      actor: 'Marco',
+      actorRole: OpsUserRole.PmcmAdmin,
+      actorEmail: 'marco@pmcm.test',
+      metadata: { actorId: 'pmcm_1', source: 'BNI Referral' },
+    });
   });
 
   it('links duplicate and previous declined inquiries by normalized email', async () => {
-    const { service } = createService([
+    const { service, audits } = createService([
       inquiry({ id: 'inq_same_window', eventDate: new Date('2026-07-01T00:00:00.000Z') }),
       inquiry({
         id: 'inq_declined',
@@ -197,6 +236,48 @@ describe('InquiriesService', () => {
     expect((created as any).normalizedEmail).toBe('ana@ayala.test');
     expect((created as any).duplicateOfInquiryId).toBe('inq_same_window');
     expect((created as any).previousDeclinedInquiryId).toBe('inq_declined');
+    expect(audits[0]?.[0]).toMatchObject({ actor: 'System', actorRole: OpsUserRole.System });
+  });
+
+  it.each(['accepted', 'pending', 'declined'] as const)('records the verified actor for an inquiry %s transition', async (status) => {
+    const { service, audits } = createService();
+    const actor = {
+      id: 'pmcm_2', role: OpsUserRole.PmcmAdmin, name: 'M. Reyes', email: 'm.reyes@pmcm.test',
+      explicit: true, verified: true,
+    } satisfies ResolvedEventOpsActor;
+
+    await service.updateInquiryStatus('inq_existing', {
+      status,
+      ...(status === 'declined' ? { declineReason: 'Date conflict' } : {}),
+    }, actor);
+
+    const audit = audits.find(([input]) => (input as { actor?: string }).actor === 'M. Reyes')?.[0];
+    expect(audit).toMatchObject({
+      actor: 'M. Reyes',
+      actorRole: OpsUserRole.PmcmAdmin,
+      actorEmail: 'm.reyes@pmcm.test',
+      metadata: { actorId: 'pmcm_2' },
+    });
+  });
+
+  it('records the verified actor for manual conforme reminders', async () => {
+    const { service, audits } = createService([inquiry({
+      status: 'accepted',
+      conformeSentAt: new Date('2026-05-01T00:00:00.000Z'),
+    })]);
+    const actor = {
+      id: 'pmcm_3', role: OpsUserRole.PmcmAdmin, name: 'A. Santos', email: 'a.santos@pmcm.test',
+      explicit: true, verified: true,
+    } satisfies ResolvedEventOpsActor;
+
+    await service.sendConformeReminder('inq_existing', actor);
+
+    expect(audits[0]?.[0]).toMatchObject({
+      actor: 'A. Santos',
+      actorRole: OpsUserRole.PmcmAdmin,
+      actorEmail: 'a.santos@pmcm.test',
+      metadata: { actorId: 'pmcm_3' },
+    });
   });
 
   it('does not fabricate an approved billing source when conforme is signed', async () => {
