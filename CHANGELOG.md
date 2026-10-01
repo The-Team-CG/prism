@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Inquiry audits now use verified actors for on-behalf intake, status changes, and manual conforme reminders; anonymous public intake records an explicit System actor.
 - Supplier file-requirements requests now go through the workspace data layer instead of being called from the view.
 - Database loop auditing now follows forwarded callbacks when a helper invokes them, while avoiding warnings for callbacks only stored or ignored.
 - Supplier reviews and promotions retain verified PMCM actor attribution; idempotent retries do not create duplicate or misleading review/promotion audit entries.

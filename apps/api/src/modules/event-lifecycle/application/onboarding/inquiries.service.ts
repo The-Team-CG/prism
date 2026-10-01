@@ -1,7 +1,6 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import type { PrismEventOpsActorContext } from '@prism/types';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { randomUUID } from 'node:crypto';
@@ -21,8 +20,6 @@ export type CreateInquiryInput = {
   source?: string;
   channel?: string;
   referralDetails?: string;
-  loggedByRole?: string;
-  loggedByName?: string;
   message: string;
   privacyConsentAccepted?: boolean;
   privacyNoticeVersion?: string;
@@ -33,8 +30,6 @@ export type UpdateInquiryStatusInput = {
   status: string;
   declineReason?: string;
 };
-
-export type ActorContextInput = PrismEventOpsActorContext;
 
 type InquiryWithTriage = OpsInquiry & {
   normalizedEmail?: string;
@@ -84,26 +79,20 @@ export class InquiriesService {
       throw new BadRequestException('Privacy consent is required before submitting a public inquiry');
     }
 
-    return this.createInquiryRecord(input, false);
+    return this.createInquiryRecord(input);
   }
 
-  async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: ActorContextInput = {}) {
-    const role = actorInput.actorRole ?? actorInput.role ?? OpsUserRole.Unknown;
-    if (role !== OpsUserRole.PmcmAdmin && role !== OpsUserRole.System) {
+  async logInquiryOnBehalf(input: CreateInquiryInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = this.requireVerifiedActor(actor);
+    if (verifiedActor.role !== OpsUserRole.PmcmAdmin && verifiedActor.role !== OpsUserRole.System) {
       throw new ForbiddenException('Only PMCM can log inquiries on behalf of clients');
     }
 
-    return this.createInquiryRecord(
-      {
-        ...input,
-        loggedByRole: role,
-        loggedByName: actorInput.actorName ?? actorInput.name ?? actorInput.actorEmail ?? actorInput.email ?? 'PMCM Admin',
-      },
-      true,
-    );
+    return this.createInquiryRecord(input, verifiedActor);
   }
 
-  async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput, actor?: ResolvedEventOpsActor) {
+  async updateInquiryStatus(inquiryId: string, input: UpdateInquiryStatusInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = this.requireVerifiedActor(actor);
     let current: OpsInquiry | null = null;
     let data: Prisma.OpsInquiryUpdateInput = {};
 
@@ -154,9 +143,9 @@ export class InquiriesService {
               fromStatus: current?.status ?? null,
               toStatus: input.status,
               transition: `inquiry:${current?.status ?? 'unknown'}->${input.status}`,
-              actorId: actor?.id ?? null,
-              actorRole: actor?.role ?? OpsUserRole.System,
-              actorName: actor?.name ?? 'System',
+              actorId: verifiedActor.id,
+              actorRole: verifiedActor.role,
+              actorName: verifiedActor.name,
             },
           });
         }
@@ -165,23 +154,35 @@ export class InquiriesService {
       sideEffects: async (inquiry) => {
         if (input.status === 'accepted') {
           await Promise.all([
-          this.audit(undefined, actor?.name ?? 'PMCM Admin', `Accepted inquiry for ${inquiry.clientName}; conforme sent`),
+          this.audit(undefined, verifiedActor.name, `Accepted inquiry for ${inquiry.clientName}; conforme sent`, {
+            actorRole: verifiedActor.role,
+            actorEmail: verifiedActor.email,
+            metadata: { actorId: verifiedActor.id },
+          }),
             this.notify(undefined, inquiry.email, 'Inquiry accepted; signed conforme required'),
             this.notify(undefined, inquiry.clientName, 'Conforme sent by PMCM', 'viber'),
           ]);
         }
         if (input.status === 'pending') {
-          await this.audit(undefined, 'PMCM Admin', `Marked inquiry pending for ${inquiry.clientName}`);
+          await this.audit(undefined, verifiedActor.name, `Marked inquiry pending for ${inquiry.clientName}`, {
+            actorRole: verifiedActor.role,
+            actorEmail: verifiedActor.email,
+            metadata: { actorId: verifiedActor.id },
+          });
         }
         if (input.status === 'declined') {
-          await this.audit(undefined, 'PMCM Admin', `Declined inquiry for ${inquiry.clientName}: ${input.declineReason}`);
+          await this.audit(undefined, verifiedActor.name, `Declined inquiry for ${inquiry.clientName}: ${input.declineReason}`, {
+            actorRole: verifiedActor.role,
+            actorEmail: verifiedActor.email,
+            metadata: { actorId: verifiedActor.id },
+          });
         }
       },
     });
   }
 
-  async sendConformeReminder(inquiryId: string) {
-    return this.sendConformeReminderForInquiry(inquiryId, 'PMCM Admin');
+  async sendConformeReminder(inquiryId: string, actor: ResolvedEventOpsActor) {
+    return this.sendConformeReminderForInquiry(inquiryId, this.requireVerifiedActor(actor));
   }
 
   async runConformeReminderSweep() {
@@ -354,13 +355,13 @@ export class InquiriesService {
     });
   }
 
-  private async createInquiryRecord(input: CreateInquiryInput, allowLogOnBehalf: boolean) {
+  private async createInquiryRecord(input: CreateInquiryInput, actor?: ResolvedEventOpsActor & { id: string; verified: true }) {
     const normalizedEmail = normalizeEmail(input.email);
     const eventDate = new Date(input.eventDate);
     if (Number.isNaN(eventDate.getTime())) throw new BadRequestException('Invalid event date');
 
     const source = input.source ?? 'Website';
-    if (source === 'Log on Behalf' && !allowLogOnBehalf) {
+    if (source === 'Log on Behalf' && !actor) {
       throw new BadRequestException('Public inquiries cannot use Log on Behalf source');
     }
 
@@ -368,7 +369,7 @@ export class InquiriesService {
     let previousDeclined: InquiryWithTriage | undefined;
 
     return this.workflowCommandService.execute<OpsInquiry>({
-      name: allowLogOnBehalf ? 'log_inquiry_on_behalf' : 'create_inquiry',
+      name: actor ? 'log_inquiry_on_behalf' : 'create_inquiry',
       validateState: async () => {
         const existingInquiries = (await this.prisma.opsInquiry.findMany({
           where: { normalizedEmail },
@@ -402,8 +403,8 @@ export class InquiriesService {
             source,
             channel: input.channel ?? null,
             referralDetails: input.referralDetails ?? '',
-            loggedByRole: allowLogOnBehalf ? input.loggedByRole ?? OpsUserRole.PmcmAdmin : null,
-            loggedByName: allowLogOnBehalf ? input.loggedByName ?? 'PMCM Admin' : null,
+            loggedByRole: actor?.role ?? null,
+            loggedByName: actor?.name ?? null,
             duplicateOfInquiryId: duplicate?.id ?? null,
             previousDeclinedInquiryId: previousDeclined?.id ?? null,
             previousDeclineReason: previousDeclined?.declineReason ?? null,
@@ -415,8 +416,11 @@ export class InquiriesService {
           },
         }),
       sideEffects: async (inquiry) => {
+        const auditActor = actor ?? { name: 'System', role: OpsUserRole.System };
         await Promise.all([
-          this.audit(undefined, 'PMCM Admin', duplicate ? 'Created duplicate inquiry' : 'Created new inquiry', {
+          this.audit(undefined, auditActor.name, duplicate ? 'Created duplicate inquiry' : 'Created new inquiry', {
+            actorRole: auditActor.role,
+            actorEmail: actor?.email,
             actionType: AuditActionType.Create,
             category: AuditCategory.Events,
             affectedType: 'inquiry',
@@ -426,6 +430,7 @@ export class InquiriesService {
               duplicateOfInquiryId: duplicate?.id ?? null,
               previousDeclinedInquiryId: previousDeclined?.id ?? null,
               source,
+              actorId: actor?.id ?? null,
             },
           }),
           this.notify(undefined, inquiry.email, 'Inquiry received'),
@@ -434,7 +439,10 @@ export class InquiriesService {
     });
   }
 
-  private async sendConformeReminderForInquiry(inquiryId: string, actor: 'PMCM Admin' | 'System') {
+  private async sendConformeReminderForInquiry(
+    inquiryId: string,
+    actor: (ResolvedEventOpsActor & { id: string; verified: true }) | 'System',
+  ) {
     let inquiry: OpsInquiry | null = null;
     let expectedLastReminderAt: Date | null = null;
     const now = new Date();
@@ -480,15 +488,36 @@ export class InquiriesService {
         return claimed.inquiry;
       },
       sideEffects: async (updated) => {
-        await this.audit(undefined, actor, `Queued conforme follow-up reminder for ${updated.clientName}`, {
+        const actorName = actor === 'System' ? actor : actor.name;
+        const actorRole = actor === 'System' ? OpsUserRole.System : actor.role;
+        const actorEmail = actor === 'System' ? undefined : actor.email;
+        const actorId = actor === 'System' ? null : actor.id;
+        await this.audit(undefined, actorName, `Queued conforme follow-up reminder for ${updated.clientName}`, {
+          actorRole,
+          actorEmail,
           actionType: AuditActionType.Create,
           category: AuditCategory.Events,
           affectedType: 'inquiry',
           affectedId: inquiryId,
-          metadata: { reminderWindowAt: expectedLastReminderAt?.toISOString() ?? inquiry?.conformeSentAt?.toISOString() },
+          metadata: {
+            actorId,
+            reminderWindowAt: expectedLastReminderAt?.toISOString() ?? inquiry?.conformeSentAt?.toISOString(),
+          },
         });
       },
     });
+  }
+
+  private requireVerifiedActor(actor: ResolvedEventOpsActor | undefined): ResolvedEventOpsActor & { id: string; verified: true } {
+    if (!actor) {
+      throw new ForbiddenException('A verified actor is required for this inquiry action');
+    }
+    const id = actor.id?.trim();
+    const name = actor.name?.trim();
+    if (actor.verified !== true || !id || !name) {
+      throw new ForbiddenException('A verified actor is required for this inquiry action');
+    }
+    return { ...actor, id, name, verified: true };
   }
 
   private audit(
