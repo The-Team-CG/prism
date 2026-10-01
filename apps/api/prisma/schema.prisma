@@ -1670,8 +1670,10 @@ model OpsEventInsight {
 }
 
 model OpsAuditChainLock {
-  id       String @id
-  revision Int    @default(0)
+  id       String    @id
+  revision Int       @default(0)
+  headId   String?   @map("head_id")
+  headHash String?   @map("head_hash")
 
   @@map("audit_chain_locks")
   @@schema("trust_ops")
@@ -1701,6 +1703,7 @@ model OpsAuditLog {
 
   @@index([eventId, createdAt], map: "audit_logs_event_id_created_at_idx")
   @@index([actor, createdAt], map: "audit_logs_actor_created_at_idx")
+  @@index([createdAt], map: "audit_logs_created_at_idx")
   @@index([category, createdAt], map: "audit_logs_category_created_at_idx")
   @@index([actionType, createdAt], map: "audit_logs_action_type_created_at_idx")
   @@index([severity, createdAt], map: "audit_logs_severity_created_at_idx")
