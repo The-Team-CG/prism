@@ -1197,32 +1197,6 @@ afterEach(() => {
 });
 
 describe('SampleCompatibilityService', () => {
-  it('does not block API startup when non-production sample seeding cannot reach the database', async () => {
-    const previousNodeEnv = process.env.NODE_ENV;
-    const previousReminderFlag = process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB;
-    process.env.NODE_ENV = 'development';
-    process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB = '1';
-
-    const service = createSampleCompatibilityService({
-      opsUser: {
-        count: async () => {
-          throw new Error('database unavailable');
-        },
-      },
-    } as any);
-
-    try {
-      await expect(service.onModuleInit()).resolves.toBeUndefined();
-    } finally {
-      process.env.NODE_ENV = previousNodeEnv;
-      if (previousReminderFlag === undefined) {
-        delete process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB;
-      } else {
-        process.env.PRISM_DISABLE_CONFORME_REMINDER_JOB = previousReminderFlag;
-      }
-    }
-  });
-
   it('accepts an inquiry and starts the conforme workflow', async () => {
     const fake = createPrisma();
     const service = createSampleCompatibilityService(fake.prisma as any);

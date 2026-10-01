@@ -6,7 +6,6 @@ import { guestCommands } from "./commands/guest-commands";
 import { identityCommands } from "./commands/identity-commands";
 import { lifecycleCommands } from "./commands/lifecycle-commands";
 import { operationsCommands } from "./commands/operations-commands";
-import { sampleCommands } from "./commands/sample-commands";
 
 /** Screen-level composition for the PMCM shell; endpoint work stays with each domain. */
 export const eventDashboardCommands = {
@@ -18,7 +17,6 @@ export const eventDashboardCommands = {
   ...operationsCommands,
   ...guestCommands,
   ...closureCommands,
-  ...sampleCommands,
 };
 
 export type EventDashboardCommands = typeof eventDashboardCommands;

@@ -2,6 +2,7 @@
 
 ## 2026-09-30
 
+- **Updated:** The portal-account runbook and architecture invariants now describe the explicit local fixture-reset flow, its disposable-database guard, and the absence of startup seeding and event-UI reset controls.
 - **Recorded:** The maintainability delivery establishes capability modules behind stable shared-package exports, a role-neutral floorplan editor package, feature-owned portal data access, explicit consent evidence, and a compact paged PMCM command inbox capped at page 100 with selected-event detail loaded on demand. Authenticated identity comes from the stored bearer token; sample compatibility stays explicitly isolated.
 - **Promoted and retired:** Moved lasting ownership, package, compatibility, and dashboard-read decisions into `AGENTS.md` and `docs/architecture/current-architecture.md`; removed the completed temporary specs and implementation plans. Git history retains those working artifacts.
 - **Verified:** Full production build passed across all 10 Turborepo tasks; root typecheck passed all 15 tasks. The final build also confirmed the API client source resolves in all four Next portals.

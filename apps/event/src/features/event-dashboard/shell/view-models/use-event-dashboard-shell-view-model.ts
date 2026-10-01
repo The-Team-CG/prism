@@ -450,7 +450,6 @@ export function useEventDashboardShellViewModel({
     closeEditor: () => setScreen({ name: "portal" }),
     refreshCommandInbox,
     changeCommandInboxPage,
-    resetDashboard: () => run("reset", commands.reset),
     approveApprovalRequest: (requestId: string) => run("approve account", () => commands.approveApprovalRequest(requestId)),
     declineApprovalRequest: (requestId: string) => run("decline account", () => commands.declineApprovalRequest(requestId)),
     submitBriefing: () => selectedEvent ? run("briefing", () => commands.submitBriefing(selectedEvent.id)) : Promise.resolve(),

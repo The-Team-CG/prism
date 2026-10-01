@@ -27,10 +27,8 @@ import { SampleStateService } from './services/sample-state.service';
   imports: [
     DatabaseModule,
     EventCoreModule,
-    // Depended on directly by SampleResetGuard and SampleStateGuard. Previously
-    // reached only
-    // transitively via IdentityAccessModule's re-export; naming it here keeps the
-    // guard working if that re-export is ever tightened (cf. PA-280).
+    // SampleStateGuard uses EventSessionGuard. Naming the module here keeps that
+    // provider available if IdentityAccessModule's re-export is tightened (cf. PA-280).
     EventSessionModule,
     PlatformOpsModule,
     AccessControlModule,
