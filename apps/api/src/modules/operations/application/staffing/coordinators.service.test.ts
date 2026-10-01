@@ -5,6 +5,7 @@ import { AuditService, AuditWriterAdapter } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { CoordinatorsService } from './coordinators.service';
+import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
 
 const event = {
   id: 'evt_main',
@@ -175,17 +176,30 @@ function createPrisma() {
   };
 }
 
+function createServiceWriters(prisma: any) {
+  return {
+    auditWriter: new AuditWriterAdapter(new AuditService(prisma)),
+    notificationWriter: new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma)),
+  };
+}
+
 function createService(prisma: any, accessPolicy: any = createAccessPolicy()) {
-  return new CoordinatorsService(
+  const writers = createServiceWriters(prisma);
+  return new CoordinatorAssignmentCommandService(
     prisma,
-    new AuditWriterAdapter(new AuditService(prisma)),
-    new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma)),
+    writers.auditWriter,
+    writers.notificationWriter,
     new WorkflowCommandService(new PrismTransactionRunner(prisma)),
     accessPolicy,
   );
 }
 
-describe('CoordinatorsService', () => {
+function createReaderService(prisma: any, accessPolicy: any = createAccessPolicy()) {
+  const writers = createServiceWriters(prisma);
+  return new CoordinatorsService(prisma, writers.auditWriter, writers.notificationWriter, accessPolicy);
+}
+
+describe('Coordinator staffing workflows', () => {
   it('rejects assignments when declared unavailability overlaps any time on the event date', async () => {
     const fake = createPrisma();
     fake.availability.push({
@@ -219,7 +233,7 @@ describe('CoordinatorsService', () => {
         groupBy: async () => [{ role: 'Floor Director', status: CoordinatorAssignmentStatus.Acknowledged, _count: { _all: 1 } }],
       },
     };
-    const service = createService(prisma as any);
+    const service = createReaderService(prisma as any);
 
     await expect(service.listCoverageForEvent(event.id)).resolves.toEqual([{
       role: 'Floor Director',
@@ -280,8 +294,9 @@ describe('CoordinatorsService', () => {
 
   it('reads active coordinator directory and coordinator assignments for workspace payloads', async () => {
     const fake = createPrisma();
-    const service = createService(fake.prisma as any);
-    await service.assignCoordinator(
+    const service = createReaderService(fake.prisma as any);
+    const assignmentCommands = createService(fake.prisma as any);
+    await assignmentCommands.assignCoordinator(
       event.id,
       {
         coordinatorId: coordinator.id,
@@ -310,7 +325,7 @@ describe('CoordinatorsService', () => {
     const fake = createPrisma();
     const namesake = { ...coordinator, id: 'coord_namesake', userId: 'usr_namesake', email: 'namesake@pmcm.test' };
     (fake.prisma.opsCoordinator as unknown as { findMany: () => Promise<typeof coordinator[]> }).findMany = async () => [coordinator, namesake];
-    const service = createService(fake.prisma as unknown);
+    const service = createReaderService(fake.prisma as unknown);
 
     await expect(service.resolveCoordinatorForActor({ email: 'unknown@pmcm.test' })).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.resolveCoordinatorForActor({ id: coordinator.userId })).resolves.toMatchObject({ id: coordinator.id });
@@ -322,7 +337,7 @@ describe('CoordinatorsService', () => {
       { ...fake.assignments[0], id: 'coord_asg_cancelled', status: 'cancelled' },
       { ...fake.assignments[0], id: 'coord_asg_replaced', status: 'replaced' },
     );
-    const service = createService(fake.prisma as unknown);
+    const service = createReaderService(fake.prisma as unknown);
     const assignments = await service.listAssignmentsForCoordinator(coordinator.id);
     expect(assignments.map((item) => item.id)).not.toEqual(expect.arrayContaining(['coord_asg_cancelled', 'coord_asg_replaced']));
   });
@@ -333,7 +348,7 @@ describe('CoordinatorsService', () => {
       { ...fake.assignments[0], id: 'coord_asg_cancelled', status: 'cancelled' },
       { ...fake.assignments[0], id: 'coord_asg_replaced', status: 'replaced' },
     );
-    const service = createService(fake.prisma as unknown);
+    const service = createReaderService(fake.prisma as unknown);
     const assignments = await service.listAssignmentsForCoordinator(coordinator.id, { includeHistorical: true });
     expect(assignments.map((item) => item.id)).toEqual(
       expect.arrayContaining(['coord_asg_cancelled', 'coord_asg_replaced']),
