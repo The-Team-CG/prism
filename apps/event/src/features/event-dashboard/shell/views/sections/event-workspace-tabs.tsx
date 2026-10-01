@@ -315,7 +315,6 @@ export function EventWorkspaceClosureTab() {
         supplierCategories={vm.supplierCategories}
         suppliers={vm.suppliers}
         quoteRequests={vm.quoteRequests}
-        reviewerName={vm.session.name}
         canReviewSuppliers={isPmcmAdmin(vm.session.role)}
         busy={Boolean(vm.busy)}
         onCreateRule={vm.createComplianceRule}

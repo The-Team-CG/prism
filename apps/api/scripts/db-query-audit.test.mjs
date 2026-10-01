@@ -90,6 +90,97 @@ describe('database query audit', () => {
     assert.match(failures[24], /queries\.ts:40 findMany lacks a non-empty where, take/);
   });
 
+  it('requires take-only bounds to be positive, statically known, and no larger than 1000', () => {
+    const failures = auditSourceFile(`
+      const PAGE_LIMIT = 500;
+      const TOO_MANY = 1001;
+      await tx.opsEvent.findMany({ take: 0 });
+      await tx.opsEvent.findMany({ take: -1 });
+      await tx.opsEvent.findMany({ take: 1001 });
+      await tx.opsEvent.findMany({ take: TOO_MANY });
+      await tx.opsEvent.findMany({ take: requestLimit });
+      await tx.opsEvent.findMany({ take: PAGE_LIMIT });
+      await tx.opsEvent.findMany({ take: 1000 });
+    `, 'take-bounds.ts');
+
+    assert.equal(failures.length, 5);
+    for (const failure of failures) {
+      assert.match(failure, /take-bounds\.ts:\d+ findMany lacks a non-empty where, take/);
+    }
+  });
+
+  it('does not treat a shadowed file constant as a statically bounded take', () => {
+    const failures = auditSourceFile(`
+      const LIMIT = 100;
+      function list(LIMIT: number) {
+        return tx.opsEvent.findMany({ take: LIMIT });
+      }
+    `, 'shadowed-take.ts');
+
+    assert.equal(failures.length, 1);
+    assert.match(failures[0], /shadowed-take\.ts:4 findMany lacks a non-empty where, take/);
+  });
+
+  it('does not treat a take as bounded when a later spread or property can replace it', () => {
+    const failures = auditSourceFile(`
+      await tx.opsEvent.findMany({ take: 100, ...untrustedOptions });
+      await tx.opsEvent.findMany({ ...options, take: 100 });
+      await tx.opsEvent.findMany({ take: 100, ...{ select: { id: true } } });
+      await tx.opsEvent.findMany({ take: 100, take: undefined });
+      await tx.opsEvent.findMany({ take: 100, [optionName]: value });
+      await tx.opsEvent.findMany({
+        // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: requestLimit is clamped to 100 before this query.
+        take: requestLimit,
+        ...untrustedOptions,
+      });
+    `, 'spread-take.ts');
+
+    assert.equal(failures.length, 5);
+    for (const failure of failures) {
+      assert.match(failure, /spread-take\.ts:\d+ findMany lacks a non-empty where, take/);
+    }
+  });
+
+  it('allows a dynamic take only when its local bound is documented', () => {
+    const failures = auditSourceFile(`
+      await tx.opsEvent.findMany({ take: requestLimit });
+      await tx.opsEvent.findMany({
+        // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: requestLimit is clamped to 100 before this query.
+        take: requestLimit,
+      });
+    `, 'dynamic-take.ts');
+
+    assert.equal(failures.length, 1);
+    assert.match(failures[0], /dynamic-take\.ts:2 findMany lacks a non-empty where, take/);
+  });
+
+  it('keeps bounded-take reasons attached to their query in a grouped operation', () => {
+    const failures = auditSourceFile(`
+      const results = await Promise.all([
+        tx.opsEvent.findMany({
+          // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: requestLimit is clamped to 100 before this query.
+          take: requestLimit,
+        }),
+        tx.opsEvent.findMany({}),
+      ]);
+    `, 'grouped-take.ts');
+
+    assert.equal(failures.length, 1);
+    assert.match(failures[0], /grouped-take\.ts:7 findMany lacks a non-empty where, take/);
+  });
+
+  it('does not trust a scoped where object when a spread can overwrite its predicate', () => {
+    const failures = auditSourceFile(`
+      await tx.opsEvent.findMany({ where: { eventId, ...untrustedFilters } });
+      await tx.opsEvent.findMany({ where: { ...untrustedFilters, eventId } });
+      await tx.opsEvent.findMany({ where: { eventId, [filterName]: filterValue } });
+    `, 'spread-where.ts');
+
+    assert.equal(failures.length, 2);
+    assert.match(failures[0], /spread-where\.ts:2 findMany lacks a non-empty where, take/);
+    assert.match(failures[1], /spread-where\.ts:4 findMany lacks a non-empty where, take/);
+  });
+
   it('rejects empty logical filters that leave Prisma findMany unscoped', () => {
     const failures = auditSourceFile(`
       await tx.opsEvent.findMany({ where: { AND: [] } });

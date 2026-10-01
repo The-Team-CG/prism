@@ -389,10 +389,20 @@ export class PrivacyOperationsService {
     let touchedRecords = 0;
     // Capture links before redacting either email column, including pre-normalization records.
     const identities = await prisma.opsInquiry.findMany({
-      where: {
-        OR: [{ email: { equals: byEmail, mode: 'insensitive' } }, { normalizedEmail: byEmail }],
-        ...(request.eventId ? { events: { some: { id: request.eventId } } } : {}),
-      },
+      where: request.eventId
+        ? {
+            OR: [
+              { email: { equals: byEmail, mode: 'insensitive' } },
+              { normalizedEmail: byEmail },
+            ],
+            events: { some: { id: request.eventId } },
+          }
+        : {
+            OR: [
+              { email: { equals: byEmail, mode: 'insensitive' } },
+              { normalizedEmail: byEmail },
+            ],
+          },
       select: { id: true },
     });
     const inquiryIds = identities.map((inquiry) => inquiry.id);
