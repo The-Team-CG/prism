@@ -374,6 +374,10 @@ function containsPrismaCallInCallback(call, sourceFile, sourceFilesByPath) {
           const helper = resolveCallbackFunction(node.expression, currentSourceFile, node, sourceFilesByPath);
           if (helper?.body && !visited.has(helper)) pending.push(helper);
         }
+        for (const argument of node.arguments) {
+          const callback = resolveCallbackFunction(argument, currentSourceFile, node, sourceFilesByPath);
+          if (callback?.body && !visited.has(callback)) pending.push(callback);
+        }
       }
       if (isFunctionBoundary(node)) return;
       ts.forEachChild(node, visit);
