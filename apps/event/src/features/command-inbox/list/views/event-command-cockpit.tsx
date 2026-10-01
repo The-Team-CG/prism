@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 
-import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, SampleRole } from "@prism/types";
+import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, PrismUserRole } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -216,7 +216,7 @@ export function buildEventWorkflowTabs({
   assignmentsCount: number;
   paymentsCount: number;
   openChecksCount: number;
-  role: SampleRole;
+  role: PrismUserRole;
 }): PmcmWorkflowTabItem[] {
   const tabs: PmcmWorkflowTabItem[] = [
     { id: "overview", label: "Overview", icon: ClipboardList },
@@ -309,7 +309,7 @@ export function SelectedEventCockpit({
           { label: "Client", value: event.clientName, detail: event.clientPortalStatus === "unlocked" ? "Client portal unlocked" : "Client portal locked" },
           { label: "Event date", value: event.eventDate, detail: event.readiness ?? "Readiness pending" },
           { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${label(defenseReadiness.lifecycleStage)}` : "Loading readiness check" },
-          { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal sample" : "Generated after event setup" },
+          { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal access" : "Generated after event setup" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</p>

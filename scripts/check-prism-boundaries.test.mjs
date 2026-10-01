@@ -9,7 +9,7 @@ describe("findBoundaryViolations", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { Button } from "@prism/ui";',
       "apps/event/src/app/page.tsx": 'import type { PrismEvent } from "@prism/types";',
-      "packages/api-client/src/index.ts": 'import type { PrismSampleState } from "@prism/types";',
+      "packages/api-client/src/index.ts": 'import type { PrismClientWorkspace } from "@prism/types";',
     });
 
     assert.deepEqual(violations, []);
@@ -62,18 +62,19 @@ describe("findBoundaryViolations", () => {
     ]);
   });
 
-  it("blocks redesign work from adding new sample-state or storage-key coupling", () => {
+  it("blocks browser-local fixture fallbacks, whole-system state, and app-local session keys", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
-      "apps/client/src/compatibility/sample/prism-api.ts": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
+      "apps/client/src/features/client-dashboard/data/local-fixture-fallback.ts": 'import { createInitialPrismSampleState } from "@/mock/prism-sample-state";',
       "apps/guest/src/app/dashboard/page.tsx": 'const key = "prism:guest-session";',
       "apps/event/src/app/dashboard/page.tsx": "eventOpsClient.sample.state();",
     });
 
     assert.deepEqual(violations, [
-      "apps/client/src/app/page.tsx: client mock sample data belongs in local demo compatibility",
-      "apps/guest/src/app/dashboard/page.tsx: role apps must use shared Prism session and sample storage keys",
-      "apps/event/src/app/dashboard/page.tsx: role apps must not read the broad sample state aggregate",
+      "apps/client/src/app/page.tsx: role apps must not retain browser-local fixture fallbacks",
+      "apps/client/src/features/client-dashboard/data/local-fixture-fallback.ts: role apps must not retain browser-local fixture fallbacks",
+      "apps/guest/src/app/dashboard/page.tsx: role apps must use shared Prism session keys",
+      "apps/event/src/app/dashboard/page.tsx: role apps must not read a whole-system state aggregate",
     ]);
   });
 
@@ -87,6 +88,10 @@ describe("findBoundaryViolations", () => {
         "await this.prisma.opsEvent.update({ where: { id }, data: input });",
       "apps/api/src/modules/read-models/application/queries/raw-dashboard.service.ts":
         "await this.prisma.$queryRaw('select * from ops_event');",
+      "apps/api/src/modules/commercial/application/suppliers/fixture-import.service.ts":
+        'import { LocalFixtureSeeder } from "../../../../fixtures/local-fixture-seeder";',
+      "apps/api/src/kernel/access-control/fixture-import.ts":
+        'import { LocalFixtureSeeder } from "../../fixtures/local-fixture-seeder";',
       [removedSourceRoot + "/services/new-risk-workflow.service.ts"]: "export class NewRiskWorkflowService {}",
       [removedSourceRoot + "/controllers/new-risk.controller.ts"]: "export class NewRiskController {}",
       "packages/ui/src/backend-button.tsx": 'import { RemovedService } from "@prism/kernel/event-core";',
@@ -97,6 +102,8 @@ describe("findBoundaryViolations", () => {
       "apps/api/src/modules/event-lifecycle/application/archive.service.ts: backend contexts must not import another context's private implementation",
       "apps/api/src/modules/read-models/application/services/pmcm-read-model.service.ts: read models must not mutate Prisma state",
       "apps/api/src/modules/read-models/application/queries/raw-dashboard.service.ts: read models raw queries require an approved query builder with a query budget",
+      "apps/api/src/modules/commercial/application/suppliers/fixture-import.service.ts: backend contexts must not import local fixture seed code",
+      "apps/api/src/kernel/access-control/fixture-import.ts: kernel must not import local fixture seed code",
       removedSourceRoot + "/services/new-risk-workflow.service.ts: legacy backend source roots must remain empty after DDD consolidation",
       removedSourceRoot + "/controllers/new-risk.controller.ts: legacy backend source roots must remain empty after DDD consolidation",
       "packages/ui/src/backend-button.tsx: shared ui must not import backend modules",
@@ -111,7 +118,7 @@ describe("findBoundaryViolations", () => {
         "// Query budget: one event summary query plus one scoped relation query.\nawait this.prisma.$queryRaw('select id from ops_event');",
       "apps/api/src/modules/read-models/application/services/pmcm-read-model.service.ts":
         "await this.prisma.opsEvent.findMany({ where: { id } });",
-      "apps/api/src/compatibility/sample/services/sample-compatibility.service.ts":
+      "apps/api/src/fixtures/local-fixture-seeder.ts":
         'import { EventCoreModule } from "@prism/kernel/event-core";',
     });
 

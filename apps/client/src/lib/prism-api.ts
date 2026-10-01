@@ -35,7 +35,3 @@ export function clientApiRequest<T>(path: string, init: PrismRequestInit = {}) {
     authToken: init.authToken ?? storedClientAccessToken(),
   });
 }
-
-/** Local browser demo behavior is isolated under compatibility/sample. */
-export const isClientLocalDemoMode =
-  process.env.NEXT_PUBLIC_Prism_API_MODE === "local";

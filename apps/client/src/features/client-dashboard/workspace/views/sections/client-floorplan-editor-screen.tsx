@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
 import { saveFloorPlanProject } from "../../use-cases/client-dashboard-actions";
-import type { ClientSession } from "../../model/client-dashboard-types";
 
 const EditorShell = dynamic(
   () => import("@/features/floorplan/editor").then((mod) => mod.EditorShell),
@@ -23,7 +22,6 @@ export function ClientFloorplanEditorScreen({
   draft,
   project,
   readOnly,
-  session,
   onBack,
   onSubmitted,
 }: {
@@ -31,18 +29,17 @@ export function ClientFloorplanEditorScreen({
   draft: PrismFloorPlanDraft;
   project: Project;
   readOnly: boolean;
-  session: ClientSession;
   onBack: () => void;
   onSubmitted: () => Promise<void>;
 }) {
   const editable = !readOnly && draft.status !== "approved";
 
   async function handleSave(next: Project) {
-    return saveFloorPlanProject(next, session ?? undefined);
+    return saveFloorPlanProject(next);
   }
 
   async function handleSubmit(next: Project) {
-    await saveFloorPlanProject(next, session ?? undefined);
+    await saveFloorPlanProject(next);
     await onSubmitted();
   }
 

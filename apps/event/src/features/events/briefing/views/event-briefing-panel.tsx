@@ -25,7 +25,7 @@ export function EventBriefingPanel({ briefing }: { briefing: PrismBriefing | nul
         <EmptyState
           icon={FileCheck2}
           title="No briefing submitted yet"
-          description="Use the quick action above to submit a sample briefing for this event."
+          description="Use the quick action above to submit a briefing for this event."
         />
       )}
     </Panel>

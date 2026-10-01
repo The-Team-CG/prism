@@ -1,6 +1,6 @@
 import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
 
-export class SampleActorDto {
+export class ActorContextDto {
   @IsOptional()
   @IsString()
   actorId?: string;

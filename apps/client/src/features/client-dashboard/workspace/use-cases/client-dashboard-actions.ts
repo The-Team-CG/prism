@@ -2,7 +2,7 @@ import {
   clientDashboardRepository,
   type FloorPlanPreferenceInput,
 } from "../data/client-dashboard-repository";
-import type { CreateFloorPlanRevisionCommentInput, CreatePrismInquiryInput, PrismUser } from "@prism/types";
+import type { CreateFloorPlanRevisionCommentInput, CreatePrismInquiryInput } from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
 
 export function readClientSession() {
@@ -13,12 +13,12 @@ export function signOutClientSession() {
   clientDashboardRepository.clearSession();
 }
 
-export function loadClientWorkspace(session: Pick<PrismUser, "name" | "email">) {
-  return clientDashboardRepository.loadWorkspace(session);
+export function loadClientWorkspace() {
+  return clientDashboardRepository.loadWorkspace();
 }
 
-export function loadClientActionCenter(session: Pick<PrismUser, "name" | "email">) {
-  return clientDashboardRepository.loadActionCenter(session);
+export function loadClientActionCenter() {
+  return clientDashboardRepository.loadActionCenter();
 }
 
 export function submitClientInquiry(input: CreatePrismInquiryInput) {
@@ -28,33 +28,30 @@ export function submitClientInquiry(input: CreatePrismInquiryInput) {
 export function submitFloorPlanPreference(
   eventId: string,
   input: FloorPlanPreferenceInput,
-  session?: Pick<PrismUser, "name" | "email">,
 ) {
-  return clientDashboardRepository.createFloorPlanPreference(eventId, input, session);
+  return clientDashboardRepository.createFloorPlanPreference(eventId, input);
 }
 
 export function loadOfficialFloorPlan(
   eventId: string,
   draftId: string,
   type: "submitted" | "approved",
-  session?: Pick<PrismUser, "name" | "email">,
 ) {
-  return clientDashboardRepository.loadFloorPlanSnapshot(eventId, draftId, type, session);
+  return clientDashboardRepository.loadFloorPlanSnapshot(eventId, draftId, type);
 }
 
-export function loadFloorPlanProject(planId: string, session?: Pick<PrismUser, "name" | "email">) {
-  return clientDashboardRepository.loadPlan(planId, session);
+export function loadFloorPlanProject(planId: string) {
+  return clientDashboardRepository.loadPlan(planId);
 }
 
 export function submitFloorPlanRevisionComment(
   eventId: string,
   draftId: string,
   input: CreateFloorPlanRevisionCommentInput,
-  session?: Pick<PrismUser, "name" | "email">,
 ) {
-  return clientDashboardRepository.submitFloorPlanRevisionComment(eventId, draftId, input, session);
+  return clientDashboardRepository.submitFloorPlanRevisionComment(eventId, draftId, input);
 }
 
-export function saveFloorPlanProject(project: Project, session?: Pick<PrismUser, "name" | "email">) {
-  return clientDashboardRepository.savePlan(project, session);
+export function saveFloorPlanProject(project: Project) {
+  return clientDashboardRepository.savePlan(project);
 }

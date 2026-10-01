@@ -10,8 +10,7 @@ if (url.hostname !== '127.0.0.1' || url.port !== '55437' || url.pathname !== '/p
 for (const key of ['SUPABASE_DB_URL', 'DATABASE_URL', 'PRISMA_DATABASE_URL', 'DIRECT_URL']) process.env[key] = url.href;
 Object.assign(process.env, {
   DB_SSL: 'false', NODE_ENV: 'production', PARE_MODE: 'mock',
-  PRISM_DISABLE_CONFORME_REMINDER_JOB: '1', PRISM_ENABLE_SAMPLE_COMPATIBILITY: 'false',
-  PRISM_ALLOW_SAMPLE_STATE: '0', PRISM_ALLOW_SAMPLE_RESET: '0', PRISM_DEV_RESET_KEY: '',
+  PRISM_DISABLE_CONFORME_REMINDER_JOB: '1',
   PRISM_SESSION_SECRET: randomBytes(48).toString('hex'),
   PRISM_SESSION_TTL_SECONDS: '28800',
 });
@@ -42,8 +41,6 @@ const publicExceptions = new Map([
   ['GET /api/quote-requests/:token', 'unique expiring quote capability'],
   ['POST /api/quote-requests/:token/quote', 'unique expiring quote capability'],
   ['PATCH /api/quote-requests/:token/quote', 'unique expiring quote capability and revision policy'],
-  ['GET /api/sample/state', 'separate SampleStateGuard; PmcmAdmin/System session unless an explicit local-dev opt-in is set'],
-  ['POST /api/sample/reset', 'separate SampleResetGuard; never invoked by this smoke test'],
 ]);
 
 function registeredRoutes(app) {
@@ -142,7 +139,8 @@ async function main() {
     await check('GET', '/api/publish/p0_missing?actorRole=pmcm-admin', clientToken, 403, 'client denied raw published layout');
     await check('GET', '/api/health', null, 200, 'public health remains available');
     await check('GET', '/api/quote-requests/p0_missing', null, 404, 'invalid quote capability denied');
-    await check('GET', '/api/sample/state', null, 401, 'sample state requires a session before the production disable even applies');
+    await check('GET', '/api/sample/state', null, 404, 'retired sample aggregate route is not registered');
+    await check('POST', '/api/sample/reset', null, 404, 'retired sample reset route is not registered');
     const failures = results.filter((result) => !result.passed);
     const report = { checkedAt: new Date().toISOString(), guardedRouteCount: routes.length, checkCount: results.length, failures, unexpectedPublicRoutes, publicRoutes, routes, results };
     if (process.env.P0_SMOKE_REPORT) writeFileSync(process.env.P0_SMOKE_REPORT, JSON.stringify(report, null, 2));
