@@ -53,7 +53,7 @@ describe('trust-ops audit/privacy controllers', () => {
     await expect(
       controller.createRequest(
         { subjectType: 'guest', subjectName: 'Ana', requestType: 'access', eventId: 'evt_sample' },
-        verified('pmcm-admin', 'Maxine'),
+        { ...verified('pmcm-admin', 'Maxine'), id: 'spoof', role: 'client', email: 'spoof@example.test', name: 'Spoofed' },
       ),
     ).resolves.toEqual({ id: 'priv_2' });
     await expect(controller.reviewRequest('priv_2', { status: 'approved' }, verified('system'))).resolves.toEqual({
@@ -68,7 +68,17 @@ describe('trust-ops audit/privacy controllers', () => {
     expect(privacyOperationsService.getInventory).toHaveBeenCalledWith({ eventId: 'evt_sample' });
     expect(privacyOperationsService.createRequest).toHaveBeenCalledWith(
       { subjectType: 'guest', subjectName: 'Ana', requestType: 'access', eventId: 'evt_sample' },
-      { name: 'Maxine', role: 'pmcm-admin' },
+      expect.objectContaining({ id: 'u1', name: 'Maxine', role: 'pmcm-admin', explicit: true, verified: true }),
+    );
+    expect(privacyOperationsService.reviewRequest).toHaveBeenCalledWith(
+      'priv_2',
+      { status: 'approved' },
+      expect.objectContaining({ id: 'u1', role: 'system', verified: true }),
+    );
+    expect(privacyOperationsService.executeRequest).toHaveBeenCalledWith(
+      'priv_2',
+      { executionNotes: 'Done' },
+      expect.objectContaining({ id: 'u1', role: 'system', verified: true }),
     );
   });
 
