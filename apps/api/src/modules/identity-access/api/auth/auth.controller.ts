@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
-import { EventAccessPolicyService } from '@prism/kernel/access-control';
+import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
@@ -13,8 +13,10 @@ import { PasswordResetService } from '../../application/auth/password-reset.serv
 export class OpsAuthController {
   constructor(private readonly authOperationsService: AuthOperationsService, private readonly access: EventAccessPolicyService, private readonly passwordResetService?: PasswordResetService) {}
 
-  private requireAdmin(actor: PrismVerifiedEventActor) {
-    return this.access.requireActorRole(this.access.resolveActor({}, actor), [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'identity administration');
+  private async requireAdmin(actor: PrismVerifiedEventActor): Promise<ResolvedEventOpsActor> {
+    const resolvedActor = this.access.resolveActor({}, actor);
+    await this.access.requireActorRole(resolvedActor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'identity administration');
+    return resolvedActor;
   }
 
   @Post('login')
@@ -68,12 +70,12 @@ export class OpsAuthController {
   @Patch('approval-requests/:requestId/approve')
   @UseGuards(EventSessionGuard)
   approveApprovalRequest(@Param('requestId') requestId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
-    return this.requireAdmin(actor).then(() => this.authOperationsService.approveApprovalRequest(requestId));
+    return this.requireAdmin(actor).then((verifiedActor) => this.authOperationsService.approveApprovalRequest(requestId, verifiedActor));
   }
 
   @Patch('approval-requests/:requestId/decline')
   @UseGuards(EventSessionGuard)
   declineApprovalRequest(@Param('requestId') requestId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
-    return this.requireAdmin(actor).then(() => this.authOperationsService.declineApprovalRequest(requestId));
+    return this.requireAdmin(actor).then((verifiedActor) => this.authOperationsService.declineApprovalRequest(requestId, verifiedActor));
   }
 }
