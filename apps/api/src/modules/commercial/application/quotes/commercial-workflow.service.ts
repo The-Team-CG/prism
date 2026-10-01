@@ -1,11 +1,12 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsSupplier, OpsSupplierCategory, OpsSupplierQuote, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, SupplierQuoteRequestStatus, SupplierQuoteStatus, WorkflowCommandService, isOpsConstantValue } from '@prism/kernel/event-core';
+import { AuditActionType, AuditCategory, OpsUserRole, SupplierQuoteRequestStatus, SupplierQuoteStatus, WorkflowCommandService, isOpsConstantValue } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,
@@ -76,6 +77,24 @@ function quoteOutsideAcceptableRange(category: OpsSupplierCategory | null, amoun
   return Boolean(belowMin || aboveMax);
 }
 
+function requireVerifiedCommercialActor(
+  actor: ResolvedEventOpsActor | undefined,
+): ResolvedEventOpsActor & { id: string; verified: true } {
+  const id = actor?.id?.trim();
+  const name = actor?.name?.trim();
+  const email = actor?.email?.trim();
+  if (
+    actor?.verified !== true ||
+    !id ||
+    !name ||
+    (actor.role !== OpsUserRole.PmcmAdmin && actor.role !== OpsUserRole.System) ||
+    (actor.role === OpsUserRole.PmcmAdmin && !email)
+  ) {
+    throw new ForbiddenException('A verified PMCM or system actor is required for this commercial action');
+  }
+  return { ...actor, id, name, email: email || undefined, verified: true };
+}
+
 @Injectable()
 export class CommercialWorkflowService {
   constructor(
@@ -86,7 +105,8 @@ export class CommercialWorkflowService {
     @Inject(QUOTE_SUPPLIER_RESOLVER) private readonly quoteSupplierResolver: QuoteSupplierResolver,
   ) {}
 
-  async requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput) {
+  async requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = requireVerifiedCommercialActor(actor);
     let event: { eventName: string; clientName: string } | null = null;
     let category: OpsSupplierCategory | null = null;
     let suppliersToRequest: OpsSupplier[] = [];
@@ -201,13 +221,16 @@ export class CommercialWorkflowService {
           ...notifications,
           writeAudit(this.auditWriter,
             eventId,
-            'PMCM Admin',
+            verifiedActor.name,
             `Requested ${category.name} quotes from ${requests.length} supplier${requests.length === 1 ? '' : 's'}`,
             {
+              actorRole: verifiedActor.role,
+              actorEmail: verifiedActor.email,
               category: AuditCategory.Suppliers,
               actionType: 'create',
               affectedType: 'supplier_quote_request',
               metadata: {
+                actorId: verifiedActor.id,
                 confidentialBid: Boolean(input.confidentialBid),
                 deadline: dueDate ? isoDate(dueDate) : null,
               },
@@ -218,7 +241,8 @@ export class CommercialWorkflowService {
     });
   }
 
-  async addSupplierQuote(eventId: string, input: AddSupplierQuoteInput) {
+  async addSupplierQuote(eventId: string, input: AddSupplierQuoteInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = requireVerifiedCommercialActor(actor);
     let supplierName: string | undefined;
     let category: string | undefined;
     let categoryId: string | null = null;
@@ -280,13 +304,16 @@ export class CommercialWorkflowService {
         await Promise.all([
           writeAudit(this.auditWriter,
             eventId,
-            input.status === 'requested' ? 'PMCM Admin' : 'Supplier',
+            verifiedActor.name,
             `${input.status === 'requested' ? 'Requested' : 'Submitted'} supplier quote: ${quote.supplierName}`,
             {
+              actorRole: verifiedActor.role,
+              actorEmail: verifiedActor.email,
               category: AuditCategory.Suppliers,
               affectedType: 'supplier_quote',
               affectedId: quote.id,
               affectedLabel: quote.supplierName,
+              metadata: { actorId: verifiedActor.id },
             },
           ),
           writeNotification(this.notificationOutboxWriter,
@@ -327,7 +354,8 @@ export class CommercialWorkflowService {
     return this.saveSupplierQuoteByToken(token, input, 'revise');
   }
 
-  async selectSupplierQuote(eventId: string, quoteId: string, actorName = 'PMCM Admin') {
+  async selectSupplierQuote(eventId: string, quoteId: string, actor: ResolvedEventOpsActor) {
+    const verifiedActor = requireVerifiedCommercialActor(actor);
     let quote: OpsSupplierQuote | null = null;
 
     return this.workflowCommandService.execute<SelectSupplierQuoteResult, OpsSupplierQuote>({
@@ -385,11 +413,14 @@ export class CommercialWorkflowService {
       sideEffects: async (result) => {
         if (!result.selectedNow) return;
         await Promise.all([
-          writeAudit(this.auditWriter, eventId, actorName, `Selected supplier quote: ${result.quote.supplierName}`, {
+          writeAudit(this.auditWriter, eventId, verifiedActor.name, `Selected supplier quote: ${result.quote.supplierName}`, {
+            actorRole: verifiedActor.role,
+            actorEmail: verifiedActor.email,
             category: AuditCategory.Suppliers,
             affectedType: 'supplier_quote',
             affectedId: result.quote.id,
             affectedLabel: result.quote.supplierName,
+            metadata: { actorId: verifiedActor.id },
           }),
           writeNotification(this.notificationOutboxWriter, eventId, result.quote.supplierName, 'Your supplier quote was selected'),
         ]);
@@ -398,7 +429,8 @@ export class CommercialWorkflowService {
     });
   }
 
-  async setSupplierAvailability(supplierId: string, input: SupplierAvailabilityInput, actorName = 'PMCM Admin') {
+  async setSupplierAvailability(supplierId: string, input: SupplierAvailabilityInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = requireVerifiedCommercialActor(actor);
     const availableOn = new Date(`${input.availableOn}T00:00:00.000Z`);
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const result = await tx.opsSupplierAvailability.upsert({
@@ -406,10 +438,15 @@ export class CommercialWorkflowService {
         create: { id: `avail_${randomUUID()}`, supplierId, availableOn, capacity: input.capacity, blocked: Boolean(input.blocked), notes: input.notes ?? '' },
         update: { capacity: input.capacity, blocked: Boolean(input.blocked), notes: input.notes ?? '' },
       });
-      await writeAudit(this.auditWriter, undefined, actorName, `Updated supplier availability: ${supplierId}`, {
-        actorRole: 'pmcm-admin', actionType: AuditActionType.Update, category: AuditCategory.Suppliers,
-        affectedType: 'supplier_availability', affectedId: result.id, metadata: { supplierId, availableOn: input.availableOn, capacity: input.capacity, blocked: Boolean(input.blocked) },
-      }, { prisma: tx, actorId: actorName, correlationId: `supplier-availability:${result.id}` });
+      await writeAudit(this.auditWriter, undefined, verifiedActor.name, `Updated supplier availability: ${supplierId}`, {
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Suppliers,
+        affectedType: 'supplier_availability',
+        affectedId: result.id,
+        metadata: { actorId: verifiedActor.id, supplierId, availableOn: input.availableOn, capacity: input.capacity, blocked: Boolean(input.blocked) },
+      }, { prisma: tx, actorId: verifiedActor.id, correlationId: `supplier-availability:${result.id}` });
       return result;
     });
   }
