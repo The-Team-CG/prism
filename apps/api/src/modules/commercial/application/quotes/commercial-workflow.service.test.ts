@@ -1,6 +1,19 @@
+import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { CommercialWorkflowService } from './commercial-workflow.service';
-import { WorkflowCommandService } from '@prism/kernel/event-core';
+import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
+
+function verifiedAdminActor(): ResolvedEventOpsActor {
+  return {
+    id: 'user_mara',
+    role: OpsUserRole.PmcmAdmin,
+    email: 'mara@pmcm.test',
+    name: 'Mara Santos',
+    explicit: true,
+    verified: true,
+  };
+}
 
 function createService() {
   const request = {
@@ -87,13 +100,49 @@ describe('CommercialWorkflowService', () => {
       {} as never,
     );
 
-    const created = await service.requestSupplierQuotes('evt_1', { categoryId: 'cat_tech' });
+    const actor = verifiedAdminActor();
+    const created = await service.requestSupplierQuotes('evt_1', { categoryId: 'cat_tech' }, actor);
 
     expect(tx.opsSupplierQuoteRequest.createManyAndReturn).toHaveBeenCalledTimes(1);
     expect(tx.opsSupplierQuoteRequest.createManyAndReturn.mock.calls[0][0].data).toHaveLength(2);
     expect(created.map(({ supplierId }) => supplierId)).toEqual(['sup_a', 'sup_b']);
     expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(4);
-    expect(auditWriter.write).toHaveBeenCalledTimes(1);
+    expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: 'evt_1',
+      actor: actor.name,
+      actorRole: actor.role,
+      actorEmail: actor.email,
+      metadata: expect.objectContaining({ actorId: actor.id }),
+    }), undefined);
+  });
+
+  it('attributes manually entered supplier quotes to the verified PMCM actor', async () => {
+    const actor = verifiedAdminActor();
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
+    const quote = { id: 'quote_1', supplierName: 'Sonic Line Events' };
+    const prisma = {
+      opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_1' })) },
+      opsSupplierCategory: { findUnique: vi.fn(async () => null) },
+      opsSupplierQuote: { create: vi.fn(async () => quote) },
+    };
+    const service = new CommercialWorkflowService(
+      prisma as never,
+      auditWriter as never,
+      notificationOutboxWriter as never,
+      new WorkflowCommandService(),
+      { resolveQuoteSupplier: vi.fn(async () => ({ id: 'sup_1', name: quote.supplierName, categoryId: null, category: { name: 'Technicals' } })) } as never,
+    );
+
+    await service.addSupplierQuote('evt_1', { supplierId: 'sup_1', amount: 1200 }, actor);
+
+    expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: 'evt_1',
+      actor: actor.name,
+      actorRole: actor.role,
+      actorEmail: actor.email,
+      metadata: expect.objectContaining({ actorId: actor.id }),
+    }), undefined);
   });
 
   it('selects one quote, closes competing requests, and queues PMCM side effects', async () => {
@@ -166,7 +215,8 @@ describe('CommercialWorkflowService', () => {
       { resolveQuoteSupplier: vi.fn() } as any,
     );
 
-    const selected = await service.selectSupplierQuote('evt_sample', 'quote_selected');
+    const actor = verifiedAdminActor();
+    const selected = await service.selectSupplierQuote('evt_sample', 'quote_selected', actor);
 
     expect(selected.status).toBe('selected');
     expect(quotes.find((quote) => quote.id === 'quote_other')?.status).toBe('not_selected');
@@ -175,9 +225,12 @@ describe('CommercialWorkflowService', () => {
     expect(auditWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: 'evt_sample',
-        actor: 'PMCM Admin',
+        actor: actor.name,
+        actorRole: actor.role,
+        actorEmail: actor.email,
         action: 'Selected supplier quote: Sonic Line Events',
         affectedType: 'supplier_quote',
+        metadata: expect.objectContaining({ actorId: actor.id }),
       }),
       undefined,
     );
@@ -189,6 +242,91 @@ describe('CommercialWorkflowService', () => {
       }),
       undefined,
     );
+  });
+
+  it.each([
+    ['missing actor', undefined],
+    ['unverified actor', { ...verifiedAdminActor(), verified: false }],
+    ['actor without an ID', { ...verifiedAdminActor(), id: ' ' }],
+    ['PMCM actor without an email', { ...verifiedAdminActor(), email: ' ' }],
+    ['non-admin actor', { ...verifiedAdminActor(), role: OpsUserRole.Client }],
+  ])('rejects commercial quote and availability writes for a %s before database access', async (_label, actor) => {
+    const prisma = {
+      opsEvent: { findUnique: vi.fn() },
+      opsSupplierCategory: { findUnique: vi.fn() },
+      opsSupplier: { findMany: vi.fn() },
+      opsSupplierQuoteRequest: { findMany: vi.fn() },
+      opsSupplierQuote: { findUnique: vi.fn() },
+      opsSupplierAvailability: { upsert: vi.fn() },
+      $transaction: vi.fn(),
+    };
+    const service = new CommercialWorkflowService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      new WorkflowCommandService(),
+      {} as never,
+    );
+
+    await expect(service.requestSupplierQuotes('evt_1', { categoryId: 'cat_tech' }, actor as never)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.addSupplierQuote('evt_1', { supplierName: 'Sonic Line Events', category: 'Technicals' }, actor as never)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.selectSupplierQuote('evt_1', 'quote_1', actor as never)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.setSupplierAvailability('sup_1', { availableOn: '2026-10-01', capacity: 1 }, actor as never)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.opsEvent.findUnique).not.toHaveBeenCalled();
+    expect(prisma.opsSupplierCategory.findUnique).not.toHaveBeenCalled();
+    expect(prisma.opsSupplier.findMany).not.toHaveBeenCalled();
+    expect(prisma.opsSupplierQuoteRequest.findMany).not.toHaveBeenCalled();
+    expect(prisma.opsSupplierQuote.findUnique).not.toHaveBeenCalled();
+    expect(prisma.opsSupplierAvailability.upsert).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('records the verified supplier availability actor ID and role in the audit', async () => {
+    const actor = verifiedAdminActor();
+    const result = { id: 'availability_1' };
+    const tx = { opsSupplierAvailability: { upsert: vi.fn(async () => result) } };
+    const prisma = { $transaction: vi.fn(async (callback: (value: unknown) => unknown) => callback(tx)) };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const service = new CommercialWorkflowService(
+      prisma as never,
+      auditWriter as never,
+      {} as never,
+      new WorkflowCommandService(),
+      {} as never,
+    );
+
+    await service.setSupplierAvailability('sup_1', { availableOn: '2026-10-01', capacity: 2 }, actor);
+
+    expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
+      actor: actor.name,
+      actorRole: actor.role,
+      actorEmail: actor.email,
+      metadata: expect.objectContaining({ actorId: actor.id }),
+    }), expect.objectContaining({ prisma: tx, actorId: actor.id }));
+  });
+
+  it('records a verified system actor without inventing a personal email', async () => {
+    const actor = { ...verifiedAdminActor(), id: 'system:commercial', name: 'Commercial System', role: OpsUserRole.System, email: undefined };
+    const tx = { opsSupplierAvailability: { upsert: vi.fn(async () => ({ id: 'availability_2' })) } };
+    const prisma = { $transaction: vi.fn(async (callback: (value: unknown) => unknown) => callback(tx)) };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const service = new CommercialWorkflowService(
+      prisma as never,
+      auditWriter as never,
+      {} as never,
+      new WorkflowCommandService(),
+      {} as never,
+    );
+
+    await service.setSupplierAvailability('sup_1', { availableOn: '2026-10-01', capacity: 2 }, actor);
+
+    expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
+      actor: actor.name,
+      actorRole: OpsUserRole.System,
+      actorEmail: undefined,
+      metadata: expect.objectContaining({ actorId: actor.id }),
+    }), expect.objectContaining({ actorId: actor.id }));
   });
 });
 

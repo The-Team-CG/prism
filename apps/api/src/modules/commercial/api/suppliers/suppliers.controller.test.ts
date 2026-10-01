@@ -52,6 +52,25 @@ describe('OpsSuppliersController', () => {
     expect(supplierCommands.addSupplierReview).toHaveBeenCalledWith('sup_1', review, actor);
   });
 
+  it('passes the resolved actor identity into supplier availability writes', async () => {
+    const actor = {
+      id: 'user_mara', role: 'pmcm-admin', name: 'Mara Santos', email: 'mara@pmcm.test',
+      explicit: true, verified: true,
+    };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn(() => actor),
+      requireActorRole: vi.fn(async () => undefined),
+    };
+    const commercialWorkflow = { setSupplierAvailability: vi.fn(async () => ({ id: 'availability_1' })) };
+    const controller = new OpsSuppliersController(eventAccessPolicyService as any, {} as any, commercialWorkflow as any);
+    const input = { availableOn: '2026-10-01', capacity: 2 };
+
+    await expect(controller.addAvailability('sup_1', input as any, { actorId: actor.id } as any)).resolves.toEqual({ id: 'availability_1' });
+
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(actor, ['pmcm-admin', 'system'], 'supplier availability');
+    expect(commercialWorkflow.setSupplierAvailability).toHaveBeenCalledWith('sup_1', input, actor);
+  });
+
   it('binds the supplier review body to the shared Zod validation pipe', () => {
     const routeArguments = (Reflect.getMetadata(
       '__routeArguments__',

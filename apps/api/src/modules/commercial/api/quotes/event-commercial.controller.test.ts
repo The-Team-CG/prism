@@ -64,9 +64,12 @@ function createController() {
   };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((input = {}, verified?: PrismVerifiedEventActor) => ({
+      id: verified?.actorId ?? 'pmcm_session',
       role: verified?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin,
       name: verified?.actorName ?? input.actorName ?? 'PMCM Admin',
       email: verified?.actorEmail ?? input.actorEmail,
+      explicit: true,
+      verified: true,
     })),
     requireActorRole: vi.fn(async () => undefined),
   };
@@ -122,7 +125,7 @@ describe('OpsEventCommercialController', () => {
 
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(3);
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
-      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'pmcm@pmcm.test' },
+      { id: 'pmcm_session', role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'pmcm@pmcm.test', explicit: true, verified: true },
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       'supplier quote details',
       'evt_sample',
@@ -131,13 +134,13 @@ describe('OpsEventCommercialController', () => {
       requestId: 'qr_sample',
       supplierId: 'sup_technical',
       amount: 180000,
-    });
+    }, expect.objectContaining({ id: 'pmcm_session', verified: true }));
     expect(commercialWorkflowService.requestSupplierQuotes).toHaveBeenCalledWith('evt_sample', {
       categoryId: 'supcat_technical',
       supplierIds: ['sup_technical'],
       deadline: '2026-06-25',
-    });
-    expect(commercialWorkflowService.selectSupplierQuote).toHaveBeenCalledWith('evt_sample', 'quote_sample', 'Maxine');
+    }, expect.objectContaining({ id: 'pmcm_session', verified: true }));
+    expect(commercialWorkflowService.selectSupplierQuote).toHaveBeenCalledWith('evt_sample', 'quote_sample', expect.objectContaining({ id: 'pmcm_session', verified: true }));
   });
 
   it('blocks non-commercial actors before invoking commercial commands', async () => {
