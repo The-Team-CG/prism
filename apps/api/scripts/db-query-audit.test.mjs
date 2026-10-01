@@ -90,6 +90,38 @@ describe('database query audit', () => {
     assert.match(failures[24], /queries\.ts:40 findMany lacks a non-empty where, take/);
   });
 
+  it('requires take-only bounds to be positive, statically known, and no larger than 1000', () => {
+    const failures = auditSourceFile(`
+      const PAGE_LIMIT = 500;
+      const TOO_MANY = 1001;
+      await tx.opsEvent.findMany({ take: 0 });
+      await tx.opsEvent.findMany({ take: -1 });
+      await tx.opsEvent.findMany({ take: 1001 });
+      await tx.opsEvent.findMany({ take: TOO_MANY });
+      await tx.opsEvent.findMany({ take: requestLimit });
+      await tx.opsEvent.findMany({ take: PAGE_LIMIT });
+      await tx.opsEvent.findMany({ take: 1000 });
+    `, 'take-bounds.ts');
+
+    assert.equal(failures.length, 5);
+    for (const failure of failures) {
+      assert.match(failure, /take-bounds\.ts:\d+ findMany lacks a non-empty where, take/);
+    }
+  });
+
+  it('allows a dynamic take only when its local bound is documented', () => {
+    const failures = auditSourceFile(`
+      await tx.opsEvent.findMany({ take: requestLimit });
+      await tx.opsEvent.findMany({
+        // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: requestLimit is clamped to 100 before this query.
+        take: requestLimit,
+      });
+    `, 'dynamic-take.ts');
+
+    assert.equal(failures.length, 1);
+    assert.match(failures[0], /dynamic-take\.ts:2 findMany lacks a non-empty where, take/);
+  });
+
   it('rejects empty logical filters that leave Prisma findMany unscoped', () => {
     const failures = auditSourceFile(`
       await tx.opsEvent.findMany({ where: { AND: [] } });
