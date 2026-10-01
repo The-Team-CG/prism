@@ -6,7 +6,7 @@ import { WorkflowCommandService } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 
-const pmcmAdminActor = { id: 'user_pmcm_admin', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true };
+const pmcmAdminActor = { id: 'user_pmcm_admin', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true };
 
 describe('SupplierProfileCommandsService', () => {
   it('executes supplier review write and side effects with audit logging', async () => {
@@ -24,7 +24,7 @@ describe('SupplierProfileCommandsService', () => {
       eventAccessPolicyService as any,
       workflowCommandService,
     );
-    const actor = { id: 'user_real_admin', role: 'pmcm-admin', name: 'Real Admin', email: 'admin@pmcm.test' };
+    const actor = { id: 'user_real_admin', role: 'pmcm-admin', name: 'Real Admin', email: 'admin@pmcm.test', verified: true };
 
     await expect(
       service.addSupplierReview('sup_1', { rating: 5, notes: 'Great' } as any, actor as any),
@@ -102,11 +102,34 @@ describe('SupplierProfileCommandsService', () => {
       { requireActorRole: vi.fn() } as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[2],
       new WorkflowCommandService(),
     );
-    const actor = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true } satisfies ResolvedEventOpsActor;
+    const actor = { role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true, verified: true } satisfies ResolvedEventOpsActor;
 
     await expect(service.addSupplierReview('sup_1', { rating: 5, notes: 'Great' }, actor))
       .rejects.toBeInstanceOf(ForbiddenException);
 
+    expect(addSupplierReview).not.toHaveBeenCalled();
+  });
+  it('rejects supplier review writes from an unverified PMCM context before authorization or persistence', async () => {
+    const addSupplierReview = vi.fn();
+    const requireActorRole = vi.fn(async () => {});
+    const service = new SupplierProfileCommandsService(
+      { addSupplierReview } as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[0],
+      { write: vi.fn() } as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[1],
+      { requireActorRole } as unknown as ConstructorParameters<typeof SupplierProfileCommandsService>[2],
+      new WorkflowCommandService(),
+    );
+    const actor = {
+      id: 'caller_supplied_admin',
+      role: OpsUserRole.PmcmAdmin,
+      name: 'Caller Supplied Admin',
+      explicit: true,
+      verified: false,
+    } satisfies ResolvedEventOpsActor;
+
+    await expect(service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Great' }, actor))
+      .rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(requireActorRole).not.toHaveBeenCalled();
     expect(addSupplierReview).not.toHaveBeenCalled();
   });
   it('rejects supplier review writes from a client actor before persistence', async () => {
@@ -131,6 +154,7 @@ describe('SupplierProfileCommandsService', () => {
       name: 'Client User',
       email: 'client@example.test',
       explicit: true,
+      verified: true,
     } satisfies ResolvedEventOpsActor;
 
     await expect(
