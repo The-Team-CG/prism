@@ -357,16 +357,41 @@ function isResolvableHelperCall(node, sourceFile) {
     (ts.isThis(node.expression.expression) || importedCallbackBinding(node.expression, sourceFile) !== undefined);
 }
 
+function resolveCallbackValue(expression, sourceFile, scopeNode, sourceFilesByPath, callbackBindings, seen = new Set()) {
+  const value = unwrapExpression(expression);
+  if (ts.isIdentifier(value)) {
+    const declaration = resolveIdentifierDeclaration(value, sourceFile, scopeNode);
+    if (declaration) {
+      if (ts.isParameter(declaration)) return callbackBindings.get(declaration);
+      if (ts.isVariableDeclaration(declaration) && declaration.initializer && !seen.has(declaration)) {
+        const nextSeen = new Set(seen);
+        nextSeen.add(declaration);
+        return resolveCallbackValue(declaration.initializer, sourceFile, scopeNode, sourceFilesByPath, callbackBindings, nextSeen);
+      }
+      return undefined;
+    }
+  }
+  const callback = resolveCallbackFunction(value, sourceFile, scopeNode, sourceFilesByPath);
+  return callback?.body ? callback : undefined;
+}
+
 function containsPrismaCallInCallback(call, sourceFile, sourceFilesByPath) {
   const callback = call.arguments[0];
   const callbackFunction = callback && resolveCallbackFunction(callback, sourceFile, call, sourceFilesByPath);
   if (!callbackFunction?.body) return false;
-  const pending = [callbackFunction];
+  const pending = [{ callbackFunction, callbackBindings: new Map() }];
   const visited = new Set();
   while (pending.length > 0) {
-    const currentFunction = pending.pop();
-    if (visited.has(currentFunction)) continue;
-    visited.add(currentFunction);
+    const current = pending.pop();
+    const currentFunction = current.callbackFunction;
+    const bindingSignature = [...current.callbackBindings.entries()]
+      .map(([parameter, boundCallback]) => parameter.getSourceFile().fileName + ':' + parameter.pos + '>' +
+        boundCallback.getSourceFile().fileName + ':' + boundCallback.pos)
+      .sort()
+      .join(',');
+    const visitKey = currentFunction.getSourceFile().fileName + ':' + currentFunction.pos + '|' + bindingSignature;
+    if (visited.has(visitKey)) continue;
+    visited.add(visitKey);
     let found = false;
     const currentSourceFile = currentFunction.getSourceFile();
     const visit = (node) => {
@@ -378,7 +403,42 @@ function containsPrismaCallInCallback(call, sourceFile, sourceFilesByPath) {
         }
         if (isResolvableHelperCall(node, currentSourceFile)) {
           const helper = resolveCallbackFunction(node.expression, currentSourceFile, node, sourceFilesByPath);
-          if (helper?.body && !visited.has(helper)) pending.push(helper);
+          if (helper?.body) {
+            const helperCallbackBindings = new Map();
+            helper.parameters.forEach((parameter, index) => {
+              const argument = node.arguments[index];
+              const boundCallback = argument && resolveCallbackValue(
+                argument,
+                currentSourceFile,
+                node,
+                sourceFilesByPath,
+                current.callbackBindings,
+              );
+              if (boundCallback) helperCallbackBindings.set(parameter, boundCallback);
+            });
+            pending.push({ callbackFunction: helper, callbackBindings: helperCallbackBindings });
+          } else {
+            const invokedCallback = resolveCallbackValue(
+              node.expression,
+              currentSourceFile,
+              node,
+              sourceFilesByPath,
+              current.callbackBindings,
+            );
+            if (invokedCallback?.body) pending.push({ callbackFunction: invokedCallback, callbackBindings: new Map() });
+          }
+        }
+        if (isIterationCallbackCall(node)) {
+          const iterationCallback = resolveCallbackValue(
+            node.arguments[0],
+            currentSourceFile,
+            node,
+            sourceFilesByPath,
+            current.callbackBindings,
+          );
+          if (iterationCallback?.body) {
+            pending.push({ callbackFunction: iterationCallback, callbackBindings: new Map() });
+          }
         }
       }
       if (isFunctionBoundary(node)) return;
