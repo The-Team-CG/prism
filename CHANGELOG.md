@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Dropped the redundant non-unique schedule-day index; the existing unique index covers the same `(event_id, day_date)` key. Shared-schema index migrations now require an explicit owner mapping.
 - The API query audit now parses TypeScript syntax, checks Prisma query scope and pagination (including empty logical and scalar-list filters), binds audit reasons to individual query expressions, and detects database work in loops and locally resolvable callbacks. The database performance report ranks the top 20 statements by both cumulative and mean execution time. Supplier quote writes and PARE approval audit/dispatch reads are batched, fixture and participant reads are scoped, the privacy inventory selects consent metadata only, and billing statement numbers use a yearly sequence that scans historical statements only during initialization. The privacy request queue remains a complete read until its API and UI support pagination.
 - Audit writes now verify existing history once when initializing a chain head, then validate and atomically advance that head on each append. Full integrity checks still scan the complete chain.
 - New floorplan writes now record the verified actor ID instead of assigning owner-sample. The sample principal remains local fixture data; existing owner metadata is preserved pending an accurate historical mapping.
