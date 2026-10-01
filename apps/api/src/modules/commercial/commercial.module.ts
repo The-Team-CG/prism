@@ -31,6 +31,7 @@ import { SupplierNetworkWorkflowService } from './application/suppliers/supplier
 import { SupplierProfileCommandsService } from './application/suppliers/supplier-profile-commands.service';
 import { SuppliersService } from './application/suppliers/suppliers.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
+import { BillingAdjustmentService } from './application/billing/billing-adjustment.service';
 import { PaymentOperationsService } from './application/billing/payment-operations.service';
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
 import { CommunicationController } from './api/suppliers/communication.controller';
@@ -110,6 +111,7 @@ const supplierCommandsProvider = {
     supplierCommandsProvider,
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
     BillingOperationsService,
+    BillingAdjustmentService,
     PaymentOperationsService,
     PaymentRiskScheduler,
     CommunicationService,

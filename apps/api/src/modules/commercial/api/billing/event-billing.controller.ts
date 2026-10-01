@@ -29,6 +29,7 @@ import {
   type WaiveAdditionalBillingInput,
 } from '@prism/types';
 import { BillingOperationsService } from '../../application/billing/billing-operations.service';
+import { BillingAdjustmentService } from '../../application/billing/billing-adjustment.service';
 import { PaymentOperationsService } from '../../application/billing/payment-operations.service';
 
 @Controller('events')
@@ -36,6 +37,7 @@ export class OpsEventBillingController {
   constructor(
     private readonly billingOperationsService: BillingOperationsService,
     private readonly paymentOperationsService: PaymentOperationsService,
+    private readonly billingAdjustmentService: BillingAdjustmentService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
   ) {}
 
@@ -119,14 +121,14 @@ export class OpsEventBillingController {
   @HttpCode(HttpStatus.CREATED)
   async requestBillingCorrection(@Param('eventId') eventId: string, @Body(zodBody(requestBillingCorrectionSchema)) dto: RequestBillingCorrectionInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing correction', eventId);
-    return this.billingOperationsService.requestBillingCorrection(eventId, dto, actor);
+    return this.billingAdjustmentService.requestBillingCorrection(eventId, dto, actor);
   }
 
   @Patch(':eventId/billing-corrections/:correctionId')
   @UseGuards(EventSessionGuard)
   async resolveBillingCorrection(@Param('eventId') eventId: string, @Param('correctionId') correctionId: string, @Body(zodBody(resolveBillingCorrectionSchema)) dto: ResolveBillingCorrectionInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing correction resolution', eventId);
-    return this.billingOperationsService.resolveBillingCorrection(eventId, correctionId, dto, actor);
+    return this.billingAdjustmentService.resolveBillingCorrection(eventId, correctionId, dto, actor);
   }
 
   @Post(':eventId/billing-disputes')
@@ -134,14 +136,14 @@ export class OpsEventBillingController {
   @HttpCode(HttpStatus.CREATED)
   async createBillingDispute(@Param('eventId') eventId: string, @Body(zodBody(createBillingDisputeSchema)) dto: CreateBillingDisputeInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing dispute', eventId);
-    return this.billingOperationsService.createBillingDispute(eventId, dto, actor);
+    return this.billingAdjustmentService.createBillingDispute(eventId, dto, actor);
   }
 
   @Patch(':eventId/billing-disputes/:disputeId')
   @UseGuards(EventSessionGuard)
   async resolveBillingDispute(@Param('eventId') eventId: string, @Param('disputeId') disputeId: string, @Body(zodBody(resolveBillingDisputeSchema)) dto: ResolveBillingDisputeInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = await this.requireFinanceActor(verifiedActor, 'billing dispute resolution', eventId);
-    return this.billingOperationsService.resolveBillingDispute(eventId, disputeId, dto, actor);
+    return this.billingAdjustmentService.resolveBillingDispute(eventId, disputeId, dto, actor);
   }
 
   @Post(':eventId/additional-billing')
@@ -149,14 +151,14 @@ export class OpsEventBillingController {
   @HttpCode(HttpStatus.CREATED)
   async createAdditionalBilling(@Param('eventId') eventId: string, @Body(zodBody(createAdditionalBillingSchema)) dto: CreateAdditionalBillingInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = await this.requireFinanceActor(verifiedActor, 'additional billing', eventId);
-    return this.billingOperationsService.createAdditionalBilling(eventId, dto, actor);
+    return this.billingAdjustmentService.createAdditionalBilling(eventId, dto, actor);
   }
 
   @Patch(':eventId/additional-billing/:additionalBillingId/waive')
   @UseGuards(EventSessionGuard)
   async waiveAdditionalBilling(@Param('eventId') eventId: string, @Param('additionalBillingId') additionalBillingId: string, @Body(zodBody(waiveAdditionalBillingSchema)) dto: WaiveAdditionalBillingInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = await this.requireFinanceActor(verifiedActor, 'additional billing waiver', eventId);
-    return this.billingOperationsService.waiveAdditionalBilling(eventId, additionalBillingId, dto, actor);
+    return this.billingAdjustmentService.waiveAdditionalBilling(eventId, additionalBillingId, dto, actor);
   }
 
   private async requireFinanceActor(verifiedActor: PrismVerifiedEventActor, resource: string, eventId: string) {
