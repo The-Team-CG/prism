@@ -5,7 +5,7 @@ import type { PrismAuthenticatedSession, PrismFileRequirementsMatrix } from "@pr
 import { FileCheck2 } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { prismApi } from "@/lib/prism-api";
+import { supplierWorkspaceRepository } from "../../data/supplier-workspace-repository";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
 
 export function SupplierFileRequirementsMatrix({
@@ -28,7 +28,7 @@ export function SupplierFileRequirementsMatrix({
       return;
     }
     let alive = true;
-    Promise.all(eventIds.map((eventId) => prismApi.fileRequirements(eventId, session)))
+    Promise.all(eventIds.map((eventId) => supplierWorkspaceRepository.fetchFileRequirements(eventId, session)))
       .then((next) => {
         if (alive) {
           setMatrices(next);

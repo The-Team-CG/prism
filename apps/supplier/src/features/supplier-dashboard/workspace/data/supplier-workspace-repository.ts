@@ -3,8 +3,9 @@ import {
   clearPrismSession,
   readPrismSession,
   type PrismAuthenticatedSession,
+  type PrismFileRequirementsMatrix,
+  type SubmitSupplierQuoteInput,
 } from "@prism/types";
-import type { SubmitSupplierQuoteInput } from "@prism/types";
 import { prismApi } from "@/lib/prism-api";
 import type { PrismSupplierReadinessBoard, SupplierWorkspace } from "../model/supplier-workspace-types";
 
@@ -25,6 +26,13 @@ export const supplierWorkspaceRepository = {
 
   fetchReadinessBoard(session: PrismAuthenticatedSession): Promise<PrismSupplierReadinessBoard> {
     return prismApi.supplierReadinessBoard(session);
+  },
+
+  fetchFileRequirements(
+    eventId: string,
+    session: PrismAuthenticatedSession,
+  ): Promise<PrismFileRequirementsMatrix> {
+    return prismApi.fileRequirements(eventId, session);
   },
 
   submitQuote(token: string, input: SubmitSupplierQuoteInput) {
