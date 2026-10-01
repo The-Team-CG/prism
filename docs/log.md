@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-01
+
+- **Clarified:** The local fixture seed checks every Prisma model before inserting fixtures but does not wrap all checks and writes in one transaction. The portal-account runbook now requires the API and other database writers to remain stopped while seeding.
+
 ## 2026-09-30
 
 - **Retired:** Removed the broad sample runtime routes and service, API-client surface, and client browser fallback. Kept the existing development data as an explicit guarded local seed command; no API startup seed or reset endpoint remains. Moved payment-risk evaluation into the commercial scheduler, with an atomic conditional transition and audit write.
