@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { approveBillingSourceSchema } from '@prism/types';
 import { BillingOperationsService, renderBillingPdf } from './billing-operations.service';
-import type { BillingActor } from '../../contracts/finance-commands.port';
+import { PaymentOperationsService } from './payment-operations.service';
+import type { BillingActor } from '../../contracts/billing-operations.types';
 import type { StorageObjectService } from '@prism/contexts/platform-ops';
 
 const billingActor: BillingActor = { id: 'user_finance_1', name: 'Finance Operator', role: 'pmcm-admin', email: 'admin@pmcm.test', correlationId: 'corr_finance_1' };
@@ -69,7 +70,8 @@ function createPaymentService() {
   const audit = { write: vi.fn() };
   const notifications = { write: vi.fn() };
   const service = new BillingOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
-  return { service, prisma, audit, history, milestone };
+  const paymentService = new PaymentOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
+  return { service, paymentService, prisma, audit, history, milestone };
 }
 
 function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number, storageObjectService?: StorageObjectService) {
@@ -136,10 +138,10 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
 }
 
 describe('BillingOperationsService', () => {
-  it('rejects a billing mutation without a verified actor before database access', async () => {
-    const { service, prisma } = createPaymentService();
+  it('rejects a payment mutation without a verified actor before database access', async () => {
+    const { paymentService, prisma } = createPaymentService();
 
-    await expect(service.markPayment('evt_sample', 'pay_downpayment', 'paid', undefined as unknown as BillingActor))
+    await expect(paymentService.markPayment('evt_sample', 'pay_downpayment', 'paid', undefined as unknown as BillingActor))
       .rejects.toBeInstanceOf(ForbiddenException);
 
     expect(prisma.opsEvent.findUnique).not.toHaveBeenCalled();
@@ -147,12 +149,12 @@ describe('BillingOperationsService', () => {
     expect(prisma.opsPaymentMilestone.update).not.toHaveBeenCalled();
   });
   it('marks upcoming balances at risk and audits only the first successful transition', async () => {
-    const { service, prisma, audit, milestone } = createPaymentService();
+    const { paymentService, prisma, audit, milestone } = createPaymentService();
     milestone.label = 'Balance';
     prisma.opsPaymentMilestone.findMany.mockImplementation(async () => [{ ...milestone, status: 'partially_paid' }]);
 
-    await service.runPaymentRiskSweep();
-    await service.runPaymentRiskSweep();
+    await paymentService.runPaymentRiskSweep();
+    await paymentService.runPaymentRiskSweep();
 
     expect(milestone.status).toBe('at_risk');
     expect(prisma.opsPaymentMilestone.updateMany).toHaveBeenCalledTimes(2);
@@ -185,9 +187,9 @@ describe('BillingOperationsService', () => {
   });
 
   it('does not duplicate a retried payment record with the same reference number', async () => {
-    const { service, prisma, audit, history } = createPaymentService();
+    const { paymentService, prisma, audit, history } = createPaymentService();
 
-    const result = await service.recordPayment(
+    const result = await paymentService.recordPayment(
       'evt_sample',
       'pay_downpayment',
       {
@@ -301,9 +303,9 @@ describe('BillingOperationsService', () => {
   });
 
   it('records and audits a payment when the reference number is new', async () => {
-    const { service, prisma, audit, history } = createPaymentService();
+    const { paymentService, prisma, audit, history } = createPaymentService();
 
-    const result = await service.recordPayment(
+    const result = await paymentService.recordPayment(
       'evt_sample',
       'pay_downpayment',
       {
@@ -332,9 +334,9 @@ describe('BillingOperationsService', () => {
     expect(result.remainingBalance).toBe(50000);
   });
   it('serves payment status through the payment status reader contract', async () => {
-    const { service, prisma } = createPaymentService();
+    const { paymentService, prisma } = createPaymentService();
 
-    const result = await service.getPaymentStatusForEvent('evt_sample');
+    const result = await paymentService.getPaymentStatusForEvent('evt_sample');
 
     expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith({ where: { id: 'evt_sample' } });
     expect(result).toMatchObject({

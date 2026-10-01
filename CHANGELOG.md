@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Split commercial payment workflows into a focused service and moved billing projections into pure mappers, removing broad finance-command injection from read models.
 - Floorplan drafts now record the verified creator role, including System, and no longer inherit a PMCM Admin role from the database default.
 - Urgent issue records now require an explicit reporter from the verified session; the generic database-side PMCM Admin fallback is removed.
 - Privacy and AI governance writes now require verified trust actors; their audits and approval records use the real actor, and misleading database-side “PMCM Admin” defaults are removed.

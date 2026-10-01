@@ -23,7 +23,7 @@ import {
   SUPPLIER_DIRECTORY,
   SUPPLIER_DOCUMENT_VAULT,
 } from './contracts/supplier-ops.tokens';
-import { FINANCE_COMMANDS, PAYMENT_STATUS_READER } from './contracts/finance-ops.tokens';
+import { PAYMENT_STATUS_READER } from './contracts/finance-ops.tokens';
 import { CommercialWorkflowService } from './application/quotes/commercial-workflow.service';
 import { PrismaQuoteSupplierResolver } from './application/quotes/prisma-quote-supplier-resolver.service';
 import { SupplierApplicationService } from './application/suppliers/supplier-application.service';
@@ -31,6 +31,7 @@ import { SupplierNetworkWorkflowService } from './application/suppliers/supplier
 import { SupplierProfileCommandsService } from './application/suppliers/supplier-profile-commands.service';
 import { SuppliersService } from './application/suppliers/suppliers.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
+import { PaymentOperationsService } from './application/billing/payment-operations.service';
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
@@ -109,11 +110,11 @@ const supplierCommandsProvider = {
     supplierCommandsProvider,
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
     BillingOperationsService,
+    PaymentOperationsService,
     PaymentRiskScheduler,
     CommunicationService,
     ProposalLifecycleService,
-    { provide: FINANCE_COMMANDS, useExisting: BillingOperationsService },
-    { provide: PAYMENT_STATUS_READER, useExisting: BillingOperationsService },
+    { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [
     CommercialWorkflowService,
@@ -127,7 +128,6 @@ const supplierCommandsProvider = {
     SupplierNetworkWorkflowService,
     SUPPLIER_COMMANDS,
     BillingOperationsService,
-    FINANCE_COMMANDS,
     PAYMENT_STATUS_READER,
   ],
 })

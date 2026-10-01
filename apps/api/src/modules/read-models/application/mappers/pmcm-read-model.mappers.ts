@@ -12,8 +12,7 @@ import type {
   OpsUser,
 } from '@prisma/client';
 import { mapAuditLog } from '@prism/contexts/platform-ops';
-import { mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/contexts/commercial';
-import type { FinanceCommands } from '@prism/contexts/commercial';
+import { mapBillingSource, mapBillingStatement, mapPaymentMilestone, mapPaymentRecord, mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import type { FloorplanReader } from '@prism/contexts/floorplan';
 import type { GuestReader, RegistrationPlatformReader, StaffingReader } from '@prism/contexts/operations';
 import { createPmcmDashboardMappers } from './event-read-model.mappers';
@@ -98,7 +97,6 @@ export type EventReadModelMapperDependencies = {
 };
 
 export type PmcmReadModelMapperDependencies = EventReadModelMapperDependencies & {
-  financeCommands: FinanceCommands;
   staffingReader: StaffingReader;
   registrationPlatformReader: RegistrationPlatformReader;
 };
@@ -117,10 +115,10 @@ export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDepe
     mapCoordinatorAssignment: dependencies.staffingReader.mapCoordinatorAssignment.bind(dependencies.staffingReader),
     mapComplianceRule,
     mapComplianceCheck,
-    mapBillingSource: dependencies.financeCommands.mapBillingSource.bind(dependencies.financeCommands),
-    mapBillingStatement: dependencies.financeCommands.mapBillingStatement.bind(dependencies.financeCommands),
-    mapPaymentMilestone: dependencies.financeCommands.mapPaymentMilestone.bind(dependencies.financeCommands),
-    mapPaymentRecord: dependencies.financeCommands.mapPaymentRecord.bind(dependencies.financeCommands),
+    mapBillingSource,
+    mapBillingStatement,
+    mapPaymentMilestone,
+    mapPaymentRecord,
     mapPostEventDocument,
     mapEventInsight,
     mapFloorPlanDraft: dependencies.floorplanReader.mapFloorPlanDraft.bind(dependencies.floorplanReader),
