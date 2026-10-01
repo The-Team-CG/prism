@@ -249,6 +249,15 @@ describe('database query audit', () => {
     assert.equal(importedFailures.length, 1);
     assert.match(importedFailures[0], /callback-imports\.ts:3 Prisma call inside loop/);
 
+    const forwardedCallbackFailures = auditSourceFile(`
+      function visitWithCallback(value, callback) { return callback(value); }
+      events.map((event) => visitWithCallback(event, (candidate) => {
+        return tx.opsEvent.create({ data: candidate });
+      }));
+    `, 'forwarded-callbacks.ts');
+    assert.equal(forwardedCallbackFailures.length, 1);
+    assert.match(forwardedCallbackFailures[0], /forwarded-callbacks\.ts:3 Prisma call inside loop/);
+
     assert.deepEqual(auditSourceFile(`
       values.filter(Boolean).map(mapImportedValue);
     `, 'non-database-callback-references.ts'), []);
