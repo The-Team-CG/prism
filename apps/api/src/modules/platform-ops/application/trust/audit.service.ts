@@ -276,6 +276,7 @@ export class AuditService {
     const logs = await this.prisma.opsAuditLog.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: input.limit is clamped to 1..500 above.
       take,
     });
 
