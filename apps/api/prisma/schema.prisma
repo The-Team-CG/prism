@@ -1113,7 +1113,6 @@ model OpsEventScheduleDay {
   eodReports OpsEventEodReport[]
 
   @@unique([eventId, dayDate], map: "event_schedule_days_event_id_day_date_key")
-  @@index([eventId, dayDate], map: "event_schedule_days_event_id_day_date_idx")
   @@map("event_schedule_days")
   @@schema("staffing_ops")
 }

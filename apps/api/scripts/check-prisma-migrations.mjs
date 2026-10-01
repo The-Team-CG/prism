@@ -575,9 +575,17 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
     if (kind !== 'index' || relation === null || !strictTableSchemas.has(relation.schema)) {
       continue;
     }
-    errors.push(
-      `${migration.name}: index ${relation.schema}.${relation.table} is in a shared schema and needs an explicit table-owner review`,
-    );
+    const indexKey = `${relation.schema}.${relation.table}`;
+    const allowedOwners = policy.indexOwners?.[relation.schema]?.[relation.table];
+    if (!Array.isArray(allowedOwners)) {
+      errors.push(
+        `${migration.name}: index ${indexKey} is in a shared schema and needs an explicit table-owner review`,
+      );
+    } else if (!allowedOwners.includes(parsed.owner)) {
+      errors.push(
+        `${migration.name}: index ${indexKey} is owned by ${allowedOwners.join(', ')}, not ${parsed.owner}`,
+      );
+    }
   }
 
   const inferredKind = inferChangeKind(cleanSql);
