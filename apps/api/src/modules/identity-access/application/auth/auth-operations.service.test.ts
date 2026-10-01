@@ -1,5 +1,34 @@
+import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { OpsUserRole } from '@prism/kernel/event-core';
+import type { AuditWriteInput, ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuthOperationsService } from './auth-operations.service';
+
+function createApprovalService() {
+  const request = {
+    id: 'approval_1',
+    userId: 'user_client_1',
+    name: 'Ana Reyes',
+    email: 'ana@example.test',
+    role: 'client',
+    organization: 'Ana Events',
+    status: 'pending',
+    requestedAt: new Date('2026-08-01T00:00:00.000Z'),
+    privacyConsentAccepted: true,
+    privacyNoticeVersion: '2026-05-01',
+    marketingConsentAccepted: false,
+  };
+  const prisma = {
+    opsApprovalRequest: {
+      findUnique: vi.fn(async () => request),
+      update: vi.fn(async ({ data }: { data: { status: string } }) => ({ ...request, ...data })),
+    },
+    opsUser: { update: vi.fn(async () => undefined) },
+  };
+  const authAudit = { write: vi.fn(async (_input: AuditWriteInput) => undefined) };
+  const service = new AuthOperationsService(prisma as any, authAudit as any, {} as any, {} as any, {} as any);
+  return { service, prisma, authAudit };
+}
 
 describe('AuthOperationsService', () => {
   it('rejects legacy approval requests that carry no explicit consent evidence', async () => {
@@ -8,6 +37,52 @@ describe('AuthOperationsService', () => {
     await expect(service.requestApproval('ana@example.test')).rejects.toThrow(
       'Privacy consent is required before requesting account approval',
     );
+  });
+
+  it.each([
+    { status: 'approved', method: 'approveApprovalRequest' as const, action: 'Approved account access for ana@example.test' },
+    { status: 'declined', method: 'declineApprovalRequest' as const, action: 'Declined account access for ana@example.test' },
+  ])('records the verified administrator when an account request is $status', async ({ method, action }) => {
+    const { service, authAudit } = createApprovalService();
+    const actor = {
+      id: 'pmcm_user_1',
+      role: OpsUserRole.PmcmAdmin,
+      name: 'Anthony Torres',
+      email: 'anthony@pmcm.test',
+      explicit: true,
+      verified: true,
+    } satisfies ResolvedEventOpsActor;
+
+    await service[method]('approval_1', actor);
+
+    expect(authAudit.write.mock.calls[0]?.[0]).toMatchObject({
+      actor: 'Anthony Torres',
+      actorRole: OpsUserRole.PmcmAdmin,
+      actorEmail: 'anthony@pmcm.test',
+      action,
+      metadata: { actorId: 'pmcm_user_1' },
+    });
+  });
+
+  it('rejects missing, unverified, or non-admin actors before changing account access', async () => {
+    const { service, prisma, authAudit } = createApprovalService();
+    const unverifiedAdmin: ResolvedEventOpsActor = {
+      id: 'spoofed_admin', role: OpsUserRole.PmcmAdmin, name: 'Spoofed Admin', explicit: true, verified: false,
+    };
+    const verifiedClient: ResolvedEventOpsActor = {
+      id: 'client_1', role: OpsUserRole.Client, name: 'Ana Reyes', explicit: true, verified: true,
+    };
+
+    await expect(service.approveApprovalRequest('approval_1', undefined as unknown as ResolvedEventOpsActor))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.approveApprovalRequest('approval_1', unverifiedAdmin))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.declineApprovalRequest('approval_1', verifiedClient))
+      .rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.opsApprovalRequest.findUnique).not.toHaveBeenCalled();
+    expect(prisma.opsUser.update).not.toHaveBeenCalled();
+    expect(authAudit.write).not.toHaveBeenCalled();
   });
 
   it('does not grant a PMCM admin session after password verification alone', async () => {
