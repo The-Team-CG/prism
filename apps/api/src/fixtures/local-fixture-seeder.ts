@@ -4,8 +4,11 @@ import { AuthSecurityService } from '@prism/contexts/identity-access';
 import { AuditService } from '@prism/contexts/platform-ops';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/kernel/shared';
+import { defaultSeatCategories } from '@prism/kernel/shared';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
+
+const LOCAL_FIXTURE_OWNER_ID = 'owner-sample';
+
 const SUPPLIER_CATEGORIES = [
   { id: 'supcat_production', slug: 'production', name: 'Production', acceptableMin: 180000, acceptableMax: 280000 },
   { id: 'supcat_technicals', slug: 'technicals', name: 'Technicals', acceptableMin: 120000, acceptableMax: 180000 },
@@ -1084,7 +1087,7 @@ export class LocalFixtureSeeder {
         data: {
           id: 'plan_sample_ayala_main',
           name: 'Ayala Tech Summit ballroom layout',
-          ownerId: DEFAULT_OWNER_ID,
+          ownerId: LOCAL_FIXTURE_OWNER_ID,
           eventId: 'evt_sample_ayala',
           width: 1200,
           height: 800,

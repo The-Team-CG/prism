@@ -85,4 +85,17 @@ describe('TemplatesService', () => {
     await expect((service as any).deleteTemplate('tpl_sample')).resolves.toMatchObject({ id: 'tpl_sample' });
     expect(prisma.venueTemplate.delete).toHaveBeenCalledWith({ where: { id: 'tpl_sample' } });
   });
+
+  it('records the verified author on newly created template records', async () => {
+    const { service, prisma } = createService();
+
+    await service.createTemplate({ name: 'New template' }, 'user_pmcm_1');
+
+    expect(prisma.floorPlan.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ ownerId: 'user_pmcm_1' }) }),
+    );
+    expect(prisma.venueTemplate.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ ownerId: 'user_pmcm_1' }) }),
+    );
+  });
 });

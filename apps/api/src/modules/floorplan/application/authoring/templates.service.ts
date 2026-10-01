@@ -9,7 +9,7 @@ import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, JsonValue, VenueTemplate } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
-import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/kernel/shared';
+import { defaultSeatCategories } from '@prism/kernel/shared';
 import {
   floorPlanScalarPatch,
   jsonIfDefined,
@@ -160,7 +160,7 @@ export class TemplatesService {
     guests?: unknown[];
     suppliers?: unknown[];
     sourceType?: string;
-  }): Promise<VenueTemplate> {
+  }, actorId: string): Promise<VenueTemplate> {
     const planId = randomUUID();
     const templateId = randomUUID();
     const objects = input.objects ?? [];
@@ -172,7 +172,7 @@ export class TemplatesService {
           id: planId,
           name: `${input.name} Base Layout`,
           venue: input.venue ?? '',
-          ownerId: DEFAULT_OWNER_ID,
+          ownerId: actorId,
           templateId,
           width: input.width ?? 30,
           height: input.height ?? 20,
@@ -201,7 +201,7 @@ export class TemplatesService {
       return tx.venueTemplate.create({
         data: {
           id: templateId,
-          ownerId: DEFAULT_OWNER_ID,
+          ownerId: actorId,
           name: input.name,
           description: input.description ?? '',
           venue: input.venue ?? '',
