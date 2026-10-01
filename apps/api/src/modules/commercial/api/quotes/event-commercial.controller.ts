@@ -24,8 +24,8 @@ export class OpsEventCommercialController {
     @Body(zodBody(addSupplierQuoteSchema)) dto: AddSupplierQuoteInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    await this.requireCommercialActor(verifiedActor, 'supplier quote details', eventId);
-    return mapSupplierQuote(await this.commercialWorkflowService.addSupplierQuote(eventId, dto));
+    const actor = await this.requireCommercialActor(verifiedActor, 'supplier quote details', eventId);
+    return mapSupplierQuote(await this.commercialWorkflowService.addSupplierQuote(eventId, dto, actor));
   }
 
   @Post(':eventId/supplier-schedules')
@@ -62,8 +62,8 @@ export class OpsEventCommercialController {
     @Body(zodBody(requestSupplierQuotesSchema)) dto: RequestSupplierQuotesInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    await this.requireCommercialActor(verifiedActor, 'supplier quote requests', eventId);
-    const requests = await this.commercialWorkflowService.requestSupplierQuotes(eventId, dto);
+    const actor = await this.requireCommercialActor(verifiedActor, 'supplier quote requests', eventId);
+    const requests = await this.commercialWorkflowService.requestSupplierQuotes(eventId, dto, actor);
     return requests.map((request) => mapSupplierQuoteRequest(request));
   }
 
@@ -75,7 +75,7 @@ export class OpsEventCommercialController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireCommercialActor(verifiedActor, 'supplier quote selection', eventId);
-    return mapSupplierQuote(await this.commercialWorkflowService.selectSupplierQuote(eventId, quoteId, actor.name));
+    return mapSupplierQuote(await this.commercialWorkflowService.selectSupplierQuote(eventId, quoteId, actor));
   }
 
   private async requireCommercialActor(verifiedActor: PrismVerifiedEventActor, resource: string, eventId: string) {
