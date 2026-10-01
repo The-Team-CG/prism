@@ -252,37 +252,51 @@ export class EventReadModelQueries {
       this.prisma.opsInquiry.findMany({
         where: { OR: [{ status: 'new' }, { status: 'accepted', conformeSignedAt: null }] },
         select: { id: true, status: true, clientName: true, eventName: true, createdAt: true, acceptedAt: true, conformeSignedAt: true, portalInvitationExpiresAt: true },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], skip, take,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
       }),
       this.prisma.opsEvent.findMany({
         where: { archived: false, floorPlanStatus: { not: 'approved' } },
         select: { id: true, eventName: true, eventDate: true, floorPlanStatus: true, status: true, clientName: true },
-        orderBy: [{ eventDate: 'asc' }, { id: 'asc' }], skip, take,
+        orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
       }),
       this.prisma.opsPaymentMilestone.findMany({
         where: { status: { not: 'paid' } },
         select: { id: true, eventId: true, label: true, status: true, dueDate: true },
-        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], skip, take,
+        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
       }),
       this.prisma.opsSupplierQuoteRequest.findMany({
         where: { status: { notIn: ['selected', 'closed', 'cancelled'] } },
         select: { id: true, eventId: true, supplierName: true, status: true, dueDate: true },
-        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], skip, take,
+        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
       }),
       this.prisma.opsCoordinatorAssignment.findMany({
         where: { status: { notIn: ['confirmed', 'checked_in', 'completed'] } },
         select: { id: true, eventId: true, coordinatorName: true, status: true, createdAt: true },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], skip, take,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
       }),
       this.prisma.opsFloorPlanDraft.findMany({
         where: { status: { in: ['submitted', 'in_review'] } },
         select: { id: true, eventId: true, name: true, status: true, updatedAt: true },
-        orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }], skip, take,
+        orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
       }),
       this.prisma.opsPostEventDocument.findMany({
         where: { status: { not: 'complete' } },
         select: { id: true, eventId: true, title: true, status: true },
-        orderBy: [{ id: 'asc' }], skip, take,
+        orderBy: [{ id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
       }),
     ]);
     const items = <T,>(rows: T[]) => rows.slice(0, pageSize);
