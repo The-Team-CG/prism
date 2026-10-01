@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { randomUUID } from 'node:crypto';
 import {
   AuditActionType,
@@ -11,11 +12,7 @@ import {
   isOpsConstantValue,
 } from '@prism/kernel/event-core';
 import { AuditService } from './audit.service';
-
-type PrivacyActor = {
-  name: string;
-  role: string;
-};
+import { requireVerifiedTrustActor } from './verified-trust-actor';
 
 type CreatePrivacyRequestInput = {
   subjectType: string;
@@ -202,7 +199,8 @@ export class PrivacyOperationsService {
     return requests.map((request: OpsPrivacyRequestRecord) => this.mapRequest(request));
   }
 
-  async createRequest(input: CreatePrivacyRequestInput, actor: PrivacyActor) {
+  async createRequest(input: CreatePrivacyRequestInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = requireVerifiedTrustActor(actor, 'this privacy action');
     this.assertRequestType(input.requestType);
     const subjectType = input.subjectType.trim().toLowerCase();
     if (!['client', 'guest', 'supplier', 'account'].includes(subjectType)) {
@@ -226,31 +224,33 @@ export class PrivacyOperationsService {
           requestType: input.requestType,
           status: PrivacyRequestStatus.Submitted,
           requestNotes: input.requestNotes ?? '',
-          createdBy: actor.name,
+          createdBy: verifiedActor.name,
         },
       });
 
-      await this.auditService.audit(input.eventId, actor.name, `Logged privacy request: ${input.requestType}`, {
-        actorRole: actor.role,
+      await this.auditService.audit(input.eventId, verifiedActor.name, `Logged privacy request: ${input.requestType}`, {
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
         actionType: AuditActionType.Create,
         category: AuditCategory.Access,
         affectedType: 'privacy_request',
         affectedId: request.id,
         affectedLabel: input.subjectEmail ?? input.subjectName,
-        metadata: { requestType: input.requestType, subjectType: input.subjectType },
-      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: actor.name });
+        metadata: { actorId: verifiedActor.id, requestType: input.requestType, subjectType: input.subjectType },
+      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: verifiedActor.id });
 
       return this.mapRequest(request);
     });
   }
 
-  async reviewRequest(requestId: string, input: ReviewPrivacyRequestInput, actor: PrivacyActor) {
+  async reviewRequest(requestId: string, input: ReviewPrivacyRequestInput, actor: ResolvedEventOpsActor) {
     if (
       !isOpsConstantValue(PrivacyRequestStatus, input.status) ||
       (input.status !== PrivacyRequestStatus.Approved && input.status !== PrivacyRequestStatus.Rejected)
     ) {
       throw new BadRequestException('Privacy request review must approve or reject');
     }
+    const verifiedActor = requireVerifiedTrustActor(actor, 'this privacy action');
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const request = await tx.opsPrivacyRequest.findUnique({ where: { id: requestId } });
       if (!request) throw new NotFoundException('Privacy request not found');
@@ -263,28 +263,30 @@ export class PrivacyOperationsService {
         data: {
           status: input.status,
           reviewReason: input.reviewReason ?? '',
-          reviewedBy: actor.name,
+          reviewedBy: verifiedActor.name,
           reviewedAt: new Date(),
         },
       });
       if (changed.count !== 1) throw new BadRequestException('Privacy request was already reviewed');
       const saved = await tx.opsPrivacyRequest.findUniqueOrThrow({ where: { id: requestId } });
 
-      await this.auditService.audit(request.eventId ?? undefined, actor.name, `${input.status === PrivacyRequestStatus.Approved ? 'Approved' : 'Rejected'} privacy request`, {
-        actorRole: actor.role,
+      await this.auditService.audit(request.eventId ?? undefined, verifiedActor.name, `${input.status === PrivacyRequestStatus.Approved ? 'Approved' : 'Rejected'} privacy request`, {
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
         actionType: input.status === PrivacyRequestStatus.Approved ? AuditActionType.Approve : AuditActionType.Decline,
         category: AuditCategory.Access,
         affectedType: 'privacy_request',
         affectedId: request.id,
         affectedLabel: request.subjectEmail || request.subjectName,
-        metadata: { reviewReason: input.reviewReason ?? '' },
-      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: actor.name });
+        metadata: { actorId: verifiedActor.id, reviewReason: input.reviewReason ?? '' },
+      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: verifiedActor.id });
 
       return this.mapRequest(saved);
     });
   }
 
-  async executeRequest(requestId: string, input: ExecutePrivacyRequestInput, actor: PrivacyActor) {
+  async executeRequest(requestId: string, input: ExecutePrivacyRequestInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = requireVerifiedTrustActor(actor, 'this privacy action');
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`privacy-request:${requestId}`}, 0))`; // QUERY_AUDIT_RAW_SQL: parameterized request advisory lock prevents duplicate privacy execution.
       const request = await tx.opsPrivacyRequest.findUnique({ where: { id: requestId } });
@@ -301,18 +303,19 @@ export class PrivacyOperationsService {
       if (!redaction.touchedRecords) {
         throw new BadRequestException('No supported records matched this privacy request; execution remains pending');
       }
-      await this.auditService.audit(request.eventId ?? undefined, actor.name, 'Soft redaction summary for privacy request', {
-        actorRole: actor.role,
+      await this.auditService.audit(request.eventId ?? undefined, verifiedActor.name, 'Soft redaction summary for privacy request', {
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
         actionType: AuditActionType.Update,
         category: AuditCategory.Access,
         affectedType: 'privacy_request',
         affectedId: request.id,
         affectedLabel: request.subjectEmail || request.subjectName,
-        metadata: redaction,
-      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: actor.name });
+        metadata: { actorId: verifiedActor.id, ...redaction },
+      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: verifiedActor.id });
       const saved = await tx.opsPrivacyRequest.update({
         where: { id: requestId },
-        data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: actor.name, executedAt: new Date() },
+        data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: verifiedActor.name, executedAt: new Date() },
       });
       return this.mapRequest(saved);
     });
