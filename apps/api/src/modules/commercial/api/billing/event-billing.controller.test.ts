@@ -19,6 +19,7 @@ function createController() {
   };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((input = {}, verified?: any) => ({
+      id: verified?.id ?? verified?.actorId ?? input.actorId ?? input.id,
       role: verified?.actorRole ?? input.actorRole ?? OpsUserRole.PmcmAdmin,
       name: verified?.actorName ?? input.actorName ?? 'PMCM Admin',
       email: verified?.actorEmail ?? input.actorEmail,
@@ -39,7 +40,7 @@ describe('OpsEventBillingController', () => {
 
   it('serves billing commands through FinanceOps with PMCM route policy', async () => {
     const { controller, billingOperationsService, eventAccessPolicyService } = createController();
-    const actor = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
+    const actor = { id: 'user_maxine', actorId: 'user_maxine', actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
 
     await expect(
       controller.createBillingSource(
@@ -74,7 +75,7 @@ describe('OpsEventBillingController', () => {
 
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(6);
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
-      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
+      { id: 'user_maxine', role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       'billing source',
       'evt_sample',
@@ -82,21 +83,41 @@ describe('OpsEventBillingController', () => {
     expect(billingOperationsService.createBillingSource).toHaveBeenCalledWith(
       'evt_sample',
       { sourceLabel: 'Conforme billing', lineItems: [{ label: 'Package', amount: 100000 }] },
-      { name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
+      { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
     );
     expect(billingOperationsService.generateBillingStatement).toHaveBeenCalledWith(
       'evt_sample',
       'bsrc_new',
-      { name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
+      { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
     );
     expect(billingOperationsService.recordPayment).toHaveBeenCalledWith(
       'evt_sample',
       'pay_downpayment',
       { amountReceived: 50000, paymentDate: '2026-06-20', paymentMethod: 'Bank Transfer' },
-      { name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
+      { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
     );
   });
 
+  it('blocks an otherwise authorized actor with no ID before invoking billing commands', async () => {
+    const { controller, billingOperationsService, eventAccessPolicyService } = createController();
+    eventAccessPolicyService.resolveActor.mockReturnValueOnce({
+      id: undefined,
+      role: OpsUserRole.PmcmAdmin,
+      name: 'Maxine',
+      email: 'maxine@pmcm.test',
+    });
+
+    await expect(
+      controller.markPayment(
+        'evt_sample',
+        'pay_downpayment',
+        { status: 'paid' },
+        { actorId: 'user_maxine', actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine' } as never,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(billingOperationsService.markPayment).not.toHaveBeenCalled();
+  });
   it('blocks non-finance actors before invoking billing commands', async () => {
     const { controller, billingOperationsService, eventAccessPolicyService } = createController();
     eventAccessPolicyService.requireActorRole.mockRejectedValueOnce(
@@ -107,7 +128,7 @@ describe('OpsEventBillingController', () => {
       controller.createBillingSource(
         'evt_sample',
         { sourceLabel: 'Conforme billing', lineItems: [{ label: 'Package', amount: 100000 }] },
-        { actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' } as never,
+        { id: 'user_ana', actorId: 'user_ana', actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' } as never,
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
