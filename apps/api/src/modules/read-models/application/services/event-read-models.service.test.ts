@@ -190,6 +190,7 @@ function createPmcmReadModelService() {
       findMany: vi.fn(async () => [event]),
       findUnique: vi.fn(async () => event),
     },
+    opsOcularVisitRequest: { findUnique: vi.fn(async (): Promise<Record<string, unknown> | null> => null) },
     opsPaymentMilestone: {
       findMany: vi.fn(async () => [
         {
@@ -294,6 +295,98 @@ function createPmcmReadModelService() {
 }
 
 describe('EventReadModelsService', () => {
+  it('clientWorkspaceRedactsOcularWaiverFields', async () => {
+    const event = {
+      id: 'evt_ocular',
+      clientName: 'Ana Reyes',
+      clientPortalStatus: 'unlocked',
+      eventDate: new Date('2026-10-20T00:00:00.000Z'),
+      status: 'planning',
+      archived: false,
+      proposalClientStatus: 'pending',
+      proposalReviewedAt: null,
+      inquiry: { email: 'ana@example.test' },
+      floorPlanDrafts: [],
+      paymentMilestones: [],
+    };
+    const queries = {
+      visibleEvents: vi.fn(async () => [event]),
+      clientWorkspaceForEvents: vi.fn(async () => [
+        [], [], [], [], [], [], [],
+        [{
+          eventId: event.id,
+          status: 'waived',
+          clientNote: null,
+          requestedAt: null,
+          scheduledAt: null,
+          waiverReason: 'Internal decision',
+          waivedAt: new Date('2026-10-01T00:00:00.000Z'),
+          waivedBy: 'Maxine',
+        }],
+      ]),
+      clientEventTimelineForEvents: vi.fn(async () => []),
+    };
+    const policy = new EventAccessPolicyService({ write: vi.fn() } as never);
+    const service = new EventReadModelsService(
+      queries as never,
+      policy,
+      createGuestReader() as never,
+      createStaffingReader() as never,
+    );
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+    const mappers = {
+      mapEvent: (value: typeof event) => value,
+      mapDocument: (value: unknown) => value,
+      mapBriefing: (value: unknown) => value,
+      mapBillingStatement: (value: unknown) => value,
+      mapPaymentMilestone: (value: unknown) => value,
+      mapFloorPlanDraft: (value: unknown) => value,
+      mapAuditLog: (value: unknown) => value,
+    };
+
+    const workspace = await service.clientWorkspace(actor, mappers as never);
+
+    expect(workspace.ocularVisits).toEqual([{
+      eventId: event.id,
+      status: 'waived',
+      clientNote: null,
+      requestedAt: null,
+      scheduledAt: null,
+    }]);
+  });
+
+  it('pmcmEventWorkspaceIncludesOcularTask', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const request = {
+      id: 'ovr_1',
+      eventId: 'evt_visible',
+      status: 'scheduled',
+      clientNote: 'Venue entrance is narrow',
+      requestedAt: new Date('2026-10-01T08:00:00.000Z'),
+      scheduledAt: new Date('2026-10-05T01:00:00.000Z'),
+      completedAt: null,
+      waiverReason: null,
+      waivedAt: null,
+      waivedBy: null,
+    };
+    prisma.opsOcularVisitRequest.findUnique.mockResolvedValue(request);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const workspace = await service.pmcmEventWorkspace(actor, 'evt_visible', createPassthroughPmcmMappers() as never);
+
+    expect(workspace.ocularVisit).toEqual({
+      eventId: request.eventId,
+      status: request.status,
+      clientNote: request.clientNote,
+      requestedAt: request.requestedAt.toISOString(),
+      scheduledAt: request.scheduledAt.toISOString(),
+      completedAt: null,
+      waiverReason: null,
+      waivedAt: null,
+      waivedBy: null,
+    });
+    expect(prisma.opsOcularVisitRequest.findUnique).toHaveBeenCalledWith({ where: { eventId: 'evt_visible' } });
+  });
   it('filters supplier workspace records through event visibility policy', async () => {
     const { service, policy, prisma } = createSupplierWorkspaceService();
     const actor = policy.resolveActor({
@@ -847,6 +940,7 @@ describe('EventReadModelsService', () => {
         [],
         [],
         paymentMilestones,
+        [],
         [],
         [],
       ]),

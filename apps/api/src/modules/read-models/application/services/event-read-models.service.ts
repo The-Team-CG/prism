@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException, NotFoundException, Optional } from '@nestjs/common';
 import type {
   OpsAuditLog,
   OpsBillingSource,
@@ -14,6 +14,7 @@ import type {
   OpsFloorPlanDraft,
   OpsInquiry,
   OpsNotificationLog,
+  OpsOcularVisitRequest,
   OpsPaymentMilestone,
   OpsPaymentRecord,
   OpsPostEventDocument,
@@ -29,6 +30,9 @@ import type {
   PrismClientTimelineMilestoneKey,
   PrismClientTimelineMilestoneStatus,
   PrismCommandInboxSeverity,
+  PrismClientOcularVisit,
+  PrismOcularVisitStatus,
+  PrismPmcmOcularVisit,
 } from '@prism/types';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
@@ -120,6 +124,38 @@ function mapClientEventTimeline(source: ClientEventTimelineSource): PrismClientE
   }) as PrismClientEventTimeline['milestones'];
 
   return { eventId: source.id, milestones };
+}
+
+type ClientOcularVisitRecord = Pick<
+  OpsOcularVisitRequest,
+  'eventId' | 'status' | 'clientNote' | 'requestedAt' | 'scheduledAt'
+>;
+
+function ocularVisitStatus(status: string): PrismOcularVisitStatus {
+  if (status === 'requested' || status === 'scheduled' || status === 'completed' || status === 'waived') {
+    return status;
+  }
+  throw new InternalServerErrorException('Stored ocular visit status is invalid');
+}
+
+function mapClientOcularVisit(request: ClientOcularVisitRecord): PrismClientOcularVisit {
+  return {
+    eventId: request.eventId,
+    status: ocularVisitStatus(request.status),
+    clientNote: request.clientNote,
+    requestedAt: request.requestedAt?.toISOString() ?? null,
+    scheduledAt: request.scheduledAt?.toISOString() ?? null,
+  };
+}
+
+function mapPmcmOcularVisit(request: OpsOcularVisitRequest): PrismPmcmOcularVisit {
+  return {
+    ...mapClientOcularVisit(request),
+    completedAt: request.completedAt?.toISOString() ?? null,
+    waiverReason: request.waiverReason,
+    waivedAt: request.waivedAt?.toISOString() ?? null,
+    waivedBy: request.waivedBy,
+  };
 }
 
 export type EventListMappers = {
@@ -349,11 +385,12 @@ export class EventReadModelsService {
         auditLogs: [],
         notificationLogs: [],
         clientEventTimelines: [],
+        ocularVisits: [],
       };
     }
 
     const [
-      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs],
+      [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, paymentRecords, auditLogs, ocularVisits],
       timelineSources,
     ] = await Promise.all([
       this.queries.clientWorkspaceForEvents(eventIds),
@@ -397,6 +434,7 @@ export class EventReadModelsService {
       floorPlanDrafts: floorPlanDrafts.map((draft) => mappers.mapFloorPlanDraft(draft)),
       auditLogs: auditLogs.map((log) => mappers.mapAuditLog(log)),
       notificationLogs: [],
+      ocularVisits: ocularVisits.map(mapClientOcularVisit),
     };
   }
 
@@ -571,6 +609,7 @@ export class EventReadModelsService {
       floorPlanDrafts,
       auditLogs,
       notificationLogs,
+      ocularVisit,
     ] = await this.queries.pmcmEventWorkspace(eventId);
     const [coordinatorAssignments, coordinatorCoverage, guestCheckIns, guestFeedback, registrationPlatform, guestAttendanceCount] = await Promise.all([
       this.staffingReader.listAssignmentsForEvent(eventId),
@@ -605,6 +644,7 @@ export class EventReadModelsService {
       auditLogs: auditLogs.map(mappers.mapAuditLog),
       notificationLogs: notificationLogs.map(mappers.mapNotificationLog),
       registrationPlatform: registrationPlatform ? mappers.mapRegistrationPlatform(registrationPlatform) : null,
+      ocularVisit: ocularVisit ? mapPmcmOcularVisit(ocularVisit) : null,
       guestAttendanceCount,
       guestCheckIns: guestCheckIns.map((checkIn) => this.guestReader.mapGuestCheckIn(checkIn)),
       guestFeedback: guestFeedback.map((feedback) => this.guestReader.mapGuestFeedback(feedback)),

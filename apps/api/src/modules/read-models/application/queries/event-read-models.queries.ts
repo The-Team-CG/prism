@@ -229,7 +229,7 @@ export class EventReadModelQueries {
   }
 
 
-  // Query budget: seven client workspace queries for a bounded visible event id set, no per-row Prisma loop.
+  // Query budget: eight client workspace queries for a bounded visible event id set, no per-row Prisma loop.
   clientWorkspaceForEvents(eventIds: string[]) {
     return Promise.all([
       this.prisma.opsDocument.findMany({ where: { eventId: { in: eventIds } }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_CLIENT_WORKSPACE_ROWS }),
@@ -242,6 +242,12 @@ export class EventReadModelQueries {
         where: { eventId: { in: eventIds }, category: { not: AuditCategory.Access } },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: MAX_AUDIT_LOGS,
+      }),
+      this.prisma.opsOcularVisitRequest.findMany({
+        where: { eventId: { in: eventIds } },
+        select: { eventId: true, status: true, clientNote: true, requestedAt: true, scheduledAt: true },
+        orderBy: [{ eventId: 'asc' }],
+        take: MAX_CLIENT_WORKSPACE_ROWS,
       }),
     ]);
   }
@@ -366,7 +372,7 @@ export class EventReadModelQueries {
     ]).then(([activeEvents, pendingInquiries, pendingApprovals]) => ({ activeEvents, pendingInquiries, pendingApprovals }));
   }
 
-  // Query budget: fourteen selected-event relation queries; guest, staffing, and registration reads use public reader ports outside this query builder.
+  // Query budget: fifteen selected-event relation queries; guest, staffing, and registration reads use public reader ports outside this query builder.
   pmcmEventWorkspace(eventId: string) {
     return Promise.all([
       this.prisma.opsDocument.findMany({ where: { eventId }, orderBy: [{ uploadedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
@@ -383,6 +389,7 @@ export class EventReadModelQueries {
       this.prisma.opsFloorPlanDraft.findMany({ where: { eventId }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }], take: MAX_PMCM_EVENT_WORKSPACE_ROWS }),
       this.prisma.opsAuditLog.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_AUDIT_LOGS }),
       this.prisma.opsNotificationLog.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_NOTIFICATION_LOGS }),
+      this.prisma.opsOcularVisitRequest.findUnique({ where: { eventId } }),
     ]);
   }
 

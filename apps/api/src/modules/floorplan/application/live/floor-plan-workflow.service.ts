@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import { readEventAccessScope, readEventConformeState } from '@prism/contexts/read-models/event-scope';
+import { readEventAccessScope, readEventConformeState, readEventOcularVisitState } from '@prism/contexts/read-models/event-scope';
 import type { FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
@@ -38,6 +38,7 @@ export class FloorPlanWorkflowService {
       validateState: async () => {
         event = await this.requireEvent(eventId);
         await this.requireSignedConforme(eventId);
+        await this.requireOcularVisitReady(eventId);
       },
       write: async () => {
         if (!event) throw new NotFoundException('Event not found');
@@ -348,6 +349,17 @@ export class FloorPlanWorkflowService {
     const conforme = await readEventConformeState(this.prisma, eventId);
     if (!conforme?.conformeSignedAt) {
       throw new BadRequestException('Official floor plan requires a signed conforme');
+    }
+  }
+
+  /**
+   * EP-10-S03. Official layouts require a completed ocular visit or an explicit PMCM waiver.
+   * Missing and unknown states fail closed; client preference drafts remain outside this gate.
+   */
+  private async requireOcularVisitReady(eventId: string) {
+    const status = await readEventOcularVisitState(this.prisma, eventId);
+    if (status !== 'completed' && status !== 'waived') {
+      throw new BadRequestException('Official floor plan requires a completed or waived ocular visit');
     }
   }
 
