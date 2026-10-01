@@ -13,9 +13,11 @@ function createController() {
     createBillingSource: vi.fn(async () => ({ id: 'bsrc_new' })),
     approveBillingSource: vi.fn(async () => ({ id: 'bsrc_new', status: 'approved' })),
     generateBillingStatement: vi.fn(async () => ({ id: 'bill_new' })),
+    sendBillingStatement: vi.fn(async () => ({ id: 'bill_new', status: 'sent' })),
+  };
+  const paymentOperationsService = {
     markPayment: vi.fn(async () => ({ id: 'pay_downpayment', status: 'paid' })),
     recordPayment: vi.fn(async () => ({ id: 'pay_downpayment', amountPaid: 50000 })),
-    sendBillingStatement: vi.fn(async () => ({ id: 'bill_new', status: 'sent' })),
   };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((input = {}, verified?: any) => ({
@@ -28,9 +30,10 @@ function createController() {
   };
   const controller = new OpsEventBillingController(
     billingOperationsService as any,
+    paymentOperationsService as any,
     eventAccessPolicyService as any,
   );
-  return { controller, billingOperationsService, eventAccessPolicyService };
+  return { controller, billingOperationsService, paymentOperationsService, eventAccessPolicyService };
 }
 
 describe('OpsEventBillingController', () => {
@@ -38,8 +41,8 @@ describe('OpsEventBillingController', () => {
     expect(controllerPath(OpsEventBillingController)).toBe('events');
   });
 
-  it('serves billing commands through FinanceOps with PMCM route policy', async () => {
-    const { controller, billingOperationsService, eventAccessPolicyService } = createController();
+  it('routes billing and payment commands through their own operations services', async () => {
+    const { controller, billingOperationsService, paymentOperationsService, eventAccessPolicyService } = createController();
     const actor = { id: 'user_maxine', actorId: 'user_maxine', actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
 
     await expect(
@@ -90,7 +93,7 @@ describe('OpsEventBillingController', () => {
       'bsrc_new',
       { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
     );
-    expect(billingOperationsService.recordPayment).toHaveBeenCalledWith(
+    expect(paymentOperationsService.recordPayment).toHaveBeenCalledWith(
       'evt_sample',
       'pay_downpayment',
       { amountReceived: 50000, paymentDate: '2026-06-20', paymentMethod: 'Bank Transfer' },
@@ -99,7 +102,7 @@ describe('OpsEventBillingController', () => {
   });
 
   it('blocks an otherwise authorized actor with no ID before invoking billing commands', async () => {
-    const { controller, billingOperationsService, eventAccessPolicyService } = createController();
+    const { controller, paymentOperationsService, eventAccessPolicyService } = createController();
     eventAccessPolicyService.resolveActor.mockReturnValueOnce({
       id: undefined,
       role: OpsUserRole.PmcmAdmin,
@@ -116,7 +119,7 @@ describe('OpsEventBillingController', () => {
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
-    expect(billingOperationsService.markPayment).not.toHaveBeenCalled();
+    expect(paymentOperationsService.markPayment).not.toHaveBeenCalled();
   });
   it('blocks non-finance actors before invoking billing commands', async () => {
     const { controller, billingOperationsService, eventAccessPolicyService } = createController();

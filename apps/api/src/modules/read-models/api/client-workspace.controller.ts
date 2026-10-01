@@ -1,6 +1,6 @@
-import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { FINANCE_COMMANDS, type FinanceCommands } from '@prism/contexts/commercial';
+import { mapBillingStatement, mapPaymentMilestone } from '@prism/contexts/commercial';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { mapAuditLog } from '@prism/contexts/platform-ops';
@@ -14,7 +14,6 @@ export class OpsClientController {
   constructor(
     private readonly eventReadModelsService: EventReadModelsService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    @Inject(FINANCE_COMMANDS) private readonly financeCommands: FinanceCommands,
   ) {}
 
   @Get('workspace')
@@ -27,8 +26,8 @@ export class OpsClientController {
         mapEvent: mapBillingEvent,
         mapDocument: mapClientDocument,
         mapBriefing: mapClientBriefing,
-        mapBillingStatement: this.financeCommands.mapBillingStatement.bind(this.financeCommands),
-        mapPaymentMilestone: this.financeCommands.mapPaymentMilestone.bind(this.financeCommands),
+        mapBillingStatement,
+        mapPaymentMilestone,
         mapFloorPlanDraft: mapReadModelFloorPlanDraft,
         mapAuditLog,
       }),

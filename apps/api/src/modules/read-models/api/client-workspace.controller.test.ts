@@ -51,8 +51,8 @@ describe('OpsClientController', () => {
             submittedAt: new Date('2026-06-20T09:30:00.000Z'),
           }),
         ],
-        billingStatements: [mappers.mapBillingStatement({ id: 'bill_1' })],
-        paymentMilestones: [mappers.mapPaymentMilestone({ id: 'pay_1' }, [])],
+        billingStatements: [mappers.mapBillingStatement({ id: 'bill_1', eventId: 'evt_sample', number: 'BS-2026-0001', clientName: 'Ana Reyes', clientContact: 'ana@example.test', eventName: 'Ayala Summit', eventDate: null, lineItems: [], paymentSchedule: [], paymentMethods: [], totalAmount: 100000, documentId: null, pdfUrl: '', storageKey: '', storageObjectId: null, storageState: 'stored', status: 'issued', sentAt: null, generatedAt: new Date('2026-06-20T00:00:00.000Z') })],
+        paymentMilestones: [mappers.mapPaymentMilestone({ id: 'pay_1', eventId: 'evt_sample', label: 'Deposit', percentage: 50, amount: 100000, amountPaid: 25000, remainingBalance: 75000, dueDate: new Date('2026-07-01T00:00:00.000Z'), status: 'partially_paid' }, [])],
         floorPlanDrafts: [
           mappers.mapFloorPlanDraft({
             id: 'fpd_1',
@@ -103,14 +103,9 @@ describe('OpsClientController', () => {
         name: verified.actorName,
       })),
     };
-    const billingOperationsService = {
-      mapBillingStatement: vi.fn((statement) => ({ kind: 'statement', id: statement.id })),
-      mapPaymentMilestone: vi.fn((payment, history) => ({ kind: 'milestone', id: payment.id, history })),
-    };
     const controller = new OpsClientController(
       eventReadModelsService as any,
       eventAccessPolicyService as any,
-      billingOperationsService as any,
     );
 
     const verifiedActor = {
@@ -134,8 +129,8 @@ describe('OpsClientController', () => {
     });
     expect(workspace.documents[0]).toMatchObject({ id: 'doc_sample', uploadedAt: '2026-06-20T09:00:00.000Z' });
     expect(workspace.briefings[0]).toMatchObject({ eventId: 'evt_sample', serviceRequirements: ['Program'] });
-    expect(workspace.billingStatements).toEqual([{ kind: 'statement', id: 'bill_1' }]);
-    expect(workspace.paymentMilestones).toEqual([{ kind: 'milestone', id: 'pay_1', history: [] }]);
+    expect(workspace.billingStatements).toEqual([expect.objectContaining({ id: 'bill_1', number: 'BS-2026-0001', status: 'issued' })]);
+    expect(workspace.paymentMilestones).toEqual([expect.objectContaining({ id: 'pay_1', amountPaid: 25000, remainingBalance: 75000, history: [] })]);
     expect(workspace.floorPlanDrafts[0]).toMatchObject({ id: 'fpd_1', status: 'submitted' });
     expect(workspace.auditLogs).toMatchObject([
       { id: 'aud_1', actor: 'PMCM Admin', action: 'Viewed workspace', createdAt: '2026-06-20T10:00:00.000Z' },
