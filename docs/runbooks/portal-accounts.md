@@ -97,7 +97,7 @@ API startup does **not** seed data. The application has no sample state or reset
    npm --workspace prism-api run db:seed:fixtures -- --confirm-disposable-db prism_sample_disposable
    ```
 
-   The command refuses production, remote URLs, a different database name, and populated fixture tables. It writes directly through Prisma, does not start the API server, and never deletes existing rows. Use a newly created disposable database.
+   The command refuses production, remote URLs, a different database name, and populated fixture tables across all Prisma models. It writes directly through Prisma, does not start the API server, and never deletes existing rows. Stop the API and other database writers, and run only one seed command at a time: the empty-database check completes before fixture writes begin. Use a newly created disposable database.
 
 After the command completes, you should be able to sign in with every account above. Running the API alone does not create these accounts.
 

@@ -22,6 +22,8 @@ const callbackIterationMethods = new Set([
 ]);
 const prismaRootNames = new Set(['prisma', 'tx', 'db', 'database', 'client', 'transaction']);
 const sourceCommentCache = new WeakMap();
+// A larger global read needs an explicit reason instead of masquerading as pagination.
+const MAX_AUDIT_TAKE = 1000;
 
 function collectTypeScriptFiles(dir) {
   const files = [];
@@ -43,6 +45,10 @@ function rel(file) {
 function propertyName(property) {
   if (!property.name) return undefined;
   if (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) return property.name.text;
+  if (ts.isComputedPropertyName(property.name)) {
+    const expression = property.name.expression;
+    if (ts.isStringLiteral(expression) || ts.isNumericLiteral(expression)) return expression.text;
+  }
   return undefined;
 }
 
@@ -389,7 +395,9 @@ function isDatabaseIteration(node) {
 }
 
 function isPrismaQueryOption(node, optionName) {
-  if (!ts.isPropertyAssignment(node) || propertyName(node) !== optionName) return false;
+  const isMatchingProperty = (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
+    propertyName(node) === optionName;
+  if (!isMatchingProperty) return false;
   const options = node.parent;
   if (!ts.isObjectLiteralExpression(options)) return false;
   const call = options.parent;
@@ -401,6 +409,7 @@ function isMarkerTarget(node, marker) {
   if (marker === 'QUERY_AUDIT_ALLOW_UNBOUNDED') {
     return ts.isCallExpression(node) && isPrismaDelegateCall(node) && node.expression.name.text === 'findMany';
   }
+  if (marker === 'QUERY_AUDIT_ALLOW_BOUNDED_TAKE') return isPrismaQueryOption(node, 'take');
   if (marker === 'QUERY_AUDIT_ALLOW_OFFSET') return isPrismaQueryOption(node, 'skip');
   return false;
 }
@@ -577,30 +586,57 @@ function classifyCollectionConstraint(expression, emptyState, sourceFile, scopeN
   return emptyState === WHERE_ALWAYS_FALSE ? WHERE_SCOPED : WHERE_UNKNOWN;
 }
 
+function classifyFieldSpread(expression, sourceFile, scopeNode, seen) {
+  const value = unwrapExpression(expression);
+  if (ts.isObjectLiteralExpression(value) || ts.isConditionalExpression(value)) {
+    return classifyFieldCondition(value, sourceFile, scopeNode, seen);
+  }
+  if (ts.isIdentifier(value)) {
+    const initializer = resolveConstInitializer(value, sourceFile, scopeNode);
+    if (initializer) return classifyFieldCondition(initializer, sourceFile, scopeNode, seen);
+  }
+  return WHERE_UNKNOWN;
+}
+
 function classifyFieldCondition(expression, sourceFile, scopeNode, seen = new Set()) {
   const value = unwrapExpression(expression);
   if (mayBeUndefined(value, sourceFile, scopeNode)) return WHERE_UNKNOWN;
   if (ts.isObjectLiteralExpression(value)) {
-    const states = value.properties.map((property) => {
+    const states = [];
+    for (const property of value.properties) {
       if (ts.isSpreadAssignment(property)) {
-        return classifyFieldCondition(property.expression, sourceFile, scopeNode, seen);
+        states.splice(0, states.length, classifyFieldSpread(property.expression, sourceFile, scopeNode, seen));
+        continue;
+      }
+      if (property.name && ts.isComputedPropertyName(property.name) && propertyName(property) === undefined) {
+        states.splice(0, states.length, WHERE_UNKNOWN);
+        continue;
       }
       if (!ts.isPropertyAssignment(property)) return WHERE_UNKNOWN;
       const name = propertyName(property);
       if (name === 'not') {
-        return invertWhereState(classifyFieldCondition(property.initializer, sourceFile, scopeNode, seen));
+        states.push(invertWhereState(classifyFieldCondition(property.initializer, sourceFile, scopeNode, seen)));
+        continue;
       }
       if (name === 'in' || name === 'hasSome') {
-        return classifyCollectionConstraint(property.initializer, WHERE_ALWAYS_FALSE, sourceFile, scopeNode, seen);
+        states.push(classifyCollectionConstraint(property.initializer, WHERE_ALWAYS_FALSE, sourceFile, scopeNode, seen));
+        continue;
       }
       if (name === 'notIn' || name === 'hasEvery') {
-        return classifyCollectionConstraint(property.initializer, WHERE_ALWAYS_TRUE, sourceFile, scopeNode, seen);
+        states.push(classifyCollectionConstraint(property.initializer, WHERE_ALWAYS_TRUE, sourceFile, scopeNode, seen));
+        continue;
       }
-      if (name === 'mode') return WHERE_ALWAYS_TRUE;
+      if (name === 'mode') {
+        states.push(WHERE_ALWAYS_TRUE);
+        continue;
+      }
       if (name === 'every' && ts.isObjectLiteralExpression(unwrapExpression(property.initializer)) &&
-        unwrapExpression(property.initializer).properties.length === 0) return WHERE_ALWAYS_TRUE;
-      return mayBeUndefined(property.initializer, sourceFile, scopeNode) ? WHERE_UNKNOWN : WHERE_SCOPED;
-    });
+        unwrapExpression(property.initializer).properties.length === 0) {
+        states.push(WHERE_ALWAYS_TRUE);
+        continue;
+      }
+      states.push(mayBeUndefined(property.initializer, sourceFile, scopeNode) ? WHERE_UNKNOWN : WHERE_SCOPED);
+    }
     return combineWhereAnd(states);
   }
   if (ts.isConditionalExpression(value)) {
@@ -623,22 +659,31 @@ function classifyFieldCondition(expression, sourceFile, scopeNode, seen = new Se
 function classifyWhere(expression, sourceFile, scopeNode, seen = new Set()) {
   const value = unwrapExpression(expression);
   if (ts.isObjectLiteralExpression(value)) {
-    const states = value.properties.map((property) => {
+    const states = [];
+    for (const property of value.properties) {
       if (ts.isSpreadAssignment(property)) {
-        return classifyWhere(property.expression, sourceFile, scopeNode, seen);
+        states.splice(0, states.length, classifyWhere(property.expression, sourceFile, scopeNode, seen));
+        continue;
+      }
+      if (property.name && ts.isComputedPropertyName(property.name) && propertyName(property) === undefined) {
+        states.splice(0, states.length, WHERE_UNKNOWN);
+        continue;
       }
       if (ts.isPropertyAssignment(property)) {
         const name = propertyName(property);
         if (name === 'AND' || name === 'OR' || name === 'NOT') {
-          return classifyLogicalWhere(property.initializer, name, sourceFile, scopeNode, seen);
+          states.push(classifyLogicalWhere(property.initializer, name, sourceFile, scopeNode, seen));
+          continue;
         }
-        return classifyFieldCondition(property.initializer, sourceFile, scopeNode, seen);
+        states.push(classifyFieldCondition(property.initializer, sourceFile, scopeNode, seen));
+        continue;
       }
       if (ts.isShorthandPropertyAssignment(property)) {
-        return classifyFieldCondition(property.name, sourceFile, scopeNode, seen);
+        states.push(classifyFieldCondition(property.name, sourceFile, scopeNode, seen));
+        continue;
       }
-      return WHERE_UNKNOWN;
-    });
+      states.push(WHERE_UNKNOWN);
+    }
     return combineWhereAnd(states);
   }
   if (ts.isConditionalExpression(value)) {
@@ -708,18 +753,119 @@ function hasBoundedWhere(expression, sourceFile, scopeNode) {
   const state = classifyWhere(expression, sourceFile, scopeNode);
   return state === WHERE_ALWAYS_FALSE || state === WHERE_SCOPED;
 }
+
+function lastEffectiveProperty(objectLiteral, propertyNameToFind) {
+  let effectiveProperty;
+  for (const property of objectLiteral.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      effectiveProperty = undefined;
+      continue;
+    }
+    if (property.name && ts.isComputedPropertyName(property.name) && propertyName(property) === undefined) {
+      effectiveProperty = undefined;
+      continue;
+    }
+    if (propertyName(property) === propertyNameToFind) effectiveProperty = property;
+  }
+  return effectiveProperty;
+}
+
+function bindingNameContains(bindingName, expectedName) {
+  if (ts.isIdentifier(bindingName)) return bindingName.text === expectedName;
+  if (ts.isObjectBindingPattern(bindingName) || ts.isArrayBindingPattern(bindingName)) {
+    return bindingName.elements.some((element) => ts.isOmittedExpression(element)
+      ? false
+      : bindingNameContains(element.name, expectedName));
+  }
+  return false;
+}
+
+function findUniqueConstInitializer(name, sourceFile) {
+  // Duplicate value bindings make file-wide constant resolution ambiguous, so fail closed.
+  const bindings = [];
+  const constInitializers = [];
+  const visit = (node) => {
+    const declaresName =
+      (ts.isVariableDeclaration(node) || ts.isParameter(node)) && bindingNameContains(node.name, name) ||
+      (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isClassDeclaration(node) ||
+        ts.isClassExpression(node) || ts.isEnumDeclaration(node) || ts.isModuleDeclaration(node)) &&
+        Boolean(node.name && ts.isIdentifier(node.name) && node.name.text === name) ||
+      ts.isImportClause(node) && Boolean(node.name?.text === name) ||
+      ts.isImportSpecifier(node) && node.name.text === name ||
+      ts.isNamespaceImport(node) && node.name.text === name ||
+      ts.isImportEqualsDeclaration(node) && node.name.text === name;
+    if (declaresName) bindings.push(node);
+
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer &&
+      ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const)) {
+      constInitializers.push(node.initializer);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return bindings.length === 1 && constInitializers.length === 1 ? constInitializers[0] : undefined;
+}
+
+function evaluateStaticNumber(expression, sourceFile, seen = new Set()) {
+  const value = unwrapExpression(expression);
+  if (ts.isNumericLiteral(value)) {
+    const parsed = Number(value.text.replaceAll('_', ''));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  if (ts.isPrefixUnaryExpression(value) &&
+    (value.operator === ts.SyntaxKind.PlusToken || value.operator === ts.SyntaxKind.MinusToken)) {
+    const operand = evaluateStaticNumber(value.operand, sourceFile, seen);
+    if (operand === undefined) return undefined;
+    return value.operator === ts.SyntaxKind.MinusToken ? -operand : operand;
+  }
+  if (ts.isBinaryExpression(value)) {
+    const left = evaluateStaticNumber(value.left, sourceFile, new Set(seen));
+    const right = evaluateStaticNumber(value.right, sourceFile, new Set(seen));
+    if (left === undefined || right === undefined) return undefined;
+    switch (value.operatorToken.kind) {
+      case ts.SyntaxKind.PlusToken: return left + right;
+      case ts.SyntaxKind.MinusToken: return left - right;
+      case ts.SyntaxKind.AsteriskToken: return left * right;
+      case ts.SyntaxKind.SlashToken: return right === 0 ? undefined : left / right;
+      case ts.SyntaxKind.PercentToken: return right === 0 ? undefined : left % right;
+      default: return undefined;
+    }
+  }
+  if (ts.isIdentifier(value) && !seen.has(value.text)) {
+    const initializer = findUniqueConstInitializer(value.text, sourceFile);
+    if (!initializer) return undefined;
+    const nextSeen = new Set(seen);
+    nextSeen.add(value.text);
+    return evaluateStaticNumber(initializer, sourceFile, nextSeen);
+  }
+  return undefined;
+}
+
 function hasFindManyBound(args, sourceFile, call) {
   if (!args || !ts.isObjectLiteralExpression(args)) return false;
-  return args.properties.some((property) => {
-    const name = propertyName(property);
-    if (name === 'take') {
-      if (ts.isPropertyAssignment(property)) return !mayBeUndefined(property.initializer, sourceFile, call);
-      if (ts.isShorthandPropertyAssignment(property)) return !mayBeUndefined(property.name, sourceFile, call);
-      return false;
-    }
-    return name === 'where' && ts.isPropertyAssignment(property) &&
-      hasBoundedWhere(property.initializer, sourceFile, call);
-  });
+  const takeProperty = lastEffectiveProperty(args, 'take');
+  const takeExpression = takeProperty && ts.isPropertyAssignment(takeProperty)
+    ? takeProperty.initializer
+    : takeProperty && ts.isShorthandPropertyAssignment(takeProperty)
+      ? takeProperty.name
+      : undefined;
+  const take = takeExpression ? evaluateStaticNumber(takeExpression, sourceFile) : undefined;
+  if (Number.isSafeInteger(take) && take > 0 && take <= MAX_AUDIT_TAKE) return true;
+
+  const whereProperty = lastEffectiveProperty(args, 'where');
+  const whereExpression = whereProperty && ts.isPropertyAssignment(whereProperty)
+    ? whereProperty.initializer
+    : whereProperty && ts.isShorthandPropertyAssignment(whereProperty)
+      ? whereProperty.name
+      : undefined;
+  return Boolean(whereExpression && hasBoundedWhere(whereExpression, sourceFile, call));
+}
+
+function hasBoundedTakeReason(sourceFile, call) {
+  const args = call.arguments[0];
+  if (!args || !ts.isObjectLiteralExpression(args)) return false;
+  const take = lastEffectiveProperty(args, 'take');
+  return Boolean(take && hasMarker(sourceFile, take, 'QUERY_AUDIT_ALLOW_BOUNDED_TAKE'));
 }
 
 function containsPrismaCall(loop) {
@@ -754,8 +900,10 @@ export function auditSourceFile(text, fileName = 'source.ts', sourceFilesByPath 
 
     if (ts.isCallExpression(node) && isPrismaDelegateCall(node) && node.expression.name.text === 'findMany') {
       const args = node.arguments[0];
-      if (!hasFindManyBound(args, sourceFile, node) && !hasMarker(sourceFile, node, 'QUERY_AUDIT_ALLOW_UNBOUNDED')) {
-        report(node, 'findMany lacks a non-empty where, take, or QUERY_AUDIT_ALLOW_UNBOUNDED reason');
+      if (!hasFindManyBound(args, sourceFile, node) &&
+        !hasBoundedTakeReason(sourceFile, node) &&
+        !hasMarker(sourceFile, node, 'QUERY_AUDIT_ALLOW_UNBOUNDED')) {
+        report(node, 'findMany lacks a non-empty where, take, or explicit audit reason');
       }
     }
 
