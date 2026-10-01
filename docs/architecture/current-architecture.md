@@ -67,7 +67,7 @@ no event scope.
 | Role-specific apps | PMCM/coordinator, client, supplier, and guest experiences remain separate apps. |
 | One shared API | `apps/api` remains one NestJS API and one Prisma client. |
 | Scoped contracts first | New role surfaces use scoped APIs and shared types instead of broad sample-state reads. |
-| Compatibility paths are temporary | `/api/sample/state` and reset/seed paths are for demo compatibility, not normal feature ownership. |
+| Compatibility paths are temporary | `/api/sample/state` and reset/seed paths are for demo compatibility, not normal feature ownership. Sample reset is limited to a loopback `prism_sample_disposable` database and is invoked through the explicit local fixture command. |
 | PMCM owns official operations | PMCM owns official floorplans, supplier decisions, billing, compliance overrides, privacy operations, and audit review. |
 | Portals are constrained views | Client, supplier, and guest portals see only role-safe event data. |
 | High-risk dependencies are gated | Real storage, external auth, production notifications, QR/camera, and live AI require explicit approval, tests, and fallback behavior. |
