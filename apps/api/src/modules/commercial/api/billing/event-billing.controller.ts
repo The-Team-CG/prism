@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -165,6 +165,9 @@ export class OpsEventBillingController {
       resource,
       eventId,
     );
+    if (!actor.id?.trim()) {
+      throw new ForbiddenException('Verified billing actor ID is required');
+    }
     return {
       id: actor.id,
       name: actor.name,
