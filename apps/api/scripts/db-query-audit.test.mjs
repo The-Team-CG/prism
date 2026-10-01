@@ -340,6 +340,20 @@ describe('database query audit', () => {
     assert.equal(importedFailures.length, 1);
     assert.match(importedFailures[0], /callback-imports\.ts:3 Prisma call inside loop/);
 
+    const forwardedCallbackFailures = auditSourceFile(`
+      function visitWithCallback(value, callback) { return callback(value); }
+      function persistCandidate(candidate) { return tx.opsEvent.create({ data: candidate }); }
+      function deferCallback(callback) { pendingCallbacks.push(callback); }
+      function ignoreCallback(callback) { return undefined; }
+      events.map((event) => visitWithCallback(event, (candidate) => tx.opsEvent.create({ data: candidate })));
+      events.map((event) => visitWithCallback(event, persistCandidate));
+      events.forEach((event) => deferCallback((candidate) => tx.opsEvent.create({ data: candidate })));
+      events.map((event) => ignoreCallback((candidate) => tx.opsEvent.create({ data: candidate })));
+    `, 'forwarded-callbacks.ts');
+    assert.equal(forwardedCallbackFailures.length, 2);
+    assert.match(forwardedCallbackFailures[0], /forwarded-callbacks\.ts:6 Prisma call inside loop/);
+    assert.match(forwardedCallbackFailures[1], /forwarded-callbacks\.ts:7 Prisma call inside loop/);
+
     assert.deepEqual(auditSourceFile(`
       values.filter(Boolean).map(mapImportedValue);
     `, 'non-database-callback-references.ts'), []);
