@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { PrismEvent, PrismSupplier, PrismSupplierCategory, PrismSupplierQuoteRequest } from "@prism/types";
+import type { CreateSupplierReviewInput, PrismEvent, PrismSupplier, PrismSupplierCategory, PrismSupplierQuoteRequest } from "@prism/types";
 import { describe, expect, it, vi } from "vitest";
 import { SupplierReviewPromptList } from "./supplier-review-prompt-list";
 
@@ -38,13 +38,12 @@ const promptProps = {
   categories: [category],
   suppliers: [supplier],
   quoteRequests: [request],
-  reviewerName: "Maxine",
   busy: false,
 } as const;
 
 describe("SupplierReviewPromptList", () => {
   it("shows confirmed review work and marks it complete only after success", async () => {
-    const onAddReview = vi.fn(async () => true);
+    const onAddReview = vi.fn(async (_supplierId: string, _input: CreateSupplierReviewInput) => true);
     render(<SupplierReviewPromptList {...promptProps} onAddReview={onAddReview} />);
 
     expect(screen.getByText("Acme AV")).toBeTruthy();
@@ -55,8 +54,9 @@ describe("SupplierReviewPromptList", () => {
 
     await waitFor(() => expect(onAddReview).toHaveBeenCalledWith(
       "sup_1",
-      expect.objectContaining({ rating: 4, notes: "Strong event-day recovery.", reviewedBy: "Maxine" }),
+      expect.objectContaining({ rating: 4, notes: "Strong event-day recovery." }),
     ));
+    expect(onAddReview.mock.calls[0]?.[1]).not.toHaveProperty("reviewedBy");
     expect(await screen.findByText("Review saved")).toBeTruthy();
   });
 
