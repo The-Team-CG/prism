@@ -45,6 +45,7 @@ function createParePrisma() {
   const state = {
     auditLogs: [] as any[],
     approvalRecords: [] as any[],
+    queryCalls: { auditFindMany: 0, auditFindUnique: 0, dispatchFindMany: 0, dispatchFindUnique: 0 },
   };
 
   const prisma = {
@@ -103,8 +104,14 @@ function createParePrisma() {
         state.auditLogs.push(row);
         return row;
       },
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        state.auditLogs.find((record) => record.id === where.id) ?? null,
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) => {
+        state.queryCalls.auditFindMany += 1;
+        return state.auditLogs.filter((record) => where.id.in.includes(record.id));
+      },
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        state.queryCalls.auditFindUnique += 1;
+        return state.auditLogs.find((record) => record.id === where.id) ?? null;
+      },
       update: async ({ where, data }: { where: { id: string }; data: any }) => {
         const index = state.auditLogs.findIndex((record) => record.id === where.id);
         if (index === -1) throw new Error('audit not found');
@@ -140,11 +147,20 @@ function createParePrisma() {
       },
     },
     opsPareDispatch: {
-      findUnique: async ({ where }: { where: { id: string } }) => where.id === 'different_dispatch' ? null : ({
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) => {
+        state.queryCalls.dispatchFindMany += 1;
+        return where.id.in
+          .filter((id) => id !== 'different_dispatch')
+          .map((id) => ({ id, requestId: quoteRequest.id, eventId: event.id }));
+      },
+      findUnique: async ({ where }: { where: { id: string } }) => {
+        state.queryCalls.dispatchFindUnique += 1;
+        return where.id === 'different_dispatch' ? null : ({
           id: where.id,
           requestId: quoteRequest.id,
           eventId: event.id,
-        }),
+        });
+      },
     },
   };
 
@@ -190,6 +206,20 @@ describe('PAREService', () => {
       pending[0].pareResult.riskAssessment.factors.some((factor) => factor.includes('No quote on file')),
     ).toBe(true);
     expect(pending[0].pareResult.budgetAnalysis.summary).toContain('has no quote on file');
+  });
+
+  it('hydrates multiple pending approvals with one audit and dispatch batch read', async () => {
+    const { prisma, quoteRequest, state } = createParePrisma();
+    const service = new PAREService(prisma as any);
+    const first = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_batch_1');
+    const second = await service.handleEmergencyTrigger(quoteRequest.id, 'dispatch_batch_2');
+    Object.assign(state.queryCalls, { auditFindMany: 0, auditFindUnique: 0, dispatchFindMany: 0, dispatchFindUnique: 0 });
+
+    const pending = await service.getPendingApprovals('evt_sample');
+
+    expect(pending.map(({ id }) => id).sort()).toEqual([first.id, second.id].sort());
+    expect(pending.map(({ requestId }) => requestId)).toEqual([quoteRequest.id, quoteRequest.id]);
+    expect(state.queryCalls).toEqual({ auditFindMany: 1, auditFindUnique: 0, dispatchFindMany: 1, dispatchFindUnique: 0 });
   });
 
   it('returns the same approval and audit when a dispatch is delivered twice', async () => {

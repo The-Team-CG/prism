@@ -36,22 +36,36 @@ try {
     process.exit(0);
   }
 
-  const result = await pool.query(`
-    select calls, rows, mean_exec_time, left(regexp_replace(query, '\\s+', ' ', 'g'), 180) as query
-    from ${relation}
-    where query not ilike '%pg_stat_statements%'
-    order by mean_exec_time desc
-    limit 20;
-  `);
+  async function topStatements(orderColumn) {
+    const result = await pool.query(`
+      select calls, rows, total_exec_time, mean_exec_time,
+        left(regexp_replace(query, '\\s+', ' ', 'g'), 180) as query
+      from ${relation}
+      where query not ilike '%pg_stat_statements%'
+      order by ${orderColumn} desc
+      limit 20;
+    `);
+    return result.rows;
+  }
 
-  console.table(
-    result.rows.map((row) => ({
+  function reportRows(rows) {
+    return rows.map((row) => ({
       calls: Number(row.calls),
       rows: Number(row.rows),
+      total_ms: Number(row.total_exec_time).toFixed(2),
       mean_ms: Number(row.mean_exec_time).toFixed(2),
       query: redactQueryText(row.query),
-    })),
-  );
+    }));
+  }
+
+  const [byTotalTime, byMeanTime] = await Promise.all([
+    topStatements('total_exec_time'),
+    topStatements('mean_exec_time'),
+  ]);
+  console.log('Top 20 by cumulative execution time:');
+  console.table(reportRows(byTotalTime));
+  console.log('Top 20 by mean execution time:');
+  console.table(reportRows(byMeanTime));
 } finally {
   await pool.end();
 }

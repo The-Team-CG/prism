@@ -59,6 +59,43 @@ describe('CommercialWorkflowService', () => {
       data: { status: 'expired' },
     });
   });
+
+  it('creates requests for multiple suppliers with one bulk write and keeps supplier order', async () => {
+    const suppliers = [
+      { id: 'sup_a', name: 'Alpha', email: 'alpha@example.test', phone: '111', categoryId: 'cat_tech' },
+      { id: 'sup_b', name: 'Bravo', email: 'bravo@example.test', phone: '222', categoryId: 'cat_tech' },
+    ];
+    const tx = {
+      opsSupplierQuoteRequest: {
+        createManyAndReturn: vi.fn(async ({ data }: { data: Array<Record<string, unknown>> }) => [...data].reverse()),
+      },
+    };
+    const prisma = {
+      opsEvent: { findUnique: vi.fn(async () => ({ eventName: 'Summit', clientName: 'Client' })) },
+      opsSupplierCategory: { findUnique: vi.fn(async () => ({ id: 'cat_tech', name: 'Technicals' })) },
+      opsSupplier: { findMany: vi.fn(async () => suppliers) },
+      opsSupplierQuoteRequest: { findMany: vi.fn(async () => []) },
+      $transaction: vi.fn(async (callback: (value: unknown) => unknown) => callback(tx)),
+    };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
+    const service = new CommercialWorkflowService(
+      prisma as never,
+      auditWriter as never,
+      notificationOutboxWriter as never,
+      new WorkflowCommandService(),
+      {} as never,
+    );
+
+    const created = await service.requestSupplierQuotes('evt_1', { categoryId: 'cat_tech' });
+
+    expect(tx.opsSupplierQuoteRequest.createManyAndReturn).toHaveBeenCalledTimes(1);
+    expect(tx.opsSupplierQuoteRequest.createManyAndReturn.mock.calls[0][0].data).toHaveLength(2);
+    expect(created.map(({ supplierId }) => supplierId)).toEqual(['sup_a', 'sup_b']);
+    expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(4);
+    expect(auditWriter.write).toHaveBeenCalledTimes(1);
+  });
+
   it('selects one quote, closes competing requests, and queues PMCM side effects', async () => {
     const quotes = [
       {

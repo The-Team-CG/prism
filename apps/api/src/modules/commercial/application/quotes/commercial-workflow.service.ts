@@ -152,30 +152,31 @@ export class CommercialWorkflowService {
           const latestRound = roundModel ? await roundModel.findFirst({ where: { eventId, categoryId: category!.id }, orderBy: { roundNumber: 'desc' } }) : null;
           const round = roundModel ? await roundModel.create({ data: { id: `round_${randomUUID()}`, eventId, categoryId: category!.id, roundNumber: (latestRound?.roundNumber ?? 0) + 1 } }) : null;
           // Transaction scope: DB reads/writes only. No external IO inside this callback.
-          const created: OpsSupplierQuoteRequest[] = [];
-          for (const supplier of suppliersToRequest) {
+          const requestData = suppliersToRequest.map((supplier) => {
             const token = randomUUID();
-            const request = await tx.opsSupplierQuoteRequest.create({
-              data: {
-                id: `qr_${randomUUID()}`,
-                eventId,
-                supplierId: supplier.id,
-                categoryId: category!.id,
-                supplierName: supplier.name,
-                category: category!.name,
-                dueDate,
-                accessToken: token,
-                confidentialBid: Boolean(input.confidentialBid),
-                message: input.confidentialBid
-                  ? `${event!.eventName} quote request with client details hidden until selection.`
-                  : `${event!.clientName} / ${event!.eventName} quote request.`,
-                status: SupplierQuoteRequestStatus.Open,
-                ...(round ? { roundId: round.id } : {}),
-              },
-            });
-            created.push(request);
-          }
-          return created;
+            return {
+              id: `qr_${randomUUID()}`,
+              eventId,
+              supplierId: supplier.id,
+              categoryId: category!.id,
+              supplierName: supplier.name,
+              category: category!.name,
+              dueDate,
+              accessToken: token,
+              confidentialBid: Boolean(input.confidentialBid),
+              message: input.confidentialBid
+                ? `${event!.eventName} quote request with client details hidden until selection.`
+                : `${event!.clientName} / ${event!.eventName} quote request.`,
+              status: SupplierQuoteRequestStatus.Open,
+              ...(round ? { roundId: round.id } : {}),
+            };
+          });
+          const created = await tx.opsSupplierQuoteRequest.createManyAndReturn({ data: requestData });
+          const supplierOrder = new Map(suppliersToRequest.map((supplier, index) => [supplier.id, index]));
+          return created.sort((left, right) =>
+            (supplierOrder.get(left.supplierId ?? '') ?? Number.MAX_SAFE_INTEGER) -
+            (supplierOrder.get(right.supplierId ?? '') ?? Number.MAX_SAFE_INTEGER),
+          );
         });
       },
       sideEffects: async (requests) => {

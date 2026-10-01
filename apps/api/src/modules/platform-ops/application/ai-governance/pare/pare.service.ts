@@ -543,6 +543,7 @@ export class PAREService implements PareApprovalGovernance {
           const existing = await tx.opsAiApprovalRecord.findUnique({ where: { sourceDispatchId } });
           if (existing) return this.mapApprovalRecordWithTransactionAudit(tx, existing, ctx.triggerId, sourceDispatchId);
         }
+        // QUERY_AUDIT_RAW_SQL: use PostgreSQL JSONB canonical text for the payload digest persisted with this approval.
         const serializedRows = await tx.$queryRaw<Array<{ canonicalPayload: string }>>`
           SELECT ${serializedReviewPayload}::jsonb::text AS "canonicalPayload"
         `;
@@ -645,7 +646,33 @@ export class PAREService implements PareApprovalGovernance {
         take: 100,
         orderBy: { requestedAt: 'desc' },
     });
-    return Promise.all(approvals.map((record: ApprovalRow) => this.mapApprovalRecordWithAudit(record)));
+    if (approvals.length === 0) return [];
+
+    const auditLogIds = Array.from(new Set(approvals.map((record: ApprovalRow) => record.aiAuditLogId)));
+    const sourceDispatchIds = Array.from(new Set(
+      approvals
+        .map((record: ApprovalRow) => record.sourceDispatchId)
+        .filter((id): id is string => id !== null && id !== undefined),
+    ));
+    const [auditLogs, dispatches] = await Promise.all([
+      this.prisma.opsAiAuditLog.findMany({ where: { id: { in: auditLogIds } } }),
+      sourceDispatchIds.length === 0
+        ? Promise.resolve([])
+        : this.prisma.opsPareDispatch.findMany({
+            where: { id: { in: sourceDispatchIds } },
+            select: { id: true, requestId: true, eventId: true },
+          }),
+    ]);
+    const auditLogsById = new Map(auditLogs.map((audit) => [audit.id, audit]));
+    const dispatchesById = new Map(dispatches.map((dispatch) => [dispatch.id, dispatch]));
+
+    return approvals.map((record: ApprovalRow) => {
+      const audit = auditLogsById.get(record.aiAuditLogId) ?? null;
+      const matchingAudit = requireMatchingAudit(record, audit);
+      const dispatch = record.sourceDispatchId ? dispatchesById.get(record.sourceDispatchId) ?? null : null;
+      this.assertDispatchRecordMatches(record, matchingAudit, dispatch);
+      return this.mapApprovalRecord(record, matchingAudit);
+    });
   }
 
   async approveRecommendation(approvalRecordId: string, approvedBy: string): Promise<PAREApprovalRecord> {
@@ -705,6 +732,7 @@ export class PAREService implements PareApprovalGovernance {
       throw new BadRequestException('The saved PARE review payload does not match its audited digest');
     }
     if (typeof reviewPayloadDigest !== 'string') return;
+    // QUERY_AUDIT_RAW_SQL: re-read the saved JSONB canonical text before accepting an approval.
     const serializedRows = await prisma.$queryRaw<Array<{ canonicalPayload: string }>>`
       SELECT "review_payload"::text AS "canonicalPayload"
       FROM "trust_ops"."ai_approval_records"
@@ -796,6 +824,15 @@ export class PAREService implements PareApprovalGovernance {
   ) {
     if (!record.sourceDispatchId) return;
     const dispatch = await prisma.opsPareDispatch.findUnique({ where: { id: record.sourceDispatchId } });
+    this.assertDispatchRecordMatches(record, audit, dispatch);
+  }
+
+  private assertDispatchRecordMatches(
+    record: ApprovalRow,
+    audit: Pick<AuditRow, 'sanitizedPayload'>,
+    dispatch: { requestId: string; eventId: string } | null,
+  ) {
+    if (!record.sourceDispatchId) return;
     if (!dispatch || dispatch.requestId !== auditRequestId(audit) || dispatch.eventId !== record.eventId) {
       throw new BadRequestException('A matching durable PARE audit is required');
     }

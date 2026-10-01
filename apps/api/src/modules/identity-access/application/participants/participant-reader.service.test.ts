@@ -47,8 +47,10 @@ describe('ParticipantReaderService', () => {
     h.prisma.opsSupplier.findMany = vi.fn(async () => [{ id: 'sup_1', email: 'supplier@example.test' }]);
     h.prisma.opsCoordinator.findMany = vi.fn(async () => []);
     h.event.supplierQuoteRequests = [{ supplierId: 'sup_1', assignmentStatus: 'confirmed' }];
+    h.event.supplierQuoteRequests.push({ supplierId: 'sup_cancelled', assignmentStatus: 'cancelled' });
     await expect(h.service.listEligibleForEvent('evt_1', { id: 'admin', name: 'Admin', email: 'admin@example.test', role: OpsUserRole.PmcmAdmin, explicit: true, verified: true })).resolves.toHaveLength(2);
     expect(h.prisma.opsEvent.findUnique).toHaveBeenCalledTimes(1);
+    expect(h.prisma.opsSupplier.findMany).toHaveBeenCalledWith({ where: { id: { in: ['sup_1'] } }, select: { id: true, email: true } });
     expect(h.prisma.opsUser.findUnique).not.toHaveBeenCalled();
   });
 });
