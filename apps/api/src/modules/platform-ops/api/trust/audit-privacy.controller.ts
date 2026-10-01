@@ -1,4 +1,5 @@
 import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Logger, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
@@ -15,24 +16,18 @@ import {
 import { AuditService } from '../../application/trust/audit.service';
 import { PrivacyOperationsService } from '../../application/trust/privacy-operations.service';
 
-type TrustActor = {
-  id?: string;
-  role: string;
-  email?: string;
-  name: string;
-  clientName?: string;
-  supplierId?: string;
-  coordinatorId?: string;
-};
+type TrustActor = ResolvedEventOpsActor;
 
 function resolveActor(input: PrismVerifiedEventActor): TrustActor {
-  const role = input.role;
-  const name = input.name;
+  const role = input.actorRole;
+  const name = input.actorName;
   return {
-    id: input.id,
+    id: input.actorId,
     role,
-    email: input.email,
+    email: input.actorEmail,
     name,
+    explicit: true,
+    verified: true,
   };
 }
 
@@ -165,7 +160,7 @@ export class OpsPrivacyController {
   async createRequest(@Body(zodBody(createPrivacyRequestSchema)) dto: CreatePrivacyRequestInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy requests', dto.eventId);
-    return this.privacyOperationsService.createRequest(dto, { name: actor.name, role: actor.role });
+    return this.privacyOperationsService.createRequest(dto, actor);
   }
 
   @Patch('requests/:requestId/review')
@@ -173,7 +168,7 @@ export class OpsPrivacyController {
   async reviewRequest(@Param('requestId') requestId: string, @Body(zodBody(reviewPrivacyRequestSchema)) dto: ReviewPrivacyRequestInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy request review');
-    return this.privacyOperationsService.reviewRequest(requestId, dto, { name: actor.name, role: actor.role });
+    return this.privacyOperationsService.reviewRequest(requestId, dto, actor);
   }
 
   @Post('requests/:requestId/execute')
@@ -182,6 +177,6 @@ export class OpsPrivacyController {
   async executeRequest(@Param('requestId') requestId: string, @Body(zodBody(executePrivacyRequestSchema)) dto: ExecutePrivacyRequestInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'privacy request execution');
-    return this.privacyOperationsService.executeRequest(requestId, dto, { name: actor.name, role: actor.role });
+    return this.privacyOperationsService.executeRequest(requestId, dto, actor);
   }
 }
