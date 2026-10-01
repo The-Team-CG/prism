@@ -409,7 +409,7 @@ model OpsFloorPlanDraft {
   status              String    @default("pmcm_draft")
   isActive            Boolean   @default(false) @map("is_active")
   sourceType          String    @default("blank") @map("source_type")
-  createdByRole       String    @default("pmcm-admin") @map("created_by_role")
+  createdByRole       String    @map("created_by_role")
   clientPreference    Json?     @map("client_preference")
   submittedSnapshot   Json?     @map("submitted_snapshot")
   approvedSnapshot    Json?     @map("approved_snapshot")
