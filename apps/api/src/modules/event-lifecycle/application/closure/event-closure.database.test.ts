@@ -72,6 +72,7 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
     const fixture = await event();
     await prisma.opsUrgentIssue.create({ data: {
       id: id(), eventId: fixture.id, title: 'Blocking unresolved issue', severity: 'critical',
+      openedBy: 'System test',
     } });
     const saved = await service.archiveEvent(fixture.id, override);
     expect(saved).toMatchObject({ archived: true, status: 'archived', archiveOverrideBy: operator.actorName });
