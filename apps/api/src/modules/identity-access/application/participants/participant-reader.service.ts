@@ -31,8 +31,14 @@ export class ParticipantReaderService implements ParticipantReader {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: communicationEventInclude });
     if (!event) throw new NotFoundException('Event not found');
     const users = await this.prisma.opsUser.findMany({ where: { approvalStatus: 'approved' }, select: { id: true, name: true, email: true, role: true }, orderBy: { id: 'asc' } });
+    const assignedSupplierIds = Array.from(new Set(event.supplierQuoteRequests
+      .filter((request) => request.supplierId && ['confirmed', 'pending_confirmation'].includes(request.assignmentStatus))
+      .map((request) => request.supplierId)
+      .filter((supplierId): supplierId is string => typeof supplierId === 'string')));
     const [suppliers, coordinators] = await Promise.all([
-      this.prisma.opsSupplier.findMany({ select: { id: true, email: true } }),
+      assignedSupplierIds.length
+        ? this.prisma.opsSupplier.findMany({ where: { id: { in: assignedSupplierIds } }, select: { id: true, email: true } })
+        : Promise.resolve([]),
       this.prisma.opsCoordinator.findMany({ where: { userId: { in: users.filter((user) => user.role === OpsUserRole.Coordinator).map((user) => user.id) } }, select: { id: true, userId: true } }),
     ]);
     const supplierByEmail = new Map(suppliers.map((supplier) => [normalizeEmail(supplier.email), supplier.id]));

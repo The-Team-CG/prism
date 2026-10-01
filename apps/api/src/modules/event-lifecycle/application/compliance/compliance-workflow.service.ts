@@ -88,6 +88,7 @@ export class ComplianceWorkflowService {
           title: rule.title, status: 'open', evaluationStatus: 'not_applicable', evidence: ['No evaluator is registered for this custom condition key.'], definitionStatus: 'PROVISIONAL', remediation: rule.note, note: rule.note,
         }))];
         if (data.length) await tx.opsComplianceCheck.createMany({ data });
+        // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: evaluations come from the fixed compliance rule registry.
         for (const item of evaluations.filter(({ evaluation }) => evaluation.status === 'not_satisfied')) {
           const riskId = `crisk_rule_${eventId}_${phase}_${item.rule.id}`;
           const risk = await tx.opsComplianceRisk.upsert({
@@ -132,6 +133,7 @@ export class ComplianceWorkflowService {
   async runScheduledReevaluations(now = new Date()) {
     const events = await this.prisma.opsEvent.findMany({ where: { archived: false, eventDate: { lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) } }, orderBy: [{ eventDate: 'asc' }, { id: 'asc' }], take: 100 });
     const actor = { role: OpsUserRole.System, name: 'Compliance Scheduler', email: 'system@prism.local', explicit: true } as ResolvedEventOpsActor;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the event query above caps each scheduled sweep at 100 rows.
     for (const event of events) { // Bounded by take above; one event is isolated from the next failure.
       try {
         const latest = await this.prisma.opsComplianceRun.findFirst({ where: { eventId: event.id, status: 'completed' }, orderBy: { createdAt: 'desc' } });

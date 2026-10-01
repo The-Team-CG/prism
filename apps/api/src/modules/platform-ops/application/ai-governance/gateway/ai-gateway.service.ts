@@ -1090,6 +1090,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
   ): Promise<boolean> {
     if (amount > dailyBudget) return false;
     return this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: reserve usage atomically so concurrent requests cannot exceed the daily token budget.
       const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         INSERT INTO "trust_ops"."ai_daily_token_usage" AS daily_usage
           ("id", "use_case_id", "usage_date", "reserved_tokens", "consumed_tokens", "updated_at")
@@ -1120,6 +1121,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
   ): Promise<void> {
     const actual = usage.inputTokens + usage.outputTokens;
     await this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: reconcile reserved and consumed tokens in one atomic update.
       await tx.$executeRaw(Prisma.sql`
         UPDATE "trust_ops"."ai_daily_token_usage"
         SET "reserved_tokens" = "reserved_tokens" - ${reserved},
@@ -1145,6 +1147,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     reserved: number,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: treat an unknown provider outcome as consumed without releasing the budget.
       await tx.$executeRaw(Prisma.sql`
         UPDATE "trust_ops"."ai_daily_token_usage"
         SET "reserved_tokens" = "reserved_tokens" - ${reserved},
@@ -1166,6 +1169,7 @@ export class AiGatewayService implements AiGateway, OnModuleInit {
     reserved: number,
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: release a known-unused reservation atomically.
       await tx.$executeRaw(Prisma.sql`
         UPDATE "trust_ops"."ai_daily_token_usage"
         SET "reserved_tokens" = "reserved_tokens" - ${reserved},

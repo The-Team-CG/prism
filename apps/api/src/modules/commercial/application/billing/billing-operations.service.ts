@@ -162,6 +162,7 @@ async function createIdempotently<T extends { payloadHash: string | null }>(
 
 async function lockPaymentMilestone(tx: Prisma.TransactionClient, milestoneId: string) {
   if (tx.$queryRaw) {
+    // QUERY_AUDIT_RAW_SQL: lock the milestone row before applying a payment mutation.
     const rows = await tx.$queryRaw<OpsPaymentMilestone[]>`SELECT * FROM "finance_ops"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
     if (rows.length > 0) return rows[0];
   }
@@ -546,16 +547,27 @@ export class BillingOperationsService {
             }
           }
           const billingYear = event!.eventDate.getFullYear();
-          const startingNumberRows = await tx.$queryRaw<Array<{ next_number: number }>>`
-            SELECT COALESCE(MAX(substring("number" FROM '^BS-[0-9]{4}-([0-9]{4})$')::integer), 0) + 1 AS "next_number"
-            FROM "finance_ops"."billing_statements"
-            WHERE "number" ~ ('^BS-' || ${billingYear}::text || '-[0-9]{4}$')
-          `;
-          const startingNumber = startingNumberRows[0]?.next_number ?? 1;
-          await tx.$executeRaw`INSERT INTO "finance_ops"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, ${startingNumber}) ON CONFLICT ("year") DO NOTHING`;
+          // QUERY_AUDIT_RAW_SQL: serialize the one-time yearly sequence bootstrap with statement allocations.
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('prism.billing_statement_sequence'), ${billingYear})`;
+          // QUERY_AUDIT_RAW_SQL: serialize annual number allocation on the sequence row.
           const sequenceRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
-          const nextNumber = sequenceRows[0]?.next_number ?? 1;
+          let nextNumber = sequenceRows[0]?.next_number;
+          if (nextNumber === undefined) {
+            // QUERY_AUDIT_RAW_SQL: read legacy statement numbers only when this year has no sequence row.
+            const startingNumberRows = await tx.$queryRaw<Array<{ next_number: number }>>`
+              SELECT COALESCE(MAX(substring("number" FROM '^BS-[0-9]{4}-([0-9]{4})$')::integer), 0) + 1 AS "next_number"
+              FROM "finance_ops"."billing_statements"
+              WHERE "number" ~ ('^BS-' || ${billingYear}::text || '-[0-9]{4}$')
+            `;
+            nextNumber = startingNumberRows[0]?.next_number ?? 1;
+            // QUERY_AUDIT_RAW_SQL: tolerate an older server initializing the row during a rolling deployment.
+            await tx.$executeRaw`INSERT INTO "finance_ops"."billing_statement_sequences" ("year", "next_number") VALUES (${billingYear}, ${nextNumber}) ON CONFLICT ("year") DO NOTHING`;
+            // QUERY_AUDIT_RAW_SQL: use whichever transaction won first-time sequence initialization.
+            const initializedRows = await tx.$queryRaw<Array<{ next_number: number }>>`SELECT "next_number" FROM "finance_ops"."billing_statement_sequences" WHERE "year" = ${billingYear} FOR UPDATE`;
+            nextNumber = initializedRows[0]?.next_number ?? nextNumber;
+          }
           billingNumber = `BS-${billingYear}-${String(nextNumber).padStart(4, '0')}`;
+          // QUERY_AUDIT_RAW_SQL: advance the locked yearly sequence with the issued statement.
           await tx.$executeRaw`UPDATE "finance_ops"."billing_statement_sequences" SET "next_number" = ${nextNumber + 1} WHERE "year" = ${billingYear}`;
           pdfBytes = renderBillingPdf({ number: billingNumber, sourceLabel: source!.sourceLabel, totalAmount: source!.totalAmount });
           const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source!, pdfBytes, actor);

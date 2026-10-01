@@ -159,6 +159,7 @@ export class EventDecisionService {
       where: { id: { in: reschedule.assignmentIds } },
       data: { eventDate: nextDate, doubleBookingWarning: false, conflictEventId: null, conflictEventName: null },
     });
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each conflicting assignment needs distinct conflict event metadata.
     for (const conflict of reschedule.conflicts) {
       if (conflict.reason !== 'double_booking') continue;
       await tx.opsCoordinatorAssignment.update({

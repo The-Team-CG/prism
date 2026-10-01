@@ -406,11 +406,11 @@ export class LocalFixtureSeeder {
 
     const dueDate = addDays(new Date(), 7);
     await this.prisma.$transaction(async (tx) => {
-      for (const supplier of suppliers) {
+      const quoteRequests = suppliers.map((supplier) => {
         const isStagePulse = supplier.id === 'sup_stagepulse';
         const requestId = `qr_sample_${supplier.id}`;
-        await tx.opsSupplierQuoteRequest.create({
-          data: {
+        return {
+          request: {
             id: requestId,
             eventId: event.id,
             supplierId: supplier.id,
@@ -423,10 +423,7 @@ export class LocalFixtureSeeder {
             message: 'Local fixture quote request.',
             status: 'submitted',
           },
-        });
-
-        await tx.opsSupplierQuote.create({
-          data: {
+          quote: {
             id: `quote_sample_${supplier.id}`,
             eventId: event.id,
             requestId,
@@ -447,8 +444,10 @@ export class LocalFixtureSeeder {
             outsideAcceptableRange: isStagePulse,
             status: 'received',
           },
-        });
-      }
+        };
+      });
+      await tx.opsSupplierQuoteRequest.createMany({ data: quoteRequests.map(({ request }) => request) });
+      await tx.opsSupplierQuote.createMany({ data: quoteRequests.map(({ quote }) => quote) });
     });
   }
 
@@ -639,7 +638,10 @@ export class LocalFixtureSeeder {
     if (alertCount > 0 && loginCount > 0) return;
 
     const createdAt = new Date();
-    const users = await this.prisma.opsUser.findMany();
+    const users = await this.prisma.opsUser.findMany({
+      where: { email: { in: ['ana@ayala.test', 'mys@pmcm.test', 'ops@xperto.test'] } },
+      select: { id: true, name: true, email: true, role: true },
+    });
     const userByEmail = new Map(users.map((user) => [user.email, user]));
 
     await this.prisma.$transaction(async (tx) => {
@@ -762,16 +764,16 @@ export class LocalFixtureSeeder {
           skipDuplicates: true,
         });
 
-        for (const supplier of SEEDED_SUPPLIERS) {
-          await tx.opsSupplierCertification.createMany({
-            data: supplier.certifications.map((fileName, index) => ({
+        await tx.opsSupplierCertification.createMany({
+          data: SEEDED_SUPPLIERS.flatMap((supplier) =>
+            supplier.certifications.map((fileName, index) => ({
               id: `cert_${supplier.id}_${index + 1}`,
               supplierId: supplier.id,
               fileName,
             })),
-            skipDuplicates: true,
-          });
-        }
+          ),
+          skipDuplicates: true,
+        });
 
         await tx.opsSupplierReview.createMany({
           data: [
