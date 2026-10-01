@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Supplier quote requests, quote entry/selection, and availability changes now require a verified PMCM or system actor and store that actor's actual identity in audit records.
 - Account approval and decline audits now record the verified administrator identity instead of the generic “PMCM Admin” label.
 - Inquiry audits now use verified actors for on-behalf intake, status changes, and manual conforme reminders; anonymous public intake records an explicit System actor.
 - Supplier file-requirements requests now go through the workspace data layer instead of being called from the view.
