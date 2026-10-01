@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Updated all four portals to Next.js 16.3.8, the patched release for critical GHSA-vcvr-r3jv-pc5j and the September 30 security update.
 - Sample reset now fails closed outside production unless the API's effective database target is a loopback `prism_sample_disposable` database. A confirmed local fixture command replaces the event UI reset buttons and the API smoke test's reset request; API startup no longer seeds sample data.
 - Updated the transitive `brace-expansion` and `undici` lockfile entries to patched releases so the dependency audit gate passes.
 - PMCM operator designation now stays unavailable when the current operator lookup fails, so a replacement cannot be made without showing the existing designation.
