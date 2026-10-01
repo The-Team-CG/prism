@@ -100,6 +100,10 @@ register; it is not permission to add more kernel-to-business imports.
   adapters or thin portal adapters.
 - `/sample/*` is limited to demo, seed, reset, and compatibility paths. It is
   not the normal API for a new role feature.
+- Sample reset is unavailable in production and requires the API's effective
+  runtime database URL to use a loopback host and the exact database name
+  `prism_sample_disposable`; use the explicit confirmation command in the
+  portal-accounts runbook.
 - Session and sample storage keys belong in `@prism/types`; apps must not add
   new literal `prism:*` keys.
 - No Prisma model is a public API. Controllers delegate to context services and
