@@ -78,8 +78,9 @@ fields, audit expectation, and verification evidence.
 The backend is one NestJS deployable with one Prisma client. Business ownership
 lives in bounded-context roots under
 `apps/api/src/modules/<bounded-context>/`; technical infrastructure
-lives under `apps/api/src/kernel/`; `/sample/*` compatibility lives under
-`apps/api/src/compatibility/sample/`.
+lives under `apps/api/src/kernel/`. Local development fixtures live under
+`apps/api/src/fixtures/` and are loaded by an explicit seed command, outside
+the HTTP application module.
 
 Each context exposes one composition root and a public `index.ts`. Internal
 folders are progressive: use `api/`, `application/`, `contracts/`, `domain/`,
@@ -98,14 +99,13 @@ register; it is not permission to add more kernel-to-business imports.
   at an untrusted boundary.
 - HTTP transport belongs in `@prism/api-client`, called from feature `data/`
   adapters or thin portal adapters.
-- `/sample/*` is limited to demo, seed, reset, and compatibility paths. It is
-  not the normal API for a new role feature.
-- Sample reset is unavailable in production and requires the API's effective
-  runtime database URL to use a loopback host and the exact database name
-  `prism_sample_disposable`; use the explicit confirmation command in the
-  portal-accounts runbook.
-- Session and sample storage keys belong in `@prism/types`; apps must not add
-  new literal `prism:*` keys.
+- The API exposes no `/sample/*` runtime routes. Local fixture data is loaded
+  only by `npm --workspace prism-api run db:seed:fixtures` into an empty,
+  loopback PostgreSQL database named `prism_sample_disposable`; the command
+  requires explicit database confirmation and refuses production or populated
+  fixture tables.
+- Session storage keys belong in `@prism/types`; apps must not add new literal
+  `prism:*` keys.
 - No Prisma model is a public API. Controllers delegate to context services and
   mappers.
 

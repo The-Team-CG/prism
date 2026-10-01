@@ -61,7 +61,7 @@ The future state is not "every catalog item is production-grade immediately." Th
 | Billing | Billing evidence is client-safe and source-linked; disputes, waivers, corrections, and additional billing are gated or deferred unless implemented with tests. |
 | Compliance and risk | Compliance rule/override evidence is live; broader risk/change register is gated or selected as one PMCM thin slice. |
 | Closure | Close gates and lifecycle transition rules support closure/readiness evidence. |
-| Security and privacy | Sample auth/RBAC, privacy request handling, consent, redaction, audit integrity, and role boundaries are verified. External auth remains gated unless approved. |
+| Security and privacy | Built-in API auth/RBAC, privacy request handling, consent, redaction, audit integrity, and role boundaries are verified. External auth remains gated unless approved. |
 | AI | AI governance foundation is visible. Live AI and autonomous action remain gated behind ZDR/provider approval and PMCM approval workflow. |
 | UX | Route-review evidence covers touched PMCM/client/supplier/guest surfaces with route, viewport, pass/fail, and fix/approval notes. |
 | Evidence | Evidence packets link FL outcomes, route checks, screenshots, tests, dependency decisions, and docs updates. |
@@ -114,7 +114,7 @@ flowchart TD
 
 | Area | Later maturity target |
 | --- | --- |
-| External auth | Replace sample auth/RBAC with approved provider integration, migration path, session tests, and rollback/fallback behavior. |
+| External auth | Replace built-in API auth/RBAC with approved provider integration, migration path, session tests, and rollback/fallback behavior. |
 | Storage | Add storage adapter, signed URLs, upload progress/retry, download/delete audit, file previews where appropriate, and storage readiness console. |
 | Notifications | Connect production delivery adapters behind the queue, with templates, language preference, retry audit, failures, and delivery health. |
 | AI | Connect a ZDR-approved provider only after governance review, sanitizer, audit, approval records, prompt/version retention, and human-in-the-loop PMCM approval. |

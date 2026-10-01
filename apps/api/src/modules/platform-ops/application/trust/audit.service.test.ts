@@ -60,7 +60,7 @@ function auditRow(overrides: Partial<TestAuditRow> = {}): TestAuditRow {
     affectedLabel: null,
     metadata: {},
     ipAddress: '192.168.1.5',
-    device: 'Local sample browser',
+    device: 'Local fixture browser',
     severity: 'info',
     immutableHash: '',
     previousHash: null,

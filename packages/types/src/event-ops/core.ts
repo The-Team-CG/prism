@@ -4,7 +4,7 @@ export interface PrismProjectLike {
   suppliers: unknown[];
 }
 
-export type SampleRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
+export type PrismUserRole = "pmcm-admin" | "client" | "coordinator" | "supplier";
 
 export const PRISM_EVENT_OPS_ACTOR_ROLES = [
   "pmcm-admin",
@@ -141,7 +141,7 @@ export interface PrismActionResult<TData = unknown> {
 export interface PrismUser {
   id: string;
   name: string;
-  role: SampleRole;
+  role: PrismUserRole;
   email: string;
   organization: string;
   approvalStatus: "approved" | "pending" | string;

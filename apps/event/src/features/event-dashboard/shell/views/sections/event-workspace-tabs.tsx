@@ -172,7 +172,7 @@ export function EventWorkspaceBriefingTab() {
             ))}
           </div>
         ) : (
-          <EmptyState icon={FileCheck2} title="No briefing submitted yet" description="Use the quick action to submit a sample briefing for this event." />
+          <EmptyState icon={FileCheck2} title="No briefing submitted yet" description="Use the quick action to submit a briefing for this event." />
         )}
       </CardBody>
     </Card>

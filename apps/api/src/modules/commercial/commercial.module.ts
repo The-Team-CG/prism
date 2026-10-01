@@ -31,6 +31,7 @@ import { SupplierNetworkWorkflowService } from './application/suppliers/supplier
 import { SupplierProfileCommandsService } from './application/suppliers/supplier-profile-commands.service';
 import { SuppliersService } from './application/suppliers/suppliers.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
+import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
@@ -65,8 +66,8 @@ const supplierCommandsProvider = {
  * OpsDocument is also owned by inquiry-onboarding for its own document
  * kinds), OpsPaymentMilestone, OpsPaymentRecord.
  * Read-only: OpsEvent (via inquiry-onboarding), OpsSupplierCategory
- * (sample-seeded only; no owning module), OpsSupplierReviewDimension
- * (sample-seeded only; no owning module), OpsInquiry (via
+ * (populated only by local fixtures; no owning module), OpsSupplierReviewDimension
+ * (populated only by local fixtures; no owning module), OpsInquiry (via
  * inquiry-onboarding).
  */
 @Module({
@@ -108,6 +109,7 @@ const supplierCommandsProvider = {
     supplierCommandsProvider,
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
     BillingOperationsService,
+    PaymentRiskScheduler,
     CommunicationService,
     ProposalLifecycleService,
     { provide: FINANCE_COMMANDS, useExisting: BillingOperationsService },

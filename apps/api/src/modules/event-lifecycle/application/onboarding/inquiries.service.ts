@@ -34,7 +34,7 @@ export type UpdateInquiryStatusInput = {
   declineReason?: string;
 };
 
-export type SampleActorInput = PrismEventOpsActorContext;
+export type ActorContextInput = PrismEventOpsActorContext;
 
 type InquiryWithTriage = OpsInquiry & {
   normalizedEmail?: string;
@@ -87,7 +87,7 @@ export class InquiriesService {
     return this.createInquiryRecord(input, false);
   }
 
-  async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: SampleActorInput = {}) {
+  async logInquiryOnBehalf(input: CreateInquiryInput, actorInput: ActorContextInput = {}) {
     const role = actorInput.actorRole ?? actorInput.role ?? OpsUserRole.Unknown;
     if (role !== OpsUserRole.PmcmAdmin && role !== OpsUserRole.System) {
       throw new ForbiddenException('Only PMCM can log inquiries on behalf of clients');

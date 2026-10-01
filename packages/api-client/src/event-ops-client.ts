@@ -3,7 +3,6 @@ import type {
   EventOpsClientOptions,
 } from "./event-ops-client/contracts";
 import { createAuthClient } from "./event-ops-client/auth";
-import { createSampleClient } from "./event-ops-client/sample";
 import { createInquiriesClient } from "./event-ops-client/inquiries";
 import { createEventsClient } from "./event-ops-client/events";
 import { createWorkspacesClient } from "./event-ops-client/workspaces";
@@ -19,7 +18,6 @@ export function createEventOpsClient(
 ): EventOpsClient {
   return {
     ...createAuthClient(options),
-    ...createSampleClient(options),
     ...createInquiriesClient(options),
     ...createEventsClient(options),
     ...createWorkspacesClient(options),

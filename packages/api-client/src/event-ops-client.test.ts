@@ -11,12 +11,12 @@ describe("prismRequest", () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await prismRequest<{ ok: boolean }>("/sample/state", {
+    const result = await prismRequest<{ ok: boolean }>("/health", {
       baseUrl: "http://localhost:4000/api",
     });
 
     expect(result).toEqual({ ok: true });
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/sample/state", {
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/health", {
       headers: { "Content-Type": "application/json" },
     });
   });
@@ -118,18 +118,6 @@ describe("createEventOpsClient", () => {
         privacyConsentAccepted: true,
         privacyNoticeVersion: "2026-05-01",
       }),
-      headers: { "Content-Type": "application/json" },
-    });
-  });
-
-  it("loads PMCM state through the sample aggregate endpoint", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ events: [] }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
-    await client.sample.state();
-
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/sample/state", {
       headers: { "Content-Type": "application/json" },
     });
   });

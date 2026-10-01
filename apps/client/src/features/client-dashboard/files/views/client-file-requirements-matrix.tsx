@@ -27,7 +27,7 @@ export function ClientFileRequirementsMatrix({
     }
     let alive = true;
     clientFileRequirementsRepository
-      .load(eventId, session)
+      .load(eventId)
       .then((next) => {
         if (alive) {
           setMatrix(next);

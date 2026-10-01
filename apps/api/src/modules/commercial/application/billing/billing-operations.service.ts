@@ -4,7 +4,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
-import type { PrismCommandContext } from '@prism/kernel/shared-kernel';
+import type { PrismCommandContext, PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, StorageObjectService, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { nextPaymentMilestoneStatus, validatePaymentTerms } from '../../domain/payment-terms.policy';
@@ -214,23 +214,30 @@ export class BillingOperationsService {
         continue;
       }
 
-      await this.workflowCommandService.execute<OpsPaymentMilestone>({
+      await this.workflowCommandService.execute<{ count: number }>({
         name: 'mark_payment_at_risk',
         eventId: event.id,
-        write: () =>
-          this.prisma.opsPaymentMilestone.update({
-            where: { id: balance.id },
+        sideEffectMode: 'same_tx',
+        write: (transactionContext) =>
+          (transactionContext?.prisma ?? this.prisma).opsPaymentMilestone.updateMany({
+            where: {
+              id: balance.id,
+              eventId: event.id,
+              status: { notIn: ['paid', 'at_risk'] },
+              remainingBalance: { gt: 0 },
+            },
             data: { status: 'at_risk' },
           }),
-        sideEffects: async (payment) => {
+        sideEffects: async ({ count }, transactionContext?: PrismTransactionContext) => {
+          if (count === 0) return;
           await writeAudit(this.auditWriter, event.id, 'System', `Payment at risk for ${event.eventName}`, {
             category: AuditCategory.Finance,
             actionType: AuditActionType.Update,
             affectedType: 'payment_milestone',
-            affectedId: payment.id,
-            affectedLabel: payment.label,
+            affectedId: balance.id,
+            affectedLabel: balance.label,
             severity: 'warning',
-          });
+          }, transactionContext);
         },
       });
     }

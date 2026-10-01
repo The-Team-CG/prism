@@ -123,7 +123,7 @@ try {
 } catch (error) {
   throw new Error(
     `${error instanceof Error ? error.message : 'Event ops login failed.'} ` +
-      'Load local fixtures first with `npm --workspace prism-api run sample:fixtures:reset -- --confirm-disposable-db prism_sample_disposable`.',
+      'Load local fixtures first with `npm --workspace prism-api run db:seed:fixtures -- --confirm-disposable-db prism_sample_disposable`.',
   );
 }
 

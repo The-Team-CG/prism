@@ -1,14 +1,14 @@
 ---
 type: "Readiness Contract"
 title: "P.R.I.S.M redesign readiness foundation"
-description: "Durable gates for sample state, sessions, app ownership, shared contracts, external dependencies, and safe redesign work."
+description: "Durable gates for development fixtures, sessions, app ownership, shared contracts, external dependencies, and safe redesign work."
 tags: [readiness, contracts, roles, compatibility, governance]
 status: canonical
-updated: "2026-09-28"
+updated: "2026-09-30"
 authority: normative
 owner: "D (Anthony)"
 audience: [agents, engineers, QA, reviewers]
-scope: "contracts, sample state, sessions, database runtime, external dependencies, and readiness gates"
+scope: "contracts, fixture seeding, sessions, database runtime, external dependencies, and readiness gates"
 last_verified: "2026-09-08"
 sources:
   - id: constitution
@@ -31,14 +31,14 @@ sources:
 - **Purpose:** Define the gates that must be satisfied before a feature can claim reliable readiness.
 - **Authority:** Normative cross-cutting readiness contract for product and architecture work.
 - **Owner:** D (Anthony).
-- **Scope:** Shared contracts, sample compatibility, session keys, database runtime, dependencies, and evidence.
+- **Scope:** Shared contracts, local fixture seeding, session keys, database runtime, dependencies, and evidence.
 - **Use when:** Starting a redesign slice, enabling an external integration, or deciding whether a demo path is safe to extend.
 - **Change when:** A readiness gate, dependency policy, authentication/runtime assumption, or evidence requirement changes.
 - **Verify with:** Contract builds, boundary checks, database/runtime checks, role tests, and affected route evidence.
 
 This document defines durable platform rules for redesign and new feature work.
 It does not replace the feature ledger or architecture docs. It states
-sample-state fencing, session conventions, owner boundaries, contract gates, and
+fixture-seed limits, session conventions, owner boundaries, contract gates, and
 legacy-removal conditions so any contributor can apply them without
 undocumented context.
 
@@ -62,8 +62,8 @@ does not satisfy them.
 Redesign and new surfaces should not start from ambiguous product truth, broad demo state, copied session behavior, or stale docs. This foundation makes four things true:
 
 1. Each owner knows which app and system goal they own.
-2. New work uses scoped API/view contracts instead of the broad sample aggregate.
-3. Temporary sample/demo paths are named as compatibility paths.
+2. New work uses scoped API/view contracts; no whole-system sample aggregate is exposed.
+3. Development fixtures are inserted through a guarded database seed command, not runtime routes or browser-local state.
 4. Outdated docs do not compete with the current bundle (`AGENTS.md`, `docs/constitution.md`, and the semantic architecture/product documents).
 
 ## Current Foundation Decisions
@@ -72,10 +72,10 @@ Redesign and new surfaces should not start from ambiguous product truth, broad d
 | --- | --- | --- |
 | Product truth | `AGENTS.md`, `README.md`, and the current semantic docs under `docs/` are the active sources. | Do not design against removed audits, story logs, or retired planning files. |
 | App ownership | Keep role-specific apps: client, event, supplier, guest, and shared API. | Prevents redesign work from rebuilding an all-role client shell. |
-| Sample state | `/api/sample/state` and client local sample state are compatibility-only seed/demo paths. | New UI should not depend on a whole-system JSON aggregate. |
-| Sessions | Storage key names and browser storage helpers live in `@prism/types`. API-backed sample auth remains until external auth is approved. | Role apps must not invent app-local localStorage conventions or copied JSON parse/cleanup logic. |
+| Development fixtures | The app exposes no sample HTTP routes or browser-local sample state. A guarded CLI seeds an empty loopback `prism_sample_disposable` database. | Portals use scoped HTTP APIs; fixture seeding is separate from API startup. |
+| Sessions | Storage key names and browser storage helpers live in `@prism/types`. Built-in API auth/RBAC remains until external auth is approved. | Role apps must not invent app-local localStorage conventions or copied JSON parse/cleanup logic. |
 | Shared contracts | `@prism/types` and `@prism/api-client` are the contract surfaces to grow; PMCM has dashboard, command inbox, and selected-event workspace contracts; client has workspace plus action-center contracts; supplier has workspace plus readiness-board contracts; guest has an event-pass contract. | Keeps app redesign from importing across role app boundaries or thinking in sample aggregates. |
-| Boundaries | `npm run check:boundaries` is the architectural guard before merge. | Catches cross-app imports, broad sample-state reads, and new magic storage keys. |
+| Boundaries | `npm run check:boundaries` is the architectural guard before merge. | Catches cross-app imports, broad aggregate reads, and new magic storage keys. |
 | Stale docs | App-local event audit docs are removed from active guidance. | Current truth lives in the semantic documentation bundle, not old snapshots. |
 
 ## Owner Boundary Rules
@@ -84,42 +84,35 @@ Redesign and new surfaces should not start from ambiguous product truth, broad d
 | --- | --- | --- | --- | --- |
 | Owner A | Maxine | Make all role surfaces feel like one coherent PMCM operating system while preserving role-specific workflows. | `packages/ui`, design tokens, route inventory, status language, shared shell patterns. | Put workflow logic into `packages/ui` or create visual patterns that contradict app boundaries. |
 | Owner B | Francis | Make PMCM/coordinator work executable from inquiry through event day and archive. | `apps/event`, PMCM/coordinator scoped API calls, event workspace route inventory. | Move PMCM-only command behavior into `apps/client` or expose internal state externally. |
-| Owner C | Ethan | Make external portals narrow, safe, mobile-ready action surfaces. | `apps/client`, `apps/supplier`, `apps/guest`, public and external portal contracts. | Let external portals read PMCM-only state, mutate official floorplans directly, or depend on broad sample state. |
-| Owner D | Anthony | Make platform behavior trustworthy through contracts, permissions, audit, notifications, file/lifecycle services, tests, and docs. | `apps/api`, `packages/types`, `packages/api-client`, bounded-context/kernel boundaries, scoped controllers. | Expand `/api/sample/state` or recreate a centralized backend/portal god facade as the default path for new surfaces. |
+| Owner C | Ethan | Make external portals narrow, safe, mobile-ready action surfaces. | `apps/client`, `apps/supplier`, `apps/guest`, public and external portal contracts. | Let external portals read PMCM-only state, mutate official floorplans directly, or depend on a broad aggregate. |
+| Owner D | Anthony | Make platform behavior trustworthy through contracts, permissions, audit, notifications, file/lifecycle services, tests, and docs. | `apps/api`, `packages/types`, `packages/api-client`, bounded-context/kernel boundaries, scoped controllers. | Reintroduce whole-system aggregate routes or recreate a centralized backend/portal god facade as the default path for new surfaces. |
 
-## Sample-State Rule
+## Development Fixture Rule
 
-Sample state means either:
+Seeded local accounts and workflow data remain available for local verification.
+They are loaded only through:
 
-- API compatibility aggregate: `GET /api/sample/state` and `POST /api/sample/reset` (no dedicated seed endpoint).
-- Client local fallback: `apps/client/src/mock/prism-sample-state.ts` plus browser storage under `PRISM_SAMPLE_STATE_STORAGE_KEY`.
+```bash
+npm --workspace prism-api run db:seed:fixtures -- --confirm-disposable-db prism_sample_disposable
+```
 
-Allowed use:
+The command rejects production, non-loopback targets, a different database
+name, and populated fixture tables. It writes directly through Prisma and does
+not start an API listener or delete existing rows. Use scoped role APIs for
+application behavior; there is no sample state contract, route, or browser
+storage key to build against.
 
-- Local demo reset.
-- Seed verification.
-- Backward-compatible fallback while replacing old screens.
-- Tests that intentionally verify sample/demo behavior.
-
-Blocked for new redesign work:
-
-- New role app screens calling `eventOpsClient.sample.state()`.
-- New role app screens calling `prismApi.state()`.
-- New imports of `@/mock/prism-sample-state` outside the client API compatibility adapter.
-- New hardcoded `prism:*session` or sample-state storage keys in role apps.
-
-Migration target:
-
-| Current compatibility path | Redesign target |
+| Former path | Current path |
 | --- | --- |
-| `/api/sample/state` | `/api/client/workspace`, `/api/pmcm/dashboard`, `/api/supplier/workspace`, `/api/events/:id`, `/api/billing`, `/api/inquiries` |
-| `PrismSampleState` as screen state | Role-specific read models and view models |
-| Client `localStorage` sample state | API-backed client workspace plus explicit demo seed/reset tooling |
-| App-local session keys and storage helpers | Shared constants plus `readPrismSession`, `savePrismSession`, and `clearPrismSession` from `@prism/types`; later external auth/session provider |
+| `/api/sample/state` and `/api/sample/reset` | Removed; use role-scoped API controllers and read models. |
+| `PrismSampleState` as screen state | Removed; use role-specific read models and view models. |
+| Client browser-local sample state | Removed; client repositories use the API-backed scoped workspace and workflow routes. |
+| Local development accounts and events | Explicit fixture seed into a new empty disposable database. |
+| App-local session keys and storage helpers | Shared constants plus `readPrismSession`, `savePrismSession`, and `clearPrismSession` from `@prism/types`; later external auth/session provider. |
 
 ## Session Rule
 
-Until external auth is approved, the system still uses API-backed sample auth/RBAC. New work should still treat session behavior as a platform contract:
+Until external auth is approved, the system uses built-in API auth/RBAC backed by seeded local test accounts. New work should still treat session behavior as a platform contract:
 
 - Import storage keys and browser storage helpers from `@prism/types`.
 - Use `readPrismSession`, `savePrismSession`, and `clearPrismSession` for role app browser-session reads, writes, corrupt-session cleanup, and any allowed legacy-key migration.
@@ -127,11 +120,11 @@ Until external auth is approved, the system still uses API-backed sample auth/RB
 - Do not add new app-local JSON parse/remove wrappers for role sessions.
 - Do not add new client mock-auth callers.
 - Keep role checks app-specific: client users stay in `apps/client`, supplier users stay in `apps/supplier`, guest code access stays in `apps/guest`, and PMCM/coordinator users stay in `apps/event`.
-- Treat sample auth as database-backed API behavior, not a browser-only mock. If sign-in, `/api/sample/state`, or `/api/sample/reset` fails because the configured Prisma database is unavailable, the API should return the explicit service-unavailable message that points to `npm --workspace prism-api run db:doctor:runtime`; do not redesign around localStorage bypasses or copied mock users.
+- Treat sign-in as database-backed API behavior, not a browser-only mock. If sign-in fails because the configured Prisma database is unavailable, the API should return the explicit service-unavailable message that points to `npm --workspace prism-api run db:doctor:runtime`; do not redesign around localStorage bypasses or copied mock users.
 
 ## Local Database Runtime Gate
 
-Platform trust owns the local API database readiness gate for authenticated browser and API verification. Before authenticated demos or release evidence depend on live sample auth, run:
+Platform trust owns the local API database readiness gate for authenticated browser and API verification. Before demos or release evidence depend on seeded test accounts, run:
 
 ```powershell
 npm --workspace prism-api run db:doctor:runtime
@@ -149,11 +142,11 @@ These contracts should be completed or hardened before heavy redesign branches d
 
 | Contract | Owner | Needed for |
 | --- | --- | --- |
-| Client Action Center read model | C/D | Available through `PrismClientActionCenter` and `/api/client/action-center`; dashboard action cards now consume it with local-mode and derived-action fallback. Next work is richer approval/file-matrix actions. |
+| Client Action Center read model | C/D | Available through `PrismClientActionCenter` and `/api/client/action-center`; dashboard action cards consume it with derived-action fallback. Next work is richer approval/file-matrix actions. |
 | PMCM Command Inbox read model | B/D | Available through `PrismPmcmCommandInbox` and `/api/pmcm/command-inbox`; event shell command actions now consume it. Next work is health-score enrichment and deeper selected-event adoption. |
 | Selected Event Workspace read model | B/D | Available through `PrismPmcmEventWorkspace` and `/api/pmcm/events/:eventId/workspace`; selected-event sections now load it through `use-pmcm-selected-event-workspace.ts` and prefer it through `event-dashboard.selectors.ts` with broad-state fallback. Live-ops/readiness refreshes now live in `use-pmcm-event-readiness.ts`, and event messages now render through `EventMessagesWorkspace`. Next work is file matrix enrichment and route decomposition. |
 | Supplier Readiness Board read model | C/D | Available through `PrismSupplierReadinessBoard` and `/api/supplier/readiness-board`; supplier dashboard now displays it. Next work is PMCM-side readiness board parity and application/status depth. |
-| Guest Event Pass read model | C/D | Available through `PrismGuestEventPass`, `/api/guest/events/:accessCode`, and `eventOpsClient.guest.eventPass`; next work is moderation/masterlist enrichment and QR gating only after HTTPS/sample constraints are solved. |
+| Guest Event Pass read model | C/D | Available through `PrismGuestEventPass`, `/api/guest/events/:accessCode`, and `eventOpsClient.guest.eventPass`; next work is moderation/masterlist enrichment and QR gating only after HTTPS/device/masterlist constraints are solved. |
 | File Requirements Matrix | A/C/D | Role-visible document requirements, missing/received/approved states. File behavior is metadata-first. Role apps may show requirement status, owner role, visibility, due date, generated document reference, uploaded asset metadata, and validation state. Role apps must not claim real upload persistence, signed URL creation, multipart upload progress, or retry semantics until a storage adapter contract is approved and focused API tests cover the behavior. |
 | Notification delivery state | B/C/D | Communication queues, channel status, retry/error visibility. |
 | Privacy Operations state | B/D | Consent, retention, privacy requests, redaction and legal hold. |
@@ -253,15 +246,15 @@ Every PMCM-to-portal or portal-to-PMCM data flow must name these fields before a
 | Legacy | Current action | Final removal condition |
 | --- | --- | --- |
 | App-local event audit docs | Removed from active guidance. | Useful rows are represented in `../constitution.md`, `feature-ledger.md`, `redesign-inventory.md`, or this doc. |
-| Broad sample aggregate | Fenced as compatibility-only. | No normal app screen or API client path depends on it. |
+| Broad sample aggregate | Removed from the API, API client, and client portal. | Do not reintroduce a whole-system state route or browser-local state. |
 | PMCM workspace typed as sample state | Replaced with explicit `PrismPmcmDashboardWorkspace`. | Future PMCM command contracts split into command inbox, event workspace, and operations views. |
 | PMCM command work derived only in UI | Added `PrismPmcmCommandInbox` and `/api/pmcm/command-inbox`; shell command actions now consume it. | Deeper PMCM actions move into route-scoped handlers instead of the monolithic dashboard component. |
 | Selected event resources derived only in UI | Added `PrismPmcmEventWorkspace` and `/api/pmcm/events/:eventId/workspace`; selected-event fetch lifecycle now lives in a feature hook, while resource selection lives in the event-dashboard selector and prefers the scoped workspace with broad-state fallback. | Remove fallback filtering after selected-event routes are decomposed and event-scoped resources cover every tab. |
-| Client dashboard state typed as sample state | Narrowed to `PrismClientWorkspace`; local sample data remains a compatibility fallback behind the client API adapter. | Client portal reads only API-backed scoped workspaces. |
+| Client dashboard state typed as sample state | Narrowed to `PrismClientWorkspace`; the local sample fallback has been removed. | Client portal reads API-backed scoped workspaces. |
 | Client action work derived only in UI | Added `PrismClientActionCenter` and `/api/client/action-center`; dashboard action cards now consume it with compatibility fallback. | Client dashboard replacement removes fallback derivation once file-matrix, approval, and closeout actions are fully represented. |
 | Supplier readiness work derived only in UI | Added `PrismSupplierReadinessBoard` and `/api/supplier/readiness-board`; supplier dashboard now displays it. | Supplier dashboard redesign consumes quote, assignment, contract, readiness, and event-day status from one supplier-scoped board across all sections. |
 | Guest pass shape duplicated in UI | Replaced with shared `PrismGuestEventPass` and API-client route helper. | Guest redesign consumes the shared pass contract and keeps check-in/feedback mutations access-code scoped. |
-| Client local sample state | Fenced behind client API adapter. | Local fallback is removed after client portal reads only API-backed scoped workspaces in all supported modes. |
+| Client local sample state | Removed, including its mock state, storage key, and compatibility adapter. | Local account and event fixtures remain available only through the explicit database seed command. |
 | Mock client auth keys | Marked legacy and migrated by the shared reader when explicitly allowed. | Client session uses the same platform session contract as other apps. |
 | Literal session storage keys and copied localStorage mechanics | Replaced with shared constants and `readPrismSession`/`savePrismSession`/`clearPrismSession`. | External auth/session provider replaces localStorage behind the shared contract. |
 | Legacy backend/portal god facades | Backend workflows now live in DDD-shaped contexts; the remaining package-level FE `createEventOpsClient` transport is compatibility-only and must not grow. | Keep new backend work under `apps/api/src/modules/*` or `src/kernel/*`; keep portal I/O in feature `data/` and replace the compatibility transport opportunistically when a consumer is already being changed. |
@@ -276,7 +269,7 @@ These gates decide whether a task can start, merge, or move to a later queue.
 | --- | --- | --- | --- | --- |
 | Owner clarity gate | Every task and ledger overlay row | Maxine for UX, Francis for PMCM, Ethan for portals, Anthony for platform/docs | Every executable row has one DRI. Support owners can review or provide dependencies but cannot be listed as co-DRIs for completion. | Task or ledger row names one DRI and one evidence line. |
 | Contract dependency gate | New response fields, filters, pagination, upload states, errors, or action results | Anthony | UI cannot depend on a field or behavior until it exists in `@prism/types`, `@prism/api-client`, and focused tests, or the task is explicitly bounded/local. | Typecheck/API-client tests or a documented gate in this file. |
-| App-boundary gate | PMCM, client, supplier, guest, coordinator surfaces | Anthony | Role apps do not import across app boundaries, do not use broad sample state as the normal path, and do not expose forbidden role data. | `npm run check:boundaries`, focused forbidden-role tests, route checks. |
+| App-boundary gate | PMCM, client, supplier, guest, coordinator surfaces | Anthony | Role apps do not import across app boundaries, do not reintroduce a broad aggregate path, and do not expose forbidden role data. | `npm run check:boundaries`, focused forbidden-role tests, route checks. |
 | Metadata-only file gate | FL-006 and FL-024 file/document UI | Anthony | UI may show requirement metadata but must not claim real storage, signed URLs, upload progress, retry, multipart, or bulk behavior. | File-matrix tests and visible UI copy/gate. |
 | External dependency gate | AI, QR/camera, production notifications, external auth, paid direct DB/network behavior, real storage | Anthony | External dependencies remain gated unless credentials, environment, adapter, tests, and fallback behavior are explicitly approved. | Ledger row lists gate/deferred or approved implementation evidence. |
 | Demo evidence gate | Release readiness for demo routes | Anthony | A demo route is not ready unless its owner records command output, route/screenshot evidence, and known gates. | PR or release notes plus screenshot list. |

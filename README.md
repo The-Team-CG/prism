@@ -13,12 +13,12 @@ Full map: [`docs/index.md`](docs/index.md). Agents: [`AGENTS.md`](AGENTS.md).
 | `docs/architecture/decisions/` | Accepted architecture decisions |
 | `docs/product/feature-ledger.md` | Feature-family decisions and verification |
 | `docs/product/evolution-governance.md` | Add / revise / merge / defer / retire rules |
-| `docs/product/readiness-foundation.md` | Sample-state fencing, session keys, owner boundaries |
+| `docs/product/readiness-foundation.md` | Fixture seeding, session keys, owner boundaries |
 | `docs/product/redesign-inventory.md` | Route inventory and redesign severity |
 | `docs/product/actual-system.md` | Actors, lifecycle, workflows |
 | `docs/product/future-state.md` | Target state |
 | `docs/reference/prism-v4/complete-feature-catalog.md` | Baseline catalog / manuscript counts (not a hard ceiling) |
-| `docs/runbooks/portal-accounts.md` | Sample sign-in accounts |
+| `docs/runbooks/portal-accounts.md` | Local fixture sign-in accounts |
 | `docs/runbooks/docker-dev-testing.md` | Docker detail |
 
 ## Monorepo Layout
@@ -57,7 +57,7 @@ stop-prism-docker.cmd
 | Guest portal | `http://localhost:3003` |
 | Event command | `http://localhost:3004` |
 
-Sample sign-in accounts: [`docs/runbooks/portal-accounts.md`](docs/runbooks/portal-accounts.md).
+Local fixture sign-in accounts: [`docs/runbooks/portal-accounts.md`](docs/runbooks/portal-accounts.md).
 
 ### Fresh clone or clean pull of staging
 
@@ -108,8 +108,8 @@ More Docker detail: [`docs/runbooks/docker-dev-testing.md`](docs/runbooks/docker
 - Shared request wrappers belong in `packages/api-client`.
 - Shared presentation primitives belong in `packages/ui`.
 - Role apps must not import each other's internals.
-- `/api/sample/state` and local sample state are compatibility-only for seed/demo/reset paths; new app work should use scoped APIs.
-- Session and sample storage keys belong in `@prism/types`; role apps should not add new literal `prism:*` storage keys.
+- Development event/account data is available only through the explicit guarded fixture seed command; application behavior uses role-scoped APIs.
+- Session and storage keys belong in `@prism/types`; role apps should not add new literal `prism:*` storage keys.
 - Redesign work should name the owner system goal it advances: Owner A (Maxine) for product/UX coherence, Owner B (Francis) for PMCM/coordinator operability, Owner C (Ethan) for safe external portals, and Owner D (Anthony) for platform trust.
 
 Check import boundaries before merging architectural refactors:
@@ -120,14 +120,14 @@ npm run check:boundaries
 
 ## Backend Architecture
 
-`apps/api` is one shared NestJS modular monolith. Bounded contexts under `apps/api/src/modules/<bounded-context>/` own business writes, `src/kernel/` owns technical infrastructure, `src/compatibility/sample/` owns `/sample/*` compatibility, and `read-models` composes role-scoped reads only. See [`docs/architecture/current-architecture.md`](docs/architecture/current-architecture.md) and [`docs/architecture/decisions/`](docs/architecture/decisions/).
+`apps/api` is one shared NestJS modular monolith. Bounded contexts under `apps/api/src/modules/<bounded-context>/` own business writes, `src/kernel/` owns technical infrastructure, `src/fixtures/` provides guarded development data only through a direct seed CLI, and `read-models` composes role-scoped reads only. See [`docs/architecture/current-architecture.md`](docs/architecture/current-architecture.md) and [`docs/architecture/decisions/`](docs/architecture/decisions/).
 
 Useful API commands:
 
 ```bash
 cd apps/api
 npm run test
-npm run test:sample-compatibility
+npm run test:fixtures:seed
 npm run typecheck
 npm run build
 npm run prisma:validate
