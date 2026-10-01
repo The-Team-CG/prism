@@ -220,6 +220,13 @@
       ]
     }
   },
+  "indexOwners": {
+    "staffing_ops": {
+      "event_schedule_days_event_id_day_date_idx": [
+        "live-ops"
+      ]
+    }
+  },
   "owners": {
     "commercial": {
       "schemas": [

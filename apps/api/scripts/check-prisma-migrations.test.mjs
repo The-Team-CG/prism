@@ -361,6 +361,30 @@ describe('Prisma migration policy', () => {
     assert.match(result.errors.join('\n'), /table staffing_ops\.event_day_tasks is owned by live-ops/);
   });
 
+  it('allows shared-schema index changes only for an explicitly assigned owner', () => {
+    const sql = 'DROP INDEX IF EXISTS "staffing_ops"."event_schedule_days_event_id_day_date_idx";';
+    const sharedSchemaPolicy = {
+      ...futurePolicy,
+      requireTableOwnerMappingsForSchemas: ['staffing_ops'],
+      indexOwners: {
+        staffing_ops: {
+          event_schedule_days_event_id_day_date_idx: ['live-ops'],
+        },
+      },
+    };
+    const allowed = auditMigrationSet(
+      [ownerAwareMigration({ owner: 'live-ops', slug: 'drop_schedule_day_index', sql })],
+      sharedSchemaPolicy,
+    );
+    const wrongOwner = auditMigrationSet(
+      [ownerAwareMigration({ owner: 'operations', slug: 'drop_schedule_day_index', sql })],
+      sharedSchemaPolicy,
+    );
+
+    assert.deepEqual(allowed.errors, []);
+    assert.match(wrongOwner.errors.join('\n'), /index staffing_ops\.event_schedule_days_event_id_day_date_idx is owned by live-ops, not operations/);
+  });
+
   it('allows a documented table exception outside the owner schema bucket', () => {
     const result = auditMigrationSet(
       [
