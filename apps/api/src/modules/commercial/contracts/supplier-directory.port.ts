@@ -48,13 +48,18 @@ export type AddSupplierReviewResult = {
   replayed?: boolean;
 };
 
+export type SupplierPromotionResult = {
+  supplier: SupplierProfile;
+  replayed: boolean;
+};
+
 export interface SupplierDirectory {
   createSupplier(input: CreateSupplierInput): Promise<SupplierProfile>;
   updateSupplier(supplierId: string, input: UpdateSupplierInput): Promise<SupplierProfile>;
   changeSupplierTier(supplierId: string, input: ChangeSupplierTierInput): Promise<ChangeSupplierTierResult>;
-  addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, context?: PrismTransactionContext): Promise<AddSupplierReviewResult>;
+  addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, reviewedBy: string, context?: PrismTransactionContext): Promise<AddSupplierReviewResult>;
   addReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, context?: PrismTransactionContext, createdBy?: string): Promise<{ supplier: SupplierProfile; noteId: string; replayed?: boolean }>;
-  promoteSupplier(supplierId: string, input: PromoteSupplierInput, context?: PrismTransactionContext, promotedBy?: string): Promise<SupplierProfile>;
+  promoteSupplier(supplierId: string, input: PromoteSupplierInput, promotedBy: string, context?: PrismTransactionContext): Promise<SupplierPromotionResult>;
   addSupplierCertification(supplierId: string, input: CreateSupplierCertificationInput): Promise<SupplierProfile>;
   listSuppliers(): Promise<SupplierProfile[]>;
 }
