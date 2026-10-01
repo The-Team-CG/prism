@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
@@ -17,8 +17,6 @@ export type CreateInquiryInput = {
   source?: string;
   channel?: string;
   referralDetails?: string;
-  loggedByRole?: string;
-  loggedByName?: string;
   message: string;
   privacyConsentAccepted?: boolean;
   privacyNoticeVersion?: string;
@@ -89,6 +87,9 @@ export class InquiryWorkflowService {
     verifiedActor?: PrismVerifiedEventActor,
   ) {
     const actor = verifiedActor ? context.resolveActor({}, verifiedActor) : context.resolveActor(actorInput);
+    if (actor.verified !== true || !actor.id?.trim() || !actor.name?.trim()) {
+      throw new ForbiddenException('A verified actor is required to log an inquiry on behalf of a client');
+    }
     await context.requireActorRole(actor, context.allowedAdminRoles, 'log inquiry on behalf');
 
     const inquiry = await context.inquiriesService.logInquiryOnBehalf(input, actor);
@@ -105,7 +106,7 @@ export class InquiryWorkflowService {
   async sendConformeReminder(inquiryId: string, context: InquiryWorkflowContext, verifiedActor?: PrismVerifiedEventActor) {
     const actor = context.resolveActor({}, verifiedActor);
     await context.requireActorRole(actor, context.allowedAdminRoles, 'conforme reminder');
-    const inquiry = await context.inquiriesService.sendConformeReminder(inquiryId);
+    const inquiry = await context.inquiriesService.sendConformeReminder(inquiryId, actor);
     return context.mapInquiry(inquiry);
   }
 
