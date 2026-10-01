@@ -21,7 +21,6 @@ export type SupplierReviewPromptListProps = {
   categories: readonly PrismSupplierCategory[];
   suppliers: readonly PrismSupplier[];
   quoteRequests: readonly PrismSupplierQuoteRequest[];
-  reviewerName: string;
   busy: boolean;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
 };
@@ -38,7 +37,6 @@ export function SupplierReviewPromptList({
   categories,
   suppliers,
   quoteRequests,
-  reviewerName,
   busy,
   onAddReview,
 }: SupplierReviewPromptListProps) {
@@ -71,7 +69,6 @@ export function SupplierReviewPromptList({
               key={subject.supplier.id}
               subject={subject}
               category={categories.find((category) => category.id === subject.supplier.categoryId)}
-              reviewerName={reviewerName}
               busy={busy}
               onAddReview={onAddReview}
             />
@@ -85,13 +82,11 @@ export function SupplierReviewPromptList({
 function SupplierReviewPromptCard({
   subject,
   category,
-  reviewerName,
   busy,
   onAddReview,
 }: {
   subject: SupplierReviewSubject;
   category?: PrismSupplierCategory;
-  reviewerName: string;
   busy: boolean;
   onAddReview: (supplierId: string, input: CreateSupplierReviewInput) => Promise<boolean>;
 }) {
@@ -109,7 +104,6 @@ function SupplierReviewPromptCard({
     const input: CreateSupplierReviewInput = {
       rating: Number(reviewForm.rating),
       notes: reviewForm.notes,
-      reviewedBy: reviewerName,
       dimensionRatings: dimensionRatings.length > 0 ? dimensionRatings : undefined,
       idempotencyKey,
     };
