@@ -788,7 +788,7 @@ model OpsSupplierReview {
   eventId        String?  @map("event_id")
   rating         Int
   notes          String   @default("")
-  reviewedBy     String   @default("PMCM Admin") @map("reviewed_by")
+  reviewedBy     String   @map("reviewed_by")
   idempotencyKey String?  @unique(map: "supplier_reviews_idempotency_key_key") @map("idempotency_key")
   createdAt      DateTime @default(now()) @map("created_at")
 

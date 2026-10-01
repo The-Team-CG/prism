@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
   AuditActionType,
@@ -15,6 +15,7 @@ import type {
   AddSupplierReviewResult,
   SupplierDirectory,
   SupplierProfile,
+  SupplierPromotionResult,
   UpdateSupplierInput,
 } from '../../contracts/supplier-directory.port';
 import type { CreateSupplierReliabilityNoteInput, PromoteSupplierInput } from '@prism/types';
@@ -97,19 +98,16 @@ export class SupplierProfileCommandsService {
   }
 
   async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actor: ResolvedEventOpsActor) {
+    const reviewer = this.requireSupplierAttribution(actor);
     return this.workflowCommandService.execute<AddSupplierReviewResult, SupplierResult>({
       name: 'add_supplier_review',
       eventId: input.eventId,
       sideEffectMode: 'same_tx',
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier private review', input.eventId),
-      write: (transactionContext) =>
-        this.suppliersService.addSupplierReview(supplierId, {
-          ...input,
-          reviewedBy: actor.name || input.reviewedBy || 'System',
-        }, transactionContext),
+      write: (transactionContext) => this.suppliersService.addSupplierReview(supplierId, input, reviewer.name, transactionContext),
       sideEffects: async (result, transactionContext) => {
         if (result.replayed) return;
-        await writeAudit(this.auditWriter, input.eventId, actor.name, `Added private supplier review: ${result.supplier.name}`, {
+        await writeAudit(this.auditWriter, input.eventId, reviewer.name, `Added private supplier review: ${result.supplier.name}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           category: AuditCategory.Suppliers,
@@ -117,7 +115,7 @@ export class SupplierProfileCommandsService {
           affectedType: 'supplier_review',
           affectedId: result.reviewId,
           affectedLabel: result.supplier.name,
-          metadata: { rating: input.rating },
+          metadata: { rating: input.rating, actorId: reviewer.id },
         }, transactionContext);
       },
       project: (result) => result.supplier,
@@ -174,18 +172,29 @@ export class SupplierProfileCommandsService {
   }
 
   async promoteSupplier(supplierId: string, input: PromoteSupplierInput, actor: ResolvedEventOpsActor) {
-    return this.workflowCommandService.execute<SupplierResult>({
+    const reviewer = this.requireSupplierAttribution(actor);
+    return this.workflowCommandService.execute<SupplierPromotionResult, SupplierResult>({
       name: 'promote_supplier', eventId: input.eventId, sideEffectMode: 'same_tx',
       validatePermission: () => this.requireSupplierAdmin(actor, 'supplier promotion', input.eventId),
-      write: (transactionContext) => this.suppliersService.promoteSupplier(supplierId, input, transactionContext, actor.name),
-      sideEffects: async (supplier, transactionContext) => {
-        await writeAudit(this.auditWriter, input.eventId, actor.name, `Promoted supplier: ${supplier.name}`, {
+      write: (transactionContext) => this.suppliersService.promoteSupplier(supplierId, input, reviewer.name, transactionContext),
+      sideEffects: async ({ supplier, replayed }, transactionContext) => {
+        if (replayed) return;
+        await writeAudit(this.auditWriter, input.eventId, reviewer.name, `Promoted supplier: ${supplier.name}`, {
           actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Suppliers,
           actionType: AuditActionType.Update, affectedType: 'supplier', affectedId: supplier.id,
-          affectedLabel: supplier.name, metadata: { tier: input.tier, reason: input.reason },
+          affectedLabel: supplier.name, metadata: { tier: input.tier, reason: input.reason, actorId: reviewer.id },
         }, transactionContext);
       },
+      project: ({ supplier }) => supplier,
     });
+  }
+  private requireSupplierAttribution(actor: ResolvedEventOpsActor) {
+    const id = actor.id?.trim();
+    const name = actor.name.trim();
+    if (actor.verified !== true || !id || !name) {
+      throw new ForbiddenException('Verified supplier actor is required');
+    }
+    return { id, name };
   }
 
   private requireSupplierAdmin(actor: ResolvedEventOpsActor, resource: string, eventId?: string) {

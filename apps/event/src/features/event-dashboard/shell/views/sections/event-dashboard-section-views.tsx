@@ -454,7 +454,6 @@ export function EventDashboardSuppliersSectionView() {
       <SupplierDirectory
         categories={supplierCategories}
         suppliers={suppliers}
-        session={session}
         onToggleBni={toggleSupplierBni}
         onCreateSupplier={createSupplier}
         onUpdateSupplier={updateSupplierProfile}

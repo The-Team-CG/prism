@@ -43,7 +43,6 @@ export function Phase4Workspace({
   supplierCategories,
   suppliers,
   quoteRequests,
-  reviewerName,
   canReviewSuppliers,
   busy,
   onCreateRule,
@@ -69,7 +68,6 @@ export function Phase4Workspace({
   supplierCategories: PrismSupplierCategory[];
   suppliers: PrismSupplier[];
   quoteRequests: PrismSupplierQuoteRequest[];
-  reviewerName: string;
   canReviewSuppliers: boolean;
   busy: boolean;
   onCreateRule: (input: {
@@ -225,7 +223,6 @@ export function Phase4Workspace({
           categories={supplierCategories}
           suppliers={suppliers}
           quoteRequests={quoteRequests}
-          reviewerName={reviewerName}
           busy={busy}
           onAddReview={onAddReview}
         />
