@@ -38,7 +38,7 @@ export class OpsSuppliersController {
   async addAvailability(@Param('supplierId') supplierId: string, @Body(zodBody(supplierAvailabilitySchema)) input: SupplierAvailabilityInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, ['pmcm-admin', 'system'], 'supplier availability');
-    return this.commercialWorkflow!.setSupplierAvailability(supplierId, input, actor.name);
+    return this.commercialWorkflow!.setSupplierAvailability(supplierId, input, actor);
   }
 
   @Patch(':supplierId')
