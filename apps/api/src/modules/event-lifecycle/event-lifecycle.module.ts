@@ -32,6 +32,8 @@ import { ChangeManagementController } from './api/change/change-management.contr
 import { ChangeManagementService } from './application/change/change-management.service';
 import { ClientEventDayViewController } from './api/client-visibility/client-event-day-view.controller';
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
+import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
+import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
 
 const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const };
 
@@ -73,6 +75,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventDecisionController,
     ChangeManagementController,
     ClientEventDayViewController,
+    OcularVisitController,
   ],
   providers: [
     InquiriesService,
@@ -97,6 +100,7 @@ const metadataOnlyFileCommands = { storageProviderMode: 'metadata_only' as const
     EventDecisionService,
     ChangeManagementService,
     ClientEventDayViewService,
+    OcularVisitService,
   ],
   exports: [
     InquiriesService,
