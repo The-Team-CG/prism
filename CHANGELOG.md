@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Coordinator assignment, acknowledgement, withdrawal, and replacement commands now use a focused staffing command module, with existing routes and transaction behavior preserved.
 - Split commercial payment workflows into a focused service and moved billing projections into pure mappers, removing broad finance-command injection from read models.
 - Billing corrections, disputes, and post-event additional billing now run through a dedicated adjustment service; route authorization and lifecycle behavior are preserved.
 - Floorplan drafts now record the verified creator role, including System, and no longer inherit a PMCM Admin role from the database default.
