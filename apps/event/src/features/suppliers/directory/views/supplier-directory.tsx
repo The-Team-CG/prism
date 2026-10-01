@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 
 import type { CreateSupplierReviewInput, PrismSupplier, PrismSupplierCategory } from "@prism/types";
-import type { EventSession } from "@/app/lib/session";
 import { isSupplierCreateDraftValid, supplierMatchesDirectoryFilters } from "../model/suppliers-directory-rules";
 import { SupplierDirectoryList, SupplierProfile } from "./supplier-directory-sections";
 
 export function SupplierDirectory({
   categories,
   suppliers,
-  session,
   onToggleBni,
   onCreateSupplier,
   onUpdateSupplier,
@@ -22,7 +20,6 @@ export function SupplierDirectory({
 }: {
   categories: PrismSupplierCategory[];
   suppliers: PrismSupplier[];
-  session: EventSession;
   onToggleBni: (supplier: PrismSupplier, nextValue: boolean) => Promise<void>;
   onCreateSupplier: (input: {
     categoryId: string;
@@ -147,7 +144,6 @@ export function SupplierDirectory({
     const succeeded = await onAddReview(selectedSupplier.id, {
       rating: Number(reviewForm.rating),
       notes: reviewForm.notes,
-      reviewedBy: session.name,
       dimensionRatings: dimensionRatings.length ? dimensionRatings : undefined,
       idempotencyKey: reviewIdempotencyKey,
     });
