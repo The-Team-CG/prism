@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
+import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsAuthController } from './auth.controller';
 const actor: Parameters<OpsAuthController['listApprovalRequests']>[0] = { id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
 
@@ -13,6 +14,14 @@ describe('OpsAuthController', () => {
   });
 
   it('serves auth operations through AuthOperationsService', async () => {
+    const resolvedAdmin = {
+      id: 'u1',
+      role: 'pmcm-admin',
+      name: 'Anthony Torres',
+      email: 'anthony@pmcm.test',
+      explicit: true,
+      verified: true,
+    } satisfies ResolvedEventOpsActor;
     const authOperationsService = {
       login: vi.fn(async () => ({ id: 'user_pmcm' })),
       requestApproval: vi.fn(async () => ({ id: 'approval_user' })),
@@ -23,7 +32,7 @@ describe('OpsAuthController', () => {
     };
     const controller = new OpsAuthController(
       authOperationsService as unknown as ConstructorParameters<typeof OpsAuthController>[0],
-      { resolveActor: (_input: unknown, verified: unknown) => verified, requireActorRole: vi.fn(async () => undefined) } as unknown as ConstructorParameters<typeof OpsAuthController>[1],
+      { resolveActor: vi.fn(() => resolvedAdmin), requireActorRole: vi.fn(async () => undefined) } as unknown as ConstructorParameters<typeof OpsAuthController>[1],
     );
 
     await expect(controller.login({ email: 'maxine@pmcm.test', password: 'secret' })).resolves.toEqual({ id: 'user_pmcm' });
@@ -39,7 +48,7 @@ describe('OpsAuthController', () => {
       privacyConsentAccepted: true,
     });
     expect(authOperationsService.listLoginHistory).toHaveBeenCalledWith('user_pmcm');
-    expect(authOperationsService.approveApprovalRequest).toHaveBeenCalledWith('approval_user');
-    expect(authOperationsService.declineApprovalRequest).toHaveBeenCalledWith('approval_user');
+    expect(authOperationsService.approveApprovalRequest).toHaveBeenCalledWith('approval_user', resolvedAdmin);
+    expect(authOperationsService.declineApprovalRequest).toHaveBeenCalledWith('approval_user', resolvedAdmin);
   });
 });
