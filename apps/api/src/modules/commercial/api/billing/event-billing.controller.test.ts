@@ -19,6 +19,14 @@ function createController() {
     markPayment: vi.fn(async () => ({ id: 'pay_downpayment', status: 'paid' })),
     recordPayment: vi.fn(async () => ({ id: 'pay_downpayment', amountPaid: 50000 })),
   };
+  const billingAdjustmentService = {
+    requestBillingCorrection: vi.fn(async () => ({ id: 'corr_new' })),
+    resolveBillingCorrection: vi.fn(async () => ({ id: 'corr_new', status: 'approved' })),
+    createBillingDispute: vi.fn(async () => ({ id: 'dispute_new' })),
+    resolveBillingDispute: vi.fn(async () => ({ id: 'dispute_new', status: 'resolved' })),
+    createAdditionalBilling: vi.fn(async () => ({ id: 'addbill_new' })),
+    waiveAdditionalBilling: vi.fn(async () => ({ id: 'addbill_new', status: 'waived' })),
+  };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((input = {}, verified?: any) => ({
       id: verified?.id ?? verified?.actorId ?? input.actorId ?? input.id,
@@ -31,9 +39,10 @@ function createController() {
   const controller = new OpsEventBillingController(
     billingOperationsService as any,
     paymentOperationsService as any,
+    billingAdjustmentService as any,
     eventAccessPolicyService as any,
   );
-  return { controller, billingOperationsService, paymentOperationsService, eventAccessPolicyService };
+  return { controller, billingOperationsService, paymentOperationsService, billingAdjustmentService, eventAccessPolicyService };
 }
 
 describe('OpsEventBillingController', () => {
@@ -41,8 +50,8 @@ describe('OpsEventBillingController', () => {
     expect(controllerPath(OpsEventBillingController)).toBe('events');
   });
 
-  it('routes billing and payment commands through their own operations services', async () => {
-    const { controller, billingOperationsService, paymentOperationsService, eventAccessPolicyService } = createController();
+  it('routes billing, payment, and adjustment commands through their own operations services', async () => {
+    const { controller, billingOperationsService, paymentOperationsService, billingAdjustmentService, eventAccessPolicyService } = createController();
     const actor = { id: 'user_maxine', actorId: 'user_maxine', actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
 
     await expect(
@@ -75,8 +84,14 @@ describe('OpsEventBillingController', () => {
       id: 'bill_new',
       status: 'sent',
     });
+    await expect(controller.requestBillingCorrection('evt_sample', { statementId: 'bill_new', reason: 'Tax line is incorrect', idempotencyKey: 'corr-controller-1' }, actor as never)).resolves.toEqual({ id: 'corr_new' });
+    await expect(controller.resolveBillingCorrection('evt_sample', 'corr_new', { action: 'approve' }, actor as never)).resolves.toEqual({ id: 'corr_new', status: 'approved' });
+    await expect(controller.createBillingDispute('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'dispute-controller-1' }, actor as never)).resolves.toEqual({ id: 'dispute_new' });
+    await expect(controller.resolveBillingDispute('evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, actor as never)).resolves.toEqual({ id: 'dispute_new', status: 'resolved' });
+    await expect(controller.createAdditionalBilling('evt_sample', { urgentIssueId: 'issue_new', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, actor as never)).resolves.toEqual({ id: 'addbill_new' });
+    await expect(controller.waiveAdditionalBilling('evt_sample', 'addbill_new', { reason: 'Approved goodwill' }, actor as never)).resolves.toEqual({ id: 'addbill_new', status: 'waived' });
 
-    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(6);
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(12);
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
       { id: 'user_maxine', role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
@@ -99,6 +114,16 @@ describe('OpsEventBillingController', () => {
       { amountReceived: 50000, paymentDate: '2026-06-20', paymentMethod: 'Bank Transfer' },
       { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
     );
+    expect(billingAdjustmentService.requestBillingCorrection).toHaveBeenCalledWith(
+      'evt_sample',
+      { statementId: 'bill_new', reason: 'Tax line is incorrect', idempotencyKey: 'corr-controller-1' },
+      { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
+    );
+    expect(billingAdjustmentService.resolveBillingCorrection).toHaveBeenCalledWith('evt_sample', 'corr_new', { action: 'approve' }, expect.objectContaining({ id: 'user_maxine' }));
+    expect(billingAdjustmentService.createBillingDispute).toHaveBeenCalledWith('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'dispute-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
+    expect(billingAdjustmentService.resolveBillingDispute).toHaveBeenCalledWith('evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, expect.objectContaining({ id: 'user_maxine' }));
+    expect(billingAdjustmentService.createAdditionalBilling).toHaveBeenCalledWith('evt_sample', { urgentIssueId: 'issue_new', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
+    expect(billingAdjustmentService.waiveAdditionalBilling).toHaveBeenCalledWith('evt_sample', 'addbill_new', { reason: 'Approved goodwill' }, expect.objectContaining({ id: 'user_maxine' }));
   });
 
   it('blocks an otherwise authorized actor with no ID before invoking billing commands', async () => {
@@ -122,19 +147,28 @@ describe('OpsEventBillingController', () => {
     expect(paymentOperationsService.markPayment).not.toHaveBeenCalled();
   });
   it('blocks non-finance actors before invoking billing commands', async () => {
-    const { controller, billingOperationsService, eventAccessPolicyService } = createController();
-    eventAccessPolicyService.requireActorRole.mockRejectedValueOnce(
-      new ForbiddenException('client cannot access billing source'),
-    );
+    const { controller, billingOperationsService, billingAdjustmentService, eventAccessPolicyService } = createController();
+    eventAccessPolicyService.requireActorRole
+      .mockRejectedValueOnce(new ForbiddenException('client cannot access billing source'))
+      .mockRejectedValueOnce(new ForbiddenException('client cannot access billing dispute'));
+    const client = { id: 'user_ana', actorId: 'user_ana', actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' } as never;
 
     await expect(
       controller.createBillingSource(
         'evt_sample',
         { sourceLabel: 'Conforme billing', lineItems: [{ label: 'Package', amount: 100000 }] },
-        { id: 'user_ana', actorId: 'user_ana', actorRole: OpsUserRole.Client, actorName: 'Ana Reyes' } as never,
+        client,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      controller.createBillingDispute(
+        'evt_sample',
+        { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'forbidden-dispute' },
+        client,
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(billingOperationsService.createBillingSource).not.toHaveBeenCalled();
+    expect(billingAdjustmentService.createBillingDispute).not.toHaveBeenCalled();
   });
 });
