@@ -3,19 +3,15 @@ import type { OpsEvent, OpsFloorPlanDraft, Prisma } from '@prisma/client';
 import type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
-import { DEFAULT_OWNER_ID, defaultSeatCategories } from '@prism/kernel/shared';
+import { defaultSeatCategories } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { readEventAccessScope, readEventConformeState } from '@prism/contexts/read-models/event-scope';
+import type { FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
-
-export type FloorPlanActor = {
-  name: string;
-  role: string;
-};
 
 function timestamp(value: Date) {
   return value.toISOString();
@@ -30,7 +26,7 @@ export class FloorPlanWorkflowService {
     private readonly workflowCommandService: WorkflowCommandService,
   ) {}
 
-  async createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanActor) {
+  async createFloorPlanDraft(eventId: string, input: CreateFloorPlanDraftInput, actor: FloorPlanCreator) {
     let event: OpsEvent | null = null;
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
@@ -52,7 +48,7 @@ export class FloorPlanWorkflowService {
               id: floorPlanId,
               name: input.name,
               venue: input.venue ?? event!.eventName,
-              ownerId: DEFAULT_OWNER_ID,
+              ownerId: actor.actorId,
               eventId,
               width: input.width ?? 1200,
               height: input.height ?? 800,
@@ -102,7 +98,7 @@ export class FloorPlanWorkflowService {
     });
   }
 
-  async createFloorPlanPreference(eventId: string, input: CreateFloorPlanPreferenceInput, actor: FloorPlanActor) {
+  async createFloorPlanPreference(eventId: string, input: CreateFloorPlanPreferenceInput, actor: FloorPlanCreator) {
     let event: OpsEvent | null = null;
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
@@ -131,7 +127,7 @@ export class FloorPlanWorkflowService {
               id: floorPlanId,
               name: input.name,
               venue: input.venue ?? event!.eventName,
-              ownerId: DEFAULT_OWNER_ID,
+              ownerId: actor.actorId,
               eventId,
               width: input.width ?? 30,
               height: input.height ?? 20,
