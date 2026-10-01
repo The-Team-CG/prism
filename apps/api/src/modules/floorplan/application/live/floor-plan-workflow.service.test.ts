@@ -99,6 +99,7 @@ describe('FloorPlanWorkflowService', () => {
     );
 
     expect(draft.status).toBe('pmcm_draft');
+    expect(draft.createdByRole).toBe('pmcm-admin');
     expect(state.floorPlans).toHaveLength(1);
     expect(state.floorPlans[0]).toMatchObject({ ownerId: 'user_pmcm_1' });
     expect(state.floorPlanDrafts[0]).toMatchObject({ name: 'Official Layout', status: 'pmcm_draft' });
@@ -115,6 +116,18 @@ describe('FloorPlanWorkflowService', () => {
     );
   });
 
+  it('retains the verified System role for a system-created official draft', async () => {
+    const { service, state } = createService();
+
+    const draft = await service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'System-authored Layout', sourceType: 'blank' },
+      { actorId: 'system_seed', name: 'System', role: 'system' },
+    );
+
+    expect(draft.createdByRole).toBe('system');
+    expect(state.floorPlanDrafts[0].createdByRole).toBe('system');
+  });
   it('rejects an official floorplan draft when the conforme is unsigned', async () => {
     const { service, state } = createService();
     state.events[0].inquiry = { conformeSignedAt: null };
