@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Split coordinator overview and role-interaction views into feature-local modules, keeping the existing observable task, supplier-check, attendance, and reassignment behavior.
 - Removed the unreferenced client mock account module and its hardcoded sample credentials; legacy session-key migration remains for existing saved sessions.
 - Dropped the redundant non-unique schedule-day index; the existing unique index covers the same `(event_id, day_date)` key. Shared-schema index migrations now require an explicit owner mapping.
 - The API query audit now parses TypeScript syntax, checks Prisma query scope and pagination (including empty logical and scalar-list filters), binds audit reasons to individual query expressions, and detects database work in loops and locally resolvable callbacks. The database performance report ranks the top 20 statements by both cumulative and mean execution time. Supplier quote writes and PARE approval audit/dispatch reads are batched, fixture and participant reads are scoped, the privacy inventory selects consent metadata only, and billing statement numbers use a yearly sequence that scans historical statements only during initialization. The privacy request queue remains a complete read until its API and UI support pagination.
