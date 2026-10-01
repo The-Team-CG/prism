@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { AuthSecurityService } from '@prism/contexts/identity-access';
 import { AuditService } from '@prism/contexts/platform-ops';
@@ -273,6 +274,34 @@ function addDays(value: Date, days: number) {
   return next;
 }
 
+const PRISMA_MODEL_COUNT_BATCH_SIZE = 8;
+
+function prismaDelegateName(modelName: Prisma.ModelName): Uncapitalize<Prisma.ModelName> {
+  return `${modelName.charAt(0).toLowerCase()}${modelName.slice(1)}` as Uncapitalize<Prisma.ModelName>;
+}
+
+function hasCountMethod(delegate: unknown): delegate is { count: () => unknown } {
+  return (
+    typeof delegate === 'object' &&
+    delegate !== null &&
+    'count' in delegate &&
+    typeof delegate.count === 'function'
+  );
+}
+
+async function countPrismaModelRows(prisma: PrismaService, modelName: Prisma.ModelName): Promise<number> {
+  const delegate: unknown = prisma[prismaDelegateName(modelName)];
+  if (!hasCountMethod(delegate)) {
+    throw new Error(`Fixture seeding could not verify model ${modelName}.`);
+  }
+
+  const rowCount = await delegate.count();
+  if (typeof rowCount !== 'number' || !Number.isSafeInteger(rowCount) || rowCount < 0) {
+    throw new Error(`Fixture seeding received an invalid row count for model ${modelName}.`);
+  }
+  return rowCount;
+}
+
 @Injectable()
 export class LocalFixtureSeeder {
   constructor(
@@ -281,37 +310,17 @@ export class LocalFixtureSeeder {
   ) {}
 
   async seedFixtures() {
-    const existingRows = await Promise.all([
-      this.prisma.opsAuditLog.count(),
-      this.prisma.floorPlan.count(),
-      this.prisma.opsApprovalRequest.count(),
-      this.prisma.opsBillingStatement.count(),
-      this.prisma.opsComplianceRule.count(),
-      this.prisma.opsCoordinator.count(),
-      this.prisma.opsCoordinatorAssignment.count(),
-      this.prisma.opsDocument.count(),
-      this.prisma.opsEvent.count(),
-      this.prisma.opsFloorPlanDraft.count(),
-      this.prisma.opsInquiry.count(),
-      this.prisma.opsLoginHistory.count(),
-      this.prisma.opsPaymentMilestone.count(),
-      this.prisma.opsPaymentRecord.count(),
-      this.prisma.opsPostEventDocument.count(),
-      this.prisma.opsSecurityAlert.count(),
-      this.prisma.opsSupplier.count(),
-      this.prisma.opsSupplierCategory.count(),
-      this.prisma.opsSupplierCertification.count(),
-      this.prisma.opsSupplierQuote.count(),
-      this.prisma.opsSupplierQuoteRequest.count(),
-      this.prisma.opsSupplierReliabilityNote.count(),
-      this.prisma.opsSupplierReview.count(),
-      this.prisma.opsUser.count(),
-    ]);
-
-    if (existingRows.some((count) => count > 0)) {
-      throw new Error(
-        'Fixture seeding requires an empty database. Recreate prism_sample_disposable with migrations first.',
+    const models = Object.values(Prisma.ModelName);
+    for (let offset = 0; offset < models.length; offset += PRISMA_MODEL_COUNT_BATCH_SIZE) {
+      const modelBatch = models.slice(offset, offset + PRISMA_MODEL_COUNT_BATCH_SIZE);
+      const existingRows = await Promise.all(
+        modelBatch.map((modelName) => countPrismaModelRows(this.prisma, modelName)),
       );
+      if (existingRows.some((count) => count > 0)) {
+        throw new Error(
+          'Fixture seeding requires an empty database. Recreate prism_sample_disposable with migrations first.',
+        );
+      }
     }
 
     const createdAt = new Date();
