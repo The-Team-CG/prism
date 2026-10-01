@@ -9,13 +9,19 @@ import type { OpsApprovalRequest, OpsUser } from '@prisma/client';
 import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser, type RequestApprovalInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
-import { writeAudit } from '@prism/kernel/access-control';
+import { writeAudit, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuthSessionService } from '@prism/kernel/event-session';
 import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
 import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
 import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
+
+type VerifiedIdentityAdmin = ResolvedEventOpsActor & {
+  id: string;
+  verified: true;
+  role: typeof OpsUserRole.PmcmAdmin | typeof OpsUserRole.System;
+};
 
 function timestamp(value: Date) {
   return value.toISOString();
@@ -243,15 +249,15 @@ export class AuthOperationsService {
     return this.authAudit.listLoginHistory(userId);
   }
 
-  async approveApprovalRequest(requestId: string) {
-    return this.updateApprovalRequest(requestId, 'approved');
+  async approveApprovalRequest(requestId: string, actor: ResolvedEventOpsActor) {
+    return this.updateApprovalRequest(requestId, 'approved', this.requireVerifiedIdentityAdmin(actor));
   }
 
-  async declineApprovalRequest(requestId: string) {
-    return this.updateApprovalRequest(requestId, 'declined');
+  async declineApprovalRequest(requestId: string, actor: ResolvedEventOpsActor) {
+    return this.updateApprovalRequest(requestId, 'declined', this.requireVerifiedIdentityAdmin(actor));
   }
 
-  private async updateApprovalRequest(requestId: string, status: 'approved' | 'declined') {
+  private async updateApprovalRequest(requestId: string, status: 'approved' | 'declined', actor: VerifiedIdentityAdmin) {
     const request = await this.prisma.opsApprovalRequest.findUnique({ where: { id: requestId } });
     if (!request) throw new NotFoundException('Approval request not found');
 
@@ -265,16 +271,34 @@ export class AuthOperationsService {
       data: { status },
     });
 
-    await writeAudit(this.authAudit, undefined, 'PMCM Admin', `${status === 'approved' ? 'Approved' : 'Declined'} account access for ${request.email}`, {
-      actorRole: OpsUserRole.PmcmAdmin,
+    await writeAudit(this.authAudit, undefined, actor.name, `${status === 'approved' ? 'Approved' : 'Declined'} account access for ${request.email}`, {
+      actorRole: actor.role,
+      actorEmail: actor.email,
       actionType: status === 'approved' ? AuditActionType.Approve : AuditActionType.Decline,
       category: AuditCategory.Access,
       affectedType: 'approval_request',
       affectedId: request.id,
       affectedLabel: request.email,
+      metadata: { actorId: actor.id },
     });
 
     return this.mapApprovalRequest(saved);
+  }
+
+  private requireVerifiedIdentityAdmin(actor: ResolvedEventOpsActor | undefined): VerifiedIdentityAdmin {
+    const id = actor?.id?.trim();
+    const name = actor?.name?.trim();
+    const role = actor?.role;
+    if (
+      !actor ||
+      actor.verified !== true ||
+      !id ||
+      !name ||
+      (role !== OpsUserRole.PmcmAdmin && role !== OpsUserRole.System)
+    ) {
+      throw new ForbiddenException('A verified identity administrator is required to update approval requests');
+    }
+    return { ...actor, id, name, role, verified: true };
   }
 
   private mapUser(user: OpsUser): PrismUser {
