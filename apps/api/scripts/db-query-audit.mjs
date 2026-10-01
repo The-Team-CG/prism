@@ -22,6 +22,8 @@ const callbackIterationMethods = new Set([
 ]);
 const prismaRootNames = new Set(['prisma', 'tx', 'db', 'database', 'client', 'transaction']);
 const sourceCommentCache = new WeakMap();
+// A larger global read needs an explicit reason instead of masquerading as pagination.
+const MAX_AUDIT_TAKE = 1000;
 
 function collectTypeScriptFiles(dir) {
   const files = [];
@@ -389,7 +391,9 @@ function isDatabaseIteration(node) {
 }
 
 function isPrismaQueryOption(node, optionName) {
-  if (!ts.isPropertyAssignment(node) || propertyName(node) !== optionName) return false;
+  const isMatchingProperty = (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
+    propertyName(node) === optionName;
+  if (!isMatchingProperty) return false;
   const options = node.parent;
   if (!ts.isObjectLiteralExpression(options)) return false;
   const call = options.parent;
@@ -401,6 +405,7 @@ function isMarkerTarget(node, marker) {
   if (marker === 'QUERY_AUDIT_ALLOW_UNBOUNDED') {
     return ts.isCallExpression(node) && isPrismaDelegateCall(node) && node.expression.name.text === 'findMany';
   }
+  if (marker === 'QUERY_AUDIT_ALLOW_BOUNDED_TAKE') return isPrismaQueryOption(node, 'take');
   if (marker === 'QUERY_AUDIT_ALLOW_OFFSET') return isPrismaQueryOption(node, 'skip');
   return false;
 }
@@ -708,14 +713,68 @@ function hasBoundedWhere(expression, sourceFile, scopeNode) {
   const state = classifyWhere(expression, sourceFile, scopeNode);
   return state === WHERE_ALWAYS_FALSE || state === WHERE_SCOPED;
 }
+
+function findUniqueConstInitializer(name, sourceFile) {
+  const declarations = [];
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer &&
+      ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const)) {
+      declarations.push(node.initializer);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return declarations.length === 1 ? declarations[0] : undefined;
+}
+
+function evaluateStaticNumber(expression, sourceFile, seen = new Set()) {
+  const value = unwrapExpression(expression);
+  if (ts.isNumericLiteral(value)) {
+    const parsed = Number(value.text.replaceAll('_', ''));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  if (ts.isPrefixUnaryExpression(value) &&
+    (value.operator === ts.SyntaxKind.PlusToken || value.operator === ts.SyntaxKind.MinusToken)) {
+    const operand = evaluateStaticNumber(value.operand, sourceFile, seen);
+    if (operand === undefined) return undefined;
+    return value.operator === ts.SyntaxKind.MinusToken ? -operand : operand;
+  }
+  if (ts.isBinaryExpression(value)) {
+    const left = evaluateStaticNumber(value.left, sourceFile, new Set(seen));
+    const right = evaluateStaticNumber(value.right, sourceFile, new Set(seen));
+    if (left === undefined || right === undefined) return undefined;
+    switch (value.operatorToken.kind) {
+      case ts.SyntaxKind.PlusToken: return left + right;
+      case ts.SyntaxKind.MinusToken: return left - right;
+      case ts.SyntaxKind.AsteriskToken: return left * right;
+      case ts.SyntaxKind.SlashToken: return right === 0 ? undefined : left / right;
+      case ts.SyntaxKind.PercentToken: return right === 0 ? undefined : left % right;
+      default: return undefined;
+    }
+  }
+  if (ts.isIdentifier(value) && !seen.has(value.text)) {
+    const initializer = findUniqueConstInitializer(value.text, sourceFile);
+    if (!initializer) return undefined;
+    const nextSeen = new Set(seen);
+    nextSeen.add(value.text);
+    return evaluateStaticNumber(initializer, sourceFile, nextSeen);
+  }
+  return undefined;
+}
+
 function hasFindManyBound(args, sourceFile, call) {
   if (!args || !ts.isObjectLiteralExpression(args)) return false;
   return args.properties.some((property) => {
     const name = propertyName(property);
     if (name === 'take') {
-      if (ts.isPropertyAssignment(property)) return !mayBeUndefined(property.initializer, sourceFile, call);
-      if (ts.isShorthandPropertyAssignment(property)) return !mayBeUndefined(property.name, sourceFile, call);
-      return false;
+      const takeExpression = ts.isPropertyAssignment(property)
+        ? property.initializer
+        : ts.isShorthandPropertyAssignment(property)
+          ? property.name
+          : undefined;
+      if (!takeExpression) return false;
+      const take = evaluateStaticNumber(takeExpression, sourceFile);
+      return Number.isSafeInteger(take) && take > 0 && take <= MAX_AUDIT_TAKE;
     }
     return name === 'where' && ts.isPropertyAssignment(property) &&
       hasBoundedWhere(property.initializer, sourceFile, call);
@@ -754,8 +813,10 @@ export function auditSourceFile(text, fileName = 'source.ts', sourceFilesByPath 
 
     if (ts.isCallExpression(node) && isPrismaDelegateCall(node) && node.expression.name.text === 'findMany') {
       const args = node.arguments[0];
-      if (!hasFindManyBound(args, sourceFile, node) && !hasMarker(sourceFile, node, 'QUERY_AUDIT_ALLOW_UNBOUNDED')) {
-        report(node, 'findMany lacks a non-empty where, take, or QUERY_AUDIT_ALLOW_UNBOUNDED reason');
+      if (!hasFindManyBound(args, sourceFile, node) &&
+        !hasMarker(sourceFile, node, 'QUERY_AUDIT_ALLOW_BOUNDED_TAKE') &&
+        !hasMarker(sourceFile, node, 'QUERY_AUDIT_ALLOW_UNBOUNDED')) {
+        report(node, 'findMany lacks a non-empty where, take, or explicit audit reason');
       }
     }
 
