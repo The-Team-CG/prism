@@ -96,6 +96,23 @@ export interface PrismClientEventTimeline {
   ];
 }
 
+export type PrismOcularVisitStatus = "requested" | "scheduled" | "completed" | "waived";
+
+export interface PrismClientOcularVisit {
+  eventId: string;
+  status: PrismOcularVisitStatus;
+  clientNote: string | null;
+  requestedAt: string | null;
+  scheduledAt: string | null;
+}
+
+export interface PrismPmcmOcularVisit extends PrismClientOcularVisit {
+  completedAt: string | null;
+  waiverReason: string | null;
+  waivedAt: string | null;
+  waivedBy: string | null;
+}
+
 export type PrismClientWorkspace = Pick<
   PrismPmcmDashboardWorkspace,
   | "users"
@@ -114,6 +131,7 @@ export type PrismClientWorkspace = Pick<
   | "notificationLogs"
 > & {
   clientEventTimelines: PrismClientEventTimeline[];
+  ocularVisits?: PrismClientOcularVisit[];
 };
 
 export interface PrismBillingWorkspace {
@@ -233,6 +251,7 @@ export interface PrismPmcmEventWorkspace {
   auditLogs: PrismAuditLog[];
   notificationLogs: PrismNotificationLog[];
   registrationPlatform: PrismRegistrationPlatform | null;
+  ocularVisit?: PrismPmcmOcularVisit | null;
 }
 
 export interface PrismClientActionItem {
