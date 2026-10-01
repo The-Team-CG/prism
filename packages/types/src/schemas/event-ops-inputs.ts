@@ -341,7 +341,6 @@ export const createSupplierReviewSchema = z.object({
   eventId: optionalTrimmedStringSchema,
   rating: z.number().int().min(1).max(5),
   notes: nonEmptyStringSchema,
-  reviewedBy: optionalTrimmedStringSchema,
   dimensionRatings: z
     .array(
       z.object({

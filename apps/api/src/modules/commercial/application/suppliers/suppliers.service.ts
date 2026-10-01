@@ -13,6 +13,7 @@ import type {
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import type { SupplierPromotionResult } from '../../contracts/supplier-directory.port';
 import { createHash, randomUUID } from 'node:crypto';
 import { SupplierTier } from '@prism/kernel/event-core';
 import type { AddSupplierQuoteInput } from '../../contracts/commercial-workflow-commands.port';
@@ -157,7 +158,7 @@ export class SuppliersService {
     return { oldTier: existing.tier, supplier: this.mapSupplier(await this.supplierRow(supplier.id)) };
   }
 
-  async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, context?: PrismTransactionContext) {
+  async addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, reviewedBy: string, context?: PrismTransactionContext) {
     const db = context?.prisma ?? this.prisma;
     if (input.rating < 1 || input.rating > 5) throw new BadRequestException('Supplier review rating must be 1 to 5');
     await this.validateReviewEligibility(supplierId, input.eventId, db);
@@ -166,7 +167,7 @@ export class SuppliersService {
     const dimensionRatings = input.dimensionRatings ?? [];
     await this.validateDimensionRatings(supplier.categoryId, dimensionRatings, db);
 
-    const persisted = await this.persistSupplierReview(supplierId, input, dimensionRatings, context);
+    const persisted = await this.persistSupplierReview(supplierId, input, reviewedBy, dimensionRatings, context);
     const reviewId = persisted.reviewId;
     if (persisted.replayed) return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), reviewId, replayed: true };
     return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), reviewId };
@@ -191,20 +192,20 @@ export class SuppliersService {
     return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), noteId, replayed: false };
   }
 
-  async promoteSupplier(supplierId: string, input: PromoteSupplierInput, context?: PrismTransactionContext, promotedBy?: string) {
+  async promoteSupplier(supplierId: string, input: PromoteSupplierInput, promotedBy: string, context?: PrismTransactionContext): Promise<SupplierPromotionResult> {
     const db = context?.prisma ?? this.prisma;
     await this.validateReviewEligibility(supplierId, input.eventId, db);
     const supplier = await this.supplierRow(supplierId, db);
-    this.assertPromotionTarget(supplier, input);
     const payloadHash = createHash('sha256').update(JSON.stringify({ supplierId, eventId: input.eventId, tier: input.tier, reason: input.reason.trim() })).digest('hex');
+    const replay = await this.findPromotionReplay(db, input.idempotencyKey, payloadHash, supplierId);
+    if (replay) return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), replayed: true };
+    this.assertPromotionTarget(supplier, input);
     const review = await db.opsSupplierReview.findFirst({ where: { supplierId, eventId: input.eventId }, select: { id: true } });
     if (!review) throw new BadRequestException('A completed event assessment is required before promotion');
-    const replay = await this.findPromotionReplay(db, input.idempotencyKey, payloadHash, supplierId);
-    if (replay) return this.mapSupplier(await this.supplierRow(supplierId, db));
     const changed = await db.opsSupplier.updateMany({ where: { id: supplierId, tier: SupplierTier.PendingFirstEvent }, data: { tier: input.tier } });
     if (changed.count !== 1) throw new BadRequestException('Supplier tier changed before promotion');
-    await db.opsSupplierPromotion.create({ data: { id: `promotion_${randomUUID()}`, supplierId, reviewId: review.id, fromTier: SupplierTier.PendingFirstEvent, toTier: input.tier, reason: input.reason.trim(), promotedBy: promotedBy ?? 'PMCM', idempotencyKey: input.idempotencyKey ?? `promotion_${randomUUID()}`, payloadHash } });
-    return this.mapSupplier(await this.supplierRow(supplierId, db));
+    await db.opsSupplierPromotion.create({ data: { id: `promotion_${randomUUID()}`, supplierId, reviewId: review.id, fromTier: SupplierTier.PendingFirstEvent, toTier: input.tier, reason: input.reason.trim(), promotedBy, idempotencyKey: input.idempotencyKey ?? `promotion_${randomUUID()}`, payloadHash } });
+    return { supplier: this.mapSupplier(await this.supplierRow(supplierId, db)), replayed: false };
   }
 
   private assertPromotionTarget(supplier: any, input: PromoteSupplierInput) {
@@ -224,6 +225,7 @@ export class SuppliersService {
   private async persistSupplierReview(
     supplierId: string,
     input: CreateSupplierReviewInput,
+    reviewedBy: string,
     dimensionRatings: NonNullable<CreateSupplierReviewInput['dimensionRatings']>,
     context?: PrismTransactionContext,
   ) {
@@ -237,7 +239,7 @@ export class SuppliersService {
           eventId: input.eventId ?? null,
           rating: input.rating,
           notes: input.notes,
-          reviewedBy: input.reviewedBy ?? 'PMCM Admin',
+          reviewedBy,
           idempotencyKey: input.idempotencyKey ?? null,
           dimensionRatings: dimensionRatings.length
             ? {
@@ -268,7 +270,7 @@ export class SuppliersService {
   private reviewReplayMismatches(existing: { supplierId: string; eventId: string | null; rating: number; notes: string; reviewedBy: string }, supplierId: string, input: CreateSupplierReviewInput) {
     const existingDimensions = (existing as typeof existing & { dimensionRatings?: Array<{ dimensionId: string; rating: number }> }).dimensionRatings ?? [];
     const inputDimensions = input.dimensionRatings ?? [];
-    return existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.rating !== input.rating || existing.notes !== input.notes || existing.reviewedBy !== (input.reviewedBy ?? 'PMCM Admin') || JSON.stringify(existingDimensions.slice().sort(this.compareDimensions)) !== JSON.stringify(inputDimensions.slice().sort(this.compareDimensions));
+    return existing.supplierId !== supplierId || existing.eventId !== input.eventId || existing.rating !== input.rating || existing.notes !== input.notes || JSON.stringify(existingDimensions.slice().sort(this.compareDimensions)) !== JSON.stringify(inputDimensions.slice().sort(this.compareDimensions));
   }
 
   private compareDimensions(left: { dimensionId: string; rating: number }, right: { dimensionId: string; rating: number }) {

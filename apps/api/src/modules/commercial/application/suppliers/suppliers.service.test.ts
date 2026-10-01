@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { SuppliersService } from './suppliers.service';
 
@@ -96,9 +96,10 @@ describe('SuppliersService', () => {
       rating: 5,
       eventId: 'evt_1', notes: 'Great work',
       dimensionRatings: [{ dimensionId: 'dim_quality', rating: 4 }],
-    });
+    }, 'Reviewer One');
 
     expect(createCalls).toHaveLength(1);
+    expect(createCalls[0].data.reviewedBy).toBe('Reviewer One');
     expect(createCalls[0].data.dimensionRatings.create).toEqual([
       expect.objectContaining({ dimensionId: 'dim_quality', rating: 4 }),
     ]);
@@ -126,7 +127,7 @@ describe('SuppliersService', () => {
     };
     const service = new SuppliersService(root as never);
 
-    const result = await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Tx' }, {
+    const result = await service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Tx' }, 'Reviewer Two', {
       prisma: tx as never,
       correlationId: 'test',
     } satisfies PrismTransactionContext);
@@ -134,6 +135,41 @@ describe('SuppliersService', () => {
     expect(result.reviewId).toMatch(/^review_/);
   });
 
+  it('replays a completed supplier promotion after the supplier tier changes', async () => {
+    const supplier = { ...baseSupplierRow(), tier: 'pending_first_event' };
+    const promotions = new Map<string, any>();
+    const updateTier = vi.fn(async ({ data }: any) => {
+      if (supplier.tier !== 'pending_first_event') return { count: 0 };
+      supplier.tier = data.tier;
+      return { count: 1 };
+    });
+    const createPromotion = vi.fn(async ({ data }: any) => {
+      promotions.set(data.idempotencyKey, data);
+      return data;
+    });
+    const prisma = {
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed', actualEndedAt: new Date('2026-01-02') }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplier: { findUnique: async () => supplier, updateMany: updateTier },
+      opsSupplierReview: { findFirst: async () => ({ id: 'review_1' }) },
+      opsSupplierPromotion: {
+        findUnique: async ({ where }: any) => promotions.get(where.idempotencyKey) ?? null,
+        create: createPromotion,
+      },
+    };
+    const service = new SuppliersService(prisma as never);
+    const input = { eventId: 'evt_1', tier: 'tier_1' as const, reason: 'Completed assessment', idempotencyKey: 'promotion-key-1' };
+
+    const first = await service.promoteSupplier('sup_1', input, 'Verified Reviewer');
+    const retry = await service.promoteSupplier('sup_1', input, 'Verified Reviewer');
+
+    expect(first.supplier.id).toBe('sup_1');
+    expect(retry.supplier.id).toBe('sup_1');
+    expect(first.replayed).toBe(false);
+    expect(retry.replayed).toBe(true);
+    expect(updateTier).toHaveBeenCalledTimes(1);
+    expect(createPromotion).toHaveBeenCalledTimes(1);
+  });
   it('maps an existing review with no dimension ratings back without error', () => {
     const service = new SuppliersService({} as any);
     const mapped = service.mapSupplier({
@@ -178,7 +214,7 @@ describe('SuppliersService', () => {
         create: async () => {
           throw makeP2002(['idempotencyKey']);
         },
-        findFirst: async () => ({ id: 'review_existing', supplierId: 'sup_1', eventId: 'evt_1', rating: 5, notes: 'Retry', reviewedBy: 'PMCM Admin' }),
+        findFirst: async () => ({ id: 'review_existing', supplierId: 'sup_1', eventId: 'evt_1', rating: 5, notes: 'Retry', reviewedBy: 'Reviewer Three' }),
       },
     };
 
@@ -187,7 +223,7 @@ describe('SuppliersService', () => {
       eventId: 'evt_1', rating: 5,
       notes: 'Retry',
       idempotencyKey: 'draft-key-1',
-    });
+    }, 'Retrying Reviewer');
 
     expect(result.reviewId).toBe('review_existing');
   });
@@ -211,7 +247,7 @@ describe('SuppliersService', () => {
     const service = new SuppliersService(prisma as any);
 
     await expect(
-        service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Retry', idempotencyKey: 'draft-key-1' }),
+        service.addSupplierReview('sup_1', { eventId: 'evt_1', rating: 5, notes: 'Retry', idempotencyKey: 'draft-key-1' }, 'Reviewer Four'),
     ).rejects.toBe(error);
   });
 });

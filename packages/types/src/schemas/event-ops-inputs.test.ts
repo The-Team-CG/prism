@@ -149,6 +149,7 @@ describe("event-ops write schemas", () => {
     });
 
     expect(parsed.eventId).toBe("evt_close_1");
+    expect(parsed).not.toHaveProperty("reviewedBy");
     expect(parsed.dimensionRatings?.[0].rating).toBe(5);
     expect(createSupplierReviewSchema.safeParse({ rating: 0, notes: "Too low" }).success).toBe(false);
     expect(createSupplierReviewSchema.safeParse({ rating: 6, notes: "Too high" }).success).toBe(false);

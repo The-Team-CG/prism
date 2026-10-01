@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Supplier reviews and promotions retain verified PMCM actor attribution; idempotent retries do not create duplicate or misleading review/promotion audit entries.
 - Billing mutations now require a verified actor ID, role, and name; calls with missing actor context fail before accessing billing data.
 - The API query audit now parses TypeScript syntax, checks Prisma query scope, positive bounded limits, and pagination (including empty logical and scalar-list filters), binds audit reasons to individual query expressions, and detects database work in loops and locally resolvable callbacks. The database performance report ranks the top 20 statements by both cumulative and mean execution time. Supplier quote writes and PARE approval audit/dispatch reads are batched, fixture and participant reads are scoped, the privacy inventory selects consent metadata only, and billing statement numbers use a yearly sequence that scans historical statements only during initialization. The privacy request queue remains a complete read until its API and UI support pagination.
 - Split coordinator overview and role-interaction views into feature-local modules, keeping the existing observable task, supplier-check, attendance, and reassignment behavior.
