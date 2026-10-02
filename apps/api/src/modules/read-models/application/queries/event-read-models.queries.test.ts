@@ -37,6 +37,44 @@ describe('EventReadModelQueries collection limits', () => {
     expect(MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS).toBe(50);
   });
 
+  it('scopes the client timeline query and selects only an approved official floor plan', async () => {
+    const opsEvent = model();
+    const queries = new EventReadModelQueries({ opsEvent } as unknown as PrismaService);
+
+    await queries.clientEventTimelineForEvents(['evt_visible']);
+
+    expect(opsEvent.findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['evt_visible'] } },
+      select: {
+        id: true,
+        eventDate: true,
+        status: true,
+        archived: true,
+        proposalClientStatus: true,
+        proposalReviewedAt: true,
+        inquiry: { select: { conformeSignedAt: true } },
+        floorPlanDrafts: {
+          where: { status: 'approved', sourceType: { not: 'client_preference' } },
+          select: { isActive: true, approvedAt: true },
+          orderBy: [
+            { isActive: 'desc' },
+            { approvedAt: { sort: 'desc', nulls: 'last' } },
+            { id: 'asc' },
+          ],
+          take: 1,
+        },
+        paymentMilestones: {
+          where: { label: { contains: 'balance', mode: 'insensitive' } },
+          select: { dueDate: true, status: true, remainingBalance: true },
+          orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+          take: 1,
+        },
+      },
+      orderBy: [{ id: 'asc' }],
+      take: MAX_VISIBLE_EVENTS,
+    });
+  });
+
   it('bounds visible events and nested drafts with deterministic tie-breakers', async () => {
     const opsEvent = model();
     const queries = new EventReadModelQueries({ opsEvent } as unknown as PrismaService);

@@ -311,6 +311,7 @@ export function useEventDashboardShellViewModel({
     commandInboxLoadFailed,
     events,
     selectedEvent,
+    selectedEventWorkspace,
     supplierCategories,
     suppliers,
     coordinators,
@@ -409,6 +410,18 @@ export function useEventDashboardShellViewModel({
     loadCloseGates: () => selectedEvent ? commands.closeGates(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     archiveSelectedEvent: (reason?: string) => selectedEvent ? run("archive event", () => commands.archiveEvent(selectedEvent.id, reason)) : Promise.resolve(),
     recordActualEventEnd: (input: Parameters<typeof commands.recordActualEventEnd>[1]) => selectedEvent ? run("record actual event end", () => commands.recordActualEventEnd(selectedEvent.id, input)) : Promise.resolve(),
+    toggleClientEventDayView: (enabled: boolean) => selectedEvent && session && isPmcmAdmin(session.role)
+      ? runAsBoolean("client event-day view", () => commands.setClientEventDayView(selectedEvent.id, { enabled }))
+      : Promise.resolve(false),
+    scheduleOcularVisit: (input: Parameters<typeof commands.scheduleOcularVisit>[1]) => selectedEvent && session && isPmcmAdmin(session.role)
+      ? run("schedule ocular visit", () => commands.scheduleOcularVisit(selectedEvent.id, input))
+      : Promise.resolve(),
+    completeOcularVisit: () => selectedEvent && session && isPmcmAdmin(session.role)
+      ? run("complete ocular visit", () => commands.completeOcularVisit(selectedEvent.id))
+      : Promise.resolve(),
+    waiveOcularVisit: (input: Parameters<typeof commands.waiveOcularVisit>[1]) => selectedEvent && session && isPmcmAdmin(session.role)
+      ? run("waive ocular visit", () => commands.waiveOcularVisit(selectedEvent.id, input))
+      : Promise.resolve(),
     loadEventInsights: () => selectedEvent ? commands.eventInsights(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: CoordinatorRole, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),

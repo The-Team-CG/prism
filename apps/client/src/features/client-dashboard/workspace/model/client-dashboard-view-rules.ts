@@ -7,7 +7,7 @@ import {
   Presentation,
   ReceiptText,
 } from "lucide-react";
-import type { PrismClientActionCenter, PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
+import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/editor";
 import type { DetailTab } from "./client-dashboard-types";
 
@@ -57,9 +57,9 @@ export const EVENT_MONTHS = [
   "Dec",
 ];
 
-export function eventDateParts(date?: string) {
+export function eventDateParts(date?: string | null) {
   if (!date) return { day: "--", month: "TBD", year: "" };
-  const [year, month, day] = date.split("-");
+  const [year, month, day] = date.slice(0, 10).split("-");
   const monthIndex = Number(month) - 1;
   return {
     day: day?.padStart(2, "0") ?? "--",
@@ -68,7 +68,7 @@ export function eventDateParts(date?: string) {
   };
 }
 
-export function formatEventDate(date?: string) {
+export function formatEventDate(date?: string | null) {
   const parts = eventDateParts(date);
   if (!date || parts.month === "TBD") return "Date pending";
   return `${EVENT_MONTHS[EVENT_MONTHS.findIndex((month) => month.toUpperCase() === parts.month)]} ${Number(parts.day)}, ${parts.year}`;
@@ -134,7 +134,7 @@ export function actionCenterItemToDashboardAction(
     id: item.id,
     title: item.label,
     description: item.description,
-    detail: item.dueAt ? formatEventDate(item.dueAt) : formatStatusLabel(item.status),
+    detail: formatEventDate(item.dueAt),
     ctaLabel: "Open",
     href: item.href,
     icon: clientActionIcon(item.kind),
@@ -152,107 +152,6 @@ export function selectNextAction(actions: ClientDashboardAction[]) {
   );
 }
 
-export function deriveClientActionCenterFromWorkspace(
-  state: PrismClientWorkspace,
-  session: { name: string },
-  now = Date.now(),
-): PrismClientActionCenter {
-  const events = state.events.filter(
-    (event) => event.clientName === session.name && event.clientPortalStatus === "unlocked" && !event.archived,
-  );
-  const items: PrismClientActionItem[] = [];
-
-  for (const event of events) {
-    const briefing = state.briefings.find((item) => item.eventId === event.id);
-    if (!briefing) {
-      items.push({
-        id: `briefing:${event.id}`,
-        kind: "briefing",
-        priority: "attention",
-        label: "Complete event briefing",
-        description: `Share venue, guest count, budget, and service requirements for ${event.eventName}.`,
-        status: "missing",
-        eventId: event.id,
-        eventName: event.eventName,
-        dueAt: event.eventDate,
-        href: `/dashboard/events/${event.id}/briefing`,
-      });
-    }
-
-    if (event.floorPlanStatus === "in_review") {
-      items.push({
-        id: `floorplan:review:${event.id}`,
-        kind: "floorplan",
-        priority: "attention",
-        label: "Review official floorplan",
-        description: `PMCM submitted the official layout for ${event.eventName}. Preferences do not edit this official plan.`,
-        status: event.floorPlanStatus,
-        eventId: event.id,
-        eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floor-plan`,
-      });
-    } else if (event.floorPlanStatus === "not_started") {
-      items.push({
-        id: `floorplan:preferences:${event.id}`,
-        kind: "floorplan",
-        priority: "info",
-        label: "Submit layout preferences",
-        description: `Share layout requirements before PMCM prepares the official floorplan for ${event.eventName}.`,
-        status: event.floorPlanStatus,
-        eventId: event.id,
-        eventName: event.eventName,
-        href: `/dashboard/events/${event.id}/floor-plan`,
-      });
-    }
-
-    state.paymentMilestones
-      .filter((payment) => payment.eventId === event.id && payment.status !== "paid")
-      .forEach((payment) => {
-        items.push({
-          id: `billing:${payment.id}`,
-          kind: "billing",
-          priority: new Date(payment.dueDate).getTime() < now ? "critical" : "warning",
-          label: new Date(payment.dueDate).getTime() < now ? "Payment overdue" : "Payment pending",
-          description: `${payment.label} has ${payment.amount.toLocaleString("en-PH")} PHP remaining.`,
-          status: payment.status,
-          eventId: event.id,
-          eventName: event.eventName,
-          dueAt: payment.dueDate,
-          href: `/dashboard/events/${event.id}/billing`,
-        });
-      });
-
-    state.documents
-      .filter((document) => document.eventId === event.id && /needs|pending|requested|rejected/i.test(document.status))
-      .forEach((document) => {
-        items.push({
-          id: `document:${document.id}`,
-          kind: "document",
-          priority: document.status === "rejected" ? "warning" : "attention",
-          label: "Document needs attention",
-          description: `${document.fileName} is ${document.status.replaceAll("_", " ")}.`,
-          status: document.status,
-          eventId: event.id,
-          eventName: event.eventName,
-          href: `/dashboard/events/${event.id}/documents`,
-        });
-      });
-  }
-
-  const severityOrder = { critical: 0, warning: 1, attention: 2, info: 3 } as const;
-  items.sort((left, right) => severityOrder[left.priority] - severityOrder[right.priority]);
-
-  return {
-    generatedAt: new Date(now).toISOString(),
-    counts: {
-      critical: items.filter((item) => item.priority === "critical").length,
-      warning: items.filter((item) => item.priority === "warning").length,
-      attention: items.filter((item) => item.priority === "attention").length,
-      info: items.filter((item) => item.priority === "info").length,
-    },
-    items,
-  };
-}
 
 export function greetingByTime(name: string) {
   const hour = new Date().getHours();
