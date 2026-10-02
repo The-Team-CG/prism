@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added a PMCM postponement impact panel that lists recorded coordinator booking or declared-availability conflicts, retains the last date snapshot while a new date is unconfirmed, and clears it when the decision releases assignments or cancels the event.
 - Added a scheduled supplier ingress monitor that flags unreported arrivals after a configurable grace period, audits the transition, caps each run at 1,000 schedules, and shows suppliers that are late before they report arrival; event-day reporting stays disabled until the request, assignment, and readiness are confirmed.
 - Added scheduled, idempotent coordinator acknowledgment reminders with a configurable lead window and bounded database pages.
 - Added visibility-aware 30-second event-day updates for the active PMCM live-ops desk and the coordinator's selected event, refreshing task, issue, and check-in data without polling other PMCM sections.
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Full event decision history now requires a PMCM or system actor because records include private commercial and actor details.
 - Split shared Zod write contracts by API bounded context while keeping the existing event-ops schema exports available through their compatibility barrel.
 - Split shared shell navigation, sidebar and rail, mobile navigation, account-menu, and top-bar internals into focused modules while preserving the public exports and behavior.
 - Moved authentication history, lockout handling, and security-alert workflows out of the hash-chain audit writer while preserving authentication integrity posture, route authorization, and alert notifications.

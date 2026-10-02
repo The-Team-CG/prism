@@ -6,6 +6,7 @@ import type {
   PrismStoredObject,
   PrismAddendum,
   PrismEventFreezeException,
+  PrismEventDecision,
 } from "@prism/types";
 import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -24,6 +25,11 @@ export function createEventsClient(
       detail: (eventId, actor = {}) =>
         prismRequest<PrismEvent>(
           actorPath(`/events/${eventId}`, actor),
+          withBase(options),
+        ),
+      decisionHistory: (eventId, actor = {}) =>
+        prismRequest<PrismEventDecision[]>(
+          actorPath(`/events/${eventId}/decisions`, actor),
           withBase(options),
         ),
       fileRequirements: (eventId, actor = {}) =>

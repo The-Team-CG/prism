@@ -11,6 +11,7 @@ import type {
   PrismEventFreezeException,
   RequestStorageUploadInput,
   ConfirmStorageUploadInput,
+  PrismEventDecision,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -18,6 +19,7 @@ export interface EventOpsEventsContract {
   events: {
     list(actor?: EventOpsActorQuery): Promise<PrismEvent[]>;
     detail(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    decisionHistory(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventDecision[]>;
     fileRequirements(
       eventId: string,
       actor?: EventOpsActorQuery,
