@@ -481,6 +481,7 @@ export interface PrismEventEodReport {
   dayId: string;
   authoredBy: string;
   authoredByRole: string;
+  canEdit: boolean;
   progress: string[];
   issues: string[];
   risksForTomorrow: string[];

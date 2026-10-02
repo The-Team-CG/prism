@@ -51,6 +51,8 @@ export const createEventEodReportSchema = z.object({
   issues: z.array(nonEmptyStringSchema).max(100).default([]),
   risksForTomorrow: z.array(nonEmptyStringSchema).max(100).default([]),
   submittedAt: z.string().datetime({ offset: true }).optional(),
+}).refine((value) => value.progress.length + value.issues.length + value.risksForTomorrow.length > 0, {
+  message: "Add at least one progress item, issue, or risk for tomorrow",
 });
 export type CreateEventEodReportInput = z.infer<typeof createEventEodReportSchema>;
 

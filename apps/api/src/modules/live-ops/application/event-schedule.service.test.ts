@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { EventScheduleService } from './event-schedule.service';
 
 function service(access: { requireActorRole: ReturnType<typeof vi.fn> }, staffing = {}) {
@@ -211,5 +211,169 @@ describe('EventScheduleService operator designation', () => {
     const access = { requireActorRole: vi.fn().mockRejectedValue(new ForbiddenException('denied')) };
 
     await expect(service(access).getOperatorDesignation('evt_1', { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('denied');
+  });
+});
+
+describe('EventScheduleService schedule-segment transitions', () => {
+  const pmcm = { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never;
+  const now = new Date('2026-10-02T12:00:00.000Z');
+
+  function makeTransitionHarness(status: string, updateCount = 1) {
+    const current = {
+      id: 'segment_1', dayId: 'day_1', sequence: 0, title: 'Doors open',
+      plannedStartAt: new Date('2026-10-02T08:00:00.000Z'), plannedEndAt: new Date('2026-10-02T09:00:00.000Z'),
+      ownerRole: 'Registration Staff', location: '', status,
+      actualStartedAt: status === 'active' || status === 'complete' ? new Date('2026-10-02T08:05:00.000Z') : null,
+      actualEndedAt: status === 'complete' ? new Date('2026-10-02T09:10:00.000Z') : null,
+    };
+    let updated = current;
+    const tx = {
+      opsEventScheduleSegment: {
+        findFirst: vi.fn(async () => updated),
+        updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          if (updateCount === 1) updated = { ...current, ...data } as typeof current;
+          return { count: updateCount };
+        }),
+        count: vi.fn(async () => 0),
+      },
+      opsEventScheduleDay: { update: vi.fn(async () => undefined) },
+    };
+    const access = { requireActorRole: vi.fn(async () => undefined) };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
+    const instance = new EventScheduleService(
+      prisma as never,
+      access as never,
+      auditWriter as never,
+      {} as never,
+      {} as never,
+      { now: () => now },
+    );
+    return { instance, tx, auditWriter };
+  }
+
+  it.each([
+    ['planned', 'stop'],
+    ['active', 'start'],
+    ['complete', 'start'],
+    ['complete', 'skip'],
+    ['skipped', 'stop'],
+  ])('rejects %s → %s without changing the segment', async (status, action) => {
+    const { instance, tx, auditWriter } = makeTransitionHarness(status);
+
+    await expect(instance.updateSegmentStatus('evt_1', 'segment_1', { action } as never, pmcm)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(tx.opsEventScheduleSegment.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsEventScheduleDay.update).not.toHaveBeenCalled();
+    expect(auditWriter.write).not.toHaveBeenCalled();
+  });
+
+  it('ends an active segment when skipped and closes the day when no work remains', async () => {
+    const { instance, tx } = makeTransitionHarness('active');
+
+    await expect(instance.updateSegmentStatus('evt_1', 'segment_1', { action: 'skip' }, pmcm)).resolves.toMatchObject({
+      status: 'skipped',
+      actualEndedAt: now.toISOString(),
+    });
+
+    expect(tx.opsEventScheduleSegment.updateMany).toHaveBeenCalledWith({
+      where: { id: 'segment_1', status: 'active' },
+      data: { status: 'skipped', actualEndedAt: now },
+    });
+    expect(tx.opsEventScheduleDay.update).toHaveBeenCalledWith({ where: { id: 'day_1' }, data: { status: 'complete' } });
+  });
+
+  it('reports a conflict when another update changed the segment state first', async () => {
+    const { instance, tx } = makeTransitionHarness('planned', 0);
+
+    await expect(instance.updateSegmentStatus('evt_1', 'segment_1', { action: 'start' }, pmcm)).rejects.toBeInstanceOf(ConflictException);
+
+    expect(tx.opsEventScheduleDay.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('EventScheduleService end-of-day reports', () => {
+  const coordinator = { id: 'user_coord_1', name: 'Coordinator One', role: 'coordinator' };
+  const input = { dayId: 'day_1', progress: ['Doors opened'], issues: [], risksForTomorrow: [] };
+
+  it('does not read reports for coordinators who are not assigned to the event', async () => {
+    const access = { requireActorRole: vi.fn(async () => undefined) };
+    const staffing = { findAssignmentForEventActor: vi.fn(async () => null) };
+    const findMany = vi.fn();
+    const instance = new EventScheduleService({ opsEventEodReport: { findMany } } as never, access as never, {} as never, staffing as never, {} as never);
+
+    await expect(instance.listEodReports('evt_secret', coordinator as never)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it('keeps report submission coordinator-only at the service boundary', async () => {
+    const access = {
+      requireActorRole: vi.fn(async (actor: { role: string }, allowedRoles: string[]) => {
+        if (!allowedRoles.includes(actor.role)) throw new ForbiddenException('role cannot submit reports');
+      }),
+    };
+    const transaction = vi.fn();
+    const instance = new EventScheduleService({ $transaction: transaction } as never, access as never, {} as never, {} as never, {} as never);
+
+    await expect(instance.submitEodReport('evt_1', input, { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('marks only the submitting coordinator as able to edit their report', async () => {
+    const report = {
+      id: 'report_1', eventId: 'evt_1', dayId: 'day_1', authoredBy: 'user_coord_1', authoredByRole: 'coordinator',
+      progress: ['Doors opened'], issues: [], risksForTomorrow: [], submittedAt: new Date('2026-10-02T18:00:00.000Z'),
+      replies: [{ id: 'reply_1', reportId: 'report_1', authorId: 'pmcm_1', authorRole: 'pmcm-admin', body: 'Thanks', createdAt: new Date('2026-10-02T18:10:00.000Z') }],
+    };
+    const access = { requireActorRole: vi.fn(async () => undefined) };
+    const staffing = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'assignment_1' })) };
+    const findMany = vi.fn(async () => [report]);
+    const instance = new EventScheduleService({ opsEventEodReport: { findMany } } as never, access as never, {} as never, staffing as never, {} as never);
+
+    await expect(instance.listEodReports('evt_1', coordinator as never)).resolves.toMatchObject([
+      { id: 'report_1', canEdit: true, replies: [{ id: 'reply_1', body: 'Thanks' }] },
+    ]);
+  });
+
+  it('blocks another coordinator from overwriting an existing report', async () => {
+    const day = { dayDate: new Date('2026-10-02T00:00:00.000Z') };
+    const existing = { id: 'report_1', authoredBy: 'user_coord_1' };
+    const tx = {
+      opsEventScheduleDay: { findFirst: vi.fn(async () => day) },
+      opsEventEodReport: {
+        findUnique: vi.fn(async () => existing),
+        update: vi.fn(),
+        create: vi.fn(),
+      },
+    };
+    const access = { requireActorRole: vi.fn(async () => undefined) };
+    const staffing = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'assignment_2' })) };
+    const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
+    const instance = new EventScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
+    const actor = { ...coordinator, id: 'user_coord_2' } as never;
+
+    await expect(instance.submitEodReport('evt_1', input, actor)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(tx.opsEventEodReport.update).not.toHaveBeenCalled();
+    expect(tx.opsEventEodReport.create).not.toHaveBeenCalled();
+  });
+
+  it('turns a concurrent same-day report insert into a reload conflict', async () => {
+    const day = { dayDate: new Date('2026-10-02T00:00:00.000Z') };
+    const tx = {
+      opsEventScheduleDay: { findFirst: vi.fn(async () => day) },
+      opsEventEodReport: {
+        findUnique: vi.fn(async () => null),
+        create: vi.fn(async () => { throw { code: 'P2002' }; }),
+      },
+    };
+    const access = { requireActorRole: vi.fn(async () => undefined) };
+    const staffing = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'assignment_1' })) };
+    const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
+    const instance = new EventScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
+
+    await expect(instance.submitEodReport('evt_1', input, coordinator as never)).rejects.toBeInstanceOf(ConflictException);
   });
 });
