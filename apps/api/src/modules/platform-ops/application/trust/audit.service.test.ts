@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { AuditExportService } from './audit-export.service';
+import { AuditReadService } from './audit-read.service';
 import { AuditService } from './audit.service';
 
 type TestAuditRow = {
@@ -625,8 +627,9 @@ describe('AuditService', () => {
     };
 
     const outbox = { queue: async (...args: unknown[]) => { notifications.push(args); return args; } };
-    const service = new AuditService(prisma as never, outbox as never);
-    const exported = await service.exportAuditLogs({}, { id: 'verified-pmcm-id', name: 'Verified PMCM', role: 'pmcm-admin', email: 'pmcm@example.test' });
+    const auditService = new AuditService(prisma as never, outbox as never);
+    const exportService = new AuditExportService(new AuditReadService(prisma as never), auditService);
+    const exported = await exportService.exportAuditLogs({}, { id: 'verified-pmcm-id', name: 'Verified PMCM', role: 'pmcm-admin', email: 'pmcm@example.test' });
 
     expect(exported.recordCount).toBe(25);
     expect(alerts).toHaveLength(1);
@@ -636,6 +639,43 @@ describe('AuditService', () => {
       expect.arrayContaining(['trust@example.test', 'Bulk audit export threshold exceeded', expect.anything(), expect.objectContaining({ idempotencyKey: expect.stringContaining('security-alert:') })]),
     ]));
     expect(createdAuditRows[0]).toMatchObject({ actor: 'Verified PMCM', actorEmail: 'pmcm@example.test', ipAddress: 'unknown', device: 'unknown', metadata: expect.objectContaining({ actorId: 'verified-pmcm-id' }) });
+  });
+});
+
+describe('AuditReadService', () => {
+  it('maps filtered audit results and clamps the requested page size', async () => {
+    const row = auditRow({ id: 'aud_filtered', category: 'access', action: 'Signed in to portal' });
+    let query: unknown;
+    const prisma = {
+      opsAuditLog: {
+        findMany: async (input: unknown) => {
+          query = input;
+          return [row];
+        },
+      },
+    };
+    const service = new AuditReadService(prisma as never);
+
+    const results = await service.listAuditLogs({ query: 'portal', category: 'access', limit: '900' });
+
+    expect(query).toEqual(expect.objectContaining({
+      where: {
+        category: 'access',
+        OR: [
+          { actor: { contains: 'portal', mode: 'insensitive' } },
+          { action: { contains: 'portal', mode: 'insensitive' } },
+          { affectedLabel: { contains: 'portal', mode: 'insensitive' } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    }));
+    expect(results[0]).toMatchObject({
+      id: 'aud_filtered',
+      actor: 'PMCM Admin',
+      action: 'Signed in to portal',
+      createdAt: row.createdAt.toISOString(),
+    });
   });
 });
 

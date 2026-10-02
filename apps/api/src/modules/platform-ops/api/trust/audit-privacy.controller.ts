@@ -14,6 +14,8 @@ import {
   ActorContextDto,
 } from './audit-privacy.dto';
 import { AuditService } from '../../application/trust/audit.service';
+import { AuditExportService } from '../../application/trust/audit-export.service';
+import { AuditReadService } from '../../application/trust/audit-read.service';
 import { PrivacyOperationsService } from '../../application/trust/privacy-operations.service';
 
 type TrustActor = ResolvedEventOpsActor;
@@ -81,7 +83,11 @@ class TrustRoutePolicy {
 export class OpsAuditController {
   private readonly policy: TrustRoutePolicy;
 
-  constructor(private readonly auditService: AuditService) {
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly auditReadService: AuditReadService,
+    private readonly auditExportService: AuditExportService,
+  ) {
     this.policy = new TrustRoutePolicy(auditService);
   }
 
@@ -90,7 +96,7 @@ export class OpsAuditController {
   async listLogs(@Query(zodQuery(auditLogFiltersSchema)) query: AuditLogFilters, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'audit logs');
-    return this.auditService.listAuditLogs(query);
+    return this.auditReadService.listAuditLogs(query);
   }
 
   @Post('export')
@@ -99,7 +105,7 @@ export class OpsAuditController {
   async exportLogs(@Body(zodBody(auditLogFiltersSchema)) dto: AuditLogFilters, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'audit export');
-    return this.auditService.exportAuditLogs(dto, verifiedActor);
+    return this.auditExportService.exportAuditLogs(dto, verifiedActor);
   }
 
   @Get('alerts')

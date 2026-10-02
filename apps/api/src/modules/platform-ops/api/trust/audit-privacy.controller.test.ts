@@ -14,23 +14,23 @@ describe('trust-ops audit/privacy controllers', () => {
     expect(controllerPath(OpsPrivacyController)).toBe('privacy');
   });
 
-  it('serves audit routes through AuditService with PMCM/system guard', async () => {
+  it('serves audit routes through read, export, and trust modules with PMCM/system guard', async () => {
     const auditService = {
-      listAuditLogs: vi.fn(async () => [{ id: 'aud_1' }]),
-      exportAuditLogs: vi.fn(async () => ({ rows: [{ id: 'aud_1' }] })),
       listSecurityAlerts: vi.fn(async () => [{ id: 'alert_1' }]),
       verifyIntegrity: vi.fn(async () => ({ valid: true })),
       audit: vi.fn(async () => ({ id: 'aud_forbidden' })),
     };
-    const controller = new OpsAuditController(auditService as any);
+    const auditReadService = { listAuditLogs: vi.fn(async () => [{ id: 'aud_1' }]) };
+    const auditExportService = { exportAuditLogs: vi.fn(async () => ({ rows: [{ id: 'aud_1' }] })) };
+    const controller = new OpsAuditController(auditService as never, auditReadService as never, auditExportService as never);
 
     await expect(controller.listLogs({ limit: '25' }, verified())).resolves.toEqual([{ id: 'aud_1' }]);
     await expect(controller.exportLogs({ limit: '25' }, verified('system'))).resolves.toEqual({ rows: [{ id: 'aud_1' }] });
     await expect(controller.listAlerts(verified())).resolves.toEqual([{ id: 'alert_1' }]);
     await expect(controller.integrity(verified())).resolves.toEqual({ valid: true });
 
-    expect(auditService.listAuditLogs).toHaveBeenCalledWith({ limit: '25' });
-    expect(auditService.exportAuditLogs).toHaveBeenCalledWith({ limit: '25' }, expect.objectContaining({ id: 'u1', role: 'system' }));
+    expect(auditReadService.listAuditLogs).toHaveBeenCalledWith({ limit: '25' });
+    expect(auditExportService.exportAuditLogs).toHaveBeenCalledWith({ limit: '25' }, expect.objectContaining({ id: 'u1', role: 'system' }));
     expect(auditService.listSecurityAlerts).toHaveBeenCalledTimes(1);
     expect(auditService.verifyIntegrity).toHaveBeenCalledTimes(1);
   });
@@ -84,10 +84,11 @@ describe('trust-ops audit/privacy controllers', () => {
 
   it('records a forbidden audit event before rejecting non-trust actors', async () => {
     const auditService = {
-      listAuditLogs: vi.fn(async () => []),
       audit: vi.fn(async () => ({ id: 'aud_forbidden' })),
     };
-    const controller = new OpsAuditController(auditService as any);
+    const auditReadService = { listAuditLogs: vi.fn(async () => []) };
+    const auditExportService = { exportAuditLogs: vi.fn(async () => ({ rows: [] })) };
+    const controller = new OpsAuditController(auditService as never, auditReadService as never, auditExportService as never);
 
     await expect(controller.listLogs({}, verified('client', 'Ana Reyes'))).rejects.toBeInstanceOf(
       ForbiddenException,
@@ -102,6 +103,6 @@ describe('trust-ops audit/privacy controllers', () => {
         affectedLabel: 'audit logs',
       }),
     );
-    expect(auditService.listAuditLogs).not.toHaveBeenCalled();
+    expect(auditReadService.listAuditLogs).not.toHaveBeenCalled();
   });
 });
