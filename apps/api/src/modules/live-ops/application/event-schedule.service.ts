@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import type { OpsEventScheduleSegment, Prisma } from '@prisma/client';
+import type { OpsEventHandoff, OpsEventScheduleSegment, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor, writeAudit, AUDIT_WRITER, type AuditWriter } from '@prism/kernel/access-control';
@@ -70,6 +70,21 @@ function mapSegment(segment: OpsEventScheduleSegment): PrismEventScheduleSegment
 
 function strings(value: Prisma.JsonValue): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function mapHandoff(handoff: OpsEventHandoff): PrismEventHandoff {
+  return {
+    id: handoff.id,
+    eventId: handoff.eventId,
+    dayId: handoff.dayId,
+    role: handoff.role,
+    fromAssignmentId: handoff.fromAssignmentId,
+    toAssignmentId: handoff.toAssignmentId,
+    handedOffBy: handoff.handedOffBy,
+    receivedBy: handoff.receivedBy,
+    handedOffAt: handoff.handedOffAt.toISOString(),
+    outstandingItems: strings(handoff.outstandingItems),
+  };
 }
 
 @Injectable()
@@ -171,16 +186,26 @@ export class EventScheduleService {
     return this.prisma.$transaction(async (tx) => {
       const [day, from, to] = await Promise.all([
         tx.opsEventScheduleDay.findFirst({ where: { id: input.dayId, eventId } }),
-        tx.opsCoordinatorAssignment.findFirst({ where: { id: input.fromAssignmentId, eventId } }),
-        tx.opsCoordinatorAssignment.findFirst({ where: { id: input.toAssignmentId, eventId } }),
+        tx.opsCoordinatorAssignment.findFirst({ where: { id: input.fromAssignmentId, eventId, status: { notIn: OPERATOR_INELIGIBLE_ASSIGNMENT_STATUSES } } }),
+        tx.opsCoordinatorAssignment.findFirst({ where: { id: input.toAssignmentId, eventId, status: { notIn: OPERATOR_INELIGIBLE_ASSIGNMENT_STATUSES } } }),
       ]);
       if (!day) throw new NotFoundException('Schedule day not found');
       if (!from || !to) throw new NotFoundException('Coordinator assignment not found');
+      if (from.id === to.id) throw new BadRequestException('Handoff must transfer to a different coordinator assignment');
       if (from.role !== input.role || to.role !== input.role) throw new BadRequestException('Handoff assignments must share the requested role');
       const created = await tx.opsEventHandoff.create({ data: { id: `eh_${randomUUID()}`, eventId, dayId: input.dayId, role: input.role.trim(), fromAssignmentId: from.id, toAssignmentId: to.id, handedOffBy: actor.id ?? actor.name, receivedBy: to.coordinatorId ?? to.coordinatorName, handedOffAt: at, outstandingItems: toPrismaJson(input.outstandingItems) } });
       await writeAudit(this.auditWriter, eventId, actor.name, `Recorded coordinator handoff: ${input.role}`, { actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'live_ops', affectedType: 'event_handoff', affectedId: created.id, metadata: { fromAssignmentId: from.id, toAssignmentId: to.id, outstandingItems: input.outstandingItems } }, { prisma: tx, actorId: actor.id, correlationId: `handoff:${created.id}` });
-      return { id: created.id, eventId: created.eventId, dayId: created.dayId, role: created.role, fromAssignmentId: created.fromAssignmentId, toAssignmentId: created.toAssignmentId, handedOffBy: created.handedOffBy, receivedBy: created.receivedBy, handedOffAt: created.handedOffAt.toISOString(), outstandingItems: strings(created.outstandingItems) };
+      return mapHandoff(created);
     });
+  }
+
+  async listHandoffs(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventHandoff[]> {
+    await this.requireEventDayAuthority(eventId, actor);
+    const handoffs = await this.prisma.opsEventHandoff.findMany({
+      where: { eventId },
+      orderBy: [{ handedOffAt: 'desc' }, { id: 'desc' }],
+    });
+    return handoffs.map(mapHandoff);
   }
 
   async submitEodReport(eventId: string, input: CreateEventEodReportInput, actor: ResolvedEventOpsActor): Promise<PrismEventEodReport> {

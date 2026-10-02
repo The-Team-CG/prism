@@ -105,6 +105,12 @@ export class EventLiveOpsController {
     return this.scheduleService!.createHandoff(eventId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
+  @Get(':eventId/handoffs')
+  @UseGuards(EventSessionGuard)
+  listHandoffs(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.scheduleService!.listHandoffs(eventId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
   @Get(':eventId/eod-reports')
   @UseGuards(EventSessionGuard)
   listEodReports(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
