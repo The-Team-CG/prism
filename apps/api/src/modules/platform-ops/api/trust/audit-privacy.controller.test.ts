@@ -16,13 +16,15 @@ describe('trust-ops audit/privacy controllers', () => {
 
   it('serves audit routes through read, export, and trust modules with PMCM/system guard', async () => {
     const auditService = {
-      listSecurityAlerts: vi.fn(async () => [{ id: 'alert_1' }]),
       verifyIntegrity: vi.fn(async () => ({ valid: true })),
       audit: vi.fn(async () => ({ id: 'aud_forbidden' })),
     };
     const auditReadService = { listAuditLogs: vi.fn(async () => [{ id: 'aud_1' }]) };
     const auditExportService = { exportAuditLogs: vi.fn(async () => ({ rows: [{ id: 'aud_1' }] })) };
-    const controller = new OpsAuditController(auditService as never, auditReadService as never, auditExportService as never);
+    const securityOperationsService = {
+      listSecurityAlerts: vi.fn(async () => [{ id: 'alert_1' }]),
+    };
+    const controller = new OpsAuditController(auditService as never, auditReadService as never, auditExportService as never, securityOperationsService as never);
 
     await expect(controller.listLogs({ limit: '25' }, verified())).resolves.toEqual([{ id: 'aud_1' }]);
     await expect(controller.exportLogs({ limit: '25' }, verified('system'))).resolves.toEqual({ rows: [{ id: 'aud_1' }] });
@@ -31,7 +33,7 @@ describe('trust-ops audit/privacy controllers', () => {
 
     expect(auditReadService.listAuditLogs).toHaveBeenCalledWith({ limit: '25' });
     expect(auditExportService.exportAuditLogs).toHaveBeenCalledWith({ limit: '25' }, expect.objectContaining({ id: 'u1', role: 'system' }));
-    expect(auditService.listSecurityAlerts).toHaveBeenCalledTimes(1);
+    expect(securityOperationsService.listSecurityAlerts).toHaveBeenCalledTimes(1);
     expect(auditService.verifyIntegrity).toHaveBeenCalledTimes(1);
   });
 
@@ -45,7 +47,8 @@ describe('trust-ops audit/privacy controllers', () => {
       executeRequest: vi.fn(async () => ({ id: 'priv_2', status: 'executed' })),
     };
     const auditService = { audit: vi.fn(async () => ({ id: 'aud_forbidden' })) };
-    const controller = new OpsPrivacyController(privacyOperationsService as any, auditService as any);
+    const securityOperationsService = { recordIntegrityIncident: vi.fn(async () => undefined) };
+    const controller = new OpsPrivacyController(privacyOperationsService as any, auditService as any, securityOperationsService as any);
 
     await expect(controller.inventory({ eventId: 'evt_sample' }, verified())).resolves.toEqual({ events: [] });
     await expect(controller.retentionPolicies(verified())).resolves.toEqual([{ surface: 'audit' }]);
@@ -88,7 +91,8 @@ describe('trust-ops audit/privacy controllers', () => {
     };
     const auditReadService = { listAuditLogs: vi.fn(async () => []) };
     const auditExportService = { exportAuditLogs: vi.fn(async () => ({ rows: [] })) };
-    const controller = new OpsAuditController(auditService as never, auditReadService as never, auditExportService as never);
+    const securityOperationsService = { listSecurityAlerts: vi.fn(async () => []) };
+    const controller = new OpsAuditController(auditService as never, auditReadService as never, auditExportService as never, securityOperationsService as never);
 
     await expect(controller.listLogs({}, verified('client', 'Ana Reyes'))).rejects.toBeInstanceOf(
       ForbiddenException,

@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import type { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventLifecycleService, WorkflowCommandService } from '@prism/kernel/event-core';
-import { AuditService, AuditWriterAdapter, NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, NotificationOutboxService, NotificationOutboxWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
 import { EventClosureService } from './event-closure.service';
 
@@ -32,7 +32,8 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
     prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
     await prisma.$connect();
     const database = prisma as PrismaService;
-    auditWriter = new AuditWriterAdapter(new AuditService(database));
+    const auditService = new AuditService(database);
+    auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(database, auditService));
     outboxWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(database));
     service = new EventClosureService(database, new FileRequirementsMatrixService(database),
       new EventLifecycleService(), auditWriter, new EventAccessPolicyService(auditWriter),

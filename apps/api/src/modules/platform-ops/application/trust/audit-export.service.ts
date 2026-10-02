@@ -3,6 +3,7 @@ import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event
 import type { AuditLogFilters, PrismVerifiedEventActor } from '@prism/types';
 import { AuditService } from './audit.service';
 import { AuditReadService } from './audit-read.service';
+import { SecurityOperationsService } from './security-operations.service';
 
 const BULK_EXPORT_ALERT_THRESHOLD = 25;
 
@@ -11,6 +12,7 @@ export class AuditExportService {
   constructor(
     private readonly auditReadService: AuditReadService,
     private readonly auditService: AuditService,
+    private readonly securityOperationsService: SecurityOperationsService,
   ) {}
 
   async exportAuditLogs(
@@ -30,7 +32,7 @@ export class AuditExportService {
     });
 
     if (logs.length >= BULK_EXPORT_ALERT_THRESHOLD) {
-      await this.auditService.createSecurityAlert({
+      await this.securityOperationsService.createSecurityAlert({
         type: 'bulk_export',
         title: 'Bulk audit export threshold exceeded',
         description: `${actor?.name ?? 'System'} exported ${logs.length} audit records.`,
