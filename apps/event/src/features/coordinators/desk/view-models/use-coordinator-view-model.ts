@@ -31,6 +31,8 @@ import {
   verifySupplierStatusAndRefreshRoleView,
 } from "../use-cases/coordinator-desk-actions";
 import {
+  coordinatorRoleDataStatus,
+  resolveCoordinatorTaskRole,
   attendanceChoiceLabel,
   buildCoordinatorAttendanceInput,
   buildCoordinatorIssueInput,
@@ -208,7 +210,7 @@ export function useCoordinatorViewModel({
         createEventDayTaskSchema,
         buildCoordinatorTaskInput({
           title: taskTitle,
-          assignedRole: taskRole || canonicalCoordinatorRole(roleView.role) || "General Coordinator",
+          assignedRole: resolveCoordinatorTaskRole(taskRole, roleView.role),
           priority: taskPriority,
           notes: taskNotes,
           dueAt: taskDueAt,
@@ -416,14 +418,7 @@ export function useCoordinatorViewModel({
     roleView,
     roleViewLoading: roleViewStatus === "loading",
     roleViewError,
-    roleDataStatus:
-      roleViewStatus === "loading"
-        ? "loading"
-        : roleViewStatus === "error"
-          ? "unavailable"
-          : roleView
-            ? "ready"
-            : "pending",
+    roleDataStatus: coordinatorRoleDataStatus(roleViewStatus, Boolean(roleView)),
     activeSection,
     registrationRole: isRegistrationCoordinatorRole(assignment?.role),
     acknowledge,
@@ -434,7 +429,7 @@ export function useCoordinatorViewModel({
     taskForm: {
       title: taskTitle,
       setTitle: setTaskTitle,
-      role: taskRole || canonicalCoordinatorRole(roleView?.role) || "General Coordinator",
+      role: resolveCoordinatorTaskRole(taskRole, roleView?.role),
       setRole: (value: string) => setTaskRole(canonicalCoordinatorRole(value) ?? ""),
       priority: taskPriority,
       setPriority: setTaskPriority,
@@ -450,7 +445,7 @@ export function useCoordinatorViewModel({
       roleOptions: roleView ? taskAssignedRoleOptions(roleView) : [],
       routesAway: roleView
         ? isTaskOutsideOwnQueue({
-            assignedRole: taskRole || canonicalCoordinatorRole(roleView.role) || "General Coordinator",
+            assignedRole: resolveCoordinatorTaskRole(taskRole, roleView.role),
             ownRole: roleView.role,
             assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
           })
