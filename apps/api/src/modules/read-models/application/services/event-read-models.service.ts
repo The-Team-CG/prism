@@ -521,6 +521,22 @@ export class EventReadModelsService {
     };
   }
 
+  async coordinatorReliabilityHistory(actor: ResolvedEventOpsActor, coordinatorId: string) {
+    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'coordinator reliability history');
+    const notes = await this.queries.coordinatorReliabilityHistory(coordinatorId);
+    return notes.map((note) => ({
+      id: note.id,
+      eventId: note.eventId,
+      eventName: note.event?.eventName ?? null,
+      eventDate: note.event?.eventDate ? note.event.eventDate.toISOString().slice(0, 10) : null,
+      assignmentId: note.assignmentId,
+      assignmentRole: note.assignment?.role ?? null,
+      note: note.note,
+      severity: note.severity,
+      createdAt: note.createdAt.toISOString(),
+    }));
+  }
+
   async pmcmDashboard(actor: ResolvedEventOpsActor, mappers: PmcmDashboardMappers) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM dashboard');
 

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added event-scoped coordinator suggestions that rank required-skill matches, explain matched and missing skills, filter date conflicts and availability, and supply alternatives for assignment conflicts.
 - Connected assignment, replacement, and double-book suggestions to event-scoped skill rankings; added catalog-only coverage-role selection with explicit legacy mapping; seeded all catalog roles with required skills for local fixtures.
 - Added a coordinator event switcher with venue details from the latest briefing, so coordinators can open any event assigned to them, including past events.
+- Added a PMCM coordinator reliability history view for bounded late, absent, replacement, and withdrawal notes, and route event-day and staffing writes through the operations-owned reliability writer.
 - Added the implementation plan for the coordinator role catalog and skill-aware staffing suggestions.
 - Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
 - Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.

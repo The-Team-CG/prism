@@ -39,6 +39,7 @@ export const MAX_PMCM_DASHBOARD_ROWS = 500;
 export const MAX_ACTIVE_COORDINATORS = 500;
 export const MAX_ACTIVE_SUPPLIERS = 500;
 export const MAX_SUPPLIER_HISTORY_ROWS = 100;
+export const MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS = 50;
 export const MAX_SUPPLIER_CERTIFICATIONS = 100;
 export const MAX_AUDIT_LOGS = 100;
 export const MAX_NOTIFICATION_LOGS = 100;
@@ -388,6 +389,18 @@ export class EventReadModelQueries {
   // Query budget: one bounded coordinator assignment dashboard query, no per-row Prisma loop.
   boundedCoordinatorAssignments() {
     return this.prisma.opsCoordinatorAssignment.findMany({ take: MAX_PMCM_DASHBOARD_ROWS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
+  }
+
+  coordinatorReliabilityHistory(coordinatorId: string) {
+    return this.prisma.opsCoordinatorReliabilityNote.findMany({
+      where: { coordinatorId },
+      include: {
+        event: { select: { eventName: true, eventDate: true } },
+        assignment: { select: { role: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
+    });
   }
 
   // Query budget: one active supplier directory query, no per-row Prisma loop.

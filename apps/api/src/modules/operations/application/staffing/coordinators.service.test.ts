@@ -6,6 +6,7 @@ import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@pri
 import { CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { CoordinatorsService } from './coordinators.service';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
+import { CoordinatorReliabilityNoteWriterService } from './coordinator-reliability-note-writer.service';
 import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 
 const event = {
@@ -66,6 +67,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
   const audits: any[] = [];
   const availability: any[] = [];
   const acknowledgments: any[] = [];
+  const reliabilityNotes: any[] = [];
   const transactionCalls: string[] = [];
   const queryOrder: string[] = [];
 
@@ -148,6 +150,13 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
         return row;
       },
     },
+    opsCoordinatorReliabilityNote: {
+      create: async ({ data }: { data: any }) => {
+        const row = { ...data, createdAt: new Date() };
+        reliabilityNotes.push(row);
+        return row;
+      },
+    },
     opsAuditChainLock: { update: async () => ({ id: 'global', revision: 1 }) },
     opsAuditLog: {
       findFirst: async () => null,
@@ -186,6 +195,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
     audits,
     availability,
     acknowledgments,
+    reliabilityNotes,
     transactionCalls,
     queryOrder,
     prisma,
@@ -209,6 +219,7 @@ function createService(prisma: any, accessPolicy: any = createAccessPolicy()) {
     new WorkflowCommandService(new PrismTransactionRunner(prisma)),
     accessPolicy,
     new CoordinatorSuggestionsService(prisma),
+    new CoordinatorReliabilityNoteWriterService(prisma),
   );
 }
 
@@ -670,6 +681,14 @@ describe('Coordinator staffing workflows', () => {
       const withdrawn = await service.withdrawCoordinator(event.id, created.id, { reason: 'No longer available' }, pmcmAdminActor);
 
       expect(withdrawn.status).toBe('cancelled');
+      expect(fake.reliabilityNotes).toHaveLength(1);
+      expect(fake.reliabilityNotes[0]).toMatchObject({
+        eventId: event.id,
+        coordinatorId: coordinator.id,
+        assignmentId: created.id,
+        note: 'Marco Santos withdrew from Floor Director: No longer available',
+        severity: 'warning',
+      });
       expect(fake.notifications.length).toBeGreaterThan(0);
       expect(fake.audits.some((entry: any) => entry.action?.includes('Withdrew'))).toBe(true);
     });

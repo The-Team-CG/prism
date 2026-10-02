@@ -34,6 +34,7 @@ function renderDesk(overrides: Record<string, unknown> = {}) {
     onDesignateOperator: vi.fn(async () => true),
     onLoadOperator: vi.fn(async () => null),
     onLoadAvailability: vi.fn(async () => []),
+    onLoadReliabilityHistory: vi.fn(async () => []),
     onCreateAvailability: vi.fn(async () => true),
     onDeleteAvailability: vi.fn(async () => true),
     ...overrides,
