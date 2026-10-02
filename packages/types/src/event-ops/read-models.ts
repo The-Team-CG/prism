@@ -65,6 +65,54 @@ export interface PrismPmcmDashboardWorkspace {
   notificationLogs: PrismNotificationLog[];
 }
 
+export type PrismClientTimelineMilestoneKey =
+  | "conforme_signed"
+  | "proposal_accepted"
+  | "floor_plan_approved"
+  | "balance_payment_due"
+  | "event_date";
+
+export type PrismClientTimelineMilestoneStatus =
+  | "completed"
+  | "current"
+  | "pending";
+
+export interface PrismClientTimelineMilestone<
+  Key extends PrismClientTimelineMilestoneKey = PrismClientTimelineMilestoneKey,
+> {
+  key: Key;
+  date: string | null;
+  status: PrismClientTimelineMilestoneStatus;
+}
+
+export interface PrismClientEventTimeline {
+  eventId: string;
+  milestones: [
+    PrismClientTimelineMilestone<"conforme_signed">,
+    PrismClientTimelineMilestone<"proposal_accepted">,
+    PrismClientTimelineMilestone<"floor_plan_approved">,
+    PrismClientTimelineMilestone<"balance_payment_due">,
+    PrismClientTimelineMilestone<"event_date">,
+  ];
+}
+
+export type PrismOcularVisitStatus = "requested" | "scheduled" | "completed" | "waived";
+
+export interface PrismClientOcularVisit {
+  eventId: string;
+  status: PrismOcularVisitStatus;
+  clientNote: string | null;
+  requestedAt: string | null;
+  scheduledAt: string | null;
+}
+
+export interface PrismPmcmOcularVisit extends PrismClientOcularVisit {
+  completedAt: string | null;
+  waiverReason: string | null;
+  waivedAt: string | null;
+  waivedBy: string | null;
+}
+
 export type PrismClientWorkspace = Pick<
   PrismPmcmDashboardWorkspace,
   | "users"
@@ -81,7 +129,10 @@ export type PrismClientWorkspace = Pick<
   | "floorPlanDrafts"
   | "auditLogs"
   | "notificationLogs"
->;
+> & {
+  clientEventTimelines: PrismClientEventTimeline[];
+  ocularVisits?: PrismClientOcularVisit[];
+};
 
 export interface PrismBillingWorkspace {
   events: PrismEvent[];
@@ -200,6 +251,7 @@ export interface PrismPmcmEventWorkspace {
   auditLogs: PrismAuditLog[];
   notificationLogs: PrismNotificationLog[];
   registrationPlatform: PrismRegistrationPlatform | null;
+  ocularVisit?: PrismPmcmOcularVisit | null;
 }
 
 export interface PrismClientActionItem {

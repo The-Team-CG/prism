@@ -105,6 +105,7 @@ export interface PrismEvent {
   actualEndedBy?: string | null;
   status: string;
   clientPortalStatus: "locked" | "unlocked";
+  clientEventDayViewEnabled?: boolean;
   readiness: string;
   archived: boolean;
   floorPlanStatus: string;
