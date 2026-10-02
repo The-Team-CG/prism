@@ -96,7 +96,7 @@ describe('FloorPlanWorkflowService', () => {
     await expect(service.createFloorPlanDraft(
       'evt_sample',
       { name: 'Official Layout', sourceType: 'blank' },
-      { name: 'PMCM Admin', role: 'pmcm-admin' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     )).rejects.toThrow('Official floor plan requires a completed or waived ocular visit');
     expect(state.floorPlans).toHaveLength(0);
   });
@@ -108,7 +108,7 @@ describe('FloorPlanWorkflowService', () => {
     await expect(service.createFloorPlanDraft(
       'evt_sample',
       { name: 'Official Layout', sourceType: 'blank' },
-      { name: 'PMCM Admin', role: 'pmcm-admin' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     )).rejects.toThrow('Official floor plan requires a completed or waived ocular visit');
     expect(state.floorPlans).toHaveLength(0);
   });
@@ -120,7 +120,7 @@ describe('FloorPlanWorkflowService', () => {
     const draft = await service.createFloorPlanDraft(
       'evt_sample',
       { name: 'Official Layout', sourceType: 'blank' },
-      { name: 'PMCM Admin', role: 'pmcm-admin' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     );
 
     expect(draft.status).toBe('pmcm_draft');
@@ -142,7 +142,7 @@ describe('FloorPlanWorkflowService', () => {
         guestCount: 180,
         constraints: [],
       },
-      { name: 'Ana Reyes', role: 'client' },
+      { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
     );
 
     expect(state.floorPlanDrafts).toHaveLength(1);
