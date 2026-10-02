@@ -6,6 +6,7 @@ export * from './contracts/trust/audit-writer.port';
 export * from './contracts/trust/trust-ops.tokens';
 export * from './infrastructure/trust/audit-writer.adapter';
 export * from './application/trust/audit.service';
+export * from './application/trust/security-operations.service';
 export * from './application/trust/audit.mappers';
 export * from './application/trust/privacy-operations.service';
 

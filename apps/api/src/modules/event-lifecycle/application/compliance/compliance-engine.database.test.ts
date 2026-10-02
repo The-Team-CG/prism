@@ -5,7 +5,7 @@ import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaService } from "@prism/kernel/database";
 import { EventAccessPolicyService } from "@prism/kernel/access-control";
-import { AuditService, AuditWriterAdapter } from "@prism/contexts/platform-ops";
+import { AuditService, AuditWriterAdapter, SecurityOperationsService } from "@prism/contexts/platform-ops";
 import { OpsUserRole, WorkflowCommandService } from "@prism/kernel/event-core";
 import { FileRequirementsMatrixService } from "../files/file-requirements-matrix.service";
 import { ComplianceWorkflowService } from "./compliance-workflow.service";
@@ -27,7 +27,8 @@ describe.skipIf(!databaseUrl)("compliance engine against PostgreSQL", () => {
     prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
     await prisma.$connect();
     const database = prisma as PrismaService;
-    const auditWriter = new AuditWriterAdapter(new AuditService(database));
+    const auditService = new AuditService(database);
+    const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(database, auditService));
     service = new ComplianceWorkflowService(database, auditWriter, new EventAccessPolicyService(auditWriter), new WorkflowCommandService(), new FileRequirementsMatrixService(database));
   });
 
