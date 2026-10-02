@@ -51,11 +51,7 @@ export function isRegistrationCoordinatorRole(role?: string | null): boolean {
 export function pickActiveAssignment<T extends { attendanceStatus?: string; status?: string }>(
   assignments: T[],
 ): T | undefined {
-  return (
-    assignments.find(
-      (item) => item.attendanceStatus !== "replaced" && item.status !== "replaced",
-    ) ?? assignments[0]
-  );
+  return assignments.find(isCoordinatorAssignmentActive) ?? assignments[0];
 }
 
 /* ── EP-11-S02: coordinator task and issue logging ──────────────── */

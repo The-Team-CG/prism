@@ -23,6 +23,7 @@ import {
   CoordinatorRoleBadgeCard,
   CoordinatorRoleData,
 } from "./sections/coordinator-role-sections";
+import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
 
 export function CoordinatorView({
   session,
@@ -110,6 +111,12 @@ export function CoordinatorView({
           onWithdraw={vm.withdraw}
         />
         <CoordinatorBoundaryNotice />
+        <CoordinatorEventSwitcher
+          events={state.events}
+          assignments={vm.assignments}
+          selectedEventId={event?.id}
+          onSelect={vm.selectEvent}
+        />
         <CoordinatorStatusSummary
           activeDraft={activeDraft}
           roleViewLoading={roleViewLoading}

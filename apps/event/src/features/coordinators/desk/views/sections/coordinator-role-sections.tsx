@@ -22,7 +22,7 @@ import {
 } from "../../model/coordinator-view-copy";
 import type { CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
 import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
-import type { CoordinatorRole, PrismCoordinatorRoleView, PrismCoordinatorAssignment } from "@prism/types";
+import type { CoordinatorRole, PrismCoordinatorAssignment, PrismCoordinatorRoleView } from "@prism/types";
 import { CCard, CCardBody, CCardHeader, FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
 import {
   CoordinatorRoleActions,
@@ -58,7 +58,6 @@ function CompactRecordList({ items, emptyText = "No records available." }: { ite
     </div>
   );
 }
-
 function CompactRecordRow({ item }: { item: CompactRecordItem }) {
   const Icon = item.icon;
   const content = (
@@ -665,7 +664,7 @@ export function CoordinatorAssignmentHistory({ assignments }: { assignments: Pri
       <CCardHeader>
         <div className="flex items-center gap-2">
           <CalendarClock className="size-4 text-(--prism-signal)" />
-          <h3 className="text-sm font-bold text-foreground">Assigned event history</h3>
+          <h3 className="text-sm font-bold text-foreground">Assignment history</h3>
         </div>
       </CCardHeader>
       <CCardBody>

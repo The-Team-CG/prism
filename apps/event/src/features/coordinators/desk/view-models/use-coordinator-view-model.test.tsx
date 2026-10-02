@@ -104,3 +104,47 @@ describe("legacy coordinator task creation", () => {
     }));
   });
 });
+
+describe("coordinator event selection", () => {
+  it("switches to another assigned event and reloads only that event's role view", async () => {
+    vi.mocked(loadCoordinatorRoleView).mockClear();
+    const secondEvent = { ...EVENT, id: "evt_2", eventName: "Leadership Forum", eventDate: "2026-10-12", venue: "Harbor Hall" };
+    const secondAssignment = { ...LIVE, id: "coord_asg_2", eventId: "evt_2", role: "Usher" };
+    const { result } = renderHook(() => useCoordinatorViewModel({
+      session: SESSION as never,
+      state: { assignments: [LIVE, secondAssignment], events: [EVENT, secondEvent] } as never,
+      onRefresh: async () => {},
+    }));
+
+    await waitFor(() => expect(result.current.event?.id).toBe("evt_1"));
+    act(() => result.current.selectEvent("evt_2"));
+
+    await waitFor(() => expect(result.current.event?.id).toBe("evt_2"));
+    expect(result.current.assignment?.id).toBe("coord_asg_2");
+    await waitFor(() => expect(loadCoordinatorRoleView).toHaveBeenCalledWith(SESSION, "evt_2"));
+  });
+
+  it("ignores a previous event response that arrives after the selected event response", async () => {
+    let resolveFirst!: (value: never) => void;
+    const firstResponse = new Promise<never>((resolve) => { resolveFirst = resolve; });
+    vi.mocked(loadCoordinatorRoleView).mockReset();
+    vi.mocked(loadCoordinatorRoleView).mockImplementation(async (_session, eventId) =>
+      eventId === "evt_1" ? firstResponse : ({ role: "Usher" } as never),
+    );
+    const secondEvent = { ...EVENT, id: "evt_2", eventName: "Leadership Forum" };
+    const secondAssignment = { ...LIVE, id: "coord_asg_2", eventId: "evt_2", role: "Usher" };
+    const { result } = renderHook(() => useCoordinatorViewModel({
+      session: SESSION as never,
+      state: { assignments: [LIVE, secondAssignment], events: [EVENT, secondEvent] } as never,
+      onRefresh: async () => {},
+    }));
+
+    await waitFor(() => expect(loadCoordinatorRoleView).toHaveBeenCalledWith(SESSION, "evt_1"));
+    act(() => result.current.selectEvent("evt_2"));
+    await waitFor(() => expect(result.current.roleView?.role).toBe("Usher"));
+
+    await act(async () => { resolveFirst({ role: "Floor Director" } as never); });
+    expect(result.current.roleView?.role).toBe("Usher");
+    vi.mocked(loadCoordinatorRoleView).mockImplementation(async () => null as never);
+  });
+});
