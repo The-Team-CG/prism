@@ -1,8 +1,7 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
-import type { OpsAuditChainLock, OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
-import { PrismaService } from '@prism/kernel/database';
-import { toPrismaJson } from '@prism/kernel/database';
-import { createHash, randomUUID } from 'node:crypto';
+import { Injectable, Logger } from '@nestjs/common';
+import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
+import { PrismaService, toPrismaJson } from '@prism/kernel/database';
+import { randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import {
   AuditActionType,
@@ -13,9 +12,13 @@ import {
 } from '@prism/kernel/event-core';
 import { mapAuditLog } from './audit.mappers';
 import type { PrismVerifiedEventActor } from '@prism/types';
-import type { AuditChainBreakReason } from './audit-chain-order';
-import { auditTailCandidates, isIndependentAuditChainSet, orderLinkedAuditLogs } from './audit-chain-order';
 import { NotificationOutboxService } from '../notifications/notification-outbox.service';
+import { appendAuditLog, verifyAuditIntegrity } from './audit-chain';
+import { AuditIntegrityConflictException } from './audit-chain.types';
+import type { AuditIntegrityConflictKind, AuditLogInput } from './audit-chain.types';
+
+export { AuditIntegrityConflictException };
+export type { AuditIntegrityConflictKind, AuditLogInput };
 
 type AuditLogFilters = {
   query?: string;
@@ -30,25 +33,6 @@ type AuditLogFilters = {
   limit?: string;
 };
 
-export type AuditLogInput = {
-  eventId?: string;
-  actor: string;
-  actorRole?: string;
-  actorEmail?: string;
-  action: string;
-  actionType?: string;
-  category?: string;
-  affectedType?: string;
-  affectedId?: string;
-  affectedLabel?: string;
-  metadata?: Record<string, unknown>;
-  ipAddress?: string;
-  device?: string;
-  severity?: string;
-  previousHash?: string | null;
-  createdAt?: Date;
-};
-
 export type IntegrityIncidentInput = {
   source: string;
   reason: string;
@@ -56,18 +40,6 @@ export type IntegrityIncidentInput = {
   actor?: string;
   metadata?: Record<string, unknown>;
 };
-
-export type AuditIntegrityConflictKind = 'ambiguous_tail' | 'broken_chain';
-
-export class AuditIntegrityConflictException extends ConflictException {
-  constructor(
-    message: string,
-    readonly kind: AuditIntegrityConflictKind,
-    readonly breakReason: AuditChainBreakReason | null = null,
-  ) {
-    super(message);
-  }
-}
 
 export type AuthAuditIntegrityPosture = 'fail_closed' | 'degraded';
 
@@ -88,25 +60,6 @@ const BULK_EXPORT_ALERT_THRESHOLD = 25;
 const LOGIN_LOCKOUT_THRESHOLD = 5;
 const LOGIN_LOCKOUT_MINUTES = 10;
 const PERMANENT_LOCKOUT_THRESHOLD = 5;
-const AUDIT_READ_PAGE_SIZE = 1000;
-
-type AuditReader = Pick<Prisma.TransactionClient, 'opsAuditLog'>;
-
-async function loadAuditLogs(prisma: AuditReader) {
-  if (typeof prisma.opsAuditLog.findMany !== 'function') return [];
-  const logs: Array<Awaited<ReturnType<AuditReader['opsAuditLog']['findMany']>>[number]> = [];
-  // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: integrity checks must read the full ordered chain in fixed-size pages.
-  for (let skip = 0; ; skip += AUDIT_READ_PAGE_SIZE) {
-    const page = await prisma.opsAuditLog.findMany({
-      take: AUDIT_READ_PAGE_SIZE,
-      // QUERY_AUDIT_ALLOW_OFFSET: ordered full-chain verification advances through 1000-row pages.
-      skip,
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    });
-    logs.push(...page);
-    if (page.length < AUDIT_READ_PAGE_SIZE) return logs;
-  }
-}
 
 function timestamp(value: Date) {
   return value.toISOString();
@@ -120,33 +73,6 @@ function addMinutes(value: Date, minutes: number) {
 
 const AUDIT_EQUAL_FILTERS = ['category', 'eventId', 'actor', 'actionType', 'severity'] as const;
 const DATE_RANGE_DAYS: Record<string, number> = { '24h': 1, '7d': 7, '30d': 30 };
-
-const ACTION_TYPE_NEEDLES: Array<[string, string]> = [
-  ['created', AuditActionType.Create],
-  ['uploaded', AuditActionType.Upload],
-  ['approved', AuditActionType.Approve],
-  ['declined', AuditActionType.Decline],
-  ['assigned', AuditActionType.Assign],
-  ['archived', AuditActionType.Archive],
-  ['resolved', AuditActionType.Resolve],
-  ['marked', AuditActionType.Update],
-  ['updated', AuditActionType.Update],
-  ['signed in', AuditActionType.Login],
-  ['failed login', AuditActionType.LoginFailed],
-];
-
-const CATEGORY_NEEDLES: Array<[string, string]> = [
-  ['billing', AuditCategory.Finance],
-  ['payment', AuditCategory.Finance],
-  ['supplier', AuditCategory.Suppliers],
-  ['quote', AuditCategory.Suppliers],
-  ['portal', AuditCategory.Access],
-  ['access', AuditCategory.Access],
-  ['login', AuditCategory.Access],
-  ['signed in', AuditCategory.Access],
-  ['document', AuditCategory.Documents],
-  ['conforme', AuditCategory.Documents],
-];
 
 function applyAuditEqualFilters(where: Prisma.OpsAuditLogWhereInput, input: AuditLogFilters) {
   for (const key of AUDIT_EQUAL_FILTERS) {
@@ -181,13 +107,6 @@ function applyAuditDateFilters(where: Prisma.OpsAuditLogWhereInput, input: Audit
       ...(input.to ? { lte: new Date(input.to) } : {}),
     };
   }
-}
-
-function matchNeedleTable(value: string, table: Array<[string, string]>, fallback: string) {
-  for (const [needle, mapped] of table) {
-    if (value.includes(needle)) return mapped;
-  }
-  return fallback;
 }
 
 type LockoutState = {
@@ -324,54 +243,7 @@ export class AuditService {
   }
 
   async verifyIntegrity() {
-    const logs = await loadAuditLogs(this.prisma);
-    let previousHash: string | null = null;
-    let lastVerifiedHash: string | null = null;
-    const chain = orderLinkedAuditLogs(logs);
-    const tails = auditTailCandidates(logs);
-    const ambiguousTail = isIndependentAuditChainSet(logs, (log) => this.hasValidImmutableHash(log));
-    if (chain.firstBrokenLogId) {
-      return {
-        valid: false,
-        checkedCount: logs.length,
-        firstBrokenLogId: chain.firstBrokenLogId,
-        breakReason: chain.breakReason,
-        ambiguousTail,
-        ambiguousTailLogIds: ambiguousTail ? tails.map((tail) => tail.id) : [],
-        lastVerifiedHash,
-        checkedAt: new Date().toISOString(),
-      };
-    }
-    for (const log of chain.ordered) {
-      const expectedHash = this.expectedAuditHash(log);
-
-      if (log.previousHash !== previousHash || log.immutableHash !== expectedHash) {
-        return {
-          valid: false,
-          checkedCount: logs.length,
-          firstBrokenLogId: log.id,
-          breakReason: null,
-          ambiguousTail: false,
-          ambiguousTailLogIds: [],
-          lastVerifiedHash,
-          checkedAt: new Date().toISOString(),
-        };
-      }
-
-      previousHash = log.immutableHash;
-      lastVerifiedHash = log.immutableHash;
-    }
-
-    return {
-      valid: true,
-      checkedCount: logs.length,
-      firstBrokenLogId: null,
-      breakReason: null,
-      ambiguousTail: false,
-      ambiguousTailLogIds: [],
-      lastVerifiedHash,
-      checkedAt: new Date().toISOString(),
-    };
+    return verifyAuditIntegrity(this.prisma);
   }
 
   async audit(
@@ -381,30 +253,7 @@ export class AuditService {
     options: Omit<AuditLogInput, 'eventId' | 'actor' | 'action'> = {},
     context?: PrismTransactionContext,
   ): Promise<OpsAuditLog> {
-    if (!context) {
-      return this.prisma.$transaction((prisma) => this.audit(eventId, actor, action, options, { prisma, correlationId: randomUUID() }));
-    }
-    const prisma = context.prisma;
-    // A real row update locks appenders and rejects stale serializable snapshots.
-    // An advisory lock alone would not refresh a caller's earlier snapshot.
-    const chainLock = await prisma.opsAuditChainLock.update({ where: { id: 'global' }, data: { revision: { increment: 1 } } });
-    const previous = await this.auditTail(prisma, chainLock);
-
-    const created = await prisma.opsAuditLog.create({
-      data: this.buildAuditData({
-        ...options,
-        eventId,
-        actor,
-        action,
-        previousHash: previous?.immutableHash || null,
-        createdAt: new Date(Math.max(Date.now(), (previous?.createdAt.getTime() ?? 0) + 1)),
-      }),
-    });
-    await prisma.opsAuditChainLock.update({
-      where: { id: 'global' },
-      data: { headId: created.id, headHash: created.immutableHash },
-    });
-    return created;
+    return appendAuditLog(this.prisma, { eventId, actor, action, options, context });
   }
 
   async recordAuthenticationAudit(input: AuditLogInput) {
@@ -448,58 +297,6 @@ export class AuditService {
       throw incidentError;
     }
     return reason;
-  }
-
-  private async auditTail(
-    prisma: Prisma.TransactionClient,
-    chainLock: Pick<OpsAuditChainLock, 'headId' | 'headHash'>,
-  ) {
-    if (chainLock.headId || chainLock.headHash) {
-      if (!chainLock.headId || !chainLock.headHash) {
-        throw new AuditIntegrityConflictException('Audit chain head metadata is incomplete; integrity review is required', 'broken_chain');
-      }
-      const head = await prisma.opsAuditLog.findUnique({ where: { id: chainLock.headId } });
-      if (!head || head.immutableHash !== chainLock.headHash || !this.hasValidImmutableHash(head)) {
-        throw new AuditIntegrityConflictException('Audit chain head does not match its verified hash; integrity review is required', 'broken_chain');
-      }
-      const untrackedRow = await prisma.opsAuditLog.findFirst({
-        where: { createdAt: { gte: head.createdAt }, id: { not: head.id } },
-        select: { id: true },
-      });
-      if (!untrackedRow) return head;
-    }
-
-    // Existing installations bootstrap the verified head once. Later appends
-    // read only the head row unless an older writer left an untracked tail.
-    // verifyIntegrity remains a full scan.
-    return this.verifiedAuditTail(await loadAuditLogs(prisma));
-  }
-
-  private verifiedAuditTail(logs: OpsAuditLog[]) {
-    if (logs.length === 0) return null;
-    const chain = orderLinkedAuditLogs(logs);
-    const tails = auditTailCandidates(logs);
-    if (isIndependentAuditChainSet(logs, (log) => this.hasValidImmutableHash(log))) {
-      throw new AuditIntegrityConflictException('Audit history has an ambiguous tail; integrity review is required', 'ambiguous_tail');
-    }
-    if (chain.firstBrokenLogId || tails.length !== 1) {
-      throw new AuditIntegrityConflictException(
-        `Audit history is not a single hash-linked chain; integrity review is required (${chain.firstBrokenLogId ?? 'unknown'})`,
-        'broken_chain',
-        chain.breakReason,
-      );
-    }
-    let previousHash: string | null = null;
-    for (const log of chain.ordered) {
-      if (log.previousHash !== previousHash || !this.hasValidImmutableHash(log)) {
-        throw new AuditIntegrityConflictException(
-          `Audit history is not a verified hash-linked chain (${log.id})`,
-          'broken_chain',
-        );
-      }
-      previousHash = log.immutableHash;
-    }
-    return tails[0];
   }
 
   async recordLoginHistory(
@@ -687,92 +484,12 @@ export class AuditService {
     return email && email.includes('@') ? email : null;
   }
 
-  private buildAuditData(input: AuditLogInput) {
-    const createdAt = input.createdAt ?? new Date();
-    const id = `aud_${randomUUID()}`;
-    const payload = {
-      id,
-      eventId: input.eventId ?? null,
-      actor: input.actor,
-      actorRole: input.actorRole ?? this.inferActorRole(input.actor),
-      actorEmail: input.actorEmail ?? null,
-      action: input.action,
-      actionType: input.actionType ?? this.inferActionType(input.action),
-      category: input.category ?? this.inferCategory(input.action),
-      affectedType: input.affectedType ?? null,
-      affectedId: input.affectedId ?? null,
-      affectedLabel: input.affectedLabel ?? null,
-      metadata: input.metadata ?? {},
-      ipAddress: input.ipAddress ?? 'unknown',
-      device: input.device ?? 'unknown',
-      severity: input.severity ?? 'info',
-      previousHash: input.previousHash ?? null,
-      createdAt: createdAt.toISOString(),
-    };
-    const immutableHash = this.hashAuditPayload(payload);
-
-    return {
-      ...payload,
-      metadata: toPrismaJson(payload.metadata),
-      immutableHash,
-      createdAt,
-    };
-  }
-
-  private expectedAuditHash(log: Pick<OpsAuditLog, 'id' | 'eventId' | 'actor' | 'actorRole' | 'actorEmail' | 'action' | 'actionType' | 'category' | 'affectedType' | 'affectedId' | 'affectedLabel' | 'metadata' | 'ipAddress' | 'device' | 'severity' | 'previousHash' | 'createdAt'>) {
-    return this.hashAuditPayload({
-      id: log.id,
-      eventId: log.eventId ?? null,
-      actor: log.actor,
-      actorRole: log.actorRole,
-      actorEmail: log.actorEmail ?? null,
-      action: log.action,
-      actionType: log.actionType,
-      category: log.category,
-      affectedType: log.affectedType ?? null,
-      affectedId: log.affectedId ?? null,
-      affectedLabel: log.affectedLabel ?? null,
-      metadata: log.metadata ?? {},
-      ipAddress: log.ipAddress,
-      device: log.device,
-      severity: log.severity,
-      previousHash: log.previousHash ?? null,
-      createdAt: log.createdAt.toISOString(),
-    });
-  }
-
-  private hasValidImmutableHash(log: OpsAuditLog) {
-    return log.immutableHash === this.expectedAuditHash(log);
-  }
-
-  private hashAuditPayload(payload: Record<string, unknown>) {
-    return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
-  }
-
   private auditWhere(input: AuditLogFilters) {
     const where: Prisma.OpsAuditLogWhereInput = {};
     applyAuditEqualFilters(where, input);
     applyAuditQuery(where, input.query);
     applyAuditDateFilters(where, input);
     return where;
-  }
-
-  private inferActorRole(actor: string) {
-    const value = actor.toLowerCase();
-    if (value.includes('system')) return OpsUserRole.System;
-    if (value.includes('client')) return OpsUserRole.Client;
-    if (value.includes('supplier')) return OpsUserRole.Supplier;
-    if (value.includes('finance')) return 'finance';
-    if (value.includes('pmcm') || value.includes('mys')) return OpsUserRole.PmcmAdmin;
-    return OpsUserRole.Coordinator;
-  }
-
-  private inferActionType(action: string) {
-    return matchNeedleTable(action.toLowerCase(), ACTION_TYPE_NEEDLES, AuditActionType.General);
-  }
-
-  private inferCategory(action: string) {
-    return matchNeedleTable(action.toLowerCase(), CATEGORY_NEEDLES, AuditCategory.Events);
   }
 
   mapAuditLog(log: OpsAuditLog) {
