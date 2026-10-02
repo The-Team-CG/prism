@@ -19,6 +19,8 @@ function createGuestWorkflowFixture() {
         status: 'event_day',
         clientPortalStatus: 'unlocked',
         readiness: 'Registration open',
+        walkInPolicy: 'open',
+        walkInThreshold: 200,
         archived: false,
         floorPlanStatus: 'approved',
         floorPlanId: 'draft_active',
@@ -31,6 +33,7 @@ function createGuestWorkflowFixture() {
       {
         id: 'gci_existing',
         eventId: 'evt_sample',
+        rosterEntryId: null,
         guestName: 'Existing Guest',
         checkInMode: 'name_search',
         status: 'checked_in',
@@ -42,18 +45,36 @@ function createGuestWorkflowFixture() {
         checkedInAt: new Date('2026-06-18T08:00:00.000Z'),
       },
     ],
+    guestRoster: [] as any[],
     guestFeedback: [] as any[],
   };
 
   const prisma = {
     opsEvent: {
       findMany: vi.fn(async ({ where }: any = {}) => state.events.filter((event) => where?.archived === undefined || event.archived === where.archived)),
+      findFirst: vi.fn(async ({ where }: any) => state.events.find((event) => event.id === where.id && (where.archived === undefined || event.archived === where.archived)) ?? null),
       findUnique: vi.fn(async ({ where }: any) => state.events.find((event) => event.id === where.id) ?? null),
+    },
+    opsGuestRosterEntry: {
+      findMany: vi.fn(async () => state.guestRoster),
+      findFirst: vi.fn(async ({ where }: any) => state.guestRoster.find((entry) => entry.id === where.id && entry.eventId === where.eventId) ?? null),
+      create: vi.fn(async ({ data }: any) => {
+        const now = new Date('2026-10-02T09:00:00.000Z');
+        const row = { ...data, checkedInAt: null, withdrawnAt: null, createdAt: now, updatedAt: now };
+        state.guestRoster.push(row);
+        return row;
+      }),
+      update: vi.fn(async ({ where, data }: any) => Object.assign(state.guestRoster.find((entry) => entry.id === where.id)!, data)),
     },
     opsGuestCheckIn: {
       count: vi.fn(async ({ where }: any = {}) =>
-        state.guestCheckIns.filter((item) => !where?.eventId || item.eventId === where.eventId).length,
+        state.guestCheckIns.filter((item) =>
+          (!where?.eventId || item.eventId === where.eventId) && (!where?.status || item.status === where.status),
+        ).length,
       ),
+      findFirst: vi.fn(async ({ where }: any) => state.guestCheckIns.find((item) =>
+        item.eventId === where.eventId && item.rosterEntryId === where.rosterEntryId && item.status === where.status,
+      ) ?? null),
       findMany: vi.fn(async ({ where }: any = {}) => {
         const eventIds = where?.eventId?.in as string[] | undefined;
         return state.guestCheckIns.filter((item) =>
@@ -85,17 +106,20 @@ function createGuestWorkflowFixture() {
         return row;
       }),
     },
+    $queryRaw: vi.fn(async () => []),
     $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
   };
   const auditWriter = { write: vi.fn() };
+  const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
   const service = new GuestWorkflowService(
     prisma as any,
     auditWriter as any,
     new WorkflowCommandService(),
     new DocumentVaultService(),
+    staffingReader as any,
   );
 
-  return { service, state, prisma, auditWriter };
+  return { service, state, prisma, auditWriter, staffingReader };
 }
 
 beforeEach(() => {
@@ -220,7 +244,10 @@ describe('GuestWorkflowService', () => {
     const checkIns: any[] = [];
     const tx = {
       $queryRaw: vi.fn(),
-      opsEvent: { findFirst: vi.fn(async () => ({ id: 'evt_sample', archived: false })) },
+      opsEvent: {
+        findFirst: vi.fn(async () => ({ id: 'evt_sample', archived: false })),
+        findUnique: vi.fn(async () => ({ id: 'evt_sample', archived: false })),
+      },
       opsGuestRosterEntry: {
         findFirst: vi.fn(async ({ where }: any) => roster.find((entry) => entry.id === where.id && entry.eventId === where.eventId && entry.withdrawnAt === null && entry.eligibility === 'eligible') ?? null),
         update: vi.fn(async ({ where, data }: any) => Object.assign(roster.find((entry) => entry.id === where.id)!, data)),
@@ -231,7 +258,8 @@ describe('GuestWorkflowService', () => {
       },
     };
     const prisma = { $transaction: async (work: (context: typeof tx) => Promise<unknown>) => work(tx) };
-    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), new DocumentVaultService());
+    const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
+    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), new DocumentVaultService(), staffingReader as any);
 
     const first = await service.checkInRosterEntry('evt_sample', 'gre_one', { name: 'Registration', role: 'coordinator' });
     const second = await service.checkInRosterEntry('evt_sample', 'gre_two', { name: 'Registration', role: 'coordinator' });
@@ -239,6 +267,192 @@ describe('GuestWorkflowService', () => {
     expect([first.rosterEntryId, second.rosterEntryId]).toEqual(['gre_one', 'gre_two']);
     expect(checkIns).toHaveLength(2);
     expect(roster.map((entry) => entry.checkedInAt)).toEqual([expect.any(Date), expect.any(Date)]);
+  });
+
+  it('limits registration coordinator search to minimal guest details', async () => {
+    const findMany = vi.fn(async () => [{
+      id: 'gre_1', eventId: 'evt_1', guestName: 'Mia Santos', category: 'VIP', table: 'A1', eligibility: 'eligible',
+      verificationStatus: 'pending', checkedInAt: null, email: 'private@example.test', phone: '+63900000000',
+    }]);
+    const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_1', role: 'Registration Staff', status: 'acknowledged' })) };
+    const service = new GuestWorkflowService(
+      { opsGuestRosterEntry: { findMany } } as any,
+      { write: vi.fn() } as any,
+      new WorkflowCommandService(),
+      new DocumentVaultService(),
+      staffingReader as any,
+    );
+    const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Mia Registration', role: 'coordinator' };
+
+    await expect(service.searchCoordinatorRoster('evt_1', actor, { query: 'Mia' })).resolves.toEqual([{
+      id: 'gre_1', eventId: 'evt_1', guestName: 'Mia Santos', category: 'VIP', table: 'A1', eligibility: 'eligible',
+      verificationStatus: 'pending', checkedInAt: null, walkIn: false,
+    }]);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      select: { id: true, eventId: true, guestName: true, category: true, table: true, eligibility: true, verificationStatus: true, checkedInAt: true, source: true },
+    }));
+  });
+
+  it('keeps guest contact details out of coordinator verification responses', async () => {
+    const row = {
+      id: 'gre_1', eventId: 'evt_1', sourceKey: 'source_1', guestName: 'Mia Santos', email: 'private@example.test', phone: '+63900000000',
+      category: 'VIP', table: 'A1', eligibility: 'eligible', verificationStatus: 'pending', source: 'PMCM', importBatchId: null,
+      checkedInAt: null, withdrawnAt: null, createdAt: new Date('2026-10-01T00:00:00.000Z'), updatedAt: new Date('2026-10-01T00:00:00.000Z'),
+    };
+    const tx = {
+      $queryRaw: vi.fn(),
+      opsEvent: { findUnique: vi.fn(async () => ({ archived: false })) },
+      opsGuestRosterEntry: {
+        findFirst: vi.fn(async () => row),
+        update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...row, ...data })),
+      },
+    };
+    const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_1', role: 'Registration Staff', status: 'acknowledged' })) };
+    const service = new GuestWorkflowService(
+      { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) } as any,
+      { write: vi.fn() } as any,
+      new WorkflowCommandService(),
+      new DocumentVaultService(),
+      staffingReader as any,
+    );
+
+    await expect(service.updateVerification('evt_1', 'gre_1', { status: 'verified' }, {
+      id: 'usr_coord', email: 'coord@example.test', name: 'Registration Staff', role: 'coordinator',
+    })).resolves.toEqual({
+      id: 'gre_1', eventId: 'evt_1', guestName: 'Mia Santos', category: 'VIP', table: 'A1', eligibility: 'eligible',
+      verificationStatus: 'verified', checkedInAt: null, walkIn: false,
+    });
+  });
+
+  it('denies coordinators outside a registration assignment before roster reads or writes', async () => {
+    const findMany = vi.fn();
+    const transaction = vi.fn();
+    const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_1', role: 'Usher', status: 'acknowledged' })) };
+    const service = new GuestWorkflowService(
+      { opsGuestRosterEntry: { findMany }, $transaction: transaction } as any,
+      { write: vi.fn() } as any,
+      new WorkflowCommandService(),
+      new DocumentVaultService(),
+      staffingReader as any,
+    );
+    const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Usher', role: 'coordinator' };
+
+    await expect(service.searchCoordinatorRoster('evt_1', actor)).rejects.toThrow('Registration role');
+    await expect(service.checkInRosterEntry('evt_1', 'gre_1', actor)).rejects.toThrow('Registration role');
+    await expect(service.updateVerification('evt_1', 'gre_1', { status: 'verified' }, actor)).rejects.toThrow('Registration role');
+    expect(findMany).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('serializes verification rejection with check-in and prevents rejecting an already checked-in guest', async () => {
+    const { service, state, prisma } = createGuestWorkflowFixture();
+    const actor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
+    const roster = {
+      id: 'gre_race', eventId: 'evt_sample', sourceKey: 'race-1', guestName: 'Mia Santos', normalizedName: 'mia santos',
+      email: '', phone: '', category: 'VIP', table: 'A1', eligibility: 'eligible', verificationStatus: 'pending',
+      source: 'PMCM', importBatchId: null, checkedInAt: null, withdrawnAt: null,
+    };
+    state.guestRoster.push(roster);
+
+    await service.checkInRosterEntry('evt_sample', roster.id, actor);
+    await expect(service.updateVerification('evt_sample', roster.id, { status: 'rejected' }, actor)).rejects.toThrow(
+      'cannot change after check-in',
+    );
+
+    expect(roster.verificationStatus).toBe('pending');
+    expect(roster.checkedInAt).toBeInstanceOf(Date);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+
+    const rejectedRoster = { ...roster, id: 'gre_rejected', sourceKey: 'rejected-1', checkedInAt: null, verificationStatus: 'pending' };
+    state.guestRoster.push(rejectedRoster);
+    await service.updateVerification('evt_sample', rejectedRoster.id, { status: 'rejected' }, actor);
+    await expect(service.checkInRosterEntry('evt_sample', rejectedRoster.id, actor)).rejects.toThrow('verification was rejected');
+    expect(rejectedRoster.checkedInAt).toBeNull();
+  });
+
+  it('keeps archived registration records readable and rejects writes after the event lock', async () => {
+    const { service, state, prisma, auditWriter } = createGuestWorkflowFixture();
+    const actor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
+    const roster = await service.registerWalkIn('evt_sample', { guestName: 'Historical Guest', privacyConsentAccepted: true }, actor);
+    vi.clearAllMocks();
+    // Archive wins while verification waits for the event lock.
+    prisma.$queryRaw.mockImplementation(async () => {
+      state.events[0].archived = true;
+      return [];
+    });
+
+    await expect(service.updateVerification('evt_sample', roster.id, { status: 'verified' }, actor)).rejects.toThrow('archived');
+    await expect(service.checkInRosterEntry('evt_sample', roster.id, actor)).rejects.toThrow('archived');
+    await expect(service.registerWalkIn('evt_sample', { guestName: 'New Guest', privacyConsentAccepted: true }, actor)).rejects.toThrow('archived');
+    await expect(service.searchCoordinatorRoster('evt_sample', actor)).resolves.toEqual([
+      expect.objectContaining({ id: roster.id, guestName: 'Historical Guest', verificationStatus: 'pending' }),
+    ]);
+    expect(prisma.opsGuestRosterEntry.update).not.toHaveBeenCalled();
+    expect(prisma.opsGuestRosterEntry.create).not.toHaveBeenCalled();
+    expect(prisma.opsGuestCheckIn.create).not.toHaveBeenCalled();
+    expect(auditWriter.write).not.toHaveBeenCalled();
+  });
+
+  it('keeps PMCM walk-in review actionable through the shared registration roster', async () => {
+    const { service, state, auditWriter, staffingReader } = createGuestWorkflowFixture();
+    const coordinator = { id: 'usr_registration', email: 'staff@example.test', name: 'Registration Staff', role: 'coordinator' };
+    const pmcm = { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' };
+
+    const walkIn = await service.registerWalkIn('evt_sample', { guestName: 'Walk-In Guest', privacyConsentAccepted: true }, coordinator);
+
+    expect(walkIn).toMatchObject({
+      eventId: 'evt_sample', guestName: 'Walk-In Guest', category: 'Walk-in', eligibility: 'eligible',
+      verificationStatus: 'pending', checkedInAt: null, walkIn: true,
+    });
+    expect(state.guestRoster).toHaveLength(1);
+    expect(state.guestCheckIns).toHaveLength(1);
+    expect(staffingReader.findAssignmentForEventActor).toHaveBeenCalledWith('evt_sample', coordinator);
+    expect(auditWriter.write).toHaveBeenCalledOnce();
+    expect(auditWriter.write.mock.calls[0]?.[0]).toMatchObject({
+      actor: 'Registration Staff', actorRole: 'coordinator', eventId: 'evt_sample', affectedType: 'guest_roster_entry',
+      metadata: { privacyConsentAccepted: true },
+    });
+
+    await service.updateVerification('evt_sample', walkIn.id, { status: 'verified' }, pmcm);
+    const checkIn = await service.checkInRosterEntry('evt_sample', walkIn.id, coordinator);
+    expect(checkIn).toMatchObject({
+      eventId: 'evt_sample', guestName: 'Walk-In Guest', rosterEntryId: walkIn.id,
+      checkInMode: 'walk_in', walkIn: true, verificationStatus: 'verified', privacyConsentAccepted: true,
+    });
+    expect(state.guestRoster[0]?.checkedInAt).toBeInstanceOf(Date);
+  });
+
+  it.each([
+    ['closed', 'Walk-in registration is closed for this event'],
+    ['threshold', 'Walk-in registration threshold has been reached for this event'],
+  ])('requires available walk-in policy before adding a coordinator walk-in when %s', async (mode, message) => {
+    const { service, state } = createGuestWorkflowFixture();
+    if (mode === 'closed') state.events[0].walkInPolicy = 'closed';
+    else {
+      state.events[0].walkInPolicy = 'threshold';
+      state.events[0].walkInThreshold = 1;
+    }
+
+    await expect(service.registerWalkIn('evt_sample', {
+      guestName: 'Walk-In Guest', privacyConsentAccepted: true,
+    }, { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' })).rejects.toThrow(message);
+    expect(state.guestRoster).toHaveLength(0);
+  });
+
+  it('reserves the coordinator walk-in source from roster imports', async () => {
+    const transaction = vi.fn();
+    const service = new GuestWorkflowService(
+      { $transaction: transaction } as any,
+      { write: vi.fn() } as any,
+      new WorkflowCommandService(),
+      new DocumentVaultService(),
+      { findAssignmentForEventActor: vi.fn() } as any,
+    );
+
+    await expect(service.importRoster('evt_1', { source: ' Coordinator-Walk-In ', rows: [] } as any, {
+      id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin',
+    })).rejects.toThrow('reserved roster source');
+    expect(transaction).not.toHaveBeenCalled();
   });
 
   it('maps guest event, check-in, and feedback payloads without PMCM-only fields', async () => {

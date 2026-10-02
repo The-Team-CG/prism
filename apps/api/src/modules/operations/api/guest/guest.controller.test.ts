@@ -52,4 +52,48 @@ describe('OpsGuestController', () => {
       'evt_sample',
     );
   });
+
+  it('uses the reduced roster projection for coordinator searches', async () => {
+    const actor = { id: 'usr_coord', email: 'reg@example.test', name: 'Registration Staff', role: OpsUserRole.Coordinator };
+    const guestWorkflowService = {
+      searchCoordinatorRoster: vi.fn(async () => [{ id: 'gre_1', guestName: 'Mia Santos' }]),
+      searchRoster: vi.fn(),
+    };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn(() => actor),
+      requireActorRole: vi.fn(async () => undefined),
+    };
+    const controller = new OpsGuestController(guestWorkflowService as any, eventAccessPolicyService as any);
+
+    await expect(controller.searchRosterWithFilters('evt_1', 'Mia', '', undefined, undefined, {} as any)).resolves.toEqual([
+      { id: 'gre_1', guestName: 'Mia Santos' },
+    ]);
+
+    expect(guestWorkflowService.searchCoordinatorRoster).toHaveBeenCalledWith('evt_1', actor, {
+      query: 'Mia', namePrefix: '', eligibility: undefined, checkedIn: undefined,
+    });
+    expect(guestWorkflowService.searchRoster).not.toHaveBeenCalled();
+  });
+
+  it('exposes the event-id walk-in route only to coordinator actors and records through the workflow service', async () => {
+    const actor = { id: 'usr_coord', email: 'reg@example.test', name: 'Registration Staff', role: OpsUserRole.Coordinator };
+    const guestWorkflowService = {
+      registerWalkIn: vi.fn(async () => ({ id: 'gre_1', eventId: 'evt_1', guestName: 'Walk-In', walkIn: true })),
+    };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn(() => actor),
+      requireActorRole: vi.fn(async () => undefined),
+    };
+    const controller = new OpsGuestController(guestWorkflowService as any, eventAccessPolicyService as any);
+    const input = { guestName: 'Walk-In', privacyConsentAccepted: true } as const;
+
+    await expect(controller.registerWalkIn('evt_1', input, {} as any)).resolves.toEqual({ id: 'gre_1', eventId: 'evt_1', guestName: 'Walk-In', walkIn: true });
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
+      actor,
+      [OpsUserRole.Coordinator],
+      'coordinator walk-in registration',
+      'evt_1',
+    );
+    expect(guestWorkflowService.registerWalkIn).toHaveBeenCalledWith('evt_1', input, actor);
+  });
 });

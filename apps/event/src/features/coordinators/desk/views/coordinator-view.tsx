@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, Home, BellRing, UserCheck, CalendarClock } from "lucide-react";
+import { ClipboardList, Home, BellRing, UserCheck, CalendarClock, ClipboardCheck } from "lucide-react";
 
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
@@ -23,6 +23,8 @@ import {
   CoordinatorRoleBadgeCard,
   CoordinatorRoleData,
 } from "./sections/coordinator-role-sections";
+import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
+import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";
 
 export function CoordinatorView({
   session,
@@ -46,13 +48,13 @@ export function CoordinatorView({
     attendanceStatus,
     busy,
     event,
-    registrationRole,
     roleDataStatus,
     roleView,
     roleViewError,
     roleViewLoading,
   } = vm;
 
+  const registrationRole = vm.registrationRole && !vm.readOnly;
   const roleName = assignment?.role ?? label(session.role);
 
   function scrollTo(id: string) {
@@ -77,6 +79,7 @@ export function CoordinatorView({
     },
     { id: "coord-attendance", icon: UserCheck, label: "Attendance", section: "Coordinator" },
     { id: "coord-timeline", icon: CalendarClock, label: "Timeline", section: "Coordinator" },
+    ...(registrationRole ? [{ id: "coord-registration", icon: ClipboardCheck, label: "Registration", section: "Coordinator" }] : []),
   ];
 
   return (
@@ -98,6 +101,8 @@ export function CoordinatorView({
       searchPlaceholder="Search tasks and issues..."
     >
       <div className="space-y-5">
+        {vm.readOnly ? <p role="status" className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">Archived event: operational records are read-only.</p> : null}
+        <fieldset disabled={vm.readOnly} className="min-w-0">
         <CoordinatorGreetingBanner
           event={event}
           assignment={assignment}
@@ -109,7 +114,14 @@ export function CoordinatorView({
           onDecline={vm.decline}
           onWithdraw={vm.withdraw}
         />
+        </fieldset>
         <CoordinatorBoundaryNotice />
+        <CoordinatorEventSwitcher
+          events={state.events}
+          assignments={vm.assignments}
+          selectedEventId={event?.id}
+          onSelect={vm.selectEvent}
+        />
         <CoordinatorStatusSummary
           activeDraft={activeDraft}
           roleViewLoading={roleViewLoading}
@@ -120,6 +132,7 @@ export function CoordinatorView({
           assignment={assignment}
         />
         <CoordinatorAssignmentHistory assignments={vm.assignments} />
+        <fieldset disabled={vm.readOnly} className="min-w-0 space-y-5">
         <CoordinatorEventDayActions
           assignment={assignment}
           busy={busy}
@@ -152,6 +165,8 @@ export function CoordinatorView({
           taskActions={vm.taskActions}
           operatorActions={vm.operatorActions}
         />
+        {registrationRole && event ? <CoordinatorRegistrationDesk key={event.id} eventId={event.id} /> : null}
+        </fieldset>
       </div>
     </PrismDashboardShell>
   );

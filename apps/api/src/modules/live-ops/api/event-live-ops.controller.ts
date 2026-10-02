@@ -8,6 +8,7 @@ import {
   decideEventTaskReassignmentSchema,
   createUrgentIssueSchema,
   escalateLiveOpsRecordSchema,
+  escalateEventDayTaskSchema,
   replaceCoordinatorAssignmentSchema,
   updateCoordinatorAttendanceSchema,
   updateEventDayTaskSchema,
@@ -25,6 +26,7 @@ import {
   type DecideEventTaskReassignmentInput,
   type CreateUrgentIssueInput,
   type EscalateLiveOpsInput,
+  type EscalateEventDayTaskInput,
   type ReplaceCoordinatorAssignmentInput,
   type UpdateCoordinatorAttendanceInput,
   type UpdateEventDayTaskInput,
@@ -103,6 +105,12 @@ export class EventLiveOpsController {
     return this.scheduleService!.createHandoff(eventId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
+  @Get(':eventId/handoffs')
+  @UseGuards(EventSessionGuard)
+  listHandoffs(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.scheduleService!.listHandoffs(eventId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
   @Get(':eventId/eod-reports')
   @UseGuards(EventSessionGuard)
   listEodReports(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
@@ -173,7 +181,7 @@ export class EventLiveOpsController {
   escalateEventDayTask(
     @Param('eventId') eventId: string,
     @Param('taskId') taskId: string,
-    @Body(zodBody(escalateLiveOpsRecordSchema)) dto: EscalateLiveOpsInput,
+    @Body(zodBody(escalateEventDayTaskSchema)) dto: EscalateEventDayTaskInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);

@@ -28,6 +28,8 @@ import { CommercialWorkflowService } from './application/quotes/commercial-workf
 import { PrismaQuoteSupplierResolver } from './application/quotes/prisma-quote-supplier-resolver.service';
 import { SupplierApplicationService } from './application/suppliers/supplier-application.service';
 import { SupplierNetworkWorkflowService } from './application/suppliers/supplier-network-workflow.service';
+import { SupplierIngressLateMonitorService } from './application/suppliers/supplier-ingress-late-monitor.service';
+import { SupplierIngressLateScheduler } from './application/suppliers/supplier-ingress-late.scheduler';
 import { SupplierProfileCommandsService } from './application/suppliers/supplier-profile-commands.service';
 import { SuppliersService } from './application/suppliers/suppliers.service';
 import { BillingOperationsService } from './application/billing/billing-operations.service';
@@ -108,6 +110,8 @@ const supplierCommandsProvider = {
     supplierDirectoryProvider,
     SupplierProfileCommandsService,
     SupplierNetworkWorkflowService,
+    SupplierIngressLateMonitorService,
+    SupplierIngressLateScheduler,
     supplierCommandsProvider,
     { provide: SUPPLIER_DOCUMENT_VAULT, useExisting: DOCUMENT_VAULT },
     BillingOperationsService,

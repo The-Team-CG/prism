@@ -1,11 +1,13 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { describe, expect, it } from 'vitest';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { CoordinatorsService } from './coordinators.service';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
+import { CoordinatorReliabilityNoteWriterService } from './coordinator-reliability-note-writer.service';
+import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 
 const event = {
   id: 'evt_main',
@@ -43,7 +45,7 @@ function createAccessPolicy() {
   };
 }
 
-function createPrisma() {
+function createPrisma(coverageRequirements: { role: string; requiredSkills: string[] }[] = [], archived = false) {
   const assignments: any[] = [
     {
       id: 'coord_asg_conflict',
@@ -65,11 +67,13 @@ function createPrisma() {
   const audits: any[] = [];
   const availability: any[] = [];
   const acknowledgments: any[] = [];
+  const reliabilityNotes: any[] = [];
   const transactionCalls: string[] = [];
   const queryOrder: string[] = [];
 
   const prisma = {
-    opsEvent: { findUnique: async () => event },
+    opsEvent: { findUnique: async () => ({ ...event, archived }) },
+    opsEventCoverageRequirement: { findMany: async () => coverageRequirements },
     opsCoordinator: {
       findUnique: async () => coordinator,
       findMany: async () => [coordinator],
@@ -91,6 +95,13 @@ function createPrisma() {
           if (where?.endsAt?.gt && row.endsAt <= where.endsAt.gt) return false;
           return true;
         }),
+      groupBy: async ({ where }: { where?: { coordinatorId?: { in?: string[] }; startsAt?: { lt?: Date }; endsAt?: { gt?: Date } } } = {}) =>
+        availability.filter((row) => {
+          if (where?.coordinatorId?.in && !where.coordinatorId.in.includes(row.coordinatorId)) return false;
+          if (where?.startsAt?.lt && row.startsAt >= where.startsAt.lt) return false;
+          if (where?.endsAt?.gt && row.endsAt <= where.endsAt.gt) return false;
+          return true;
+        }).map((row) => ({ coordinatorId: row.coordinatorId })),
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: new Date() };
         availability.push(row);
@@ -105,14 +116,48 @@ function createPrisma() {
         }
         return assignments[0] ?? null;
       },
-      findMany: async ({ where }: { where?: { eventId?: string; coordinatorId?: string; coordinatorName?: string; status?: { notIn?: string[] } } } = {}) =>
-        assignments.filter((assignment) => {
+      findMany: async ({ where, take }: {
+        where?: {
+          eventId?: string;
+          id?: { gt?: string };
+          coordinatorId?: string;
+          coordinatorName?: string;
+          status?: { notIn?: string[]; in?: string[] };
+          OR?: Array<{
+            eventDate?: { gte?: Date; lt?: Date } | null;
+            event?: { is?: { eventDate?: { gte?: Date; lt?: Date } } };
+          }>;
+        };
+        take?: number;
+      } = {}) => assignments.filter((assignment) => {
           if (where?.eventId && assignment.eventId !== where.eventId) return false;
+          if (where?.id?.gt && assignment.id <= where.id.gt) return false;
           if (where?.coordinatorId && assignment.coordinatorId !== where.coordinatorId) return false;
           if (where?.coordinatorName && assignment.coordinatorName !== where.coordinatorName) return false;
           if (where?.status?.notIn?.includes(assignment.status)) return false;
+          if (where?.status?.in && !where.status.in.includes(assignment.status)) return false;
+          if (where?.OR) {
+            const matchesWindow = where.OR.some((condition) => {
+              if (condition.eventDate === null && assignment.eventDate !== null) return false;
+              const date = condition.eventDate === null ? assignment.event?.eventDate : assignment.eventDate;
+              const range = condition.eventDate === null ? condition.event?.is?.eventDate : condition.eventDate;
+              return Boolean(
+                date && range &&
+                (!range.gte || date >= range.gte) &&
+                (!range.lt || date < range.lt),
+              );
+            });
+            if (!matchesWindow) return false;
+          }
           return true;
-        }),
+        }).sort((left, right) => left.id.localeCompare(right.id)).slice(0, take ?? Number.MAX_SAFE_INTEGER),
+      groupBy: async ({ where }: {
+        where?: { coordinatorId?: { in?: string[] }; eventDate?: Date; status?: { notIn?: string[] } };
+      } = {}) => assignments
+        .filter((assignment) => !where?.coordinatorId?.in || where.coordinatorId.in.includes(assignment.coordinatorId))
+        .filter((assignment) => !where?.eventDate || assignment.eventDate.getTime() === where.eventDate.getTime())
+        .filter((assignment) => !where?.status?.notIn?.includes(assignment.status))
+        .map((assignment) => ({ coordinatorId: assignment.coordinatorId })),
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: new Date(), event };
         assignments.push(row);
@@ -129,6 +174,13 @@ function createPrisma() {
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: new Date() };
         acknowledgments.push(row);
+        return row;
+      },
+    },
+    opsCoordinatorReliabilityNote: {
+      create: async ({ data }: { data: any }) => {
+        const row = { ...data, createdAt: new Date() };
+        reliabilityNotes.push(row);
         return row;
       },
     },
@@ -170,6 +222,7 @@ function createPrisma() {
     audits,
     availability,
     acknowledgments,
+    reliabilityNotes,
     transactionCalls,
     queryOrder,
     prisma,
@@ -192,6 +245,8 @@ function createService(prisma: any, accessPolicy: any = createAccessPolicy()) {
     writers.notificationWriter,
     new WorkflowCommandService(new PrismTransactionRunner(prisma)),
     accessPolicy,
+    new CoordinatorSuggestionsService(prisma),
+    new CoordinatorReliabilityNoteWriterService(prisma),
   );
 }
 
@@ -201,6 +256,222 @@ function createReaderService(prisma: any, accessPolicy: any = createAccessPolicy
 }
 
 describe('Coordinator staffing workflows', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  describe('acknowledgement reminder scheduling', () => {
+    it('queues one idempotent reminder for pending assignments within the configured lead window', async () => {
+      vi.stubEnv('PRISM_COORDINATOR_ACKNOWLEDGEMENT_LEAD_TIME_DAYS', '7');
+      const fake = createPrisma();
+      const now = new Date('2026-10-02T08:30:00.000Z');
+      const dueAssignment = {
+        id: 'coord_asg_due',
+        eventId: 'evt_due',
+        eventDate: new Date('2026-10-09T00:00:00.000Z'),
+        status: CoordinatorAssignmentStatus.PendingAcknowledgement,
+        role: 'Floor Director',
+        coordinatorName: 'Marco Santos',
+        coordinator: { email: 'marco@pmcm.test' },
+        event: { eventName: 'Upcoming Event', eventDate: new Date('2026-10-09T00:00:00.000Z') },
+      };
+      fake.assignments.push(
+        dueAssignment,
+        { ...dueAssignment, id: 'coord_asg_today', eventDate: new Date('2026-10-02T00:00:00.000Z') },
+        {
+          ...dueAssignment,
+          id: 'coord_asg_legacy_null_date',
+          eventDate: null,
+          event: { eventName: 'Upcoming Event', eventDate: new Date('2026-10-09T00:00:00.000Z') },
+        },
+        { ...dueAssignment, id: 'coord_asg_too_late', eventDate: new Date('2026-10-01T00:00:00.000Z') },
+        { ...dueAssignment, id: 'coord_asg_too_early', eventDate: new Date('2026-10-10T00:00:00.000Z') },
+        { ...dueAssignment, id: 'coord_asg_acknowledged', status: CoordinatorAssignmentStatus.Acknowledged },
+      );
+      const service = createReaderService(fake.prisma as any);
+
+      const result = await service.enqueueAcknowledgementReminders(undefined, {
+        role: OpsUserRole.System,
+        name: 'Scheduler',
+        explicit: true,
+      }, now);
+
+      expect(result.leadTimeDays).toBe(7);
+      expect(result.reminders).toHaveLength(3);
+      expect(result.reminders.map((reminder) => reminder.assignmentId).sort()).toEqual([
+        'coord_asg_due',
+        'coord_asg_legacy_null_date',
+        'coord_asg_today',
+      ]);
+      expect(result.reminders).toEqual(expect.arrayContaining([
+        expect.objectContaining({ assignmentId: 'coord_asg_due', status: 'queued' }),
+        expect.objectContaining({ assignmentId: 'coord_asg_legacy_null_date', status: 'queued' }),
+        expect.objectContaining({ assignmentId: 'coord_asg_today', status: 'queued' }),
+      ]));
+      expect(fake.notifications).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          eventId: 'evt_due',
+          recipient: 'marco@pmcm.test',
+          idempotencyKey: 'coord-ack-reminder:coord_asg_today:2026-10-02',
+        }),
+        expect.objectContaining({
+          eventId: 'evt_due',
+          recipient: 'marco@pmcm.test',
+          idempotencyKey: 'coord-ack-reminder:coord_asg_due:2026-10-09',
+        }),
+        expect.objectContaining({
+          eventId: 'evt_due',
+          recipient: 'marco@pmcm.test',
+          idempotencyKey: 'coord-ack-reminder:coord_asg_legacy_null_date:2026-10-09',
+        }),
+      ]));
+    });
+
+    it('continues through bounded pages so later assignments receive reminders', async () => {
+      vi.stubEnv('PRISM_COORDINATOR_ACKNOWLEDGEMENT_LEAD_TIME_DAYS', '7');
+      const fake = createPrisma();
+      const now = new Date('2026-10-02T00:00:00.000Z');
+      for (let index = 0; index < 501; index += 1) {
+        fake.assignments.push({
+          id: `coord_asg_${String(index).padStart(3, '0')}`,
+          eventId: 'evt_due',
+          eventDate: new Date('2026-10-09T00:00:00.000Z'),
+          status: CoordinatorAssignmentStatus.PendingAcknowledgement,
+          role: 'Floor Director',
+          coordinatorName: `Coordinator ${index}`,
+          coordinator: { email: `coordinator-${index}@pmcm.test` },
+          event: { eventName: 'Upcoming Event', eventDate: new Date('2026-10-09T00:00:00.000Z') },
+        });
+      }
+      const service = createReaderService(fake.prisma as any);
+
+      const result = await service.enqueueAcknowledgementReminders(undefined, {
+        role: OpsUserRole.System,
+        name: 'Scheduler',
+        explicit: true,
+      }, now);
+
+      expect(result.reminders).toHaveLength(501);
+      expect(fake.notifications).toHaveLength(501);
+    });
+  });
+
+  describe('upsertCoverageRequirement legacy role mapping', () => {
+    it('renames the existing historical target atomically and preserves its identity', async () => {
+      const coverageTargets = [{
+        id: 'coverage_legacy',
+        eventId: event.id,
+        role: 'Volunteer Lead',
+        required: 1,
+        requiredSkills: ['crowd flow'],
+        createdBy: 'original admin',
+        updatedBy: 'original admin',
+      }];
+      const prisma = {
+        opsEvent: { findUnique: async () => event },
+        opsEventCoverageRequirement: {
+          findUnique: async ({ where }: { where: { eventId_role: { eventId: string; role: string } } }) =>
+            coverageTargets.find((target) => target.eventId === where.eventId_role.eventId && target.role === where.eventId_role.role) ?? null,
+          update: async ({ where, data }: { where: { id: string }; data: Partial<(typeof coverageTargets)[number]> }) => {
+            const target = coverageTargets.find((item) => item.id === where.id);
+            if (!target) throw new Error('Coverage target not found');
+            Object.assign(target, data);
+            return target;
+          },
+        },
+        $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
+      };
+      const service = createReaderService(prisma);
+
+      const result = await service.upsertCoverageRequirement(event.id, {
+        role: 'Usher',
+        mapFromRole: 'Volunteer Lead',
+        required: 2,
+        requiredSkills: ['registration'],
+      }, pmcmAdminActor);
+
+      expect(result).toMatchObject({
+        id: 'coverage_legacy',
+        role: 'Usher',
+        required: 2,
+        requiredSkills: ['registration'],
+        createdBy: 'original admin',
+        updatedBy: pmcmAdminActor.name,
+      });
+      expect(coverageTargets).toHaveLength(1);
+    });
+
+    it('rejects mapping over an existing catalog target without changing either row', async () => {
+      const coverageTargets = [
+        { id: 'coverage_legacy', eventId: event.id, role: 'Volunteer Lead', required: 1, requiredSkills: ['crowd flow'] },
+        { id: 'coverage_catalog', eventId: event.id, role: 'Usher', required: 3, requiredSkills: ['guest flow'] },
+      ];
+      let updateCount = 0;
+      const prisma = {
+        opsEvent: { findUnique: async () => event },
+        opsEventCoverageRequirement: {
+          findUnique: async ({ where }: { where: { eventId_role: { eventId: string; role: string } } }) =>
+            coverageTargets.find((target) => target.eventId === where.eventId_role.eventId && target.role === where.eventId_role.role) ?? null,
+          update: async () => {
+            updateCount += 1;
+            throw new Error('Unexpected update');
+          },
+        },
+        $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
+      };
+      const service = createReaderService(prisma);
+
+      await expect(service.upsertCoverageRequirement(event.id, {
+        role: 'Usher',
+        mapFromRole: 'Volunteer Lead',
+        required: 2,
+        requiredSkills: ['registration'],
+      }, pmcmAdminActor)).rejects.toBeInstanceOf(ConflictException);
+      expect(updateCount).toBe(0);
+      expect(coverageTargets[0].role).toBe('Volunteer Lead');
+      expect(coverageTargets[1]).toMatchObject({ required: 3, requiredSkills: ['guest flow'] });
+    });
+
+    it('rejects an actor without PMCM coverage rights', async () => {
+      const service = createReaderService({} as never);
+
+      await expect(service.upsertCoverageRequirement(event.id, {
+        role: 'Usher',
+        mapFromRole: 'Volunteer Lead',
+        required: 2,
+        requiredSkills: [],
+      }, coordinatorActor)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  it('uses the canonical role spelling when a historical coordinator tag differs only by formatting', async () => {
+    const fake = createPrisma();
+    fake.assignments.splice(0);
+    fake.prisma.opsCoordinator.findUnique = async () => ({ ...coordinator, roleTags: [' floor   director '] });
+    const service = createService(fake.prisma as any);
+
+    const assignment = await service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinator.id, overrideConflict: true },
+      pmcmAdminActor,
+    );
+
+    expect(assignment.role).toBe('Floor Director');
+  });
+
+  it('rejects an omitted role when a coordinator only has legacy non-catalog tags', async () => {
+    const fake = createPrisma();
+    fake.assignments.splice(0);
+    fake.prisma.opsCoordinator.findUnique = async () => ({ ...coordinator, roleTags: ['Volunteer Lead'] });
+    const service = createService(fake.prisma as any);
+
+    await expect(
+      service.assignCoordinator(event.id, { coordinatorId: coordinator.id, overrideConflict: true }, pmcmAdminActor),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(fake.assignments).toHaveLength(0);
+  });
+
   it('rejects assignments when declared unavailability overlaps any time on the event date', async () => {
     const fake = createPrisma();
     fake.availability.push({
@@ -248,7 +519,18 @@ describe('Coordinator staffing workflows', () => {
   });
 
   it('blocks a same-date conflict until PMCM overrides it', async () => {
-    const fake = createPrisma();
+    const fake = createPrisma([{
+      role: 'Floor Director',
+      requiredSkills: ['floorplan execution', 'registration'],
+    }]);
+    const replacementCandidate = {
+      ...coordinator,
+      id: 'coord_replacement',
+      name: 'Rhea Santos',
+      roleTags: ['Floor Director'],
+      skillsTags: ['floorplan execution'],
+    };
+    fake.prisma.opsCoordinator.findMany = async () => [coordinator, replacementCandidate];
     const service = createService(fake.prisma as any);
 
     await expect(
@@ -256,7 +538,15 @@ describe('Coordinator staffing workflows', () => {
     ).rejects.toMatchObject({
       response: expect.objectContaining({
         code: 'COORDINATOR_DOUBLE_BOOKING',
-        sameRoleSuggestions: [],
+        sameRoleSuggestions: [{
+          id: 'coord_replacement',
+          name: 'Rhea Santos',
+          role: 'Floor Director',
+          matchedSkills: ['floorplan execution'],
+          missingSkills: ['registration'],
+          matchedSkillCount: 1,
+          requiredSkillCount: 2,
+        }],
       }),
     });
 
@@ -374,6 +664,16 @@ describe('Coordinator staffing workflows', () => {
     expect(acknowledged.status).toBe('acknowledged');
     expect(acknowledged.acknowledgedAt).toBeTruthy();
     expect(fake.transactionCalls).toEqual(['same_tx', 'same_tx']);
+  });
+
+
+  it('prevents a coordinator from acknowledging or withdrawing an archived event assignment', async () => {
+    const fake = createPrisma([], true);
+    const service = createService(fake.prisma as never);
+    const created = await service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true }, pmcmAdminActor);
+    await expect(service.acknowledgeCoordinator(event.id, created.id, coordinatorActor)).rejects.toThrow('Archived coordinator events are read-only');
+    await expect(service.withdrawCoordinator(event.id, created.id, { reason: 'Unavailable' }, coordinatorActor)).rejects.toThrow('Archived coordinator events are read-only');
+    expect(fake.assignments.find((assignment) => assignment.id === created.id)?.status).toBe('pending_acknowledgement');
   });
 
   it('allows a Coordinator actor to acknowledge their own assignment (AC8 scoping decision)', async () => {
@@ -518,6 +818,14 @@ describe('Coordinator staffing workflows', () => {
       const withdrawn = await service.withdrawCoordinator(event.id, created.id, { reason: 'No longer available' }, pmcmAdminActor);
 
       expect(withdrawn.status).toBe('cancelled');
+      expect(fake.reliabilityNotes).toHaveLength(1);
+      expect(fake.reliabilityNotes[0]).toMatchObject({
+        eventId: event.id,
+        coordinatorId: coordinator.id,
+        assignmentId: created.id,
+        note: 'Marco Santos withdrew from Floor Director: No longer available',
+        severity: 'warning',
+      });
       expect(fake.notifications.length).toBeGreaterThan(0);
       expect(fake.audits.some((entry: any) => entry.action?.includes('Withdrew'))).toBe(true);
     });

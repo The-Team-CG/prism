@@ -78,6 +78,11 @@ export function createLiveOpsClient(
           actorPath(`/events/${eventId}/handoffs`, actor),
           withBase(options, { method: "POST", body: input }),
         ),
+      listHandoffs: (eventId, actor = {}) =>
+        prismRequest<PrismEventHandoff[]>(
+          actorPath(`/events/${eventId}/handoffs`, actor),
+          withBase(options),
+        ),
       listEodReports: (eventId, actor = {}) =>
         prismRequest<PrismEventEodReport[]>(
           actorPath(`/events/${eventId}/eod-reports`, actor),

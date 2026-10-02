@@ -67,6 +67,15 @@ export interface PrismCoordinatorAssignment {
   createdAt?: string;
 }
 
+export interface PrismCoordinatorSuggestion {
+  id: string;
+  name: string;
+  role: string;
+  matchedSkills: string[];
+  missingSkills: string[];
+  matchedSkillCount: number;
+  requiredSkillCount: number;
+}
 export interface PrismCoordinatorAssignmentAcknowledgment {
   id: string;
   assignmentId: string;
@@ -74,6 +83,29 @@ export interface PrismCoordinatorAssignmentAcknowledgment {
   reason: string;
   actor: string;
   createdAt: string;
+}
+
+export interface PrismCoordinatorReliabilityHistoryEntry {
+  id: string;
+  eventId: string | null;
+  eventName: string | null;
+  eventDate: string | null;
+  assignmentId: string | null;
+  assignmentRole: string | null;
+  note: string;
+  severity: string;
+  createdAt: string;
+}
+
+/** Aggregated staffing evidence used in a PMCM event insights card. */
+export interface PrismCoordinatorInsightFacts {
+  assignments: number;
+  awaitingAcknowledgement: number;
+  lateAttendance: number;
+  absentAttendance: number;
+  replacedAssignments: number;
+  cancelledAssignments: number;
+  reliabilityNotes: number;
 }
 
 export interface PrismCoordinator {
@@ -162,6 +194,19 @@ export interface PrismGuestRosterEntry {
   withdrawnAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** Minimal guest details exposed to assigned registration coordinators. */
+export interface PrismCoordinatorRegistrationEntry {
+  id: string;
+  eventId: string;
+  guestName: string;
+  category?: string | null;
+  table?: string | null;
+  eligibility: string;
+  verificationStatus: "pending" | "verified" | "rejected";
+  checkedInAt?: string | null;
+  walkIn: boolean;
 }
 
 export interface PrismGuestEventPass {
@@ -449,6 +494,7 @@ export interface PrismEventEodReport {
   dayId: string;
   authoredBy: string;
   authoredByRole: string;
+  canEdit: boolean;
   progress: string[];
   issues: string[];
   risksForTomorrow: string[];

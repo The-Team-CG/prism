@@ -1,15 +1,19 @@
-import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, Prisma } from '@prisma/client';
+import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import type { OpsEvent, OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
-import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
+import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { DOCUMENT_VAULT, type DocumentVault } from '@prism/contexts/event-lifecycle';
+import { STAFFING_READER } from '../../contracts/staffing-ops.tokens';
+import type { StaffingReader } from '../../contracts/staffing-reader.port';
 import type {
+  CoordinatorWalkInCheckInInput,
   CreateGuestFeedbackInput,
   GuestRosterSearchInput,
   ImportGuestRosterInput,
   ModerateGuestFeedbackInput,
+  PrismCoordinatorRegistrationEntry,
   PrismGuestRosterEntry,
   UpdateGuestVerificationInput,
   UploadMetadataInput,
@@ -35,6 +39,7 @@ export type GuestCheckInInput = {
 export type GuestFeedbackInput = CreateGuestFeedbackInput;
 
 export type GuestFeedbackModerator = { id?: string; name: string; email?: string; role: string };
+type GuestWorkflowActor = { id?: string; coordinatorId?: string; email?: string; name: string; role: string };
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'video/mp4'] as const;
@@ -50,6 +55,7 @@ export class GuestWorkflowService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
+    @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
   ) {}
 
   async getEventByAccessCode(accessCode: string) {
@@ -126,6 +132,61 @@ export class GuestWorkflowService {
   }
 
   async checkInByAccessCode(accessCode: string, input: GuestCheckInInput): Promise<OpsGuestCheckIn> {
+    return this.createCheckIn(() => this.resolveGuestEventByAccessCode(accessCode), input);
+  }
+
+  async registerWalkIn(eventId: string, input: CoordinatorWalkInCheckInInput, actor: GuestWorkflowActor) {
+    await this.requireRegistrationDeskAccess(eventId, actor);
+    const guestName = input.guestName.trim();
+    if (!guestName) throw new BadRequestException('Guest name is required');
+    this.requireCheckInConsent(input);
+
+    return this.prisma.$transaction(async (tx) => {
+      const correlationId = `coordinator_walkin_${randomUUID()}`;
+      await this.lockEvent({ prisma: tx, correlationId }, eventId);
+      const event = await tx.opsEvent.findFirst({ where: { id: eventId, archived: false } });
+      if (!event) throw new NotFoundException('Event not found or archived');
+      const checkedInCount = await tx.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } });
+      this.assertWalkInAllowed(event, checkedInCount);
+
+      const id = `gre_${randomUUID()}`;
+      const rosterEntry = await tx.opsGuestRosterEntry.create({
+        data: {
+          id,
+          eventId,
+          sourceKey: `coordinator-walk-in:${id}`,
+          guestName,
+          normalizedName: guestName.toLowerCase(),
+          category: 'Walk-in',
+          eligibility: 'eligible',
+          verificationStatus: 'pending',
+          source: 'coordinator-walk-in',
+        },
+      });
+      await writeAudit(this.auditWriter, eventId, actor.name, `Walk-in added to guest roster: ${guestName}`, {
+        actorRole: actor.role,
+        category: AuditCategory.Events,
+        actionType: AuditActionType.Create,
+        affectedType: 'guest_roster_entry',
+        affectedId: id,
+        affectedLabel: guestName,
+        metadata: {
+          walkIn: true,
+          verificationStatus: 'pending',
+          privacyConsentAccepted: input.privacyConsentAccepted,
+          privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+          actorId: actor.id,
+        },
+      }, { prisma: tx, correlationId, actorId: actor.id });
+      return this.mapCoordinatorRegistrationEntry(rosterEntry);
+    });
+  }
+
+  private async createCheckIn(
+    resolveEvent: () => Promise<EventWithDrafts>,
+    input: GuestCheckInInput,
+    actor?: { id?: string; name: string; role: string },
+  ): Promise<OpsGuestCheckIn> {
     let event: EventWithDrafts | null = null;
     let guestName = '';
     let checkInMode = 'name_search';
@@ -133,15 +194,20 @@ export class GuestWorkflowService {
     return this.workflowCommandService.execute<OpsGuestCheckIn>({
       name: 'guest_check_in',
       sideEffectMode: 'same_tx',
+      context: {
+        actorId: actor?.id ?? actor?.name ?? 'guest',
+        actorRole: actor?.role ?? OpsUserRole.Guest,
+        correlationId: `guest_check_in_${randomUUID()}`,
+      },
       validateState: async () => {
-        event = await this.resolveGuestEventByAccessCode(accessCode);
+        event = await resolveEvent();
         ({ guestName, checkInMode } = await this.validateCheckInState(event, input));
       },
       validateStateInTransaction: async (context) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
         await this.lockEvent(context, event.id);
         const currentEvent = await context.prisma.opsEvent.findUnique({ where: { id: event.id } });
-        if (!currentEvent) throw new NotFoundException('Guest event code was not found');
+        if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
         if (input.walkIn) {
           const checkedIn = await context.prisma.opsGuestCheckIn.count({ where: { eventId: event.id, status: 'checked_in' } });
           this.assertWalkInAllowed(currentEvent, checkedIn);
@@ -176,14 +242,14 @@ export class GuestWorkflowService {
       },
       sideEffects: async (checkIn, context) => {
         if (!event) return;
-        await writeAudit(this.auditWriter, event.id, guestName, `Guest checked in: ${guestName}`, {
-          actorRole: OpsUserRole.Guest,
+        await writeAudit(this.auditWriter, event.id, actor?.name ?? guestName, `Guest checked in: ${guestName}`, {
+          actorRole: actor?.role ?? OpsUserRole.Guest,
           category: AuditCategory.Events,
           actionType: AuditActionType.Update,
           affectedType: 'guest_check_in',
           affectedId: checkIn.id,
           affectedLabel: guestName,
-          metadata: { walkIn: Boolean(input.walkIn), checkInMode },
+          metadata: { walkIn: Boolean(input.walkIn), checkInMode, ...(actor ? { actorId: actor.id } : {}) },
         }, context);
       },
     });
@@ -260,6 +326,9 @@ export class GuestWorkflowService {
   }
 
   async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
+    if (input.source.trim().toLowerCase() === 'coordinator-walk-in') {
+      throw new BadRequestException('Coordinator walk-in is a reserved roster source');
+    }
     const batchId = `roster_${randomUUID()}`;
       return this.prisma.$transaction(async (tx) => {
       const event = await tx.opsEvent.findUnique({ where: { id: eventId } });
@@ -299,26 +368,55 @@ export class GuestWorkflowService {
     return rows.map((row) => this.mapGuestRosterEntry(row));
   }
 
-  async updateVerification(eventId: string, rosterEntryId: string, input: UpdateGuestVerificationInput, actor: { id?: string; name: string; role: string }) {
-    return this.prisma.$transaction(async (tx) => {
-      const roster = await tx.opsGuestRosterEntry.findFirst({ where: { id: rosterEntryId, eventId, withdrawnAt: null } });
-      if (!roster) throw new NotFoundException('Roster entry not found');
-      const updated = await tx.opsGuestRosterEntry.update({ where: { id: rosterEntryId }, data: { verificationStatus: input.status } });
-      await writeAudit(this.auditWriter, eventId, actor.name, `Guest verification changed: ${roster.guestName}`, { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster_verification', affectedId: rosterEntryId, affectedLabel: roster.guestName, metadata: { previousStatus: roster.verificationStatus, status: input.status, actorId: actor.id } }, { prisma: tx, correlationId: `roster_verify_${rosterEntryId}`, actorId: actor.id });
-      return this.mapGuestRosterEntry(updated);
+  async searchCoordinatorRoster(eventId: string, actor: GuestWorkflowActor, input: GuestRosterSearchInput = {}): Promise<PrismCoordinatorRegistrationEntry[]> {
+    await this.requireRegistrationDeskAccess(eventId, actor);
+    const query = input.namePrefix?.trim() || input.query?.trim() || '';
+    const where: Prisma.OpsGuestRosterEntryWhereInput = { eventId, withdrawnAt: null };
+    if (input.eligibility) where.eligibility = input.eligibility;
+    if (query) where.normalizedName = { startsWith: query.toLowerCase() };
+    if (input.checkedIn !== undefined) where.checkedInAt = input.checkedIn ? { not: null } : null;
+    const rows = await this.prisma.opsGuestRosterEntry.findMany({
+      where,
+      select: { id: true, eventId: true, guestName: true, category: true, table: true, eligibility: true, verificationStatus: true, checkedInAt: true, source: true },
+      orderBy: [{ normalizedName: 'asc' }, { id: 'asc' }],
+      take: MAX_GUEST_ROSTER_SEARCH,
     });
+    return rows.map((row) => this.mapCoordinatorRegistrationEntry(row));
   }
 
-  async checkInRosterEntry(eventId: string, rosterEntryId: string, actor: { id?: string; name: string; role: string }) {
+  async updateVerification(eventId: string, rosterEntryId: string, input: UpdateGuestVerificationInput, actor: GuestWorkflowActor) {
+    await this.requireRegistrationDeskAccess(eventId, actor);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await this.lockEvent({ prisma: tx, correlationId: `roster_verify_${rosterEntryId}` }, eventId);
+      const event = await tx.opsEvent.findUnique({ where: { id: eventId }, select: { archived: true } });
+      if (!event || event.archived) throw new NotFoundException('Event not found or archived');
+      const roster = await tx.opsGuestRosterEntry.findFirst({ where: { id: rosterEntryId, eventId, withdrawnAt: null } });
+      if (!roster) throw new NotFoundException('Roster entry not found');
+      if (roster.checkedInAt && input.status !== roster.verificationStatus) {
+        throw new BadRequestException('Guest verification cannot change after check-in');
+      }
+      const updated = await tx.opsGuestRosterEntry.update({ where: { id: rosterEntryId }, data: { verificationStatus: input.status } });
+      await writeAudit(this.auditWriter, eventId, actor.name, `Guest verification changed: ${roster.guestName}`, { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster_verification', affectedId: rosterEntryId, affectedLabel: roster.guestName, metadata: { previousStatus: roster.verificationStatus, status: input.status, actorId: actor.id } }, { prisma: tx, correlationId: `roster_verify_${rosterEntryId}`, actorId: actor.id });
+      return updated;
+    });
+    return actor.role === OpsUserRole.Coordinator
+      ? this.mapCoordinatorRegistrationEntry(updated)
+      : this.mapGuestRosterEntry(updated);
+  }
+
+  async checkInRosterEntry(eventId: string, rosterEntryId: string, actor: GuestWorkflowActor) {
+    await this.requireRegistrationDeskAccess(eventId, actor);
     return this.prisma.$transaction(async (tx) => {
       const event = await tx.opsEvent.findFirst({ where: { id: eventId, archived: false } });
       if (!event) throw new NotFoundException('Event not found or archived');
       await this.lockEvent({ prisma: tx, correlationId: `roster_checkin_${rosterEntryId}` }, eventId);
+      const currentEvent = await tx.opsEvent.findUnique({ where: { id: eventId } });
+      if (!currentEvent || currentEvent.archived) throw new NotFoundException('Event not found or archived');
       const roster = await tx.opsGuestRosterEntry.findFirst({
         where: { id: rosterEntryId, eventId, withdrawnAt: null, eligibility: 'eligible' },
       });
       if (!roster) throw new BadRequestException('Roster entry is not eligible for check-in');
-      if (roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry verification was rejected');
+      const walkIn = await this.requireRosterCheckInEligibility(tx, currentEvent, roster);
       const existing = await tx.opsGuestCheckIn.findFirst({
         where: { eventId, rosterEntryId, status: 'checked_in' },
       });
@@ -329,12 +427,12 @@ export class GuestWorkflowService {
           eventId,
           rosterEntryId,
           guestName: roster.guestName,
-          checkInMode: 'roster',
+          checkInMode: walkIn ? 'walk_in' : 'roster',
           status: 'checked_in',
-          walkIn: false,
+          walkIn,
           verificationStatus: 'verified',
-          privacyConsentAccepted: false,
-          privacyNoticeVersion: '',
+          privacyConsentAccepted: walkIn,
+          privacyNoticeVersion: walkIn ? PRISM_PRIVACY_NOTICE_VERSION : '',
           marketingConsentAccepted: false,
         },
       });
@@ -346,10 +444,23 @@ export class GuestWorkflowService {
         affectedType: 'guest_check_in',
         affectedId: checkIn.id,
         affectedLabel: roster.guestName,
-        metadata: { rosterEntryId, checkInMode: 'roster', actorId: actor.id },
+        metadata: { rosterEntryId, checkInMode: walkIn ? 'walk_in' : 'roster', actorId: actor.id },
       }, { prisma: tx, correlationId: `roster_checkin_${rosterEntryId}` });
       return checkIn;
     });
+  }
+
+  private async requireRosterCheckInEligibility(tx: Prisma.TransactionClient, event: OpsEvent, roster: OpsGuestRosterEntry) {
+      if (roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry verification was rejected');
+      const walkIn = roster.source === 'coordinator-walk-in';
+      if (walkIn && roster.verificationStatus !== 'verified') {
+        throw new BadRequestException('Walk-in must be verified before check-in');
+      }
+      if (walkIn) {
+        const checkedInCount = await tx.opsGuestCheckIn.count({ where: { eventId: event.id, status: 'checked_in' } });
+        this.assertWalkInAllowed(event, checkedInCount);
+      }
+      return walkIn;
   }
 
   async withdrawFeedbackConsentByAccessCode(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput) {
@@ -506,6 +617,22 @@ export class GuestWorkflowService {
     await context.prisma.$queryRaw`SELECT id FROM event_core.events WHERE id = ${eventId} FOR UPDATE`;
   }
 
+  private async requireRegistrationDeskAccess(eventId: string, actor: GuestWorkflowActor) {
+    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return;
+    if (actor.role !== OpsUserRole.Coordinator) {
+      throw new ForbiddenException('Only PMCM or assigned Registration Staff may access the guest registration desk');
+    }
+    const assignment = await this.staffingReader.findAssignmentForEventActor(eventId, actor);
+    const inactiveStatuses: readonly string[] = INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES;
+    const inactive = assignment && (
+      inactiveStatuses.includes(assignment.status)
+      || assignment.status === CoordinatorAssignmentStatus.Declined
+    );
+    if (!assignment || inactive || !/\bregistration\b/i.test(assignment.role)) {
+      throw new ForbiddenException('Only coordinators assigned to a Registration role may access guest registration');
+    }
+  }
+
   mapGuestEvent(event: EventWithDrafts, attendanceCount = 0) {
     const floorPlanDrafts = event.floorPlanDrafts ?? [];
     const activeDraft =
@@ -544,6 +671,20 @@ export class GuestWorkflowService {
       privacyNoticeVersion: (checkIn as any).privacyNoticeVersion ?? '',
       marketingConsentAccepted: (checkIn as any).marketingConsentAccepted ?? false,
       checkedInAt: checkIn.checkedInAt.toISOString(),
+    };
+  }
+
+  private mapCoordinatorRegistrationEntry(entry: Pick<OpsGuestRosterEntry, 'id' | 'eventId' | 'guestName' | 'category' | 'table' | 'eligibility' | 'verificationStatus' | 'checkedInAt' | 'source'>): PrismCoordinatorRegistrationEntry {
+    return {
+      id: entry.id,
+      eventId: entry.eventId,
+      guestName: entry.guestName,
+      category: entry.category,
+      table: entry.table,
+      eligibility: entry.eligibility,
+      verificationStatus: entry.verificationStatus as PrismCoordinatorRegistrationEntry['verificationStatus'],
+      checkedInAt: entry.checkedInAt?.toISOString() ?? null,
+      walkIn: entry.source === 'coordinator-walk-in',
     };
   }
 

@@ -20,6 +20,7 @@ import type {
   CreateUrgentIssueInput,
   DecideEventTaskReassignmentInput,
   EscalateLiveOpsInput,
+  EscalateEventDayTaskInput,
   PrismEventTaskReassignmentRequest,
   UpdateEventDayTaskInput,
   UpdateUrgentIssueInput,
@@ -404,7 +405,7 @@ export class LiveOpsTaskIssueCommandService {
     });
   }
 
-  async escalateEventDayTask(eventId: string, taskId: string, input: EscalateLiveOpsInput, actor: LiveOpsActor) {
+  async escalateEventDayTask(eventId: string, taskId: string, input: EscalateEventDayTaskInput, actor: LiveOpsActor) {
     const prisma = this.requirePrisma();
     const auditWriter = this.requireAuditWriter();
     const notificationOutboxWriter = this.requireNotificationOutboxWriter();

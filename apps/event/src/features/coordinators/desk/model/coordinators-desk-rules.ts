@@ -1,9 +1,12 @@
 import type {
+  CoordinatorRole,
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   PrismAcknowledgementReminderResult,
+  PrismCoordinator,
   UpdateCoordinatorAttendanceInput,
 } from "@prism/types";
+import { COORDINATOR_ROLES, canonicalCoordinatorRole } from "@prism/types";
 import { asIsoDateTime } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
 
 export function sameCoordinatorName(a: string, b: string): boolean {
@@ -11,7 +14,28 @@ export function sameCoordinatorName(a: string, b: string): boolean {
 }
 
 export function isCoordinatorAssignmentActive(assignment: { status?: string }): boolean {
-  return assignment.status !== "cancelled" && assignment.status !== "replaced";
+  return assignment.status !== "cancelled" && assignment.status !== "replaced" && assignment.status !== "declined";
+}
+
+export function coordinatorSkillFilterOptions(
+  coordinators: Pick<PrismCoordinator, "active" | "roleTags" | "skillsTags">[],
+  role: CoordinatorRole | "all",
+): string[] {
+  if (role === "all") return [];
+
+  const options = new Map<string, string>();
+  for (const coordinator of coordinators) {
+    if (!coordinator.active || !coordinator.roleTags.some((tag) => canonicalCoordinatorRole(tag) === role)) continue;
+    for (const skill of coordinator.skillsTags) {
+      const label = skill.normalize("NFC").trim().replace(/\s+/g, " ");
+      const key = label.toLowerCase();
+      if (key && !options.has(key)) options.set(key, label);
+    }
+  }
+
+  return [...options.entries()]
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .map(([, label]) => label);
 }
 
 /** Ack refresh failures must not wipe the role-safe desk (PA-294). */
@@ -21,38 +45,16 @@ export function shouldPreserveRoleViewOnAcknowledgeFailure() {
 
 export function isRegistrationCoordinatorRole(role?: string | null): boolean {
   if (!role) return false;
-  return /registration/i.test(role);
+  return /\bregistration\b/i.test(role);
 }
 
 export function pickActiveAssignment<T extends { attendanceStatus?: string; status?: string }>(
   assignments: T[],
 ): T | undefined {
-  return (
-    assignments.find(
-      (item) => item.attendanceStatus !== "replaced" && item.status !== "replaced",
-    ) ?? assignments[0]
-  );
+  return assignments.find(isCoordinatorAssignmentActive) ?? assignments[0];
 }
 
 /* ── EP-11-S02: coordinator task and issue logging ──────────────── */
-
-/**
- * Provisional role list, lifted from the PMCM live desk
- * (live-operations-workspace.tsx:270-276). It is NOT canonical: no agreed
- * coordinator role vocabulary exists yet, and this is pending a product
- * decision. Do not source it from COORDINATOR_ROLE_REQUIREMENTS in
- * the removed compatibility service, which carried
- * its own diverged copy of the role-scoping filter.
- */
-const PROVISIONAL_TASK_ROLES = [
-  "General Coordinator",
-  "Event Day System Operator",
-  "Registration Staff",
-  "Floor Director",
-  "Stage Director",
-  "Ingress and Egress Assistant",
-  "Usher",
-] as const;
 
 /** The literal the backend special-cases at live-ops-read-models.service.ts:72. */
 const GENERAL_COORDINATOR = "General Coordinator";
@@ -67,15 +69,12 @@ function trimmed(value?: string): string {
 }
 
 /**
- * Assignment role is a free string with no enum on the assign path, so a
- * controlled select whose value is absent from its options renders blank.
- * Prepend the coordinator's own role when the list does not already carry it.
+ * New tasks use only the shared role catalog. Historical unknown role values
+ * remain readable in existing task and assignment read models.
  */
-export function taskAssignedRoleOptions(roleView: CoordinatorRoleViewLike): string[] {
-  const options = [...PROVISIONAL_TASK_ROLES];
-  const own = trimmed(roleView.role);
-  if (!own || options.some((role) => sameCoordinatorName(role, own))) return options;
-  return [own, ...options];
+export function taskAssignedRoleOptions(roleView: CoordinatorRoleViewLike): CoordinatorRole[] {
+  if (!canonicalCoordinatorRole(roleView.role)) return [GENERAL_COORDINATOR];
+  return [...COORDINATOR_ROLES];
 }
 
 /**
@@ -96,6 +95,9 @@ export function isTaskOutsideOwnQueue({
   if (assignToMe) return false;
   const role = trimmed(assignedRole);
   if (sameCoordinatorName(role, GENERAL_COORDINATOR)) return false;
+  const assignedCanonicalRole = canonicalCoordinatorRole(role);
+  const ownCanonicalRole = canonicalCoordinatorRole(ownRole);
+  if (assignedCanonicalRole && ownCanonicalRole) return assignedCanonicalRole !== ownCanonicalRole;
   return !sameCoordinatorName(role, trimmed(ownRole));
 }
 
@@ -109,7 +111,7 @@ export function buildCoordinatorTaskInput({
   roleView,
 }: {
   title: string;
-  assignedRole: string;
+  assignedRole: CoordinatorRole;
   priority?: string;
   notes?: string;
   dueAt?: string;
@@ -117,15 +119,16 @@ export function buildCoordinatorTaskInput({
   roleView: CoordinatorRoleViewLike;
 }): CreateEventDayTaskInput {
   const isoDueAt = asIsoDateTime(trimmed(dueAt));
+  const unmappedOwnRole = !canonicalCoordinatorRole(roleView.role);
   return {
     title: trimmed(title),
-    ...(trimmed(assignedRole) ? { assignedRole: trimmed(assignedRole) } : {}),
+    assignedRole,
     ...(trimmed(priority) ? { priority: trimmed(priority) } : {}),
     ...(trimmed(notes) ? { notes: trimmed(notes) } : {}),
     ...(isoDueAt ? { dueAt: isoDueAt } : {}),
     // Finding 8: the backend compares ownerName against the assignment name,
     // so this must be assignment.coordinatorName and never session.name.
-    ...(assignToMe ? { ownerName: roleView.assignment.coordinatorName } : {}),
+    ...(assignToMe || unmappedOwnRole ? { ownerName: roleView.assignment.coordinatorName } : {}),
   };
 }
 
@@ -147,6 +150,7 @@ export function buildCoordinatorIssueInput({
   roleView: CoordinatorRoleViewLike;
 }): CreateUrgentIssueInput {
   const isoSlaDueAt = asIsoDateTime(trimmed(slaDueAt));
+  const ownerRole = assignToMe ? canonicalCoordinatorRole(roleView.role) : undefined;
   return {
     title: trimmed(title),
     ...(trimmed(severity) ? { severity: trimmed(severity) } : {}),
@@ -156,37 +160,12 @@ export function buildCoordinatorIssueInput({
     // Leaving ownerRole unset keeps the issue in Open triage: the server infers
     // Assigned from ownerRole or ownerName at live-operations.service.ts:195.
     ...(assignToMe
-      ? { ownerRole: roleView.role, ownerName: roleView.assignment.coordinatorName }
+      ? {
+          ...(ownerRole ? { ownerRole } : {}),
+          ownerName: roleView.assignment.coordinatorName,
+        }
       : {}),
   };
-}
-
-export function suggestAvailableSameRoleCoordinators(input: {
-  coordinators: Array<{ id: string; name: string; active?: boolean; roleTags?: string[] }>;
-  assignments: Array<{
-    coordinatorId?: string | null;
-    eventId: string;
-    eventDate?: string | null;
-    status?: string;
-  }>;
-  eventId: string;
-  eventDate: string;
-  role: string;
-  excludeCoordinatorId: string;
-}): Array<{ id: string; name: string }> {
-  const busyIds = new Set(
-    input.assignments
-      .filter((assignment) => assignment.eventId !== input.eventId && assignment.eventDate === input.eventDate)
-      .filter((assignment) => assignment.status !== "cancelled" && assignment.status !== "replaced")
-      .map((assignment) => assignment.coordinatorId)
-      .filter((id): id is string => Boolean(id)),
-  );
-  return input.coordinators
-    .filter((coordinator) => coordinator.active !== false)
-    .filter((coordinator) => coordinator.id !== input.excludeCoordinatorId)
-    .filter((coordinator) => (coordinator.roleTags ?? []).includes(input.role))
-    .filter((coordinator) => !busyIds.has(coordinator.id))
-    .map((coordinator) => ({ id: coordinator.id, name: coordinator.name }));
 }
 
 /* ── EP-11-S03: coordinator self-attendance marking ──────────────── */
@@ -386,4 +365,15 @@ export function describeReminderResult(result: PrismAcknowledgementReminderResul
   const reminded = result.reminders.length - failed;
   const summary = `${reminded} pending coordinator${reminded === 1 ? "" : "s"} reminded.`;
   return failed ? `${summary} ${failed} could not be sent; check the PMCM status message.` : summary;
+}
+
+/** Resolve the role used by both task preview and submission. */
+export function resolveCoordinatorTaskRole(selected: string, ownRole?: string): CoordinatorRole {
+  return canonicalCoordinatorRole(selected) || canonicalCoordinatorRole(ownRole) || "General Coordinator";
+}
+
+export function coordinatorRoleDataStatus(status: string, hasRoleView: boolean) {
+  if (status === "loading") return "loading";
+  if (status === "error") return "unavailable";
+  return hasRoleView ? "ready" : "pending";
 }

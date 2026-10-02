@@ -39,8 +39,10 @@ export class EventDecisionService {
   ) {}
 
   async list(eventId: string, actor: ResolvedEventOpsActor) {
-    const event = await this.requireEvent(eventId);
-    await this.access.requireCanReadEvent(actor, event, 'event decision history');
+    // Decision rows include commercial impact and actor details; event readers
+    // such as clients and coordinators must not receive the full audit record.
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event decision history', eventId);
+    await this.requireEvent(eventId);
     return this.prisma.opsEventDecision.findMany({ where: { eventId }, orderBy: { decidedAt: 'asc' } });
   }
 
