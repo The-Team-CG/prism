@@ -24,6 +24,7 @@ export function useEventProgressView(): EventProgressViewModel {
         timeline: [],
         paymentMilestones: [],
         score: 0,
+        clientEventDayStatus: null,
         clientActions,
         runClientAction,
       };
