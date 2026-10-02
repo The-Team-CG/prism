@@ -13,7 +13,8 @@ import { EventLiveOpsController } from './api/event-live-ops.controller';
 import { SupplierLiveOpsController } from './api/supplier-live-ops.controller';
 import { EventLiveOpsCommandService } from './application/event-live-ops-command.service';
 import { EventLiveOpsReadService } from './application/event-live-ops-read.service';
-import { LiveOperationsService } from './application/live-operations.service';
+import { CoordinatorLiveOpsCommandService } from './application/coordinator-live-ops-command.service';
+import { LiveOpsTaskIssueCommandService } from './application/live-ops-task-issue-command.service';
 import { EventScheduleService } from './application/event-schedule.service';
 
 /**
@@ -34,11 +35,12 @@ import { EventScheduleService } from './application/event-schedule.service';
   ],
   controllers: [EventLiveOpsController, CoordinatorLiveOpsController, SupplierLiveOpsController],
   providers: [
-    LiveOperationsService,
+    CoordinatorLiveOpsCommandService,
+    LiveOpsTaskIssueCommandService,
     EventLiveOpsReadService,
     EventLiveOpsCommandService,
     EventScheduleService,
   ],
-  exports: [LiveOperationsService, EventLiveOpsReadService, EventLiveOpsCommandService, EventScheduleService],
+  exports: [EventLiveOpsReadService, EventLiveOpsCommandService, EventScheduleService],
 })
 export class LiveOpsModule {}

@@ -29,14 +29,18 @@ import {
   mapEventDayTask,
   mapUrgentIssue,
 } from './live-ops.mappers';
-import { LiveOperationsService } from './live-operations.service';
+import { computeSlaStatus } from '../domain/live-ops-sla.policy';
+import { recordEventDayLog } from './event-day-log.writer';
+import { CoordinatorLiveOpsCommandService } from './coordinator-live-ops-command.service';
+import { LiveOpsTaskIssueCommandService } from './live-ops-task-issue-command.service';
 
 @Injectable()
 export class EventLiveOpsCommandService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
-    private readonly liveOperationsService: LiveOperationsService,
+    private readonly taskIssueCommandService: LiveOpsTaskIssueCommandService,
+    private readonly coordinatorCommandService: CoordinatorLiveOpsCommandService,
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(SUPPLIER_COMMANDS) private readonly supplierCommands: SupplierCommands,
   ) {}
@@ -44,8 +48,8 @@ export class EventLiveOpsCommandService {
   async createEventDayTask(eventId: string, input: CreateEventDayTaskInput, actor: ResolvedEventOpsActor) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
     this.requireCoordinatorTaskScope(actor, assignment, designatedOperator, input.assignedRole, input.ownerName);
-    const task = await this.liveOperationsService.createEventDayTask(eventId, input, actor);
-    return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
+    const task = await this.taskIssueCommandService.createEventDayTask(eventId, input, actor);
+    return mapEventDayTask(task, computeSlaStatus);
   }
 
   async updateEventDayTask(
@@ -60,8 +64,8 @@ export class EventLiveOpsCommandService {
       throw new ForbiddenException('Coordinators may only update task status; request PMCM review to change task ownership');
     }
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
-    const task = await this.liveOperationsService.updateEventDayTask(eventId, taskId, input, actor);
-    return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
+    const task = await this.taskIssueCommandService.updateEventDayTask(eventId, taskId, input, actor);
+    return mapEventDayTask(task, computeSlaStatus);
   }
 
   async escalateEventDayTask(
@@ -72,15 +76,15 @@ export class EventLiveOpsCommandService {
   ) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day task escalation');
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
-    const task = await this.liveOperationsService.escalateEventDayTask(eventId, taskId, input, actor);
-    return mapEventDayTask(task, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
+    const task = await this.taskIssueCommandService.escalateEventDayTask(eventId, taskId, input, actor);
+    return mapEventDayTask(task, computeSlaStatus);
   }
 
   async createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor: ResolvedEventOpsActor) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
     const scopedInput = await this.scopeCoordinatorIssueInput(eventId, actor, assignment, designatedOperator, input);
-    const issue = await this.liveOperationsService.createUrgentIssue(eventId, scopedInput, actor);
-    return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
+    const issue = await this.taskIssueCommandService.createUrgentIssue(eventId, scopedInput, actor);
+    return mapUrgentIssue(issue, computeSlaStatus);
   }
 
   async updateUrgentIssue(
@@ -92,8 +96,8 @@ export class EventLiveOpsCommandService {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
     await this.requireUrgentIssueScope(eventId, issueId, actor, assignment, designatedOperator);
     await this.rejectCoordinatorIssueOwnershipChange(eventId, actor, designatedOperator, input.ownerRole, input.ownerName);
-    const issue = await this.liveOperationsService.updateUrgentIssue(eventId, issueId, input, actor);
-    return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
+    const issue = await this.taskIssueCommandService.updateUrgentIssue(eventId, issueId, input, actor);
+    return mapUrgentIssue(issue, computeSlaStatus);
   }
 
   async escalateUrgentIssue(
@@ -105,8 +109,8 @@ export class EventLiveOpsCommandService {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'urgent issue escalation');
     await this.requireUrgentIssueScope(eventId, issueId, actor, assignment, designatedOperator);
     await this.rejectCoordinatorIssueOwnershipChange(eventId, actor, designatedOperator, input.ownerRole, input.ownerName);
-    const issue = await this.liveOperationsService.escalateUrgentIssue(eventId, issueId, input, actor);
-    return mapUrgentIssue(issue, this.liveOperationsService.computeSlaStatus.bind(this.liveOperationsService));
+    const issue = await this.taskIssueCommandService.escalateUrgentIssue(eventId, issueId, input, actor);
+    return mapUrgentIssue(issue, computeSlaStatus);
   }
 
   async updateCoordinatorAttendance(
@@ -127,7 +131,7 @@ export class EventLiveOpsCommandService {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator attendance', eventId);
       throw new ForbiddenException("Coordinator cannot mark another coordinator's attendance");
     }
-    const assignment = await this.liveOperationsService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
+    const assignment = await this.coordinatorCommandService.updateCoordinatorAttendance(eventId, assignmentId, input, actor);
     return mapCoordinatorAssignmentForEventDay(
       assignment,
       this.staffingReader.mapCoordinatorAssignment.bind(this.staffingReader),
@@ -139,7 +143,7 @@ export class EventLiveOpsCommandService {
     if (actor.role === OpsUserRole.Coordinator && !designatedOperator) {
       throw new ForbiddenException('Only the designated Event Day System Operator may request task reassignment');
     }
-    return this.liveOperationsService.requestTaskReassignment(eventId, taskId, input, actor);
+    return this.taskIssueCommandService.requestTaskReassignment(eventId, taskId, input, actor);
   }
 
   async listTaskReassignmentRequests(eventId: string, actor: ResolvedEventOpsActor) {
@@ -147,12 +151,12 @@ export class EventLiveOpsCommandService {
     if (actor.role === OpsUserRole.Coordinator && !designatedOperator) {
       throw new ForbiddenException('Only the designated Event Day System Operator may view task reassignment requests');
     }
-    return this.liveOperationsService.listTaskReassignmentRequests(eventId);
+    return this.taskIssueCommandService.listTaskReassignmentRequests(eventId);
   }
 
   async decideTaskReassignment(eventId: string, requestId: string, input: DecideEventTaskReassignmentInput, actor: ResolvedEventOpsActor) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'task reassignment decision', eventId);
-    return this.liveOperationsService.decideTaskReassignment(eventId, requestId, input, actor);
+    return this.taskIssueCommandService.decideTaskReassignment(eventId, requestId, input, actor);
   }
 
   async replaceCoordinatorAssignment(
@@ -168,7 +172,7 @@ export class EventLiveOpsCommandService {
       eventId,
     );
     const { replacedAssignment, replacementAssignment } =
-      await this.liveOperationsService.replaceCoordinatorAssignment(eventId, assignmentId, input, actor);
+      await this.coordinatorCommandService.replaceCoordinatorAssignment(eventId, assignmentId, input, actor);
 
     return {
       replacedAssignment: mapCoordinatorAssignmentForEventDay(
@@ -196,7 +200,7 @@ export class EventLiveOpsCommandService {
     const updated = await this.supplierCommands.verifySupplierEventStatus(eventId, requestId, input, actor);
     const verifiedBy = actor.name;
     const metadata = { verificationStatus: input.verificationStatus, verifiedBy, notes: input.notes ?? '' };
-    await this.liveOperationsService.recordEventDayLog(
+    await recordEventDayLog(this.prisma,
       eventId,
       'supplier_status_verified',
       actor,
@@ -215,7 +219,7 @@ export class EventLiveOpsCommandService {
     actor: ResolvedEventOpsActor,
   ) {
     const request = await this.supplierCommands.updateSupplierEventStatus(requestId, input, actor);
-    await this.liveOperationsService.recordEventDayLog(
+    await recordEventDayLog(this.prisma,
       request.eventId,
       'supplier_status_updated',
       actor,
