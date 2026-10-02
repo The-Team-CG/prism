@@ -1,6 +1,6 @@
 -- prism-owner: event-lifecycle
--- prism-kind: data
--- prism-risk: low
+-- prism-kind: schema
+-- prism-risk: medium
 -- Existing rows become explicitly disabled; only PMCM Admin can enable the
 -- client-safe event-day status line for an individual event.
 ALTER TABLE "event_core"."events"
