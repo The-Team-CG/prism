@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Shared the live-workspace visibility predicate used by PMCM polling and event-day refresh, preserving selected-event and role checks.
 - Separated coordinator skill filters, suggestion results, and live attendance controls into focused view components with existing assignment and conflict behavior preserved.
 - Split shared Zod write contracts by API bounded context while keeping the existing event-ops schema exports available through their compatibility barrel.
 - Split shared shell navigation, sidebar and rail, mobile navigation, account-menu, and top-bar internals into focused modules while preserving the public exports and behavior.
