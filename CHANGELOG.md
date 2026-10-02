@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
+
 ### Added
 - EP-10-S03: added the client ocular visit request, PMCM Admin scheduling/completion and audited waiver controls, transactional scheduling notification, and the official-floorplan completion/waiver gate. PA-59 remains open before In Review.
 - EP-10-S03 design: documented the client ocular request, PMCM task flow, proposed waiver, and PA-59 review gate.
