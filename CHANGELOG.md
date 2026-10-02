@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
+- Updated floorplan workflow test actors with required IDs, restoring API typecheck.
+
 ### Added
+- EP-10-S03: added the client ocular visit request, PMCM Admin scheduling/completion and audited waiver controls, transactional scheduling notification, and the official-floorplan completion/waiver gate. PA-59 remains open before In Review.
+- EP-10-S03 design: documented the client ocular request, PMCM task flow, proposed waiver, and PA-59 review gate.
+- EP-10-S02 Task 1: added the per-event client event-day visibility setting, default-off persistence, PMCM Admin-only update, audit evidence, and PMCM/client event projection.
+- EP-10-S02 Task 2: extended the client workspace with five ordered, source-backed milestones and progress status, scoped to each actor-visible event.
+- EP-10-S02 Task 3: added the PMCM Admin event-day visibility switch and the client’s five-milestone timeline with a gated generic event-day status.
+- Added a follow-up implementation plan for EP-10-S02 under docs/ethan, scoped to the workbook acceptance criteria and the current staging-based feature state.
+- EP-10-S01 client action center: removed the workspace-derived fallback; cards show due date or “Date pending”, status, and Open; the visible client home refreshes the existing read model every 30 seconds and on tab return, retaining last-good data on transient errors.
 - Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
