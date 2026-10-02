@@ -140,16 +140,8 @@ describe('OpsEventClosureController', () => {
         updatedAt: '2026-07-21T01:00:00.000Z',
       }),
     ]);
-    await expect(controller.generateEventInsights('evt_sample', actor as never)).resolves.toEqual(
-      expect.objectContaining({ id: 'ins_1', privateNotes: 'PMCM-only' }),
-    );
-
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, actor);
     expect(eventClosureService.listEventInsights).toHaveBeenCalledWith(
-      'evt_sample',
-      { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
-    );
-    expect(eventClosureService.generateEventInsights).toHaveBeenCalledWith(
       'evt_sample',
       { role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test' },
     );

@@ -97,6 +97,17 @@ export interface PrismCoordinatorReliabilityHistoryEntry {
   createdAt: string;
 }
 
+/** Aggregated staffing evidence used in a PMCM event insights card. */
+export interface PrismCoordinatorInsightFacts {
+  assignments: number;
+  awaitingAcknowledgement: number;
+  lateAttendance: number;
+  absentAttendance: number;
+  replacedAssignments: number;
+  cancelledAssignments: number;
+  reliabilityNotes: number;
+}
+
 export interface PrismCoordinator {
   id: string;
   userId?: string | null;
