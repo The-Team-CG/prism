@@ -5,9 +5,6 @@ import { rescheduleDateLabel } from "../model/postponement-impact-rules";
 
 export function PostponementImpactPanel({ eventId }: { eventId: string }) {
   const vm = usePostponementImpactViewModel(eventId);
-  const snapshot = vm.effectiveSnapshot?.snapshotDecision;
-  const reschedule = snapshot?.assignmentImpact.reschedule;
-  const conflicts = reschedule?.conflicts ?? [];
 
   return (
     <section aria-labelledby="postponement-impact-heading" className="rounded-xl border border-border bg-card p-5">
@@ -23,18 +20,30 @@ export function PostponementImpactPanel({ eventId }: { eventId: string }) {
           <button type="button" onClick={() => void vm.reload()} className="rounded-md border border-border px-3 py-1.5 text-sm font-semibold">Retry</button>
         </div>
       ) : null}
-      {vm.status === "ready" && !vm.effectiveSnapshot ? (
+      <RecordedPostponementImpact vm={vm} />
+    </section>
+  );
+}
+
+function RecordedPostponementImpact({ vm }: { vm: ReturnType<typeof usePostponementImpactViewModel> }) {
+  if (vm.status !== "ready") return null;
+  const snapshot = vm.effectiveSnapshot?.snapshotDecision;
+  const reschedule = snapshot?.assignmentImpact.reschedule;
+  const conflicts = reschedule?.conflicts ?? [];
+
+  return <>
+      {!vm.effectiveSnapshot ? (
         <p className="mt-4 text-sm text-muted-foreground">No coordinator conflict snapshot is recorded for this event.</p>
       ) : null}
-      {vm.status === "ready" && vm.effectiveSnapshot?.dateNeedsConfirmation ? (
+      {vm.effectiveSnapshot?.dateNeedsConfirmation ? (
         <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           The event date is still being confirmed. This conflict snapshot was recorded for {reschedule ? rescheduleDateLabel(reschedule.toDate) : "the prior rescheduled date"}; recheck coordinator availability after the date is confirmed.
         </p>
       ) : null}
-      {vm.status === "ready" && snapshot && !reschedule ? (
+      {snapshot && !reschedule ? (
         <p className="mt-4 text-sm text-muted-foreground">No coordinators were retained on a changed event date.</p>
       ) : null}
-      {vm.status === "ready" && reschedule ? (
+      {reschedule ? (
         <div className="mt-4 space-y-3">
           <p className="text-sm font-semibold text-foreground">Date checked: {rescheduleDateLabel(reschedule.toDate)}</p>
           {conflicts.length === 0 ? (
@@ -62,6 +71,5 @@ export function PostponementImpactPanel({ eventId }: { eventId: string }) {
           )}
         </div>
       ) : null}
-    </section>
-  );
+  </>;
 }

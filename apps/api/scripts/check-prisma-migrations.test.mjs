@@ -264,6 +264,23 @@ describe('Prisma migration policy', () => {
     assert.match(result.errors.join('\n'), /unsupported SQL requires manual review/);
   });
 
+  it('ignoresOnUpdateCascadeForeignKeyWhenClassifyingSchemaDdl', () => {
+    const result = auditMigrationSet(
+      [
+        ownerAwareMigration({
+          owner: 'event-lifecycle',
+          slug: 'client_ocular_visit',
+          kind: 'schema',
+          risk: 'medium',
+          sql: 'CREATE TABLE "event_core"."ocular_visit_requests" ("event_id" TEXT NOT NULL); ALTER TABLE "event_core"."ocular_visit_requests" ADD CONSTRAINT "ocular_visit_requests_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "event_core"."events"("id") ON DELETE CASCADE ON UPDATE CASCADE;',
+        }),
+      ],
+      futurePolicy,
+    );
+
+    assert.deepEqual(result.errors, []);
+  });
+
   it('rejects owner-aware DDL that leaves table ownership unqualified', () => {
     const result = auditMigrationSet(
       [
