@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
+import type { CoordinatorRole, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@/features/floorplan/editor";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
@@ -410,7 +410,7 @@ export function useEventDashboardShellViewModel({
     recordActualEventEnd: (input: Parameters<typeof commands.recordActualEventEnd>[1]) => selectedEvent ? run("record actual event end", () => commands.recordActualEventEnd(selectedEvent.id, input)) : Promise.resolve(),
     loadEventInsights: () => selectedEvent ? commands.eventInsights(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
-    assignCoordinator: (coordinator: { id: string }, role: string, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
+    assignCoordinator: (coordinator: { id: string }, role: CoordinatorRole, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
     saveCoordinatorCoverage: (input: Parameters<typeof commands.upsertCoordinatorCoverage>[1]) => selectedEvent && session ? runAsBoolean("coordinator coverage", () => commands.upsertCoordinatorCoverage(selectedEvent.id, input)) : Promise.resolve(false),
     sendCoordinatorAcknowledgementReminders: () => selectedEvent && session ? runForResult("acknowledgement reminders", () => commands.sendCoordinatorAcknowledgementReminders(selectedEvent.id)) : Promise.resolve(null),
     designateEventDayOperator: (coordinatorId: string) => selectedEvent && session ? runAsBoolean("designate event operator", () => commands.designateEventDayOperator(selectedEvent.id, { coordinatorId })) : Promise.resolve(false),

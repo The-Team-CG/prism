@@ -7,6 +7,7 @@ import type {
   PrismCoordinatorAssignment,
   PrismCoordinatorRoleView,
 } from "@prism/types";
+import { canonicalCoordinatorRole } from "@prism/types";
 
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -166,8 +167,9 @@ function ReassignmentRequestForm({ roleView, reassignment }: { roleView: PrismCo
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!taskId) return;
-    reassignment.request(taskId, { toOwnerRole, toOwnerName: toOwnerName || undefined, reason });
+    const role = canonicalCoordinatorRole(toOwnerRole);
+    if (!taskId || !role) return;
+    reassignment.request(taskId, { toOwnerRole: role, toOwnerName: toOwnerName || undefined, reason });
     setReason("");
   }
 

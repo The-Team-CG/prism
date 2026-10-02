@@ -1,5 +1,10 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, Prisma } from '@prisma/client';
+import {
+  COORDINATOR_ROLES,
+  canonicalCoordinatorRole,
+  coordinatorRoleSchema,
+} from '@prism/types';
 import type {
   CreateCoordinatorAssignmentInput,
   CoordinatorAssignmentAcknowledgementInput,
@@ -47,9 +52,15 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
   ): Promise<CoordinatorAssignmentPlan> {
     const event = await this.requireEvent(eventId, prisma);
     const coordinator = await this.resolveCoordinator(input, prisma);
-    const role = input.role || coordinator.roleTags[0] || 'General Coordinator';
+    if (input.role !== undefined && !coordinatorRoleSchema.safeParse(input.role).success) {
+      throw new BadRequestException('Choose a role from the coordinator role catalog.');
+    }
+    const taggedRole = coordinator.roleTags
+      .map(canonicalCoordinatorRole)
+      .find((candidate): candidate is (typeof COORDINATOR_ROLES)[number] => candidate !== undefined);
+    const role = input.role ?? taggedRole ?? 'General Coordinator';
 
-    if (!coordinator.roleTags.includes(role)) {
+    if (!coordinator.roleTags.some((tag) => canonicalCoordinatorRole(tag) === role)) {
       throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
     }
 

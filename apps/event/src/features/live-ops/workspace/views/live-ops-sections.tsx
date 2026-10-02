@@ -13,10 +13,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
+import { COORDINATOR_ROLES, decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
 
 import type {
   EscalateLiveOpsInput,
+  EscalateEventDayTaskInput,
   PrismCoordinator,
   PrismCoordinatorAssignment,
   PrismEvent,
@@ -178,7 +179,7 @@ export function LiveOpsDesk({
   busy: boolean;
   vm: LiveOpsVm;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
-  onEscalateTask: (taskId: string, input: EscalateLiveOpsInput) => Promise<void>;
+  onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
   onUpdateIssue: (issueId: string, input: UpdateUrgentIssueInput) => Promise<void>;
   onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
   onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
@@ -341,12 +342,7 @@ function LiveOpsIssuesPanel({
           <label className="grid gap-1.5">
             <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Owner role</span>
             <select value={vm.issueOwnerRole} onChange={(event) => vm.setIssueOwnerRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
-              <option>Event Day System Operator</option>
-              <option>Registration Staff</option>
-              <option>Floor Director</option>
-              <option>Stage Director</option>
-              <option>Ingress and Egress Assistant</option>
-              <option>Usher</option>
+              {COORDINATOR_ROLES.map((role) => <option key={role}>{role}</option>)}
             </select>
           </label>
         </div>
@@ -399,7 +395,7 @@ function LiveOpsTasksPanel({
   busy: boolean;
   vm: LiveOpsVm;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
-  onEscalateTask: (taskId: string, input: EscalateLiveOpsInput) => Promise<void>;
+  onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-5">
@@ -413,13 +409,7 @@ function LiveOpsTasksPanel({
           <label className="grid gap-1.5">
             <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Role</span>
             <select value={vm.taskRole} onChange={(event) => vm.setTaskRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
-              <option>General Coordinator</option>
-              <option>Event Day System Operator</option>
-              <option>Registration Staff</option>
-              <option>Floor Director</option>
-              <option>Stage Director</option>
-              <option>Ingress and Egress Assistant</option>
-              <option>Usher</option>
+              {COORDINATOR_ROLES.map((role) => <option key={role}>{role}</option>)}
             </select>
           </label>
           <label className="grid gap-1.5">
@@ -457,7 +447,6 @@ function LiveOpsTasksPanel({
               onEscalateTask(task.id, {
                 escalationLevel: task.priority === "critical" ? "critical" : "pmcm",
                 notes: `Escalated from PMCM live desk: ${task.title}`,
-                ownerRole: task.assignedRole,
                 ownerName: task.ownerName || undefined,
               })
             }
@@ -541,7 +530,10 @@ function CoordinatorRow({
                 <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>
               ))}
             </select>
-            <input value={vm.replacementRole} onChange={(event) => vm.setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs" />
+            <select value={vm.replacementRole} onChange={(event) => vm.setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs">
+              <option value="">Select role</option>
+              {vm.replacementRoleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+            </select>
           </div>
           <input
             value={vm.replacementReason}
@@ -549,7 +541,7 @@ function CoordinatorRow({
             placeholder="Replacement reason required for live log"
             className="h-10 rounded-md border border-border bg-white px-2 text-xs"
           />
-          <button disabled={busy || !vm.replacementCoordinatorId || !vm.replacementReason.trim()} onClick={vm.replace} className="h-10 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+          <button disabled={busy || !vm.canReplace} onClick={vm.replace} className="h-10 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
             Replace coordinator
           </button>
         </div>

@@ -8,6 +8,7 @@ import {
   decideEventTaskReassignmentSchema,
   createUrgentIssueSchema,
   escalateLiveOpsRecordSchema,
+  escalateEventDayTaskSchema,
   replaceCoordinatorAssignmentSchema,
   updateCoordinatorAttendanceSchema,
   updateEventDayTaskSchema,
@@ -25,6 +26,7 @@ import {
   type DecideEventTaskReassignmentInput,
   type CreateUrgentIssueInput,
   type EscalateLiveOpsInput,
+  type EscalateEventDayTaskInput,
   type ReplaceCoordinatorAssignmentInput,
   type UpdateCoordinatorAttendanceInput,
   type UpdateEventDayTaskInput,
@@ -173,7 +175,7 @@ export class EventLiveOpsController {
   escalateEventDayTask(
     @Param('eventId') eventId: string,
     @Param('taskId') taskId: string,
-    @Body(zodBody(escalateLiveOpsRecordSchema)) dto: EscalateLiveOpsInput,
+    @Body(zodBody(escalateEventDayTaskSchema)) dto: EscalateEventDayTaskInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
