@@ -538,6 +538,12 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     await lockCoordinatorAssignmentDay(prisma, coordinator.id, event.eventDate);
   }
 
+  private async requireCoordinatorWritableEvent(eventId: string, actor: ResolvedEventOpsActor, prisma: Prisma.TransactionClient | PrismaService) {
+    if (actor.role !== OpsUserRole.Coordinator) return;
+    const event = await this.requireEvent(eventId, prisma);
+    if (event.archived) throw new ForbiddenException('Archived coordinator events are read-only');
+  }
+
   // PA-276: acknowledgeCoordinator previously updated by assignmentId alone, letting any
   // authenticated Coordinator acknowledge any assignment regardless of who it belonged to
   // or which event it was scoped to. This closes both gaps: the assignment must belong to
@@ -552,6 +558,8 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     if (!assignment || assignment.eventId !== eventId) {
       throw new NotFoundException('Coordinator assignment not found');
     }
+
+    await this.requireCoordinatorWritableEvent(eventId, actor, prisma);
 
     if (actor.role === OpsUserRole.Coordinator) {
       const coordinator = await resolveCoordinatorForActor(prisma, actor);

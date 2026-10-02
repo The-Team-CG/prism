@@ -78,7 +78,7 @@ function urgentIssueRow(overrides: Record<string, unknown> = {}) {
 function createService(assignment: unknown) {
   const prisma = {
     opsEvent: {
-      findUnique: vi.fn(async () => ({ id: 'evt_sample_unassigned' })),
+      findUnique: vi.fn(async () => ({ id: 'evt_sample_unassigned', archived: false })),
     },
     opsEventOperatorDesignation: {
       findFirst: vi.fn(async () => null),
@@ -136,6 +136,25 @@ function createService(assignment: unknown) {
 }
 
 describe('EventLiveOpsCommandService event scoping', () => {
+  it('rejects archived coordinator task, issue, attendance and reassignment writes before commands run', async () => {
+    const { service, prisma, liveOperationsService, coordinatorCommandService, eventAccessPolicyService } = createService(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala', archived: true });
+    const actor = coordinatorActor();
+    const writes = [
+      () => service.createEventDayTask('evt_sample_ayala', { title: 'Task', assignedRole: 'Registration Staff' }, actor),
+      () => service.updateEventDayTask('evt_sample_ayala', 'task_1', { status: 'done' }, actor),
+      () => service.createUrgentIssue('evt_sample_ayala', { title: 'Issue' }, actor),
+      () => service.updateCoordinatorAttendance('evt_sample_ayala', 'coord_asg_ayala_marco', { status: 'present' }, actor),
+      () => service.requestTaskReassignment('evt_sample_ayala', 'task_1', { toOwnerRole: 'Usher', reason: 'Coverage' }, actor),
+    ];
+    for (const write of writes) await expect(write()).rejects.toThrow('Archived coordinator events are read-only');
+    expect(liveOperationsService.createEventDayTask).not.toHaveBeenCalled();
+    expect(liveOperationsService.updateEventDayTask).not.toHaveBeenCalled();
+    expect(liveOperationsService.createUrgentIssue).not.toHaveBeenCalled();
+    expect(coordinatorCommandService.updateCoordinatorAttendance).not.toHaveBeenCalled();
+    expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(actor, 'archived coordinator event write', 'evt_sample_ayala');
+  });
+
   it('rejects coordinator writes when the actor is not assigned to the event', async () => {
     const { service, liveOperationsService, eventAccessPolicyService, staffingReader } = createService(null);
 
