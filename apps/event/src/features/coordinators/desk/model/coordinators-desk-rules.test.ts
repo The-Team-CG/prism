@@ -39,6 +39,7 @@ describe("coordinators-desk-rules", () => {
   it("detects registration roles", () => {
     expect(isRegistrationCoordinatorRole("Registration Lead")).toBe(true);
     expect(isRegistrationCoordinatorRole("Floor Manager")).toBe(false);
+    expect(isRegistrationCoordinatorRole("Nonregistration Helper")).toBe(false);
   });
 
   it("derives stable skill filters from active coordinators tagged for the chosen role", () => {
@@ -59,6 +60,7 @@ describe("coordinators-desk-rules", () => {
     const active = pickActiveAssignment([
       { status: "cancelled" },
       { status: "replaced" },
+      { status: "declined" },
       { attendanceStatus: "present" },
     ]);
     expect(active?.attendanceStatus).toBe("present");
@@ -68,6 +70,7 @@ describe("coordinators-desk-rules", () => {
     expect(isCoordinatorAssignmentActive({ status: "acknowledged" })).toBe(true);
     expect(isCoordinatorAssignmentActive({ status: "cancelled" })).toBe(false);
     expect(isCoordinatorAssignmentActive({ status: "replaced" })).toBe(false);
+    expect(isCoordinatorAssignmentActive({ status: "declined" })).toBe(false);
   });
 
 });

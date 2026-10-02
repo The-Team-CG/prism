@@ -9,6 +9,7 @@ import {
   moderateGuestFeedbackSchema,
   withdrawGuestFeedbackConsentSchema,
   importGuestRosterSchema,
+  coordinatorWalkInCheckInSchema,
   updateGuestVerificationSchema,
   type GuestRosterSearchInput,
   type UpdateGuestVerificationInput,
@@ -17,6 +18,7 @@ import {
   type ModerateGuestFeedbackInput,
   type WithdrawGuestFeedbackConsentInput,
   type ImportGuestRosterInput,
+  type CoordinatorWalkInCheckInInput,
 } from '@prism/types';
 import { GuestWorkflowService } from '../../application/guest/guest-workflow.service';
 
@@ -37,27 +39,33 @@ export class OpsGuestController {
   async searchRoster(@Param('eventId') eventId: string, @Query('query') query: string, @VerifiedEventActor() verifiedActor: any) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'guest roster search', eventId);
-    return this.guestWorkflowService.searchRoster(eventId, {
+    const filters = {
       query: query ?? '',
       namePrefix: undefined,
       eligibility: undefined,
       checkedIn: undefined,
-    });
+    };
+    return actor.role === OpsUserRole.Coordinator
+      ? this.guestWorkflowService.searchCoordinatorRoster(eventId, actor, filters)
+      : this.guestWorkflowService.searchRoster(eventId, filters);
   }
 
   @Get('events/:eventId/roster/search')
   @UseGuards(EventSessionGuard)
   async searchRosterWithFilters(
     @Param('eventId') eventId: string,
-    @Query('query') query: string,
-    @Query('namePrefix') namePrefix: string,
+    @Query('query') query: string | undefined,
+    @Query('namePrefix') namePrefix: string | undefined,
     @Query('eligibility') eligibility: GuestRosterSearchInput['eligibility'],
-    @Query('checkedIn') checkedIn: string,
+    @Query('checkedIn') checkedIn: string | undefined,
     @VerifiedEventActor() verifiedActor: any,
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'guest roster search', eventId);
-    return this.guestWorkflowService.searchRoster(eventId, { query, namePrefix, eligibility, checkedIn: checkedIn === undefined ? undefined : checkedIn === 'true' });
+    const filters = { query, namePrefix, eligibility, checkedIn: checkedIn === undefined ? undefined : checkedIn === 'true' };
+    return actor.role === OpsUserRole.Coordinator
+      ? this.guestWorkflowService.searchCoordinatorRoster(eventId, actor, filters)
+      : this.guestWorkflowService.searchRoster(eventId, filters);
   }
 
   @Post('events/:eventId/roster/:rosterEntryId/check-in')
@@ -72,6 +80,19 @@ export class OpsGuestController {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator, OpsUserRole.System], 'guest roster check-in', eventId);
     const checkIn = await this.guestWorkflowService.checkInRosterEntry(eventId, rosterEntryId, actor);
     return this.guestWorkflowService.mapGuestCheckIn(checkIn);
+  }
+
+  @Post('events/:eventId/walk-ins')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
+  async registerWalkIn(
+    @Param('eventId') eventId: string,
+    @Body(zodBody(coordinatorWalkInCheckInSchema)) input: CoordinatorWalkInCheckInInput,
+    @VerifiedEventActor() verifiedActor: any,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Coordinator], 'coordinator walk-in registration', eventId);
+    return this.guestWorkflowService.registerWalkIn(eventId, input, actor);
   }
 
   @Patch('events/:eventId/roster/:rosterEntryId/verification')

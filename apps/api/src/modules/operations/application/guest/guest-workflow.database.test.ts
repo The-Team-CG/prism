@@ -32,7 +32,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
     await prisma.$connect();
     const auditService = new AuditService(prisma as never);
     const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma as never, auditService));
-    service = new GuestWorkflowService(prisma as never, auditWriter, new WorkflowCommandService(), new DocumentVaultService());
+    service = new GuestWorkflowService(prisma as never, auditWriter, new WorkflowCommandService(), new DocumentVaultService(), { findAssignmentForEventActor: vi.fn() } as never);
   });
 
   afterEach(async () => {

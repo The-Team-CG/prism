@@ -4,6 +4,7 @@ import { pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
+  coordinatorWalkInCheckInSchema,
   moderateGuestFeedbackSchema,
   withdrawGuestFeedbackConsentSchema,
   createSupplierApplicationSchema,
@@ -182,6 +183,15 @@ describe("event-ops write schemas", () => {
         privacyConsentAccepted: false,
       }).success,
     ).toBe(false);
+  });
+
+  it("requires a guest name and explicit privacy consent for coordinator walk-ins", () => {
+    expect(coordinatorWalkInCheckInSchema.parse({ guestName: "  Alex Santos  ", privacyConsentAccepted: true })).toEqual({
+      guestName: "Alex Santos",
+      privacyConsentAccepted: true,
+    });
+    expect(coordinatorWalkInCheckInSchema.safeParse({ guestName: "Alex Santos", privacyConsentAccepted: false }).success).toBe(false);
+    expect(coordinatorWalkInCheckInSchema.safeParse({ guestName: "  ", privacyConsentAccepted: true }).success).toBe(false);
   });
 
   it("requires explicit consent for account approval requests", () => {

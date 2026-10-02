@@ -1,4 +1,6 @@
 import type {
+  CoordinatorWalkInCheckInInput,
+  PrismCoordinatorRegistrationEntry,
   PrismGuestCheckIn,
   PrismGuestRosterEntry,
   PrismGuestEventPass,
@@ -63,6 +65,13 @@ export function createGuestClient(
           withBase(options),
         );
       },
+      registrationRoster: (eventId, filters = {}) => {
+        const params = toQueryString(filters);
+        return prismRequest<PrismCoordinatorRegistrationEntry[]>(
+          `/guest/events/${eventId}/roster/search${params ? `?${params}` : ""}`,
+          withBase(options),
+        );
+      },
       importRoster: (eventId, input, actor = {}) =>
         prismRequest<PrismGuestRosterEntry[]>(
           actorPath(`/guest/events/${eventId}/roster/import`, actor),
@@ -83,6 +92,16 @@ export function createGuestClient(
             actor,
           ),
           withBase(options, { method: "PATCH", body: input }),
+        ),
+      verifyRegistrationRoster: (eventId, rosterEntryId, input) =>
+        prismRequest<PrismCoordinatorRegistrationEntry>(
+          `/guest/events/${eventId}/roster/${rosterEntryId}/verification`,
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      registerWalkIn: (eventId, input) =>
+        prismRequest<PrismCoordinatorRegistrationEntry>(
+          `/guest/events/${eventId}/walk-ins`,
+          withBase(options, { method: "POST", body: input }),
         ),
       walkInPolicy: (eventId, actor = {}) =>
         prismRequest(
