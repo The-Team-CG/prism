@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
+- Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
+- Updated floorplan workflow test actors with required IDs, restoring API typecheck.
+
 ### Added
 - Added visibility-aware 30-second event-day updates for the active PMCM live-ops desk and the coordinator's selected event, refreshing task, issue, and check-in data without polling other PMCM sections.
 - Added a shared coordinator role catalog and skill-filter query contract; coordinator task, replacement, coverage, and assignment selectors use the catalog, and assignment fallback normalizes legacy tags without persisting unknown roles. Existing conflict suggestions and task authorization normalize legacy role tags during rollout; tasks for unmapped historical roles use the canonical General Coordinator role and stay in the coordinator's named queue for creation and updates. Legacy labels remain readable, verified issue ownership names are preserved without creating out-of-catalog queue labels, and PMCM issue routing labels remain flexible.
@@ -17,10 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added coordinator assignment, attendance, replacement, cancellation, and reliability-note evidence to PMCM event insights through a read-model composition boundary.
 - Added the implementation plan for the coordinator role catalog and skill-aware staffing suggestions.
 - Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
+- EP-10-S03: added the client ocular visit request, PMCM Admin scheduling/completion and audited waiver controls, transactional scheduling notification, and the official-floorplan completion/waiver gate. PA-59 remains open before In Review.
+- EP-10-S03 design: documented the client ocular request, PMCM task flow, proposed waiver, and PA-59 review gate.
+- EP-10-S02 Task 1: added the per-event client event-day visibility setting, default-off persistence, PMCM Admin-only update, audit evidence, and PMCM/client event projection.
+- EP-10-S02 Task 2: extended the client workspace with five ordered, source-backed milestones and progress status, scoped to each actor-visible event.
+- EP-10-S02 Task 3: added the PMCM Admin event-day visibility switch and the client’s five-milestone timeline with a gated generic event-day status.
+- Added a follow-up implementation plan for EP-10-S02 under docs/ethan, scoped to the workbook acceptance criteria and the current staging-based feature state.
+- EP-10-S01 client action center: removed the workspace-derived fallback; cards show due date or “Date pending”, status, and Open; the visible client home refreshes the existing read model every 30 seconds and on tab return, retaining last-good data on transient errors.
 - Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Separated coordinator skill filters, suggestion results, and live attendance controls into focused view components with existing assignment and conflict behavior preserved.
 - Split shared Zod write contracts by API bounded context while keeping the existing event-ops schema exports available through their compatibility barrel.
 - Split shared shell navigation, sidebar and rail, mobile navigation, account-menu, and top-bar internals into focused modules while preserving the public exports and behavior.
 - Moved authentication history, lockout handling, and security-alert workflows out of the hash-chain audit writer while preserving authentication integrity posture, route authorization, and alert notifications.
