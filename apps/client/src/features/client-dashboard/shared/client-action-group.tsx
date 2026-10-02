@@ -8,11 +8,13 @@ export function ClientActionGroup({
   description,
   actions,
   onAction,
+  showDetailsAndCta = false,
 }: {
   title: string;
   description: string;
   actions: ClientDashboardAction[];
   onAction: (action: ClientDashboardAction) => void;
+  showDetailsAndCta?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card shadow-sm">
@@ -50,6 +52,12 @@ export function ClientActionGroup({
                   <span className="mt-0.5 block text-xs leading-5 text-muted-foreground line-clamp-2">
                     {action.description}
                   </span>
+                  {showDetailsAndCta ? (
+                    <span className="mt-2 flex items-center justify-between gap-3 text-xs">
+                      <span className="text-muted-foreground">{action.detail}</span>
+                      <span className="shrink-0 font-semibold text-(--prism-signal)">{action.ctaLabel}</span>
+                    </span>
+                  ) : null}
                 </span>
               </button>
             );
