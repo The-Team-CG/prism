@@ -228,6 +228,7 @@ describe('EventScheduleService schedule-segment transitions', () => {
     };
     let updated = current;
     const tx = {
+      $queryRaw: vi.fn(async () => []),
       opsEventScheduleSegment: {
         findFirst: vi.fn(async () => updated),
         updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
@@ -289,6 +290,83 @@ describe('EventScheduleService schedule-segment transitions', () => {
     await expect(instance.updateSegmentStatus('evt_1', 'segment_1', { action: 'start' }, pmcm)).rejects.toBeInstanceOf(ConflictException);
 
     expect(tx.opsEventScheduleDay.update).not.toHaveBeenCalled();
+  });
+
+  it('closes the day when concurrent transitions finish its last segments', async () => {
+    const segments = new Map([
+      ['segment_1', { id: 'segment_1', dayId: 'day_1', sequence: 0, title: 'Doors open', plannedStartAt: new Date('2026-10-02T08:00:00.000Z'), plannedEndAt: new Date('2026-10-02T09:00:00.000Z'), ownerRole: 'Registration Staff', location: '', status: 'active', actualStartedAt: new Date('2026-10-02T08:00:00.000Z'), actualEndedAt: null }],
+      ['segment_2', { id: 'segment_2', dayId: 'day_1', sequence: 1, title: 'Guest exit', plannedStartAt: new Date('2026-10-02T09:00:00.000Z'), plannedEndAt: new Date('2026-10-02T10:00:00.000Z'), ownerRole: 'Registration Staff', location: '', status: 'active', actualStartedAt: new Date('2026-10-02T09:00:00.000Z'), actualEndedAt: null }],
+    ]);
+    let dayStatus = 'active';
+    let lockTail: Promise<void> = Promise.resolve();
+    const prisma = {
+      $transaction: vi.fn(async (callback: (tx: Record<string, unknown>) => unknown) => {
+        const stagedSegments = new Map<string, Record<string, unknown>>();
+        let stagedDayStatus: string | undefined;
+        let releaseDayLock: (() => void) | undefined;
+        const tx = {
+          $queryRaw: vi.fn(async () => {
+            const priorLock = lockTail;
+            let release!: () => void;
+            lockTail = new Promise<void>((resolve) => { release = resolve; });
+            await priorLock;
+            releaseDayLock = release;
+            return [];
+          }),
+          opsEventScheduleSegment: {
+            findFirst: vi.fn(async ({ where }: { where: { id: string } }) => {
+              const segment = segments.get(where.id);
+              return segment ? { ...segment, ...stagedSegments.get(where.id) } : null;
+            }),
+            updateMany: vi.fn(async ({ where, data }: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+              const segment = segments.get(where.id);
+              const currentStatus = stagedSegments.get(where.id)?.status ?? segment?.status;
+              if (!segment || currentStatus !== where.status) return { count: 0 };
+              stagedSegments.set(where.id, { ...stagedSegments.get(where.id), ...data });
+              return { count: 1 };
+            }),
+            count: vi.fn(async ({ where }: { where: { status: { notIn: string[] } } }) => [...segments.values()].filter((segment) => {
+              const stagedStatus = stagedSegments.get(segment.id)?.status;
+              const status = typeof stagedStatus === 'string' ? stagedStatus : segment.status;
+              return !where.status.notIn.includes(status);
+            }).length),
+          },
+          opsEventScheduleDay: {
+            update: vi.fn(async ({ data }: { data: { status: string } }) => { stagedDayStatus = data.status; }),
+          },
+        };
+        try {
+          const result = await callback(tx);
+          for (const [id, data] of stagedSegments) {
+            const segment = segments.get(id);
+            if (segment) segments.set(id, { ...segment, ...data });
+          }
+          if (stagedDayStatus) dayStatus = stagedDayStatus;
+          return result;
+        } finally {
+          releaseDayLock?.();
+        }
+      }),
+    };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const instance = new EventScheduleService(
+      prisma as never,
+      { requireActorRole: vi.fn(async () => undefined) } as never,
+      auditWriter as never,
+      {} as never,
+      {} as never,
+      { now: () => now },
+    );
+
+    const [completed, skipped] = await Promise.all([
+      instance.updateSegmentStatus('evt_1', 'segment_1', { action: 'stop' }, pmcm),
+      instance.updateSegmentStatus('evt_1', 'segment_2', { action: 'skip' }, pmcm),
+    ]);
+
+    expect(completed.status).toBe('complete');
+    expect(skipped.status).toBe('skipped');
+    expect(dayStatus).toBe('complete');
+    expect([...segments.values()].map((segment) => segment.status)).toEqual(['complete', 'skipped']);
   });
 });
 
