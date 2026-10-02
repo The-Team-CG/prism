@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   PrismApprovalRequest,
@@ -31,7 +31,8 @@ import {
 } from "../use-cases/load-dashboard-workspace";
 import { startDashboardSessionLoad } from "../use-cases/start-dashboard-session-load";
 import { usePmcmSelectedEventWorkspace } from "@/features/event-workspace/shell";
-import type { DashboardSection } from "../model/event-dashboard-routing";
+import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
+import type { DashboardSection, DetailTab } from "../model/event-dashboard-routing";
 
 type ScreenName = "portal" | "editor";
 type WorkspaceStatus = "idle" | "loading" | "ready" | "error";
@@ -47,10 +48,12 @@ export function useEventDashboardWorkspaceViewModel({
   selectedEventId,
   screenName,
   section,
+  tab,
 }: {
   selectedEventId: string | null;
   screenName: ScreenName;
   section: DashboardSection;
+  tab: DetailTab;
 }) {
   const router = useRouter();
   const [session, setSession] = useState<EventSession | null>(null);
@@ -68,6 +71,12 @@ export function useEventDashboardWorkspaceViewModel({
   const [conformeUploadTarget, setConformeUploadTarget] = useState<PrismPmcmDashboardWorkspace["inquiries"][number] | null>(null);
   const [commandInboxLoadFailed, setCommandInboxLoadFailed] = useState(false);
   const [commandDataErrors, setCommandDataErrors] = useState<EventCommandDataErrors>({});
+  const activeEventCommandDataIdRef = useRef<string | null>(selectedEventId);
+  const eventCommandDataRequestIdRef = useRef(0);
+  if (activeEventCommandDataIdRef.current !== selectedEventId) {
+    activeEventCommandDataIdRef.current = selectedEventId;
+    eventCommandDataRequestIdRef.current += 1;
+  }
 
   const reportSelectedEventWorkspaceError = useCallback((err: unknown) => {
     setError(err instanceof Error ? err.message : "Unable to load selected event workspace");
@@ -164,13 +173,28 @@ export function useEventDashboardWorkspaceViewModel({
     };
   }, []);
 
+  const isActivePmcmLiveOpsView = Boolean(
+    session &&
+    isPmcmAdmin(session.role) &&
+    screenName === "portal" &&
+    section === "events" &&
+    tab === "live-ops" &&
+    selectedEventId,
+  );
+  const isEventDayLiveOpsView = Boolean(
+    screenName === "portal" &&
+    section === "events" &&
+    tab === "live-ops" &&
+    selectedEventId,
+  );
+
   useEffect(() => {
-    if (!session || screenName !== "portal") return;
+    if (!session || screenName !== "portal" || isActivePmcmLiveOpsView) return;
     const id = window.setInterval(() => {
       refresh(session).catch(() => undefined);
     }, 30_000);
     return () => window.clearInterval(id);
-  }, [session, screenName, section, commandInbox?.page.index]);
+  }, [session, screenName, section, tab, commandInbox?.page.index, isActivePmcmLiveOpsView]);
 
   async function refreshApprovals() {
     const reqs = await loadApprovalRequests(true);
@@ -196,15 +220,15 @@ export function useEventDashboardWorkspaceViewModel({
     }
   }
 
-  function applyEventCommandData(result: Awaited<ReturnType<typeof loadEventCommandData>>) {
+  const applyEventCommandData = useCallback((result: Awaited<ReturnType<typeof loadEventCommandData>>) => {
     setLiveOps(result.data.liveOps);
     setStatusFeed(result.data.statusFeed);
     setDefenseReadiness(result.data.defenseReadiness);
     setRegistrationPlatform(result.data.registrationPlatform);
     setCommandDataErrors(result.errors);
-  }
+  }, []);
 
-  async function loadLiveOps(force = true) {
+  const loadLiveOps = useCallback(async (force = true) => {
     if (!selectedEventId) {
       setLiveOps(null);
       setStatusFeed(null);
@@ -213,13 +237,26 @@ export function useEventDashboardWorkspaceViewModel({
       setCommandDataErrors({});
       return;
     }
-    const result = await loadEventCommandData(selectedEventId, force);
+    const eventId = selectedEventId;
+    const requestId = ++eventCommandDataRequestIdRef.current;
+    const result = await loadEventCommandData(eventId, force);
+    if (
+      activeEventCommandDataIdRef.current !== eventId ||
+      eventCommandDataRequestIdRef.current !== requestId
+    ) return;
     applyEventCommandData(result);
-  }
+  }, [applyEventCommandData, selectedEventId]);
+
+  const refreshLiveOps = useCallback(() => loadLiveOps(true), [loadLiveOps]);
+  useEventDayLiveUpdates({
+    enabled: isActivePmcmLiveOpsView,
+    refresh: refreshLiveOps,
+  });
 
   useEffect(() => {
     let cancelled = false;
     if (!selectedEventId) {
+      eventCommandDataRequestIdRef.current += 1;
       setLiveOps(null);
       setStatusFeed(null);
       setDefenseReadiness(null);
@@ -232,18 +269,30 @@ export function useEventDashboardWorkspaceViewModel({
     if (cached) {
       applyEventCommandData({ data: cached.value, errors: {} });
       if (isFresh(cached.loadedAt, EVENT_WORKSPACE_CACHE_MS)) {
+        if (!isEventDayLiveOpsView) eventCommandDataRequestIdRef.current += 1;
         return () => {
           cancelled = true;
         };
       }
     }
 
+    if (isEventDayLiveOpsView) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const requestId = ++eventCommandDataRequestIdRef.current;
+    const isCurrentRequest = () =>
+      !cancelled &&
+      activeEventCommandDataIdRef.current === selectedEventId &&
+      eventCommandDataRequestIdRef.current === requestId;
     loadEventCommandData(selectedEventId, !cached)
       .then((result) => {
-        if (!cancelled) applyEventCommandData(result);
+        if (isCurrentRequest()) applyEventCommandData(result);
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (isCurrentRequest()) {
           setCommandDataErrors({ liveOps: err instanceof Error ? err.message : String(err) });
         }
       });
@@ -251,7 +300,7 @@ export function useEventDashboardWorkspaceViewModel({
     return () => {
       cancelled = true;
     };
-  }, [selectedEventId]);
+  }, [applyEventCommandData, isEventDayLiveOpsView, selectedEventId]);
 
   return {
     status,

@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EVENT_DAY_LIVE_UPDATE_INTERVAL_MS } from "@/features/live-ops/workspace/view-models/use-event-day-live-updates";
 
 // Mocked so no request can leave during the test. The regression assertion is
 // literally "this was never called".
@@ -33,6 +34,10 @@ const LIVE = {
   attendanceStatus: "pending",
 };
 const REPLACED = { ...LIVE, status: "replaced", attendanceStatus: "replaced" };
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function workspace(assignment: Record<string, unknown>) {
   return { assignments: [assignment], events: [EVENT] } as never;
@@ -122,6 +127,45 @@ describe("coordinator event selection", () => {
     await waitFor(() => expect(result.current.event?.id).toBe("evt_2"));
     expect(result.current.assignment?.id).toBe("coord_asg_2");
     await waitFor(() => expect(loadCoordinatorRoleView).toHaveBeenCalledWith(SESSION, "evt_2"));
+  });
+
+  it("refreshes the selected coordinator event's tasks and check-in count every 30 seconds", async () => {
+    vi.useFakeTimers();
+    vi.mocked(loadCoordinatorRoleView).mockReset();
+    vi.mocked(loadCoordinatorRoleView)
+      .mockResolvedValueOnce({
+        role: "Floor Director",
+        tasks: [{ id: "task_1" }],
+        guestAttendanceCount: 2,
+      } as never)
+      .mockResolvedValueOnce({
+        role: "Floor Director",
+        tasks: [{ id: "task_1" }, { id: "task_2" }],
+        guestAttendanceCount: 5,
+      } as never);
+
+    const { result, unmount } = renderHook(() => useCoordinatorViewModel({
+      session: SESSION as never,
+      state: workspace(LIVE),
+      onRefresh: async () => {},
+    }));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.roleView?.tasks).toHaveLength(1);
+    expect(result.current.roleView?.guestAttendanceCount).toBe(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(EVENT_DAY_LIVE_UPDATE_INTERVAL_MS);
+    });
+
+    expect(loadCoordinatorRoleView).toHaveBeenCalledTimes(2);
+    expect(loadCoordinatorRoleView).toHaveBeenLastCalledWith(SESSION, "evt_1");
+    expect(result.current.roleView?.tasks).toHaveLength(2);
+    expect(result.current.roleView?.guestAttendanceCount).toBe(5);
+    unmount();
   });
 
   it("ignores a previous event response that arrives after the selected event response", async () => {

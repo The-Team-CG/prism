@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added visibility-aware 30-second event-day updates for the active PMCM live-ops desk and the coordinator's selected event, refreshing task, issue, and check-in data without polling other PMCM sections.
 - Added a shared coordinator role catalog and skill-filter query contract; coordinator task, replacement, coverage, and assignment selectors use the catalog, and assignment fallback normalizes legacy tags without persisting unknown roles. Existing conflict suggestions and task authorization normalize legacy role tags during rollout; tasks for unmapped historical roles use the canonical General Coordinator role and stay in the coordinator's named queue for creation and updates. Legacy labels remain readable, verified issue ownership names are preserved without creating out-of-catalog queue labels, and PMCM issue routing labels remain flexible.
 - Added event-scoped coordinator suggestions that rank required-skill matches, explain matched and missing skills, filter date conflicts and availability, and supply alternatives for assignment conflicts.
 - Connected assignment, replacement, and double-book suggestions to event-scoped skill rankings; added catalog-only coverage-role selection with explicit legacy mapping; seeded all catalog roles with required skills for local fixtures.
