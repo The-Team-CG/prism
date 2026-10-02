@@ -99,6 +99,7 @@ export interface PrismEvent {
   clientName: string;
   eventName: string;
   eventDate: string;
+  venue?: string;
   walkInPolicy?: "closed" | "open" | "threshold";
   walkInThreshold?: number;
   actualEndedAt?: string | null;

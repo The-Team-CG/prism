@@ -37,6 +37,7 @@ import {
   buildCoordinatorTaskInput,
   canConfirmPendingAttendance,
   canMarkOwnAttendance,
+  isCoordinatorAssignmentActive,
   isAttendanceChoiceDisabled,
   isRegistrationCoordinatorRole,
   isIngressOrEgressRole,
@@ -66,8 +67,12 @@ export function useCoordinatorViewModel({
   const assignments = state.assignments.filter((item) =>
     sameCoordinatorName(item.coordinatorName, session.name),
   );
-  const assignment = pickActiveAssignment(assignments);
-  const event = assignment ? state.events.find((item) => item.id === assignment.eventId) : undefined;
+  const defaultAssignment = pickActiveAssignment(assignments.filter(isCoordinatorAssignmentActive));
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const event =
+    state.events.find((item) => item.id === selectedEventId) ??
+    state.events.find((item) => item.id === defaultAssignment?.eventId);
+  const assignment = pickActiveAssignment(assignments.filter((item) => item.eventId === event?.id));
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
@@ -113,6 +118,7 @@ export function useCoordinatorViewModel({
     }
 
     let alive = true;
+    setRoleView(null);
     setRoleViewStatus("loading");
     setRoleViewError(null);
     loadCoordinatorRoleView(session, event.id)
@@ -385,6 +391,15 @@ export function useCoordinatorViewModel({
     setActiveSection(section);
   }
 
+  function selectEvent(eventId: string) {
+    if (!assignments.some((item) => item.eventId === eventId) || !state.events.some((item) => item.id === eventId)) return;
+    if (eventId === event?.id) return;
+    setRoleView(null);
+    setRoleViewStatus("loading");
+    setRoleViewError(null);
+    setSelectedEventId(eventId);
+  }
+
   // PA-299 lives in the model, with its own test, so the rule cannot drift back
   // into the acknowledgment vocabulary here.
   const attendanceStatus = resolveOwnAttendanceStatus(assignment);
@@ -415,6 +430,7 @@ export function useCoordinatorViewModel({
     decline: (reason?: string) => acknowledge("declined", reason),
     withdraw,
     selectSection,
+    selectEvent,
     taskForm: {
       title: taskTitle,
       setTitle: setTaskTitle,
