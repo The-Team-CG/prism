@@ -55,8 +55,9 @@ describe("coordinators-desk-rules", () => {
     expect(shouldPreserveRoleViewOnAcknowledgeFailure()).toBe(true);
   });
 
-  it("picks non-replaced assignment first", () => {
+  it("picks an active assignment ahead of cancelled and replaced history", () => {
     const active = pickActiveAssignment([
+      { status: "cancelled" },
       { status: "replaced" },
       { attendanceStatus: "present" },
     ]);
