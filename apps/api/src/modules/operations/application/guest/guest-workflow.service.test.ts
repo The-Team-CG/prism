@@ -301,6 +301,7 @@ describe('GuestWorkflowService', () => {
     };
     const tx = {
       $queryRaw: vi.fn(),
+      opsEvent: { findUnique: vi.fn(async () => ({ archived: false })) },
       opsGuestRosterEntry: {
         findFirst: vi.fn(async () => row),
         update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...row, ...data })),
@@ -367,6 +368,29 @@ describe('GuestWorkflowService', () => {
     await service.updateVerification('evt_sample', rejectedRoster.id, { status: 'rejected' }, actor);
     await expect(service.checkInRosterEntry('evt_sample', rejectedRoster.id, actor)).rejects.toThrow('verification was rejected');
     expect(rejectedRoster.checkedInAt).toBeNull();
+  });
+
+  it('keeps archived registration records readable and rejects writes after the event lock', async () => {
+    const { service, state, prisma, auditWriter } = createGuestWorkflowFixture();
+    const actor = { id: 'usr_registration', name: 'Registration Staff', role: 'coordinator' };
+    const roster = await service.registerWalkIn('evt_sample', { guestName: 'Historical Guest', privacyConsentAccepted: true }, actor);
+    vi.clearAllMocks();
+    // Archive wins while verification waits for the event lock.
+    prisma.$queryRaw.mockImplementation(async () => {
+      state.events[0].archived = true;
+      return [];
+    });
+
+    await expect(service.updateVerification('evt_sample', roster.id, { status: 'verified' }, actor)).rejects.toThrow('archived');
+    await expect(service.checkInRosterEntry('evt_sample', roster.id, actor)).rejects.toThrow('archived');
+    await expect(service.registerWalkIn('evt_sample', { guestName: 'New Guest', privacyConsentAccepted: true }, actor)).rejects.toThrow('archived');
+    await expect(service.searchCoordinatorRoster('evt_sample', actor)).resolves.toEqual([
+      expect.objectContaining({ id: roster.id, guestName: 'Historical Guest', verificationStatus: 'pending' }),
+    ]);
+    expect(prisma.opsGuestRosterEntry.update).not.toHaveBeenCalled();
+    expect(prisma.opsGuestRosterEntry.create).not.toHaveBeenCalled();
+    expect(prisma.opsGuestCheckIn.create).not.toHaveBeenCalled();
+    expect(auditWriter.write).not.toHaveBeenCalled();
   });
 
   it('keeps PMCM walk-in review actionable through the shared registration roster', async () => {
