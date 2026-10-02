@@ -312,6 +312,13 @@ function inferRisk(cleanSql) {
   return { level: highest, reasons: [...new Set(reasons)] };
 }
 
+function stripReferentialActionUpdates(sql) {
+  return sql.replace(
+    /\bON\s+UPDATE\s+(?:CASCADE|RESTRICT|NO\s+ACTION|SET\s+(?:NULL|DEFAULT))\b/gi,
+    (clause) => ' '.repeat(clause.length),
+  );
+}
+
 function splitQualifiedIdentifier(target) {
   const match = target.trim().match(
     new RegExp(`^(${IDENTIFIER})\\s*\\.\\s*(${IDENTIFIER})$`, 'i'),
@@ -506,6 +513,7 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
   }
 
   const { cleanSql, schemas } = extractQualifiedSchemas(migration.sql);
+  const analysisSql = stripReferentialActionUpdates(cleanSql);
   const unsupported = unsupportedSql(cleanSql, migration.sql);
   if (unsupported.length > 0) {
     errors.push(
@@ -513,7 +521,7 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
     );
   }
 
-  const relationTargets = extractRelationTargets(cleanSql);
+  const relationTargets = extractRelationTargets(analysisSql);
   const tableOwners = policy.tableOwners ?? {};
   const strictTableSchemas = new Set(policy.requireTableOwnerMappingsForSchemas ?? []);
   const ownerSchemas = new Set(policy.owners[parsed.owner].schemas);
@@ -541,10 +549,10 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
 
   const hasPotentialSchemaOrDataChange =
     /\b(?:CREATE|ALTER|DROP|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM|TRUNCATE)\b/i.test(
-      cleanSql,
+      analysisSql,
     );
   if (hasPotentialSchemaOrDataChange) {
-    for (const target of unqualifiedTargets(cleanSql)) {
+    for (const target of unqualifiedTargets(analysisSql)) {
       errors.push(
         `${migration.name}: owner-aware DDL/data targets must be schema-qualified (${target})`,
       );
@@ -588,7 +596,7 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
     }
   }
 
-  const inferredKind = inferChangeKind(cleanSql);
+  const inferredKind = inferChangeKind(analysisSql);
   if (metadata.kind && inferredKind !== 'none') {
     const kindCovers =
       (inferredKind === 'schema' && ['schema', 'mixed'].includes(metadata.kind)) ||
@@ -601,7 +609,7 @@ function validateOwnerAwareMigration(migration, parsed, policy) {
     }
   }
 
-  const inferredRisk = inferRisk(cleanSql);
+  const inferredRisk = inferRisk(analysisSql);
   if (metadata.risk && RISK_RANK[metadata.risk] < RISK_RANK[inferredRisk.level]) {
     errors.push(
       `${migration.name}: declared risk ${metadata.risk} is below inferred ${inferredRisk.level} (${inferredRisk.reasons.join(', ')})`,
