@@ -31,4 +31,5 @@ export type EventProgressSnapshot = {
   timeline: EventTimelineStep[];
   paymentMilestones: PaymentMilestoneRow[];
   score: number;
+  clientEventDayStatus: string | null;
 };

@@ -22,6 +22,26 @@ export const eventDecisionSchema = z.object({
 });
 export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
 
+export const setClientEventDayViewSchema = z.object({
+  enabled: z.boolean(),
+});
+export type SetClientEventDayViewInput = z.infer<typeof setClientEventDayViewSchema>;
+
+export const submitClientOcularVisitSchema = z.object({
+  clientNote: optionalTrimmedStringSchema,
+});
+export type SubmitClientOcularVisitInput = z.infer<typeof submitClientOcularVisitSchema>;
+
+export const scheduleOcularVisitSchema = z.object({
+  scheduledAt: z.string().datetime({ offset: true }),
+});
+export type ScheduleOcularVisitInput = z.infer<typeof scheduleOcularVisitSchema>;
+
+export const waiveOcularVisitSchema = z.object({
+  reason: nonEmptyStringSchema,
+});
+export type WaiveOcularVisitInput = z.infer<typeof waiveOcularVisitSchema>;
+
 export const PRISM_PMCM_COMMAND_INBOX_MAX_PAGE = 100;
 export const pmcmCommandInboxQuerySchema = z.object({
   page: z.coerce.number().int().min(0).max(PRISM_PMCM_COMMAND_INBOX_MAX_PAGE).default(0),
