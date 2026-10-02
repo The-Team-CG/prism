@@ -196,6 +196,19 @@ export interface PrismGuestRosterEntry {
   updatedAt?: string;
 }
 
+/** Minimal guest details exposed to assigned registration coordinators. */
+export interface PrismCoordinatorRegistrationEntry {
+  id: string;
+  eventId: string;
+  guestName: string;
+  category?: string | null;
+  table?: string | null;
+  eligibility: string;
+  verificationStatus: "pending" | "verified" | "rejected";
+  checkedInAt?: string | null;
+  walkIn: boolean;
+}
+
 export interface PrismGuestEventPass {
   id: string;
   eventName: string;
