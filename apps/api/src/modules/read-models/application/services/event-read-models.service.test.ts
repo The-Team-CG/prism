@@ -190,6 +190,7 @@ function createPmcmReadModelService() {
       findMany: vi.fn(async () => [event]),
       findUnique: vi.fn(async () => event),
     },
+    opsOcularVisitRequest: { findUnique: vi.fn(async (): Promise<Record<string, unknown> | null> => null) },
     opsPaymentMilestone: {
       findMany: vi.fn(async () => [
         {
@@ -332,6 +333,98 @@ describe('EventReadModelsService', () => {
     );
   });
 
+  it('clientWorkspaceRedactsOcularWaiverFields', async () => {
+    const event = {
+      id: 'evt_ocular',
+      clientName: 'Ana Reyes',
+      clientPortalStatus: 'unlocked',
+      eventDate: new Date('2026-10-20T00:00:00.000Z'),
+      status: 'planning',
+      archived: false,
+      proposalClientStatus: 'pending',
+      proposalReviewedAt: null,
+      inquiry: { email: 'ana@example.test' },
+      floorPlanDrafts: [],
+      paymentMilestones: [],
+    };
+    const queries = {
+      visibleEvents: vi.fn(async () => [event]),
+      clientWorkspaceForEvents: vi.fn(async () => [
+        [], [], [], [], [], [], [],
+        [{
+          eventId: event.id,
+          status: 'waived',
+          clientNote: null,
+          requestedAt: null,
+          scheduledAt: null,
+          waiverReason: 'Internal decision',
+          waivedAt: new Date('2026-10-01T00:00:00.000Z'),
+          waivedBy: 'Maxine',
+        }],
+      ]),
+      clientEventTimelineForEvents: vi.fn(async () => []),
+    };
+    const policy = new EventAccessPolicyService({ write: vi.fn() } as never);
+    const service = new EventReadModelsService(
+      queries as never,
+      policy,
+      createGuestReader() as never,
+      createStaffingReader() as never,
+    );
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+    const mappers = {
+      mapEvent: (value: typeof event) => value,
+      mapDocument: (value: unknown) => value,
+      mapBriefing: (value: unknown) => value,
+      mapBillingStatement: (value: unknown) => value,
+      mapPaymentMilestone: (value: unknown) => value,
+      mapFloorPlanDraft: (value: unknown) => value,
+      mapAuditLog: (value: unknown) => value,
+    };
+
+    const workspace = await service.clientWorkspace(actor, mappers as never);
+
+    expect(workspace.ocularVisits).toEqual([{
+      eventId: event.id,
+      status: 'waived',
+      clientNote: null,
+      requestedAt: null,
+      scheduledAt: null,
+    }]);
+  });
+
+  it('pmcmEventWorkspaceIncludesOcularTask', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const request = {
+      id: 'ovr_1',
+      eventId: 'evt_visible',
+      status: 'scheduled',
+      clientNote: 'Venue entrance is narrow',
+      requestedAt: new Date('2026-10-01T08:00:00.000Z'),
+      scheduledAt: new Date('2026-10-05T01:00:00.000Z'),
+      completedAt: null,
+      waiverReason: null,
+      waivedAt: null,
+      waivedBy: null,
+    };
+    prisma.opsOcularVisitRequest.findUnique.mockResolvedValue(request);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const workspace = await service.pmcmEventWorkspace(actor, 'evt_visible', createPassthroughPmcmMappers() as never);
+
+    expect(workspace.ocularVisit).toEqual({
+      eventId: request.eventId,
+      status: request.status,
+      clientNote: request.clientNote,
+      requestedAt: request.requestedAt.toISOString(),
+      scheduledAt: request.scheduledAt.toISOString(),
+      completedAt: null,
+      waiverReason: null,
+      waivedAt: null,
+      waivedBy: null,
+    });
+    expect(prisma.opsOcularVisitRequest.findUnique).toHaveBeenCalledWith({ where: { eventId: 'evt_visible' } });
+  });
   it('filters supplier workspace records through event visibility policy', async () => {
     const { service, policy, prisma } = createSupplierWorkspaceService();
     const actor = policy.resolveActor({
@@ -770,5 +863,215 @@ describe('EventReadModelsService', () => {
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: 500,
     });
+  });
+
+  it('composes source-backed milestones only for visible client events', async () => {
+    const readyEvent = {
+      id: 'evt_ready',
+      eventName: 'Ready Summit',
+      clientName: 'Ana Reyes',
+      eventDate: new Date('2026-03-01T00:00:00.000Z'),
+      status: 'planning',
+      clientPortalStatus: 'unlocked',
+      clientEventDayViewEnabled: false,
+      archived: false,
+      floorPlanDrafts: [],
+    };
+    const pendingEvent = {
+      ...readyEvent,
+      id: 'evt_pending',
+      eventName: 'Pending Summit',
+      eventDate: new Date('2026-06-01T00:00:00.000Z'),
+      clientEventDayViewEnabled: true,
+    };
+    const completedEvent = {
+      ...readyEvent,
+      id: 'evt_completed',
+      eventName: 'Completed Summit',
+      eventDate: new Date('2026-04-01T00:00:00.000Z'),
+      status: 'completed',
+    };
+    const hiddenEvent = { ...readyEvent, id: 'evt_hidden', clientName: 'Ramon Cruz' };
+    const milestoneRows = [
+      {
+        id: 'evt_ready',
+        eventDate: readyEvent.eventDate,
+        status: 'planning',
+        archived: false,
+        proposalClientStatus: 'approved',
+        proposalReviewedAt: new Date('2026-02-01T00:00:00.000Z'),
+        inquiry: { conformeSignedAt: new Date('2026-01-01T00:00:00.000Z') },
+        floorPlanDrafts: [
+          { isActive: true, approvedAt: new Date('2026-02-10T00:00:00.000Z') },
+        ],
+        paymentMilestones: [
+          {
+            dueDate: new Date('2026-02-20T00:00:00.000Z'),
+            status: 'pending',
+            remainingBalance: 500,
+          },
+        ],
+      },
+      {
+        id: 'evt_pending',
+        eventDate: pendingEvent.eventDate,
+        status: 'planning',
+        archived: false,
+        proposalClientStatus: 'revision_requested',
+        proposalReviewedAt: new Date('2025-12-01T00:00:00.000Z'),
+        inquiry: { conformeSignedAt: null },
+        floorPlanDrafts: [],
+        paymentMilestones: [],
+      },
+      {
+        id: 'evt_completed',
+        eventDate: completedEvent.eventDate,
+        status: 'completed',
+        archived: false,
+        proposalClientStatus: 'revision_requested',
+        proposalReviewedAt: null,
+        inquiry: { conformeSignedAt: null },
+        floorPlanDrafts: [],
+        paymentMilestones: [
+          {
+            dueDate: new Date('2026-03-20T00:00:00.000Z'),
+            status: 'pending',
+            remainingBalance: 0,
+          },
+        ],
+      },
+      {
+        id: 'evt_hidden',
+        eventDate: hiddenEvent.eventDate,
+        status: 'completed',
+        archived: false,
+        proposalClientStatus: 'approved',
+        proposalReviewedAt: new Date('2025-01-01T00:00:00.000Z'),
+        inquiry: { conformeSignedAt: new Date('2025-01-01T00:00:00.000Z') },
+        floorPlanDrafts: [],
+        paymentMilestones: [],
+      },
+    ];
+    const paymentMilestones = [
+      {
+        id: 'pay_later',
+        eventId: 'evt_ready',
+        label: 'Balance payment',
+        dueDate: new Date('2026-02-21T00:00:00.000Z'),
+        status: 'paid',
+        remainingBalance: 0,
+      },
+      {
+        id: 'pay_first',
+        eventId: 'evt_ready',
+        label: 'Final BALANCE',
+        dueDate: new Date('2026-02-20T00:00:00.000Z'),
+        status: 'pending',
+        remainingBalance: 500,
+      },
+    ];
+    const queries = {
+      visibleEvents: vi.fn(async () => [readyEvent, pendingEvent, completedEvent, hiddenEvent]),
+      clientWorkspaceForEvents: vi.fn(async () => [
+        [],
+        [],
+        [],
+        [],
+        paymentMilestones,
+        [],
+        [],
+        [],
+      ]),
+      clientEventTimelineForEvents: vi.fn(async (eventIds: string[]) => {
+        expect(eventIds).toEqual(['evt_ready', 'evt_pending', 'evt_completed']);
+        return milestoneRows;
+      }),
+    };
+    const policy = new EventAccessPolicyService(
+      { write: vi.fn() } as unknown as ConstructorParameters<typeof EventAccessPolicyService>[0],
+    );
+    const service = new EventReadModelsService(
+      queries as unknown as ConstructorParameters<typeof EventReadModelsService>[0],
+      policy,
+      createGuestReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[2],
+      createStaffingReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[3],
+    );
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+    const mappers = {
+      mapEvent: (event: typeof readyEvent) => event,
+      mapDocument: (document: unknown) => document,
+      mapBriefing: (briefing: unknown) => briefing,
+      mapBillingStatement: (statement: unknown) => statement,
+      mapPaymentMilestone: (payment: unknown) => payment,
+      mapFloorPlanDraft: (draft: unknown) => draft,
+      mapAuditLog: (log: unknown) => log,
+    };
+
+    const workspace = await service.clientWorkspace(
+      actor,
+      mappers as unknown as Parameters<EventReadModelsService['clientWorkspace']>[1],
+    );
+
+    expect(queries.clientEventTimelineForEvents).toHaveBeenCalledWith(['evt_ready', 'evt_pending', 'evt_completed']);
+    expect(workspace.events).toContainEqual(expect.objectContaining({
+      id: 'evt_ready',
+      clientEventDayViewEnabled: false,
+    }));
+    expect(workspace.clientEventTimelines).toEqual([
+      {
+        eventId: 'evt_ready',
+        milestones: [
+          { key: 'conforme_signed', date: '2026-01-01', status: 'completed' },
+          { key: 'proposal_accepted', date: '2026-02-01', status: 'completed' },
+          { key: 'floor_plan_approved', date: '2026-02-10', status: 'completed' },
+          { key: 'balance_payment_due', date: '2026-02-20', status: 'current' },
+          { key: 'event_date', date: '2026-03-01', status: 'pending' },
+        ],
+      },
+      {
+        eventId: 'evt_pending',
+        milestones: [
+          { key: 'conforme_signed', date: null, status: 'current' },
+          { key: 'proposal_accepted', date: null, status: 'pending' },
+          { key: 'floor_plan_approved', date: null, status: 'pending' },
+          { key: 'balance_payment_due', date: null, status: 'pending' },
+          { key: 'event_date', date: '2026-06-01', status: 'pending' },
+        ],
+      },
+      {
+        eventId: 'evt_completed',
+        milestones: [
+          { key: 'conforme_signed', date: null, status: 'pending' },
+          { key: 'proposal_accepted', date: null, status: 'pending' },
+          { key: 'floor_plan_approved', date: null, status: 'pending' },
+          { key: 'balance_payment_due', date: '2026-03-20', status: 'completed' },
+          { key: 'event_date', date: '2026-04-01', status: 'completed' },
+        ],
+      },
+    ]);
+    expect(workspace.clientEventTimelines).not.toContainEqual(
+      expect.objectContaining({ eventId: 'evt_hidden' }),
+    );
+  });
+
+  it('returns an empty client timeline collection when no events are visible', async () => {
+    const queries = { visibleEvents: vi.fn(async () => []) };
+    const policy = new EventAccessPolicyService(
+      { write: vi.fn() } as unknown as ConstructorParameters<typeof EventAccessPolicyService>[0],
+    );
+    const service = new EventReadModelsService(
+      queries as unknown as ConstructorParameters<typeof EventReadModelsService>[0],
+      policy,
+      createGuestReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[2],
+      createStaffingReader() as unknown as ConstructorParameters<typeof EventReadModelsService>[3],
+    );
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
+
+    const workspace = await service.clientWorkspace(
+      actor,
+      {} as unknown as Parameters<EventReadModelsService['clientWorkspace']>[1],
+    );
+
+    expect(workspace.clientEventTimelines).toEqual([]);
   });
 });
