@@ -63,7 +63,8 @@ describe("coordinators-desk-rules", () => {
     const suggestions = suggestAvailableSameRoleCoordinators({
       coordinators: [
         { id: "coord_busy", name: "Marco", active: true, roleTags: ["Floor Director"] },
-        { id: "coord_free", name: "Taylor", active: true, roleTags: ["Floor Director"] },
+        { id: "coord_free", name: "Taylor", active: true, roleTags: [" floor   director "] },
+        { id: "coord_unknown", name: "Morgan", active: true, roleTags: ["Volunteer Lead"] },
       ],
       assignments: [
         {
@@ -95,7 +96,7 @@ const roleView = {
 const session = { name: "marco.santos", email: "marco@pmcm.test", role: "coordinator" };
 
 describe("buildCoordinatorTaskInput", () => {
-  const base = { title: "Stage cue check", assignedRole: "Floor Director" };
+  const base = { title: "Stage cue check", assignedRole: "Floor Director" as const };
 
   it("omits ownerName when assign-to-me is off", () => {
     const input = buildCoordinatorTaskInput({ ...base, assignToMe: false, roleView });
@@ -106,6 +107,17 @@ describe("buildCoordinatorTaskInput", () => {
     const input = buildCoordinatorTaskInput({ ...base, assignToMe: true, roleView });
     expect(input.ownerName).toBe("Marco Santos");
     expect(input.ownerName).not.toBe(session.name);
+  });
+
+  it("keeps new tasks in the named queue when the saved role is outside the catalog", () => {
+    const input = buildCoordinatorTaskInput({
+      ...base,
+      assignedRole: "General Coordinator",
+      assignToMe: false,
+      roleView: { ...roleView, role: "Volunteer Lead" },
+    });
+    expect(input.assignedRole).toBe("General Coordinator");
+    expect(input.ownerName).toBe("Marco Santos");
   });
 
   it("omits blank optional fields rather than sending empty strings", () => {
@@ -146,6 +158,17 @@ describe("buildCoordinatorIssueInput", () => {
     expect(input.ownerRole).toBe("Floor Director");
   });
 
+  it("keeps the verified owner name but omits a legacy role from a new issue write", () => {
+    const input = buildCoordinatorIssueInput({
+      ...base,
+      assignToMe: true,
+      roleView: { ...roleView, role: "Volunteer Lead" },
+    });
+
+    expect(input.ownerName).toBe("Marco Santos");
+    expect(input).not.toHaveProperty("ownerRole");
+  });
+
   it("passes affectedArea through when non-empty and omits it when blank", () => {
     const withArea = buildCoordinatorIssueInput({
       ...base, affectedArea: "Main Hall", assignToMe: false, roleView,
@@ -179,10 +202,16 @@ describe("isTaskOutsideOwnQueue", () => {
       assignedRole: "Usher", ownRole: "Floor Director", assignToMe: true,
     })).toBe(false);
   });
+
+  it("recognizes a normalized historical role tag", () => {
+    expect(isTaskOutsideOwnQueue({
+      assignedRole: "Floor Director", ownRole: " floor   director ", assignToMe: false,
+    })).toBe(false);
+  });
 });
 
 describe("taskAssignedRoleOptions", () => {
-  it("returns the seven provisional roles without duplicating a listed role", () => {
+  it("returns the canonical role catalog", () => {
     const options = taskAssignedRoleOptions(roleView);
     expect(options).toEqual([
       "General Coordinator",
@@ -195,11 +224,10 @@ describe("taskAssignedRoleOptions", () => {
     ]);
   });
 
-  it("prepends a non-listed role exactly once", () => {
+  it("does not offer unknown historical role text for new assignments", () => {
     const options = taskAssignedRoleOptions({ ...roleView, role: "Drone Marshal" });
-    expect(options[0]).toBe("Drone Marshal");
-    expect(options.filter((r) => r === "Drone Marshal")).toHaveLength(1);
-    expect(options).toHaveLength(8);
+    expect(options).not.toContain("Drone Marshal");
+    expect(options).toEqual(["General Coordinator"]);
   });
 });
 

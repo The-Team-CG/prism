@@ -55,7 +55,7 @@ describe('EventScheduleService authority', () => {
   it('does not permit a coordinator to bypass event-day authority checks', async () => {
     const access = { requireActorRole: vi.fn().mockResolvedValue(undefined) };
     const instance = service(access, { findAssignmentForEventActor: vi.fn().mockResolvedValue(null) });
-    await expect(instance.createHandoff('evt_1', { dayId: 'day_1', role: 'Lead', fromAssignmentId: 'a_1', toAssignmentId: 'a_2', outstandingItems: [] }, { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('Coordinator may only act');
+    await expect(instance.createHandoff('evt_1', { dayId: 'day_1', role: 'Floor Director', fromAssignmentId: 'a_1', toAssignmentId: 'a_2', outstandingItems: [] }, { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('Coordinator may only act');
   });
 
   it('revokes the current designation before creating one, preserving uniqueness per event', async () => {

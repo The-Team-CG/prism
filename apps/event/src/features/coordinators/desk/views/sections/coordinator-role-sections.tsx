@@ -22,7 +22,7 @@ import {
 } from "../../model/coordinator-view-copy";
 import type { CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
 import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
-import type { PrismCoordinatorRoleView, PrismCoordinatorAssignment } from "@prism/types";
+import type { CoordinatorRole, PrismCoordinatorRoleView, PrismCoordinatorAssignment } from "@prism/types";
 import { CCard, CCardBody, CCardHeader, FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
 import {
   CoordinatorRoleActions,
@@ -264,7 +264,7 @@ function CoordinatorAssignedBadge({
 export type CoordinatorTaskFormModel = {
   title: string;
   setTitle: (value: string) => void;
-  role: string;
+  role: CoordinatorRole;
   setRole: (value: string) => void;
   priority: string;
   setPriority: (value: string) => void;
@@ -273,8 +273,9 @@ export type CoordinatorTaskFormModel = {
   dueAt: string;
   setDueAt: (value: string) => void;
   assignToMe: boolean;
+  assignToMeRequired: boolean;
   setAssignToMe: (value: boolean) => void;
-  roleOptions: string[];
+  roleOptions: CoordinatorRole[];
   routesAway: boolean;
   busy: boolean;
   error: string | null;
@@ -371,11 +372,17 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
           <input
             type="checkbox"
             checked={taskForm.assignToMe}
+            disabled={taskForm.assignToMeRequired}
             onChange={(e) => taskForm.setAssignToMe(e.target.checked)}
             className="size-4"
           />
-          <span className={FIELD_LABEL}>Assign to me</span>
+          <span className={FIELD_LABEL}>{taskForm.assignToMeRequired ? "Assign to my queue" : "Assign to me"}</span>
         </label>
+        {taskForm.assignToMeRequired ? (
+          <p className="text-xs text-muted-foreground">
+            Your saved role is outside the current role catalog, so new tasks use General Coordinator and stay in your named queue until PMCM updates the assignment.
+          </p>
+        ) : null}
         {copy.routesAwayNotice ? (
           <p className="rounded-md bg-(--prism-amber)/10 px-3 py-2 text-xs text-(--prism-amber)">
             {copy.routesAwayNotice}

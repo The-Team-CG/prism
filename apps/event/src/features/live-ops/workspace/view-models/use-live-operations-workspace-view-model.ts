@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 
 import type {
+  CoordinatorRole,
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   PrismLiveOps,
 } from "@prism/types";
+import { canonicalCoordinatorRole } from "@prism/types";
 import {
   asIsoDateTime,
   computeLiveOpsMetrics,
@@ -24,7 +26,7 @@ export function useLiveOperationsWorkspaceViewModel({
   onCreateIssue,
 }: LiveOperationsWorkspaceViewModelProps) {
   const [taskTitle, setTaskTitle] = useState("");
-  const [taskRole, setTaskRole] = useState("General Coordinator");
+  const [taskRole, setTaskRoleState] = useState<CoordinatorRole>("General Coordinator");
   const [taskPriority, setTaskPriority] = useState("normal");
   const [taskSlaDueAt, setTaskSlaDueAt] = useState("");
   const [issueTitle, setIssueTitle] = useState("");
@@ -67,7 +69,10 @@ export function useLiveOperationsWorkspaceViewModel({
     taskTitle,
     setTaskTitle,
     taskRole,
-    setTaskRole,
+    setTaskRole: (value: string) => {
+      const role = canonicalCoordinatorRole(value);
+      if (role) setTaskRoleState(role);
+    },
     taskPriority,
     setTaskPriority,
     taskSlaDueAt,

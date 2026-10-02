@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isoDateStringSchema, nonEmptyStringSchema, optionalTrimmedStringSchema } from "./common.js";
+import { coordinatorRoleSchema } from "./coordinator-roles.js";
 /* ── Live ops ─────────────────────────────────────────────────── */
 
 export const createEventScheduleDaySchema = z.object({
@@ -12,7 +13,7 @@ export const createEventScheduleSegmentSchema = z.object({
   title: nonEmptyStringSchema,
   plannedStartAt: z.string().datetime({ offset: true }),
   plannedEndAt: z.string().datetime({ offset: true }),
-  ownerRole: nonEmptyStringSchema,
+  ownerRole: coordinatorRoleSchema,
   location: optionalTrimmedStringSchema,
   sequence: z.number().int().min(0).optional(),
 }).refine((value) => new Date(value.plannedEndAt).getTime() > new Date(value.plannedStartAt).getTime(), {
@@ -33,7 +34,7 @@ export type CreateEventOperatorDesignationInput = z.infer<typeof createEventOper
 
 export const createEventHandoffSchema = z.object({
   dayId: nonEmptyStringSchema,
-  role: nonEmptyStringSchema,
+  role: coordinatorRoleSchema,
   fromAssignmentId: nonEmptyStringSchema,
   toAssignmentId: nonEmptyStringSchema,
   outstandingItems: z.array(nonEmptyStringSchema).max(100).default([]),
@@ -57,7 +58,7 @@ export type CreateEventEodReplyInput = z.infer<typeof createEventEodReplySchema>
 
 export const createEventDayTaskSchema = z.object({
   title: nonEmptyStringSchema,
-  assignedRole: optionalTrimmedStringSchema,
+  assignedRole: coordinatorRoleSchema.optional(),
   ownerName: optionalTrimmedStringSchema,
   priority: optionalTrimmedStringSchema,
   notes: optionalTrimmedStringSchema,
@@ -75,7 +76,7 @@ export const updateEventDayTaskSchema = z.object({
 export type UpdateEventDayTaskInput = z.infer<typeof updateEventDayTaskSchema>;
 
 export const createEventTaskReassignmentSchema = z.object({
-  toOwnerRole: nonEmptyStringSchema,
+  toOwnerRole: coordinatorRoleSchema,
   toOwnerName: optionalTrimmedStringSchema,
   reason: nonEmptyStringSchema,
 });
@@ -120,13 +121,19 @@ export const updateUrgentIssueSchema = z.object({
 });
 export type UpdateUrgentIssueInput = z.infer<typeof updateUrgentIssueSchema>;
 
-export const escalateLiveOpsRecordSchema = z.object({
+const escalateLiveOpsRecordFieldsSchema = z.object({
   escalationLevel: optionalTrimmedStringSchema,
   notes: optionalTrimmedStringSchema,
   ownerRole: optionalTrimmedStringSchema,
   ownerName: optionalTrimmedStringSchema,
 });
+export const escalateLiveOpsRecordSchema = escalateLiveOpsRecordFieldsSchema;
 export type EscalateLiveOpsInput = z.infer<typeof escalateLiveOpsRecordSchema>;
+
+export const escalateEventDayTaskSchema = escalateLiveOpsRecordFieldsSchema.extend({
+  ownerRole: coordinatorRoleSchema.optional(),
+});
+export type EscalateEventDayTaskInput = z.infer<typeof escalateEventDayTaskSchema>;
 
 export const verifySupplierStatusSchema = z.object({
   verificationStatus: z.enum(["verified", "disputed"]),

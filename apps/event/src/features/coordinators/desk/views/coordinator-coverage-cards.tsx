@@ -4,6 +4,7 @@ import { UsersRound } from "lucide-react";
 import {
   createCoordinatorCoverageRequirementSchema,
   parseContract,
+  type CoordinatorRole,
   type CreateCoordinatorCoverageRequirementInput,
   type PrismCoordinatorCoverage,
   type PrismCoordinatorRoleRequirement,
@@ -74,7 +75,7 @@ function RequirementTile({ requirement, assignedFallback, onEdit }: {
 /** Seeds its fields from the target being edited; the desk remounts it (by key) when that target changes. */
 export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClearEdit }: {
   busy: boolean;
-  roleOptions: string[];
+  roleOptions: readonly CoordinatorRole[];
   editing: CoverageRequirement | null;
   onSave: (input: CreateCoordinatorCoverageRequirementInput) => Promise<boolean>;
   onClearEdit: () => void;

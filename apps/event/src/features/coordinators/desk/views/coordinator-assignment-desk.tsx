@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { UserCheck } from "lucide-react";
 
 import type {
+  CoordinatorRole,
   CreateCoordinatorAvailabilityInput,
   CreateCoordinatorCoverageRequirementInput,
   PrismAcknowledgementReminderResult,
@@ -11,6 +12,7 @@ import type {
   PrismEvent,
   PrismEventOperatorDesignation,
 } from "@prism/types";
+import { COORDINATOR_ROLES, canonicalCoordinatorRole } from "@prism/types";
 import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -50,7 +52,7 @@ export function CoordinatorAssignmentDesk({
   assignments: PrismCoordinatorAssignment[];
   roleRequirements: CoverageRequirement[];
   busy: boolean;
-  onAssign: (coordinator: PrismCoordinator, role: string, overrideConflict?: boolean) => Promise<void>;
+  onAssign: (coordinator: PrismCoordinator, role: CoordinatorRole, overrideConflict?: boolean) => Promise<void>;
   onSaveCoverage: (input: CreateCoordinatorCoverageRequirementInput) => Promise<boolean>;
   onSendReminders: () => Promise<PrismAcknowledgementReminderResult | null>;
   onDesignateOperator: (coordinatorId: string) => Promise<boolean>;
@@ -59,11 +61,11 @@ export function CoordinatorAssignmentDesk({
   onCreateAvailability: (coordinatorId: string, input: CreateCoordinatorAvailabilityInput) => Promise<boolean>;
   onDeleteAvailability: (coordinatorId: string, availabilityId: string) => Promise<boolean>;
 }) {
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState<CoordinatorRole | "all">("all");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
   const [pendingConflict, setPendingConflict] = useState<{
     coordinator: PrismCoordinator;
-    role: string;
+    role: CoordinatorRole;
     conflict: PrismCoordinatorAssignment;
   } | null>(null);
   const [editingTarget, setEditingTarget] = useState<CoverageRequirement | null>(null);
@@ -74,16 +76,7 @@ export function CoordinatorAssignmentDesk({
   const pendingAcknowledgments = eventAssignments.filter((a) => a.status === "pending_acknowledgement");
   const operatorCandidates = eventAssignments.filter(isOperatorEligibleAssignment);
 
-  const roleOptions = useMemo(
-    () =>
-      Array.from(
-        new Set([
-          ...roleRequirements.map((r) => r.role),
-          ...coordinators.flatMap(coordinatorRoleTags),
-        ]),
-      ).sort((a, b) => a.localeCompare(b)),
-    [coordinators, roleRequirements],
-  );
+  const roleOptions = COORDINATOR_ROLES;
 
   const assignmentCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -105,14 +98,14 @@ export function CoordinatorAssignmentDesk({
 
   const filteredCoordinators = coordinators.filter((c) => {
     if (!c.active) return false;
-    if (roleFilter !== "all" && !coordinatorRoleTags(c).includes(roleFilter)) return false;
+    if (roleFilter !== "all" && !coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === roleFilter)) return false;
     if (onlyAvailable && conflictFor(c)) return false;
     return true;
   });
 
   const groupedRoles = roleFilter === "all" ? roleOptions : [roleFilter];
 
-  async function assign(coordinator: PrismCoordinator, role: string) {
+  async function assign(coordinator: PrismCoordinator, role: CoordinatorRole) {
     const conflict = conflictFor(coordinator);
     if (conflict) {
       setPendingConflict({ coordinator, role, conflict });
@@ -171,7 +164,7 @@ export function CoordinatorAssignmentDesk({
                 <p className="text-xs font-bold uppercase tracking-widest text-(--prism-signal)">Role</p>
                 <select
                   value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
+                  onChange={(e) => setRoleFilter(e.target.value === "all" ? "all" : canonicalCoordinatorRole(e.target.value) ?? "all")}
                   className="mt-2 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm"
                 >
                   <option value="all">All roles</option>
@@ -195,7 +188,7 @@ export function CoordinatorAssignmentDesk({
                 <EmptyState icon={UserCheck} title="No coordinators match" description="Adjust role or availability filters to see more coordinators." />
               ) : (
                 groupedRoles.map((role) => {
-                  const roleCoords = filteredCoordinators.filter((c) => coordinatorRoleTags(c).includes(role));
+                  const roleCoords = filteredCoordinators.filter((c) => coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === role));
                   if (roleCoords.length === 0) return null;
                   return (
                     <div key={role}>
@@ -207,7 +200,7 @@ export function CoordinatorAssignmentDesk({
                         {roleCoords.map((coord) => {
                           const conflict = conflictFor(coord);
                           const assignedHere = eventAssignments.some(
-                            (a) => a.coordinatorId === coord.id && a.role === role,
+                            (a) => a.coordinatorId === coord.id && canonicalCoordinatorRole(a.role) === role,
                           );
                           return (
                             <div key={`${role}-${coord.id}`} className="rounded-2xl border border-border bg-muted/30 p-4">

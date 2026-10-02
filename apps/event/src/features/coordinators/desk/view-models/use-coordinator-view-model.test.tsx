@@ -14,7 +14,11 @@ vi.mock("../use-cases/coordinator-desk-actions", () => ({
   markAttendanceAndRefreshRoleView: vi.fn(async () => null),
 }));
 
-import { markAttendanceAndRefreshRoleView } from "../use-cases/coordinator-desk-actions";
+import {
+  createTaskAndRefreshRoleView,
+  loadCoordinatorRoleView,
+  markAttendanceAndRefreshRoleView,
+} from "../use-cases/coordinator-desk-actions";
 import { useCoordinatorViewModel } from "./use-coordinator-view-model";
 
 const SESSION = { name: "Marco Santos", email: "marco@pmcm.test", role: "coordinator" };
@@ -72,5 +76,31 @@ describe("EP-11-S03: pending Absent confirm must not survive a replacement", () 
     act(() => result.current.attendanceForm.confirm());
 
     expect(markAttendanceAndRefreshRoleView).not.toHaveBeenCalled();
+  });
+});
+
+describe("legacy coordinator task creation", () => {
+  it("keeps tasks in the coordinator's named queue when the saved role is unmapped", async () => {
+    vi.mocked(loadCoordinatorRoleView).mockResolvedValue({
+      role: "Volunteer Lead",
+      assignment: { coordinatorName: "Marco Santos" },
+    } as never);
+
+    const { result } = renderVm({ ...LIVE, role: "Volunteer Lead" });
+    await waitFor(() => expect(result.current.taskForm.assignToMeRequired).toBe(true));
+
+    expect(result.current.taskForm.role).toBe("General Coordinator");
+    expect(result.current.taskForm.roleOptions).toEqual(["General Coordinator"]);
+    expect(result.current.taskForm.assignToMe).toBe(true);
+
+    act(() => result.current.taskForm.setTitle("Check arrival desk"));
+    await act(async () => result.current.taskForm.submit());
+
+    expect(createTaskAndRefreshRoleView).toHaveBeenCalledWith(expect.objectContaining({
+      input: expect.objectContaining({
+        assignedRole: "General Coordinator",
+        ownerName: "Marco Santos",
+      }),
+    }));
   });
 });

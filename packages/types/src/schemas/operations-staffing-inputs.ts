@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { nonEmptyStringSchema, optionalTrimmedStringSchema } from "./common.js";
+import { coordinatorRoleSchema } from "./coordinator-roles.js";
 
 /* Coordinator staffing writes. */
 export const createCoordinatorAssignmentSchema = z.object({
   coordinatorId: optionalTrimmedStringSchema,
   coordinatorName: optionalTrimmedStringSchema,
-  role: optionalTrimmedStringSchema,
+  role: coordinatorRoleSchema.optional(),
   overrideConflict: z.boolean().optional(),
 }).refine((value) => Boolean(value.coordinatorId || value.coordinatorName), {
   message: "Coordinator id or name is required",
@@ -40,7 +41,7 @@ export const createCoordinatorAvailabilitySchema = z.object({
 export type CreateCoordinatorAvailabilityInput = z.infer<typeof createCoordinatorAvailabilitySchema>;
 
 export const createCoordinatorCoverageRequirementSchema = z.object({
-  role: nonEmptyStringSchema,
+  role: coordinatorRoleSchema,
   required: z.number().int().min(0),
   requiredSkills: z.array(nonEmptyStringSchema).default([]),
 });
@@ -49,8 +50,8 @@ export type CreateCoordinatorCoverageRequirementInput = z.infer<typeof createCoo
 export const replaceCoordinatorAssignmentSchema = z.object({
   replacementCoordinatorId: nonEmptyStringSchema,
   replacementCoordinatorName: optionalTrimmedStringSchema,
-  role: optionalTrimmedStringSchema,
-  replacementRole: optionalTrimmedStringSchema,
+  role: coordinatorRoleSchema.optional(),
+  replacementRole: coordinatorRoleSchema.optional(),
   reason: nonEmptyStringSchema,
   overrideConflict: z.boolean().optional(),
 }).superRefine((value, context) => {
@@ -59,3 +60,12 @@ export const replaceCoordinatorAssignmentSchema = z.object({
   }
 });
 export type ReplaceCoordinatorAssignmentInput = z.infer<typeof replaceCoordinatorAssignmentSchema>;
+
+export const coordinatorSuggestionsQuerySchema = z.object({
+  role: coordinatorRoleSchema,
+  skills: z.preprocess(
+    (value) => value === undefined ? [] : Array.isArray(value) ? value : [value],
+    z.array(nonEmptyStringSchema).max(20),
+  ),
+});
+export type CoordinatorSuggestionsQueryInput = z.infer<typeof coordinatorSuggestionsQuerySchema>;

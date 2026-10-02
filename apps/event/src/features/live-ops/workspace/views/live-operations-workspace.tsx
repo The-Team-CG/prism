@@ -2,6 +2,7 @@ import type {
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   EscalateLiveOpsInput,
+  EscalateEventDayTaskInput,
   PrismCoordinator,
   PrismEvent,
   PrismEventDayStatusFeed,
@@ -42,7 +43,7 @@ export function LiveOperationsWorkspace({
   onReload: () => Promise<void>;
   onCreateTask: (input: CreateEventDayTaskInput) => Promise<void>;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
-  onEscalateTask: (taskId: string, input: EscalateLiveOpsInput) => Promise<void>;
+  onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
   onCreateIssue: (input: CreateUrgentIssueInput) => Promise<void>;
   onUpdateIssue: (issueId: string, input: UpdateUrgentIssueInput) => Promise<void>;
   onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
