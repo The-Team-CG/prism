@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { EventSession } from "@/app/lib/session";
 import {
+  canonicalCoordinatorRole,
   createEventDayTaskSchema,
   createEventTaskReassignmentSchema,
   createUrgentIssueSchema,
@@ -13,6 +14,7 @@ import {
   updateEventDayTaskSchema,
   verifySupplierStatusSchema,
   type CreateEventTaskReassignmentInput,
+  type CoordinatorRole,
   type PrismCoordinatorRoleView,
   type PrismCoordinatorWorkspace,
 } from "@prism/types";
@@ -79,7 +81,7 @@ export function useCoordinatorViewModel({
   const [issueBusy, setIssueBusy] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
-  const [taskRole, setTaskRole] = useState("");
+  const [taskRole, setTaskRole] = useState<CoordinatorRole | "">("");
   const [taskPriority, setTaskPriority] = useState("normal");
   const [taskNotes, setTaskNotes] = useState("");
   const [taskDueAt, setTaskDueAt] = useState("");
@@ -130,6 +132,8 @@ export function useCoordinatorViewModel({
       alive = false;
     };
   }, [event?.id, session.email, session.name]);
+
+  const taskOwnerAssignmentRequired = Boolean(roleView && !canonicalCoordinatorRole(roleView.role));
 
   // HIDE half: once the assignment can no longer be marked — replaced by PMCM,
   // or gone from the workspace entirely — drop any open confirm prompt so it
@@ -198,11 +202,11 @@ export function useCoordinatorViewModel({
         createEventDayTaskSchema,
         buildCoordinatorTaskInput({
           title: taskTitle,
-          assignedRole: taskRole || roleView.role,
+          assignedRole: taskRole || canonicalCoordinatorRole(roleView.role) || "General Coordinator",
           priority: taskPriority,
           notes: taskNotes,
           dueAt: taskDueAt,
-          assignToMe: taskAssignToMe,
+          assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
           roleView,
         }),
         "Create coordinator task",
@@ -414,22 +418,25 @@ export function useCoordinatorViewModel({
     taskForm: {
       title: taskTitle,
       setTitle: setTaskTitle,
-      role: taskRole || roleView?.role || "",
-      setRole: setTaskRole,
+      role: taskRole || canonicalCoordinatorRole(roleView?.role) || "General Coordinator",
+      setRole: (value: string) => setTaskRole(canonicalCoordinatorRole(value) ?? ""),
       priority: taskPriority,
       setPriority: setTaskPriority,
       notes: taskNotes,
       setNotes: setTaskNotes,
       dueAt: taskDueAt,
       setDueAt: setTaskDueAt,
-      assignToMe: taskAssignToMe,
-      setAssignToMe: setTaskAssignToMe,
+      assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
+      assignToMeRequired: taskOwnerAssignmentRequired,
+      setAssignToMe: (value: boolean) => {
+        if (!taskOwnerAssignmentRequired) setTaskAssignToMe(value);
+      },
       roleOptions: roleView ? taskAssignedRoleOptions(roleView) : [],
       routesAway: roleView
         ? isTaskOutsideOwnQueue({
-            assignedRole: taskRole || roleView.role,
+            assignedRole: taskRole || canonicalCoordinatorRole(roleView.role) || "General Coordinator",
             ownRole: roleView.role,
-            assignToMe: taskAssignToMe,
+            assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
           })
         : false,
       busy: taskBusy,

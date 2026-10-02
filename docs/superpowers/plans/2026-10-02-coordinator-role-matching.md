@@ -27,12 +27,14 @@
 
 ## File map
 
-- packages/types/src/schemas/coordinator-roles.ts — canonical role values and Zod role schema.
+- packages/types/src/schemas/coordinator-roles.ts — canonical role values, Zod schema, and historical-role normalization helper.
 - packages/types/src/schemas/operations-staffing-inputs.ts — role write validation and suggestion query schema.
-- packages/types/src/schemas/live-ops-inputs.ts — validation for coordinator-role fields on new live-ops writes.
+- packages/types/src/schemas/live-ops-inputs.ts — validation for coordinator-role fields on new live-ops writes, with flexible urgent-issue routing labels.
 - packages/types/src/schemas/index.ts — public schema exports.
 - packages/types/src/event-ops/operations.ts — shared suggestion read model.
 - packages/types/src/schemas/event-ops-inputs.test.ts — contract behavior tests.
+- apps/api/src/modules/operations/application/staffing/coordinator-assignment-command.service.ts — validate and canonicalize assignment role fallback.
+- apps/api/src/modules/operations/application/staffing/coordinators.service.test.ts — assignment fallback behavior tests.
 - apps/api/src/modules/operations/application/staffing/coordinator-suggestion-rules.ts — deterministic role/skill matching and ranking rules.
 - apps/api/src/modules/operations/application/staffing/coordinator-suggestions.service.ts — event-scoped candidate and requirement reads.
 - apps/api/src/modules/operations/application/staffing/coordinator-suggestions.service.test.ts — eligibility, skill, ranking, and limit behavior tests.
@@ -44,14 +46,14 @@
 - apps/event/src/features/event-dashboard/shell/view-models/use-event-dashboard-shell-view-model.ts — selected-event command callback.
 - apps/event/src/features/event-dashboard/shell/views/sections/event-workspace-tabs.tsx and event-dashboard-section-views.tsx — pass the callback to both PMCM coordinator-desk entry points.
 - apps/event/src/features/coordinators/desk/views/coordinator-assignment-desk.tsx — skill filter, ranked match display, and server-backed conflict suggestions.
-- apps/event/src/features/coordinators/desk/views/coordinator-coverage-cards.tsx — select catalog roles for new coverage requirements.
-- apps/event/src/features/coordinators/desk/model/coordinators-desk-rules.ts — remove the duplicate provisional catalog and client-side candidate ranking.
-- apps/event/src/features/live-ops/workspace/views/live-ops-sections.tsx — render role options from the shared catalog.
+- apps/event/src/features/coordinators/desk/views/coordinator-coverage-cards.tsx — move the coverage editor to a select that handles legacy targets explicitly.
+- apps/event/src/features/coordinators/desk/model/coordinators-desk-rules.ts — remove the local candidate ranking helper; the canonical role catalog is already shared.
+- apps/event/src/features/live-ops/workspace/views/live-ops-sections.tsx — the role options already use the shared catalog.
 - apps/api/src/fixtures/local-fixture-seeder.ts — use the shared role list for the complete fixture coverage catalog.
 - Existing coordinator desk and live-ops behavior tests — assert role choices, skill filters, displayed match details, and conflict suggestions.
 - CHANGELOG.md — one entry per implementation commit.
 
-## Task 1: Add the shared role and suggestion query contracts
+## Task 1: Add shared role contracts and canonicalize role writes
 
 **Files:**
 - Create: packages/types/src/schemas/coordinator-roles.ts
@@ -60,15 +62,37 @@
 - Modify: packages/types/src/schemas/index.ts
 - Modify: packages/types/src/event-ops/operations.ts
 - Test: packages/types/src/schemas/event-ops-inputs.test.ts
+- Modify: apps/event/src/features/coordinators/desk/model/coordinators-desk-rules.ts
+- Test: apps/event/src/features/coordinators/desk/model/coordinators-desk-rules.test.ts
+- Modify: apps/event/src/features/coordinators/desk/view-models/use-coordinator-view-model.ts
+- Modify: apps/event/src/features/coordinators/desk/views/coordinator-assignment-desk.tsx
+- Modify: apps/event/src/features/coordinators/desk/views/sections/coordinator-operator-sections.tsx
+- Modify: apps/event/src/features/coordinators/desk/views/sections/coordinator-role-sections.tsx
+- Modify: apps/event/src/features/coordinators/desk/views/coordinator-coverage-cards.tsx
+- Modify: apps/event/src/features/live-ops/workspace/view-models/use-coordinator-row-view-model.ts
+- Modify: apps/event/src/features/live-ops/workspace/view-models/use-live-operations-workspace-view-model.ts
+- Modify: apps/event/src/features/live-ops/workspace/views/live-operations-workspace.tsx and live-ops-sections.tsx
+- Modify: apps/event/src/features/event-dashboard/shell/view-models/use-event-dashboard-shell-view-model.ts
+- Modify: apps/event/src/features/event-dashboard/shell/data/commands/operations-commands.ts
+- Modify: apps/api/src/modules/operations/application/staffing/coordinator-assignment-command.service.ts
+- Test: apps/api/src/modules/operations/application/staffing/coordinators.service.test.ts
+- Modify: apps/api/src/modules/live-ops/api/event-live-ops.controller.ts
+- Modify: apps/api/src/modules/live-ops/application/event-live-ops-command.service.ts
+- Test: apps/api/src/modules/live-ops/application/event-live-ops-command.service.test.ts
+- Modify: apps/api/src/modules/live-ops/application/live-ops-task-issue-command.service.ts
+- Test: apps/api/src/modules/live-ops/application/event-schedule.service.test.ts
+- Test: apps/api/src/modules/operations/api/staffing/event-coordinator-assignments.controller.test.ts
+- Modify: CHANGELOG.md
 
 **Interfaces:**
 - COORDINATOR_ROLES is the readonly seven-value catalog from the spec.
 - coordinatorRoleSchema is a Zod enum over COORDINATOR_ROLES.
 - CoordinatorRole is inferred from coordinatorRoleSchema.
+- canonicalCoordinatorRole maps a historical tag to its catalog value after NFC, whitespace, and case normalization.
 - CoordinatorSuggestionsQueryInput is inferred from coordinatorSuggestionsQuerySchema. The schema parses a canonical role and zero or more selected skill strings. Repeated skills query parameters parse as a string array; a single parameter also parses as a one-item array.
 - PrismCoordinatorSuggestion has id, name, role, matchedSkills, missingSkills, matchedSkillCount, and requiredSkillCount.
 
-- [ ] **Step 1: Add failing shared contract cases**
+- [x] **Step 1: Add failing shared contract cases**
 
 Add these assertions to the staffing contract describe block in packages/types/src/schemas/event-ops-inputs.test.ts:
 
@@ -95,9 +119,9 @@ Import those names from @prism/types, run the focused test, and confirm it fails
 Run: npm --workspace @prism/types run test -- src/schemas/event-ops-inputs.test.ts
 Expected: FAIL on missing catalog/schema exports.
 
-- [ ] **Step 2: Implement and export the role catalog**
+- [x] **Step 2: Implement and export the role catalog**
 
-Create packages/types/src/schemas/coordinator-roles.ts with the seven exact values in the approved spec, export the constant, Zod schema, and inferred type from packages/types/src/schemas/index.ts, and verify the root package barrel already exports that schemas barrel.
+Create packages/types/src/schemas/coordinator-roles.ts with the seven exact values in the approved spec, export the constant, Zod schema, inferred type, and historical-role normalization helpers from packages/types/src/schemas/index.ts, and verify the root package barrel already exports that schemas barrel.
 
 ~~~ts
 export const COORDINATOR_ROLES = [
@@ -113,11 +137,13 @@ export const coordinatorRoleSchema = z.enum(COORDINATOR_ROLES);
 export type CoordinatorRole = z.infer<typeof coordinatorRoleSchema>;
 ~~~
 
-- [ ] **Step 3: Apply the schema to role write fields**
+- [x] **Step 3: Apply the schema to role write fields**
 
-In operations-staffing-inputs.ts, validate assignment role, replacement role fields, and coverage role with coordinatorRoleSchema. Keep assignment role optional for existing clients, but change the API fallback to choose only a coordinator tag that parses as a canonical role, otherwise try General Coordinator and reject if the coordinator is not tagged for it. In live-ops-inputs.ts, validate the new-write role fields assignedRole, toOwnerRole, ownerRole, schedule-segment ownerRole, and handoff role with the same schema. Keep all read-model role properties typed as string so historic values remain readable. Add coordinatorSuggestionsQuerySchema to operations-staffing-inputs.ts with a maximum of 20 selected skill strings.
+In operations-staffing-inputs.ts, validate assignment role, replacement role fields, and coverage role with coordinatorRoleSchema. Keep assignment role optional for existing clients. Normalize historical coordinator tags before comparing them to the canonical catalog; when role is omitted, choose only a tag that maps to a catalog value, otherwise try General Coordinator and reject if the coordinator is not tagged for it. Never persist an unknown historical tag as a new role. In live-ops-inputs.ts, validate coordinator assignment fields (assignedRole, reassignment toOwnerRole, task-escalation ownerRole, schedule-segment ownerRole, and handoff role) with the same schema. Keep urgent-issue ownerRole as a flexible routing label, because PMCM can route issues to departments such as Finance; coordinator-created issues omit an unknown historical role but keep the verified owner name. Keep all read-model role properties typed as string so historic values remain readable. Add coordinatorSuggestionsQuerySchema to operations-staffing-inputs.ts with a maximum of 20 selected skill strings.
 
-- [ ] **Step 4: Add the suggestion read model**
+Coordinator task authorization canonicalizes both the submitted role and saved assignment role. If a historical assignment role is unmapped, allow only a canonical General Coordinator task in the coordinator's own named queue; the desk must make that queue assignment explicit and must not offer the historical string as a new role. Keep the same owner-scoped exception for progress updates, and continue rejecting another coordinator's task.
+
+- [x] **Step 4: Add the suggestion read model**
 
 In packages/types/src/event-ops/operations.ts, export PrismCoordinatorSuggestion with these exact fields:
 
@@ -133,7 +159,7 @@ export interface PrismCoordinatorSuggestion {
 }
 ~~~
 
-- [ ] **Step 5: Run shared contract tests and build**
+- [x] **Step 5: Run shared contract tests and build**
 
 Run: npm --workspace @prism/types run test -- src/schemas/event-ops-inputs.test.ts
 Expected: PASS, including canonical role rejection and single/repeated skill query parsing.
@@ -141,7 +167,7 @@ Expected: PASS, including canonical role rejection and single/repeated skill que
 Run: npm --workspace @prism/types run build
 Expected: PASS and generated declarations expose the catalog, query, inferred type, and suggestion read model.
 
-- [ ] **Step 6: Commit the contract slice**
+- [x] **Step 6: Commit the role-contract slice**
 
 Update CHANGELOG.md with the shared role and staffing-query contracts. Commit only the Task 1 files.
 
@@ -267,15 +293,15 @@ Add listCoordinatorSuggestions to operations-commands.ts. Build a URL with URLSe
 
 - [ ] **Step 3: Implement the skill-match panel**
 
-In coordinator-assignment-desk.tsx, provide a catalog role selector, derive available skill filter labels from the selected role's coordinator profiles, and let PMCM select multiple skill tags. On submit call onLoadSuggestions with the selected role and tags. Render server-returned results with matched/missing tags and counts, and assign from the returned candidate ID. Show loading, request failure, and empty-result messages as visible status text. In coordinator task and issue builders, do not copy a historical out-of-catalog role into a new ownerRole write; retain the verified ownerName attribution and omit that role field unless it validates against the catalog.
+In coordinator-assignment-desk.tsx, add the skill filter: derive available skill filter labels from the selected role's coordinator profiles and let PMCM select multiple skill tags. On submit call onLoadSuggestions with the selected role and tags. Render server-returned results with matched/missing tags and counts, and assign from the returned candidate ID. Show loading, request failure, and empty-result messages as visible status text. Task 1 already prevents coordinator task and issue builders from copying an unknown historical role into a new coordinator-role write while retaining verified ownerName attribution.
 
 - [ ] **Step 4: Use server suggestions in the conflict panel**
 
 When the existing local same-date conflict opens, request suggestions for the pending role with no selected-skill filter. Replace suggestAvailableSameRoleCoordinators and the local alphabetical list with the server response. Preserve the existing explicit override action and test its behavior remains unchanged.
 
-- [ ] **Step 5: Replace duplicated role options and free-text staffing role entry**
+- [ ] **Step 5: Finish legacy-aware coverage role editing and fixtures**
 
-Use COORDINATOR_ROLES in coordinators-desk-rules.ts, the coverage target select, live-ops role selectors, and the complete fixture coverage list. Keep assignment-directory grouping able to display legacy role tags, but disable new assignment actions for non-catalog roles. The coverage editor offers only catalog roles and displays a mapping prompt when the saved role is legacy. Keep read models as string fields and preserve unknown historical display values. Remove the provisional list and obsolete local suggestion helper. Extend role-rule and desk tests to confirm that an out-of-catalog legacy value remains displayable but is not available as a new role choice.
+Coordinator assignment, coordinator-task, replacement, and live-ops role selectors already use COORDINATOR_ROLES from Task 1. Replace the coverage target's free-text datalist with a select, show a mapping prompt when the saved coverage role is legacy, and require a catalog role before saving. Add the complete fixture coverage catalog. Keep read models as string fields and preserve unknown historical display values. Remove the obsolete local suggestion helper. Extend role-rule and desk tests to confirm that an out-of-catalog legacy value remains readable but is not available as a new role choice.
 
 - [ ] **Step 6: Run event tests, typecheck, and boundary checks**
 

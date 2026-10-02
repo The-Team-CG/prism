@@ -155,12 +155,10 @@ describe('EventLiveOpsCommandService event scoping', () => {
     expect(liveOperationsService.createEventDayTask).not.toHaveBeenCalled();
   });
 
-  it('allows coordinator writes when an assignment exists for the event', async () => {
-    const { service, liveOperationsService, prisma } = createService({
-      id: 'coord_asg_ayala_marco',
-      eventId: 'evt_sample_ayala',
-      coordinatorId: 'coord_marco',
-    });
+  it('allows coordinator task writes when the assigned role normalizes to their historical assignment role', async () => {
+    const { service, liveOperationsService, prisma } = createService(
+      coordinatorAssignmentRow({ role: ' floor   director ' }),
+    );
 
     prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
     liveOperationsService.createEventDayTask.mockResolvedValue({
@@ -184,8 +182,62 @@ describe('EventLiveOpsCommandService event scoping', () => {
       updatedAt: new Date('2026-09-02T00:00:00.000Z'),
     });
 
-    await service.createEventDayTask('evt_sample_ayala', { title: 'Open registration' }, coordinatorActor());
+    await service.createEventDayTask(
+      'evt_sample_ayala',
+      { title: 'Open registration', assignedRole: 'Floor Director' },
+      coordinatorActor(),
+    );
     expect(liveOperationsService.createEventDayTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows an unmapped historical role only to create a canonical task in its own named queue', async () => {
+    const { service, liveOperationsService, prisma } = createService(
+      coordinatorAssignmentRow({ role: 'Volunteer Lead' }),
+    );
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    liveOperationsService.createEventDayTask.mockResolvedValue({
+      id: 'task_legacy_role',
+      eventId: 'evt_sample_ayala',
+      title: 'Check arrival desk',
+      assignedRole: 'General Coordinator',
+      ownerName: 'Marco Santos',
+      priority: 'normal',
+      status: 'open',
+      notes: '',
+      dueAt: null,
+      slaDueAt: null,
+      createdAt: new Date('2026-09-02T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-02T00:00:00.000Z'),
+    } as never);
+
+    await service.createEventDayTask(
+      'evt_sample_ayala',
+      { title: 'Check arrival desk', assignedRole: 'General Coordinator', ownerName: 'Marco Santos' },
+      coordinatorActor(),
+    );
+
+    expect(liveOperationsService.createEventDayTask).toHaveBeenCalledWith(
+      'evt_sample_ayala',
+      expect.objectContaining({ assignedRole: 'General Coordinator', ownerName: 'Marco Santos' }),
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+    );
+  });
+
+  it('does not let an unmapped historical role submit a task without its own queue name', async () => {
+    const { service, liveOperationsService, prisma } = createService(
+      coordinatorAssignmentRow({ role: 'Volunteer Lead' }),
+    );
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+
+    await expect(
+      service.createEventDayTask(
+        'evt_sample_ayala',
+        { title: 'Check arrival desk', assignedRole: 'General Coordinator' },
+        coordinatorActor(),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(liveOperationsService.createEventDayTask).not.toHaveBeenCalled();
   });
 
   it('keeps coordinator task updates to progress fields so reassignment requires PMCM review', async () => {
@@ -217,6 +269,59 @@ describe('EventLiveOpsCommandService event scoping', () => {
     );
   });
 
+  it('lets an unmapped-role coordinator update their own General Coordinator fallback task', async () => {
+    const { service, liveOperationsService, prisma } = createService(
+      coordinatorAssignmentRow({ role: 'Volunteer Lead' }),
+    );
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsEventDayTask.findFirst.mockResolvedValue({
+      id: 'task_legacy_role',
+      eventId: 'evt_sample_ayala',
+      assignedRole: 'General Coordinator',
+      ownerName: 'Marco Santos',
+      status: 'open',
+    } as never);
+
+    await service.updateEventDayTask(
+      'evt_sample_ayala',
+      'task_legacy_role',
+      { status: 'in_progress' },
+      coordinatorActor(),
+    );
+
+    expect(liveOperationsService.updateEventDayTask).toHaveBeenCalledWith(
+      'evt_sample_ayala',
+      'task_legacy_role',
+      { status: 'in_progress' },
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+    );
+  });
+
+  it('keeps another coordinator out of an unmapped-role fallback task queue', async () => {
+    const { service, liveOperationsService, prisma } = createService(
+      coordinatorAssignmentRow({ role: 'Volunteer Lead' }),
+    );
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsEventDayTask.findFirst.mockResolvedValue({
+      id: 'task_legacy_other',
+      eventId: 'evt_sample_ayala',
+      assignedRole: 'General Coordinator',
+      ownerName: 'Taylor Cruz',
+      status: 'open',
+    } as never);
+
+    await expect(
+      service.updateEventDayTask(
+        'evt_sample_ayala',
+        'task_legacy_other',
+        { status: 'in_progress' },
+        coordinatorActor(),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(liveOperationsService.updateEventDayTask).not.toHaveBeenCalled();
+  });
+
   it('assigns coordinator-created urgent issues to the creator role and queue by default', async () => {
     const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
     prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
@@ -228,6 +333,17 @@ describe('EventLiveOpsCommandService event scoping', () => {
       expect.objectContaining({ ownerRole: 'Registration Staff', ownerName: 'Marco Santos' }),
       expect.objectContaining({ role: OpsUserRole.Coordinator }),
     );
+  });
+
+  it('keeps a legacy coordinator role readable without writing it as a new issue queue', async () => {
+    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow({ role: 'Volunteer Lead' }));
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+
+    await service.createUrgentIssue('evt_sample_ayala', { title: 'Power interruption' }, coordinatorActor());
+
+    const input = (liveOperationsService.createUrgentIssue as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+    expect(input.ownerName).toBe('Marco Santos');
+    expect(input).not.toHaveProperty('ownerRole');
   });
 
   it('does not let a coordinator create an urgent issue in another role queue', async () => {

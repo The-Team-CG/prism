@@ -201,6 +201,34 @@ function createReaderService(prisma: any, accessPolicy: any = createAccessPolicy
 }
 
 describe('Coordinator staffing workflows', () => {
+  it('uses the canonical role spelling when a historical coordinator tag differs only by formatting', async () => {
+    const fake = createPrisma();
+    fake.assignments.splice(0);
+    fake.prisma.opsCoordinator.findUnique = async () => ({ ...coordinator, roleTags: [' floor   director '] });
+    const service = createService(fake.prisma as any);
+
+    const assignment = await service.assignCoordinator(
+      event.id,
+      { coordinatorId: coordinator.id, overrideConflict: true },
+      pmcmAdminActor,
+    );
+
+    expect(assignment.role).toBe('Floor Director');
+  });
+
+  it('rejects an omitted role when a coordinator only has legacy non-catalog tags', async () => {
+    const fake = createPrisma();
+    fake.assignments.splice(0);
+    fake.prisma.opsCoordinator.findUnique = async () => ({ ...coordinator, roleTags: ['Volunteer Lead'] });
+    const service = createService(fake.prisma as any);
+
+    await expect(
+      service.assignCoordinator(event.id, { coordinatorId: coordinator.id, overrideConflict: true }, pmcmAdminActor),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(fake.assignments).toHaveLength(0);
+  });
+
   it('rejects assignments when declared unavailability overlaps any time on the event date', async () => {
     const fake = createPrisma();
     fake.availability.push({

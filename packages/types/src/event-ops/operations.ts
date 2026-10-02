@@ -67,6 +67,15 @@ export interface PrismCoordinatorAssignment {
   createdAt?: string;
 }
 
+export interface PrismCoordinatorSuggestion {
+  id: string;
+  name: string;
+  role: string;
+  matchedSkills: string[];
+  missingSkills: string[];
+  matchedSkillCount: number;
+  requiredSkillCount: number;
+}
 export interface PrismCoordinatorAssignmentAcknowledgment {
   id: string;
   assignmentId: string;
