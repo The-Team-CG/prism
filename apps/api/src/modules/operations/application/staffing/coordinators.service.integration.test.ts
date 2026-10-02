@@ -8,6 +8,7 @@ import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
+import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 import { CoordinatorLiveOpsCommandService } from '../../../live-ops/application/coordinator-live-ops-command.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
@@ -113,7 +114,14 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
     const notificationWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
     const access = new EventAccessPolicyService(auditWriter);
     const workflow = new WorkflowCommandService(new PrismTransactionRunner(prisma));
-    coordinators = new CoordinatorAssignmentCommandService(prisma, auditWriter, notificationWriter, workflow, access);
+    coordinators = new CoordinatorAssignmentCommandService(
+      prisma,
+      auditWriter,
+      notificationWriter,
+      workflow,
+      access,
+      new CoordinatorSuggestionsService(prisma),
+    );
     liveOperations = new CoordinatorLiveOpsCommandService(prisma, auditWriter, notificationWriter, workflow);
   });
 
