@@ -243,28 +243,7 @@ export function CoordinatorAssignmentDesk({
                 />
                 Available only
               </label>
-              <fieldset disabled={roleFilter === "all" || skillSuggestionStatus === "loading"} className="space-y-2">
-                <legend className="text-sm font-semibold text-foreground">Required skill tags</legend>
-                {roleFilter === "all" ? (
-                  <p className="text-xs leading-5 text-muted-foreground">Choose a role to filter by skill.</p>
-                ) : skillOptions.length === 0 ? (
-                  <p className="text-xs leading-5 text-muted-foreground">No skill tags are recorded for this role.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {skillOptions.map((skill) => (
-                      <label key={skill} className="flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-foreground">
-                        <input
-                          type="checkbox"
-                          checked={selectedSkills.includes(skill)}
-                          onChange={(e) => updateSelectedSkill(skill, e.target.checked)}
-                          className="size-4 rounded"
-                        />
-                        {skill}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </fieldset>
+              <CoordinatorSkillFilters roleFilter={roleFilter} status={skillSuggestionStatus} options={skillOptions} selected={selectedSkills} onChange={updateSelectedSkill} />
               <Button
                 type="button"
                 size="sm"
@@ -278,38 +257,7 @@ export function CoordinatorAssignmentDesk({
 
             {/* Coordinator list */}
             <div className="space-y-5">
-              {skillSuggestionStatus === "loading" && <p role="status" className="text-sm text-muted-foreground">Loading skill matches…</p>}
-              {skillSuggestionStatus === "error" && <p role="status" className="text-sm text-destructive">Could not load skill matches. Try again.</p>}
-              {skillSuggestionStatus === "empty" && <p role="status" className="text-sm text-muted-foreground">No coordinators match this role and skill selection.</p>}
-              {skillSuggestionStatus === "loaded" && (
-                <section aria-labelledby="coordinator-skill-suggestions-title" className="space-y-3 rounded-2xl border border-border bg-card p-4">
-                  <h3 id="coordinator-skill-suggestions-title" className="text-sm font-bold text-foreground">Skill match suggestions</h3>
-                  {skillSuggestions.map((suggestion) => {
-                    const suggestionRole = canonicalCoordinatorRole(suggestion.role);
-                    if (!suggestionRole) return null;
-                    return (
-                      <div key={suggestion.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-foreground">{suggestion.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {suggestion.matchedSkillCount} of {suggestion.requiredSkillCount} required skills matched
-                          </p>
-                          <p className="text-xs text-muted-foreground">Matched: {suggestion.matchedSkills.join(", ") || "None"}</p>
-                          <p className="text-xs text-muted-foreground">Missing: {suggestion.missingSkills.join(", ") || "None"}</p>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => void assign({ id: suggestion.id, name: suggestion.name }, suggestionRole)}
-                        >
-                          Assign {suggestion.name}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </section>
-              )}
+              <CoordinatorSkillResults status={skillSuggestionStatus} suggestions={skillSuggestions} busy={busy} onAssign={assign} />
               {filteredCoordinators.length === 0 ? (
                 <EmptyState icon={UserCheck} title="No coordinators match" description="Adjust role or availability filters to see more coordinators." />
               ) : (
@@ -468,4 +416,79 @@ export function CoordinatorAssignmentDesk({
       )}
     </div>
   );
+}
+
+function CoordinatorSkillFilters({ roleFilter, status, options, selected, onChange }: {
+  roleFilter: CoordinatorRole | "all";
+  status: SuggestionLoadStatus;
+  options: string[];
+  selected: string[];
+  onChange: (skill: string, checked: boolean) => void;
+}) {
+  return (
+              <fieldset disabled={roleFilter === "all" || status === "loading"} className="space-y-2">
+                <legend className="text-sm font-semibold text-foreground">Required skill tags</legend>
+                {roleFilter === "all" ? (
+                  <p className="text-xs leading-5 text-muted-foreground">Choose a role to filter by skill.</p>
+                ) : options.length === 0 ? (
+                  <p className="text-xs leading-5 text-muted-foreground">No skill tags are recorded for this role.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {options.map((skill) => (
+                      <label key={skill} className="flex items-center gap-2 rounded-lg px-1 py-1 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(skill)}
+                          onChange={(e) => onChange(skill, e.target.checked)}
+                          className="size-4 rounded"
+                        />
+                        {skill}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </fieldset>
+  );
+}
+
+function CoordinatorSkillResults({ status, suggestions, busy, onAssign }: {
+  status: SuggestionLoadStatus;
+  suggestions: PrismCoordinatorSuggestion[];
+  busy: boolean;
+  onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole) => Promise<void>;
+}) {
+  return <>
+              {status === "loading" && <p role="status" className="text-sm text-muted-foreground">Loading skill matches…</p>}
+              {status === "error" && <p role="status" className="text-sm text-destructive">Could not load skill matches. Try again.</p>}
+              {status === "empty" && <p role="status" className="text-sm text-muted-foreground">No coordinators match this role and skill selection.</p>}
+              {status === "loaded" && (
+                <section aria-labelledby="coordinator-skill-suggestions-title" className="space-y-3 rounded-2xl border border-border bg-card p-4">
+                  <h3 id="coordinator-skill-suggestions-title" className="text-sm font-bold text-foreground">Skill match suggestions</h3>
+                  {suggestions.map((suggestion) => {
+                    const suggestionRole = canonicalCoordinatorRole(suggestion.role);
+                    if (!suggestionRole) return null;
+                    return (
+                      <div key={suggestion.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-foreground">{suggestion.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {suggestion.matchedSkillCount} of {suggestion.requiredSkillCount} required skills matched
+                          </p>
+                          <p className="text-xs text-muted-foreground">Matched: {suggestion.matchedSkills.join(", ") || "None"}</p>
+                          <p className="text-xs text-muted-foreground">Missing: {suggestion.missingSkills.join(", ") || "None"}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void onAssign({ id: suggestion.id, name: suggestion.name }, suggestionRole)}
+                        >
+                          Assign {suggestion.name}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
+  </>;
 }

@@ -70,6 +70,7 @@ export function mapBillingEvent(event: EventWithDrafts) {
     walkInThreshold: event.walkInThreshold,
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
+    clientEventDayViewEnabled: event.clientEventDayViewEnabled,
     readiness: event.readiness,
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,

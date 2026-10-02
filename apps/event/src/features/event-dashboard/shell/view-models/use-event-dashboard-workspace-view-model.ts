@@ -173,20 +173,8 @@ export function useEventDashboardWorkspaceViewModel({
     };
   }, []);
 
-  const isActivePmcmLiveOpsView = Boolean(
-    session &&
-    isPmcmAdmin(session.role) &&
-    screenName === "portal" &&
-    section === "events" &&
-    tab === "live-ops" &&
-    selectedEventId,
-  );
-  const isEventDayLiveOpsView = Boolean(
-    screenName === "portal" &&
-    section === "events" &&
-    tab === "live-ops" &&
-    selectedEventId,
-  );
+  const isEventDayLiveOpsView = isLiveOpsWorkspaceVisible(screenName, section, tab, selectedEventId);
+  const isActivePmcmLiveOpsView = Boolean(session && isPmcmAdmin(session.role) && isEventDayLiveOpsView);
 
   useEffect(() => {
     if (!session || screenName !== "portal" || isActivePmcmLiveOpsView) return;
@@ -339,3 +327,7 @@ export function useEventDashboardWorkspaceViewModel({
 }
 
 export type EventDashboardWorkspaceViewModel = ReturnType<typeof useEventDashboardWorkspaceViewModel>;
+
+function isLiveOpsWorkspaceVisible(screenName: ScreenName, section: DashboardSection, tab: DetailTab, eventId: string | null) {
+  return Boolean(screenName === "portal" && section === "events" && tab === "live-ops" && eventId);
+}
