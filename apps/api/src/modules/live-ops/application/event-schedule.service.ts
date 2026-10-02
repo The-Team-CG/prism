@@ -167,6 +167,7 @@ export class EventScheduleService {
 
   async createHandoff(eventId: string, input: CreateEventHandoffInput, actor: ResolvedEventOpsActor): Promise<PrismEventHandoff> {
     await this.requireEventDayAuthority(eventId, actor, input.fromAssignmentId);
+    await this.requireCoordinatorWritableEvent(eventId, actor);
     const at = input.handedOffAt ? new Date(input.handedOffAt) : this.clock.now();
     return this.prisma.$transaction(async (tx) => {
       const [day, from, to] = await Promise.all([
@@ -185,6 +186,7 @@ export class EventScheduleService {
 
   async submitEodReport(eventId: string, input: CreateEventEodReportInput, actor: ResolvedEventOpsActor): Promise<PrismEventEodReport> {
     await this.requireEventDayAuthority(eventId, actor);
+    await this.requireCoordinatorWritableEvent(eventId, actor);
     const submittedAt = input.submittedAt ? new Date(input.submittedAt) : this.clock.now();
     return this.prisma.$transaction(async (tx) => {
       const day = await tx.opsEventScheduleDay.findFirst({ where: { id: input.dayId, eventId } });
@@ -235,7 +237,17 @@ export class EventScheduleService {
 
   private async requireScheduleWriter(eventId: string, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'event schedule write', eventId);
-    if (actor.role === OpsUserRole.Coordinator) await this.requireDesignatedOperator(eventId, actor);
+    if (actor.role === OpsUserRole.Coordinator) {
+      await this.requireDesignatedOperator(eventId, actor);
+      await this.requireCoordinatorWritableEvent(eventId, actor);
+    }
+  }
+
+  private async requireCoordinatorWritableEvent(eventId: string, actor: ResolvedEventOpsActor) {
+    if (actor.role !== OpsUserRole.Coordinator) return;
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { archived: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.archived) throw new ForbiddenException('Archived coordinator events are read-only');
   }
 
   private async requireEventDayAuthority(eventId: string, actor: ResolvedEventOpsActor, assignmentId?: string) {
