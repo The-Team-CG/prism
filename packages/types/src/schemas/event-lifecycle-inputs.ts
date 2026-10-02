@@ -125,3 +125,24 @@ export const updateEventWrapUpSchema = z.object({
   clientAcknowledgementNote: z.string().trim().max(2000).optional(),
 });
 export type UpdateEventWrapUpInput = z.infer<typeof updateEventWrapUpSchema>;
+export const setClientEventDayViewSchema = z.object({
+  enabled: z.boolean(),
+});
+export type SetClientEventDayViewInput = z.infer<typeof setClientEventDayViewSchema>;
+
+export const submitClientOcularVisitSchema = z.object({
+  clientNote: optionalTrimmedStringSchema,
+});
+export type SubmitClientOcularVisitInput = z.infer<typeof submitClientOcularVisitSchema>;
+
+export const scheduleOcularVisitSchema = z.object({
+  scheduledAt: z.string().datetime({ offset: true }),
+});
+export type ScheduleOcularVisitInput = z.infer<typeof scheduleOcularVisitSchema>;
+
+export const waiveOcularVisitSchema = z.object({
+  reason: nonEmptyStringSchema,
+});
+export type WaiveOcularVisitInput = z.infer<typeof waiveOcularVisitSchema>;
+
+
