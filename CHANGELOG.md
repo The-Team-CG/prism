@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Split shared shell navigation, sidebar and rail, mobile navigation, account-menu, and top-bar internals into focused modules while preserving the public exports and behavior.
 - Moved authentication history, lockout handling, and security-alert workflows out of the hash-chain audit writer while preserving authentication integrity posture, route authorization, and alert notifications.
 - Split audit-log reads and exports from login-security operations while preserving the scoped trust routes and export audit/alert behavior.
 - Moved audit hash-chain append and full integrity verification behind a focused trust module while preserving the existing `AuditService` interface.
