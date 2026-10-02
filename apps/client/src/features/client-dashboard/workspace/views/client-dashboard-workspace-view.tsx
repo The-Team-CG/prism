@@ -58,6 +58,7 @@ import {
   loadOfficialFloorPlan,
   signOutClientSession,
   submitClientInquiry,
+  submitClientOcularVisit,
   submitFloorPlanPreference,
   submitFloorPlanRevisionComment,
 } from "../use-cases/client-dashboard-actions";
@@ -134,6 +135,9 @@ export function ClientDashboardWorkspaceView({
 
   const events = useMemo(() => selectClientEvents(state, session), [session, state]);
   const selectedEvent = selectSelectedClientEvent(events, eventId, selectedEventId);
+  const ocularVisit = selectedEvent
+    ? state?.ocularVisits?.find((visit) => visit.eventId === selectedEvent.id) ?? null
+    : null;
   const eventDrafts = selectEventDrafts(state, selectedEvent);
   const officialDraft = selectOfficialDraft(eventDrafts);
   const preferenceDrafts = selectPreferenceDrafts(eventDrafts);
@@ -141,7 +145,6 @@ export function ClientDashboardWorkspaceView({
   // This is a persisted read model. A failed load must not fall back to
   // browser-clock-derived urgency from workspace data.
   const resolvedActionCenter = actionCenter;
-  const actionCenterFromWorkspaceFallback = false;
   const clientActions = selectClientDashboardActions(resolvedActionCenter, selectedEvent?.id);
   const nextAction = selectNextAction(clientActions);
   const isEventScopedView = isEventScopedClientRoute(route, eventId);
@@ -256,6 +259,24 @@ export function ClientDashboardWorkspaceView({
       setNotice("Floor plan draft saved. PMCM can review it, and approval will lock the plan.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit layout preference");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitOcularVisit(clientNote: string) {
+    if (!selectedEvent) return;
+    setBusy("ocular-visit");
+    setError(null);
+    setNotice(null);
+    try {
+      await submitClientOcularVisit(selectedEvent.id, {
+        clientNote: clientNote.trim() || undefined,
+      });
+      await refresh();
+      setNotice("Ocular visit requested. PMCM will coordinate scheduling.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to request an ocular visit");
     } finally {
       setBusy(null);
     }
@@ -423,7 +444,6 @@ export function ClientDashboardWorkspaceView({
     state,
     actionCenter: resolvedActionCenter,
     actionCenterLoadFailed,
-    actionCenterFromWorkspaceFallback,
     error,
     notice,
     busy,
@@ -435,6 +455,8 @@ export function ClientDashboardWorkspaceView({
     selectedEvent,
     selectedEventId,
     setSelectedEventId,
+    ocularVisit,
+    submitOcularVisit,
     eventDrafts,
     officialDraft,
     preferenceDrafts,

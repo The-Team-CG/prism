@@ -1,7 +1,26 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, RecordActualEventEndInput } from "@prism/types";
+import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, WaiveOcularVisitInput } from "@prism/types";
 
 export const lifecycleCommands = {
+scheduleOcularVisit: (eventId: string, input: ScheduleOcularVisitInput) =>
+    request<PrismPmcmOcularVisit>(`/api/events/${eventId}/ocular-visit/schedule`, {
+      method: "PATCH",
+      body: input,
+    }),
+completeOcularVisit: (eventId: string) =>
+    request<PrismPmcmOcularVisit>(`/api/events/${eventId}/ocular-visit/complete`, {
+      method: "POST",
+    }),
+waiveOcularVisit: (eventId: string, input: WaiveOcularVisitInput) =>
+    request<PrismPmcmOcularVisit>(`/api/events/${eventId}/ocular-visit/waive`, {
+      method: "POST",
+      body: input,
+    }),
+setClientEventDayView: (eventId: string, input: SetClientEventDayViewInput) =>
+    request<PrismEvent>("/api/events/" + eventId + "/client-event-day-view", {
+      method: "PATCH",
+      body: input,
+    }),
 acceptInquiry: (inquiryId: string) =>
     request<PrismInquiry>(`/api/inquiries/${inquiryId}/status`, {
       method: "PATCH",
