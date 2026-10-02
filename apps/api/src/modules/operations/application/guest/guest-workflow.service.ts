@@ -414,15 +414,7 @@ export class GuestWorkflowService {
         where: { id: rosterEntryId, eventId, withdrawnAt: null, eligibility: 'eligible' },
       });
       if (!roster) throw new BadRequestException('Roster entry is not eligible for check-in');
-      if (roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry verification was rejected');
-      const walkIn = roster.source === 'coordinator-walk-in';
-      if (walkIn && roster.verificationStatus !== 'verified') {
-        throw new BadRequestException('Walk-in must be verified before check-in');
-      }
-      if (walkIn) {
-        const checkedInCount = await tx.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } });
-        this.assertWalkInAllowed(currentEvent, checkedInCount);
-      }
+      const walkIn = await this.requireRosterCheckInEligibility(tx, currentEvent, roster);
       const existing = await tx.opsGuestCheckIn.findFirst({
         where: { eventId, rosterEntryId, status: 'checked_in' },
       });
@@ -454,6 +446,19 @@ export class GuestWorkflowService {
       }, { prisma: tx, correlationId: `roster_checkin_${rosterEntryId}` });
       return checkIn;
     });
+  }
+
+  private async requireRosterCheckInEligibility(tx: Prisma.TransactionClient, event: OpsEvent, roster: OpsGuestRosterEntry) {
+      if (roster.verificationStatus === 'rejected') throw new BadRequestException('Roster entry verification was rejected');
+      const walkIn = roster.source === 'coordinator-walk-in';
+      if (walkIn && roster.verificationStatus !== 'verified') {
+        throw new BadRequestException('Walk-in must be verified before check-in');
+      }
+      if (walkIn) {
+        const checkedInCount = await tx.opsGuestCheckIn.count({ where: { eventId: event.id, status: 'checked_in' } });
+        this.assertWalkInAllowed(event, checkedInCount);
+      }
+      return walkIn;
   }
 
   async withdrawFeedbackConsentByAccessCode(accessCode: string, feedbackId: string, input: WithdrawGuestFeedbackConsentInput) {

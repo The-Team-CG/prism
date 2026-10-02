@@ -46,31 +46,7 @@ export function LiveOpsScheduleDesk({
       ) : null}
       {vm.notice ? <p role="status" className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{vm.notice}</p> : null}
 
-      <section aria-labelledby="schedule-authoring-heading" className="space-y-4 border-t border-border pt-4">
-        <div>
-          <h3 id="schedule-authoring-heading" className="font-bold text-foreground">Schedule</h3>
-          <p className="text-sm text-muted-foreground">
-            {canManageSchedule ? "Add event days and segments, then track their status during the event." : "Only the designated Event Day System Operator can edit the schedule."}
-          </p>
-        </div>
-        {canManageSchedule ? <ScheduleDayForm busy={vm.busy} onCreate={vm.createDay} /> : null}
-        {days.length ? (
-          <div className="space-y-4">
-            {days.map((day) => (
-              <ScheduleDayCard
-                key={day.id}
-                day={day}
-                canManageSchedule={canManageSchedule}
-                busy={vm.busy}
-                onCreateSegment={vm.createSegment}
-                onUpdateSegmentStatus={vm.updateSegmentStatus}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">No schedule days yet.</p>
-        )}
-      </section>
+      <ScheduleAuthoringSection days={days} vm={vm} canManageSchedule={canManageSchedule} />
 
       <section aria-labelledby="handoffs-heading" className="space-y-4 border-t border-border pt-4">
         <div>
@@ -471,3 +447,38 @@ function formatDateTime(value: string): string {
 const inputClass = "min-h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
 const primaryButtonClass = "min-h-10 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50";
 const secondaryButtonClass = "min-h-9 rounded-md border border-border bg-secondary px-3 py-1.5 text-sm font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+
+function ScheduleAuthoringSection({ days, vm, canManageSchedule }: {
+  days: PrismEventScheduleDay[];
+  vm: ReturnType<typeof useLiveOpsScheduleDeskViewModel>;
+  canManageSchedule: boolean;
+}) {
+  return (
+      <section aria-labelledby="schedule-authoring-heading" className="space-y-4 border-t border-border pt-4">
+        <div>
+          <h3 id="schedule-authoring-heading" className="font-bold text-foreground">Schedule</h3>
+          <p className="text-sm text-muted-foreground">
+            {canManageSchedule ? "Add event days and segments, then track their status during the event." : "Only the designated Event Day System Operator can edit the schedule."}
+          </p>
+        </div>
+        {canManageSchedule ? <ScheduleDayForm busy={vm.busy} onCreate={vm.createDay} /> : null}
+        {days.length ? (
+          <div className="space-y-4">
+            {days.map((day) => (
+              <ScheduleDayCard
+                key={day.id}
+                day={day}
+                canManageSchedule={canManageSchedule}
+                busy={vm.busy}
+                onCreateSegment={vm.createSegment}
+                onUpdateSegmentStatus={vm.updateSegmentStatus}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">No schedule days yet.</p>
+        )}
+      </section>
+
+  );
+}
