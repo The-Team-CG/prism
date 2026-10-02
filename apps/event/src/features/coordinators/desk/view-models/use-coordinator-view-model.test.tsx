@@ -16,6 +16,8 @@ vi.mock("../use-cases/coordinator-desk-actions", () => ({
 }));
 
 import {
+  acknowledgeAndRefreshRoleView,
+  withdrawAndRefreshWorkspace,
   createTaskAndRefreshRoleView,
   loadCoordinatorRoleView,
   markAttendanceAndRefreshRoleView,
@@ -190,5 +192,35 @@ describe("coordinator event selection", () => {
     await act(async () => { resolveFirst({ role: "Floor Director" } as never); });
     expect(result.current.roleView?.role).toBe("Usher");
     vi.mocked(loadCoordinatorRoleView).mockImplementation(async () => null as never);
+  });
+});
+
+describe("archived coordinator event selection", () => {
+  it("loads historical records, blocks actions, and restores actions after returning to a current event", async () => {
+    vi.clearAllMocks();
+    vi.mocked(loadCoordinatorRoleView).mockResolvedValue({ role: "Floor Director", assignment: LIVE } as never);
+    const archivedEvent = { ...EVENT, id: "evt_archived", eventName: "Archived Forum", archived: true };
+    const archivedAssignment = { ...LIVE, id: "asg_archived", eventId: archivedEvent.id };
+    const { result } = renderHook(() => useCoordinatorViewModel({ session: SESSION as never,
+      state: { events: [EVENT, archivedEvent], assignments: [LIVE, archivedAssignment] } as never, onRefresh: async () => {} }));
+    act(() => result.current.selectEvent(archivedEvent.id));
+    await waitFor(() => expect(loadCoordinatorRoleView).toHaveBeenCalledWith(SESSION, archivedEvent.id));
+    expect(result.current.readOnly).toBe(true);
+    expect(result.current.attendanceForm.canMark).toBe(false);
+    act(() => result.current.taskForm.setTitle("Historic task"));
+    await act(async () => {
+      await result.current.taskForm.submit();
+      await result.current.acknowledge();
+      await result.current.withdraw();
+      result.current.attendanceForm.mark("present");
+    });
+    expect(createTaskAndRefreshRoleView).not.toHaveBeenCalled();
+    expect(acknowledgeAndRefreshRoleView).not.toHaveBeenCalled();
+    expect(withdrawAndRefreshWorkspace).not.toHaveBeenCalled();
+    expect(markAttendanceAndRefreshRoleView).not.toHaveBeenCalled();
+    act(() => result.current.selectEvent(EVENT.id));
+    await waitFor(() => expect(result.current.readOnly).toBe(false));
+    await act(async () => result.current.taskForm.submit());
+    expect(createTaskAndRefreshRoleView).toHaveBeenCalledWith(expect.objectContaining({ eventId: EVENT.id }));
   });
 });
