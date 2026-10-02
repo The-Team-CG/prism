@@ -370,3 +370,14 @@ export function describeReminderResult(result: PrismAcknowledgementReminderResul
   const summary = `${reminded} pending coordinator${reminded === 1 ? "" : "s"} reminded.`;
   return failed ? `${summary} ${failed} could not be sent; check the PMCM status message.` : summary;
 }
+
+/** Resolve the role used by both task preview and submission. */
+export function resolveCoordinatorTaskRole(selected: string, ownRole?: string): CoordinatorRole {
+  return canonicalCoordinatorRole(selected) || canonicalCoordinatorRole(ownRole) || "General Coordinator";
+}
+
+export function coordinatorRoleDataStatus(status: string, hasRoleView: boolean) {
+  if (status === "loading") return "loading";
+  if (status === "error") return "unavailable";
+  return hasRoleView ? "ready" : "pending";
+}
