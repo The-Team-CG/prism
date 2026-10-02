@@ -66,6 +66,7 @@ export function useEventDashboardShellViewModel({
     selectedEventId,
     screenName: screen.name,
     section,
+    tab,
   });
   const {
     session,

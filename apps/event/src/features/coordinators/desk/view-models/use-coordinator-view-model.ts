@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { EventSession } from "@/app/lib/session";
+import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
 import {
   canonicalCoordinatorRole,
   createEventDayTaskSchema,
@@ -109,6 +110,11 @@ export function useCoordinatorViewModel({
   const [pendingAttendanceChoice, setPendingAttendanceChoice] =
     useState<CoordinatorAttendanceChoice | null>(null);
 
+  const activeEventIdRef = useRef<string | null>(event?.id ?? null);
+  useEffect(() => {
+    activeEventIdRef.current = event?.id ?? null;
+  }, [event?.id]);
+
   useEffect(() => {
     if (!event?.id) {
       setRoleView(null);
@@ -138,6 +144,26 @@ export function useCoordinatorViewModel({
       alive = false;
     };
   }, [event?.id, session.email, session.name]);
+
+  const refreshRoleView = useCallback(async () => {
+    const eventId = event?.id;
+    if (!eventId) return;
+    try {
+      const next = await loadCoordinatorRoleView(session, eventId);
+      if (activeEventIdRef.current !== eventId) return;
+      setRoleView(next);
+      setRoleViewStatus("success");
+      setRoleViewError(null);
+    } catch {
+      // Keep the last role-safe data visible during a temporary network failure.
+    }
+  }, [event?.id, session.email, session.name]);
+
+  useEventDayLiveUpdates({
+    enabled: Boolean(event?.id),
+    refresh: refreshRoleView,
+    refreshOnEnable: false,
+  });
 
   const taskOwnerAssignmentRequired = Boolean(roleView && !canonicalCoordinatorRole(roleView.role));
 
