@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser, Prisma } from '@prisma/client';
+import type { OpsAuditLog, OpsLoginHistory, OpsSecurityAlert, OpsUser } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
@@ -10,8 +10,6 @@ import {
   NotificationChannel,
   OpsUserRole,
 } from '@prism/kernel/event-core';
-import { mapAuditLog } from './audit.mappers';
-import type { PrismVerifiedEventActor } from '@prism/types';
 import { NotificationOutboxService } from '../notifications/notification-outbox.service';
 import { appendAuditLog, verifyAuditIntegrity } from './audit-chain';
 import { AuditIntegrityConflictException } from './audit-chain.types';
@@ -19,19 +17,6 @@ import type { AuditIntegrityConflictKind, AuditLogInput } from './audit-chain.ty
 
 export { AuditIntegrityConflictException };
 export type { AuditIntegrityConflictKind, AuditLogInput };
-
-type AuditLogFilters = {
-  query?: string;
-  category?: string;
-  eventId?: string;
-  actor?: string;
-  actionType?: string;
-  severity?: string;
-  dateRange?: string;
-  from?: string;
-  to?: string;
-  limit?: string;
-};
 
 export type IntegrityIncidentInput = {
   source: string;
@@ -56,7 +41,6 @@ export function resolveAuthAuditIntegrityPosture(): AuthAuditIntegrityPosture {
   return process.env.AUTH_AUDIT_INTEGRITY_POSTURE === 'degraded' ? 'degraded' : 'fail_closed';
 }
 
-const BULK_EXPORT_ALERT_THRESHOLD = 25;
 const LOGIN_LOCKOUT_THRESHOLD = 5;
 const LOGIN_LOCKOUT_MINUTES = 10;
 const PERMANENT_LOCKOUT_THRESHOLD = 5;
@@ -69,44 +53,6 @@ function addMinutes(value: Date, minutes: number) {
   const next = new Date(value);
   next.setMinutes(next.getMinutes() + minutes);
   return next;
-}
-
-const AUDIT_EQUAL_FILTERS = ['category', 'eventId', 'actor', 'actionType', 'severity'] as const;
-const DATE_RANGE_DAYS: Record<string, number> = { '24h': 1, '7d': 7, '30d': 30 };
-
-function applyAuditEqualFilters(where: Prisma.OpsAuditLogWhereInput, input: AuditLogFilters) {
-  for (const key of AUDIT_EQUAL_FILTERS) {
-    const value = input[key];
-    if (value && value !== 'all') where[key] = value;
-  }
-}
-
-function applyAuditQuery(where: Prisma.OpsAuditLogWhereInput, query?: string) {
-  if (!query) return;
-  where.OR = [
-    { actor: { contains: query, mode: 'insensitive' } },
-    { action: { contains: query, mode: 'insensitive' } },
-    { affectedLabel: { contains: query, mode: 'insensitive' } },
-  ];
-}
-
-function createdAtFromDateRange(dateRange: string, now: Date) {
-  const from = new Date(now);
-  const days = DATE_RANGE_DAYS[dateRange];
-  if (days) from.setDate(from.getDate() - days);
-  return { gte: from };
-}
-
-function applyAuditDateFilters(where: Prisma.OpsAuditLogWhereInput, input: AuditLogFilters) {
-  if (input.dateRange && input.dateRange !== 'all') {
-    where.createdAt = createdAtFromDateRange(input.dateRange, new Date());
-  }
-  if (input.from || input.to) {
-    where.createdAt = {
-      ...(input.from ? { gte: new Date(input.from) } : {}),
-      ...(input.to ? { lte: new Date(input.to) } : {}),
-    };
-  }
 }
 
 type LockoutState = {
@@ -186,51 +132,6 @@ export class AuditService {
     });
 
     return entries.map((entry: OpsLoginHistory) => this.mapLoginHistory(entry));
-  }
-
-  async listAuditLogs(input: AuditLogFilters = {}) {
-    const where = this.auditWhere(input);
-    const take = Math.min(Math.max(Number(input.limit ?? 100) || 100, 1), 500);
-
-    const logs = await this.prisma.opsAuditLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: input.limit is clamped to 1..500 above.
-      take,
-    });
-
-    return logs.map((log: OpsAuditLog) => this.mapAuditLog(log));
-  }
-
-  async exportAuditLogs(input: AuditLogFilters = {}, actor?: Pick<PrismVerifiedEventActor, 'id' | 'name' | 'role' | 'email'>) {
-    const logs = await this.listAuditLogs({ ...input, limit: input.limit ?? '500' });
-
-    await this.audit(undefined, actor?.name ?? 'System', `Exported audit log (${logs.length} records)`, {
-      actorRole: actor?.role ?? OpsUserRole.System,
-      actorEmail: actor?.email,
-      actionType: AuditActionType.Export,
-      category: AuditCategory.Access,
-      affectedType: 'audit_logs',
-      affectedLabel: `${logs.length} records`,
-      metadata: { filters: input, recordCount: logs.length, actorId: actor?.id ?? null },
-    });
-
-    if (logs.length >= BULK_EXPORT_ALERT_THRESHOLD) {
-      await this.createSecurityAlert({
-        type: 'bulk_export',
-        title: 'Bulk audit export threshold exceeded',
-        description: `${actor?.name ?? 'System'} exported ${logs.length} audit records.`,
-        severity: 'warning',
-        triggeredBy: actor?.name ?? 'System',
-        metadata: { filters: input, recordCount: logs.length, threshold: BULK_EXPORT_ALERT_THRESHOLD, actorId: actor?.id ?? null, actorEmail: actor?.email ?? null },
-      });
-    }
-
-    return {
-      exportedAt: new Date().toISOString(),
-      recordCount: logs.length,
-      rows: logs,
-    };
   }
 
   async listSecurityAlerts() {
@@ -482,18 +383,6 @@ export class AuditService {
     });
     const email = recipient?.email?.trim().toLowerCase();
     return email && email.includes('@') ? email : null;
-  }
-
-  private auditWhere(input: AuditLogFilters) {
-    const where: Prisma.OpsAuditLogWhereInput = {};
-    applyAuditEqualFilters(where, input);
-    applyAuditQuery(where, input.query);
-    applyAuditDateFilters(where, input);
-    return where;
-  }
-
-  mapAuditLog(log: OpsAuditLog) {
-    return mapAuditLog(log);
   }
 
   private mapLoginHistory(entry: OpsLoginHistory) {
