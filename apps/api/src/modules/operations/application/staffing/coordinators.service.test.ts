@@ -45,7 +45,7 @@ function createAccessPolicy() {
   };
 }
 
-function createPrisma(coverageRequirements: { role: string; requiredSkills: string[] }[] = []) {
+function createPrisma(coverageRequirements: { role: string; requiredSkills: string[] }[] = [], archived = false) {
   const assignments: any[] = [
     {
       id: 'coord_asg_conflict',
@@ -72,7 +72,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
   const queryOrder: string[] = [];
 
   const prisma = {
-    opsEvent: { findUnique: async () => event },
+    opsEvent: { findUnique: async () => ({ ...event, archived }) },
     opsEventCoverageRequirement: { findMany: async () => coverageRequirements },
     opsCoordinator: {
       findUnique: async () => coordinator,
@@ -537,6 +537,16 @@ describe('Coordinator staffing workflows', () => {
     expect(acknowledged.status).toBe('acknowledged');
     expect(acknowledged.acknowledgedAt).toBeTruthy();
     expect(fake.transactionCalls).toEqual(['same_tx', 'same_tx']);
+  });
+
+
+  it('prevents a coordinator from acknowledging or withdrawing an archived event assignment', async () => {
+    const fake = createPrisma([], true);
+    const service = createService(fake.prisma as never);
+    const created = await service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role: 'Floor Director', overrideConflict: true }, pmcmAdminActor);
+    await expect(service.acknowledgeCoordinator(event.id, created.id, coordinatorActor)).rejects.toThrow('Archived coordinator events are read-only');
+    await expect(service.withdrawCoordinator(event.id, created.id, { reason: 'Unavailable' }, coordinatorActor)).rejects.toThrow('Archived coordinator events are read-only');
+    expect(fake.assignments.find((assignment) => assignment.id === created.id)?.status).toBe('pending_acknowledgement');
   });
 
   it('allows a Coordinator actor to acknowledge their own assignment (AC8 scoping decision)', async () => {

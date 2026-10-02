@@ -18,6 +18,7 @@ import {
   type CoordinatorRole,
   type PrismCoordinatorRoleView,
   type PrismCoordinatorWorkspace,
+  type PrismEvent,
 } from "@prism/types";
 import {
   acknowledgeAndRefreshRoleView,
@@ -76,6 +77,7 @@ export function useCoordinatorViewModel({
     state.events.find((item) => item.id === selectedEventId) ??
     state.events.find((item) => item.id === defaultAssignment?.eventId);
   const assignment = pickActiveAssignment(assignments.filter((item) => item.eventId === event?.id));
+  const readOnly = Boolean(event?.archived);
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
@@ -173,13 +175,13 @@ export function useCoordinatorViewModel({
   // or gone from the workspace entirely — drop any open confirm prompt so it
   // cannot be tapped against stale state. Paired with the submit-time re-check
   // in confirmAttendance, which is the guarantee; this is the render concern.
-  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: false });
+  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: readOnly });
   useEffect(() => {
     if (!attendanceAssignmentUsable) setPendingAttendanceChoice(null);
   }, [attendanceAssignmentUsable]);
 
   async function acknowledge(decision: "acknowledged" | "declined" = "acknowledged", reason?: string) {
-    if (!event || !assignment) return;
+    if (!isWritableCoordinatorEvent(event) || !assignment) return;
     setBusy(true);
     try {
       setRoleViewStatus("loading");
@@ -213,7 +215,7 @@ export function useCoordinatorViewModel({
   }
 
   async function withdraw() {
-    if (!event || !assignment) return;
+    if (!isWritableCoordinatorEvent(event) || !assignment) return;
     const reason = window.prompt("Why are you withdrawing this assignment?")?.trim() ?? "";
     try {
       const input = parseContract(withdrawCoordinatorAssignmentSchema, { reason }, "Coordinator assignment withdrawal");
@@ -228,7 +230,7 @@ export function useCoordinatorViewModel({
   }
 
   async function logTask() {
-    if (!event || !roleView) return;
+    if (!isWritableCoordinatorEvent(event) || !roleView) return;
     setTaskBusy(true);
     setTaskError(null);
     try {
@@ -264,7 +266,7 @@ export function useCoordinatorViewModel({
   }
 
   async function logUrgentIssue() {
-    if (!event || !roleView) return;
+    if (!isWritableCoordinatorEvent(event) || !roleView) return;
     setIssueBusy(true);
     setIssueError(null);
     try {
@@ -300,7 +302,7 @@ export function useCoordinatorViewModel({
   }
 
   async function requestReassignment(taskId: string, values: CreateEventTaskReassignmentInput) {
-    if (!event || !roleView?.isDesignatedOperator) return;
+    if (!isWritableCoordinatorEvent(event) || !roleView?.isDesignatedOperator) return;
     setReassignmentBusy(true);
     setReassignmentError(null);
     try {
@@ -320,7 +322,7 @@ export function useCoordinatorViewModel({
   }
 
   async function updateTaskStatus(taskId: string, status: string) {
-    if (!event) return;
+    if (!isWritableCoordinatorEvent(event)) return;
     setTaskBusy(true);
     setTaskError(null);
     try {
@@ -332,7 +334,7 @@ export function useCoordinatorViewModel({
   }
 
   async function updateDelegatedAttendance(assignmentId: string, status: string) {
-    if (!event || !roleView?.isDesignatedOperator) return;
+    if (!isWritableCoordinatorEvent(event) || !roleView?.isDesignatedOperator) return;
     setOperatorBusy(true);
     setOperatorError(null);
     try {
@@ -343,7 +345,7 @@ export function useCoordinatorViewModel({
   }
 
   async function verifySupplier(requestId: string, verificationStatus: "verified" | "disputed", note = "") {
-    if (!event || !(roleView?.isDesignatedOperator || isIngressOrEgressRole(roleView?.role))) return;
+    if (!isWritableCoordinatorEvent(event) || !(roleView?.isDesignatedOperator || isIngressOrEgressRole(roleView?.role))) return;
     setSupplierBusy(true);
     setSupplierError(null);
     try {
@@ -357,7 +359,7 @@ export function useCoordinatorViewModel({
   }
 
   async function submitAttendance(choice: CoordinatorAttendanceChoice) {
-    if (!event || !assignment) return;
+    if (!isWritableCoordinatorEvent(event) || !assignment) return;
     setAttendanceBusy(true);
     setAttendanceError(null);
     try {
@@ -387,6 +389,7 @@ export function useCoordinatorViewModel({
   }
 
   function markAttendance(choice: CoordinatorAttendanceChoice) {
+    if (readOnly) return;
     setAttendanceError(null);
     // Picking any choice clears a pending confirm first, so an unconfirmed
     // Absent cannot survive into a later pick.
@@ -431,7 +434,7 @@ export function useCoordinatorViewModel({
   // PA-299 lives in the model, with its own test, so the rule cannot drift back
   // into the acknowledgment vocabulary here.
   const attendanceStatus = resolveOwnAttendanceStatus(assignment);
-  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy, attendanceBusy });
+  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy: busy || readOnly, attendanceBusy });
   const pendingAttendanceLabel = attendanceChoiceLabel(pendingAttendanceChoice);
 
   return {
@@ -439,6 +442,7 @@ export function useCoordinatorViewModel({
     assignments,
     assignment,
     event,
+    readOnly,
     activeDraft,
     busy,
     roleView,
@@ -533,4 +537,8 @@ export function useCoordinatorViewModel({
       cancel: cancelAttendance,
     },
   };
+}
+
+function isWritableCoordinatorEvent(event: PrismEvent | undefined): event is PrismEvent {
+  return Boolean(event && !event.archived);
 }
