@@ -2,6 +2,7 @@
 
 ## 2026-10-02
 
+- **Clarified:** Event insight generation composes operations staffing facts with the event-lifecycle closure command at the API composition root; read-models remains read-only.
 - **Clarified:** Coordinator reliability notes are owned by operations staffing and written through its public port by live operations. The architecture inventory now separates coordinator staffing records from event-day task and issue records.
 
 ## 2026-10-01

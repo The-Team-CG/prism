@@ -86,12 +86,20 @@ describe('EventClosureService wrap-up', () => {
       supplierReviews: [], guestFeedback: [{ id: 'feedback_1' }], feedbackDocuments: [], approvedGuestFeedback: [{ id: 'feedback_1' }],
       complianceChecks: [{ id: 'check_1' }], openChecks: [{}], wrapSections: {},
       issues: [], segments: [{ id: 'segment_1' }], lateSegments: [],
+      coordinatorFacts: {
+        assignments: 4, awaitingAcknowledgement: 1, lateAttendance: 1, absentAttendance: 0,
+        replacedAssignments: 1, cancelledAssignments: 0, reliabilityNotes: 2,
+      },
     };
     const first = buildInsightDimensions(input);
     const second = buildInsightDimensions(input);
     expect(first).toEqual(second);
-    expect(Object.keys(first)).toEqual(['finance', 'documents', 'suppliers', 'feedback', 'compliance', 'logistics', 'issues', 'schedule']);
+    expect(Object.keys(first)).toEqual(['finance', 'documents', 'suppliers', 'feedback', 'compliance', 'logistics', 'issues', 'schedule', 'coordinators']);
     expect(first.feedback).toMatchObject({ status: 'evidence', evidence: ['feedback_1'] });
     expect(first.logistics).toMatchObject({ status: 'blocked', evidence: [] });
+    expect(first.coordinators).toMatchObject({
+      status: 'evidence',
+      summary: '4 assignment(s); 1 awaiting acknowledgement; 1 late; 0 absent; 1 replaced; 0 cancelled or released; 2 reliability note(s)',
+    });
   });
 });
