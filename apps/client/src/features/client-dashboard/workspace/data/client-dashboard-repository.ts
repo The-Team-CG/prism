@@ -10,6 +10,8 @@ import {
   type CreateFloorPlanPreferenceInput,
   type CreateFloorPlanRevisionCommentInput,
   type PrismFloorPlanSnapshot,
+  type PrismClientOcularVisit,
+  type SubmitClientOcularVisitInput,
 } from "@prism/types";
 import { clientApi, clientApiRequest } from "@/lib/prism-api";
 import type { Project } from "@/features/floorplan/editor";
@@ -56,6 +58,16 @@ export const clientDashboardRepository = {
 
   loadActionCenter(): Promise<PrismClientActionCenter> {
     return clientApi.clientWorkspace.actionCenter();
+  },
+
+  submitOcularVisit(
+    eventId: string,
+    input: SubmitClientOcularVisitInput,
+  ): Promise<PrismClientOcularVisit> {
+    return clientApiRequest<PrismClientOcularVisit>(
+      `/events/${eventId}/ocular-visit`,
+      { method: "POST", body: input },
+    );
   },
 
   createInquiry(input: CreatePrismInquiryInput) {
