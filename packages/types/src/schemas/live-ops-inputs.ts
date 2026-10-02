@@ -39,6 +39,9 @@ export const createEventHandoffSchema = z.object({
   toAssignmentId: nonEmptyStringSchema,
   outstandingItems: z.array(nonEmptyStringSchema).max(100).default([]),
   handedOffAt: z.string().datetime({ offset: true }).optional(),
+}).refine((value) => value.fromAssignmentId !== value.toAssignmentId, {
+  message: "A handoff must transfer to a different coordinator assignment",
+  path: ["toAssignmentId"],
 });
 export type CreateEventHandoffInput = z.infer<typeof createEventHandoffSchema>;
 

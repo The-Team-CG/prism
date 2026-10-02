@@ -40,7 +40,7 @@ import { cx, label } from "@/features/pmcm-kit";
 import { liveOpsPillClass } from "../model/live-ops-workspace-rules";
 import { useCoordinatorRowViewModel } from "../view-models/use-coordinator-row-view-model";
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
-import { LiveOpsControlSurface } from "@/features/live-ops/schedule";
+import { LiveOpsControlSurface, LiveOpsScheduleDesk } from "@/features/live-ops/schedule";
 
 type LiveOpsVm = ReturnType<typeof useLiveOperationsWorkspaceViewModel>;
 
@@ -163,6 +163,7 @@ function LiveOpsStatusFeed({ feed }: { feed: PrismEventDayStatusFeed }) {
 }
 
 export function LiveOpsDesk({
+  eventId,
   liveOps,
   coordinators,
   busy,
@@ -177,6 +178,7 @@ export function LiveOpsDesk({
   onVerifySupplierStatus,
   onDecideTaskReassignment,
 }: {
+  eventId: string;
   liveOps: PrismLiveOps;
   coordinators: PrismCoordinator[];
   busy: boolean;
@@ -194,6 +196,7 @@ export function LiveOpsDesk({
   return (
     <>
       {liveOps.schedule ? <div className="rounded-lg border border-border bg-card p-5"><LiveOpsControlSurface schedule={liveOps.schedule} timer={liveOps.timer} /></div> : null}
+      <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canManageSchedule canReplyToReports />
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="rounded-lg border border-border bg-card p-5">
           <Header icon={Truck} eyebrow="Supplier setup" title="Self-reported status and PMCM verification" />

@@ -37,6 +37,7 @@ const liveOpsRouteNames = [
   'updateCoordinatorAttendance',
   'replaceCoordinatorAssignment',
   'verifySupplierStatus',
+  'listHandoffs',
 ] as const;
 
 function createController() {
@@ -59,17 +60,29 @@ function createController() {
   const eventAccessPolicyService = {
     resolveActor: vi.fn(() => resolvedActor),
   };
+  const scheduleService = { listHandoffs: vi.fn(async () => []) };
   const controller = new EventLiveOpsController(
     readService as unknown as EventLiveOpsReadService,
     commandService as unknown as EventLiveOpsCommandService,
     eventAccessPolicyService as unknown as EventAccessPolicyService,
+    scheduleService as never,
   );
-  return { controller, readService, commandService, eventAccessPolicyService, resolvedActor };
+  return { controller, readService, commandService, eventAccessPolicyService, scheduleService, resolvedActor };
 }
 
 describe('EventLiveOpsController', () => {
   it('keeps event live-ops routes under the events route base', () => {
     expect(controllerPath(EventLiveOpsController)).toBe('events');
+  });
+
+  it('delegates handoff history through the verified event actor', async () => {
+    const { controller, scheduleService, eventAccessPolicyService, resolvedActor } = createController();
+    const sessionActor = verifiedActor();
+
+    await expect(controller.listHandoffs('evt_sample', sessionActor)).resolves.toEqual([]);
+
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, sessionActor);
+    expect(scheduleService.listHandoffs).toHaveBeenCalledWith('evt_sample', resolvedActor);
   });
 
   it.each(liveOpsRouteNames)('requires a verified session actor for %s', (methodName) => {
