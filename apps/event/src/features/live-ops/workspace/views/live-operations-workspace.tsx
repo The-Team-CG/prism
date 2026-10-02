@@ -1,8 +1,11 @@
 import type {
+  CoordinatorRole,
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   EscalateLiveOpsInput,
+  EscalateEventDayTaskInput,
   PrismCoordinator,
+  PrismCoordinatorSuggestion,
   PrismEvent,
   PrismEventDayStatusFeed,
   PrismLiveOps,
@@ -31,6 +34,7 @@ export function LiveOperationsWorkspace({
   onEscalateIssue,
   onUpdateCoordinatorAttendance,
   onReplaceCoordinator,
+  onLoadCoordinatorSuggestions,
   onVerifySupplierStatus,
   onDecideTaskReassignment,
 }: {
@@ -42,12 +46,13 @@ export function LiveOperationsWorkspace({
   onReload: () => Promise<void>;
   onCreateTask: (input: CreateEventDayTaskInput) => Promise<void>;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
-  onEscalateTask: (taskId: string, input: EscalateLiveOpsInput) => Promise<void>;
+  onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
   onCreateIssue: (input: CreateUrgentIssueInput) => Promise<void>;
   onUpdateIssue: (issueId: string, input: UpdateUrgentIssueInput) => Promise<void>;
   onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
   onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
   onReplaceCoordinator: (assignmentId: string, input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadCoordinatorSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
   onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
@@ -64,7 +69,8 @@ export function LiveOperationsWorkspace({
         onReload={onReload}
       />
       {liveOps ? (
-        <LiveOpsDesk
+          <LiveOpsDesk
+            eventId={event.id}
           liveOps={liveOps}
           coordinators={coordinators}
           busy={busy}
@@ -75,6 +81,7 @@ export function LiveOperationsWorkspace({
           onEscalateIssue={onEscalateIssue}
           onUpdateCoordinatorAttendance={onUpdateCoordinatorAttendance}
           onReplaceCoordinator={onReplaceCoordinator}
+          onLoadCoordinatorSuggestions={onLoadCoordinatorSuggestions}
           onVerifySupplierStatus={onVerifySupplierStatus}
           onDecideTaskReassignment={onDecideTaskReassignment}
         />

@@ -282,11 +282,15 @@ describe('CoordinatorLiveOpsCommandService', () => {
     const mockAuditWriter = {
       write: vi.fn(async () => undefined),
     };
+    const mockReliabilityWriter = {
+      record: vi.fn(async () => undefined),
+    };
     const service = new CoordinatorLiveOpsCommandService(
       mockPrisma as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[0],
       mockAuditWriter as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[1],
       mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[2],
       mockWorkflowCommandService as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[3],
+      mockReliabilityWriter as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[4],
     );
 
     const actor = {
@@ -295,16 +299,24 @@ describe('CoordinatorLiveOpsCommandService', () => {
       email: 'anthony@pmcm.test',
       role: 'pmcm-admin',
     };
-    const input = { status: 'present', notes: 'Checked in at registration.', markedBy: 'Spoofed Operator' };
+    const input = { status: 'late', notes: 'Checked in at registration.', markedBy: 'Spoofed Operator' };
 
     await service.updateCoordinatorAttendance('evt_001', existing.id, input, actor);
+
+    expect(mockReliabilityWriter.record).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: 'evt_001',
+      coordinatorId: 'coord_1',
+      assignmentId: existing.id,
+      note: 'Alex Coordinator marked late: Checked in at registration.',
+      severity: 'warning',
+    }));
 
     expect(mockAuditWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: 'evt_001',
         actor: 'Anthony Admin',
         action: 'Updated coordinator attendance: Alex Coordinator',
-        metadata: { status: 'present', notes: 'Checked in at registration.', markedBy: 'Anthony Admin' },
+        metadata: { status: 'late', notes: 'Checked in at registration.', markedBy: 'Anthony Admin' },
       }),
       undefined,
     );
@@ -338,6 +350,7 @@ describe('CoordinatorLiveOpsCommandService', () => {
       {} as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[1],
       {} as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[2],
       mockWorkflowCommandService as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[3],
+      { record: vi.fn(async () => undefined) } as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[4],
     );
 
     await expect(service.replaceCoordinatorAssignment(event.id, current.id, {

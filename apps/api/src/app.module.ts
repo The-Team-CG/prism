@@ -15,6 +15,8 @@ import { IdentityAccessModule } from './modules/identity-access/identity-access.
 import { LiveOpsModule } from './modules/live-ops/live-ops.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { OpsEventClosureController } from './modules/event-lifecycle/api/closure/event-closure.controller';
+import { EventInsightGenerationController } from './composition/event-insight-generation.controller';
+import { EventInsightGenerationService } from './composition/event-insight-generation.service';
 import { TransformInterceptor } from './common/transform.interceptor';
 
 @Module({
@@ -27,8 +29,8 @@ import { TransformInterceptor } from './common/transform.interceptor';
     IdentityAccessModule,
     EventLifecycleModule,
     EventSessionModule,
-    // `OpsEventClosureController` below composes event-lifecycle, operations,
-    // and floorplan reads, so it is hosted here rather than in one context.
+    // Closure composes lifecycle, operations, and floorplan; insight generation
+    // composes operations staffing facts with the lifecycle writer at the root.
     // Nest instantiates its `@UseGuards(EventSessionGuard)` enhancer in *this*
     // module's context, so the guard's own `PrismaService` dependency has to
     // resolve here too -- importing `EventSessionModule` alone is not enough
@@ -40,8 +42,9 @@ import { TransformInterceptor } from './common/transform.interceptor';
     LiveOpsModule,
     ReadModelsModule,
   ],
-  controllers: [OpsEventClosureController],
+  controllers: [OpsEventClosureController, EventInsightGenerationController],
   providers: [
+    EventInsightGenerationService,
     {
       provide: APP_INTERCEPTOR,
       useClass: TransformInterceptor,

@@ -12,6 +12,8 @@ function createService() {
     supplierName: 'Sonic Line Events',
     category: 'Technicals',
     eventDayVerificationStatus: SupplierVerificationStatus.SelfReported,
+    eventDayStatus: 'not_started',
+    eventDayStatusAt: null as Date | null,
     status: 'pending',
     assignmentStatus: 'pending_confirmation',
   };
@@ -27,13 +29,18 @@ function createService() {
     opsSupplierQuoteRequest: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (where.id === request.id ? request : null)),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
-      updateMany: vi.fn(async ({ where, data }: { where: { id: string; status?: string; assignmentStatus?: string | null }; data: Record<string, unknown> }) => {
+      updateMany: vi.fn(async ({ where, data }: { where: { id: string; status?: string; assignmentStatus?: string | null; eventDayStatus?: string }; data: Record<string, unknown> }) => {
         if (where.status && request.status !== where.status) return { count: 0 };
         if (Object.prototype.hasOwnProperty.call(where, 'assignmentStatus') && request.assignmentStatus !== where.assignmentStatus) return { count: 0 };
+        if (where.eventDayStatus && request.eventDayStatus !== where.eventDayStatus) return { count: 0 };
         Object.assign(request, data);
         return { count: 1 };
       }),
     },
+    opsSupplierSchedule: {
+      upsert: vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({ ...create, status: 'planned' })),
+    },
+    $transaction: vi.fn(async (callback: (tx: Record<string, unknown>) => Promise<unknown>) => callback(prisma as unknown as Record<string, unknown>)),
   };
   const service = new SupplierNetworkWorkflowService(
     prisma as any,
@@ -138,5 +145,34 @@ describe('SupplierNetworkWorkflowService', () => {
     })).rejects.toThrow(/changed before confirmation/);
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
     expect(prisma.opsSupplierQuoteRequest.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('clears an automatic late flag when PMCM changes the ingress schedule', async () => {
+    const { service, request, prisma, audit } = createService();
+    request.status = 'selected';
+    request.assignmentStatus = 'confirmed';
+    request.eventDayStatus = 'late';
+    request.eventDayStatusAt = new Date('2026-10-02T10:15:00.000Z');
+
+    const schedule = await service.createSupplierSchedule(
+      'evt_sample',
+      {
+        requestId: 'qr_sonic',
+        ingressAt: '2026-10-02T11:00:00.000Z',
+        egressAt: '2026-10-02T14:00:00.000Z',
+      },
+      { name: 'PMCM Admin', role: OpsUserRole.PmcmAdmin, explicit: true },
+    );
+
+    expect(schedule).toMatchObject({ requestId: 'qr_sonic', status: 'planned' });
+    expect(request).toMatchObject({ eventDayStatus: 'not_started', eventDayStatusAt: null });
+    expect(prisma.opsSupplierQuoteRequest.updateMany).toHaveBeenCalledWith({
+      where: { id: 'qr_sonic', eventDayStatus: 'late' },
+      data: { eventDayStatus: 'not_started', eventDayStatusAt: null },
+    });
+    expect(audit).toHaveBeenCalledWith(
+      expect.objectContaining({ metadata: expect.objectContaining({ lateFlagReset: true }) }),
+      expect.anything(),
+    );
   });
 });

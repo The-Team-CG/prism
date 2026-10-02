@@ -115,4 +115,5 @@ export const COORDINATOR_NAV_SCROLL: Record<string, string> = {
   "coord-issues": "coordinator-live-data",
   "coord-attendance": "coordinator-attendance",
   "coord-timeline": "coordinator-timeline",
+  "coord-registration": "coordinator-registration-desk",
 };

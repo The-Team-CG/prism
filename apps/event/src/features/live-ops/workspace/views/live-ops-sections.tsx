@@ -13,12 +13,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
+import { COORDINATOR_ROLES, decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
 
 import type {
+  CoordinatorRole,
   EscalateLiveOpsInput,
+  EscalateEventDayTaskInput,
   PrismCoordinator,
   PrismCoordinatorAssignment,
+  PrismCoordinatorSuggestion,
   PrismEvent,
   PrismEventDayStatusFeed,
   PrismEventDayTask,
@@ -37,7 +40,7 @@ import { cx, label } from "@/features/pmcm-kit";
 import { liveOpsPillClass } from "../model/live-ops-workspace-rules";
 import { useCoordinatorRowViewModel } from "../view-models/use-coordinator-row-view-model";
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
-import { LiveOpsControlSurface } from "@/features/live-ops/schedule";
+import { LiveOpsControlSurface, LiveOpsScheduleDesk } from "@/features/live-ops/schedule";
 
 type LiveOpsVm = ReturnType<typeof useLiveOperationsWorkspaceViewModel>;
 
@@ -160,6 +163,7 @@ function LiveOpsStatusFeed({ feed }: { feed: PrismEventDayStatusFeed }) {
 }
 
 export function LiveOpsDesk({
+  eventId,
   liveOps,
   coordinators,
   busy,
@@ -170,25 +174,29 @@ export function LiveOpsDesk({
   onEscalateIssue,
   onUpdateCoordinatorAttendance,
   onReplaceCoordinator,
+  onLoadCoordinatorSuggestions,
   onVerifySupplierStatus,
   onDecideTaskReassignment,
 }: {
+  eventId: string;
   liveOps: PrismLiveOps;
   coordinators: PrismCoordinator[];
   busy: boolean;
   vm: LiveOpsVm;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
-  onEscalateTask: (taskId: string, input: EscalateLiveOpsInput) => Promise<void>;
+  onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
   onUpdateIssue: (issueId: string, input: UpdateUrgentIssueInput) => Promise<void>;
   onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
   onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
   onReplaceCoordinator: (assignmentId: string, input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadCoordinatorSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
   onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
   return (
     <>
       {liveOps.schedule ? <div className="rounded-lg border border-border bg-card p-5"><LiveOpsControlSurface schedule={liveOps.schedule} timer={liveOps.timer} /></div> : null}
+      <LiveOpsScheduleDesk eventId={eventId} assignments={liveOps.coordinatorAssignments} canManageSchedule canReplyToReports canSubmitReports={false} />
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="rounded-lg border border-border bg-card p-5">
           <Header icon={Truck} eyebrow="Supplier setup" title="Self-reported status and PMCM verification" />
@@ -216,6 +224,7 @@ export function LiveOpsDesk({
                 assignment={assignment}
                 coordinators={coordinators}
                 busy={busy}
+                onLoadSuggestions={onLoadCoordinatorSuggestions}
                 onStatus={(status) => onUpdateCoordinatorAttendance(assignment.id, { status, notes: status === "late" ? "Marked late from live desk." : "" })}
                 onReplace={(input) => onReplaceCoordinator(assignment.id, input)}
               />
@@ -341,12 +350,7 @@ function LiveOpsIssuesPanel({
           <label className="grid gap-1.5">
             <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Owner role</span>
             <select value={vm.issueOwnerRole} onChange={(event) => vm.setIssueOwnerRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
-              <option>Event Day System Operator</option>
-              <option>Registration Staff</option>
-              <option>Floor Director</option>
-              <option>Stage Director</option>
-              <option>Ingress and Egress Assistant</option>
-              <option>Usher</option>
+              {COORDINATOR_ROLES.map((role) => <option key={role}>{role}</option>)}
             </select>
           </label>
         </div>
@@ -399,7 +403,7 @@ function LiveOpsTasksPanel({
   busy: boolean;
   vm: LiveOpsVm;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
-  onEscalateTask: (taskId: string, input: EscalateLiveOpsInput) => Promise<void>;
+  onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-5">
@@ -413,13 +417,7 @@ function LiveOpsTasksPanel({
           <label className="grid gap-1.5">
             <span className="text-xs font-black uppercase tracking-wide text-muted-foreground">Role</span>
             <select value={vm.taskRole} onChange={(event) => vm.setTaskRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
-              <option>General Coordinator</option>
-              <option>Event Day System Operator</option>
-              <option>Registration Staff</option>
-              <option>Floor Director</option>
-              <option>Stage Director</option>
-              <option>Ingress and Egress Assistant</option>
-              <option>Usher</option>
+              {COORDINATOR_ROLES.map((role) => <option key={role}>{role}</option>)}
             </select>
           </label>
           <label className="grid gap-1.5">
@@ -457,7 +455,6 @@ function LiveOpsTasksPanel({
               onEscalateTask(task.id, {
                 escalationLevel: task.priority === "critical" ? "critical" : "pmcm",
                 notes: `Escalated from PMCM live desk: ${task.title}`,
-                ownerRole: task.assignedRole,
                 ownerName: task.ownerName || undefined,
               })
             }
@@ -497,14 +494,16 @@ function CoordinatorRow({
   busy,
   onStatus,
   onReplace,
+  onLoadSuggestions,
 }: {
   assignment: PrismCoordinatorAssignment;
   coordinators: PrismCoordinator[];
   busy: boolean;
   onStatus: (status: "present" | "late" | "absent" | "replaced") => Promise<void>;
   onReplace: (input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
 }) {
-  const vm = useCoordinatorRowViewModel({ assignment, coordinators, busy, onReplace });
+  const vm = useCoordinatorRowViewModel({ assignment, coordinators, busy, onReplace, onLoadSuggestions });
 
   return (
     <div className="rounded-md border border-border bg-background p-3">
@@ -516,11 +515,7 @@ function CoordinatorRow({
         </div>
         <Pill value={vm.attendanceStatus} />
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || vm.attendanceStatus === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
-        <button disabled={busy || vm.attendanceStatus === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
-        <button disabled={busy || vm.attendanceStatus === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
-      </div>
+      <CoordinatorAttendanceButtons status={vm.attendanceStatus} busy={busy} onStatus={onStatus} />
       {vm.attendanceStatus !== "replaced" ? (
         <div className="mt-3 grid gap-2 rounded-md border border-dashed border-border bg-white p-3">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-muted-foreground">
@@ -541,15 +536,43 @@ function CoordinatorRow({
                 <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>
               ))}
             </select>
-            <input value={vm.replacementRole} onChange={(event) => vm.setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs" />
+            <select value={vm.replacementRole} onChange={(event) => vm.setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs">
+              <option value="">Select role</option>
+              {vm.replacementRoleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+            </select>
           </div>
+          <button
+            type="button"
+            disabled={busy || !vm.replacementRole || vm.suggestionStatus === "loading"}
+            onClick={() => void vm.findReplacementSuggestions()}
+            className="h-9 rounded-md border border-border bg-background px-3 text-xs font-bold disabled:opacity-60"
+          >
+            {vm.suggestionStatus === "loading" ? "Finding replacement matches…" : "Find replacement matches"}
+          </button>
+          {vm.suggestionStatus === "error" ? <p role="status" className="text-xs text-destructive">Could not load replacement matches. Try again or select a coordinator manually.</p> : null}
+          {vm.suggestionStatus === "empty" ? <p role="status" className="text-xs text-muted-foreground">No available skill matches for this role and event date.</p> : null}
+          {vm.replacementSuggestions.map((suggestion) => (
+            <div key={suggestion.id} className="rounded-md border border-border bg-background p-2">
+              <p className="text-xs font-bold">{suggestion.name} · {suggestion.matchedSkillCount}/{suggestion.requiredSkillCount} skills</p>
+              <p className="mt-1 text-xs text-muted-foreground">Matched: {suggestion.matchedSkills.join(", ") || "None"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Missing: {suggestion.missingSkills.join(", ") || "None"}</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => vm.selectReplacementCoordinator(suggestion.id)}
+                className="mt-2 h-8 rounded-md border border-border px-3 text-xs font-bold disabled:opacity-60"
+              >
+                Use {suggestion.name}
+              </button>
+            </div>
+          ))}
           <input
             value={vm.replacementReason}
             onChange={(event) => vm.setReplacementReason(event.target.value)}
             placeholder="Replacement reason required for live log"
             className="h-10 rounded-md border border-border bg-white px-2 text-xs"
           />
-          <button disabled={busy || !vm.replacementCoordinatorId || !vm.replacementReason.trim()} onClick={vm.replace} className="h-10 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
+          <button disabled={busy || !vm.canReplace} onClick={vm.replace} className="h-10 rounded-md bg-(--prism-ink) px-3 text-xs font-black text-sidebar-foreground disabled:opacity-60">
             Replace coordinator
           </button>
         </div>
@@ -657,5 +680,19 @@ function SlaLine({
       {escalationLevel && escalationLevel !== "none" ? <Pill value={escalationLevel} /> : null}
       {escalatedBy ? <span>by {escalatedBy}</span> : null}
     </div>
+  );
+}
+
+function CoordinatorAttendanceButtons({ status, busy, onStatus }: {
+  status: string;
+  busy: boolean;
+  onStatus: (status: "present" | "late" | "absent" | "replaced") => Promise<void>;
+}) {
+  return (
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button disabled={busy || status === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
+        <button disabled={busy || status === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
+        <button disabled={busy || status === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
+      </div>
   );
 }

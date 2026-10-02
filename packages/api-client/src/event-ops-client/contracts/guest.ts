@@ -1,9 +1,11 @@
 import type {
   CreateGuestCheckInInput,
+  CoordinatorWalkInCheckInInput,
   CreateGuestFeedbackInput,
   ModerateGuestFeedbackInput,
   WithdrawGuestFeedbackConsentInput,
   PrismGuestCheckIn,
+  PrismCoordinatorRegistrationEntry,
   PrismGuestRosterEntry,
   PrismGuestEventPass,
   PrismGuestFeedback,
@@ -50,6 +52,10 @@ export interface EventOpsGuestContract {
       filters?: GuestRosterSearchInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismGuestRosterEntry[]>;
+    registrationRoster(
+      eventId: string,
+      filters?: GuestRosterSearchInput,
+    ): Promise<PrismCoordinatorRegistrationEntry[]>;
     importRoster(
       eventId: string,
       input: ImportGuestRosterInput,
@@ -66,6 +72,15 @@ export interface EventOpsGuestContract {
       input: UpdateGuestVerificationInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismGuestRosterEntry>;
+    verifyRegistrationRoster(
+      eventId: string,
+      rosterEntryId: string,
+      input: UpdateGuestVerificationInput,
+    ): Promise<PrismCoordinatorRegistrationEntry>;
+    registerWalkIn(
+      eventId: string,
+      input: CoordinatorWalkInCheckInInput,
+    ): Promise<PrismCoordinatorRegistrationEntry>;
     walkInPolicy(
       eventId: string,
       actor?: EventOpsActorQuery,

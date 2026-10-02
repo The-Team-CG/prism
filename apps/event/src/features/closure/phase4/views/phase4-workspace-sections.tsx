@@ -422,6 +422,23 @@ export function Phase4InsightsSection({
             <p className="mt-3 text-xs text-muted-foreground">PMCM-only notes. These never appear on client, supplier, or guest portals.</p>
             <p className="mt-3 text-xs text-muted-foreground">{latestInsight.privateNotes}</p>
           </div>
+          <div className="rounded-md border border-border bg-background p-4 text-sm lg:col-span-2">
+            <p className="font-black">Coordinator staffing</p>
+            {latestInsight.dimensions?.coordinators ? (
+              <>
+                <p className="mt-2 text-muted-foreground">{latestInsight.dimensions.coordinators.summary}</p>
+                {latestInsight.dimensions.coordinators.evidence.length > 0 && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Evidence: {latestInsight.dimensions.coordinators.evidence.join(" · ")}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-2 text-muted-foreground">
+                This insight predates coordinator staffing data. Generate a new insight to include assignment and reliability history.
+              </p>
+            )}
+          </div>
         </div>
       ) : (
         <div className="mt-5 rounded-md border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">

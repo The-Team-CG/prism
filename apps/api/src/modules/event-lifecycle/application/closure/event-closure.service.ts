@@ -5,7 +5,7 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import type { ArchiveSearchFilters, RecordActualEventEndInput, StartEventWrapUpInput, UpdateEventWrapUpInput } from '@prism/types';
+import type { ArchiveSearchFilters, PrismCoordinatorInsightFacts, RecordActualEventEndInput, StartEventWrapUpInput, UpdateEventWrapUpInput } from '@prism/types';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
@@ -246,7 +246,11 @@ export class EventClosureService {
     });
   }
 
-  async generateEventInsights(eventId: string, actor: ResolvedEventOpsActor) {
+  async generateEventInsights(
+    eventId: string,
+    actor: ResolvedEventOpsActor,
+    coordinatorFacts: PrismCoordinatorInsightFacts,
+  ) {
     let event: OpsEvent | null = null;
     let insightContext: EventInsightContext | null = null;
 
@@ -262,7 +266,7 @@ export class EventClosureService {
         ),
       validateState: async () => {
         event = await this.requireEvent(eventId);
-        insightContext = await this.buildEventInsightContext(eventId, event);
+        insightContext = await this.buildEventInsightContext(eventId, event, coordinatorFacts);
       },
       write: () => {
         if (!event || !insightContext) throw new NotFoundException('Event not found');
@@ -378,7 +382,11 @@ export class EventClosureService {
     }).then(() => undefined);
   }
 
-  private async buildEventInsightContext(eventId: string, event: OpsEvent): Promise<EventInsightContext> {
+  private async buildEventInsightContext(
+    eventId: string,
+    event: OpsEvent,
+    coordinatorFacts: PrismCoordinatorInsightFacts,
+  ): Promise<EventInsightContext> {
     const [supplierReviews, complianceChecks, billingStatements, paymentMilestones, documents, postEventDocuments, guestFeedback, issues, scheduleDays, wrapUp] =
       await Promise.all([
         this.prisma.opsSupplierReview.findMany({ where: { eventId } }),
@@ -412,7 +420,7 @@ export class EventClosureService {
     const segments = scheduleDays.flatMap((day) => day.segments);
     const lateSegments = segments.filter((segment) => segment.actualEndedAt && segment.actualEndedAt.getTime() > segment.plannedEndAt.getTime());
     const wrapSections = (wrapUp?.sections ?? {}) as Record<string, { status?: string; evidence?: string }>;
-    const dimensions = buildInsightDimensions({ billingStatements, outstandingAmount, documents, postEventDocuments, submittedDocuments, supplierReviews, guestFeedback, feedbackDocuments, approvedGuestFeedback, complianceChecks, openChecks, wrapSections, issues, segments, lateSegments });
+    const dimensions = buildInsightDimensions({ billingStatements, outstandingAmount, documents, postEventDocuments, submittedDocuments, supplierReviews, guestFeedback, feedbackDocuments, approvedGuestFeedback, complianceChecks, openChecks, wrapSections, issues, segments, lateSegments, coordinatorFacts });
 
     return {
       summary: `Event Insights for ${event.eventName}: ${supplierReviews.length} supplier review(s), ${openChecks.length} open compliance issue(s), ${totalBilled} total billed.`,
@@ -501,8 +509,19 @@ export function buildInsightDimensions(input: {
   issues: Array<{ id: string }>;
   segments: Array<{ id: string }>;
   lateSegments: Array<{ id: string }>;
+  coordinatorFacts: PrismCoordinatorInsightFacts;
 }): Record<string, InsightDimension> {
   const section = input.wrapSections.logistics;
+  const coordinatorFacts = input.coordinatorFacts;
+  const coordinatorEvidence = [
+    `assignments:${coordinatorFacts.assignments}`,
+    `awaiting-acknowledgement:${coordinatorFacts.awaitingAcknowledgement}`,
+    `late-attendance:${coordinatorFacts.lateAttendance}`,
+    `absent-attendance:${coordinatorFacts.absentAttendance}`,
+    `replaced:${coordinatorFacts.replacedAssignments}`,
+    `cancelled:${coordinatorFacts.cancelledAssignments}`,
+    `reliability-notes:${coordinatorFacts.reliabilityNotes}`,
+  ];
   return {
     finance: dimension(input.billingStatements.length > 0, `${input.billingStatements.length} billing statement(s), ${input.outstandingAmount} outstanding`, input.billingStatements.map(item => item.id)),
     documents: dimension(input.documents.length + input.postEventDocuments.length > 0, `${input.submittedDocuments.length} submitted document(s)`, [...input.documents, ...input.postEventDocuments].map(item => item.id)),
@@ -512,6 +531,11 @@ export function buildInsightDimensions(input: {
     logistics: { status: section?.status === 'complete' ? 'evidence' : 'blocked', summary: section?.evidence || 'No authoritative logistics completion record', evidence: section?.evidence ? [section.evidence] : [] },
     issues: dimension(input.issues.length > 0, `${input.issues.length} unresolved urgent issue(s)`, input.issues.map(item => item.id)),
     schedule: dimension(input.segments.length > 0, `${input.lateSegments.length} schedule segment(s) ended late`, input.lateSegments.map(item => item.id)),
+    coordinators: dimension(
+      coordinatorFacts.assignments > 0 || coordinatorFacts.reliabilityNotes > 0,
+      `${coordinatorFacts.assignments} assignment(s); ${coordinatorFacts.awaitingAcknowledgement} awaiting acknowledgement; ${coordinatorFacts.lateAttendance} late; ${coordinatorFacts.absentAttendance} absent; ${coordinatorFacts.replacedAssignments} replaced; ${coordinatorFacts.cancelledAssignments} cancelled or released; ${coordinatorFacts.reliabilityNotes} reliability note(s)`,
+      coordinatorEvidence,
+    ),
   };
 }
 

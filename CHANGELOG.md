@@ -7,11 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
+
 ### Fixed
+- Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.
+- Archived coordinator events remain readable and selectable, while event-day, schedule, handoff, report, acknowledgment and withdrawal writes are blocked in the portal and API.
+- Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
 - Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
 - Updated floorplan workflow test actors with required IDs, restoring API typecheck.
 
 ### Added
+- Added a coordinator registration desk for assigned registration roles, with a minimized roster projection, guest verification and check-in actions, and a walk-in roster flow that requires explicit privacy consent, obeys PMCM policy, and exposes new arrivals for PMCM verification before check-in.
+- Added PMCM and coordinator event-day forms for schedule days and segments, shift handoffs, and end-of-day reports; coordinator handoff/report history is event-scoped, only report authors can update prefilled reports, blank reports are rejected, schedule-segment transitions are validated by the API, and coordinator schedule writes remain limited to the designated operator.
+- Added a PMCM postponement impact panel that lists recorded coordinator booking or declared-availability conflicts, retains the last date snapshot while a new date is unconfirmed, and clears it when the decision releases assignments or cancels the event.
+- Added a scheduled supplier ingress monitor that flags unreported arrivals after a configurable grace period, audits the transition, caps each run at 1,000 schedules, and shows suppliers that are late before they report arrival; event-day reporting stays disabled until the request, assignment, and readiness are confirmed.
+- Added scheduled, idempotent coordinator acknowledgment reminders with a configurable lead window and bounded database pages.
+- Added visibility-aware 30-second event-day updates for the active PMCM live-ops desk and the coordinator's selected event, refreshing task, issue, and check-in data without polling other PMCM sections.
+- Added a shared coordinator role catalog and skill-filter query contract; coordinator task, replacement, coverage, and assignment selectors use the catalog, and assignment fallback normalizes legacy tags without persisting unknown roles. Existing conflict suggestions and task authorization normalize legacy role tags during rollout; tasks for unmapped historical roles use the canonical General Coordinator role and stay in the coordinator's named queue for creation and updates. Legacy labels remain readable, verified issue ownership names are preserved without creating out-of-catalog queue labels, and PMCM issue routing labels remain flexible.
+- Added event-scoped coordinator suggestions that rank required-skill matches, explain matched and missing skills, filter date conflicts and availability, and supply alternatives for assignment conflicts.
+- Connected assignment, replacement, and double-book suggestions to event-scoped skill rankings; added catalog-only coverage-role selection with explicit legacy mapping; seeded all catalog roles with required skills for local fixtures.
+- Added a coordinator event switcher with venue details from the latest briefing, so coordinators can open any event assigned to them, including past events.
+- Added a PMCM coordinator reliability history view for bounded late, absent, replacement, and withdrawal notes, and route event-day and staffing writes through the operations-owned reliability writer.
+- Added coordinator assignment, attendance, replacement, cancellation, and reliability-note evidence to PMCM event insights through a read-model composition boundary.
+- Added the implementation plan for the coordinator role catalog and skill-aware staffing suggestions.
+- Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
 - EP-10-S03: added the client ocular visit request, PMCM Admin scheduling/completion and audited waiver controls, transactional scheduling notification, and the official-floorplan completion/waiver gate. PA-59 remains open before In Review.
 - EP-10-S03 design: documented the client ocular request, PMCM task flow, proposed waiver, and PA-59 review gate.
 - EP-10-S02 Task 1: added the per-event client event-day visibility setting, default-off persistence, PMCM Admin-only update, audit evidence, and PMCM/client event projection.
@@ -23,6 +42,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Promoted approved coordinator staffing and registration decisions into the feature ledger with scoped PR evidence, and retired the completed staffing working documents; broader feature families remain partial.
+- Isolated registration eligibility checks from the event-locked check-in transaction and PMCM roster rendering; verified walk-in policy and verification requirements remain enforced.
+- Extracted schedule transition validation and update data from the locked transaction, and separated schedule authoring from handoff/report rendering.
+- Separated postponement request status from recorded staffing impact rendering, retaining snapshot labels and manual PMCM follow-up.
+- Full event decision history now requires a PMCM or system actor because records include private commercial and actor details.
+- Shared the live-workspace visibility predicate used by PMCM polling and event-day refresh, preserving selected-event and role checks.
+- Separated coordinator skill filters, suggestion results, and live attendance controls into focused view components with existing assignment and conflict behavior preserved.
+- Split shared Zod write contracts by API bounded context while keeping the existing event-ops schema exports available through their compatibility barrel.
+- Split shared shell navigation, sidebar and rail, mobile navigation, account-menu, and top-bar internals into focused modules while preserving the public exports and behavior.
 - Moved authentication history, lockout handling, and security-alert workflows out of the hash-chain audit writer while preserving authentication integrity posture, route authorization, and alert notifications.
 - Split audit-log reads and exports from login-security operations while preserving the scoped trust routes and export audit/alert behavior.
 - Moved audit hash-chain append and full integrity verification behind a focused trust module while preserving the existing `AuditService` interface.
@@ -80,6 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Recorded the user-directed release sequence: after plan completion and review, consolidate approved PRs into `trunk` before opening the PR to `staging`. No release branch merge or staging PR was created.
 
 ### Added
+- Added the implementation plan for the coordinator role catalog and skill-aware staffing suggestions.
+- Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
 - Development efficiency report covering scripts, tests, CI gates, and agent guidance; clarified focused behavior-testing rules in `AGENTS.md`.
 - Pull-request template prompts for observable behavior, focused checks, and justification when adding standalone bug-fix tests.
 - Coordinator staffing now supports coverage targets, unavailable dates, acknowledgement reminders, and Event Day System Operator designation. Coordinator live operations can update task progress, verify ingress supplier setup, mark delegated attendance, and request task reassignment for PMCM review; both coordinator and PMCM desks use the event's saved schedule. Cancellation and postponement now release or reschedule assignments, surface full-day availability conflicts in PMCM staffing, and scope coordinator run sheets to authorized event data. Supplier checks are limited to the designated operator and ingress/egress roles, while urgent-issue reads and writes are limited to each coordinator's role or queue. Coordinator live-ops views and read-model mapping are split into focused sections to keep the complexity gate passing.

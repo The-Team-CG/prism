@@ -184,6 +184,11 @@ models. `platform-ops` remains a bounded context because its policies and
 persistence are product-facing; it may be split later only after an explicit
 ownership/deployment decision.
 
+`AppModule` is also the API composition root for routes that require multiple
+context ports. Event insight generation reads coordinator facts through the
+operations reader port and delegates persistence to the event-lifecycle
+closure command; `modules/read-models` remains read-only.
+
 ### Kernel and local fixtures
 
 ```text
@@ -250,7 +255,8 @@ an invariant must hold independently of HTTP and Prisma.
 | Identity and access | `OpsUser`, `OpsApprovalRequest` |
 | Core event lifecycle | `OpsInquiry`, `OpsEvent`, `OpsBriefing`, `OpsDocument` (inquiry/onboarding kinds), `OpsPostEventDocument`, `OpsEventInsight` |
 | Supplier network | `OpsSupplier`, `OpsSupplierCategory`, `OpsSupplierReview`, `OpsSupplierReliabilityNote`, `OpsSupplierCertification`, `OpsSupplierQuoteRequest`, `OpsSupplierQuote` |
-| Coordinator and live ops | `OpsCoordinator`, `OpsCoordinatorAssignment`, `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog`, `OpsCoordinatorReliabilityNote` |
+| Coordinator staffing | `OpsCoordinator`, `OpsCoordinatorAssignment`, `OpsCoordinatorReliabilityNote` |
+| Event-day operations | `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog` |
 | Compliance and billing | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` |
 | Trust, privacy, and audit | `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsCommandReceipt`, `OpsLoginHistory`, `OpsSecurityAlert` |
 | Guest operations | `OpsGuestCheckIn`, `OpsGuestFeedback` |

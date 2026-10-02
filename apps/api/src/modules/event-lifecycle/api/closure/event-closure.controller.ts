@@ -111,12 +111,4 @@ export class OpsEventClosureController {
     return insights.map(mapEventInsight);
   }
 
-  @Post(':eventId/insights/generate')
-  @UseGuards(EventSessionGuard)
-  @HttpCode(HttpStatus.CREATED)
-  async generateEventInsights(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    const insight = await this.eventClosureService.generateEventInsights(eventId, actor);
-    return mapEventInsight(insight);
-  }
 }

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { EventSession } from "@/app/lib/session";
+import { useEventDayLiveUpdates } from "@/features/live-ops/workspace";
 import {
+  canonicalCoordinatorRole,
   createEventDayTaskSchema,
   createEventTaskReassignmentSchema,
   createUrgentIssueSchema,
@@ -13,8 +15,10 @@ import {
   updateEventDayTaskSchema,
   verifySupplierStatusSchema,
   type CreateEventTaskReassignmentInput,
+  type CoordinatorRole,
   type PrismCoordinatorRoleView,
   type PrismCoordinatorWorkspace,
+  type PrismEvent,
 } from "@prism/types";
 import {
   acknowledgeAndRefreshRoleView,
@@ -29,12 +33,15 @@ import {
   verifySupplierStatusAndRefreshRoleView,
 } from "../use-cases/coordinator-desk-actions";
 import {
+  coordinatorRoleDataStatus,
+  resolveCoordinatorTaskRole,
   attendanceChoiceLabel,
   buildCoordinatorAttendanceInput,
   buildCoordinatorIssueInput,
   buildCoordinatorTaskInput,
   canConfirmPendingAttendance,
   canMarkOwnAttendance,
+  isCoordinatorAssignmentActive,
   isAttendanceChoiceDisabled,
   isRegistrationCoordinatorRole,
   isIngressOrEgressRole,
@@ -64,8 +71,13 @@ export function useCoordinatorViewModel({
   const assignments = state.assignments.filter((item) =>
     sameCoordinatorName(item.coordinatorName, session.name),
   );
-  const assignment = pickActiveAssignment(assignments);
-  const event = assignment ? state.events.find((item) => item.id === assignment.eventId) : undefined;
+  const defaultAssignment = pickActiveAssignment(assignments.filter(isCoordinatorAssignmentActive));
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const event =
+    state.events.find((item) => item.id === selectedEventId) ??
+    state.events.find((item) => item.id === defaultAssignment?.eventId);
+  const assignment = pickActiveAssignment(assignments.filter((item) => item.eventId === event?.id));
+  const readOnly = Boolean(event?.archived);
   const activeDraft = event?.floorPlanDrafts?.find((draft) => draft.eventId === event.id && draft.isActive);
   const [busy, setBusy] = useState(false);
   const [roleView, setRoleView] = useState<PrismCoordinatorRoleView | null>(null);
@@ -79,7 +91,7 @@ export function useCoordinatorViewModel({
   const [issueBusy, setIssueBusy] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
-  const [taskRole, setTaskRole] = useState("");
+  const [taskRole, setTaskRole] = useState<CoordinatorRole | "">("");
   const [taskPriority, setTaskPriority] = useState("normal");
   const [taskNotes, setTaskNotes] = useState("");
   const [taskDueAt, setTaskDueAt] = useState("");
@@ -102,6 +114,11 @@ export function useCoordinatorViewModel({
   const [pendingAttendanceChoice, setPendingAttendanceChoice] =
     useState<CoordinatorAttendanceChoice | null>(null);
 
+  const activeEventIdRef = useRef<string | null>(event?.id ?? null);
+  useEffect(() => {
+    activeEventIdRef.current = event?.id ?? null;
+  }, [event?.id]);
+
   useEffect(() => {
     if (!event?.id) {
       setRoleView(null);
@@ -111,6 +128,7 @@ export function useCoordinatorViewModel({
     }
 
     let alive = true;
+    setRoleView(null);
     setRoleViewStatus("loading");
     setRoleViewError(null);
     loadCoordinatorRoleView(session, event.id)
@@ -131,17 +149,39 @@ export function useCoordinatorViewModel({
     };
   }, [event?.id, session.email, session.name]);
 
+  const refreshRoleView = useCallback(async () => {
+    const eventId = event?.id;
+    if (!eventId) return;
+    try {
+      const next = await loadCoordinatorRoleView(session, eventId);
+      if (activeEventIdRef.current !== eventId) return;
+      setRoleView(next);
+      setRoleViewStatus("success");
+      setRoleViewError(null);
+    } catch {
+      // Keep the last role-safe data visible during a temporary network failure.
+    }
+  }, [event?.id, session.email, session.name]);
+
+  useEventDayLiveUpdates({
+    enabled: Boolean(event?.id),
+    refresh: refreshRoleView,
+    refreshOnEnable: false,
+  });
+
+  const taskOwnerAssignmentRequired = Boolean(roleView && !canonicalCoordinatorRole(roleView.role));
+
   // HIDE half: once the assignment can no longer be marked — replaced by PMCM,
   // or gone from the workspace entirely — drop any open confirm prompt so it
   // cannot be tapped against stale state. Paired with the submit-time re-check
   // in confirmAttendance, which is the guarantee; this is the render concern.
-  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: false });
+  const attendanceAssignmentUsable = canMarkOwnAttendance({ assignment, busy: readOnly });
   useEffect(() => {
     if (!attendanceAssignmentUsable) setPendingAttendanceChoice(null);
   }, [attendanceAssignmentUsable]);
 
   async function acknowledge(decision: "acknowledged" | "declined" = "acknowledged", reason?: string) {
-    if (!event || !assignment) return;
+    if (!isWritableCoordinatorEvent(event) || !assignment) return;
     setBusy(true);
     try {
       setRoleViewStatus("loading");
@@ -175,7 +215,7 @@ export function useCoordinatorViewModel({
   }
 
   async function withdraw() {
-    if (!event || !assignment) return;
+    if (!isWritableCoordinatorEvent(event) || !assignment) return;
     const reason = window.prompt("Why are you withdrawing this assignment?")?.trim() ?? "";
     try {
       const input = parseContract(withdrawCoordinatorAssignmentSchema, { reason }, "Coordinator assignment withdrawal");
@@ -190,7 +230,7 @@ export function useCoordinatorViewModel({
   }
 
   async function logTask() {
-    if (!event || !roleView) return;
+    if (!isWritableCoordinatorEvent(event) || !roleView) return;
     setTaskBusy(true);
     setTaskError(null);
     try {
@@ -198,11 +238,11 @@ export function useCoordinatorViewModel({
         createEventDayTaskSchema,
         buildCoordinatorTaskInput({
           title: taskTitle,
-          assignedRole: taskRole || roleView.role,
+          assignedRole: resolveCoordinatorTaskRole(taskRole, roleView.role),
           priority: taskPriority,
           notes: taskNotes,
           dueAt: taskDueAt,
-          assignToMe: taskAssignToMe,
+          assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
           roleView,
         }),
         "Create coordinator task",
@@ -226,7 +266,7 @@ export function useCoordinatorViewModel({
   }
 
   async function logUrgentIssue() {
-    if (!event || !roleView) return;
+    if (!isWritableCoordinatorEvent(event) || !roleView) return;
     setIssueBusy(true);
     setIssueError(null);
     try {
@@ -262,7 +302,7 @@ export function useCoordinatorViewModel({
   }
 
   async function requestReassignment(taskId: string, values: CreateEventTaskReassignmentInput) {
-    if (!event || !roleView?.isDesignatedOperator) return;
+    if (!isWritableCoordinatorEvent(event) || !roleView?.isDesignatedOperator) return;
     setReassignmentBusy(true);
     setReassignmentError(null);
     try {
@@ -282,7 +322,7 @@ export function useCoordinatorViewModel({
   }
 
   async function updateTaskStatus(taskId: string, status: string) {
-    if (!event) return;
+    if (!isWritableCoordinatorEvent(event)) return;
     setTaskBusy(true);
     setTaskError(null);
     try {
@@ -294,7 +334,7 @@ export function useCoordinatorViewModel({
   }
 
   async function updateDelegatedAttendance(assignmentId: string, status: string) {
-    if (!event || !roleView?.isDesignatedOperator) return;
+    if (!isWritableCoordinatorEvent(event) || !roleView?.isDesignatedOperator) return;
     setOperatorBusy(true);
     setOperatorError(null);
     try {
@@ -305,7 +345,7 @@ export function useCoordinatorViewModel({
   }
 
   async function verifySupplier(requestId: string, verificationStatus: "verified" | "disputed", note = "") {
-    if (!event || !(roleView?.isDesignatedOperator || isIngressOrEgressRole(roleView?.role))) return;
+    if (!isWritableCoordinatorEvent(event) || !(roleView?.isDesignatedOperator || isIngressOrEgressRole(roleView?.role))) return;
     setSupplierBusy(true);
     setSupplierError(null);
     try {
@@ -319,7 +359,7 @@ export function useCoordinatorViewModel({
   }
 
   async function submitAttendance(choice: CoordinatorAttendanceChoice) {
-    if (!event || !assignment) return;
+    if (!isWritableCoordinatorEvent(event) || !assignment) return;
     setAttendanceBusy(true);
     setAttendanceError(null);
     try {
@@ -349,6 +389,7 @@ export function useCoordinatorViewModel({
   }
 
   function markAttendance(choice: CoordinatorAttendanceChoice) {
+    if (readOnly) return;
     setAttendanceError(null);
     // Picking any choice clears a pending confirm first, so an unconfirmed
     // Absent cannot survive into a later pick.
@@ -381,10 +422,19 @@ export function useCoordinatorViewModel({
     setActiveSection(section);
   }
 
+  function selectEvent(eventId: string) {
+    if (!assignments.some((item) => item.eventId === eventId) || !state.events.some((item) => item.id === eventId)) return;
+    if (eventId === event?.id) return;
+    setRoleView(null);
+    setRoleViewStatus("loading");
+    setRoleViewError(null);
+    setSelectedEventId(eventId);
+  }
+
   // PA-299 lives in the model, with its own test, so the rule cannot drift back
   // into the acknowledgment vocabulary here.
   const attendanceStatus = resolveOwnAttendanceStatus(assignment);
-  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy, attendanceBusy });
+  const attendanceCanMark = canMarkOwnAttendance({ assignment, busy: busy || readOnly, attendanceBusy });
   const pendingAttendanceLabel = attendanceChoiceLabel(pendingAttendanceChoice);
 
   return {
@@ -392,44 +442,42 @@ export function useCoordinatorViewModel({
     assignments,
     assignment,
     event,
+    readOnly,
     activeDraft,
     busy,
     roleView,
     roleViewLoading: roleViewStatus === "loading",
     roleViewError,
-    roleDataStatus:
-      roleViewStatus === "loading"
-        ? "loading"
-        : roleViewStatus === "error"
-          ? "unavailable"
-          : roleView
-            ? "ready"
-            : "pending",
+    roleDataStatus: coordinatorRoleDataStatus(roleViewStatus, Boolean(roleView)),
     activeSection,
-    registrationRole: isRegistrationCoordinatorRole(assignment?.role),
+    registrationRole: isCoordinatorAssignmentActive(assignment ?? {}) && isRegistrationCoordinatorRole(assignment?.role),
     acknowledge,
     decline: (reason?: string) => acknowledge("declined", reason),
     withdraw,
     selectSection,
+    selectEvent,
     taskForm: {
       title: taskTitle,
       setTitle: setTaskTitle,
-      role: taskRole || roleView?.role || "",
-      setRole: setTaskRole,
+      role: resolveCoordinatorTaskRole(taskRole, roleView?.role),
+      setRole: (value: string) => setTaskRole(canonicalCoordinatorRole(value) ?? ""),
       priority: taskPriority,
       setPriority: setTaskPriority,
       notes: taskNotes,
       setNotes: setTaskNotes,
       dueAt: taskDueAt,
       setDueAt: setTaskDueAt,
-      assignToMe: taskAssignToMe,
-      setAssignToMe: setTaskAssignToMe,
+      assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
+      assignToMeRequired: taskOwnerAssignmentRequired,
+      setAssignToMe: (value: boolean) => {
+        if (!taskOwnerAssignmentRequired) setTaskAssignToMe(value);
+      },
       roleOptions: roleView ? taskAssignedRoleOptions(roleView) : [],
       routesAway: roleView
         ? isTaskOutsideOwnQueue({
-            assignedRole: taskRole || roleView.role,
+            assignedRole: resolveCoordinatorTaskRole(taskRole, roleView.role),
             ownRole: roleView.role,
-            assignToMe: taskAssignToMe,
+            assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
           })
         : false,
       busy: taskBusy,
@@ -489,4 +537,8 @@ export function useCoordinatorViewModel({
       cancel: cancelAttendance,
     },
   };
+}
+
+function isWritableCoordinatorEvent(event: PrismEvent | undefined): event is PrismEvent {
+  return Boolean(event && !event.archived);
 }

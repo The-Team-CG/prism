@@ -14,6 +14,7 @@ import {
 } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { COORDINATOR_RELIABILITY_WRITER, type CoordinatorReliabilityWriter } from '@prism/contexts/operations';
 import { recordEventDayLog } from './event-day-log.writer';
 import type { LiveOpsActor } from './live-ops.types';
 
@@ -44,6 +45,7 @@ export class CoordinatorLiveOpsCommandService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
+    @Inject(COORDINATOR_RELIABILITY_WRITER) private readonly reliabilityWriter: CoordinatorReliabilityWriter,
   ) {}
 
   async replaceCoordinatorAssignment(
@@ -153,15 +155,12 @@ export class CoordinatorLiveOpsCommandService {
       sideEffects: async ({ replacedAssignment, replacementAssignment }) => {
         if (!event || !coordinator) return;
         await Promise.all([
-          prisma.opsCoordinatorReliabilityNote.create({
-            data: {
-              id: `crn_${randomUUID()}`,
-              eventId,
-              coordinatorId: replacedAssignment.coordinatorId ?? null,
-              assignmentId: replacedAssignment.id,
-              note: `${replacedAssignment.coordinatorName} replaced for ${replacedAssignment.role}: ${reason}`,
-              severity: 'warning',
-            },
+          this.reliabilityWriter.record({
+            eventId,
+            coordinatorId: replacedAssignment.coordinatorId ?? null,
+            assignmentId: replacedAssignment.id,
+            note: `${replacedAssignment.coordinatorName} replaced for ${replacedAssignment.role}: ${reason}`,
+            severity: 'warning',
           }),
           recordEventDayLog(this.prisma,
             eventId,
@@ -248,15 +247,12 @@ export class CoordinatorLiveOpsCommandService {
           status === CoordinatorAttendanceStatus.Late ||
           status === CoordinatorAttendanceStatus.Absent ||
           status === CoordinatorAttendanceStatus.Replaced
-            ? prisma.opsCoordinatorReliabilityNote.create({
-                data: {
-                  id: `crn_${randomUUID()}`,
-                  eventId,
-                  coordinatorId: assignment.coordinatorId ?? null,
-                  assignmentId: assignment.id,
-                  note: `${assignment.coordinatorName} marked ${status}${input.notes ? `: ${input.notes.trim()}` : ''}`,
-                  severity: status === CoordinatorAttendanceStatus.Absent ? 'critical' : 'warning',
-                },
+            ? this.reliabilityWriter.record({
+                eventId,
+                coordinatorId: assignment.coordinatorId ?? null,
+                assignmentId: assignment.id,
+                note: `${assignment.coordinatorName} marked ${status}${input.notes ? `: ${input.notes.trim()}` : ''}`,
+                severity: status === CoordinatorAttendanceStatus.Absent ? 'critical' : 'warning',
               })
             : Promise.resolve(null);
 

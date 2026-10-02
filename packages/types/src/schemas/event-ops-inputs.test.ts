@@ -4,6 +4,7 @@ import { pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
+  coordinatorWalkInCheckInSchema,
   moderateGuestFeedbackSchema,
   withdrawGuestFeedbackConsentSchema,
   createSupplierApplicationSchema,
@@ -20,6 +21,7 @@ import {
   createUrgentIssueSchema,
   updateUrgentIssueSchema,
   escalateLiveOpsRecordSchema,
+  escalateEventDayTaskSchema,
   replaceCoordinatorAssignmentSchema,
   createCoordinatorAssignmentSchema,
   coordinatorAssignmentAcknowledgementSchema,
@@ -28,6 +30,15 @@ import {
   createCoordinatorCoverageRequirementSchema,
   updateCoordinatorAttendanceSchema,
   verifySupplierStatusSchema,
+  COORDINATOR_ROLES,
+  canonicalCoordinatorRole,
+  coordinatorRoleSchema,
+  coordinatorSuggestionsQuerySchema,
+  createEventDayTaskSchema,
+  createEventHandoffSchema,
+  createEventScheduleSegmentSchema,
+  createEventEodReportSchema,
+  createEventTaskReassignmentSchema,
   createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
   createRegistrationPlatformSchema,
@@ -42,6 +53,69 @@ import {
   PrismContractError,
 } from "./index.js";
 
+describe("coordinator role contracts", () => {
+  it("accepts the seven canonical roles and rejects new role values outside the catalog", () => {
+    expect(COORDINATOR_ROLES).toEqual([
+      "General Coordinator",
+      "Event Day System Operator",
+      "Registration Staff",
+      "Floor Director",
+      "Stage Director",
+      "Ingress and Egress Assistant",
+      "Usher",
+    ]);
+    for (const role of COORDINATOR_ROLES) expect(coordinatorRoleSchema.safeParse(role).success).toBe(true);
+    expect(canonicalCoordinatorRole(" floor   director ")).toBe("Floor Director");
+    expect(canonicalCoordinatorRole("Volunteer Lead")).toBeUndefined();
+    expect(coordinatorRoleSchema.safeParse("Operations Hero").success).toBe(false);
+    expect(createCoordinatorAssignmentSchema.safeParse({ coordinatorId: "coord_1", role: "Operations Hero" }).success).toBe(false);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Operations Hero", required: 1 }).success).toBe(false);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", mapFromRole: "Volunteer Lead", required: 1 }).success).toBe(true);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", mapFromRole: "Usher", required: 1 }).success).toBe(false);
+    expect(replaceCoordinatorAssignmentSchema.safeParse({ replacementCoordinatorId: "coord_2", replacementRole: "Operations Hero", reason: "Changed assignment" }).success).toBe(false);
+  });
+
+  it("validates coordinator role writes while preserving flexible issue routing labels", () => {
+    expect(createEventDayTaskSchema.safeParse({ title: "Check in", assignedRole: "Operations Hero" }).success).toBe(false);
+    expect(createEventTaskReassignmentSchema.safeParse({ toOwnerRole: "Operations Hero", reason: "Coverage change" }).success).toBe(false);
+    expect(escalateEventDayTaskSchema.safeParse({ notes: "Need backup", ownerRole: "Operations Hero" }).success).toBe(false);
+    expect(createUrgentIssueSchema.safeParse({ title: "Queue delay", ownerRole: "Finance" }).success).toBe(true);
+    expect(updateUrgentIssueSchema.safeParse({ ownerRole: "Finance" }).success).toBe(true);
+    expect(escalateLiveOpsRecordSchema.safeParse({ ownerRole: "Finance" }).success).toBe(true);
+    expect(createEventScheduleSegmentSchema.safeParse({
+      title: "Doors open",
+      plannedStartAt: "2026-10-02T08:00:00.000Z",
+      plannedEndAt: "2026-10-02T09:00:00.000Z",
+      ownerRole: "Operations Hero",
+    }).success).toBe(false);
+    expect(createEventHandoffSchema.safeParse({
+      dayId: "day_1",
+      role: "Operations Hero",
+      fromAssignmentId: "asg_1",
+      toAssignmentId: "asg_2",
+    }).success).toBe(false);
+    expect(createEventHandoffSchema.safeParse({
+      dayId: "day_1",
+      role: "Floor Director",
+      fromAssignmentId: "asg_1",
+      toAssignmentId: "asg_1",
+    }).success).toBe(false);
+  });
+
+  it("requires useful content in an end-of-day report", () => {
+    expect(createEventEodReportSchema.safeParse({ dayId: "day_1" }).success).toBe(false);
+    expect(createEventEodReportSchema.safeParse({ dayId: "day_1", progress: ["Doors opened"] }).success).toBe(true);
+    expect(createEventEodReportSchema.safeParse({ dayId: "day_1", issues: ["Queue delay"] }).success).toBe(true);
+    expect(createEventEodReportSchema.safeParse({ dayId: "day_1", risksForTomorrow: ["Confirm power"] }).success).toBe(true);
+  });
+
+  it("parses optional single and repeated skills in suggestion query parameters", () => {
+    expect(coordinatorSuggestionsQuerySchema.parse({ role: "Usher" })).toEqual({ role: "Usher", skills: [] });
+    expect(coordinatorSuggestionsQuerySchema.parse({ role: "Usher", skills: "registration" })).toEqual({ role: "Usher", skills: ["registration"] });
+    expect(coordinatorSuggestionsQuerySchema.parse({ role: "Usher", skills: ["registration", "first aid"] })).toEqual({ role: "Usher", skills: ["registration", "first aid"] });
+    expect(coordinatorSuggestionsQuerySchema.safeParse({ role: "Usher", skills: Array.from({ length: 21 }, () => "skill") }).success).toBe(false);
+  });
+});
 describe("event-ops write schemas", () => {
   it("validates supplier creation fields used by the PMCM command adapter", () => {
     expect(createSupplierSchema.safeParse({ categoryId: "cat_1", name: " " }).success).toBe(false);
@@ -112,6 +186,15 @@ describe("event-ops write schemas", () => {
         privacyConsentAccepted: false,
       }).success,
     ).toBe(false);
+  });
+
+  it("requires a guest name and explicit privacy consent for coordinator walk-ins", () => {
+    expect(coordinatorWalkInCheckInSchema.parse({ guestName: "  Alex Santos  ", privacyConsentAccepted: true })).toEqual({
+      guestName: "Alex Santos",
+      privacyConsentAccepted: true,
+    });
+    expect(coordinatorWalkInCheckInSchema.safeParse({ guestName: "Alex Santos", privacyConsentAccepted: false }).success).toBe(false);
+    expect(coordinatorWalkInCheckInSchema.safeParse({ guestName: "  ", privacyConsentAccepted: true }).success).toBe(false);
   });
 
   it("requires explicit consent for account approval requests", () => {

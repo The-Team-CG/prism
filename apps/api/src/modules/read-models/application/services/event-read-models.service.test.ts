@@ -295,6 +295,44 @@ function createPmcmReadModelService() {
 }
 
 describe('EventReadModelsService', () => {
+  it('returns coordinator reliability history only after the PMCM role check and maps event context', async () => {
+    const note = {
+      id: 'note_1',
+      eventId: 'evt_1',
+      event: { eventName: 'Autumn Forum', eventDate: new Date('2026-10-04T00:00:00.000Z') },
+      assignmentId: 'assignment_1',
+      assignment: { role: 'Registration Staff' },
+      note: 'Coordinator withdrew: Family emergency',
+      severity: 'warning',
+      createdAt: new Date('2026-10-01T12:00:00.000Z'),
+    };
+    const notes = { findMany: vi.fn(async () => [note]) };
+    const policy = { requireActorRole: vi.fn(async () => undefined) };
+    const service = new EventReadModelsService(
+      new EventReadModelQueries({ opsCoordinatorReliabilityNote: notes } as any),
+      policy as any,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(service.coordinatorReliabilityHistory({ role: OpsUserRole.PmcmAdmin, name: 'PMCM' } as any, 'coord_1')).resolves.toEqual([{
+      id: 'note_1',
+      eventId: 'evt_1',
+      eventName: 'Autumn Forum',
+      eventDate: '2026-10-04',
+      assignmentId: 'assignment_1',
+      assignmentRole: 'Registration Staff',
+      note: 'Coordinator withdrew: Family emergency',
+      severity: 'warning',
+      createdAt: '2026-10-01T12:00:00.000Z',
+    }]);
+    expect(policy.requireActorRole).toHaveBeenCalledWith(
+      { role: OpsUserRole.PmcmAdmin, name: 'PMCM' },
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'coordinator reliability history',
+    );
+  });
+
   it('clientWorkspaceRedactsOcularWaiverFields', async () => {
     const event = {
       id: 'evt_ocular',

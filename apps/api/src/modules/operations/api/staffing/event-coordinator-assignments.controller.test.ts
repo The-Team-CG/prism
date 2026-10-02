@@ -74,7 +74,7 @@ describe('OpsEventCoordinatorAssignmentsController', () => {
 
   it('delegates replaceCoordinator with the resolved actor', async () => {
     const { controller, coordinatorsService } = createControllerDeps();
-    const dto = { replacementCoordinatorId: 'coord_new', replacementRole: 'Floor Director', reason: 'Scheduling conflict' };
+    const dto = { replacementCoordinatorId: 'coord_new', replacementRole: 'Floor Director' as const, reason: 'Scheduling conflict' };
 
     await expect(
       controller.replaceCoordinator('evt_sample', 'coord_asg_new', dto, verifiedActor as any),
