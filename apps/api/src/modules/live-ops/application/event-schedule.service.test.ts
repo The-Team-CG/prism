@@ -29,6 +29,7 @@ describe('EventScheduleService authority', () => {
     for (const write of writes) await expect(write()).rejects.toThrow('Archived coordinator events are read-only');
     expect(prisma.$transaction).not.toHaveBeenCalled();
     await expect(instance.getSchedule('evt_1', actor as never)).resolves.toMatchObject({ eventId: 'evt_1', days: [] });
+    await expect(instance.listHandoffs('evt_1', actor as never)).resolves.toEqual([]);
     await expect(instance.listEodReports('evt_1', actor as never)).resolves.toEqual([]);
   });
 
@@ -453,7 +454,7 @@ describe('EventScheduleService end-of-day reports', () => {
     };
     const access = { requireActorRole: vi.fn(async () => undefined) };
     const staffing = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'assignment_2' })) };
-    const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
+    const prisma = { opsEvent: { findUnique: vi.fn(async () => ({ archived: false })) }, $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
     const instance = new EventScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
     const actor = { ...coordinator, id: 'user_coord_2' } as never;
 
@@ -474,7 +475,7 @@ describe('EventScheduleService end-of-day reports', () => {
     };
     const access = { requireActorRole: vi.fn(async () => undefined) };
     const staffing = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'assignment_1' })) };
-    const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
+    const prisma = { opsEvent: { findUnique: vi.fn(async () => ({ archived: false })) }, $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
     const instance = new EventScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
 
     await expect(instance.submitEodReport('evt_1', input, coordinator as never)).rejects.toBeInstanceOf(ConflictException);
