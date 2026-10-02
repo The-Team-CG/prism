@@ -20,6 +20,7 @@ import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@pris
 import type { StaffingCommands } from '../../contracts/staffing-commands.port';
 import { mapCoordinatorAssignment } from './coordinators.mappers';
 import { resolveCoordinatorForActor } from './coordinator-actor-lookup';
+import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 import { isoDate } from './staffing.utils';
 
 type CoordinatorConflict = OpsCoordinatorAssignment & {
@@ -43,6 +44,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     @Inject(WORKFLOW_COMMAND_LOG) private readonly workflowCommandService: WorkflowCommandService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    private readonly coordinatorSuggestionsService: CoordinatorSuggestionsService,
   ) {}
 
   private async resolveAssignmentPlan(
@@ -94,7 +96,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     })) as CoordinatorConflict | null;
 
     if (conflict && !input.overrideConflict) {
-      const sameRoleSuggestions = await this.listAvailableSameRole(event, role, coordinator.id, prisma);
+      const sameRoleSuggestions = await this.coordinatorSuggestionsService.listForConflict(event, role, coordinator.id, prisma);
       throw new BadRequestException({
         code: 'COORDINATOR_DOUBLE_BOOKING',
         message: `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
@@ -494,37 +496,6 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
         incoming: mapCoordinatorAssignment(newAssignment),
       }),
     });
-  }
-
-  private async listAvailableSameRole(event: OpsEvent, role: string, excludeCoordinatorId: string, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
-    const coordinators = await prisma.opsCoordinator.findMany({
-      where: { active: true },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    });
-    const busy = await prisma.opsCoordinatorAssignment.findMany({
-      where: {
-        eventDate: event.eventDate,
-        status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] },
-      },
-    });
-    const busyIds = new Set(
-      busy.map((row) => row.coordinatorId).filter((id): id is string => Boolean(id)),
-    );
-    const eventDateEnd = new Date(event.eventDate.getTime() + 24 * 60 * 60 * 1000);
-    const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
-    const unavailable = availabilityModel
-      ? await availabilityModel.findMany({
-          where: { startsAt: { lt: eventDateEnd }, endsAt: { gt: event.eventDate } },
-          select: { coordinatorId: true },
-        })
-      : [];
-    const unavailableIds = new Set(unavailable.map((item) => item.coordinatorId));
-    return coordinators
-      .filter(
-        (item) => item.id !== excludeCoordinatorId && item.roleTags.includes(role) && !busyIds.has(item.id) && !unavailableIds.has(item.id),
-      )
-      .slice(0, 5)
-      .map((item) => ({ id: item.id, name: item.name, role }));
   }
 
   private async resolveCoordinator(input: CreateCoordinatorAssignmentInput, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {

@@ -6,6 +6,7 @@ import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@pri
 import { CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { CoordinatorsService } from './coordinators.service';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
+import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 
 const event = {
   id: 'evt_main',
@@ -43,7 +44,7 @@ function createAccessPolicy() {
   };
 }
 
-function createPrisma() {
+function createPrisma(coverageRequirements: { role: string; requiredSkills: string[] }[] = []) {
   const assignments: any[] = [
     {
       id: 'coord_asg_conflict',
@@ -70,6 +71,7 @@ function createPrisma() {
 
   const prisma = {
     opsEvent: { findUnique: async () => event },
+    opsEventCoverageRequirement: { findMany: async () => coverageRequirements },
     opsCoordinator: {
       findUnique: async () => coordinator,
       findMany: async () => [coordinator],
@@ -91,6 +93,13 @@ function createPrisma() {
           if (where?.endsAt?.gt && row.endsAt <= where.endsAt.gt) return false;
           return true;
         }),
+      groupBy: async ({ where }: { where?: { coordinatorId?: { in?: string[] }; startsAt?: { lt?: Date }; endsAt?: { gt?: Date } } } = {}) =>
+        availability.filter((row) => {
+          if (where?.coordinatorId?.in && !where.coordinatorId.in.includes(row.coordinatorId)) return false;
+          if (where?.startsAt?.lt && row.startsAt >= where.startsAt.lt) return false;
+          if (where?.endsAt?.gt && row.endsAt <= where.endsAt.gt) return false;
+          return true;
+        }).map((row) => ({ coordinatorId: row.coordinatorId })),
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: new Date() };
         availability.push(row);
@@ -113,6 +122,13 @@ function createPrisma() {
           if (where?.status?.notIn?.includes(assignment.status)) return false;
           return true;
         }),
+      groupBy: async ({ where }: {
+        where?: { coordinatorId?: { in?: string[] }; eventDate?: Date; status?: { notIn?: string[] } };
+      } = {}) => assignments
+        .filter((assignment) => !where?.coordinatorId?.in || where.coordinatorId.in.includes(assignment.coordinatorId))
+        .filter((assignment) => !where?.eventDate || assignment.eventDate.getTime() === where.eventDate.getTime())
+        .filter((assignment) => !where?.status?.notIn?.includes(assignment.status))
+        .map((assignment) => ({ coordinatorId: assignment.coordinatorId })),
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: new Date(), event };
         assignments.push(row);
@@ -192,6 +208,7 @@ function createService(prisma: any, accessPolicy: any = createAccessPolicy()) {
     writers.notificationWriter,
     new WorkflowCommandService(new PrismTransactionRunner(prisma)),
     accessPolicy,
+    new CoordinatorSuggestionsService(prisma),
   );
 }
 
@@ -276,7 +293,18 @@ describe('Coordinator staffing workflows', () => {
   });
 
   it('blocks a same-date conflict until PMCM overrides it', async () => {
-    const fake = createPrisma();
+    const fake = createPrisma([{
+      role: 'Floor Director',
+      requiredSkills: ['floorplan execution', 'registration'],
+    }]);
+    const replacementCandidate = {
+      ...coordinator,
+      id: 'coord_replacement',
+      name: 'Rhea Santos',
+      roleTags: ['Floor Director'],
+      skillsTags: ['floorplan execution'],
+    };
+    fake.prisma.opsCoordinator.findMany = async () => [coordinator, replacementCandidate];
     const service = createService(fake.prisma as any);
 
     await expect(
@@ -284,7 +312,15 @@ describe('Coordinator staffing workflows', () => {
     ).rejects.toMatchObject({
       response: expect.objectContaining({
         code: 'COORDINATOR_DOUBLE_BOOKING',
-        sameRoleSuggestions: [],
+        sameRoleSuggestions: [{
+          id: 'coord_replacement',
+          name: 'Rhea Santos',
+          role: 'Floor Director',
+          matchedSkills: ['floorplan execution'],
+          missingSkills: ['registration'],
+          matchedSkillCount: 1,
+          requiredSkillCount: 2,
+        }],
       }),
     });
 

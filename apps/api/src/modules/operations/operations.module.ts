@@ -19,6 +19,7 @@ import { GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './co
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
 import { CoordinatorAssignmentCommandService } from './application/staffing/coordinator-assignment-command.service';
+import { CoordinatorSuggestionsService } from './application/staffing/coordinator-suggestions.service';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
@@ -45,6 +46,7 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
   providers: [
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
+    CoordinatorSuggestionsService,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
     RegistrationPlatformService,
