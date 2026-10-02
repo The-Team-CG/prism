@@ -158,6 +158,10 @@ export class EventScheduleService {
     await this.requireScheduleWriter(eventId, actor);
     const now = this.clock.now();
     return this.prisma.$transaction(async (tx) => {
+      const candidate = await tx.opsEventScheduleSegment.findFirst({ where: { id: segmentId, day: { eventId } } });
+      if (!candidate) throw new NotFoundException('Schedule segment not found');
+      // QUERY_AUDIT_RAW_SQL: serialize segment transitions before deriving the enclosing day status.
+      await tx.$queryRaw`SELECT "id" FROM "staffing_ops"."event_schedule_days" WHERE "id" = ${candidate.dayId} AND "event_id" = ${eventId} FOR UPDATE`;
       const current = await tx.opsEventScheduleSegment.findFirst({ where: { id: segmentId, day: { eventId } } });
       if (!current) throw new NotFoundException('Schedule segment not found');
       const transitionAllowed = current.status === 'planned'
