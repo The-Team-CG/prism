@@ -99,6 +99,8 @@ export function CoordinatorView({
       searchPlaceholder="Search tasks and issues..."
     >
       <div className="space-y-5">
+        {vm.readOnly ? <p role="status" className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">Archived event: operational records are read-only.</p> : null}
+        <fieldset disabled={vm.readOnly} className="min-w-0">
         <CoordinatorGreetingBanner
           event={event}
           assignment={assignment}
@@ -110,6 +112,7 @@ export function CoordinatorView({
           onDecline={vm.decline}
           onWithdraw={vm.withdraw}
         />
+        </fieldset>
         <CoordinatorBoundaryNotice />
         <CoordinatorEventSwitcher
           events={state.events}
@@ -127,6 +130,7 @@ export function CoordinatorView({
           assignment={assignment}
         />
         <CoordinatorAssignmentHistory assignments={vm.assignments} />
+        <fieldset disabled={vm.readOnly} className="min-w-0 space-y-5">
         <CoordinatorEventDayActions
           assignment={assignment}
           busy={busy}
@@ -159,6 +163,7 @@ export function CoordinatorView({
           taskActions={vm.taskActions}
           operatorActions={vm.operatorActions}
         />
+        </fieldset>
       </div>
     </PrismDashboardShell>
   );
