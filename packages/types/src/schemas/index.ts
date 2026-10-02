@@ -79,6 +79,10 @@ export {
   createFloorPlanPreferenceSchema,
   createFloorPlanRevisionCommentSchema,
   eventDecisionSchema,
+  setClientEventDayViewSchema,
+  submitClientOcularVisitSchema,
+  scheduleOcularVisitSchema,
+  waiveOcularVisitSchema,
   PRISM_PMCM_COMMAND_INBOX_MAX_PAGE,
   pmcmCommandInboxQuerySchema,
   type CreatePrismInquiryInput,
@@ -152,6 +156,10 @@ export {
   type CreateFloorPlanPreferenceInput,
   type CreateFloorPlanRevisionCommentInput,
   type EventDecisionInput,
+  type SetClientEventDayViewInput,
+  type SubmitClientOcularVisitInput,
+  type ScheduleOcularVisitInput,
+  type WaiveOcularVisitInput,
   type PrismPmcmCommandInboxQueryInput,
 } from "./event-ops-inputs.js";
 
