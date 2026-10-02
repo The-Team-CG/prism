@@ -18,6 +18,8 @@ import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRol
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
 import type { StaffingCommands } from '../../contracts/staffing-commands.port';
+import { COORDINATOR_RELIABILITY_WRITER } from '../../contracts/coordinator-reliability-writer.token';
+import type { CoordinatorReliabilityWriter } from '../../contracts/coordinator-reliability-writer.port';
 import { mapCoordinatorAssignment } from './coordinators.mappers';
 import { resolveCoordinatorForActor } from './coordinator-actor-lookup';
 import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
@@ -45,6 +47,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     @Inject(WORKFLOW_COMMAND_LOG) private readonly workflowCommandService: WorkflowCommandService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     private readonly coordinatorSuggestionsService: CoordinatorSuggestionsService,
+    @Inject(COORDINATOR_RELIABILITY_WRITER) private readonly reliabilityWriter: CoordinatorReliabilityWriter,
   ) {}
 
   private async resolveAssignmentPlan(
@@ -340,7 +343,15 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
           });
       },
       sideEffects: async (assignment, transactionContext) => {
+        const reason = input.reason?.trim();
         await Promise.all([
+          this.reliabilityWriter.record({
+            eventId,
+            coordinatorId: assignment.coordinatorId,
+            assignmentId: assignment.id,
+            note: `${assignment.coordinatorName} withdrew from ${assignment.role}${reason ? `: ${reason}` : ' (no reason provided)'}`,
+            severity: 'warning',
+          }, transactionContext),
           this.auditWriter.write({
             eventId,
             actor: actor.name,

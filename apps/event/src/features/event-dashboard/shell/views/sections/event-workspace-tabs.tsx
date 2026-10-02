@@ -253,6 +253,7 @@ export function EventWorkspaceCoordinatorsTab() {
       onDesignateOperator={vm.designateEventDayOperator}
       onLoadOperator={vm.loadEventDayOperator}
       onLoadAvailability={vm.loadCoordinatorAvailability}
+      onLoadReliabilityHistory={vm.loadCoordinatorReliabilityHistory}
       onCreateAvailability={vm.createCoordinatorAvailability}
       onDeleteAvailability={vm.deleteCoordinatorAvailability}
     />

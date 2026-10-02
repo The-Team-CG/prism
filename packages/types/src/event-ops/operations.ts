@@ -85,6 +85,18 @@ export interface PrismCoordinatorAssignmentAcknowledgment {
   createdAt: string;
 }
 
+export interface PrismCoordinatorReliabilityHistoryEntry {
+  id: string;
+  eventId: string | null;
+  eventName: string | null;
+  eventDate: string | null;
+  assignmentId: string | null;
+  assignmentRole: string | null;
+  note: string;
+  severity: string;
+  createdAt: string;
+}
+
 export interface PrismCoordinator {
   id: string;
   userId?: string | null;

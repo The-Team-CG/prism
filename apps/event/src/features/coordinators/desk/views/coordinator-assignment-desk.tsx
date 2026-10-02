@@ -9,6 +9,7 @@ import type {
   PrismCoordinator,
   PrismCoordinatorAssignment,
   PrismCoordinatorAvailability,
+  PrismCoordinatorReliabilityHistoryEntry,
   PrismCoordinatorSuggestion,
   PrismEvent,
   PrismEventOperatorDesignation,
@@ -22,6 +23,7 @@ import { dateKey } from "@/features/pmcm-kit";
 import { coordinatorSkillFilterOptions, isCoordinatorAssignmentActive, isOperatorEligibleAssignment } from "../model/coordinators-desk-rules";
 import { PendingAcknowledgmentsPanel } from "./coordinator-acknowledgment-panel";
 import { CoordinatorAvailabilityCard } from "./coordinator-availability-card";
+import { CoordinatorReliabilityHistory } from "./coordinator-reliability-history";
 import { CoverageTargetCard, StaffingSummary, type CoverageRequirement } from "./coordinator-coverage-cards";
 import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
 import { OperatorDesignationCard } from "./coordinator-operator-card";
@@ -49,6 +51,7 @@ export function CoordinatorAssignmentDesk({
   onDesignateOperator,
   onLoadOperator,
   onLoadAvailability,
+  onLoadReliabilityHistory,
   onCreateAvailability,
   onDeleteAvailability,
 }: {
@@ -64,6 +67,7 @@ export function CoordinatorAssignmentDesk({
   onDesignateOperator: (coordinatorId: string) => Promise<boolean>;
   onLoadOperator: () => Promise<PrismEventOperatorDesignation["operator"]>;
   onLoadAvailability: (coordinatorId: string) => Promise<PrismCoordinatorAvailability[]>;
+  onLoadReliabilityHistory: (coordinatorId: string) => Promise<PrismCoordinatorReliabilityHistoryEntry[]>;
   onCreateAvailability: (coordinatorId: string, input: CreateCoordinatorAvailabilityInput) => Promise<boolean>;
   onDeleteAvailability: (coordinatorId: string, availabilityId: string) => Promise<boolean>;
 }) {
@@ -164,6 +168,12 @@ export function CoordinatorAssignmentDesk({
       <PendingAcknowledgmentsPanel assignments={pendingAcknowledgments} busy={busy} onSendReminders={onSendReminders} />
 
       <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} onEdit={setEditingTarget} />
+
+      <CoordinatorReliabilityHistory
+        coordinators={coordinators}
+        assignments={assignments}
+        onLoad={onLoadReliabilityHistory}
+      />
 
       <div className="grid gap-5 xl:grid-cols-3">
         <CoverageTargetCard

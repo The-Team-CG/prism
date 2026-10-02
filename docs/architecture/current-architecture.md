@@ -250,7 +250,8 @@ an invariant must hold independently of HTTP and Prisma.
 | Identity and access | `OpsUser`, `OpsApprovalRequest` |
 | Core event lifecycle | `OpsInquiry`, `OpsEvent`, `OpsBriefing`, `OpsDocument` (inquiry/onboarding kinds), `OpsPostEventDocument`, `OpsEventInsight` |
 | Supplier network | `OpsSupplier`, `OpsSupplierCategory`, `OpsSupplierReview`, `OpsSupplierReliabilityNote`, `OpsSupplierCertification`, `OpsSupplierQuoteRequest`, `OpsSupplierQuote` |
-| Coordinator and live ops | `OpsCoordinator`, `OpsCoordinatorAssignment`, `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog`, `OpsCoordinatorReliabilityNote` |
+| Coordinator staffing | `OpsCoordinator`, `OpsCoordinatorAssignment`, `OpsCoordinatorReliabilityNote` |
+| Event-day operations | `OpsEventDayTask`, `OpsUrgentIssue`, `OpsEventDayLog` |
 | Compliance and billing | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` |
 | Trust, privacy, and audit | `OpsPrivacyRequest`, `OpsAuditLog`, `OpsNotificationLog`, `OpsCommandReceipt`, `OpsLoginHistory`, `OpsSecurityAlert` |
 | Guest operations | `OpsGuestCheckIn`, `OpsGuestFeedback` |
