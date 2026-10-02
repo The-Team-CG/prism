@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { nonEmptyStringSchema, optionalTrimmedStringSchema } from "./common.js";
-import { coordinatorRoleSchema } from "./coordinator-roles.js";
+import { canonicalCoordinatorRole, coordinatorRoleSchema } from "./coordinator-roles.js";
 
 /* Coordinator staffing writes. */
 export const createCoordinatorAssignmentSchema = z.object({
@@ -42,6 +42,9 @@ export type CreateCoordinatorAvailabilityInput = z.infer<typeof createCoordinato
 
 export const createCoordinatorCoverageRequirementSchema = z.object({
   role: coordinatorRoleSchema,
+  mapFromRole: z.string().trim().min(1).refine((role) => !canonicalCoordinatorRole(role), {
+    message: "Only an unmapped historical role can be mapped",
+  }).optional(),
   required: z.number().int().min(0),
   requiredSkills: z.array(nonEmptyStringSchema).default([]),
 });

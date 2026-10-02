@@ -1,5 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput } from "@prism/types";
+import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
 
 export const operationsCommands = {
 assignCoordinator: (eventId: string, input: CreateCoordinatorAssignmentInput) =>
@@ -12,6 +12,13 @@ createCoordinatorAvailability: (eventId: string, coordinatorId: string, input: C
     `/api/events/${eventId}/coordinators/${coordinatorId}/availability`,
     { method: "POST", body: input },
   ),
+loadCoordinatorSuggestions: (eventId: string, input: CoordinatorSuggestionsQueryInput) => {
+  const query = new URLSearchParams({ role: input.role });
+  input.skills.forEach((skill) => query.append("skills", skill));
+  return request<PrismCoordinatorSuggestion[]>(
+    `/api/events/${eventId}/staffing/coordinator-suggestions?${query.toString()}`,
+  );
+},
 createEventDayTask: (eventId: string, input: CreateEventDayTaskInput) =>
     request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks`, {
       method: "POST",

@@ -23,10 +23,10 @@ import {
   taskAssignedRoleOptions,
   isRegistrationCoordinatorRole,
   isCoordinatorAssignmentActive,
+  coordinatorSkillFilterOptions,
   pickActiveAssignment,
   sameCoordinatorName,
   shouldPreserveRoleViewOnAcknowledgeFailure,
-  suggestAvailableSameRoleCoordinators,
   COORDINATOR_ATTENDANCE_CHOICES,
 } from "./coordinators-desk-rules";
 
@@ -39,6 +39,16 @@ describe("coordinators-desk-rules", () => {
   it("detects registration roles", () => {
     expect(isRegistrationCoordinatorRole("Registration Lead")).toBe(true);
     expect(isRegistrationCoordinatorRole("Floor Manager")).toBe(false);
+  });
+
+  it("derives stable skill filters from active coordinators tagged for the chosen role", () => {
+    expect(coordinatorSkillFilterOptions([
+      { active: true, roleTags: [" floor director "], skillsTags: [" Venue   Layout ", "first aid"] },
+      { active: true, roleTags: ["Floor Director"], skillsTags: ["venue layout"] },
+      { active: false, roleTags: ["Floor Director"], skillsTags: ["inactive skill"] },
+      { active: true, roleTags: ["Usher"], skillsTags: ["usher skill"] },
+    ], "Floor Director")).toEqual(["first aid", "Venue Layout"]);
+    expect(coordinatorSkillFilterOptions([], "all")).toEqual([]);
   });
 
   it("keeps the role-safe desk when acknowledge refresh fails", () => {
@@ -59,28 +69,6 @@ describe("coordinators-desk-rules", () => {
     expect(isCoordinatorAssignmentActive({ status: "replaced" })).toBe(false);
   });
 
-  it("suggests same-role coordinators who are free on the event date", () => {
-    const suggestions = suggestAvailableSameRoleCoordinators({
-      coordinators: [
-        { id: "coord_busy", name: "Marco", active: true, roleTags: ["Floor Director"] },
-        { id: "coord_free", name: "Taylor", active: true, roleTags: [" floor   director "] },
-        { id: "coord_unknown", name: "Morgan", active: true, roleTags: ["Volunteer Lead"] },
-      ],
-      assignments: [
-        {
-          coordinatorId: "coord_busy",
-          eventId: "evt_other",
-          eventDate: "2026-06-18",
-          status: "acknowledged",
-        },
-      ],
-      eventId: "evt_main",
-      eventDate: "2026-06-18",
-      role: "Floor Director",
-      excludeCoordinatorId: "coord_busy",
-    });
-    expect(suggestions).toEqual([{ id: "coord_free", name: "Taylor" }]);
-  });
 });
 
 /* ── EP-11-S02: coordinator task and issue logging ──────────────── */

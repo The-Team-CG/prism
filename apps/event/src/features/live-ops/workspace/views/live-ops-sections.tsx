@@ -16,10 +16,12 @@ import { useState } from "react";
 import { COORDINATOR_ROLES, decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
 
 import type {
+  CoordinatorRole,
   EscalateLiveOpsInput,
   EscalateEventDayTaskInput,
   PrismCoordinator,
   PrismCoordinatorAssignment,
+  PrismCoordinatorSuggestion,
   PrismEvent,
   PrismEventDayStatusFeed,
   PrismEventDayTask,
@@ -171,6 +173,7 @@ export function LiveOpsDesk({
   onEscalateIssue,
   onUpdateCoordinatorAttendance,
   onReplaceCoordinator,
+  onLoadCoordinatorSuggestions,
   onVerifySupplierStatus,
   onDecideTaskReassignment,
 }: {
@@ -184,6 +187,7 @@ export function LiveOpsDesk({
   onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
   onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
   onReplaceCoordinator: (assignmentId: string, input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadCoordinatorSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
   onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
@@ -217,6 +221,7 @@ export function LiveOpsDesk({
                 assignment={assignment}
                 coordinators={coordinators}
                 busy={busy}
+                onLoadSuggestions={onLoadCoordinatorSuggestions}
                 onStatus={(status) => onUpdateCoordinatorAttendance(assignment.id, { status, notes: status === "late" ? "Marked late from live desk." : "" })}
                 onReplace={(input) => onReplaceCoordinator(assignment.id, input)}
               />
@@ -486,14 +491,16 @@ function CoordinatorRow({
   busy,
   onStatus,
   onReplace,
+  onLoadSuggestions,
 }: {
   assignment: PrismCoordinatorAssignment;
   coordinators: PrismCoordinator[];
   busy: boolean;
   onStatus: (status: "present" | "late" | "absent" | "replaced") => Promise<void>;
   onReplace: (input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
 }) {
-  const vm = useCoordinatorRowViewModel({ assignment, coordinators, busy, onReplace });
+  const vm = useCoordinatorRowViewModel({ assignment, coordinators, busy, onReplace, onLoadSuggestions });
 
   return (
     <div className="rounded-md border border-border bg-background p-3">
@@ -535,6 +542,31 @@ function CoordinatorRow({
               {vm.replacementRoleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
           </div>
+          <button
+            type="button"
+            disabled={busy || !vm.replacementRole || vm.suggestionStatus === "loading"}
+            onClick={() => void vm.findReplacementSuggestions()}
+            className="h-9 rounded-md border border-border bg-background px-3 text-xs font-bold disabled:opacity-60"
+          >
+            {vm.suggestionStatus === "loading" ? "Finding replacement matches…" : "Find replacement matches"}
+          </button>
+          {vm.suggestionStatus === "error" ? <p role="status" className="text-xs text-destructive">Could not load replacement matches. Try again or select a coordinator manually.</p> : null}
+          {vm.suggestionStatus === "empty" ? <p role="status" className="text-xs text-muted-foreground">No available skill matches for this role and event date.</p> : null}
+          {vm.replacementSuggestions.map((suggestion) => (
+            <div key={suggestion.id} className="rounded-md border border-border bg-background p-2">
+              <p className="text-xs font-bold">{suggestion.name} · {suggestion.matchedSkillCount}/{suggestion.requiredSkillCount} skills</p>
+              <p className="mt-1 text-xs text-muted-foreground">Matched: {suggestion.matchedSkills.join(", ") || "None"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Missing: {suggestion.missingSkills.join(", ") || "None"}</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => vm.selectReplacementCoordinator(suggestion.id)}
+                className="mt-2 h-8 rounded-md border border-border px-3 text-xs font-bold disabled:opacity-60"
+              >
+                Use {suggestion.name}
+              </button>
+            </div>
+          ))}
           <input
             value={vm.replacementReason}
             onChange={(event) => vm.setReplacementReason(event.target.value)}

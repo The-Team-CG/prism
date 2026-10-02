@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
@@ -218,6 +218,94 @@ function createReaderService(prisma: any, accessPolicy: any = createAccessPolicy
 }
 
 describe('Coordinator staffing workflows', () => {
+  describe('upsertCoverageRequirement legacy role mapping', () => {
+    it('renames the existing historical target atomically and preserves its identity', async () => {
+      const coverageTargets = [{
+        id: 'coverage_legacy',
+        eventId: event.id,
+        role: 'Volunteer Lead',
+        required: 1,
+        requiredSkills: ['crowd flow'],
+        createdBy: 'original admin',
+        updatedBy: 'original admin',
+      }];
+      const prisma = {
+        opsEvent: { findUnique: async () => event },
+        opsEventCoverageRequirement: {
+          findUnique: async ({ where }: { where: { eventId_role: { eventId: string; role: string } } }) =>
+            coverageTargets.find((target) => target.eventId === where.eventId_role.eventId && target.role === where.eventId_role.role) ?? null,
+          update: async ({ where, data }: { where: { id: string }; data: Partial<(typeof coverageTargets)[number]> }) => {
+            const target = coverageTargets.find((item) => item.id === where.id);
+            if (!target) throw new Error('Coverage target not found');
+            Object.assign(target, data);
+            return target;
+          },
+        },
+        $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
+      };
+      const service = createReaderService(prisma);
+
+      const result = await service.upsertCoverageRequirement(event.id, {
+        role: 'Usher',
+        mapFromRole: 'Volunteer Lead',
+        required: 2,
+        requiredSkills: ['registration'],
+      }, pmcmAdminActor);
+
+      expect(result).toMatchObject({
+        id: 'coverage_legacy',
+        role: 'Usher',
+        required: 2,
+        requiredSkills: ['registration'],
+        createdBy: 'original admin',
+        updatedBy: pmcmAdminActor.name,
+      });
+      expect(coverageTargets).toHaveLength(1);
+    });
+
+    it('rejects mapping over an existing catalog target without changing either row', async () => {
+      const coverageTargets = [
+        { id: 'coverage_legacy', eventId: event.id, role: 'Volunteer Lead', required: 1, requiredSkills: ['crowd flow'] },
+        { id: 'coverage_catalog', eventId: event.id, role: 'Usher', required: 3, requiredSkills: ['guest flow'] },
+      ];
+      let updateCount = 0;
+      const prisma = {
+        opsEvent: { findUnique: async () => event },
+        opsEventCoverageRequirement: {
+          findUnique: async ({ where }: { where: { eventId_role: { eventId: string; role: string } } }) =>
+            coverageTargets.find((target) => target.eventId === where.eventId_role.eventId && target.role === where.eventId_role.role) ?? null,
+          update: async () => {
+            updateCount += 1;
+            throw new Error('Unexpected update');
+          },
+        },
+        $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
+      };
+      const service = createReaderService(prisma);
+
+      await expect(service.upsertCoverageRequirement(event.id, {
+        role: 'Usher',
+        mapFromRole: 'Volunteer Lead',
+        required: 2,
+        requiredSkills: ['registration'],
+      }, pmcmAdminActor)).rejects.toBeInstanceOf(ConflictException);
+      expect(updateCount).toBe(0);
+      expect(coverageTargets[0].role).toBe('Volunteer Lead');
+      expect(coverageTargets[1]).toMatchObject({ required: 3, requiredSkills: ['guest flow'] });
+    });
+
+    it('rejects an actor without PMCM coverage rights', async () => {
+      const service = createReaderService({} as never);
+
+      await expect(service.upsertCoverageRequirement(event.id, {
+        role: 'Usher',
+        mapFromRole: 'Volunteer Lead',
+        required: 2,
+        requiredSkills: [],
+      }, coordinatorActor)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
   it('uses the canonical role spelling when a historical coordinator tag differs only by formatting', async () => {
     const fake = createPrisma();
     fake.assignments.splice(0);
