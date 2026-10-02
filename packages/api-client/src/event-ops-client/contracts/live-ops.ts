@@ -75,6 +75,10 @@ export interface EventOpsLiveOpsContract {
       input: CreateEventHandoffInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismEventHandoff>;
+    listHandoffs(
+      eventId: string,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventHandoff[]>;
     listEodReports(
       eventId: string,
       actor?: EventOpsActorQuery,

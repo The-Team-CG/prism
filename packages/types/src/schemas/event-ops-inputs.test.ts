@@ -89,6 +89,12 @@ describe("coordinator role contracts", () => {
       fromAssignmentId: "asg_1",
       toAssignmentId: "asg_2",
     }).success).toBe(false);
+    expect(createEventHandoffSchema.safeParse({
+      dayId: "day_1",
+      role: "Floor Director",
+      fromAssignmentId: "asg_1",
+      toAssignmentId: "asg_1",
+    }).success).toBe(false);
   });
 
   it("parses optional single and repeated skills in suggestion query parameters", () => {

@@ -69,7 +69,8 @@ export function LiveOperationsWorkspace({
         onReload={onReload}
       />
       {liveOps ? (
-        <LiveOpsDesk
+          <LiveOpsDesk
+            eventId={event.id}
           liveOps={liveOps}
           coordinators={coordinators}
           busy={busy}

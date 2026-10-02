@@ -58,6 +58,47 @@ describe('EventScheduleService authority', () => {
     await expect(instance.createHandoff('evt_1', { dayId: 'day_1', role: 'Floor Director', fromAssignmentId: 'a_1', toAssignmentId: 'a_2', outstandingItems: [] }, { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as never)).rejects.toThrow('Coordinator may only act');
   });
 
+  it('lists handoffs only for a coordinator assigned to the event', async () => {
+    const eventId = 'evt_1';
+    const actor = { id: 'coord_1', name: 'Coordinator One', role: 'coordinator' };
+    const row = {
+      id: 'handoff_1', eventId, dayId: 'day_1', role: 'Floor Director',
+      fromAssignmentId: 'assignment_1', toAssignmentId: 'assignment_2',
+      handedOffBy: 'coord_1', receivedBy: 'coord_2',
+      handedOffAt: new Date('2026-10-01T10:00:00.000Z'), outstandingItems: ['Confirm stage cue'],
+    };
+    const prisma = { opsEventHandoff: { findMany: vi.fn().mockResolvedValue([row]) } };
+    const access = { requireActorRole: vi.fn().mockResolvedValue(undefined) };
+    const staffing = { findAssignmentForEventActor: vi.fn().mockResolvedValue({ id: 'assignment_1' }) };
+    const instance = new EventScheduleService(prisma as never, access as never, {} as never, staffing as never, {} as never);
+
+    await expect(instance.listHandoffs(eventId, actor as never)).resolves.toMatchObject([
+      { id: 'handoff_1', eventId, dayId: 'day_1', outstandingItems: ['Confirm stage cue'] },
+    ]);
+    expect(prisma.opsEventHandoff.findMany).toHaveBeenCalledWith({
+      where: { eventId }, orderBy: [{ handedOffAt: 'desc' }, { id: 'desc' }],
+    });
+    expect(staffing.findAssignmentForEventActor).toHaveBeenCalledWith(eventId, actor);
+  });
+
+  it('rejects a handoff that reuses the same coordinator assignment', async () => {
+    const day = { id: 'day_1' };
+    const assignment = { id: 'assignment_1', role: 'Floor Director', coordinatorId: 'coord_1', coordinatorName: 'Coordinator One' };
+    const tx = {
+      opsEventScheduleDay: { findFirst: vi.fn().mockResolvedValue(day) },
+      opsCoordinatorAssignment: { findFirst: vi.fn().mockResolvedValue(assignment) },
+      opsEventHandoff: { create: vi.fn() },
+    };
+    const prisma = { $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
+    const access = { requireActorRole: vi.fn().mockResolvedValue(undefined) };
+    const instance = new EventScheduleService(prisma as never, access as never, {} as never, {} as never, {} as never);
+
+    await expect(instance.createHandoff('evt_1', {
+      dayId: 'day_1', role: 'Floor Director', fromAssignmentId: 'assignment_1', toAssignmentId: 'assignment_1', outstandingItems: [],
+    }, { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never)).rejects.toThrow('different coordinator assignment');
+    expect(tx.opsEventHandoff.create).not.toHaveBeenCalled();
+  });
+
   it('revokes the current designation before creating one, preserving uniqueness per event', async () => {
     const access = { requireActorRole: vi.fn().mockResolvedValue(undefined) };
     const current = {
