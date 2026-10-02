@@ -14,6 +14,7 @@ import { NOTIFICATION_OUTBOX_WRITER } from './contracts/notifications/notificati
 import { AuditService } from './application/trust/audit.service';
 import { AuditExportService } from './application/trust/audit-export.service';
 import { AuditReadService } from './application/trust/audit-read.service';
+import { SecurityOperationsService } from './application/trust/security-operations.service';
 import { PrivacyOperationsService } from './application/trust/privacy-operations.service';
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
@@ -129,6 +130,7 @@ export function createAiProviderAdapters(
     AuditService,
     AuditReadService,
     AuditExportService,
+    SecurityOperationsService,
     PrivacyOperationsService,
     AuditWriterAdapter,
     auditWriterProvider,
@@ -161,6 +163,7 @@ export function createAiProviderAdapters(
   ],
   exports: [
     AuditService,
+    SecurityOperationsService,
     PrivacyOperationsService,
     AuditWriterAdapter,
     auditWriterProvider,

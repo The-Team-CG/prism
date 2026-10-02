@@ -5,7 +5,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { WorkflowCommandService, OpsUserRole, CoordinatorAssignmentStatus } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
-import { AuditService, AuditWriterAdapter } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
 import { CoordinatorLiveOpsCommandService } from '../../../live-ops/application/coordinator-live-ops-command.service';
@@ -109,7 +109,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
     await prisma.$connect();
 
     const auditService = new AuditService(prisma);
-    const auditWriter: AuditWriter = new AuditWriterAdapter(auditService);
+    const auditWriter: AuditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     const notificationWriter = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
     const access = new EventAccessPolicyService(auditWriter);
     const workflow = new WorkflowCommandService(new PrismTransactionRunner(prisma));

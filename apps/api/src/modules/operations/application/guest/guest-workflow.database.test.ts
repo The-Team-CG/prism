@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuditService, AuditWriterAdapter } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { DocumentVaultService } from '@prism/contexts/event-lifecycle';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { GuestWorkflowService } from './guest-workflow.service';
@@ -30,7 +30,8 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
     pool = new Pool({ connectionString: databaseUrl, ssl: false, max: 3 });
     prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
     await prisma.$connect();
-    const auditWriter = new AuditWriterAdapter(new AuditService(prisma as never));
+    const auditService = new AuditService(prisma as never);
+    const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma as never, auditService));
     service = new GuestWorkflowService(prisma as never, auditWriter, new WorkflowCommandService(), new DocumentVaultService());
   });
 

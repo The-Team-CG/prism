@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { AuditExportService } from './audit-export.service';
 import { AuditReadService } from './audit-read.service';
 import { AuditService } from './audit.service';
+import { SecurityOperationsService } from './security-operations.service';
 
 type TestAuditRow = {
   id: string;
@@ -80,11 +81,15 @@ function independentAuditRows() {
   return [rootA, tailA, rootB, tailB];
 }
 
+function securityOperationsService(prisma: unknown, outbox?: unknown) {
+  return new SecurityOperationsService(prisma as never, new AuditService(prisma as never), outbox as never);
+}
+
 describe('AuditService', () => {
   it('uses explicit unknown metadata when login request context is unavailable', async () => {
     const create = async ({ data }: { data: unknown }) => data;
     const prisma = { opsLoginHistory: { create } };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
     await expect(service.recordLoginHistory(null, 'missing@example.test', 'failed', 'Unknown email')).resolves.toMatchObject({
       ipAddress: 'unknown',
       device: 'unknown',
@@ -293,7 +298,7 @@ describe('AuditService', () => {
         create: async ({ data }: { data: unknown }) => { alerts.push(data); return data; },
       },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
 
     await expect(service.recordAuthenticationAudit({
       actor: 'Ana Reyes',
@@ -327,7 +332,7 @@ describe('AuditService', () => {
         create: async () => { throw new Error('incident database unavailable'); },
       },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
 
     await expect(service.recordAuthenticationAudit({
       actor: 'Ana Reyes',
@@ -356,7 +361,7 @@ describe('AuditService', () => {
         create: async ({ data }: { data: unknown }) => { alerts.push(data); return data; },
       },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
     const user = {
       id: 'usr_client',
       name: 'Ana Reyes',
@@ -396,7 +401,7 @@ describe('AuditService', () => {
         create: async ({ data }: { data: unknown }) => { alerts.push(data); return data; },
       },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
     const user = {
       id: 'usr_client',
       name: 'Ana Reyes',
@@ -436,7 +441,7 @@ describe('AuditService', () => {
         create: async ({ data }: { data: unknown }) => { alerts.push(data); return data; },
       },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
     const user = { id: 'usr_client', name: 'Ana Reyes', email: 'ana@example.test', role: 'client' };
 
     await expect(service.handleForbiddenAccess(user as never, user.email, 'Account waiting for approval')).resolves.toBeUndefined();
@@ -455,7 +460,7 @@ describe('AuditService', () => {
         opsAuditLog: { findMany: async () => { throw new Error('audit database unavailable'); } },
       }),
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
 
     await expect(service.recordAuthenticationAudit({
       actor: 'Ana Reyes',
@@ -479,7 +484,7 @@ describe('AuditService', () => {
       }),
       opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
 
     await expect(service.recordAuthenticationAudit({
       actor: 'Ana Reyes',
@@ -501,7 +506,7 @@ describe('AuditService', () => {
       }),
       opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
 
     await expect(service.recordAuthenticationAudit({
       actor: 'Ana Reyes',
@@ -525,7 +530,7 @@ describe('AuditService', () => {
       }),
       opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
 
     await expect(service.recordAuthenticationAudit({
       actor: 'Ana Reyes',
@@ -553,7 +558,7 @@ describe('AuditService', () => {
       }),
       opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
 
     await expect(service.recordAuthenticationAudit({
       actor: 'Ms. Mys',
@@ -577,7 +582,7 @@ describe('AuditService', () => {
       }),
       opsSecurityAlert: { create: async ({ data }: { data: Record<string, unknown> }) => { alerts.push(data); return data; } },
     };
-    const service = new AuditService(prisma as never);
+    const service = securityOperationsService(prisma);
     const previousPosture = process.env.AUTH_AUDIT_INTEGRITY_POSTURE;
     process.env.AUTH_AUDIT_INTEGRITY_POSTURE = 'degraded';
     try {
@@ -627,8 +632,12 @@ describe('AuditService', () => {
     };
 
     const outbox = { queue: async (...args: unknown[]) => { notifications.push(args); return args; } };
-    const auditService = new AuditService(prisma as never, outbox as never);
-    const exportService = new AuditExportService(new AuditReadService(prisma as never), auditService);
+    const auditService = new AuditService(prisma as never);
+    const exportService = new AuditExportService(
+      new AuditReadService(prisma as never),
+      auditService,
+      new SecurityOperationsService(prisma as never, auditService, outbox as never),
+    );
     const exported = await exportService.exportAuditLogs({}, { id: 'verified-pmcm-id', name: 'Verified PMCM', role: 'pmcm-admin', email: 'pmcm@example.test' });
 
     expect(exported.recordCount).toBe(25);
