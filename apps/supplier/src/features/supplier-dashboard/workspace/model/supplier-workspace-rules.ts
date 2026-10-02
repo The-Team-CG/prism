@@ -265,10 +265,16 @@ export function buildBookingSteps(
     },
     {
       label: "Event day status",
-      done: Boolean(req.eventDayStatus && req.eventDayStatus !== "not_started"),
-      meta: req.eventDayStatusAt ? formatDate(req.eventDayStatusAt) : "Update onsite",
+      done: ["arrived", "set_up_ready", "done_leaving"].includes(req.eventDayStatus ?? ""),
+      meta: req.eventDayStatus === "late"
+        ? "Late — arrival not reported"
+        : req.eventDayStatusAt ? formatDate(req.eventDayStatusAt) : "Update onsite",
     },
   ];
+}
+
+export function canReportSupplierEventDayStatus(req: PrismSupplierQuoteRequest): boolean {
+  return req.status === "selected" && req.assignmentStatus === "confirmed" && req.readinessStatus === "confirmed";
 }
 
 export function buildCalendarEvents(
