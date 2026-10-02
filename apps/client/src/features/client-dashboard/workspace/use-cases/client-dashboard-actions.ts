@@ -2,7 +2,13 @@ import {
   clientDashboardRepository,
   type FloorPlanPreferenceInput,
 } from "../data/client-dashboard-repository";
-import type { CreateFloorPlanRevisionCommentInput, CreatePrismInquiryInput } from "@prism/types";
+import {
+  parseContract,
+  submitClientOcularVisitSchema,
+  type CreateFloorPlanRevisionCommentInput,
+  type CreatePrismInquiryInput,
+  type SubmitClientOcularVisitInput,
+} from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
 
 export function readClientSession() {
@@ -19,6 +25,11 @@ export function loadClientWorkspace() {
 
 export function loadClientActionCenter() {
   return clientDashboardRepository.loadActionCenter();
+}
+
+export function submitClientOcularVisit(eventId: string, input: SubmitClientOcularVisitInput) {
+  const payload = parseContract(submitClientOcularVisitSchema, input, "Ocular visit request");
+  return clientDashboardRepository.submitOcularVisit(eventId, payload);
 }
 
 export function submitClientInquiry(input: CreatePrismInquiryInput) {
