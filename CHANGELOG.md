@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Linked open PRs #105-121 (excluding merged #107) as native GitHub stack #122 and reviewed the pinned changes against the feature ledger; recorded failing CI complexity gates, staging integration conflicts, and missing staffing decision/evidence updates without promoting feature-family completion.
 - Full event decision history now requires a PMCM or system actor because records include private commercial and actor details.
 - Split shared Zod write contracts by API bounded context while keeping the existing event-ops schema exports available through their compatibility barrel.
 - Split shared shell navigation, sidebar and rail, mobile navigation, account-menu, and top-bar internals into focused modules while preserving the public exports and behavior.
