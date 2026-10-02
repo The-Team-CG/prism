@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
+
 ### Fixed
 - Archived coordinator events remain readable and selectable, while event-day, schedule, handoff, report, acknowledgment and withdrawal writes are blocked in the portal and API.
 - Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
