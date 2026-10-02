@@ -192,6 +192,7 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     walkInThreshold: event.walkInThreshold,
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
+    clientEventDayViewEnabled: event.clientEventDayViewEnabled,
     readiness: event.readiness,
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,
