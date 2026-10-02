@@ -8,6 +8,7 @@ import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { PAREPanel } from "@/features/pare/panel";
 import { Phase4Workspace } from "@/features/closure/phase4";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
+import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
 import { EventOverviewPanels } from "@/features/command-inbox/list";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
@@ -240,23 +241,28 @@ export function EventWorkspaceCoordinatorsTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (
-    <CoordinatorAssignmentDesk
-      event={vm.selectedEvent}
-      coordinators={vm.coordinators}
-      assignments={vm.state.coordinatorAssignments}
-      roleRequirements={vm.coordinatorRoleRequirements}
-      busy={Boolean(vm.busy)}
-      onAssign={vm.assignCoordinator}
-      onLoadSuggestions={vm.loadCoordinatorSuggestions}
-      onSaveCoverage={vm.saveCoordinatorCoverage}
-      onSendReminders={vm.sendCoordinatorAcknowledgementReminders}
-      onDesignateOperator={vm.designateEventDayOperator}
-      onLoadOperator={vm.loadEventDayOperator}
-      onLoadAvailability={vm.loadCoordinatorAvailability}
-      onLoadReliabilityHistory={vm.loadCoordinatorReliabilityHistory}
-      onCreateAvailability={vm.createCoordinatorAvailability}
-      onDeleteAvailability={vm.deleteCoordinatorAvailability}
-    />
+    <div className="space-y-5">
+      <PostponementImpactPanel eventId={vm.selectedEvent.id} />
+      <div id="coordinator-assignment-desk">
+        <CoordinatorAssignmentDesk
+          event={vm.selectedEvent}
+          coordinators={vm.coordinators}
+          assignments={vm.state.coordinatorAssignments}
+          roleRequirements={vm.coordinatorRoleRequirements}
+          busy={Boolean(vm.busy)}
+          onAssign={vm.assignCoordinator}
+          onLoadSuggestions={vm.loadCoordinatorSuggestions}
+          onSaveCoverage={vm.saveCoordinatorCoverage}
+          onSendReminders={vm.sendCoordinatorAcknowledgementReminders}
+          onDesignateOperator={vm.designateEventDayOperator}
+          onLoadOperator={vm.loadEventDayOperator}
+          onLoadAvailability={vm.loadCoordinatorAvailability}
+          onLoadReliabilityHistory={vm.loadCoordinatorReliabilityHistory}
+          onCreateAvailability={vm.createCoordinatorAvailability}
+          onDeleteAvailability={vm.deleteCoordinatorAvailability}
+        />
+      </div>
+    </div>
   );
 }
 

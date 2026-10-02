@@ -207,6 +207,24 @@ describe('EventDecisionService', () => {
     await expect(service.decide('evt-1', cancel, { ...actor, role: 'client' } as never)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('limits full event decision history to PMCM and system actors', async () => {
+    const { service, access, prisma } = setup();
+
+    await service.list('evt-1', actor);
+
+    expect(access.requireActorRole).toHaveBeenCalledWith(actor, ['pmcm-admin', 'system'], 'event decision history', 'evt-1');
+    expect(prisma.opsEventDecision.findMany).toHaveBeenCalledWith({ where: { eventId: 'evt-1' }, orderBy: { decidedAt: 'asc' } });
+  });
+
+  it.each(['client', 'coordinator'] as const)('does not return decision history to a %s', async (role) => {
+    const { service, access, prisma } = setup();
+    access.requireActorRole.mockRejectedValue(new ForbiddenException());
+
+    await expect(service.list('evt-1', { ...actor, role } as never)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.opsEventDecision.findMany).not.toHaveBeenCalled();
+  });
+
   it('replays an idempotent decision without mutating commitments twice', async () => {
     const { service, tx, assignments } = setup();
     tx.opsEventDecision.findUnique.mockResolvedValue({ id: 'decision-existing', eventId: 'evt-1' });
