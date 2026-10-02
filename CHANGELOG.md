@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
 - Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
@@ -71,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Recorded the user-directed release sequence: after plan completion and review, consolidate approved PRs into `trunk` before opening the PR to `staging`. No release branch merge or staging PR was created.
 
 ### Added
+- Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
 - Development efficiency report covering scripts, tests, CI gates, and agent guidance; clarified focused behavior-testing rules in `AGENTS.md`.
 - Pull-request template prompts for observable behavior, focused checks, and justification when adding standalone bug-fix tests.
 - Coordinator staffing now supports coverage targets, unavailable dates, acknowledgement reminders, and Event Day System Operator designation. Coordinator live operations can update task progress, verify ingress supplier setup, mark delegated attendance, and request task reassignment for PMCM review; both coordinator and PMCM desks use the event's saved schedule. Cancellation and postponement now release or reschedule assignments, surface full-day availability conflicts in PMCM staffing, and scope coordinator run sheets to authorized event data. Supplier checks are limited to the designated operator and ingress/egress roles, while urgent-issue reads and writes are limited to each coordinator's role or queue. Coordinator live-ops views and read-model mapping are split into focused sections to keep the complexity gate passing.
