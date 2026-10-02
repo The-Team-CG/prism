@@ -408,6 +408,7 @@ export function CoordinatorTimelineCard({ roleView }: { roleView: PrismCoordinat
             assignments={roleView.coordinatorAssignments}
             canManageSchedule={Boolean(roleView.isDesignatedOperator)}
             canReplyToReports={false}
+            canSubmitReports
           />
         ) : null}
       </CCardBody>

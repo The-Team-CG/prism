@@ -61,6 +61,7 @@ const report: PrismEventEodReport = {
   dayId: "day_1",
   authoredBy: "coord_1",
   authoredByRole: "coordinator",
+  canEdit: false,
   progress: ["Doors opened"],
   issues: ["Queue at north entrance"],
   risksForTomorrow: [],
@@ -72,7 +73,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   repository.getSchedule.mockResolvedValue(schedule);
   repository.listHandoffs.mockResolvedValue([]);
-  repository.listEodReports.mockResolvedValue([report]);
+  repository.listEodReports.mockResolvedValue([]);
   repository.createDay.mockResolvedValue({});
   repository.createSegment.mockResolvedValue({});
   repository.updateSegmentStatus.mockResolvedValue({});
@@ -83,7 +84,7 @@ beforeEach(() => {
 
 describe("LiveOpsScheduleDesk", () => {
   it("lets the designated operator add a day and a timed schedule segment", async () => {
-    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports={false} />);
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports={false} canSubmitReports />);
 
     await screen.findByText("Doors open");
     fireEvent.change(screen.getByLabelText("Day date"), { target: { value: "2026-10-03" } });
@@ -106,11 +107,13 @@ describe("LiveOpsScheduleDesk", () => {
   });
 
   it("lets PMCM update a schedule segment and reply to an end-of-day report", async () => {
-    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports />);
+    repository.listEodReports.mockResolvedValue([report]);
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports canSubmitReports={false} />);
 
     expect(await screen.findByText("Doors open")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Reply" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Submit end-of-day report" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await waitFor(() => expect(repository.updateSegmentStatus).toHaveBeenCalledWith("evt_1", "segment_1", { action: "start" }));
@@ -118,12 +121,13 @@ describe("LiveOpsScheduleDesk", () => {
   });
 
   it("lets an assigned coordinator submit an end-of-day report without PMCM schedule or reply controls", async () => {
-    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} />);
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} canSubmitReports />);
 
     expect(await screen.findByText("Doors open")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Add day" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Add$/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Reply" })).toBeNull();
+    expect((screen.getByRole("button", { name: "Submit end-of-day report" }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.change(screen.getByLabelText("Progress (one item per line)"), { target: { value: "Doors opened\nProgram started" } });
     fireEvent.change(screen.getByLabelText("Issues (one item per line)"), { target: { value: "Queue at north entrance" } });
@@ -137,8 +141,36 @@ describe("LiveOpsScheduleDesk", () => {
     }));
   });
 
+  it("does not let a coordinator replace another coordinator's report", async () => {
+    repository.listEodReports.mockResolvedValue([report]);
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} canSubmitReports />);
+
+    expect(await screen.findByText("Doors opened")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("Only its original author can update it");
+    expect(screen.queryByRole("button", { name: /end-of-day report/i })).toBeNull();
+    expect(repository.submitEodReport).not.toHaveBeenCalled();
+  });
+
+  it("prefills the original author's report before allowing an intentional update", async () => {
+    repository.listEodReports.mockResolvedValue([{ ...report, canEdit: true }]);
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} canSubmitReports />);
+
+    const progress = await screen.findByLabelText("Progress (one item per line)") as HTMLTextAreaElement;
+    expect(progress.value).toBe("Doors opened");
+    expect((screen.getByRole("button", { name: "Update end-of-day report" }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.change(progress, { target: { value: "Doors opened\nGuests seated" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update end-of-day report" }));
+
+    await waitFor(() => expect(repository.submitEodReport).toHaveBeenCalledWith("evt_1", {
+      dayId: "day_1",
+      progress: ["Doors opened", "Guests seated"],
+      issues: ["Queue at north entrance"],
+      risksForTomorrow: [],
+    }));
+  });
+
   it("records shift handoffs with current same-role assignments and outstanding items", async () => {
-    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} />);
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} canSubmitReports />);
 
     await screen.findByText("Doors open");
     fireEvent.change(screen.getByLabelText("Role"), { target: { value: "Floor Director" } });

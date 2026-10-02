@@ -1,5 +1,5 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import type { OpsEventHandoff, OpsEventScheduleSegment, Prisma } from '@prisma/client';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import type { OpsEventEodReport, OpsEventHandoff, OpsEventScheduleSegment, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor, writeAudit, AUDIT_WRITER, type AuditWriter } from '@prism/kernel/access-control';
@@ -72,6 +72,10 @@ function strings(value: Prisma.JsonValue): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
+}
+
 function mapHandoff(handoff: OpsEventHandoff): PrismEventHandoff {
   return {
     id: handoff.id,
@@ -84,6 +88,29 @@ function mapHandoff(handoff: OpsEventHandoff): PrismEventHandoff {
     receivedBy: handoff.receivedBy,
     handedOffAt: handoff.handedOffAt.toISOString(),
     outstandingItems: strings(handoff.outstandingItems),
+  };
+}
+
+function mapEodReport(report: OpsEventEodReport & { replies?: Array<{ id: string; reportId: string; authorId: string; authorRole: string; body: string; createdAt: Date }> }, actor: ResolvedEventOpsActor): PrismEventEodReport {
+  return {
+    id: report.id,
+    eventId: report.eventId,
+    dayId: report.dayId,
+    authoredBy: report.authoredBy,
+    authoredByRole: report.authoredByRole,
+    canEdit: actor.role === OpsUserRole.Coordinator && report.authoredBy === (actor.id ?? actor.name),
+    progress: strings(report.progress),
+    issues: strings(report.issues),
+    risksForTomorrow: strings(report.risksForTomorrow),
+    submittedAt: report.submittedAt.toISOString(),
+    replies: (report.replies ?? []).map((reply) => ({
+      id: reply.id,
+      reportId: reply.reportId,
+      authorId: reply.authorId,
+      authorRole: reply.authorRole,
+      body: reply.body,
+      createdAt: reply.createdAt.toISOString(),
+    })),
   };
 }
 
@@ -133,13 +160,22 @@ export class EventScheduleService {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.opsEventScheduleSegment.findFirst({ where: { id: segmentId, day: { eventId } } });
       if (!current) throw new NotFoundException('Schedule segment not found');
+      const transitionAllowed = current.status === 'planned'
+        ? input.action === 'start' || input.action === 'skip'
+        : current.status === 'active'
+          ? input.action === 'stop' || input.action === 'skip'
+          : false;
+      if (!transitionAllowed) throw new BadRequestException(`Cannot ${input.action} a ${current.status} schedule segment`);
       const data: Prisma.OpsEventScheduleSegmentUpdateInput = input.action === 'start'
         ? { status: 'active', actualStartedAt: current.actualStartedAt ?? now }
-        : input.action === 'stop' ? { status: 'complete', actualEndedAt: current.actualEndedAt ?? now } : { status: 'skipped' };
-      const updated = await tx.opsEventScheduleSegment.update({ where: { id: segmentId }, data });
-      const dayStatus = input.action === 'start' ? 'active' : input.action === 'stop'
-        ? (await tx.opsEventScheduleSegment.count({ where: { dayId: current.dayId, status: { notIn: ['complete', 'skipped'] } } })) === 0 ? 'complete' : 'active'
-        : 'active';
+        : input.action === 'stop' ? { status: 'complete', actualEndedAt: current.actualEndedAt ?? now }
+          : { status: 'skipped', ...(current.status === 'active' ? { actualEndedAt: current.actualEndedAt ?? now } : {}) };
+      const transition = await tx.opsEventScheduleSegment.updateMany({ where: { id: segmentId, status: current.status }, data });
+      if (transition.count !== 1) throw new ConflictException('Schedule segment changed while you were updating it. Reload and try again.');
+      const updated = await tx.opsEventScheduleSegment.findFirst({ where: { id: segmentId, day: { eventId } } });
+      if (!updated) throw new NotFoundException('Schedule segment not found');
+      const dayStatus = input.action === 'start' ? 'active'
+        : (await tx.opsEventScheduleSegment.count({ where: { dayId: current.dayId, status: { notIn: ['complete', 'skipped'] } } })) === 0 ? 'complete' : 'active';
       await tx.opsEventScheduleDay.update({ where: { id: current.dayId }, data: { status: dayStatus } });
       await writeAudit(this.auditWriter, eventId, actor.name, `Updated schedule segment: ${input.action}`, { actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'live_ops', affectedType: 'event_schedule_segment', affectedId: segmentId, metadata: { action: input.action, at: now.toISOString() } }, { prisma: tx, actorId: actor.id, correlationId: `schedule-segment-status:${segmentId}:${input.action}:${now.toISOString()}` });
       return mapSegment(updated);
@@ -209,15 +245,27 @@ export class EventScheduleService {
   }
 
   async submitEodReport(eventId: string, input: CreateEventEodReportInput, actor: ResolvedEventOpsActor): Promise<PrismEventEodReport> {
+    await this.access.requireActorRole(actor, [OpsUserRole.Coordinator], 'EOD report submission', eventId);
     await this.requireEventDayAuthority(eventId, actor);
     const submittedAt = input.submittedAt ? new Date(input.submittedAt) : this.clock.now();
-    return this.prisma.$transaction(async (tx) => {
-      const day = await tx.opsEventScheduleDay.findFirst({ where: { id: input.dayId, eventId } });
-      if (!day) throw new NotFoundException('Schedule day not found');
-      const report = await tx.opsEventEodReport.upsert({ where: { eventId_dayId: { eventId, dayId: input.dayId } }, create: { id: `eod_${randomUUID()}`, eventId, dayId: input.dayId, authoredBy: actor.id ?? actor.name, authoredByRole: actor.role, progress: toPrismaJson(input.progress), issues: toPrismaJson(input.issues), risksForTomorrow: toPrismaJson(input.risksForTomorrow), submittedAt }, update: { authoredBy: actor.id ?? actor.name, authoredByRole: actor.role, progress: toPrismaJson(input.progress), issues: toPrismaJson(input.issues), risksForTomorrow: toPrismaJson(input.risksForTomorrow), submittedAt } });
-      await writeAudit(this.auditWriter, eventId, actor.name, `Submitted EOD report for ${day.dayDate.toISOString().slice(0, 10)}`, { actorRole: actor.role, actorEmail: actor.email, actionType: 'create', category: 'live_ops', affectedType: 'event_eod_report', affectedId: report.id }, { prisma: tx, actorId: actor.id, correlationId: `eod-report:${report.id}:${submittedAt.toISOString()}` });
-      return { id: report.id, eventId, dayId: report.dayId, authoredBy: report.authoredBy, authoredByRole: report.authoredByRole, progress: strings(report.progress), issues: strings(report.issues), risksForTomorrow: strings(report.risksForTomorrow), submittedAt: report.submittedAt.toISOString(), replies: [] };
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const day = await tx.opsEventScheduleDay.findFirst({ where: { id: input.dayId, eventId } });
+        if (!day) throw new NotFoundException('Schedule day not found');
+        const author = actor.id ?? actor.name;
+        const existing = await tx.opsEventEodReport.findUnique({ where: { eventId_dayId: { eventId, dayId: input.dayId } } });
+        if (existing && existing.authoredBy !== author) throw new ForbiddenException('Only the original coordinator can update this end-of-day report');
+        const report = existing
+          ? await tx.opsEventEodReport.update({ where: { id: existing.id }, data: { progress: toPrismaJson(input.progress), issues: toPrismaJson(input.issues), risksForTomorrow: toPrismaJson(input.risksForTomorrow), submittedAt } })
+          : await tx.opsEventEodReport.create({ data: { id: `eod_${randomUUID()}`, eventId, dayId: input.dayId, authoredBy: author, authoredByRole: actor.role, progress: toPrismaJson(input.progress), issues: toPrismaJson(input.issues), risksForTomorrow: toPrismaJson(input.risksForTomorrow), submittedAt } });
+        const action = existing ? 'Updated' : 'Submitted';
+        await writeAudit(this.auditWriter, eventId, actor.name, `${action} EOD report for ${day.dayDate.toISOString().slice(0, 10)}`, { actorRole: actor.role, actorEmail: actor.email, actionType: existing ? 'update' : 'create', category: 'live_ops', affectedType: 'event_eod_report', affectedId: report.id }, { prisma: tx, actorId: actor.id, correlationId: `eod-report:${report.id}:${submittedAt.toISOString()}` });
+        return mapEodReport(report, actor);
+      });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) throw new ConflictException('An end-of-day report was saved for this day. Reload before submitting again.');
+      throw error;
+    }
   }
 
   async replyToEodReport(eventId: string, reportId: string, input: CreateEventEodReplyInput, actor: ResolvedEventOpsActor) {
@@ -253,9 +301,9 @@ export class EventScheduleService {
   }
 
   async listEodReports(eventId: string, actor: ResolvedEventOpsActor) {
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'EOD reports', eventId);
+    await this.requireEventDayAuthority(eventId, actor);
     const reports = await this.prisma.opsEventEodReport.findMany({ where: { eventId }, include: { replies: { orderBy: { createdAt: 'asc' } } }, orderBy: { submittedAt: 'desc' } });
-    return reports.map((report) => ({ id: report.id, eventId, dayId: report.dayId, authoredBy: report.authoredBy, authoredByRole: report.authoredByRole, progress: strings(report.progress), issues: strings(report.issues), risksForTomorrow: strings(report.risksForTomorrow), submittedAt: report.submittedAt.toISOString(), replies: report.replies.map((reply) => ({ id: reply.id, reportId: reply.reportId, authorId: reply.authorId, authorRole: reply.authorRole, body: reply.body, createdAt: reply.createdAt.toISOString() })) }));
+    return reports.map((report) => mapEodReport(report, actor));
   }
 
   private async requireScheduleWriter(eventId: string, actor: ResolvedEventOpsActor) {

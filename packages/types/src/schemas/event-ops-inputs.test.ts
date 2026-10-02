@@ -36,6 +36,7 @@ import {
   createEventDayTaskSchema,
   createEventHandoffSchema,
   createEventScheduleSegmentSchema,
+  createEventEodReportSchema,
   createEventTaskReassignmentSchema,
   createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
@@ -95,6 +96,13 @@ describe("coordinator role contracts", () => {
       fromAssignmentId: "asg_1",
       toAssignmentId: "asg_1",
     }).success).toBe(false);
+  });
+
+  it("requires useful content in an end-of-day report", () => {
+    expect(createEventEodReportSchema.safeParse({ dayId: "day_1" }).success).toBe(false);
+    expect(createEventEodReportSchema.safeParse({ dayId: "day_1", progress: ["Doors opened"] }).success).toBe(true);
+    expect(createEventEodReportSchema.safeParse({ dayId: "day_1", issues: ["Queue delay"] }).success).toBe(true);
+    expect(createEventEodReportSchema.safeParse({ dayId: "day_1", risksForTomorrow: ["Confirm power"] }).success).toBe(true);
   });
 
   it("parses optional single and repeated skills in suggestion query parameters", () => {

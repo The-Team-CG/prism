@@ -17,6 +17,7 @@ type LiveOpsScheduleDeskProps = {
   assignments: PrismCoordinatorAssignment[];
   canManageSchedule: boolean;
   canReplyToReports: boolean;
+  canSubmitReports: boolean;
 };
 
 export function LiveOpsScheduleDesk({
@@ -24,6 +25,7 @@ export function LiveOpsScheduleDesk({
   assignments,
   canManageSchedule,
   canReplyToReports,
+  canSubmitReports,
 }: LiveOpsScheduleDeskProps) {
   const vm = useLiveOpsScheduleDeskViewModel(eventId);
   const days = vm.schedule?.days ?? [];
@@ -96,7 +98,11 @@ export function LiveOpsScheduleDesk({
           <h3 id="eod-heading" className="font-bold text-foreground">End-of-day reports</h3>
           <p className="text-sm text-muted-foreground">Capture completed work, open issues, and risks to carry into tomorrow.</p>
         </div>
-        {days.length ? <EodReportForm days={days} busy={vm.busy} onSubmit={vm.submitReport} /> : (
+        {!canSubmitReports ? (
+          <p className="text-sm text-muted-foreground">Assigned coordinators submit end-of-day reports. PMCM can review reports and reply below.</p>
+        ) : days.length ? (
+          <EodReportForm days={days} reports={vm.reports} busy={vm.busy} onSubmit={vm.submitReport} />
+        ) : (
           <p className="text-sm text-muted-foreground">Add a schedule day before submitting an end-of-day report.</p>
         )}
         {vm.reports.length ? (
@@ -299,21 +305,57 @@ function HandoffForm({ days, assignments, busy, onCreate }: {
   );
 }
 
-function EodReportForm({ days, busy, onSubmit }: {
+function EodReportForm({ days, reports, busy, onSubmit }: {
   days: PrismEventScheduleDay[];
+  reports: PrismEventEodReport[];
   busy: boolean;
   onSubmit: (value: unknown) => Promise<boolean>;
 }) {
   const [dayId, setDayId] = useState("");
-  const [progress, setProgress] = useState("");
-  const [issues, setIssues] = useState("");
-  const [risks, setRisks] = useState("");
-  const selectedDayId = days.some((day) => day.id === dayId) ? dayId : days[0]?.id ?? "";
+  const reportableDays = days.filter((day) => {
+    const report = reports.find((item) => item.dayId === day.id);
+    return !report || report.canEdit;
+  });
+  const selectedDayId = reportableDays.some((day) => day.id === dayId) ? dayId : reportableDays[0]?.id ?? "";
+  const existingReport = reports.find((report) => report.dayId === selectedDayId && report.canEdit);
+
+  if (!reportableDays.length) {
+    return <p role="status" className="text-sm text-muted-foreground">Every scheduled day already has a report. Only its original author can update it.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <Field label="Schedule day">
+        <select value={selectedDayId} onChange={(event) => setDayId(event.target.value)} className={inputClass}>
+          {reportableDays.map((day) => <option key={day.id} value={day.id}>{day.label || formatDate(day.dayDate)}</option>)}
+        </select>
+      </Field>
+      {existingReport ? <p className="text-sm text-muted-foreground">Your report is saved. Changes here will update your report.</p> : null}
+      <EodReportFields
+        key={`${selectedDayId}:${existingReport?.submittedAt ?? "new"}`}
+        dayId={selectedDayId}
+        report={existingReport}
+        busy={busy}
+        onSubmit={onSubmit}
+      />
+    </div>
+  );
+}
+
+function EodReportFields({ dayId, report, busy, onSubmit }: {
+  dayId: string;
+  report?: PrismEventEodReport;
+  busy: boolean;
+  onSubmit: (value: unknown) => Promise<boolean>;
+}) {
+  const [progress, setProgress] = useState(() => report?.progress.join("\n") ?? "");
+  const [issues, setIssues] = useState(() => report?.issues.join("\n") ?? "");
+  const [risks, setRisks] = useState(() => report?.risksForTomorrow.join("\n") ?? "");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const saved = await onSubmit({
-      dayId: selectedDayId,
+      dayId,
       progress: splitLines(progress),
       issues: splitLines(issues),
       risksForTomorrow: splitLines(risks),
@@ -321,18 +363,17 @@ function EodReportForm({ days, busy, onSubmit }: {
     if (saved) { setProgress(""); setIssues(""); setRisks(""); }
   }
 
+  const hasContent = Boolean(progress.trim() || issues.trim() || risks.trim());
+
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-lg border border-border bg-background p-4 sm:grid-cols-2">
-      <Field label="Schedule day">
-        <select value={selectedDayId} onChange={(event) => setDayId(event.target.value)} className={inputClass}>
-          {days.map((day) => <option key={day.id} value={day.id}>{day.label || formatDate(day.dayDate)}</option>)}
-        </select>
-      </Field>
-      <div />
       <Field label="Progress (one item per line)"><textarea rows={3} value={progress} onChange={(event) => setProgress(event.target.value)} className={inputClass} /></Field>
       <Field label="Issues (one item per line)"><textarea rows={3} value={issues} onChange={(event) => setIssues(event.target.value)} className={inputClass} /></Field>
       <Field label="Risks for tomorrow (one item per line)" className="sm:col-span-2"><textarea rows={3} value={risks} onChange={(event) => setRisks(event.target.value)} className={inputClass} /></Field>
-      <div className="sm:col-span-2"><button type="submit" disabled={busy || !selectedDayId} className={primaryButtonClass}>Submit end-of-day report</button></div>
+      <div className="sm:col-span-2">
+        <p className="mb-2 text-xs text-muted-foreground">Include at least one progress item, issue, or risk.</p>
+        <button type="submit" disabled={busy || !dayId || !hasContent} className={primaryButtonClass}>{report ? "Update end-of-day report" : "Submit end-of-day report"}</button>
+      </div>
     </form>
   );
 }
