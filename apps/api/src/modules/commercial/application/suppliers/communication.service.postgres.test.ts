@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { AuditService, AuditWriterAdapter, NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, NotificationOutboxService, NotificationOutboxWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { ParticipantReaderService } from '@prism/contexts/identity-access';
 import { CommunicationService } from './communication.service';
 
@@ -27,7 +27,8 @@ describe.skipIf(!enabled)('communication service PostgreSQL transaction', () => 
     await prisma.opsCommunicationThread.create({ data: { id: ids.thread, eventId: ids.event, subject: 'Service test', createdBy: ids.user } });
     await prisma.opsCommunicationParticipant.create({ data: { id: ids.participant, threadId: ids.thread, actorId: ids.user, actorRole: actor.role, actorEmail: actor.email } });
     await prisma.opsCommunicationParticipant.create({ data: { id: ids.participant2, threadId: ids.thread, actorId: ids.user2, actorRole: actor.role, actorEmail: `${prefix}_recipient@example.test` } });
-    const audit = new AuditWriterAdapter(new AuditService(prisma));
+    const auditService = new AuditService(prisma);
+    const audit = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     const notifications = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma));
     const access = new EventAccessPolicyService(audit);
     const reader = new ParticipantReaderService(prisma, access);

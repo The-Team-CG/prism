@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
-import { AuditService, AuditWriterAdapter } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentStatus, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { CoordinatorsService } from './coordinators.service';
@@ -177,8 +177,9 @@ function createPrisma() {
 }
 
 function createServiceWriters(prisma: any) {
+  const auditService = new AuditService(prisma);
   return {
-    auditWriter: new AuditWriterAdapter(new AuditService(prisma)),
+    auditWriter: new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService)),
     notificationWriter: new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma)),
   };
 }

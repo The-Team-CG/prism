@@ -2,8 +2,7 @@ import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
-import { AuditService } from '@prism/contexts/platform-ops';
-import { AuditWriterAdapter } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { ProposalClientReviewService } from './proposal-client-review.service';
 import { OpsUserRole } from '@prism/kernel/event-core';
 
@@ -41,7 +40,8 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
     await prisma.opsInquiry.create({ data: { id: ids.inquiry, clientName: 'P0 Client', email: actor.email, normalizedEmail: actor.email, eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientType: 'Corporate', source: 'Other', message: 'test', privacyConsentAccepted: true, privacyNoticeVersion: 'test' } });
     await prisma.opsEvent.create({ data: { id: ids.event, inquiryId: ids.inquiry, clientName: 'P0 Client', eventName: 'P0 W02', eventDate: new Date('2030-01-01'), clientPortalStatus: 'unlocked', readiness: 'ready' } });
     await prisma.opsDocument.create({ data: { id: ids.document, eventId: ids.event, type: 'proposal', fileName: 'p0.pdf', status: 'issued' } });
-    const writer = new AuditWriterAdapter(new AuditService(prisma));
+    const auditService = new AuditService(prisma);
+    const writer = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     service = new ProposalClientReviewService(prisma, new EventAccessPolicyService(writer), writer);
   });
 
@@ -100,7 +100,8 @@ describe.skipIf(!enabled)('proposal client review PostgreSQL integrity', () => {
 
   it('rolls back the event when durable audit writing fails', async () => {
     await reset();
-    const realWriter = new AuditWriterAdapter(new AuditService(prisma));
+    const auditService = new AuditService(prisma);
+    const realWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     const failingWriter = {
       write: async (input: Parameters<typeof realWriter.write>[0], context: Parameters<typeof realWriter.write>[1]) => {
         await realWriter.write(input, context);

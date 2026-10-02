@@ -17,6 +17,7 @@ import { AuditService } from '../../application/trust/audit.service';
 import { AuditExportService } from '../../application/trust/audit-export.service';
 import { AuditReadService } from '../../application/trust/audit-read.service';
 import { PrivacyOperationsService } from '../../application/trust/privacy-operations.service';
+import { SecurityOperationsService } from '../../application/trust/security-operations.service';
 
 type TrustActor = ResolvedEventOpsActor;
 
@@ -36,7 +37,10 @@ function resolveActor(input: PrismVerifiedEventActor): TrustActor {
 class TrustRoutePolicy {
   private readonly logger = new Logger(TrustRoutePolicy.name);
 
-  constructor(private readonly auditService: AuditService) {}
+  constructor(
+    private readonly auditService: AuditService,
+    private readonly securityOperationsService: SecurityOperationsService,
+  ) {}
 
   async requireTrustOperator(actor: TrustActor, resource: string, eventId?: string) {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return;
@@ -60,9 +64,9 @@ class TrustRoutePolicy {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Forbidden access audit log could not be recorded: ${message}`);
-      if (typeof this.auditService.recordIntegrityIncident === 'function') {
+      if (typeof this.securityOperationsService.recordIntegrityIncident === 'function') {
         try {
-          await this.auditService.recordIntegrityIncident({
+          await this.securityOperationsService.recordIntegrityIncident({
             source: 'trust-route.forbidden-access',
             reason: message,
             eventId,
@@ -87,8 +91,9 @@ export class OpsAuditController {
     private readonly auditService: AuditService,
     private readonly auditReadService: AuditReadService,
     private readonly auditExportService: AuditExportService,
+    private readonly securityOperationsService: SecurityOperationsService,
   ) {
-    this.policy = new TrustRoutePolicy(auditService);
+    this.policy = new TrustRoutePolicy(auditService, securityOperationsService);
   }
 
   @Get('logs')
@@ -113,7 +118,7 @@ export class OpsAuditController {
   async listAlerts(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireTrustOperator(actor, 'security alerts');
-    return this.auditService.listSecurityAlerts();
+    return this.securityOperationsService.listSecurityAlerts();
   }
 
   @Get('integrity')
@@ -132,8 +137,9 @@ export class OpsPrivacyController {
   constructor(
     private readonly privacyOperationsService: PrivacyOperationsService,
     auditService: AuditService,
+    securityOperationsService: SecurityOperationsService,
   ) {
-    this.policy = new TrustRoutePolicy(auditService);
+    this.policy = new TrustRoutePolicy(auditService, securityOperationsService);
   }
 
   @Get('inventory')
