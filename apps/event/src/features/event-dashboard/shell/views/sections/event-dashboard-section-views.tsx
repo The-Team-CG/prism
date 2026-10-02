@@ -298,6 +298,7 @@ export function EventDashboardTeamSectionView() {
     designateEventDayOperator,
     loadEventDayOperator,
     loadCoordinatorAvailability,
+    loadCoordinatorReliabilityHistory,
     createCoordinatorAvailability,
     deleteCoordinatorAvailability,
   } = useEventDashboardLoadedRouteViewModel();
@@ -317,6 +318,7 @@ export function EventDashboardTeamSectionView() {
               onDesignateOperator={designateEventDayOperator}
               onLoadOperator={loadEventDayOperator}
               onLoadAvailability={loadCoordinatorAvailability}
+              onLoadReliabilityHistory={loadCoordinatorReliabilityHistory}
               onCreateAvailability={createCoordinatorAvailability}
               onDeleteAvailability={deleteCoordinatorAvailability}
             />

@@ -10,6 +10,7 @@ function createController() {
   const eventReadModelsService = {
     pmcmDashboard: vi.fn(async () => ({ events: [] })),
     pmcmEventWorkspace: vi.fn(async () => ({ event: { id: 'evt_sample' } })),
+    coordinatorReliabilityHistory: vi.fn(async () => [{ id: 'note_1' }]),
   };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((_input: any, verified: any) => ({ role: verified.actorRole, name: verified.actorName })),
@@ -65,6 +66,18 @@ describe('OpsPmcmDashboardController', () => {
       { role: 'pmcm-admin', name: 'Maxine' },
       'evt_sample',
       expect.objectContaining({ mapEvent: expect.any(Function) }),
+    );
+  });
+
+  it('serves coordinator reliability history through the PMCM reader with the verified actor', async () => {
+    const { controller, eventReadModelsService } = createController();
+    const verifiedActor = { id: 'user_pmcm', actorId: 'user_pmcm', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@example.test', actorEmail: 'pmcm@example.test', name: 'Maxine', actorName: 'Maxine' } as any;
+
+    await expect(controller.coordinatorReliabilityHistory('coord_1', verifiedActor)).resolves.toEqual([{ id: 'note_1' }]);
+
+    expect(eventReadModelsService.coordinatorReliabilityHistory).toHaveBeenCalledWith(
+      { role: 'pmcm-admin', name: 'Maxine' },
+      'coord_1',
     );
   });
 });

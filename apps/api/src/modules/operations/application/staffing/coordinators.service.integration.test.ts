@@ -8,6 +8,7 @@ import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
+import { CoordinatorReliabilityNoteWriterService } from './coordinator-reliability-note-writer.service';
 import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 import { CoordinatorLiveOpsCommandService } from '../../../live-ops/application/coordinator-live-ops-command.service';
 
@@ -121,8 +122,9 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
       workflow,
       access,
       new CoordinatorSuggestionsService(prisma),
+      new CoordinatorReliabilityNoteWriterService(prisma),
     );
-    liveOperations = new CoordinatorLiveOpsCommandService(prisma, auditWriter, notificationWriter, workflow);
+    liveOperations = new CoordinatorLiveOpsCommandService(prisma, auditWriter, notificationWriter, workflow, new CoordinatorReliabilityNoteWriterService(prisma));
   });
 
   afterAll(async () => {

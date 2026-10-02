@@ -1,5 +1,9 @@
 # Documentation bundle update log
 
+## 2026-10-02
+
+- **Clarified:** Coordinator reliability notes are owned by operations staffing and written through its public port by live operations. The architecture inventory now separates coordinator staffing records from event-day task and issue records.
+
 ## 2026-10-01
 
 - **Clarified:** The local fixture seed checks every Prisma model before inserting fixtures but does not wrap all checks and writes in one transaction. The portal-account runbook now requires the API and other database writers to remain stopped while seeding.

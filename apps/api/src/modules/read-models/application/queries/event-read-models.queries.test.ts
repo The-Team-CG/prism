@@ -5,6 +5,7 @@ import {
   MAX_PMCM_COMMAND_INBOX_PAGE_SIZE,
   MAX_EVENT_FLOORPLAN_DRAFTS,
   MAX_PMCM_DASHBOARD_ROWS,
+  MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
   MAX_VISIBLE_EVENTS,
 } from './event-read-models.queries';
 
@@ -18,6 +19,24 @@ function model() {
 }
 
 describe('EventReadModelQueries collection limits', () => {
+  it('loads recent coordinator reliability history by coordinator with event and role context', async () => {
+    const reliabilityNotes = model();
+    const queries = new EventReadModelQueries({ opsCoordinatorReliabilityNote: reliabilityNotes } as unknown as PrismaService);
+
+    await queries.coordinatorReliabilityHistory('coord_1');
+
+    expect(reliabilityNotes.findMany).toHaveBeenCalledWith({
+      where: { coordinatorId: 'coord_1' },
+      include: {
+        event: { select: { eventName: true, eventDate: true } },
+        assignment: { select: { role: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS,
+    });
+    expect(MAX_COORDINATOR_RELIABILITY_HISTORY_ROWS).toBe(50);
+  });
+
   it('bounds visible events and nested drafts with deterministic tie-breakers', async () => {
     const opsEvent = model();
     const queries = new EventReadModelQueries({ opsEvent } as unknown as PrismaService);

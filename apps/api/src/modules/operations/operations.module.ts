@@ -15,10 +15,12 @@ import { OpsGuestController } from './api/guest/guest.controller';
 import { OpsRegistrationPlatformController } from './api/guest/registration-platform.controller';
 import { WalkInPolicyController } from './api/guest/walk-in-policy.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tokens';
+import { COORDINATOR_RELIABILITY_WRITER } from './contracts/coordinator-reliability-writer.token';
 import { GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './contracts/guest-ops.tokens';
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
 import { CoordinatorAssignmentCommandService } from './application/staffing/coordinator-assignment-command.service';
+import { CoordinatorReliabilityNoteWriterService } from './application/staffing/coordinator-reliability-note-writer.service';
 import { CoordinatorSuggestionsService } from './application/staffing/coordinator-suggestions.service';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
@@ -35,8 +37,8 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
  * correction note).
  *
  * Owned tables: OpsCoordinatorAssignment (day-to-day staffing assignment;
- * live-ops also writes here for event-day updates), OpsGuestCheckIn,
- * OpsGuestFeedback.
+ * live-ops also writes here for event-day updates), OpsCoordinatorReliabilityNote,
+ * OpsGuestCheckIn, OpsGuestFeedback.
  * Read-only: OpsCoordinator (populated only by local fixtures; no owning module), OpsEvent
  * (via inquiry-onboarding).
  */
@@ -46,17 +48,19 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
   providers: [
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
+    CoordinatorReliabilityNoteWriterService,
     CoordinatorSuggestionsService,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
     RegistrationPlatformService,
     WalkInPolicyService,
     { provide: STAFFING_COMMANDS, useExisting: CoordinatorAssignmentCommandService },
+    { provide: COORDINATOR_RELIABILITY_WRITER, useExisting: CoordinatorReliabilityNoteWriterService },
     { provide: STAFFING_READER, useExisting: CoordinatorsService },
     { provide: GUEST_COMMANDS, useExisting: GuestWorkflowService },
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
     { provide: REGISTRATION_PLATFORM_READER, useExisting: RegistrationPlatformService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
+  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
 })
 export class OperationsModule {}
