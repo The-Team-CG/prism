@@ -18,7 +18,6 @@ export function ClientHomeView() {
     state,
     actionCenter,
     actionCenterLoadFailed,
-    actionCenterFromWorkspaceFallback,
     events,
     selectedEvent,
     setSelectedEventId,
@@ -64,7 +63,6 @@ export function ClientHomeView() {
           actionCenter={actionCenter}
           clientActions={clientActions}
           runClientAction={runClientAction}
-          fromWorkspaceFallback={actionCenterFromWorkspaceFallback}
           loadFailed={actionCenterLoadFailed}
         />
       ) : null}
