@@ -149,7 +149,7 @@ export class EventLiveOpsCommandService {
   }
 
   async listTaskReassignmentRequests(eventId: string, actor: ResolvedEventOpsActor) {
-    const { designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'task reassignment requests');
+    const { designatedOperator } = await this.requireEventDayActor(eventId, actor, 'task reassignment requests');
     if (actor.role === OpsUserRole.Coordinator && !designatedOperator) {
       throw new ForbiddenException('Only the designated Event Day System Operator may view task reassignment requests');
     }
@@ -235,13 +235,22 @@ export class EventLiveOpsCommandService {
   }
 
   private async requireEventDayWriteActor(eventId: string, actor: ResolvedEventOpsActor, resource: string) {
+    const scope = await this.requireEventDayActor(eventId, actor, resource);
+    if (actor.role === OpsUserRole.Coordinator && scope.event.archived) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'archived coordinator event write', eventId);
+      throw new ForbiddenException('Archived coordinator events are read-only');
+    }
+    return scope;
+  }
+
+  private async requireEventDayActor(eventId: string, actor: ResolvedEventOpsActor, resource: string) {
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator],
       resource,
       eventId,
     );
-    await this.requireEvent(eventId);
+    const event = await this.requireEvent(eventId);
     const assignment =
       actor.role === OpsUserRole.Coordinator
         ? await this.requireCoordinatorAssignmentForEvent(eventId, actor)
@@ -252,7 +261,7 @@ export class EventLiveOpsCommandService {
         where: { eventId, coordinatorId: assignment.coordinatorId, revokedAt: null },
       }),
     );
-    return { actor, assignment, designatedOperator };
+    return { actor, assignment, designatedOperator, event };
   }
 
   private async requireEvent(eventId: string) {
