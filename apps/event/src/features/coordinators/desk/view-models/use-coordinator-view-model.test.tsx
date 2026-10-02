@@ -175,7 +175,11 @@ describe("archived coordinator event selection", () => {
     expect(withdrawAndRefreshWorkspace).not.toHaveBeenCalled();
     expect(markAttendanceAndRefreshRoleView).not.toHaveBeenCalled();
     act(() => result.current.selectEvent(EVENT.id));
-    await waitFor(() => expect(result.current.readOnly).toBe(false));
+    await waitFor(() => {
+      expect(result.current.readOnly).toBe(false);
+      expect(result.current.status).toBe("success");
+      expect(result.current.roleView?.assignment?.coordinatorName).toBe(SESSION.name);
+    });
     await act(async () => result.current.taskForm.submit());
     expect(createTaskAndRefreshRoleView).toHaveBeenCalledWith(expect.objectContaining({ eventId: EVENT.id }));
   });
