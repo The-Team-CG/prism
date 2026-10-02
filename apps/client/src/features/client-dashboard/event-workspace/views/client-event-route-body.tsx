@@ -9,6 +9,7 @@ import { ClientActionGroup } from "../../shared/client-action-group";
 import { useClientWorkspace, type ClientWorkspaceValue } from "../../workspace/shared";
 import { ClientOverviewTab } from "./client-overview-tab";
 import { ClientEventDetailsView } from "./client-event-details-view";
+import { ClientOcularVisitPanel } from "./client-ocular-visit-panel";
 import { ClientProgressView } from "./client-progress-view";
 import { ClientScheduleView } from "./client-schedule-view";
 import { ClientGuestsView } from "./client-guests-view";
@@ -79,12 +80,21 @@ function renderProposal(ctx: ClientWorkspaceValue) {
 
 function renderChanges(ctx: ClientWorkspaceValue) {
   return (
-    <ClientActionGroup
-      title="Change requests"
-      description="Client-visible revision and change items for this event."
-      actions={ctx.clientActions}
-      onAction={ctx.runClientAction}
-    />
+    <div className="space-y-4">
+      {ctx.selectedEvent ? (
+        <ClientOcularVisitPanel
+          visit={ctx.ocularVisit}
+          busy={ctx.busy === "ocular-visit"}
+          onSubmit={ctx.submitOcularVisit}
+        />
+      ) : null}
+      <ClientActionGroup
+        title="Change requests"
+        description="Client-visible revision and change items for this event."
+        actions={ctx.clientActions}
+        onAction={ctx.runClientAction}
+      />
+    </div>
   );
 }
 
