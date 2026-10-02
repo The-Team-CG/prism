@@ -3,6 +3,7 @@ import type {
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   PrismAcknowledgementReminderResult,
+  PrismCoordinator,
   UpdateCoordinatorAttendanceInput,
 } from "@prism/types";
 import { COORDINATOR_ROLES, canonicalCoordinatorRole } from "@prism/types";
@@ -14,6 +15,27 @@ export function sameCoordinatorName(a: string, b: string): boolean {
 
 export function isCoordinatorAssignmentActive(assignment: { status?: string }): boolean {
   return assignment.status !== "cancelled" && assignment.status !== "replaced";
+}
+
+export function coordinatorSkillFilterOptions(
+  coordinators: Pick<PrismCoordinator, "active" | "roleTags" | "skillsTags">[],
+  role: CoordinatorRole | "all",
+): string[] {
+  if (role === "all") return [];
+
+  const options = new Map<string, string>();
+  for (const coordinator of coordinators) {
+    if (!coordinator.active || !coordinator.roleTags.some((tag) => canonicalCoordinatorRole(tag) === role)) continue;
+    for (const skill of coordinator.skillsTags) {
+      const label = skill.normalize("NFC").trim().replace(/\s+/g, " ");
+      const key = label.toLowerCase();
+      if (key && !options.has(key)) options.set(key, label);
+    }
+  }
+
+  return [...options.entries()]
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .map(([, label]) => label);
 }
 
 /** Ack refresh failures must not wipe the role-safe desk (PA-294). */
@@ -148,37 +170,6 @@ export function buildCoordinatorIssueInput({
         }
       : {}),
   };
-}
-
-export function suggestAvailableSameRoleCoordinators(input: {
-  coordinators: Array<{ id: string; name: string; active?: boolean; roleTags?: string[] }>;
-  assignments: Array<{
-    coordinatorId?: string | null;
-    eventId: string;
-    eventDate?: string | null;
-    status?: string;
-  }>;
-  eventId: string;
-  eventDate: string;
-  role: string;
-  excludeCoordinatorId: string;
-}): Array<{ id: string; name: string }> {
-  const role = canonicalCoordinatorRole(input.role);
-  if (!role) return [];
-
-  const busyIds = new Set(
-    input.assignments
-      .filter((assignment) => assignment.eventId !== input.eventId && assignment.eventDate === input.eventDate)
-      .filter((assignment) => assignment.status !== "cancelled" && assignment.status !== "replaced")
-      .map((assignment) => assignment.coordinatorId)
-      .filter((id): id is string => Boolean(id)),
-  );
-  return input.coordinators
-    .filter((coordinator) => coordinator.active !== false)
-    .filter((coordinator) => coordinator.id !== input.excludeCoordinatorId)
-    .filter((coordinator) => (coordinator.roleTags ?? []).some((tag) => canonicalCoordinatorRole(tag) === role))
-    .filter((coordinator) => !busyIds.has(coordinator.id))
-    .map((coordinator) => ({ id: coordinator.id, name: coordinator.name }));
 }
 
 /* ── EP-11-S03: coordinator self-attendance marking ──────────────── */

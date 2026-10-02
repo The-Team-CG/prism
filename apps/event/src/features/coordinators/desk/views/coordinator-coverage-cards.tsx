@@ -3,6 +3,7 @@ import { UsersRound } from "lucide-react";
 
 import {
   createCoordinatorCoverageRequirementSchema,
+  canonicalCoordinatorRole,
   parseContract,
   type CoordinatorRole,
   type CreateCoordinatorCoverageRequirementInput,
@@ -80,7 +81,7 @@ export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClear
   onSave: (input: CreateCoordinatorCoverageRequirementInput) => Promise<boolean>;
   onClearEdit: () => void;
 }) {
-  const [role, setRole] = useState(editing?.role ?? "");
+  const [role, setRole] = useState(canonicalCoordinatorRole(editing?.role) ?? "");
   const [required, setRequired] = useState(String(editing?.required ?? 1));
   const [skills, setSkills] = useState(requirementSkills(editing).join(", "));
   const [message, setMessage] = useState<string | null>(null);
@@ -91,11 +92,16 @@ export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClear
     try {
       const input = parseContract(createCoordinatorCoverageRequirementSchema, {
         role,
+        ...(editing && !canonicalCoordinatorRole(editing.role) ? { mapFromRole: editing.role } : {}),
         required: required.trim() === "" ? Number.NaN : Number(required),
         requiredSkills: skills.split(",").map((skill) => skill.trim()).filter(Boolean),
       }, "Coordinator coverage target");
       const saved = await onSave(input);
-      setMessage(saved ? "Coverage target saved for " + input.role + "." : "Coverage target was not saved. Check the PMCM status message.");
+      setMessage(saved
+        ? input.mapFromRole
+          ? `Coverage target mapped from ${input.mapFromRole} to ${input.role}.`
+          : "Coverage target saved for " + input.role + "."
+        : "Coverage target was not saved. Check the PMCM status message.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save this coverage target.");
     }
@@ -113,11 +119,16 @@ export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClear
         <form className="space-y-3" onSubmit={(event) => void submit(event)}>
           <label className={LABEL_CLASS}>
             Role
-            <input required list="coordinator-role-options" value={role} onChange={(event) => setRole(event.target.value)} className={INPUT_CLASS} placeholder="e.g. Floor Director" />
+            <select aria-label="Role" required value={role} onChange={(event) => setRole(event.target.value)} className={INPUT_CLASS}>
+              <option value="">Choose a coordinator role</option>
+              {roleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
           </label>
-          <datalist id="coordinator-role-options">
-            {roleOptions.map((option) => <option key={option} value={option} />)}
-          </datalist>
+          {editing && !canonicalCoordinatorRole(editing.role) && (
+            <p role="status" className="text-xs text-muted-foreground">
+              “{editing.role}” is a historical role. Choose a catalog role to map this coverage target before saving.
+            </p>
+          )}
           <label className={LABEL_CLASS}>
             Required coordinators
             <input type="number" min="0" step="1" required value={required} onChange={(event) => setRequired(event.target.value)} className={INPUT_CLASS} />

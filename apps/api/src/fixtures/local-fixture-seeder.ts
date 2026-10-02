@@ -216,13 +216,13 @@ const SEEDED_SUPPLIERS = [
 ];
 
 const COORDINATOR_ROLE_REQUIREMENTS = [
-  { role: 'Floor Director', required: 1 },
-  { role: 'Stage Director', required: 1 },
-  { role: 'Registration Staff', required: 2 },
-  { role: 'Ingress and Egress Assistant', required: 1 },
-  { role: 'Event Day System Operator', required: 1 },
-  { role: 'Usher', required: 2 },
-  { role: 'General Coordinator', required: 1 },
+  { role: 'Floor Director', required: 1, requiredSkills: ['floorplan execution', 'venue layout'] },
+  { role: 'Stage Director', required: 1, requiredSkills: ['program flow', 'show calling'] },
+  { role: 'Registration Staff', required: 2, requiredSkills: ['guest verification', 'name search'] },
+  { role: 'Ingress and Egress Assistant', required: 1, requiredSkills: ['supplier ingress', 'vehicle dispatch'] },
+  { role: 'Event Day System Operator', required: 1, requiredSkills: ['show calling'] },
+  { role: 'Usher', required: 2, requiredSkills: ['guest flow', 'front desk'] },
+  { role: 'General Coordinator', required: 1, requiredSkills: ['client walkthrough'] },
 ];
 
 const SEEDED_COORDINATORS = [
@@ -336,6 +336,7 @@ export class LocalFixtureSeeder {
     await this.ensureSupplierQuoteFixtures();
     await this.ensurePareAssignedSuppliersSeeded();
     await this.ensureCoordinatorPoolSeeded();
+    await this.ensureCoordinatorCoverageSeeded();
     await this.ensureUnassignedScopingEventSeeded();
     await this.ensureAyalaCoordinatorAssignmentSeeded();
     await this.ensureInquiryOnboardingBackfilled();
@@ -552,6 +553,27 @@ export class LocalFixtureSeeder {
         skillsTags: coordinator.skillsTags,
         active: true,
         createdAt: new Date(),
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async ensureCoordinatorCoverageSeeded() {
+    const event = await this.prisma.opsEvent.findUnique({
+      where: { id: 'evt_sample_ayala' },
+      select: { id: true },
+    });
+    if (!event) return;
+
+    await this.prisma.opsEventCoverageRequirement.createMany({
+      data: COORDINATOR_ROLE_REQUIREMENTS.map((requirement) => ({
+        id: `coord_cov_evt_sample_ayala_${requirement.role.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`,
+        eventId: event.id,
+        role: requirement.role,
+        required: requirement.required,
+        requiredSkills: requirement.requiredSkills,
+        createdBy: 'System',
+        updatedBy: 'System',
       })),
       skipDuplicates: true,
     });

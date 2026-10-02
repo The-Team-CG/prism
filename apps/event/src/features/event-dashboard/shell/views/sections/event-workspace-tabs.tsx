@@ -247,6 +247,7 @@ export function EventWorkspaceCoordinatorsTab() {
       roleRequirements={vm.coordinatorRoleRequirements}
       busy={Boolean(vm.busy)}
       onAssign={vm.assignCoordinator}
+      onLoadSuggestions={vm.loadCoordinatorSuggestions}
       onSaveCoverage={vm.saveCoordinatorCoverage}
       onSendReminders={vm.sendCoordinatorAcknowledgementReminders}
       onDesignateOperator={vm.designateEventDayOperator}
@@ -277,6 +278,7 @@ export function EventWorkspaceLiveOpsTab() {
       onEscalateIssue={vm.escalateUrgentIssue}
       onUpdateCoordinatorAttendance={vm.updateCoordinatorAttendance}
       onReplaceCoordinator={vm.replaceCoordinator}
+      onLoadCoordinatorSuggestions={vm.loadCoordinatorSuggestions}
       onVerifySupplierStatus={vm.verifySupplierStatus}
       onDecideTaskReassignment={vm.decideEventTaskReassignment}
     />
