@@ -512,11 +512,7 @@ function CoordinatorRow({
         </div>
         <Pill value={vm.attendanceStatus} />
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || vm.attendanceStatus === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
-        <button disabled={busy || vm.attendanceStatus === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
-        <button disabled={busy || vm.attendanceStatus === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
-      </div>
+      <CoordinatorAttendanceButtons status={vm.attendanceStatus} busy={busy} onStatus={onStatus} />
       {vm.attendanceStatus !== "replaced" ? (
         <div className="mt-3 grid gap-2 rounded-md border border-dashed border-border bg-white p-3">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-muted-foreground">
@@ -681,5 +677,19 @@ function SlaLine({
       {escalationLevel && escalationLevel !== "none" ? <Pill value={escalationLevel} /> : null}
       {escalatedBy ? <span>by {escalatedBy}</span> : null}
     </div>
+  );
+}
+
+function CoordinatorAttendanceButtons({ status, busy, onStatus }: {
+  status: string;
+  busy: boolean;
+  onStatus: (status: "present" | "late" | "absent" | "replaced") => Promise<void>;
+}) {
+  return (
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button disabled={busy || status === "present"} onClick={() => onStatus("present")} className="h-10 rounded-md bg-emerald-50 px-3 text-xs font-black text-emerald-700 disabled:opacity-60">Present</button>
+        <button disabled={busy || status === "late"} onClick={() => onStatus("late")} className="h-10 rounded-md bg-amber-50 px-3 text-xs font-black text-amber-800 disabled:opacity-60">Late</button>
+        <button disabled={busy || status === "absent"} onClick={() => onStatus("absent")} className="h-10 rounded-md bg-rose-50 px-3 text-xs font-black text-rose-700 disabled:opacity-60">Absent</button>
+      </div>
   );
 }
