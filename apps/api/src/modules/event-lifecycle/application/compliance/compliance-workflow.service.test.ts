@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { AuditService } from '@prism/contexts/platform-ops';
+import { AuditService, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { AuditWriterAdapter } from '@prism/contexts/platform-ops';
 import { ComplianceWorkflowService } from './compliance-workflow.service';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
@@ -75,7 +75,7 @@ function createService() {
   };
   const auditService = new AuditService(prisma as any);
   auditService.audit = vi.fn(async () => undefined) as any;
-  const auditWriter = new AuditWriterAdapter(auditService);
+  const auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma as any, auditService));
   const accessPolicy = new EventAccessPolicyService({ write: vi.fn() });
   const service = new ComplianceWorkflowService(prisma as any, auditWriter, accessPolicy, new WorkflowCommandService());
   return { service, state, auditService };

@@ -5,7 +5,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { WorkflowCommandService, OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
-import { AuditService, AuditWriterAdapter, PareDispatchOutboxService } from '@prism/contexts/platform-ops';
+import { AuditService, AuditWriterAdapter, PareDispatchOutboxService, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { SupplierNetworkWorkflowService } from './supplier-network-workflow.service';
 import { SupplierProfileCommandsService } from './supplier-profile-commands.service';
 import type { PareApprovalGovernance } from '@prism/contexts/platform-ops';
@@ -199,7 +199,8 @@ databaseSuite('SupplierNetworkWorkflowService PostgreSQL transition invariants',
     process.env.DB_SSL = 'false';
     prisma = new PrismaService();
     await prisma.$connect();
-    auditWriter = new AuditWriterAdapter(new AuditService(prisma));
+    const auditService = new AuditService(prisma);
+    auditWriter = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
   });
 
   afterAll(async () => {
