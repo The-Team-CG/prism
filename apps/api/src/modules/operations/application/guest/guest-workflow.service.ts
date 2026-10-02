@@ -388,6 +388,8 @@ export class GuestWorkflowService {
     await this.requireRegistrationDeskAccess(eventId, actor);
     const updated = await this.prisma.$transaction(async (tx) => {
       await this.lockEvent({ prisma: tx, correlationId: `roster_verify_${rosterEntryId}` }, eventId);
+      const event = await tx.opsEvent.findUnique({ where: { id: eventId }, select: { archived: true } });
+      if (!event || event.archived) throw new NotFoundException('Event not found or archived');
       const roster = await tx.opsGuestRosterEntry.findFirst({ where: { id: rosterEntryId, eventId, withdrawnAt: null } });
       if (!roster) throw new NotFoundException('Roster entry not found');
       if (roster.checkedInAt && input.status !== roster.verificationStatus) {
