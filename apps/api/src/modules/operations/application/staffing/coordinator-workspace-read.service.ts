@@ -7,7 +7,10 @@ import { FLOORPLAN_READER, type FloorplanReader } from '@prism/contexts/floorpla
 import { GuestWorkflowService } from '../guest/guest-workflow.service';
 import { CoordinatorsService } from './coordinators.service';
 
-type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
+type EventWithDrafts = OpsEvent & {
+  briefings?: Array<{ venue: string }>;
+  floorPlanDrafts?: OpsFloorPlanDraft[];
+};
 
 function isoDate(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -33,7 +36,14 @@ export class CoordinatorWorkspaceReadService {
     const eventIds = new Set(visibleAssignments.map((assignment) => assignment.eventId));
     const events = await this.prisma.opsEvent.findMany({
       where: { id: { in: Array.from(eventIds) } },
-      include: { floorPlanDrafts: { orderBy: { updatedAt: 'desc' } } },
+      include: {
+        floorPlanDrafts: { orderBy: { updatedAt: 'desc' } },
+        briefings: {
+          orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+          take: 1,
+          select: { venue: true },
+        },
+      },
       orderBy: { eventDate: 'asc' },
     });
 
@@ -56,6 +66,7 @@ export class CoordinatorWorkspaceReadService {
       clientName: event.clientName,
       eventName: event.eventName,
       eventDate: isoDate(event.eventDate),
+      venue: event.briefings?.[0]?.venue,
       status: event.status,
       clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
       readiness: event.readiness,

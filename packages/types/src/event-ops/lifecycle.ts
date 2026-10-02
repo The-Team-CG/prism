@@ -99,6 +99,7 @@ export interface PrismEvent {
   clientName: string;
   eventName: string;
   eventDate: string;
+  venue?: string;
   walkInPolicy?: "closed" | "open" | "threshold";
   walkInThreshold?: number;
   actualEndedAt?: string | null;
@@ -121,6 +122,46 @@ export interface PrismEvent {
   freezeReason?: string;
   activeFloorPlanDraftId?: string;
   floorPlanDrafts?: PrismFloorPlanDraft[];
+}
+
+export interface PrismEventDecisionRescheduleConflict {
+  assignmentId: string;
+  coordinatorName: string;
+  reason: "double_booking" | "unavailable";
+  conflictEventId?: string;
+  conflictEventName?: string;
+}
+
+export interface PrismEventDecisionAssignmentImpact {
+  releasedAssignmentIds: string[];
+  priorAssignments: Array<{
+    id: string;
+    status: string;
+    coordinatorId: string | null;
+    coordinatorName: string;
+  }>;
+  reschedule?: {
+    toDate: string;
+    assignmentIds: string[];
+    conflicts: PrismEventDecisionRescheduleConflict[];
+  };
+}
+
+export interface PrismEventDecision {
+  id: string;
+  eventId: string;
+  decision: string;
+  reason: string;
+  actorId: string;
+  actorRole: string;
+  actorName: string;
+  actorEmail: string | null;
+  decidedAt: string;
+  priorState: { status: string; eventDate: string };
+  financialImpact: Record<string, unknown>;
+  assignmentImpact: PrismEventDecisionAssignmentImpact;
+  supplierImpact: string;
+  idempotencyKey: string | null;
 }
 
 export interface PrismArchivedEventSearchHit {

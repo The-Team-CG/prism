@@ -1,23 +1,44 @@
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { zodBody } from '@prism/kernel/shared';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import {
   createCoordinatorAvailabilitySchema,
   createCoordinatorCoverageRequirementSchema,
+  coordinatorSuggestionsQuerySchema,
   type CreateCoordinatorAvailabilityInput,
   type CreateCoordinatorCoverageRequirementInput,
+  type CoordinatorSuggestionsQueryInput,
   type PrismVerifiedEventActor,
 } from '@prism/types';
 import { CoordinatorsService } from '../../application/staffing/coordinators.service';
+import { CoordinatorSuggestionsService } from '../../application/staffing/coordinator-suggestions.service';
 
 @Controller('events')
 export class OpsCoordinatorCapacityController {
   constructor(
     private readonly coordinatorsService: CoordinatorsService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    private readonly coordinatorSuggestionsService: CoordinatorSuggestionsService,
   ) {}
+
+  @Get(':eventId/staffing/coordinator-suggestions')
+  @UseGuards(EventSessionGuard)
+  async getCoordinatorSuggestions(
+    @Param('eventId') eventId: string,
+    @Query(zodQuery(coordinatorSuggestionsQuerySchema)) query: CoordinatorSuggestionsQueryInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(
+      actor,
+      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      'coordinator suggestions',
+      eventId,
+    );
+    return this.coordinatorSuggestionsService.listForEvent(eventId, query);
+  }
 
   @Get(':eventId/staffing/coverage')
   @UseGuards(EventSessionGuard)

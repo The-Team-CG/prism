@@ -1,5 +1,10 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, OpsEvent, Prisma } from '@prisma/client';
+import {
+  COORDINATOR_ROLES,
+  canonicalCoordinatorRole,
+  coordinatorRoleSchema,
+} from '@prism/types';
 import type {
   CreateCoordinatorAssignmentInput,
   CoordinatorAssignmentAcknowledgementInput,
@@ -13,8 +18,11 @@ import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, OpsUserRol
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
 import type { StaffingCommands } from '../../contracts/staffing-commands.port';
+import { COORDINATOR_RELIABILITY_WRITER } from '../../contracts/coordinator-reliability-writer.token';
+import type { CoordinatorReliabilityWriter } from '../../contracts/coordinator-reliability-writer.port';
 import { mapCoordinatorAssignment } from './coordinators.mappers';
 import { resolveCoordinatorForActor } from './coordinator-actor-lookup';
+import { CoordinatorSuggestionsService } from './coordinator-suggestions.service';
 import { isoDate } from './staffing.utils';
 
 type CoordinatorConflict = OpsCoordinatorAssignment & {
@@ -38,6 +46,8 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     @Inject(WORKFLOW_COMMAND_LOG) private readonly workflowCommandService: WorkflowCommandService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    private readonly coordinatorSuggestionsService: CoordinatorSuggestionsService,
+    @Inject(COORDINATOR_RELIABILITY_WRITER) private readonly reliabilityWriter: CoordinatorReliabilityWriter,
   ) {}
 
   private async resolveAssignmentPlan(
@@ -47,9 +57,15 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
   ): Promise<CoordinatorAssignmentPlan> {
     const event = await this.requireEvent(eventId, prisma);
     const coordinator = await this.resolveCoordinator(input, prisma);
-    const role = input.role || coordinator.roleTags[0] || 'General Coordinator';
+    if (input.role !== undefined && !coordinatorRoleSchema.safeParse(input.role).success) {
+      throw new BadRequestException('Choose a role from the coordinator role catalog.');
+    }
+    const taggedRole = coordinator.roleTags
+      .map(canonicalCoordinatorRole)
+      .find((candidate): candidate is (typeof COORDINATOR_ROLES)[number] => candidate !== undefined);
+    const role = input.role ?? taggedRole ?? 'General Coordinator';
 
-    if (!coordinator.roleTags.includes(role)) {
+    if (!coordinator.roleTags.some((tag) => canonicalCoordinatorRole(tag) === role)) {
       throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
     }
 
@@ -83,7 +99,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     })) as CoordinatorConflict | null;
 
     if (conflict && !input.overrideConflict) {
-      const sameRoleSuggestions = await this.listAvailableSameRole(event, role, coordinator.id, prisma);
+      const sameRoleSuggestions = await this.coordinatorSuggestionsService.listForConflict(event, role, coordinator.id, prisma);
       throw new BadRequestException({
         code: 'COORDINATOR_DOUBLE_BOOKING',
         message: `${coordinator.name} is already assigned to ${conflict.event.eventName} on this date.`,
@@ -327,7 +343,15 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
           });
       },
       sideEffects: async (assignment, transactionContext) => {
+        const reason = input.reason?.trim();
         await Promise.all([
+          this.reliabilityWriter.record({
+            eventId,
+            coordinatorId: assignment.coordinatorId,
+            assignmentId: assignment.id,
+            note: `${assignment.coordinatorName} withdrew from ${assignment.role}${reason ? `: ${reason}` : ' (no reason provided)'}`,
+            severity: 'warning',
+          }, transactionContext),
           this.auditWriter.write({
             eventId,
             actor: actor.name,
@@ -485,37 +509,6 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     });
   }
 
-  private async listAvailableSameRole(event: OpsEvent, role: string, excludeCoordinatorId: string, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
-    const coordinators = await prisma.opsCoordinator.findMany({
-      where: { active: true },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    });
-    const busy = await prisma.opsCoordinatorAssignment.findMany({
-      where: {
-        eventDate: event.eventDate,
-        status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced] },
-      },
-    });
-    const busyIds = new Set(
-      busy.map((row) => row.coordinatorId).filter((id): id is string => Boolean(id)),
-    );
-    const eventDateEnd = new Date(event.eventDate.getTime() + 24 * 60 * 60 * 1000);
-    const availabilityModel = 'opsCoordinatorAvailability' in prisma ? prisma.opsCoordinatorAvailability : undefined;
-    const unavailable = availabilityModel
-      ? await availabilityModel.findMany({
-          where: { startsAt: { lt: eventDateEnd }, endsAt: { gt: event.eventDate } },
-          select: { coordinatorId: true },
-        })
-      : [];
-    const unavailableIds = new Set(unavailable.map((item) => item.coordinatorId));
-    return coordinators
-      .filter(
-        (item) => item.id !== excludeCoordinatorId && item.roleTags.includes(role) && !busyIds.has(item.id) && !unavailableIds.has(item.id),
-      )
-      .slice(0, 5)
-      .map((item) => ({ id: item.id, name: item.name, role }));
-  }
-
   private async resolveCoordinator(input: CreateCoordinatorAssignmentInput, prisma: Prisma.TransactionClient | PrismaService = this.prisma) {
     const coordinator = input.coordinatorId
       ? await prisma.opsCoordinator.findUnique({ where: { id: input.coordinatorId } })
@@ -556,6 +549,12 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     await lockCoordinatorAssignmentDay(prisma, coordinator.id, event.eventDate);
   }
 
+  private async requireCoordinatorWritableEvent(eventId: string, actor: ResolvedEventOpsActor, prisma: Prisma.TransactionClient | PrismaService) {
+    if (actor.role !== OpsUserRole.Coordinator) return;
+    const event = await this.requireEvent(eventId, prisma);
+    if (event.archived) throw new ForbiddenException('Archived coordinator events are read-only');
+  }
+
   // PA-276: acknowledgeCoordinator previously updated by assignmentId alone, letting any
   // authenticated Coordinator acknowledge any assignment regardless of who it belonged to
   // or which event it was scoped to. This closes both gaps: the assignment must belong to
@@ -570,6 +569,8 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     if (!assignment || assignment.eventId !== eventId) {
       throw new NotFoundException('Coordinator assignment not found');
     }
+
+    await this.requireCoordinatorWritableEvent(eventId, actor, prisma);
 
     if (actor.role === OpsUserRole.Coordinator) {
       const coordinator = await resolveCoordinatorForActor(prisma, actor);

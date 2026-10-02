@@ -311,11 +311,13 @@ export function EventDashboardTeamSectionView() {
     coordinatorRoleRequirements,
     busy,
     assignCoordinator,
+    loadCoordinatorSuggestions,
     saveCoordinatorCoverage,
     sendCoordinatorAcknowledgementReminders,
     designateEventDayOperator,
     loadEventDayOperator,
     loadCoordinatorAvailability,
+    loadCoordinatorReliabilityHistory,
     createCoordinatorAvailability,
     deleteCoordinatorAvailability,
   } = useEventDashboardLoadedRouteViewModel();
@@ -329,11 +331,13 @@ export function EventDashboardTeamSectionView() {
               roleRequirements={coordinatorRoleRequirements}
               busy={Boolean(busy)}
               onAssign={assignCoordinator}
+              onLoadSuggestions={loadCoordinatorSuggestions}
               onSaveCoverage={saveCoordinatorCoverage}
               onSendReminders={sendCoordinatorAcknowledgementReminders}
               onDesignateOperator={designateEventDayOperator}
               onLoadOperator={loadEventDayOperator}
               onLoadAvailability={loadCoordinatorAvailability}
+              onLoadReliabilityHistory={loadCoordinatorReliabilityHistory}
               onCreateAvailability={createCoordinatorAvailability}
               onDeleteAvailability={deleteCoordinatorAvailability}
             />

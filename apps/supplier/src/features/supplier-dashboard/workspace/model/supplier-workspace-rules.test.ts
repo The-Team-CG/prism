@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBookingSteps,
   buildCalendarEvents,
+  canReportSupplierEventDayStatus,
   buildQuoteByRequest,
   closedRequestReason,
   countEventsThisMonth,
@@ -71,6 +73,30 @@ function makeQuote(
 }
 
 describe("supplier-workspace-rules", () => {
+  it("keeps an automatic late flag open until the supplier reports an event-day status", () => {
+    const late = buildBookingSteps(makeRequest({ id: "late", eventDayStatus: "late" })).at(-1);
+    const arrived = buildBookingSteps(makeRequest({ id: "arrived", eventDayStatus: "arrived" })).at(-1);
+
+    expect(late).toMatchObject({ done: false, meta: "Late — arrival not reported" });
+    expect(arrived?.done).toBe(true);
+  });
+
+  it("requires assignment and readiness confirmation before reporting event-day status", () => {
+    expect(canReportSupplierEventDayStatus(makeRequest({ id: "pending" }))).toBe(false);
+    expect(canReportSupplierEventDayStatus(makeRequest({
+      id: "ready",
+      status: "selected",
+      assignmentStatus: "confirmed",
+      readinessStatus: "confirmed",
+    }))).toBe(true);
+    expect(canReportSupplierEventDayStatus(makeRequest({
+      id: "stale-selection",
+      status: "open",
+      assignmentStatus: "confirmed",
+      readinessStatus: "confirmed",
+    }))).toBe(false);
+  });
+
   it("formats tokens, money, and dates", () => {
     expect(fmt("set_up_ready")).toBe("set up ready");
     expect(formatMoney(75000)).toContain("75");

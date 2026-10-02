@@ -134,6 +134,30 @@ describe("createEventOpsClient", () => {
     });
   });
 
+  it("loads event decision history through the event contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.events.decisionHistory("evt_1");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/events/evt_1/decisions", {
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  it("loads event-scoped coordinator handoffs through the live-ops contract", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.liveOps.listHandoffs("evt_1");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/events/evt_1/handoffs", {
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
   it("loads a redacted public supplier application status without caching", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(
@@ -400,6 +424,30 @@ describe("createEventOpsClient", () => {
     await client.guest.eventPass("AYALA-TECH-YALA");
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/api/guest/events/AYALA-TECH-YALA", {
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  it("searches the role-scoped registration roster and posts an event-scoped walk-in", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "gci_1" }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({ baseUrl: "http://localhost:4000/api" });
+    await client.guest.registrationRoster("evt_1", { query: "Mia" });
+    await client.guest.registerWalkIn("evt_1", { guestName: "Mia Santos", privacyConsentAccepted: true });
+    await client.guest.verifyRegistrationRoster("evt_1", "gre_1", { status: "verified" });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/guest/events/evt_1/roster/search?query=Mia", {
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "http://localhost:4000/api/guest/events/evt_1/walk-ins", {
+      method: "POST",
+      body: JSON.stringify({ guestName: "Mia Santos", privacyConsentAccepted: true }),
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "http://localhost:4000/api/guest/events/evt_1/roster/gre_1/verification", {
+      method: "PATCH",
+      body: JSON.stringify({ status: "verified" }),
       headers: { "Content-Type": "application/json" },
     });
   });

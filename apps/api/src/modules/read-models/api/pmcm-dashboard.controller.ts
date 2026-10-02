@@ -39,6 +39,16 @@ export class OpsPmcmDashboardController {
     return this.eventReadModelsService.pmcmEventWorkspace(actor, eventId, this.mappers());
   }
 
+  @Get('coordinators/:coordinatorId/reliability-history')
+  @UseGuards(EventSessionGuard)
+  coordinatorReliabilityHistory(
+    @Param('coordinatorId') coordinatorId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.eventReadModelsService.coordinatorReliabilityHistory(actor, coordinatorId);
+  }
+
   private mappers() {
     return createPmcmReadModelMappers({
       staffingReader: this.staffingReader,
