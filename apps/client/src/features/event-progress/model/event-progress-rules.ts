@@ -1,5 +1,6 @@
 import {
   PRISM_LIFECYCLE_STAGES,
+  type PrismClientTimelineMilestoneKey,
   type PrismClientWorkspace,
   type PrismEvent,
   type PrismPaymentMilestone,
@@ -142,85 +143,28 @@ export function deriveCheckpoints(
   ];
 }
 
-function timelineStatus(done: boolean, current: boolean) {
-  if (done) return "completed";
-  if (current) return "current";
-  return "pending";
-}
-
-function timelineStep(
-  id: string,
-  title: string,
-  description: string,
-  done: boolean,
-  current = false,
-): EventTimelineStep {
-  return {
-    id,
-    title,
-    description,
-    status: timelineStatus(done, current),
-  };
-}
-
-function isEventDayComplete(event: PrismEvent) {
-  return event.status === "event_day" || event.status === "completed";
-}
+const CLIENT_TIMELINE_TITLES: Record<PrismClientTimelineMilestoneKey, string> = {
+  conforme_signed: "Conforme signed",
+  proposal_accepted: "Proposal accepted",
+  floor_plan_approved: "Floor plan approved",
+  balance_payment_due: "Balance payment due",
+  event_date: "Event date",
+};
 
 export function deriveTimeline(
   event: PrismEvent,
   workspace: PrismClientWorkspace,
 ): EventTimelineStep[] {
-  const portalUnlocked = event.clientPortalStatus === "unlocked";
-  const hasBriefing = workspace.briefings.some((b) => b.eventId === event.id);
-  const floorPlanApproved = workspace.floorPlanDrafts.some(
-    (d) => d.eventId === event.id && d.status === "approved",
-  );
-  const hasSuppliers = workspace.supplierQuotes.some(
-    (q) => q.eventId === event.id,
-  );
-  const hasCoordinators = workspace.coordinatorAssignments.some(
-    (a) => a.eventId === event.id,
+  const timeline = workspace.clientEventTimelines.find(
+    (item) => item.eventId === event.id,
   );
 
-  return [
-    timelineStep("inquiry", "Inquiry accepted", "Your event request was received and approved", true),
-    timelineStep("conforme", "Conforme signed", "Portal access activated", portalUnlocked),
-    timelineStep(
-      "briefing",
-      "Briefing submitted",
-      hasBriefing ? "Event details confirmed" : "Awaiting event details",
-      hasBriefing,
-      portalUnlocked,
-    ),
-    timelineStep(
-      "floorplan",
-      "Layout approved",
-      floorPlanApproved ? "Official floor plan confirmed" : "PMCM is preparing the layout",
-      floorPlanApproved,
-      hasBriefing,
-    ),
-    timelineStep(
-      "suppliers",
-      "Suppliers assigned",
-      hasSuppliers ? "Vendors confirmed for your event" : "Pending supplier selection",
-      hasSuppliers,
-      floorPlanApproved,
-    ),
-    timelineStep(
-      "coordinators",
-      "Team assigned",
-      hasCoordinators ? "Event coordinators assigned" : "Pending coordinator assignment",
-      hasCoordinators,
-      hasSuppliers,
-    ),
-    timelineStep(
-      "event_day",
-      "Event day",
-      `Scheduled for ${event.eventDate}`,
-      isEventDayComplete(event),
-    ),
-  ];
+  return timeline?.milestones.map((milestone) => ({
+    id: milestone.key,
+    title: CLIENT_TIMELINE_TITLES[milestone.key],
+    status: milestone.status,
+    meta: milestone.date ?? "Date pending",
+  })) ?? [];
 }
 
 export function derivePaymentMilestones(
@@ -259,5 +203,8 @@ export function computeEventProgress(
     timeline,
     paymentMilestones,
     score,
+    clientEventDayStatus: event.clientEventDayViewEnabled === true && event.status === "event_day"
+      ? "Event day is in progress."
+      : null,
   };
 }
