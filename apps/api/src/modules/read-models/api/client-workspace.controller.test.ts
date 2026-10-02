@@ -30,6 +30,16 @@ describe('OpsClientController', () => {
             floorPlanDrafts: [],
           }),
         ],
+        clientEventTimelines: [{
+          eventId: 'evt_sample',
+          milestones: [
+            { key: 'conforme_signed', date: null, status: 'current' },
+            { key: 'proposal_accepted', date: null, status: 'pending' },
+            { key: 'floor_plan_approved', date: null, status: 'pending' },
+            { key: 'balance_payment_due', date: null, status: 'pending' },
+            { key: 'event_date', date: '2026-07-10', status: 'pending' },
+          ],
+        }],
         documents: [
           mappers.mapDocument({
             id: 'doc_sample',
@@ -126,6 +136,16 @@ describe('OpsClientController', () => {
       id: 'evt_sample',
       eventDate: '2026-07-10',
       guestAccessCode: 'AYALA-SUMMIT-MPLE',
+    });
+    expect(workspace.clientEventTimelines[0]).toMatchObject({
+      eventId: 'evt_sample',
+      milestones: [
+        { key: 'conforme_signed', date: null, status: 'current' },
+        { key: 'proposal_accepted', date: null, status: 'pending' },
+        { key: 'floor_plan_approved', date: null, status: 'pending' },
+        { key: 'balance_payment_due', date: null, status: 'pending' },
+        { key: 'event_date', date: '2026-07-10', status: 'pending' },
+      ],
     });
     expect(workspace.documents[0]).toMatchObject({ id: 'doc_sample', uploadedAt: '2026-06-20T09:00:00.000Z' });
     expect(workspace.briefings[0]).toMatchObject({ eventId: 'evt_sample', serviceRequirements: ['Program'] });
