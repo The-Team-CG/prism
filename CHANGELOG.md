@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
+- Updated floorplan workflow test actors with required IDs, restoring API typecheck.
 
 ### Added
 - EP-10-S03: added the client ocular visit request, PMCM Admin scheduling/completion and audited waiver controls, transactional scheduling notification, and the official-floorplan completion/waiver gate. PA-59 remains open before In Review.
