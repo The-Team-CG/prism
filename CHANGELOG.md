@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added the implementation plan for the coordinator role catalog and skill-aware staffing suggestions.
 - Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
 - Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
@@ -72,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Recorded the user-directed release sequence: after plan completion and review, consolidate approved PRs into `trunk` before opening the PR to `staging`. No release branch merge or staging PR was created.
 
 ### Added
+- Added the implementation plan for the coordinator role catalog and skill-aware staffing suggestions.
 - Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
 - Development efficiency report covering scripts, tests, CI gates, and agent guidance; clarified focused behavior-testing rules in `AGENTS.md`.
 - Pull-request template prompts for observable behavior, focused checks, and justification when adding standalone bug-fix tests.
