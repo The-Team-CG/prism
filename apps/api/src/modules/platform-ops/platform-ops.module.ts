@@ -12,6 +12,8 @@ import { AUDIT_WRITER } from './contracts/trust/trust-ops.tokens';
 import { NotificationOutboxWriterAdapter } from './infrastructure/notifications/notification-outbox-writer.adapter';
 import { NOTIFICATION_OUTBOX_WRITER } from './contracts/notifications/notification-ops.tokens';
 import { AuditService } from './application/trust/audit.service';
+import { AuditExportService } from './application/trust/audit-export.service';
+import { AuditReadService } from './application/trust/audit-read.service';
 import { PrivacyOperationsService } from './application/trust/privacy-operations.service';
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
@@ -125,6 +127,8 @@ export function createAiProviderAdapters(
   controllers: [OpsAuditController, OpsPrivacyController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController],
   providers: [
     AuditService,
+    AuditReadService,
+    AuditExportService,
     PrivacyOperationsService,
     AuditWriterAdapter,
     auditWriterProvider,
