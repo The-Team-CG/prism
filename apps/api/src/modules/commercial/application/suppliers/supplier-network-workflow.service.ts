@@ -504,10 +504,19 @@ export class SupplierNetworkWorkflowService {
         create: { id: `ss_${randomUUID()}`, eventId, requestId: input.requestId, ingressAt, egressAt, location: input.location ?? '', notes: input.notes ?? '' },
         update: { ingressAt, egressAt, location: input.location ?? '', notes: input.notes ?? '', status: 'planned' },
       });
+      const lateFlagReset = await tx.opsSupplierQuoteRequest.updateMany({
+        where: { id: request.id, eventDayStatus: 'late' },
+        data: { eventDayStatus: 'not_started', eventDayStatusAt: null },
+      });
       await writeAudit(this.auditWriter, eventId, actor.name, `Scheduled supplier ingress: ${request.supplierName}`, {
         actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Create, category: AuditCategory.Suppliers,
         affectedType: 'supplier_schedule', affectedId: schedule.id, affectedLabel: request.supplierName,
-        metadata: { requestId: request.id, ingressAt: ingressAt.toISOString(), egressAt: egressAt.toISOString() },
+        metadata: {
+          requestId: request.id,
+          ingressAt: ingressAt.toISOString(),
+          egressAt: egressAt.toISOString(),
+          lateFlagReset: lateFlagReset.count === 1,
+        },
       }, { prisma: tx, actorId: actor.id, correlationId: `supplier-schedule:${schedule.id}` });
       return schedule;
     });
