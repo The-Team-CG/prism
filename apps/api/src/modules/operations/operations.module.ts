@@ -24,6 +24,7 @@ import { CoordinatorAssignmentCommandService } from './application/staffing/coor
 import { CoordinatorReliabilityNoteWriterService } from './application/staffing/coordinator-reliability-note-writer.service';
 import { CoordinatorInsightFactsReaderService } from './application/staffing/coordinator-insight-facts-reader.service';
 import { CoordinatorSuggestionsService } from './application/staffing/coordinator-suggestions.service';
+import { CoordinatorAcknowledgementReminderScheduler } from './application/staffing/coordinator-acknowledgement-reminder.scheduler';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
@@ -53,6 +54,7 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
     CoordinatorReliabilityNoteWriterService,
     CoordinatorInsightFactsReaderService,
     CoordinatorSuggestionsService,
+    CoordinatorAcknowledgementReminderScheduler,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
     RegistrationPlatformService,

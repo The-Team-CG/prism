@@ -10,6 +10,7 @@ import type { CoordinatorAssignmentListOptions } from '../../contracts/staffing-
 import { mapCoordinator as mapCoordinatorRecord, mapCoordinatorAssignment as mapCoordinatorAssignmentRecord } from './coordinators.mappers';
 import { isoDate, sameText, timestamp } from './staffing.utils';
 import { resolveCoordinatorForActor } from './coordinator-actor-lookup';
+import { coordinatorAcknowledgementLeadTimeDays } from './coordinator-reminder-policy';
 
 export type StaffingCoverageRow = {
   role: string;
@@ -21,7 +22,6 @@ export type StaffingCoverageRow = {
   satisfied: boolean;
 };
 
-const ACKNOWLEDGEMENT_LEAD_TIME_DAYS = 7;
 const MAX_STAFFING_COORDINATORS = 500;
 const MAX_STAFFING_ASSIGNMENTS = 500;
 const MAX_ACKNOWLEDGEMENT_HISTORY = 100;
@@ -278,44 +278,62 @@ export class CoordinatorsService {
     });
   }
 
-  async enqueueAcknowledgementReminders(eventId: string | undefined, actor: ResolvedEventOpsActor) {
+  async enqueueAcknowledgementReminders(
+    eventId: string | undefined,
+    actor: ResolvedEventOpsActor,
+    now = new Date(),
+  ) {
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       'coordinator acknowledgement reminders',
       eventId,
     );
-    const now = new Date();
-    const cutoff = new Date(now);
-    cutoff.setDate(cutoff.getDate() + ACKNOWLEDGEMENT_LEAD_TIME_DAYS);
-    const assignments = await this.prisma.opsCoordinatorAssignment.findMany({
-      where: {
-        ...(eventId ? { eventId } : {}),
-        status: CoordinatorAssignmentStatus.PendingAcknowledgement,
-        eventDate: { lte: cutoff },
-      },
-      include: { event: { select: { eventName: true, eventDate: true } }, coordinator: { select: { email: true } } },
-      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
-    });
+    const leadTimeDays = coordinatorAcknowledgementLeadTimeDays();
+    const firstReminderDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const endExclusive = new Date(firstReminderDate);
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + leadTimeDays + 1);
     const results = [] as Array<{ assignmentId: string; status: string; reason: string | null }>;
-    for (const assignment of assignments) {
-      const cycle = isoDate(assignment.eventDate ?? assignment.event.eventDate);
-      const queued = await this.notificationOutboxWriter.write({
-        eventId: assignment.eventId,
-        recipient: assignment.coordinator?.email ?? assignment.coordinatorName,
-        message: `Acknowledgment reminder: confirm your ${assignment.role} assignment for ${assignment.event.eventName}.`,
-        channel: 'email',
-        correlationId: `coord-ack-reminder:${assignment.id}:${cycle}`,
-        idempotencyKey: `coord-ack-reminder:${assignment.id}:${cycle}`,
+    let cursorAfter: string | undefined;
+    while (true) {
+      const assignments = await this.prisma.opsCoordinatorAssignment.findMany({
+        where: {
+          ...(eventId ? { eventId } : {}),
+          ...(cursorAfter ? { id: { gt: cursorAfter } } : {}),
+          status: { in: ['pending', CoordinatorAssignmentStatus.PendingAcknowledgement] },
+          OR: [
+            { eventDate: { gte: firstReminderDate, lt: endExclusive } },
+            {
+              eventDate: null,
+              event: { is: { eventDate: { gte: firstReminderDate, lt: endExclusive } } },
+            },
+          ],
+        },
+        include: { event: { select: { eventName: true, eventDate: true } }, coordinator: { select: { email: true } } },
+        orderBy: { id: 'asc' },
+        take: MAX_STAFFING_ASSIGNMENTS,
       });
-      const delivered = queued as { status?: string; failureReason?: string } | null;
-      results.push({
-        assignmentId: assignment.id,
-        status: delivered?.status ?? 'queued',
-        reason: delivered?.failureReason ?? null,
-      });
+      for (const assignment of assignments) {
+        const cycle = isoDate(assignment.eventDate ?? assignment.event.eventDate);
+        const queued = await this.notificationOutboxWriter.write({
+          eventId: assignment.eventId,
+          recipient: assignment.coordinator?.email ?? assignment.coordinatorName,
+          message: `Acknowledgment reminder: confirm your ${assignment.role} assignment for ${assignment.event.eventName}.`,
+          channel: 'email',
+          correlationId: `coord-ack-reminder:${assignment.id}:${cycle}`,
+          idempotencyKey: `coord-ack-reminder:${assignment.id}:${cycle}`,
+        });
+        const delivered = queued as { status?: string; failureReason?: string } | null;
+        results.push({
+          assignmentId: assignment.id,
+          status: delivered?.status ?? 'queued',
+          reason: delivered?.failureReason ?? null,
+        });
+      }
+      if (assignments.length < MAX_STAFFING_ASSIGNMENTS) break;
+      cursorAfter = assignments[assignments.length - 1].id;
     }
-    return { leadTimeDays: ACKNOWLEDGEMENT_LEAD_TIME_DAYS, reminders: results };
+    return { leadTimeDays, reminders: results };
   }
 
   async resolveCoordinatorForActor(

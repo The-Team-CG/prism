@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
 import { AuditService, AuditWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
@@ -116,14 +116,41 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
         }
         return assignments[0] ?? null;
       },
-      findMany: async ({ where }: { where?: { eventId?: string; coordinatorId?: string; coordinatorName?: string; status?: { notIn?: string[] } } } = {}) =>
-        assignments.filter((assignment) => {
+      findMany: async ({ where, take }: {
+        where?: {
+          eventId?: string;
+          id?: { gt?: string };
+          coordinatorId?: string;
+          coordinatorName?: string;
+          status?: { notIn?: string[]; in?: string[] };
+          OR?: Array<{
+            eventDate?: { gte?: Date; lt?: Date } | null;
+            event?: { is?: { eventDate?: { gte?: Date; lt?: Date } } };
+          }>;
+        };
+        take?: number;
+      } = {}) => assignments.filter((assignment) => {
           if (where?.eventId && assignment.eventId !== where.eventId) return false;
+          if (where?.id?.gt && assignment.id <= where.id.gt) return false;
           if (where?.coordinatorId && assignment.coordinatorId !== where.coordinatorId) return false;
           if (where?.coordinatorName && assignment.coordinatorName !== where.coordinatorName) return false;
           if (where?.status?.notIn?.includes(assignment.status)) return false;
+          if (where?.status?.in && !where.status.in.includes(assignment.status)) return false;
+          if (where?.OR) {
+            const matchesWindow = where.OR.some((condition) => {
+              if (condition.eventDate === null && assignment.eventDate !== null) return false;
+              const date = condition.eventDate === null ? assignment.event?.eventDate : assignment.eventDate;
+              const range = condition.eventDate === null ? condition.event?.is?.eventDate : condition.eventDate;
+              return Boolean(
+                date && range &&
+                (!range.gte || date >= range.gte) &&
+                (!range.lt || date < range.lt),
+              );
+            });
+            if (!matchesWindow) return false;
+          }
           return true;
-        }),
+        }).sort((left, right) => left.id.localeCompare(right.id)).slice(0, take ?? Number.MAX_SAFE_INTEGER),
       groupBy: async ({ where }: {
         where?: { coordinatorId?: { in?: string[] }; eventDate?: Date; status?: { notIn?: string[] } };
       } = {}) => assignments
@@ -229,6 +256,106 @@ function createReaderService(prisma: any, accessPolicy: any = createAccessPolicy
 }
 
 describe('Coordinator staffing workflows', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  describe('acknowledgement reminder scheduling', () => {
+    it('queues one idempotent reminder for pending assignments within the configured lead window', async () => {
+      vi.stubEnv('PRISM_COORDINATOR_ACKNOWLEDGEMENT_LEAD_TIME_DAYS', '7');
+      const fake = createPrisma();
+      const now = new Date('2026-10-02T08:30:00.000Z');
+      const dueAssignment = {
+        id: 'coord_asg_due',
+        eventId: 'evt_due',
+        eventDate: new Date('2026-10-09T00:00:00.000Z'),
+        status: CoordinatorAssignmentStatus.PendingAcknowledgement,
+        role: 'Floor Director',
+        coordinatorName: 'Marco Santos',
+        coordinator: { email: 'marco@pmcm.test' },
+        event: { eventName: 'Upcoming Event', eventDate: new Date('2026-10-09T00:00:00.000Z') },
+      };
+      fake.assignments.push(
+        dueAssignment,
+        { ...dueAssignment, id: 'coord_asg_today', eventDate: new Date('2026-10-02T00:00:00.000Z') },
+        {
+          ...dueAssignment,
+          id: 'coord_asg_legacy_null_date',
+          eventDate: null,
+          event: { eventName: 'Upcoming Event', eventDate: new Date('2026-10-09T00:00:00.000Z') },
+        },
+        { ...dueAssignment, id: 'coord_asg_too_late', eventDate: new Date('2026-10-01T00:00:00.000Z') },
+        { ...dueAssignment, id: 'coord_asg_too_early', eventDate: new Date('2026-10-10T00:00:00.000Z') },
+        { ...dueAssignment, id: 'coord_asg_acknowledged', status: CoordinatorAssignmentStatus.Acknowledged },
+      );
+      const service = createReaderService(fake.prisma as any);
+
+      const result = await service.enqueueAcknowledgementReminders(undefined, {
+        role: OpsUserRole.System,
+        name: 'Scheduler',
+        explicit: true,
+      }, now);
+
+      expect(result.leadTimeDays).toBe(7);
+      expect(result.reminders).toHaveLength(3);
+      expect(result.reminders.map((reminder) => reminder.assignmentId).sort()).toEqual([
+        'coord_asg_due',
+        'coord_asg_legacy_null_date',
+        'coord_asg_today',
+      ]);
+      expect(result.reminders).toEqual(expect.arrayContaining([
+        expect.objectContaining({ assignmentId: 'coord_asg_due', status: 'queued' }),
+        expect.objectContaining({ assignmentId: 'coord_asg_legacy_null_date', status: 'queued' }),
+        expect.objectContaining({ assignmentId: 'coord_asg_today', status: 'queued' }),
+      ]));
+      expect(fake.notifications).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          eventId: 'evt_due',
+          recipient: 'marco@pmcm.test',
+          idempotencyKey: 'coord-ack-reminder:coord_asg_today:2026-10-02',
+        }),
+        expect.objectContaining({
+          eventId: 'evt_due',
+          recipient: 'marco@pmcm.test',
+          idempotencyKey: 'coord-ack-reminder:coord_asg_due:2026-10-09',
+        }),
+        expect.objectContaining({
+          eventId: 'evt_due',
+          recipient: 'marco@pmcm.test',
+          idempotencyKey: 'coord-ack-reminder:coord_asg_legacy_null_date:2026-10-09',
+        }),
+      ]));
+    });
+
+    it('continues through bounded pages so later assignments receive reminders', async () => {
+      vi.stubEnv('PRISM_COORDINATOR_ACKNOWLEDGEMENT_LEAD_TIME_DAYS', '7');
+      const fake = createPrisma();
+      const now = new Date('2026-10-02T00:00:00.000Z');
+      for (let index = 0; index < 501; index += 1) {
+        fake.assignments.push({
+          id: `coord_asg_${String(index).padStart(3, '0')}`,
+          eventId: 'evt_due',
+          eventDate: new Date('2026-10-09T00:00:00.000Z'),
+          status: CoordinatorAssignmentStatus.PendingAcknowledgement,
+          role: 'Floor Director',
+          coordinatorName: `Coordinator ${index}`,
+          coordinator: { email: `coordinator-${index}@pmcm.test` },
+          event: { eventName: 'Upcoming Event', eventDate: new Date('2026-10-09T00:00:00.000Z') },
+        });
+      }
+      const service = createReaderService(fake.prisma as any);
+
+      const result = await service.enqueueAcknowledgementReminders(undefined, {
+        role: OpsUserRole.System,
+        name: 'Scheduler',
+        explicit: true,
+      }, now);
+
+      expect(result.reminders).toHaveLength(501);
+      expect(fake.notifications).toHaveLength(501);
+    });
+  });
+
   describe('upsertCoverageRequirement legacy role mapping', () => {
     it('renames the existing historical target atomically and preserves its identity', async () => {
       const coverageTargets = [{
