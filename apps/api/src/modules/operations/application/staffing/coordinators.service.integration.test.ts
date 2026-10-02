@@ -8,7 +8,7 @@ import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access
 import { AuditService, AuditWriterAdapter } from '@prism/contexts/platform-ops';
 import { NotificationOutboxService, NotificationOutboxWriterAdapter } from '@prism/contexts/platform-ops';
 import { CoordinatorAssignmentCommandService } from './coordinator-assignment-command.service';
-import { LiveOperationsService } from '../../../live-ops/application/live-operations.service';
+import { CoordinatorLiveOpsCommandService } from '../../../live-ops/application/coordinator-live-ops-command.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 
@@ -97,7 +97,7 @@ async function cleanupFixture(prisma: PrismaService, fixture: Fixture) {
 databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
   let prisma: PrismaService;
   let coordinators: CoordinatorAssignmentCommandService;
-  let liveOperations: LiveOperationsService;
+  let liveOperations: CoordinatorLiveOpsCommandService;
 
   beforeAll(async () => {
     if (!databaseUrl) return;
@@ -114,7 +114,7 @@ databaseSuite('CoordinatorsService PostgreSQL concurrency invariants', () => {
     const access = new EventAccessPolicyService(auditWriter);
     const workflow = new WorkflowCommandService(new PrismTransactionRunner(prisma));
     coordinators = new CoordinatorAssignmentCommandService(prisma, auditWriter, notificationWriter, workflow, access);
-    liveOperations = new LiveOperationsService(prisma, auditWriter, notificationWriter, workflow);
+    liveOperations = new CoordinatorLiveOpsCommandService(prisma, auditWriter, notificationWriter, workflow);
   });
 
   afterAll(async () => {

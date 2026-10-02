@@ -2,7 +2,6 @@ export * from './api/coordinator-live-ops.controller';
 export * from './api/event-live-ops.controller';
 export * from './api/supplier-live-ops.controller';
 export * from './application/live-ops.mappers';
-export * from './application/live-operations.service';
 export * from './application/event-live-ops-command.service';
 export * from './application/event-live-ops-read.service';
 export * from './application/event-schedule.service';
