@@ -290,14 +290,33 @@ export class EventLiveOpsCommandService {
     const ownerMatches = Boolean(owner) && this.eventAccessPolicyService.sameText(owner, assignment.coordinatorName);
     const isLegacyOwnQueueFallback =
       !ownRole && requestedRole === 'General Coordinator' && ownerMatches;
-    if (role && (!requestedRole || (requestedRole !== ownRole && !isLegacyOwnQueueFallback))) {
-      throw new ForbiddenException('Coordinator may only create tasks for their role');
-    }
+    this.requireTaskRole(role, requestedRole, ownRole, isLegacyOwnQueueFallback);
+    this.requireTaskOwner(ownRole, isLegacyOwnQueueFallback, owner, ownerMatches);
+  }
+
+  private requireTaskOwner(
+    ownRole: ReturnType<typeof canonicalCoordinatorRole>,
+    isLegacyOwnQueueFallback: boolean,
+    owner: string | undefined,
+    ownerMatches: boolean,
+  ) {
     if (!ownRole && !isLegacyOwnQueueFallback) {
       throw new ForbiddenException('Coordinator may only create tasks for their own queue');
     }
     if (owner && !ownerMatches) {
       throw new ForbiddenException('Coordinator may only create tasks for their own queue');
+    }
+  }
+
+  private requireTaskRole(
+    role: string | undefined,
+    requestedRole: ReturnType<typeof canonicalCoordinatorRole>,
+    ownRole: ReturnType<typeof canonicalCoordinatorRole>,
+    isLegacyOwnQueueFallback: boolean,
+  ) {
+    if (!role) return;
+    if (!requestedRole || (requestedRole !== ownRole && !isLegacyOwnQueueFallback)) {
+      throw new ForbiddenException('Coordinator may only create tasks for their role');
     }
   }
 
@@ -367,6 +386,16 @@ export class EventLiveOpsCommandService {
     if (actor.role !== OpsUserRole.Coordinator || designatedOperator) return;
     const task = await this.prisma.opsEventDayTask.findFirst({ where: { id: taskId, eventId } });
     if (!task) throw new NotFoundException('Event-day task not found');
+    if (!assignment || !this.taskBelongsToAssignment(task, assignment)) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task scope', eventId);
+      throw new ForbiddenException('Coordinator may only update tasks in their own queue');
+    }
+  }
+
+  private taskBelongsToAssignment(
+    task: { assignedRole: string; ownerName: string | null },
+    assignment: NonNullable<Awaited<ReturnType<EventLiveOpsCommandService['requireCoordinatorAssignmentForEvent']>>>,
+  ) {
     const taskRole = canonicalCoordinatorRole(task.assignedRole);
     const assignmentRole = canonicalCoordinatorRole(assignment?.role);
     const roleMatches = taskRole && assignmentRole
@@ -377,10 +406,7 @@ export class EventLiveOpsCommandService {
       this.eventAccessPolicyService.sameText(task.ownerName, assignment?.coordinatorName);
     const isLegacyOwnQueueFallback =
       !assignmentRole && taskRole === 'General Coordinator' && ownerIsActor;
-    if (!assignment || (!roleMatches && !isLegacyOwnQueueFallback) || !ownerMatches) {
-      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task scope', eventId);
-      throw new ForbiddenException('Coordinator may only update tasks in their own queue');
-    }
+    return Boolean((roleMatches || isLegacyOwnQueueFallback) && ownerMatches);
   }
 
 }
