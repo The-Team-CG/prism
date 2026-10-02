@@ -7,6 +7,31 @@ function service(access: { requireActorRole: ReturnType<typeof vi.fn> }, staffin
 }
 
 describe('EventScheduleService authority', () => {
+  it('keeps archived schedules, handoffs and reports readable but refuses coordinator writes', async () => {
+    const prisma = {
+      opsEvent: { findUnique: vi.fn(async () => ({ archived: true })) },
+      opsEventOperatorDesignation: { findFirst: vi.fn(async () => ({ id: 'designation_1' })) },
+      opsEventHandoff: { findMany: vi.fn(async () => []) },
+      opsEventEodReport: { findMany: vi.fn(async () => []) },
+      $transaction: vi.fn(),
+    };
+    const instance = new EventScheduleService(prisma as never, { requireActorRole: vi.fn() } as never, {} as never,
+      { findAssignmentForEventActor: vi.fn(async () => ({ id: 'a_1', coordinatorId: 'coord_1' })) } as never,
+      { getEventLiveOps: vi.fn(async () => ({ schedule: { eventId: 'evt_1', days: [] } })) } as never);
+    const actor = { id: 'coord_1', name: 'Coordinator', role: 'coordinator' } as const;
+    const writes = [
+      () => instance.createDay('evt_1', { dayDate: '2026-10-01' }, actor as never),
+      () => instance.createSegment('evt_1', 'day_1', { title: 'Opening', ownerRole: 'Usher', plannedStartAt: '2026-10-01T10:00:00Z', plannedEndAt: '2026-10-01T11:00:00Z' }, actor as never),
+      () => instance.updateSegmentStatus('evt_1', 'segment_1', { action: 'start' }, actor as never),
+      () => instance.createHandoff('evt_1', { dayId: 'day_1', role: 'Usher', fromAssignmentId: 'a_1', toAssignmentId: 'a_2', outstandingItems: [] }, actor as never),
+      () => instance.submitEodReport('evt_1', { dayId: 'day_1', progress: ['Done'], issues: [], risksForTomorrow: [] }, actor as never),
+    ];
+    for (const write of writes) await expect(write()).rejects.toThrow('Archived coordinator events are read-only');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    await expect(instance.getSchedule('evt_1', actor as never)).resolves.toMatchObject({ eventId: 'evt_1', days: [] });
+    await expect(instance.listEodReports('evt_1', actor as never)).resolves.toEqual([]);
+  });
+
   it('returns only the event-scoped live-ops view to an assigned coordinator run sheet', async () => {
     const eventId = 'evt_1';
     const actor = { id: 'usr_coord', role: 'coordinator', name: 'Coordinator', email: 'coord@example.test' };
