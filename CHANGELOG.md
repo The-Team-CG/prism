@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Extracted schedule transition validation and update data from the locked transaction, and separated schedule authoring from handoff/report rendering.
 - Separated postponement request status from recorded staffing impact rendering, retaining snapshot labels and manual PMCM follow-up.
 - Full event decision history now requires a PMCM or system actor because records include private commercial and actor details.
 - Shared the live-workspace visibility predicate used by PMCM polling and event-day refresh, preserving selected-event and role checks.

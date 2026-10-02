@@ -164,16 +164,8 @@ export class EventScheduleService {
       await tx.$queryRaw`SELECT "id" FROM "staffing_ops"."event_schedule_days" WHERE "id" = ${candidate.dayId} AND "event_id" = ${eventId} FOR UPDATE`;
       const current = await tx.opsEventScheduleSegment.findFirst({ where: { id: segmentId, day: { eventId } } });
       if (!current) throw new NotFoundException('Schedule segment not found');
-      const transitionAllowed = current.status === 'planned'
-        ? input.action === 'start' || input.action === 'skip'
-        : current.status === 'active'
-          ? input.action === 'stop' || input.action === 'skip'
-          : false;
-      if (!transitionAllowed) throw new BadRequestException(`Cannot ${input.action} a ${current.status} schedule segment`);
-      const data: Prisma.OpsEventScheduleSegmentUpdateInput = input.action === 'start'
-        ? { status: 'active', actualStartedAt: current.actualStartedAt ?? now }
-        : input.action === 'stop' ? { status: 'complete', actualEndedAt: current.actualEndedAt ?? now }
-          : { status: 'skipped', ...(current.status === 'active' ? { actualEndedAt: current.actualEndedAt ?? now } : {}) };
+      requireScheduleSegmentTransition(current.status, input.action);
+      const data = scheduleSegmentTransitionData(current, input.action, now);
       const transition = await tx.opsEventScheduleSegment.updateMany({ where: { id: segmentId, status: current.status }, data });
       if (transition.count !== 1) throw new ConflictException('Schedule segment changed while you were updating it. Reload and try again.');
       const updated = await tx.opsEventScheduleSegment.findFirst({ where: { id: segmentId, day: { eventId } } });
@@ -335,4 +327,20 @@ export class EventScheduleService {
     const designation = await this.prisma.opsEventOperatorDesignation.findFirst({ where: { eventId, coordinatorId: assignment.coordinatorId, revokedAt: null } });
     if (!designation) throw new ForbiddenException('Only the designated Event Day System Operator may author this schedule');
   }
+}
+
+function requireScheduleSegmentTransition(status: string, action: UpdateEventScheduleSegmentStatusInput['action']) {
+      const transitionAllowed = status === 'planned'
+        ? action === 'start' || action === 'skip'
+        : status === 'active'
+          ? action === 'stop' || action === 'skip'
+          : false;
+      if (!transitionAllowed) throw new BadRequestException(`Cannot ${action} a ${status} schedule segment`);
+ }
+
+function scheduleSegmentTransitionData(current: OpsEventScheduleSegment, action: UpdateEventScheduleSegmentStatusInput['action'], now: Date): Prisma.OpsEventScheduleSegmentUpdateInput {
+      return action === 'start'
+        ? { status: 'active', actualStartedAt: current.actualStartedAt ?? now }
+        : action === 'stop' ? { status: 'complete', actualEndedAt: current.actualEndedAt ?? now }
+          : { status: 'skipped', ...(current.status === 'active' ? { actualEndedAt: current.actualEndedAt ?? now } : {}) };
 }
