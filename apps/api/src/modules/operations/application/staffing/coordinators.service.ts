@@ -295,7 +295,7 @@ export class CoordinatorsService {
     endExclusive.setUTCDate(endExclusive.getUTCDate() + leadTimeDays + 1);
     const results = [] as Array<{ assignmentId: string; status: string; reason: string | null }>;
     let cursorAfter: string | undefined;
-    while (true) {
+    while (true) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: stable ID keyset pages the due reminder set in batches of 500.
       const assignments = await this.prisma.opsCoordinatorAssignment.findMany({
         where: {
           ...(eventId ? { eventId } : {}),

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added a scheduled supplier ingress monitor that flags unreported arrivals after a configurable grace period, audits the transition, caps each run at 1,000 schedules, and shows suppliers that are late before they report arrival; event-day reporting stays disabled until the request, assignment, and readiness are confirmed.
 - Added scheduled, idempotent coordinator acknowledgment reminders with a configurable lead window and bounded database pages.
 - Added visibility-aware 30-second event-day updates for the active PMCM live-ops desk and the coordinator's selected event, refreshing task, issue, and check-in data without polling other PMCM sections.
 - Added a shared coordinator role catalog and skill-filter query contract; coordinator task, replacement, coverage, and assignment selectors use the catalog, and assignment fallback normalizes legacy tags without persisting unknown roles. Existing conflict suggestions and task authorization normalize legacy role tags during rollout; tasks for unmapped historical roles use the canonical General Coordinator role and stay in the coordinator's named queue for creation and updates. Legacy labels remain readable, verified issue ownership names are preserved without creating out-of-catalog queue labels, and PMCM issue routing labels remain flexible.

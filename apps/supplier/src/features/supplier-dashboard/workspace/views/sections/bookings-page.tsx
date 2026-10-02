@@ -36,6 +36,7 @@ import {
   EVENT_STATUS_ACTIONS,
   buildBookingSteps,
   buildCalendarEvents,
+  canReportSupplierEventDayStatus,
   closedRequestReason,
   firstNameFrom,
   formatDate,
@@ -85,6 +86,7 @@ export function BookingsPage({
     <div className="space-y-5">
       {selectedRequests.map((req) => {
         const steps = buildBookingSteps(req);
+        const canReportEventDayStatus = canReportSupplierEventDayStatus(req);
 
         return (
           <Card key={req.id}>
@@ -158,14 +160,19 @@ export function BookingsPage({
               {/* Step 3 — event day */}
               <div className="rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-sm font-bold text-foreground">3. Event day status</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Tap to update your onsite status for PMCM verification.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">After PMCM selects this booking, confirm your assignment and readiness above before reporting your onsite status.</p>
+                {req.eventDayStatus === "late" ? (
+                  <p role="status" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-800 dark:text-amber-200">
+                    Late arrival — your planned ingress time has passed. Confirm your assignment and readiness above before reporting below.
+                  </p>
+                ) : null}
                 <label className="mt-3 grid gap-1.5 text-sm font-bold text-foreground">
                   Status note
                   <Input value={statusNotes[req.id] ?? req.eventDayNotes ?? ""} onChange={(e) => onStatusNoteChange(req.id, e.target.value)} className="h-10 rounded-xl" placeholder="Optional note for PMCM" />
                 </label>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
                   {EVENT_STATUS_ACTIONS.map(({ status, label, helper }) => (
-                    <button key={status} type="button" disabled={busy === `${req.id}:${status}`} onClick={() => onUpdateStatus(req, status)}
+                    <button key={status} type="button" disabled={!canReportEventDayStatus || busy === `${req.id}:${status}`} onClick={() => onUpdateStatus(req, status)}
                       className={`flex h-20 w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 font-bold transition ${req.eventDayStatus === status ? "border-(--prism-signal) bg-(--prism-signal) text-white" : "border-border bg-card text-foreground hover:border-(--prism-signal)/40 hover:bg-muted/40"}`}>
                       <Truck className="size-5" />
                       <span className="text-sm">{label}</span>
