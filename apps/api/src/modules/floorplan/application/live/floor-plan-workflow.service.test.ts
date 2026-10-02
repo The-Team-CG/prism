@@ -4,6 +4,7 @@ import { WorkflowCommandService } from '@prism/kernel/event-core';
 
 function createService() {
   const state = {
+    ocularVisitStatus: 'completed' as string | null,
     events: [
       {
         id: 'evt_sample',
@@ -30,6 +31,9 @@ function createService() {
         Object.assign(event, data);
         return event;
       }),
+    },
+    opsOcularVisitRequest: {
+      findUnique: vi.fn(async () => state.ocularVisitStatus === null ? null : { status: state.ocularVisitStatus }),
     },
     floorPlan: {
       create: vi.fn(async ({ data }) => {
@@ -85,6 +89,66 @@ function createService() {
 }
 
 describe('FloorPlanWorkflowService', () => {
+  it('blocksOfficialDraftWithoutOcularVisit', async () => {
+    const { service, state } = createService();
+    state.ocularVisitStatus = null;
+
+    await expect(service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'Official Layout', sourceType: 'blank' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
+    )).rejects.toThrow('Official floor plan requires a completed or waived ocular visit');
+    expect(state.floorPlans).toHaveLength(0);
+  });
+
+  it('blocksOfficialDraftForUnknownOcularState', async () => {
+    const { service, state } = createService();
+    state.ocularVisitStatus = 'unexpected';
+
+    await expect(service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'Official Layout', sourceType: 'blank' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
+    )).rejects.toThrow('Official floor plan requires a completed or waived ocular visit');
+    expect(state.floorPlans).toHaveLength(0);
+  });
+
+  it.each(['completed', 'waived'])('allowsOfficialDraftAfter%s', async (status) => {
+    const { service, state } = createService();
+    state.ocularVisitStatus = status;
+
+    const draft = await service.createFloorPlanDraft(
+      'evt_sample',
+      { name: 'Official Layout', sourceType: 'blank' },
+      { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
+    );
+
+    expect(draft.status).toBe('pmcm_draft');
+    expect(state.floorPlanDrafts).toHaveLength(1);
+  });
+
+  it('leavesClientPreferenceUngated', async () => {
+    const { service, state, prisma } = createService();
+    state.ocularVisitStatus = null;
+    state.events[0].clientPortalStatus = 'unlocked';
+
+    await service.createFloorPlanPreference(
+      'evt_sample',
+      {
+        name: 'Client Preference',
+        seatingStyle: 'banquet',
+        stagePreference: 'center',
+        flowNotes: 'Please keep registration near entrance.',
+        guestCount: 180,
+        constraints: [],
+      },
+      { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
+    );
+
+    expect(state.floorPlanDrafts).toHaveLength(1);
+    expect(prisma.opsOcularVisitRequest.findUnique).not.toHaveBeenCalled();
+  });
+
   it('creates PMCM official floorplan drafts with canvas object rows intact', async () => {
     const { service, state, auditWriter } = createService();
 
