@@ -28,6 +28,7 @@ function renderDesk(overrides: Record<string, unknown> = {}) {
     roleRequirements: [],
     busy: false,
     onAssign: vi.fn(async () => {}),
+    onLoadSuggestions: vi.fn(async () => []),
     onSaveCoverage: vi.fn(async () => true),
     onSendReminders: vi.fn(async () => ({ leadTimeDays: 7, reminders: [{ assignmentId: "assignment_2", status: "queued", reason: null }] })),
     onDesignateOperator: vi.fn(async () => true),
@@ -40,6 +41,87 @@ function renderDesk(overrides: Record<string, unknown> = {}) {
   render(<CoordinatorAssignmentDesk {...(props as unknown as ComponentProps<typeof CoordinatorAssignmentDesk>)} />);
   return props as typeof props & Record<string, ReturnType<typeof vi.fn>>;
 }
+
+describe("CoordinatorAssignmentDesk skill suggestions", () => {
+  it("loads all selected skills for the chosen role and shows the server match explanation", async () => {
+    const suggestion = {
+      id: "coord_3",
+      name: "Ana Reyes",
+      role: "Usher",
+      matchedSkills: ["registration"],
+      missingSkills: ["first aid"],
+      matchedSkillCount: 1,
+      requiredSkillCount: 2,
+    };
+    const onLoadSuggestions = vi.fn(async () => [suggestion]);
+    const skillfulCoordinators = coordinators.map((coordinator) =>
+      coordinator.id === "coord_3" || coordinator.id === "coord_4"
+        ? { ...coordinator, skillsTags: ["registration", "first aid"] }
+        : coordinator,
+    );
+    const props = renderDesk({ coordinators: skillfulCoordinators, onLoadSuggestions });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
+    fireEvent.click(screen.getByLabelText("registration"));
+    fireEvent.click(screen.getByLabelText("first aid"));
+    fireEvent.click(screen.getByRole("button", { name: "Find skill matches" }));
+
+    expect(await screen.findByText("Matched: registration")).toBeTruthy();
+    expect(screen.getByText("Missing: first aid")).toBeTruthy();
+    expect(onLoadSuggestions).toHaveBeenCalledWith("Usher", ["registration", "first aid"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign Ana Reyes" }));
+    expect(props.onAssign).toHaveBeenCalledWith(expect.objectContaining({ id: "coord_3" }), "Usher");
+  });
+
+  it("shows an empty state when no server candidates match the selected role", async () => {
+    renderDesk();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
+    fireEvent.click(screen.getByRole("button", { name: "Find skill matches" }));
+
+    expect(await screen.findByText("No coordinators match this role and skill selection.")).toBeTruthy();
+  });
+
+  it("keeps the desk usable and reports a failed suggestions request", async () => {
+    renderDesk({ onLoadSuggestions: vi.fn(async () => { throw new Error("Offline"); }) });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
+    fireEvent.click(screen.getByRole("button", { name: "Find skill matches" }));
+
+    expect(await screen.findByText("Could not load skill matches. Try again.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Find skill matches" }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("loads conflict alternatives from the API and assigns the returned candidate", async () => {
+    const suggestion = {
+      id: "coord_4",
+      name: "Riley Tan",
+      role: "Usher",
+      matchedSkills: ["guest flow"],
+      missingSkills: [],
+      matchedSkillCount: 1,
+      requiredSkillCount: 1,
+    };
+    const onLoadSuggestions = vi.fn(async () => [suggestion]);
+    const props = renderDesk({
+      event: { id: "evt_1", eventDate: "2026-10-05" },
+      onLoadSuggestions,
+    });
+
+    await waitFor(() => expect(props.onLoadOperator).toHaveBeenCalled());
+    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
+    fireEvent.click(screen.getByLabelText("Available only"));
+    fireEvent.click(screen.getByRole("button", { name: "Review conflict" }));
+
+    expect(await screen.findByText("1 of 1 required skills matched")).toBeTruthy();
+    expect(screen.getByText("Matched: guest flow")).toBeTruthy();
+    expect(screen.getByText("Missing: None")).toBeTruthy();
+    expect(onLoadSuggestions).toHaveBeenCalledWith("Usher", []);
+    fireEvent.click(screen.getByRole("button", { name: "Assign Riley Tan" }));
+    expect(props.onAssign).toHaveBeenCalledWith({ id: "coord_4", name: "Riley Tan" }, "Usher");
+  });
+});
 
 const availabilityEntry = {
   id: "availability_1",
@@ -198,12 +280,29 @@ describe("CoordinatorAssignmentDesk coverage targets", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Edit target" }));
 
-    expect((screen.getByLabelText("Role") as HTMLInputElement).value).toBe("Usher");
+    expect((screen.getByLabelText("Role") as HTMLSelectElement).value).toBe("Usher");
     expect((screen.getByLabelText("Required coordinators") as HTMLInputElement).value).toBe("3");
     fireEvent.change(screen.getByLabelText("Required coordinators"), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: "Save target" }));
 
     await waitFor(() => expect(props.onSaveCoverage).toHaveBeenCalledWith({ role: "Usher", required: 4, requiredSkills: ["registration"] }));
+  });
+
+  it("requires mapping an unknown historical role to the catalog before saving", async () => {
+    const historicalTarget = { ...usherTarget, role: "Legacy Floor Lead" };
+    const props = renderDesk({ roleRequirements: [historicalTarget] });
+
+    await waitFor(() => expect(props.onLoadOperator).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Edit target" }));
+
+    expect(screen.getByText(/Legacy Floor Lead.*historical role/).textContent).toContain("Legacy Floor Lead");
+    expect((screen.getByLabelText("Role") as HTMLSelectElement).value).toBe("");
+    expect((screen.getByRole("button", { name: "Save target" }) as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "Floor Director" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save target" }));
+    await waitFor(() => expect(props.onSaveCoverage).toHaveBeenCalledWith({ role: "Floor Director", mapFromRole: "Legacy Floor Lead", required: 3, requiredSkills: ["registration"] }));
+    expect(await screen.findByText("Coverage target mapped from Legacy Floor Lead to Floor Director.")).toBeTruthy();
   });
 
   it("explains a rejected target instead of sending it", async () => {

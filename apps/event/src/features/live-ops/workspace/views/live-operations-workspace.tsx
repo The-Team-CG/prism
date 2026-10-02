@@ -1,9 +1,11 @@
 import type {
+  CoordinatorRole,
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   EscalateLiveOpsInput,
   EscalateEventDayTaskInput,
   PrismCoordinator,
+  PrismCoordinatorSuggestion,
   PrismEvent,
   PrismEventDayStatusFeed,
   PrismLiveOps,
@@ -32,6 +34,7 @@ export function LiveOperationsWorkspace({
   onEscalateIssue,
   onUpdateCoordinatorAttendance,
   onReplaceCoordinator,
+  onLoadCoordinatorSuggestions,
   onVerifySupplierStatus,
   onDecideTaskReassignment,
 }: {
@@ -49,6 +52,7 @@ export function LiveOperationsWorkspace({
   onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
   onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
   onReplaceCoordinator: (assignmentId: string, input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadCoordinatorSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
   onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
@@ -76,6 +80,7 @@ export function LiveOperationsWorkspace({
           onEscalateIssue={onEscalateIssue}
           onUpdateCoordinatorAttendance={onUpdateCoordinatorAttendance}
           onReplaceCoordinator={onReplaceCoordinator}
+          onLoadCoordinatorSuggestions={onLoadCoordinatorSuggestions}
           onVerifySupplierStatus={onVerifySupplierStatus}
           onDecideTaskReassignment={onDecideTaskReassignment}
         />

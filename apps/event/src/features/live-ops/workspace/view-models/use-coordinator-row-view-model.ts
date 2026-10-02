@@ -5,6 +5,7 @@ import type {
   CoordinatorRole,
   PrismCoordinator,
   PrismCoordinatorAssignment,
+  PrismCoordinatorSuggestion,
   ReplaceCoordinatorAssignmentInput,
 } from "@prism/types";
 
@@ -13,6 +14,7 @@ type CoordinatorRowViewModelProps = {
   coordinators: PrismCoordinator[];
   busy: boolean;
   onReplace: (input: ReplaceCoordinatorAssignmentInput) => Promise<void>;
+  onLoadSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
 };
 
 export function useCoordinatorRowViewModel({
@@ -20,12 +22,15 @@ export function useCoordinatorRowViewModel({
   coordinators,
   busy,
   onReplace,
+  onLoadSuggestions,
 }: CoordinatorRowViewModelProps) {
   const [replacementCoordinatorId, setReplacementCoordinatorId] = useState("");
   const [replacementRole, setReplacementRoleState] = useState<CoordinatorRole | "">(
     canonicalCoordinatorRole(assignment.role) ?? "",
   );
   const [replacementReason, setReplacementReason] = useState("");
+  const [replacementSuggestions, setReplacementSuggestions] = useState<PrismCoordinatorSuggestion[]>([]);
+  const [suggestionStatus, setSuggestionStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
 
   const attendanceStatus = assignment.attendanceStatus ?? "pending";
   const eligibleCoordinators = useMemo(
@@ -48,6 +53,26 @@ export function useCoordinatorRowViewModel({
     }
   }
 
+  async function findReplacementSuggestions() {
+    const role = canonicalCoordinatorRole(replacementRole);
+    if (!role) return;
+    setSuggestionStatus("loading");
+    setReplacementSuggestions([]);
+    try {
+      const suggestions = await onLoadSuggestions(role, []);
+      setReplacementSuggestions(suggestions);
+      setSuggestionStatus(suggestions.length > 0 ? "loaded" : "empty");
+    } catch {
+      setSuggestionStatus("error");
+    }
+  }
+
+  function setReplacementRole(value: string) {
+    setReplacementRoleState(canonicalCoordinatorRole(value) ?? "");
+    setReplacementSuggestions([]);
+    setSuggestionStatus("idle");
+  }
+
   async function replace() {
     const role = canonicalCoordinatorRole(replacementRole);
     if (!replacementCoordinatorId || !replacementReason.trim() || !role || !replacementRoleOptions.includes(role)) return;
@@ -66,10 +91,13 @@ export function useCoordinatorRowViewModel({
     replacementCoordinatorId,
     replacementRole,
     replacementRoleOptions,
+    replacementSuggestions,
+    suggestionStatus,
     canReplace: Boolean(replacementCoordinatorId && replacementReason.trim() && replacementRole && replacementRoleOptions.includes(replacementRole)),
     replacementReason,
     selectReplacementCoordinator,
-    setReplacementRole: (value: string) => setReplacementRoleState(canonicalCoordinatorRole(value) ?? ""),
+    setReplacementRole,
+    findReplacementSuggestions,
     setReplacementReason,
     replace,
     status: busy ? ("loading" as const) : ("idle" as const),

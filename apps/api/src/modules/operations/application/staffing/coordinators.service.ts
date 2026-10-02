@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, Prisma } from '@prisma/client';
 import type { CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
@@ -230,6 +230,35 @@ export class CoordinatorsService {
   ) {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator coverage');
     await this.requireEvent(eventId);
+    if (input.mapFromRole) {
+      const mapFromRole = input.mapFromRole;
+      return this.prisma.$transaction(async (transaction) => {
+        const existingLegacyTarget = await transaction.opsEventCoverageRequirement.findUnique({
+          where: { eventId_role: { eventId, role: mapFromRole } },
+        });
+        if (!existingLegacyTarget) {
+          throw new NotFoundException('Historical coordinator coverage target not found');
+        }
+
+        const existingCatalogTarget = await transaction.opsEventCoverageRequirement.findUnique({
+          where: { eventId_role: { eventId, role: input.role } },
+        });
+        if (existingCatalogTarget) {
+          throw new ConflictException(`A coverage target for ${input.role} already exists; edit that target instead`);
+        }
+
+        return transaction.opsEventCoverageRequirement.update({
+          where: { id: existingLegacyTarget.id },
+          data: {
+            role: input.role,
+            required: input.required,
+            requiredSkills: input.requiredSkills,
+            updatedBy: actor.name,
+          },
+        });
+      });
+    }
+
     return this.prisma.opsEventCoverageRequirement.upsert({
       where: { eventId_role: { eventId, role: input.role } },
       create: {

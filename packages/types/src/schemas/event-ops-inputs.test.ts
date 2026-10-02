@@ -65,6 +65,8 @@ describe("coordinator role contracts", () => {
     expect(coordinatorRoleSchema.safeParse("Operations Hero").success).toBe(false);
     expect(createCoordinatorAssignmentSchema.safeParse({ coordinatorId: "coord_1", role: "Operations Hero" }).success).toBe(false);
     expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Operations Hero", required: 1 }).success).toBe(false);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", mapFromRole: "Volunteer Lead", required: 1 }).success).toBe(true);
+    expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", mapFromRole: "Usher", required: 1 }).success).toBe(false);
     expect(replaceCoordinatorAssignmentSchema.safeParse({ replacementCoordinatorId: "coord_2", replacementRole: "Operations Hero", reason: "Changed assignment" }).success).toBe(false);
   });
 
