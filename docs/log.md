@@ -2,7 +2,7 @@
 
 ## 2026-10-03
 
-- **Corrected:** Historical coordinator event access now stays read-only in portal controls and API mutation authorization while preserving scoped reads and switching back to current events. The ledger records the boundary and regression evidence.
+- **Corrected:** Historical coordinator event access now stays read-only in portal controls and API mutation authorization while preserving scoped reads and switching back to current events. The ledger records the boundary and regression evidence, including registration verification rechecking archive status under the event lock.
 
 - **Promoted:** Approved coordinator role, advisory skill-matching, manual reassignment, timed follow-up and registration-scope decisions into the canonical feature ledger with PR #105–#121 traceability and scoped behavior evidence. Broader family states remain partial.
 - **Retired:** Removed the completed staffing design and implementation checklist; Git history retains them. The postponement panel is explicitly recorded as retrospective evidence, with interactive handling still open.
