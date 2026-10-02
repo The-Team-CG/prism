@@ -184,6 +184,11 @@ models. `platform-ops` remains a bounded context because its policies and
 persistence are product-facing; it may be split later only after an explicit
 ownership/deployment decision.
 
+`AppModule` is also the API composition root for routes that require multiple
+context ports. Event insight generation reads coordinator facts through the
+operations reader port and delegates persistence to the event-lifecycle
+closure command; `modules/read-models` remains read-only.
+
 ### Kernel and local fixtures
 
 ```text

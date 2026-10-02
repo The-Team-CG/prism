@@ -16,11 +16,13 @@ import { OpsRegistrationPlatformController } from './api/guest/registration-plat
 import { WalkInPolicyController } from './api/guest/walk-in-policy.controller';
 import { STAFFING_COMMANDS, STAFFING_READER } from './contracts/staffing-ops.tokens';
 import { COORDINATOR_RELIABILITY_WRITER } from './contracts/coordinator-reliability-writer.token';
+import { COORDINATOR_INSIGHT_FACTS_READER } from './contracts/coordinator-insight-facts-reader.port';
 import { GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './contracts/guest-ops.tokens';
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
 import { CoordinatorAssignmentCommandService } from './application/staffing/coordinator-assignment-command.service';
 import { CoordinatorReliabilityNoteWriterService } from './application/staffing/coordinator-reliability-note-writer.service';
+import { CoordinatorInsightFactsReaderService } from './application/staffing/coordinator-insight-facts-reader.service';
 import { CoordinatorSuggestionsService } from './application/staffing/coordinator-suggestions.service';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
@@ -49,6 +51,7 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
     CoordinatorReliabilityNoteWriterService,
+    CoordinatorInsightFactsReaderService,
     CoordinatorSuggestionsService,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
@@ -56,11 +59,12 @@ import { WalkInPolicyService } from './application/guest/walk-in-policy.service'
     WalkInPolicyService,
     { provide: STAFFING_COMMANDS, useExisting: CoordinatorAssignmentCommandService },
     { provide: COORDINATOR_RELIABILITY_WRITER, useExisting: CoordinatorReliabilityNoteWriterService },
+    { provide: COORDINATOR_INSIGHT_FACTS_READER, useExisting: CoordinatorInsightFactsReaderService },
     { provide: STAFFING_READER, useExisting: CoordinatorsService },
     { provide: GUEST_COMMANDS, useExisting: GuestWorkflowService },
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
     { provide: REGISTRATION_PLATFORM_READER, useExisting: RegistrationPlatformService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
+  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER],
 })
 export class OperationsModule {}
