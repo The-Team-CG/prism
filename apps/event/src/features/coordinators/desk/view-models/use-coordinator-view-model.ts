@@ -451,7 +451,7 @@ export function useCoordinatorViewModel({
             ? "ready"
             : "pending",
     activeSection,
-    registrationRole: isRegistrationCoordinatorRole(assignment?.role),
+    registrationRole: isCoordinatorAssignmentActive(assignment ?? {}) && isRegistrationCoordinatorRole(assignment?.role),
     acknowledge,
     decline: (reason?: string) => acknowledge("declined", reason),
     withdraw,

@@ -16,6 +16,13 @@ export const createGuestCheckInSchema = privacyConsentSchema.extend({
 });
 export type CreateGuestCheckInInput = z.infer<typeof createGuestCheckInSchema>;
 
+/** Event-scoped registration-staff walk-in input. The server fixes walk-in and verification state. */
+export const coordinatorWalkInCheckInSchema = z.object({
+  guestName: nonEmptyStringSchema,
+  privacyConsentAccepted: z.literal(true),
+});
+export type CoordinatorWalkInCheckInInput = z.infer<typeof coordinatorWalkInCheckInSchema>;
+
 export const createGuestFeedbackSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,
   rating: z.number().int().min(1).max(5),

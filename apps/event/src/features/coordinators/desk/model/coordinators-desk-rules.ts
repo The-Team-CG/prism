@@ -14,7 +14,7 @@ export function sameCoordinatorName(a: string, b: string): boolean {
 }
 
 export function isCoordinatorAssignmentActive(assignment: { status?: string }): boolean {
-  return assignment.status !== "cancelled" && assignment.status !== "replaced";
+  return assignment.status !== "cancelled" && assignment.status !== "replaced" && assignment.status !== "declined";
 }
 
 export function coordinatorSkillFilterOptions(
@@ -45,7 +45,7 @@ export function shouldPreserveRoleViewOnAcknowledgeFailure() {
 
 export function isRegistrationCoordinatorRole(role?: string | null): boolean {
   if (!role) return false;
-  return /registration/i.test(role);
+  return /\bregistration\b/i.test(role);
 }
 
 export function pickActiveAssignment<T extends { attendanceStatus?: string; status?: string }>(
