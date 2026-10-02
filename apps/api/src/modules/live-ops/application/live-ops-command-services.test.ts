@@ -1,7 +1,8 @@
 import 'reflect-metadata';
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
-import { LiveOperationsService } from './live-operations.service';
+import { CoordinatorLiveOpsCommandService } from './coordinator-live-ops-command.service';
+import { LiveOpsTaskIssueCommandService } from './live-ops-task-issue-command.service';
 import { mapUrgentIssue } from './live-ops.mappers';
 
 type WorkflowCommandInput = {
@@ -10,19 +11,20 @@ type WorkflowCommandInput = {
   sideEffects?: (result: unknown) => Promise<void> | void;
 };
 
-describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
-  const mockWorkflowCommandService = {
-    execute: vi.fn(async (definition: WorkflowCommandInput) => {
-      await definition.validateState?.();
-      const result = await definition.write();
-      await definition.sideEffects?.(result);
-      return result;
-    }),
-  };
+const mockWorkflowCommandService = {
+  execute: vi.fn(async (definition: WorkflowCommandInput) => {
+    await definition.validateState?.();
+    const result = await definition.write();
+    await definition.sideEffects?.(result);
+    return result;
+  }),
+};
 
-  const mockNotificationOutboxWriter = {
-    write: vi.fn(async () => undefined),
-  };
+const mockNotificationOutboxWriter = {
+  write: vi.fn(async () => undefined),
+};
+
+describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security', () => {
 
   it('enforces openedBy to verified actor.name and persists affectedArea', async () => {
     let createdRecord: Record<string, unknown> | null = null;
@@ -43,11 +45,11 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       write: vi.fn(async () => undefined),
     };
 
-    const service = new LiveOperationsService(
-      mockPrisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
-      mockAuditWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
-      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
-      mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
+    const service = new LiveOpsTaskIssueCommandService(
+      mockPrisma as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[0],
+      mockAuditWriter as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[1],
+      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[2],
+      mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[3],
     );
 
     const actor = {
@@ -131,11 +133,11 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       write: vi.fn(async () => undefined),
     };
 
-    const service = new LiveOperationsService(
-      mockPrisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
-      mockAuditWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
-      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
-      mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
+    const service = new LiveOpsTaskIssueCommandService(
+      mockPrisma as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[0],
+      mockAuditWriter as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[1],
+      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[2],
+      mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOpsTaskIssueCommandService>[3],
     );
 
     const actor = {
@@ -171,7 +173,7 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       opsEventTaskReassignmentRequest: { create: vi.fn(async () => request) },
     };
     const auditWriter = { write: vi.fn(async () => undefined) };
-    const service = new LiveOperationsService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
+    const service = new LiveOpsTaskIssueCommandService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
 
     const result = await service.requestTaskReassignment('evt_001', 'task_1', {
       toOwnerRole: 'Floor Director', toOwnerName: 'Jamie', reason: 'Registration queue is clear',
@@ -203,7 +205,7 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
     };
     const auditWriter = { write: vi.fn(async () => undefined) };
-    const service = new LiveOperationsService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
+    const service = new LiveOpsTaskIssueCommandService(mockPrisma as never, auditWriter as never, mockNotificationOutboxWriter as never, mockWorkflowCommandService as never);
 
     const result = await service.decideTaskReassignment('evt_001', 'reassignment_1', { decision: 'approved', reason: 'Approved' }, { name: 'PMCM', role: 'pmcm-admin' });
 
@@ -219,7 +221,7 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       reason: 'Registration queue is clear', status: 'pending', requestedAt: new Date('2026-09-08T03:00:00.000Z'),
       autoApproveAt: new Date('2099-09-08T03:02:00.000Z'), decidedAt: null, decidedBy: null, decisionReason: null,
     };
-    const service = new LiveOperationsService(
+    const service = new LiveOpsTaskIssueCommandService(
       { opsEventTaskReassignmentRequest: { findFirst: vi.fn(async () => request) } } as never,
       {} as never,
       mockNotificationOutboxWriter as never,
@@ -244,7 +246,7 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       },
       opsEventDayTask: { update: vi.fn(async () => undefined) },
     };
-    const service = new LiveOperationsService({
+    const service = new LiveOpsTaskIssueCommandService({
       opsUser: { findFirst: vi.fn(async () => ({ email: 'alex@example.test' })) },
       opsEventTaskReassignmentRequest: { findFirst: vi.fn(async () => request) },
       $transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
@@ -253,7 +255,9 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
     expect(result.status).toBe('rejected');
     expect(tx.opsEventDayTask.update).not.toHaveBeenCalled();
   });
+});
 
+describe('CoordinatorLiveOpsCommandService', () => {
   it('uses the verified actor for coordinator attendance attribution', async () => {
     const existing = {
       id: 'coord_asg_test_1',
@@ -278,11 +282,11 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
     const mockAuditWriter = {
       write: vi.fn(async () => undefined),
     };
-    const service = new LiveOperationsService(
-      mockPrisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
-      mockAuditWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[1],
-      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof LiveOperationsService>[2],
-      mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
+    const service = new CoordinatorLiveOpsCommandService(
+      mockPrisma as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[0],
+      mockAuditWriter as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[1],
+      mockNotificationOutboxWriter as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[2],
+      mockWorkflowCommandService as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[3],
     );
 
     const actor = {
@@ -329,11 +333,11 @@ describe('LiveOperationsService - Urgent Issues & Attribution Security', () => {
       opsCoordinator: { findUnique: vi.fn(async () => ({ id: 'coord_new', name: 'New', active: true, roleTags: ['Registration Staff'] })) },
       $transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx)),
     };
-    const service = new LiveOperationsService(
-      prisma as unknown as ConstructorParameters<typeof LiveOperationsService>[0],
-      {} as ConstructorParameters<typeof LiveOperationsService>[1],
-      {} as ConstructorParameters<typeof LiveOperationsService>[2],
-      mockWorkflowCommandService as unknown as ConstructorParameters<typeof LiveOperationsService>[3],
+    const service = new CoordinatorLiveOpsCommandService(
+      prisma as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[0],
+      {} as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[1],
+      {} as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[2],
+      mockWorkflowCommandService as unknown as ConstructorParameters<typeof CoordinatorLiveOpsCommandService>[3],
     );
 
     await expect(service.replaceCoordinatorAssignment(event.id, current.id, {

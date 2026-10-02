@@ -114,8 +114,10 @@ function createService(assignment: unknown) {
       createdAt: new Date('2026-09-02T00:00:00.000Z'),
       updatedAt: new Date('2026-09-02T00:00:00.000Z'),
     })),
+  };
+  const coordinatorCommandService = {
     updateCoordinatorAttendance: vi.fn(async () => coordinatorAssignmentRow()),
-    computeSlaStatus: vi.fn(() => 'on_track'),
+    replaceCoordinatorAssignment: vi.fn(),
   };
   const staffingReader = {
     findAssignmentForEventActor: vi.fn(async () => assignment),
@@ -126,10 +128,11 @@ function createService(assignment: unknown) {
     prisma as never,
     eventAccessPolicyService as never,
     liveOperationsService as never,
+    coordinatorCommandService as never,
     staffingReader as never,
     supplierCommands as never,
   );
-  return { service, liveOperationsService, eventAccessPolicyService, staffingReader, prisma };
+  return { service, liveOperationsService, coordinatorCommandService, eventAccessPolicyService, staffingReader, prisma };
 }
 
 describe('EventLiveOpsCommandService event scoping', () => {
@@ -296,7 +299,7 @@ describe('EventLiveOpsCommandService event scoping', () => {
 
 describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
   it('rejects a coordinator marking a different assignment on the same event', async () => {
-    const { service, liveOperationsService, eventAccessPolicyService, staffingReader } = createService(
+    const { service, coordinatorCommandService, eventAccessPolicyService, staffingReader } = createService(
       coordinatorAssignmentRow(),
     );
 
@@ -313,7 +316,7 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
       'evt_sample_ayala',
       expect.objectContaining({ coordinatorId: 'coord_marco', email: 'marco@pmcm.test' }),
     );
-    expect(liveOperationsService.updateCoordinatorAttendance).not.toHaveBeenCalled();
+    expect(coordinatorCommandService.updateCoordinatorAttendance).not.toHaveBeenCalled();
     expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
       expect.objectContaining({ role: OpsUserRole.Coordinator }),
       'coordinator attendance',
@@ -322,13 +325,13 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
   });
 
   it('allows a coordinator marking their own assignment', async () => {
-    const { service, liveOperationsService } = createService(coordinatorAssignmentRow());
+    const { service, coordinatorCommandService } = createService(coordinatorAssignmentRow());
     const input = { status: 'present' };
     const actor = coordinatorActor();
 
     await service.updateCoordinatorAttendance('evt_sample_ayala', 'coord_asg_ayala_marco', input, actor);
 
-    expect(liveOperationsService.updateCoordinatorAttendance).toHaveBeenCalledWith(
+    expect(coordinatorCommandService.updateCoordinatorAttendance).toHaveBeenCalledWith(
       'evt_sample_ayala',
       'coord_asg_ayala_marco',
       input,
@@ -344,13 +347,13 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
   // depend on the gate continuing to return null for non-Coordinators — not because a
   // unit test distinguishes the two.
   it('allows a PmcmAdmin to mark any coordinator assignment', async () => {
-    const { service, liveOperationsService } = createService(null);
+    const { service, coordinatorCommandService } = createService(null);
     const input = { status: 'absent' };
     const actor = pmcmAdminActor();
 
     await service.updateCoordinatorAttendance('evt_sample_ayala', 'coord_asg_ayala_rhea', input, actor);
 
-    expect(liveOperationsService.updateCoordinatorAttendance).toHaveBeenCalledWith(
+    expect(coordinatorCommandService.updateCoordinatorAttendance).toHaveBeenCalledWith(
       'evt_sample_ayala',
       'coord_asg_ayala_rhea',
       input,
@@ -359,7 +362,7 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
   });
 
   it('allows the designated Event Day System Operator to mark another assignment', async () => {
-    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
+    const { service, coordinatorCommandService, prisma } = createService(coordinatorAssignmentRow());
     prisma.opsEventOperatorDesignation.findFirst.mockResolvedValue({
       id: 'op_designation',
       eventId: 'evt_sample_ayala',
@@ -370,7 +373,7 @@ describe('EventLiveOpsCommandService coordinator attendance self-scope', () => {
 
     await service.updateCoordinatorAttendance('evt_sample_ayala', 'coord_asg_ayala_rhea', input, coordinatorActor());
 
-    expect(liveOperationsService.updateCoordinatorAttendance).toHaveBeenCalledWith(
+    expect(coordinatorCommandService.updateCoordinatorAttendance).toHaveBeenCalledWith(
       'evt_sample_ayala',
       'coord_asg_ayala_rhea',
       input,
