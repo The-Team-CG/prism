@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Added a shared coordinator role catalog and skill-filter query contract; coordinator task, replacement, coverage, and assignment selectors use the catalog, and assignment fallback normalizes legacy tags without persisting unknown roles. Existing conflict suggestions and task authorization normalize legacy role tags during rollout; tasks for unmapped historical roles use the canonical General Coordinator role and stay in the coordinator's named queue for creation and updates. Legacy labels remain readable, verified issue ownership names are preserved without creating out-of-catalog queue labels, and PMCM issue routing labels remain flexible.
+- Added event-scoped coordinator suggestions that rank required-skill matches, explain matched and missing skills, filter date conflicts and availability, and supply alternatives for assignment conflicts.
 - Added the implementation plan for the coordinator role catalog and skill-aware staffing suggestions.
 - Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
 - Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.
