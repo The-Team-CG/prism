@@ -39,7 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - Promoted approved coordinator staffing and registration decisions into the feature ledger with scoped PR evidence, and retired the completed staffing working documents; broader feature families remain partial.
-- Linked open PRs #105-121 (excluding merged #107) as native GitHub stack #122 and reviewed the pinned changes against the feature ledger; recorded failing CI complexity gates, staging integration conflicts, and missing staffing decision/evidence updates without promoting feature-family completion.
 - Isolated registration eligibility checks from the event-locked check-in transaction and PMCM roster rendering; verified walk-in policy and verification requirements remain enforced.
 - Extracted schedule transition validation and update data from the locked transaction, and separated schedule authoring from handoff/report rendering.
 - Separated postponement request status from recorded staffing impact rendering, retaining snapshot labels and manual PMCM follow-up.
