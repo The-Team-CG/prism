@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Simplified coordinator task scope checks and task form projections while preserving canonical-role, historical-role, owner, and operator authorization behavior.
+- Corrected the client event-day migration metadata to declare its ALTER TABLE as a schema change with medium risk.
+- Updated floorplan workflow test actors with required IDs, restoring API typecheck.
+
 ### Added
 - Added PMCM and coordinator event-day forms for schedule days and segments, shift handoffs, and end-of-day reports; coordinator handoff/report history is event-scoped, only report authors can update prefilled reports, blank reports are rejected, schedule-segment transitions are validated by the API, and coordinator schedule writes remain limited to the designated operator.
 - Added a PMCM postponement impact panel that lists recorded coordinator booking or declared-availability conflicts, retains the last date snapshot while a new date is unconfirmed, and clears it when the decision releases assignments or cancels the event.
@@ -21,11 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added coordinator assignment, attendance, replacement, cancellation, and reliability-note evidence to PMCM event insights through a read-model composition boundary.
 - Added the implementation plan for the coordinator role catalog and skill-aware staffing suggestions.
 - Added the approved design for a shared coordinator role catalog and skill-aware staffing suggestions.
+- EP-10-S03: added the client ocular visit request, PMCM Admin scheduling/completion and audited waiver controls, transactional scheduling notification, and the official-floorplan completion/waiver gate. PA-59 remains open before In Review.
+- EP-10-S03 design: documented the client ocular request, PMCM task flow, proposed waiver, and PA-59 review gate.
+- EP-10-S02 Task 1: added the per-event client event-day visibility setting, default-off persistence, PMCM Admin-only update, audit evidence, and PMCM/client event projection.
+- EP-10-S02 Task 2: extended the client workspace with five ordered, source-backed milestones and progress status, scoped to each actor-visible event.
+- EP-10-S02 Task 3: added the PMCM Admin event-day visibility switch and the client’s five-milestone timeline with a gated generic event-day status.
+- Added a follow-up implementation plan for EP-10-S02 under docs/ethan, scoped to the workbook acceptance criteria and the current staging-based feature state.
+- EP-10-S01 client action center: removed the workspace-derived fallback; cards show due date or “Date pending”, status, and Open; the visible client home refreshes the existing read model every 30 seconds and on tab return, retaining last-good data on transient errors.
 - Documented repository boundaries and ownership for shared contracts, role-neutral floorplan mechanics, feature-owned portal data access, explicit consent evidence, and bounded PMCM inbox reads.
 - Pull request CI now runs the existing repository boundary scan and its behavior-oriented guard suite.
 
 ### Changed
+- Separated postponement request status from recorded staffing impact rendering, retaining snapshot labels and manual PMCM follow-up.
 - Full event decision history now requires a PMCM or system actor because records include private commercial and actor details.
+- Shared the live-workspace visibility predicate used by PMCM polling and event-day refresh, preserving selected-event and role checks.
+- Separated coordinator skill filters, suggestion results, and live attendance controls into focused view components with existing assignment and conflict behavior preserved.
 - Split shared Zod write contracts by API bounded context while keeping the existing event-ops schema exports available through their compatibility barrel.
 - Split shared shell navigation, sidebar and rail, mobile navigation, account-menu, and top-bar internals into focused modules while preserving the public exports and behavior.
 - Moved authentication history, lockout handling, and security-alert workflows out of the hash-chain audit writer while preserving authentication integrity posture, route authorization, and alert notifications.

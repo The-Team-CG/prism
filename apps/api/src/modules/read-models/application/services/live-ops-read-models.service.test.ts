@@ -33,6 +33,7 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     eventDate: new Date('2026-08-20T00:00:00.000Z'),
     status: 'planning',
     clientPortalStatus: 'unlocked',
+    clientEventDayViewEnabled: false,
     readiness: 'ready',
     archived: false,
     walkInPolicy: 'closed',

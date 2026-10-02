@@ -264,6 +264,7 @@ model OpsEvent {
   actualEndedBy         String?   @map("actual_ended_by")
   status                String    @default("planning")
   clientPortalStatus    String    @default("locked") @map("client_portal_status")
+  clientEventDayViewEnabled Boolean @default(false) @map("client_event_day_view_enabled")
   readiness             String    @default("Conforme pending")
   archived              Boolean   @default(false)
   archivedAt            DateTime? @map("archived_at")
@@ -340,10 +341,32 @@ model OpsEvent {
   freezeExceptions            OpsEventFreezeException[]
   addenda                     OpsAddendum[]
   addendumImpacts             OpsAddendumImpact[]
+  ocularVisitRequest          OpsOcularVisitRequest?
 
   @@index([inquiryId], map: "events_inquiry_id_idx")
   @@index([status, eventDate], map: "events_status_event_date_idx")
   @@map("events")
+  @@schema("event_core")
+}
+
+model OpsOcularVisitRequest {
+  id           String    @id
+  eventId      String    @unique(map: "ocular_visit_requests_event_id_key") @map("event_id")
+  status       String    @default("requested")
+  clientNote   String?   @map("client_note")
+  requestedAt  DateTime? @map("requested_at")
+  scheduledAt  DateTime? @map("scheduled_at")
+  completedAt  DateTime? @map("completed_at")
+  waiverReason String?   @map("waiver_reason")
+  waivedAt     DateTime? @map("waived_at")
+  waivedBy     String?   @map("waived_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([status, requestedAt], map: "ocular_visit_requests_status_requested_at_idx")
+  @@map("ocular_visit_requests")
   @@schema("event_core")
 }
 
