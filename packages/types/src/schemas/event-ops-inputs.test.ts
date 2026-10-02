@@ -46,6 +46,9 @@ import {
   importHeadcountSchema,
   submitBriefingSchema,
   uploadConformeSchema,
+  submitClientOcularVisitSchema,
+  scheduleOcularVisitSchema,
+  waiveOcularVisitSchema,
   parseContract,
   PrismContractError,
 } from "./index.js";
@@ -439,5 +442,24 @@ describe("event-ops write schemas", () => {
     }).success).toBe(false);
     expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", required: 2 }).success).toBe(true);
     expect(createCoordinatorCoverageRequirementSchema.safeParse({ role: "Floor Director", required: -1 }).success).toBe(false);
+  });
+
+  it("acceptsOptionalTrimmedClientOcularVisitNote", () => {
+    expect(submitClientOcularVisitSchema.parse({ clientNote: "  Please coordinate with security.  " })).toEqual({
+      clientNote: "Please coordinate with security.",
+    });
+    expect(submitClientOcularVisitSchema.parse({})).toEqual({});
+  });
+
+  it("requiresOffsetDatetimeForOcularVisitSchedule", () => {
+    expect(scheduleOcularVisitSchema.safeParse({ scheduledAt: "2026-10-14T09:00:00+08:00" }).success).toBe(true);
+    expect(scheduleOcularVisitSchema.safeParse({ scheduledAt: "2026-10-14T09:00:00" }).success).toBe(false);
+  });
+
+  it("rejectsBlankOcularVisitWaiverReason", () => {
+    expect(waiveOcularVisitSchema.safeParse({ reason: "  " }).success).toBe(false);
+    expect(waiveOcularVisitSchema.parse({ reason: "  Venue access is unavailable.  " })).toEqual({
+      reason: "Venue access is unavailable.",
+    });
   });
 });
