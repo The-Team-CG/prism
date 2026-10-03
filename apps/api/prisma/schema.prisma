@@ -723,12 +723,13 @@ model OpsSupplierQuote {
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
 
   event       OpsEvent             @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  request     OpsSupplierQuoteRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  request     OpsSupplierQuoteRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict, map: "quotes_request_id_fkey")
   supplier    OpsSupplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   categoryRef OpsSupplierCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([eventId, status], map: "quotes_event_id_status_idx")
   @@index([supplierId], map: "quotes_supplier_id_idx")
+  @@index([requestId], map: "quotes_request_id_idx")
   @@index([categoryId], map: "quotes_category_id_idx")
   @@map("quotes")
   @@schema("supplier_ops")
