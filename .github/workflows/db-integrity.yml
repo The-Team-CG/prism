@@ -1,0 +1,37 @@
+name: Database integrity
+on:
+  pull_request:
+    branches: [staging, prod]
+  push:
+    branches: [staging, prod]
+permissions:
+  contents: read
+jobs:
+  postgres-migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: prism_ci
+          POSTGRES_PASSWORD: prism_ci
+          POSTGRES_DB: postgres
+        ports:
+          - 55437:5432
+        options: >-
+          --health-cmd "pg_isready -U prism_ci -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DB_INTEGRITY_ADMIN_URL: postgresql://prism_ci:prism_ci@127.0.0.1:55437/postgres
+      DB_SSL: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Replay migrations and verify real database behavior
+        run: npm --workspace prism-api run db:integrity:ci

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Recorded the approved 91-model ownership manifest, one-schema-per-domain and same-domain-only foreign-key policy, and shared DDD terms in canonical architecture references.
+- Added a PostgreSQL 16 disposable migration replay and schema-equivalence gate that rejects missing constraints, unapproved SQL objects, and skipped database acceptance tests.
 - Added the shared prism/types and prism/api-client test suites to the reusable CI test command.
 - Added shared database-connection policy tests for URL precedence, strict hosted TLS, custom CA handling, local loopback, conflicting settings, and credential-safe diagnostics.
 - Added a coordinator registration desk for assigned registration roles, with a minimized roster projection, guest verification and check-in actions, and a walk-in roster flow that requires explicit privacy consent, obeys PMCM policy, and exposes new arrivals for PMCM verification before check-in.
