@@ -21,7 +21,7 @@
         "test:db:schema-equivalence": "node --test scripts/db-schema-equivalence.test.mjs",
         "db:verify:schema": "node scripts/db-schema-equivalence.mjs",
         "db:integrity:ci": "node scripts/run-db-integrity-ci.mjs",
-        "test:db:integration": "vitest run test/integration",
+        "test:db:integration": "node scripts/run-db-behavior-tests.mjs",
         "db:preflight:quote-request-fk": "node --env-file=.env scripts/db-preflight-quote-request-fk.mjs",
         "db:doctor": "node --env-file=.env scripts/db-doctor.mjs",
         "db:doctor:runtime": "node --env-file=.env scripts/db-doctor.mjs --mode=runtime",
