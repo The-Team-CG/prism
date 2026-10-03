@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed the archived coordinator event regression test to wait for refreshed role data before submitting after switching back to a current event.
 
 ### Fixed
+- Declared the existing GIN, composite event-date, and partial active-event indexes in Prisma so schema equivalence can catch unsupported drift.
 - Added a preflighted Commercial FK from submitted quotes to quote requests, with request deletion restricted while bid evidence exists.
 - Centralized PostgreSQL URL selection and TLS policy across the API, Prisma CLI config, and database admin scripts; hosted connections now verify certificates and non-TLS is restricted to loopback targets.
 - Registration verification rechecks archive status under the event lock, preserving historical roster reads while rejecting writes after archive.
