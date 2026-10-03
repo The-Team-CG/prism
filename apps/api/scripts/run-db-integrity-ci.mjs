@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -171,14 +172,106 @@ async function resetBehaviorDatabase(adminPool, template, target) {
   );
 }
 
-async function applyBaselineAndCurrent(connection, tempRoot, tempName) {
+async function seedUpgradeCheckpoint(connection) {
+  const suffix = randomUUID().replaceAll('-', '');
+  const fixture = {
+    inquiryId: 'prism_ci_upgrade_inquiry_' + suffix,
+    eventId: 'prism_ci_upgrade_event_' + suffix,
+    categoryId: 'prism_ci_upgrade_category_' + suffix,
+    supplierId: 'prism_ci_upgrade_supplier_' + suffix,
+    requestId: 'prism_ci_upgrade_request_' + suffix,
+    quoteId: 'prism_ci_upgrade_quote_' + suffix,
+  };
+  const pool = new Pool({
+    connectionString: connection.connectionString,
+    ssl: false,
+    connectionTimeoutMillis: 5_000,
+    max: 1,
+  });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      'INSERT INTO event_core.inquiries (id, client_name, email, event_name, event_date, client_type, normalized_email) '
+      + 'VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [fixture.inquiryId, 'Upgrade checkpoint client', suffix + '@upgrade.test', 'Upgrade checkpoint event', '2032-06-18', 'corporate', suffix + '@upgrade.test'],
+    );
+    await client.query(
+      'INSERT INTO event_core.events (id, inquiry_id, client_name, event_name, event_date) VALUES ($1, $2, $3, $4, $5)',
+      [fixture.eventId, fixture.inquiryId, 'Upgrade checkpoint client', 'Upgrade checkpoint event', '2032-06-18'],
+    );
+    await client.query(
+      'INSERT INTO supplier_ops.supplier_categories (id, slug, name) VALUES ($1, $2, $3)',
+      [fixture.categoryId, fixture.categoryId + '-slug', 'Upgrade checkpoint category'],
+    );
+    await client.query(
+      'INSERT INTO supplier_ops.suppliers (id, category_id, name, email) VALUES ($1, $2, $3, $4)',
+      [fixture.supplierId, fixture.categoryId, 'Upgrade checkpoint supplier', suffix + '@supplier.test'],
+    );
+    await client.query(
+      'INSERT INTO supplier_ops.quote_requests (id, event_id, supplier_id, category_id, supplier_name, category, access_token) '
+      + 'VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [fixture.requestId, fixture.eventId, fixture.supplierId, fixture.categoryId, 'Upgrade checkpoint supplier', 'Upgrade checkpoint category', fixture.requestId + '-token'],
+    );
+    await client.query(
+      'INSERT INTO supplier_ops.quotes (id, event_id, request_id, supplier_id, category_id, supplier_name, category, amount) '
+      + 'VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [fixture.quoteId, fixture.eventId, fixture.requestId, fixture.supplierId, fixture.categoryId, 'Upgrade checkpoint supplier', 'Upgrade checkpoint category', 12500],
+    );
+    await client.query('COMMIT');
+    return fixture;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+async function assertUpgradeFixturePreserved(connection, fixture) {
+  const pool = new Pool({
+    connectionString: connection.connectionString,
+    ssl: false,
+    connectionTimeoutMillis: 5_000,
+    max: 1,
+  });
+  try {
+    const { rows } = await pool.query(
+      'SELECT quote.id, quote.request_id, quote.amount, request.id AS found_request_id '
+      + 'FROM supplier_ops.quotes AS quote '
+      + 'JOIN supplier_ops.quote_requests AS request ON request.id = quote.request_id '
+      + 'WHERE quote.id = $1 AND quote.event_id = $2',
+      [fixture.quoteId, fixture.eventId],
+    );
+    assert.equal(rows.length, 1, 'Checkpoint quote/request evidence must survive the remaining migrations.');
+    assert.equal(rows[0].request_id, fixture.requestId);
+    assert.equal(rows[0].found_request_id, fixture.requestId);
+    assert.equal(rows[0].amount, 12500);
+
+    const constraints = await pool.query(
+      'SELECT convalidated, confdeltype FROM pg_constraint '
+      + 'WHERE conrelid = to_regclass($1) AND conname = $2 AND contype = \'f\'',
+      ['supplier_ops.quotes', 'quotes_request_id_fkey'],
+    );
+    assert.equal(constraints.rows.length, 1, 'The upgraded same-domain quote/request FK must exist.');
+    assert.equal(constraints.rows[0].convalidated, true);
+    assert.equal(constraints.rows[0].confdeltype, 'r', 'The upgraded FK must restrict deletion of referenced quote requests.');
+  } finally {
+    await pool.end();
+  }
+}
+
+async function applyBaselineAndCurrent(connection, tempRoot, tempName, afterBaseline) {
   const historicalPath = temporaryMigrationPath(
     tempRoot,
     tempName,
     (name) => name <= POLICY.upgradeBaselineMigration,
   );
   await runPrisma(connection, ['migrate', 'deploy'], historicalPath);
+  const checkpointResult = afterBaseline ? await afterBaseline() : undefined;
   await runPrisma(connection, ['migrate', 'deploy']);
+  return checkpointResult;
 }
 
 async function verifyExpectedFailure(connection, expectedCode, label, beforeCheck) {
@@ -238,8 +331,14 @@ async function main() {
     await verifySchema(fresh.prismaConnectionString);
 
     const upgraded = connectionForDatabase(admin.connectionString, 'prism_ci_upgraded');
-    await applyBaselineAndCurrent(upgraded, tempRoot, 'upgraded-checkpoint');
+    const upgradeFixture = await applyBaselineAndCurrent(
+      upgraded,
+      tempRoot,
+      'upgraded-checkpoint',
+      () => seedUpgradeCheckpoint(upgraded),
+    );
     await verifySchema(upgraded.prismaConnectionString);
+    await assertUpgradeFixturePreserved(upgraded, upgradeFixture);
 
     const p0Template = connectionForDatabase(admin.connectionString, 'prism_ci_p0_template');
     await applyBaselineAndCurrent(p0Template, tempRoot, 'p0-template-checkpoint');
@@ -346,7 +445,7 @@ async function main() {
 
     process.stdout.write(
       'PostgreSQL ' + POLICY.postgresMajor
-      + ' migration integrity passed: fresh and upgraded schemas match; '
+      + ' migration integrity passed: fresh replay and populated checkpoint upgrade match; '
       + behaviorFiles.length + ' isolated DB behavior suites (' + behaviorReport.numPassedTests + ' tests) pass; '
       + 'omitted FK and unexpected SQL object fail as expected.\n',
     );
